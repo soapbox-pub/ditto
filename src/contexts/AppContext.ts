@@ -91,6 +91,8 @@ export interface FeedSettings {
 }
 
 export interface AppConfig {
+  /** Enable Magic Mouse mode: cursor/finger emanates magical fire in the primary color */
+  magicMouse: boolean;
   /** Current theme */
   theme: Theme;
   /** Custom theme config (colors, fonts, background). Only used when theme === "custom". */

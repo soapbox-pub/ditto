@@ -1,5 +1,6 @@
 import { MapPin, Mountain, Brain, Package, Eye, EyeOff } from 'lucide-react';
 import { useState, useMemo } from 'react';
+import { ImageGallery } from '@/components/ImageGallery';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -110,16 +111,9 @@ export function GeocacheContent({ event }: { event: NostrEvent }) {
         </p>
       )}
 
-      {/* Image */}
+      {/* Images */}
       {images.length > 0 && (
-        <div className="mt-3 rounded-2xl overflow-hidden">
-          <img
-            src={images[0]}
-            alt={name ?? 'Geocache'}
-            className="w-full max-h-[300px] object-cover"
-            loading="lazy"
-          />
-        </div>
+        <ImageGallery images={images} />
       )}
 
       {/* Hint */}
