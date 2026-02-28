@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, type ReactNode } from 'react';
 import { type NostrEvent } from '@nostrify/nostrify';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
@@ -13,6 +13,7 @@ import { Lightbox } from '@/components/ImageGallery';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { buildEmojiMap, emojify, EmojifiedText } from '@/components/CustomEmoji';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
+import { COUNTRIES } from '@/lib/countries';
 import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 
@@ -74,6 +75,73 @@ function extractNaddrFromUrl(url: string): AddrCoords | null {
     // invalid naddr
   }
   return null;
+}
+
+/** Regex matching flag emoji: pairs of Regional Indicator Symbol letters (U+1F1E6–U+1F1FF). */
+const FLAG_EMOJI_REGEX = /([\u{1F1E6}-\u{1F1FF}]{2})/gu;
+
+/**
+ * Convert a flag emoji (pair of Regional Indicator Symbols) to an ISO 3166-1 alpha-2 code.
+ * Returns the code if it maps to a known country, otherwise null.
+ */
+function flagToCountryCode(flag: string): string | null {
+  const codePoints = [...flag];
+  if (codePoints.length !== 2) return null;
+  const a = codePoints[0].codePointAt(0)! - 0x1F1E6 + 65;
+  const b = codePoints[1].codePointAt(0)! - 0x1F1E6 + 65;
+  const code = String.fromCharCode(a) + String.fromCharCode(b);
+  return COUNTRIES[code] ? code : null;
+}
+
+/**
+ * Process an array of ReactNodes (from emojify), splitting any string nodes
+ * to wrap flag emojis in <Link> elements pointing to /i/iso3166:<CODE>.
+ */
+function linkifyFlags(nodes: ReactNode[]): ReactNode[] {
+  const result: ReactNode[] = [];
+  let keyIdx = 0;
+
+  for (const node of nodes) {
+    if (typeof node !== 'string') {
+      result.push(node);
+      continue;
+    }
+
+    let lastIndex = 0;
+    FLAG_EMOJI_REGEX.lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = FLAG_EMOJI_REGEX.exec(node)) !== null) {
+      const flag = match[1];
+      const code = flagToCountryCode(flag);
+      if (!code) continue;
+
+      if (match.index > lastIndex) {
+        result.push(node.substring(lastIndex, match.index));
+      }
+
+      result.push(
+        <Link
+          key={`flag-${keyIdx++}`}
+          to={`/i/iso3166:${code}`}
+          className="hover:opacity-70 transition-opacity"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {flag}
+        </Link>,
+      );
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < node.length) {
+      result.push(node.substring(lastIndex));
+    } else if (lastIndex === 0) {
+      result.push(node);
+    }
+  }
+
+  return result;
 }
 
 /** A parsed token from note content. */
@@ -330,7 +398,7 @@ export function NoteContent({
       {tokens.map((token, i) => {
         switch (token.type) {
           case 'text':
-            return <span key={i}>{emojify(token.value, emojiMap)}</span>;
+            return <span key={i}>{linkifyFlags(emojify(token.value, emojiMap))}</span>;
           case 'image-embed': {
             if (disableEmbeds) {
               // In preview contexts (e.g. triple-dot menu), replace image URLs
