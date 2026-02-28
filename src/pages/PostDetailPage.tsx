@@ -25,7 +25,7 @@ import { RenderResolvedEmoji, EmojifiedText } from '@/components/CustomEmoji';
 import { PollContent } from '@/components/PollContent';
 import { GeocacheContent } from '@/components/GeocacheContent';
 import { FoundLogContent } from '@/components/FoundLogContent';
-import { ColorMomentContent } from '@/components/ColorMomentContent';
+import { ColorMomentContent, ColorMomentEyeButton } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { FollowPackDetailContent } from '@/components/FollowPackDetailContent';
 import { ArticleContent } from '@/components/ArticleContent';
@@ -857,6 +857,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               {metadata?.bot && (
                 <span className="text-sm text-primary" title="Bot account">🤖</span>
               )}
+              {isColor && <ColorMomentEyeButton event={event} />}
             </>
           )}
         </div>
