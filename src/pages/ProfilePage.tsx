@@ -1421,12 +1421,12 @@ export function ProfilePage() {
               ))
             ) : (
               pinnedEvents.map((event) => (
-                <div key={`pinned-${event.id}`} className="relative">
+                <div key={`pinned-${event.id}`} className="relative hover:bg-secondary/30 transition-colors">
                   <PinnedLabel
                     isOwn={isOwnProfile}
                     onUnpin={() => togglePin.mutate(event.id)}
                   />
-                  <NoteCard event={event} />
+                  <NoteCard event={event} className="hover:bg-transparent" />
                 </div>
               ))
             )}

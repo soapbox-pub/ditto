@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
-  Bell, Search, TrendingUp, User, Bookmark, Settings,
-  Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, SwatchBook,
-  GripVertical, X, Blocks,
+  Bell, Search, TrendingUp, User, Bookmark, Scroll, SwatchBook, Palette,
+  GripVertical, X,
 } from 'lucide-react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
@@ -12,35 +11,40 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ChestIcon } from '@/components/icons/ChestIcon';
 import { PlanetIcon } from '@/components/icons/PlanetIcon';
-import { CardsIcon } from '@/components/icons/CardsIcon';
+import { EXTRA_KIND_ICONS } from '@/lib/extraKindIcons';
 import { itemLabel, itemPath } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 import { useCallback } from 'react';
 
 // ── Icon map ──────────────────────────────────────────────────────────────────
 
-export const SIDEBAR_ITEM_ICONS: Record<string, React.ReactElement> = {
-  feed: <PlanetIcon className="size-6" />,
-  notifications: <Bell className="size-6" />,
-  search: <Search className="size-6" />,
-  trends: <TrendingUp className="size-6" />,
-  bookmarks: <Bookmark className="size-6" />,
-  profile: <User className="size-6" />,
-  settings: <Settings className="size-6" />,
-  vines: <Clapperboard className="size-6" />,
-  polls: <BarChart3 className="size-6" />,
-  treasures: <ChestIcon className="size-6" />,
-  theme: <SwatchBook className="size-6" />,
-  themes: <Palette className="size-6" />,
-  colors: <Palette className="size-6" />,
-  packs: <PartyPopper className="size-6" />,
-  streams: <Radio className="size-6" />,
-  articles: <FileText className="size-6" />,
-  decks: <CardsIcon className="size-6" />,
-  webxdc: <Blocks className="size-6" />,
+type IconComponent = React.ComponentType<{ className?: string }>;
+
+/** Icon components for built-in system sidebar items. */
+const BUILTIN_ICON_COMPONENTS: Record<string, IconComponent> = {
+  feed: PlanetIcon,
+  notifications: Bell,
+  search: Search,
+  trends: TrendingUp,
+  bookmarks: Bookmark,
+  profile: User,
+  settings: Scroll,
+  theme: SwatchBook,
 };
+
+/**
+ * Returns the icon element for a sidebar item ID at the given size.
+ * Built-in system items are sourced from BUILTIN_ICON_COMPONENTS.
+ * Extra-kind items are sourced from EXTRA_KIND_ICONS (the source of truth for non-system items).
+ * Falls back to Palette for unknown items.
+ */
+export function sidebarItemIcon(id: string, size = 'size-6'): React.ReactElement {
+  const Icon = BUILTIN_ICON_COMPONENTS[id] ?? EXTRA_KIND_ICONS[id] ?? Palette;
+  return <Icon className={size} />;
+}
+
+
 
 // ── Sortable item ─────────────────────────────────────────────────────────────
 
@@ -61,7 +65,7 @@ export function SidebarNavItem({
 }: SidebarNavItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !editing });
   const style = { transform: CSS.Transform.toString(transform), transition };
-  const icon = SIDEBAR_ITEM_ICONS[id] ?? <Palette className="size-6" />;
+  const icon = sidebarItemIcon(id);
   const label = itemLabel(id);
   const path = itemPath(id, profilePath);
 
