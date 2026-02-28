@@ -615,10 +615,52 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       .map((e) => e.emoji);
   }, [interactions?.reactions]);
 
-  // Kind 1 events use NIP-10 replies (kind 1); all other events use NIP-22 comments (kind 1111)
+  // Kind 1 events use NIP-10 replies (kind 1); all other events use NIP-22 comments (kind 1111).
+  // For kind 1111 events, we reconstruct the original root from uppercase tags so useComments
+  // fetches the full comment tree, then extract replies to this specific comment.
   const isKind1 = event.kind === 1;
+  const isComment = event.kind === 1111;
+
+  const commentRoot = useMemo<NostrEvent | undefined>(() => {
+    if (isKind1) return undefined;
+    if (!isComment) return event; // non-kind-1 root event — use directly
+
+    // Reconstruct the original root event from the comment's uppercase tags
+    const K = event.tags.find(([n]) => n === 'K')?.[1];
+    const P = event.tags.find(([n]) => n === 'P')?.[1];
+    const A = event.tags.find(([n]) => n === 'A')?.[1];
+    const E = event.tags.find(([n]) => n === 'E')?.[1];
+
+    const rootKind = K ? parseInt(K, 10) : 0;
+    const rootPubkey = P ?? '';
+
+    if (A) {
+      const parts = A.split(':');
+      const dValue = parts.length >= 3 ? parts.slice(2).join(':') : '';
+      return {
+        id: E ?? '',
+        kind: rootKind,
+        pubkey: rootPubkey,
+        content: '',
+        created_at: 0,
+        sig: '',
+        tags: [['d', dValue]],
+      };
+    }
+
+    return {
+      id: E ?? '',
+      kind: rootKind,
+      pubkey: rootPubkey,
+      content: '',
+      created_at: 0,
+      sig: '',
+      tags: [],
+    };
+  }, [event, isKind1, isComment]);
+
   const { data: rawReplies, isLoading: kind1RepliesLoading } = useReplies(isKind1 ? event.id : undefined);
-  const { data: commentsData, isLoading: commentsLoading } = useComments(isKind1 ? undefined : event, 500);
+  const { data: commentsData, isLoading: commentsLoading } = useComments(commentRoot, 500);
 
   const repliesLoading = isKind1 ? kind1RepliesLoading : commentsLoading;
 
@@ -652,8 +694,22 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         reply,
         firstSubReply: (childrenMap.get(reply.id) ?? [])[0] as NostrEvent | undefined,
       }));
+    } else if (isComment) {
+      // Kind 1111: we're viewing a comment — show replies to this specific comment
+      const directReplies = commentsData?.getDirectReplies(event.id) ?? [];
+      const filteredReplies = muteItems.length > 0
+        ? directReplies.filter((r) => !isEventMuted(r, muteItems))
+        : directReplies;
+
+      return filteredReplies.map((reply) => {
+        const subReplies = commentsData?.getDirectReplies(reply.id) ?? [];
+        return {
+          reply,
+          firstSubReply: subReplies[0] as NostrEvent | undefined,
+        };
+      });
     } else {
-      // Non-kind-1: use NIP-22 comment structure from useComments
+      // Non-kind-1 root: use NIP-22 comment structure from useComments
       const topLevel = commentsData?.topLevelComments ?? [];
       const filteredTopLevel = muteItems.length > 0
         ? topLevel.filter((r) => !isEventMuted(r, muteItems))
@@ -670,7 +726,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         };
       });
     }
-  }, [isKind1, replies, event.id, commentsData, muteItems]);
+  }, [isKind1, isComment, replies, event.id, commentsData, muteItems]);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
   const [interactionsOpen, setInteractionsOpen] = useState(false);
