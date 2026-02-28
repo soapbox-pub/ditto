@@ -152,7 +152,7 @@ type ContentToken =
   | { type: 'inline-link'; url: string }
   | { type: 'youtube-embed'; videoId: string }
   | { type: 'mention'; pubkey: string }
-  | { type: 'nevent-embed'; eventId: string }
+  | { type: 'nevent-embed'; eventId: string; relays?: string[]; author?: string }
   | { type: 'naddr-embed'; addr: AddrCoords; url?: string }
   | { type: 'nostr-link'; id: string; raw: string }
   | { type: 'hashtag'; tag: string; raw: string };
@@ -296,7 +296,12 @@ export function NoteContent({
           } else if (decoded.type === 'note') {
             result.push({ type: 'nevent-embed', eventId: decoded.data as string });
           } else if (decoded.type === 'nevent') {
-            result.push({ type: 'nevent-embed', eventId: (decoded.data as { id: string }).id });
+            result.push({
+              type: 'nevent-embed',
+              eventId: decoded.data.id,
+              relays: decoded.data.relays,
+              author: decoded.data.author,
+            });
           } else if (decoded.type === 'naddr') {
             result.push({ type: 'naddr-embed', addr: decoded.data as AddrCoords });
           } else {
@@ -446,7 +451,7 @@ export function NoteContent({
           case 'youtube-embed':
             return <YouTubeEmbed key={i} videoId={token.videoId} className="my-2.5" />;
           case 'nevent-embed':
-            return <EmbeddedNote key={i} eventId={token.eventId} className="my-2.5" />;
+            return <EmbeddedNote key={i} eventId={token.eventId} relays={token.relays} authorHint={token.author} className="my-2.5" />;
           case 'naddr-embed':
             return (
               <span key={i}>
