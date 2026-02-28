@@ -31,6 +31,7 @@ export function CursorFireEffect() {
   const activeRef = useRef(false);
   const pulseRef = useRef(0);
   const orbPosRef = useRef<{ x: number; y: number } | null>(null);
+  const frameRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -104,8 +105,9 @@ export function CursorFireEffect() {
 
       const { h, s, l } = getPrimaryColor();
 
-      // Spawn new particles if pointer is active
-      if (activeRef.current && posRef.current) {
+      // Spawn particles every 3rd frame to avoid origin cluster
+      frameRef.current++;
+      if (activeRef.current && posRef.current && frameRef.current % 3 === 0) {
         spawnParticles(posRef.current.x, posRef.current.y);
       }
 
