@@ -140,7 +140,7 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
     } finally {
       setIsUploading(false);
     }
-  }, [file, user, appName, description, uploadFile, createEvent, queryClient, handleOpenChange]);
+  }, [file, user, appName, iconUrl, description, uploadFile, createEvent, queryClient, handleOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
