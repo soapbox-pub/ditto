@@ -25,6 +25,8 @@ interface ReplyComposeModalProps {
   quotedEvent?: NostrEvent | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Called after a post is successfully published. */
+  onSuccess?: () => void;
 }
 
 /** Extracts image URLs from note content. */
@@ -33,7 +35,7 @@ function extractImages(content: string): string[] {
   return content.match(urlRegex) || [];
 }
 
-export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange }: ReplyComposeModalProps) {
+export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess }: ReplyComposeModalProps) {
   const isUrl = event instanceof URL;
   const isReply = !!event;
   const isQuote = !!quotedEvent;
@@ -97,7 +99,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange }: Re
         <ComposeBox
           replyTo={isQuote ? undefined : (event ?? undefined)}
           quotedEvent={quotedEvent ?? undefined}
-          onSuccess={() => onOpenChange(false)}
+          onSuccess={() => { onOpenChange(false); onSuccess?.(); }}
           placeholder={placeholder}
           forceExpanded
           hideAvatar
