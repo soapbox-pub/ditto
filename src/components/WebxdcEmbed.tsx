@@ -199,7 +199,7 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
       </div>
 
       {/* Iframe area */}
-      <div className={cn(isFullscreen ? 'flex-1 relative' : 'relative')}>
+      <div className={cn("bg-white", isFullscreen ? 'flex-1 relative' : 'relative')}>
         <WebxdcIframe
           key={iframeKey}
           ref={webxdcHandleRef}

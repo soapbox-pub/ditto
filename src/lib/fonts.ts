@@ -8,8 +8,14 @@
 export type FontCategory = 'sans' | 'serif' | 'mono' | 'display' | 'handwriting';
 
 export interface BundledFont {
-  /** CSS font-family name */
+  /** Canonical font-family name used in Nostr events and UI display */
   family: string;
+  /**
+   * The actual CSS font-family name registered by the @fontsource package.
+   * For variable fonts, fontsource appends " Variable" to the family name
+   * (e.g., "Comfortaa Variable"). For static fonts, this matches `family`.
+   */
+  cssFamily: string;
   /** Font category for UI grouping */
   category: FontCategory;
   /** Whether this is a variable font (false = static with discrete weights) */
@@ -27,6 +33,7 @@ export interface BundledFont {
 export const bundledFonts: BundledFont[] = [
   {
     family: 'Inter',
+    cssFamily: 'Inter Variable',
     category: 'sans',
     variable: true,
     load: () => import('@fontsource-variable/inter').then(() => {}),
@@ -34,6 +41,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'DM Sans',
+    cssFamily: 'DM Sans Variable',
     category: 'sans',
     variable: true,
     load: () => import('@fontsource-variable/dm-sans').then(() => {}),
@@ -41,6 +49,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Outfit',
+    cssFamily: 'Outfit Variable',
     category: 'sans',
     variable: true,
     load: () => import('@fontsource-variable/outfit').then(() => {}),
@@ -48,6 +57,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Montserrat',
+    cssFamily: 'Montserrat Variable',
     category: 'sans',
     variable: true,
     load: () => import('@fontsource-variable/montserrat').then(() => {}),
@@ -55,6 +65,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Lora',
+    cssFamily: 'Lora Variable',
     category: 'serif',
     variable: true,
     load: () => import('@fontsource-variable/lora').then(() => {}),
@@ -62,6 +73,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Merriweather',
+    cssFamily: 'Merriweather Variable',
     category: 'serif',
     variable: true,
     load: () => import('@fontsource-variable/merriweather').then(() => {}),
@@ -69,6 +81,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Playfair Display',
+    cssFamily: 'Playfair Display Variable',
     category: 'serif',
     variable: true,
     load: () => import('@fontsource-variable/playfair-display').then(() => {}),
@@ -76,6 +89,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'JetBrains Mono',
+    cssFamily: 'JetBrains Mono Variable',
     category: 'mono',
     variable: true,
     load: () => import('@fontsource-variable/jetbrains-mono').then(() => {}),
@@ -83,6 +97,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Comfortaa',
+    cssFamily: 'Comfortaa Variable',
     category: 'display',
     variable: true,
     load: () => import('@fontsource-variable/comfortaa').then(() => {}),
@@ -90,6 +105,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Comic Relief',
+    cssFamily: 'Comic Relief',
     category: 'handwriting',
     variable: false,
     load: async () => {
@@ -100,6 +116,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Permanent Marker',
+    cssFamily: 'Permanent Marker',
     category: 'display',
     variable: false,
     load: () => import('@fontsource/permanent-marker/400.css').then(() => {}),
@@ -107,6 +124,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Cherry Bomb One',
+    cssFamily: 'Cherry Bomb One',
     category: 'display',
     variable: false,
     load: () => import('@fontsource/cherry-bomb-one/400.css').then(() => {}),
@@ -114,6 +132,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Creepster',
+    cssFamily: 'Creepster',
     category: 'display',
     variable: false,
     load: () => import('@fontsource/creepster/400.css').then(() => {}),
@@ -121,6 +140,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Silkscreen',
+    cssFamily: 'Silkscreen',
     category: 'display',
     variable: false,
     load: () => import('@fontsource/silkscreen/400.css').then(() => {}),
@@ -128,6 +148,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Bungee Shade',
+    cssFamily: 'Bungee Shade',
     category: 'display',
     variable: false,
     load: () => import('@fontsource/bungee-shade/400.css').then(() => {}),
@@ -135,6 +156,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Luckiest Guy',
+    cssFamily: 'Luckiest Guy',
     category: 'display',
     variable: false,
     load: () => import('@fontsource/luckiest-guy/400.css').then(() => {}),
@@ -142,6 +164,7 @@ export const bundledFonts: BundledFont[] = [
   },
   {
     family: 'Press Start 2P',
+    cssFamily: 'Press Start 2P',
     category: 'display',
     variable: false,
     load: () => import('@fontsource/press-start-2p/400.css').then(() => {}),
@@ -157,6 +180,17 @@ const bundledFontMap = new Map(
 /** Find a bundled font by family name (case-insensitive). Returns undefined if not bundled. */
 export function findBundledFont(family: string): BundledFont | undefined {
   return bundledFontMap.get(family.toLowerCase());
+}
+
+/**
+ * Resolve the CSS font-family name for a given canonical family name.
+ * For bundled variable fonts, this returns the fontsource-registered name
+ * (e.g., "Comfortaa" → "Comfortaa Variable"). For non-bundled fonts,
+ * returns the family name as-is.
+ */
+export function resolveCssFamily(family: string): string {
+  const bundled = bundledFontMap.get(family.toLowerCase());
+  return bundled?.cssFamily ?? family;
 }
 
 /** Tracks which fonts have already been loaded. */

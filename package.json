@@ -101,6 +101,7 @@
     "react-router-dom": "^6.26.2",
     "recharts": "^2.12.7",
     "rehype-sanitize": "^6.0.0",
+    "smol-toml": "^1.6.0",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "uri-templates": "^0.2.0",

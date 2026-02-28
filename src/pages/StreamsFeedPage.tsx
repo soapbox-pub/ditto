@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Radio, Users, Clock } from 'lucide-react';
+import { sidebarItemIcon } from '@/components/SidebarNavItem';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useAppContext } from '@/hooks/useAppContext';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -42,8 +44,10 @@ function getStatusConfig(status: string | undefined) {
 }
 
 export function StreamsFeedPage() {
+  const { config } = useAppContext();
+
   useSeoMeta({
-    title: 'Streams | Ditto',
+    title: `Streams | ${config.appName}`,
     description: 'Live streams on Nostr',
   });
 
@@ -74,7 +78,7 @@ export function StreamsFeedPage() {
             <Radio className="size-5" />
             <h1 className="text-xl font-bold">Streams</h1>
           </div>
-          <KindInfoButton kindDef={streamsDef} icon={<Radio className="size-5" />} />
+          <KindInfoButton kindDef={streamsDef} icon={sidebarItemIcon('streams', 'size-5')} />
         </div>
 
         {/* Feed */}

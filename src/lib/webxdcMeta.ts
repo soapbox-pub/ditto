@@ -1,4 +1,5 @@
 import { unzipSync } from 'fflate';
+import { parse as parseTOML } from 'smol-toml';
 
 /** Metadata extracted from a webxdc `.xdc` ZIP archive. */
 export interface WebxdcMeta {
@@ -24,10 +25,13 @@ export async function extractWebxdcMeta(file: File): Promise<WebxdcMeta> {
   const manifestBytes = unzipped['manifest.toml'];
   if (manifestBytes) {
     const text = new TextDecoder().decode(manifestBytes);
-    // Simple TOML parse: match name = "..." or name = '...'
-    const match = text.match(/^\s*name\s*=\s*["'](.+?)["']/m);
-    if (match) {
-      meta.name = match[1];
+    try {
+      const manifest = parseTOML(text);
+      if (typeof manifest.name === 'string') {
+        meta.name = manifest.name;
+      }
+    } catch {
+      // Silently ignore malformed TOML
     }
   }
 

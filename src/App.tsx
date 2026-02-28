@@ -38,6 +38,8 @@ const queryClient = new QueryClient({
 
 /** Hardcoded fallback values. Always provides every required field. */
 const hardcodedConfig: AppConfig = {
+  appName: 'Ditto',
+  magicMouse: false,
   theme: "system",
   autoShareTheme: true,
   useAppRelays: true,
@@ -50,14 +52,14 @@ const hardcodedConfig: AppConfig = {
     feedIncludeReposts: true,
     feedIncludeArticles: false,
     showArticles: false,
-    showVines: true,
+    showVines: false,
     showPolls: false,
     showTreasures: false,
     showTreasureGeocaches: true,
     showTreasureFoundLogs: true,
     showColors: false,
-    showPacks: true,
-    showStreams: true,
+    showPacks: false,
+    showStreams: false,
     feedIncludeVines: false,
     feedIncludePolls: false,
     feedIncludeTreasureGeocaches: false,
@@ -71,9 +73,13 @@ const hardcodedConfig: AppConfig = {
     feedIncludeWebxdc: false,
     showProfileThemes: false,
     feedIncludeProfileThemes: true,
+    showThemeDefinitions: true,
+    feedIncludeThemeDefinitions: true,
+    showProfileThemeUpdates: true,
+    feedIncludeProfileThemeUpdates: true,
     showCustomProfileThemes: true,
   },
-  sidebarOrder: [],
+  sidebarOrder: ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'themes', 'theme', 'settings'],
   nip85StatsPubkey: '5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea',
   blossomServers: ['https://blossom.ditto.pub/', 'https://blossom.dreamith.to/', 'https://blossom.primal.net/'],
   defaultZapComment: 'Zapped with Ditto!',
@@ -89,7 +95,7 @@ const hardcodedConfig: AppConfig = {
  */
 const defaultConfig: AppConfig = {
   ...hardcodedConfig,
-  ...(__DITTO_CONFIG__ ?? {}),
+  ...(typeof __DITTO_CONFIG__ !== 'undefined' && __DITTO_CONFIG__ ? __DITTO_CONFIG__ : {}),
 };
 
 export function App() {

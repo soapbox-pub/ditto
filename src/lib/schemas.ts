@@ -153,6 +153,10 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeWebxdc: z.boolean().optional(),
   showProfileThemes: z.boolean().optional(),
   feedIncludeProfileThemes: z.boolean().optional(),
+  showThemeDefinitions: z.boolean().optional(),
+  feedIncludeThemeDefinitions: z.boolean().optional(),
+  showProfileThemeUpdates: z.boolean().optional(),
+  feedIncludeProfileThemeUpdates: z.boolean().optional(),
   showCustomProfileThemes: z.boolean().optional(),
 });
 
@@ -167,6 +171,8 @@ export const FeedSettingsSchema = z.looseObject({
  * the AppProvider deserializer.
  */
 export const AppConfigSchema = z.object({
+  appName: z.string().optional(),
+  magicMouse: z.boolean().optional(),
   theme: ThemeSchemaCompat,
   customTheme: ThemeConfigCompatSchema.optional(),
   autoShareTheme: z.boolean(),
@@ -240,4 +246,16 @@ export const EncryptedSettingsSchema = z.looseObject({
   notificationsEnabled: z.boolean().optional(),
   notificationsCursor: z.number().optional(),
   lastSync: z.number().optional(),
+  sidebarOrder: z.array(z.string()).optional(),
+  showGlobalFeed: z.boolean().optional(),
+  showCommunityFeed: z.boolean().optional(),
+  communityData: z.object({
+    domain: z.string(),
+    label: z.string(),
+    userCount: z.number(),
+    nip05: z.record(z.string(), z.unknown()),
+  }).optional(),
+  corsProxy: z.string().optional(),
+  faviconUrl: z.string().optional(),
+  linkPreviewUrl: z.string().optional(),
 });

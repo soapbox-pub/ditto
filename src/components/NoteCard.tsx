@@ -1,17 +1,17 @@
 import { Link } from 'react-router-dom';
-import { MessageCircle, Zap, MoreHorizontal, Play, Radio, Users } from 'lucide-react';
+import { MessageCircle, Zap, MoreHorizontal, Play, Radio, Users, Palette } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { NoteContent } from '@/components/NoteContent';
+import { NoteContent, isSingleImagePost } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { PollContent } from '@/components/PollContent';
 import { GeocacheContent } from '@/components/GeocacheContent';
 import { FoundLogContent } from '@/components/FoundLogContent';
-import { ColorMomentContent } from '@/components/ColorMomentContent';
+import { ColorMomentContent, ColorMomentEyeButton } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { ArticleContent } from '@/components/ArticleContent';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
@@ -21,6 +21,7 @@ import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { ReplyContext } from '@/components/ReplyContext';
+import { CommentContext } from '@/components/CommentContext';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -43,7 +44,7 @@ import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ContentWarningGuard, getContentWarning } from '@/components/ContentWarningGuard';
-import { ThemeUpdateCard } from '@/components/ThemeUpdateCard';
+import { ThemeContent } from '@/components/ThemeContent';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getParentEventId } from '@/lib/nostrEvents';
 
@@ -213,7 +214,10 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
   const isFileMetadata = event.kind === 1063;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata;
+  const isThemeDefinition = event.kind === 36767;
+  const isActiveTheme = event.kind === 16767;
+  const isTheme = isThemeDefinition || isActiveTheme;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
@@ -226,7 +230,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
       (entry) => entry.mime === 'application/x-webxdc' || entry.mime === 'application/vnd.webxdc+zip',
     );
   }, [imetaMap, isTextNote]);
-  const isReply = isTextNote && event.tags.some(([name]) => name === 'e');
+  const isComment = event.kind === 1111;
+  const isReply = isTextNote && !isComment && event.tags.some(([name]) => name === 'e');
   
   // Find all people being replied to (for "Replying to @user1 and @user2")
   const replyToPubkeys = useMemo(() => {
@@ -256,11 +261,6 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const vineTitle = isVine ? getTag(event.tags, 'title') : undefined;
   const hashtags = isVine ? event.tags.filter(([n]) => n === 't').map(([, v]) => v) : [];
 
-  // Theme definition events get a specialized card
-  if (event.kind === 36767) {
-    return <ThemeUpdateCard event={event} />;
-  }
-
   // NIP-36: If the event has a content-warning and the policy is "hide", skip rendering entirely
   if (getContentWarning(event) !== undefined && config.contentWarningPolicy === 'hide') {
     return null;
@@ -277,7 +277,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   // Shared content block used in both normal and threaded layouts
   const contentBlock = (
     <>
-      {/* Reply context (kind 1 only) — shown above content */}
+      {/* Reply context (kind 1) or comment context (kind 1111) — shown above content */}
+      {isComment && <CommentContext event={event} />}
       {isReply && replyToPubkeys.length > 0 && (
         <ReplyContext pubkeys={replyToPubkeys} parentEventId={parentEventId} />
       )}
@@ -307,6 +308,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           <StreamContent event={event} />
         ) : isFileMetadata ? (
           <FileMetadataContent event={event} compact />
+        ) : isTheme ? (
+          <ThemeContent event={event} />
         ) : (
           <TruncatedNoteContent event={event} videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
         )}
@@ -478,10 +481,16 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
         <StreamHeader pubkey={event.pubkey} isLive={getTag(event.tags, 'status') === 'live'} />
       )}
 
+      {/* Theme header — "<palette> <name> shared/updated a theme" */}
+      {isTheme && !repostedBy && (
+        <ThemeHeader pubkey={event.pubkey} variant={isThemeDefinition ? 'shared' : 'updated'} />
+      )}
+
       {/* Header: avatar + name/handle stacked */}
       <div className="flex items-center gap-3">
         {avatarElement}
         {authorInfo}
+        {isColor && <ColorMomentEyeButton event={event} />}
       </div>
 
       {contentBlock}
@@ -512,15 +521,27 @@ function TruncatedNoteContent({ event, videos, imetaMap, webxdcApps = [] }: {
   const [overflows, setOverflows] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
+  const singleImage = isSingleImagePost(event);
+
   const measure = useCallback(() => {
     const el = contentRef.current;
-    if (el) setOverflows(el.scrollHeight > MAX_HEIGHT);
-  }, []);
+    if (el) setOverflows(!singleImage && el.scrollHeight > MAX_HEIGHT);
+  }, [singleImage]);
 
   useEffect(() => {
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  // Re-measure after images load — scrollHeight is unreliable before images have rendered.
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const imgs = el.querySelectorAll('img');
+    if (imgs.length === 0) return;
+    imgs.forEach((img) => img.addEventListener('load', measure, { once: true }));
+    return () => imgs.forEach((img) => img.removeEventListener('load', measure));
   }, [measure]);
 
   const showMedia = !overflows || expanded;
@@ -890,6 +911,36 @@ function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 
         )}
         <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
           {variant === 'hid' ? 'hid a treasure' : 'found a treasure'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ThemeHeader({ pubkey, variant }: { pubkey: string; variant: 'shared' | 'updated' }) {
+  const author = useAuthor(pubkey);
+  const name = author.data?.metadata?.name || genUserName(pubkey);
+  const url = useProfileUrl(pubkey, author.data?.metadata);
+
+  return (
+    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
+      <div className="w-11 shrink-0 flex justify-end">
+        <Palette className="size-4 text-primary translate-y-px" />
+      </div>
+      <div className="flex items-center min-w-0">
+        {author.isLoading ? (
+          <Skeleton className="h-3 w-20 inline-block" />
+        ) : (
+          <Link
+            to={url}
+            className="font-medium hover:underline mr-1 truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
+          </Link>
+        )}
+        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
+          {variant === 'shared' ? 'shared a theme' : 'updated their theme'}
         </span>
       </div>
     </div>

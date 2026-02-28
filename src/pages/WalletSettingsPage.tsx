@@ -2,13 +2,15 @@ import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { WalletSettings } from '@/components/WalletSettings';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export function WalletSettingsPage() {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
 
   useSeoMeta({
-    title: 'Wallet | Settings | Ditto',
+    title: `Wallet | Settings | ${config.appName}`,
     description: 'Manage your wallet connections',
   });
 

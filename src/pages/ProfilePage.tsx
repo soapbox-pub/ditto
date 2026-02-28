@@ -21,6 +21,7 @@ import { NoteCard } from '@/components/NoteCard';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Nip05Badge, VerifiedNip05Text } from '@/components/Nip05Badge';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useToast } from '@/hooks/useToast';
@@ -605,6 +606,7 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
 // ----- Main Component -----
 
 export function ProfilePage() {
+  const { config } = useAppContext();
   const params = useParams();
   const npub = params.npub ?? params.nip19;
   const { nostr } = useNostr();
@@ -688,7 +690,7 @@ export function ProfilePage() {
   }, [metadataEvent?.content, metadata?.website]);
 
   useSeoMeta({
-    title: `${displayName} | Ditto`,
+    title: `${displayName} | ${config.appName}`,
     description: metadata?.about || 'Nostr profile',
   });
 
@@ -759,7 +761,11 @@ export function ProfilePage() {
   // When the profile has no published theme and the user has a custom app theme,
   // fall back to the system-resolved builtin theme (light/dark based on OS preference)
   // so the profile doesn't appear with the user's custom colors.
-  const needsSystemFallback = !profileThemeColors && ownTheme === 'custom';
+  // Only apply this fallback once the query has settled (not while loading),
+  // to avoid a jarring flash — especially on your own profile where the
+  // current custom theme is already correct.
+  const profileThemeSettled = profileThemeQuery.isFetched;
+  const needsSystemFallback = profileThemeSettled && !profileThemeColors && ownTheme === 'custom';
 
   // Detect whether the app custom theme differs from the published profile theme.
   // Colors are compared via hex to avoid HSL precision issues from the hex round-trip.
@@ -1367,7 +1373,7 @@ export function ProfilePage() {
               </div>
 
               {metadata?.about && (
-                <p className="mt-3 text-sm whitespace-pre-wrap">
+                <p className="mt-3 text-sm whitespace-pre-wrap break-words overflow-hidden">
                   {metadataEvent ? (
                     <EmojifiedText tags={metadataEvent.tags}>{metadata.about}</EmojifiedText>
                   ) : metadata.about}
@@ -1417,12 +1423,12 @@ export function ProfilePage() {
               ))
             ) : (
               pinnedEvents.map((event) => (
-                <div key={`pinned-${event.id}`} className="relative">
+                <div key={`pinned-${event.id}`} className="relative hover:bg-secondary/30 transition-colors">
                   <PinnedLabel
                     isOwn={isOwnProfile}
                     onUnpin={() => togglePin.mutate(event.id)}
                   />
-                  <NoteCard event={event} />
+                  <NoteCard event={event} className="hover:bg-transparent" />
                 </div>
               ))
             )}

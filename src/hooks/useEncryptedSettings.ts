@@ -3,6 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NostrFilter } from '@nostrify/nostrify';
 
+import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from './useCurrentUser';
 import type { Theme, FeedSettings, ContentWarningPolicy } from '@/contexts/AppContext';
 import type { ThemeConfig } from '@/themes';
@@ -42,6 +43,25 @@ export interface EncryptedSettings {
   notificationsCursor?: number;
   /** Last sync timestamp */
   lastSync?: number;
+  /** Ordered list of sidebar item IDs (built-in + extra-kind) */
+  sidebarOrder?: string[];
+  /** Whether the Global feed tab is shown */
+  showGlobalFeed?: boolean;
+  /** Whether the Community feed tab is shown */
+  showCommunityFeed?: boolean;
+  /** Community data: domain, label, user count, and NIP-05 JSON */
+  communityData?: {
+    domain: string;
+    label: string;
+    userCount: number;
+    nip05: Record<string, unknown>;
+  };
+  /** Custom CORS proxy URI template (only synced when non-empty) */
+  corsProxy?: string;
+  /** Custom favicon URI template (only synced when non-empty) */
+  faviconUrl?: string;
+  /** Custom link preview URI template (only synced when non-empty) */
+  linkPreviewUrl?: string;
 }
 
 /**
@@ -49,6 +69,7 @@ export interface EncryptedSettings {
  * Syncs settings across devices while keeping them private
  */
 export function useEncryptedSettings() {
+  const { config } = useAppContext();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -155,7 +176,7 @@ export function useEncryptedSettings() {
         content: encrypted,
         tags: [
           ['d', SETTINGS_D_TAG],
-          ['title', 'Ditto Metadata'],
+          ['title', `${config.appName} Metadata`],
           ['client', location.hostname],
         ],
         created_at: Math.floor(Date.now() / 1000),

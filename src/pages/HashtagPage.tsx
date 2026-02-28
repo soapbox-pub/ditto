@@ -6,6 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
@@ -15,6 +16,7 @@ import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 export function HashtagPage() {
+  const { config } = useAppContext();
   const { tag } = useParams<{ tag: string }>();
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
@@ -24,7 +26,7 @@ export function HashtagPage() {
   const kindsKey = [...kinds].sort().join(',');
 
   useSeoMeta({
-    title: `#${tag} | Ditto`,
+    title: `#${tag} | ${config.appName}`,
     description: `Posts tagged with #${tag}`,
   });
 

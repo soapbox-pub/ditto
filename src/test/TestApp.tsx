@@ -22,6 +22,7 @@ export function TestApp({ children }: TestAppProps) {
   });
 
   const defaultConfig: AppConfig = {
+    appName: 'Ditto',
     theme: 'light',
     autoShareTheme: true,
     useAppRelays: true,
@@ -57,6 +58,10 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeWebxdc: false,
       showProfileThemes: false,
       feedIncludeProfileThemes: true,
+      showThemeDefinitions: true,
+      feedIncludeThemeDefinitions: true,
+      showProfileThemeUpdates: true,
+      feedIncludeProfileThemeUpdates: true,
       showCustomProfileThemes: true,
     },
     sidebarOrder: [],
@@ -66,6 +71,7 @@ export function TestApp({ children }: TestAppProps) {
     faviconUrl: 'https://fetch.ditto.pub/favicon/{hostname}',
     linkPreviewUrl: 'https://fetch.ditto.pub/link/{url}',
     corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
+    magicMouse: false,
     contentWarningPolicy: 'blur',
   };
 

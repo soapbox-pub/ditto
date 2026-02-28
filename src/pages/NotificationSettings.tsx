@@ -6,16 +6,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 
 export function NotificationSettings() {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { settings, updateSettings } = useEncryptedSettings();
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
   useSeoMeta({
-    title: 'Notifications | Settings | Ditto',
+    title: `Notifications | Settings | ${config.appName}`,
     description: 'Configure your notification preferences',
   });
 

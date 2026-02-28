@@ -12,6 +12,8 @@ interface StreamPostsOptions {
   includeReplies: boolean;
   mediaType: 'all' | 'images' | 'videos' | 'vines' | 'none';
   language?: string;
+  /** Protocol strings to pass as protocol: search terms. Defaults to ['nostr']. */
+  protocols?: string[];
 }
 
 /** Check if an event has imeta tags with image MIME types. */
@@ -37,8 +39,9 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions, searchQuery
   const now = Math.floor(Date.now() / 1000);
   if (event.created_at > now) return false;
 
-  // Non-kind-1 events (extra kinds) pass through without filtering
-  if (event.kind !== 1) return true;
+  // Non-text events (extra kinds) pass through without filtering
+  // Kind 1111 (NIP-22 comments) are treated like kind 1 for filtering purposes
+  if (event.kind !== 1 && event.kind !== 1111) return true;
 
   // Filter replies
   if (!options.includeReplies) {
@@ -96,6 +99,9 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const enabledKinds = getEnabledFeedKinds(feedSettings);
   const kindsKey = [...enabledKinds].sort().join(',');
 
+  // Stable key for protocols so it can be a useEffect dependency
+  const protocolsKey = [...(options.protocols ?? ['nostr'])].sort().join(',');
+
   useEffect(() => {
     const ac = new AbortController();
     let alive = true;
@@ -134,7 +140,14 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     const streamFilter: NostrFilter = { kinds };
 
     // Search filter for initial query (includes NIP-50 extensions)
-    const searchParts: string[] = ['protocol:nostr'];
+    // protocol:nostr = native Nostr only (no bridged events).
+    // When bridged protocols are selected, omit protocol:nostr so the relay
+    // returns both native and bridged events matching the selected protocols.
+    const protocols = options.protocols ?? ['nostr'];
+    const bridged = protocols.filter(p => p !== 'nostr');
+    const searchParts: string[] = bridged.length > 0
+      ? bridged.map(p => `protocol:${p}`)
+      : ['protocol:nostr'];
     
     if (query.trim()) {
       searchParts.push(query.trim());
@@ -214,7 +227,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  }, [nostr, query, isVines, kindsKey, options.language, options.mediaType]);
+  }, [nostr, query, isVines, kindsKey, options.language, options.mediaType, protocolsKey]);
 
   // Apply client-side filters (including mute filtering) without restarting the stream
   const posts = useMemo(() => {
@@ -222,7 +235,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
       return filterEvent(event, options, query);
     });
-  }, [allEvents, options.includeReplies, options.mediaType, query, muteItems]);
+  }, [allEvents, options.includeReplies, options.mediaType, protocolsKey, query, muteItems]);
 
   return { posts, isLoading };
 }

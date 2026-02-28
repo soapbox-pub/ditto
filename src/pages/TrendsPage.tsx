@@ -1,4 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
+import { useAppContext } from '@/hooks/useAppContext';
 import { Flame, TrendingUp, Swords, Loader2 } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
@@ -11,8 +12,10 @@ import { isEventMuted } from '@/lib/muteHelpers';
 import { cn } from '@/lib/utils';
 
 export function TrendsPage() {
+  const { config } = useAppContext();
+
   useSeoMeta({
-    title: 'Trends | Ditto',
+    title: `Trends | ${config.appName}`,
     description: 'Trending hashtags and posts on Nostr',
   });
 
