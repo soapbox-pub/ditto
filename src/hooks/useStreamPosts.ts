@@ -37,8 +37,9 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions, searchQuery
   const now = Math.floor(Date.now() / 1000);
   if (event.created_at > now) return false;
 
-  // Non-kind-1 events (extra kinds) pass through without filtering
-  if (event.kind !== 1) return true;
+  // Non-text events (extra kinds) pass through without filtering
+  // Kind 1111 (NIP-22 comments) are treated like kind 1 for filtering purposes
+  if (event.kind !== 1 && event.kind !== 1111) return true;
 
   // Filter replies
   if (!options.includeReplies) {

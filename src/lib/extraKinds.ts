@@ -80,6 +80,16 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
   },
   {
+    kind: 1111,
+    id: 'comments',
+    feedKey: 'feedIncludePosts',
+    label: 'Comments',
+    description: 'NIP-22 comments on posts and external content',
+    addressable: false,
+    section: 'feed',
+    feedOnly: true,
+  },
+  {
     kind: 6,
     id: 'reposts',
     feedKey: 'feedIncludeReposts',
