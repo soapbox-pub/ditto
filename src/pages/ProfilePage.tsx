@@ -5,7 +5,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Trash2, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Trash2, Eye, EyeOff, RefreshCw, MessageSquare } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,6 +18,8 @@ import { Separator } from '@/components/ui/separator';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { NoteCard } from '@/components/NoteCard';
+import { ComposeBox } from '@/components/ComposeBox';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Nip05Badge, VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -34,6 +36,7 @@ import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, filterByTab
 import type { ProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
+import { useWallComments } from '@/hooks/useWallComments';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 
@@ -712,6 +715,35 @@ export function ProfilePage() {
     isFetchingNextPage: isFetchingNextLikesPage,
   } = useProfileLikesInfinite(pubkey, activeTab === 'likes');
 
+  // Wall comments (NIP-22 kind 1111 on user's kind 0, filtered by their follow list)
+  const wallFollowList = useMemo(() => supplementary?.following, [supplementary?.following]);
+  const {
+    data: wallData,
+    isPending: wallPending,
+    fetchNextPage: fetchNextWallPage,
+    hasNextPage: hasNextWallPage,
+    isFetchingNextPage: isFetchingNextWallPage,
+  } = useWallComments(pubkey, wallFollowList);
+
+  // Synthetic kind 0 event for the ComposeBox replyTo (NIP-22 comments on the profile)
+  const wallReplyTarget = useMemo((): NostrEvent | undefined => {
+    if (!pubkey) return undefined;
+    // Use the real kind 0 event if available, otherwise build a minimal synthetic one
+    if (metadataEvent) return metadataEvent;
+    return {
+      id: '',
+      kind: 0,
+      pubkey,
+      content: '',
+      created_at: 0,
+      sig: '',
+      tags: [],
+    };
+  }, [pubkey, metadataEvent]);
+
+  // Wall compose modal state (for FAB on wall tab)
+  const [wallComposeOpen, setWallComposeOpen] = useState(false);
+
   // Follow list (cached, for display checks only)
   const { data: followData } = useFollowList();
 
@@ -979,6 +1011,23 @@ export function ProfilePage() {
     return items;
   }, [likesData?.pages]);
 
+  // Flatten wall pages and deduplicate
+  const wallComments = useMemo(() => {
+    if (!wallData?.pages) return [];
+    const seen = new Set<string>();
+    const items: NostrEvent[] = [];
+    for (const page of wallData.pages) {
+      for (const comment of page.comments) {
+        if (!seen.has(comment.id)) {
+          seen.add(comment.id);
+          if (muteItems.length > 0 && isEventMuted(comment, muteItems)) continue;
+          items.push(comment);
+        }
+      }
+    }
+    return items;
+  }, [wallData?.pages, muteItems]);
+
   const streak = useMemo(() => {
     if (!feedData?.pages) return 0;
     const events: NostrEvent[] = [];
@@ -1005,12 +1054,16 @@ export function ProfilePage() {
       if (hasNextMediaPage && !isFetchingNextMediaPage) {
         fetchNextMediaPage();
       }
+    } else if (activeTab === 'wall') {
+      if (hasNextWallPage && !isFetchingNextWallPage) {
+        fetchNextWallPage();
+      }
     } else {
       if (hasNextFeedPage && !isFetchingNextFeedPage) {
         fetchNextFeedPage();
       }
     }
-  }, [inView, activeTab, hasNextFeedPage, isFetchingNextFeedPage, fetchNextFeedPage, hasNextLikesPage, isFetchingNextLikesPage, fetchNextLikesPage, hasNextMediaPage, isFetchingNextMediaPage, fetchNextMediaPage]);
+  }, [inView, activeTab, hasNextFeedPage, isFetchingNextFeedPage, fetchNextFeedPage, hasNextLikesPage, isFetchingNextLikesPage, fetchNextLikesPage, hasNextMediaPage, isFetchingNextMediaPage, fetchNextMediaPage, hasNextWallPage, isFetchingNextWallPage, fetchNextWallPage]);
 
   const authorEvent = metadataEvent;
 
@@ -1026,10 +1079,10 @@ export function ProfilePage() {
     [mediaEvents]
   );
 
-  const currentItems = activeTab === 'likes' ? likedFeedItems : activeTab === 'media' ? mediaFeedItems : filterByTab(feedItems, activeTab);
-  const currentLoading = activeTab === 'likes' ? likesPending : activeTab === 'media' ? mediaPending : feedPending;
-  const hasMore = activeTab === 'likes' ? hasNextLikesPage : activeTab === 'media' ? hasNextMediaPage : hasNextFeedPage;
-  const isFetchingMore = activeTab === 'likes' ? isFetchingNextLikesPage : activeTab === 'media' ? isFetchingNextMediaPage : isFetchingNextFeedPage;
+  const currentItems = activeTab === 'wall' ? [] : activeTab === 'likes' ? likedFeedItems : activeTab === 'media' ? mediaFeedItems : filterByTab(feedItems, activeTab);
+  const currentLoading = activeTab === 'wall' ? wallPending : activeTab === 'likes' ? likesPending : activeTab === 'media' ? mediaPending : feedPending;
+  const hasMore = activeTab === 'wall' ? hasNextWallPage : activeTab === 'likes' ? hasNextLikesPage : activeTab === 'media' ? hasNextMediaPage : hasNextFeedPage;
+  const isFetchingMore = activeTab === 'wall' ? isFetchingNextWallPage : activeTab === 'likes' ? isFetchingNextLikesPage : activeTab === 'media' ? isFetchingNextMediaPage : isFetchingNextFeedPage;
 
   const handleRefresh = useCallback(async () => {
     if (!pubkey) return;
@@ -1044,15 +1097,19 @@ export function ProfilePage() {
           (tag === 'profile-feed' && key[1] === pubkey) ||
           (tag === 'profile-media' && key[1] === pubkey) ||
           (tag === 'profile-likes-infinite' && key[1] === pubkey) ||
-          (tag === 'profile-pinned-events' && key[1] === pubkey)
+          (tag === 'profile-pinned-events' && key[1] === pubkey) ||
+          (tag === 'wall-comments' && key[1] === pubkey)
         );
       },
     });
   }, [queryClient, pubkey]);
 
+  const openWallCompose = useCallback(() => setWallComposeOpen(true), []);
+
   useLayoutOptions(pubkey ? {
     rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} />,
     showFAB: true,
+    onFabClick: activeTab === 'wall' ? openWallCompose : undefined,
   } : {});
 
   if (!pubkey) {
@@ -1400,6 +1457,7 @@ export function ProfilePage() {
           <TabButton label="Posts & replies" active={activeTab === 'replies'} onClick={() => setActiveTab('replies')} />
           <TabButton label="Media" active={activeTab === 'media'} onClick={() => setActiveTab('media')} />
           <TabButton label="Likes" active={activeTab === 'likes'} onClick={() => setActiveTab('likes')} />
+          <TabButton label="Wall" active={activeTab === 'wall'} onClick={() => setActiveTab('wall')} />
         </div>
 
         {/* Pinned posts (only on Posts tab) */}
@@ -1435,7 +1493,81 @@ export function ProfilePage() {
           </div>
         )}
 
-        {/* Tab content */}
+        {/* Wall tab content */}
+        {activeTab === 'wall' && (
+          <div>
+            {/* Inline compose box for wall comments */}
+            {wallReplyTarget && (
+              <ComposeBox
+                compact
+                replyTo={wallReplyTarget}
+                onSuccess={() => queryClient.invalidateQueries({ queryKey: ['wall-comments', pubkey] })}
+              />
+            )}
+
+            {/* Wall compose modal (for FAB) */}
+            {wallReplyTarget && (
+              <ReplyComposeModal
+                event={wallReplyTarget}
+                open={wallComposeOpen}
+                onOpenChange={setWallComposeOpen}
+                onSuccess={() => queryClient.invalidateQueries({ queryKey: ['wall-comments', pubkey] })}
+              />
+            )}
+
+            {!wallFollowList || wallFollowList.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground text-sm">
+                <MessageSquare className="size-12 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium mb-2">No wall posts yet</p>
+                <p>{displayName} doesn't follow anyone yet, so there are no wall posts to show.</p>
+              </div>
+            ) : wallPending ? (
+              <div className="divide-y divide-border">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="px-4 py-3">
+                    <div className="flex gap-3">
+                      <Skeleton className="size-10 rounded-full shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-4 w-20" />
+                          <Skeleton className="h-3 w-28" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-3/4" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : wallComments.length > 0 ? (
+              <div>
+                {wallComments.map((comment) => (
+                  <NoteCard key={comment.id} event={comment} />
+                ))}
+
+                {/* Infinite scroll sentinel */}
+                {hasNextWallPage && (
+                  <div ref={scrollRef} className="flex justify-center py-6">
+                    {isFetchingNextWallPage && (
+                      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="py-12 text-center text-muted-foreground text-sm">
+                <MessageSquare className="size-12 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium mb-2">No wall posts yet</p>
+                <p>Be the first to write on {displayName}'s wall!</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab content (non-wall tabs) */}
+        {activeTab !== 'wall' && (
         <div>
           {currentLoading ? (
             <div className="space-y-0">
@@ -1480,6 +1612,7 @@ export function ProfilePage() {
             </div>
           )}
         </div>
+        )}
 
         {/* Profile More Menu */}
         {pubkey && (
