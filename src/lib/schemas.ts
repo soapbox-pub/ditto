@@ -171,6 +171,7 @@ export const FeedSettingsSchema = z.looseObject({
  * the AppProvider deserializer.
  */
 export const AppConfigSchema = z.object({
+  magicMouse: z.boolean().optional(),
   theme: ThemeSchemaCompat,
   customTheme: ThemeConfigCompatSchema.optional(),
   autoShareTheme: z.boolean(),

@@ -38,6 +38,7 @@ const queryClient = new QueryClient({
 
 /** Hardcoded fallback values. Always provides every required field. */
 const hardcodedConfig: AppConfig = {
+  magicMouse: false,
   theme: "system",
   autoShareTheme: true,
   useAppRelays: true,
