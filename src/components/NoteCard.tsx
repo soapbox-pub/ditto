@@ -229,10 +229,16 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
       (entry) => entry.mime === 'application/x-webxdc' || entry.mime === 'application/vnd.webxdc+zip',
     );
   }, [imetaMap, isTextNote]);
-  const isReply = isTextNote && event.tags.some(([name]) => name === 'e');
+  const isComment = event.kind === 1111;
+  const isReply = isTextNote && !isComment && event.tags.some(([name]) => name === 'e');
   
   // Find all people being replied to (for "Replying to @user1 and @user2")
   const replyToPubkeys = useMemo(() => {
+    if (isComment) {
+      // Kind 1111: use uppercase P tag (root author) for context
+      const rootPubkey = event.tags.find(([name]) => name === 'P')?.[1];
+      return rootPubkey ? [rootPubkey] : [];
+    }
     if (!isTextNote || !isReply) return [];
     
     // Get all p tags that aren't marked as mentions
@@ -246,13 +252,17 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
     // Fallback: if all p tags are mentions, use all p tags anyway
     const allPTags = event.tags.filter(([name]) => name === 'p');
     return [...new Set(allPTags.map(([, pubkey]) => pubkey))];
-  }, [event.tags, isTextNote, isReply]);
+  }, [event.tags, isTextNote, isReply, isComment]);
 
   // Extract the parent event ID for reply hover card preview
   const parentEventId = useMemo(() => {
+    if (isComment) {
+      // Kind 1111: use uppercase E tag (root event ID) for hover preview
+      return event.tags.find(([name]) => name === 'E')?.[1];
+    }
     if (!isReply) return undefined;
     return getParentEventId(event);
-  }, [event, isReply]);
+  }, [event, isReply, isComment]);
 
   // Kind 34236 specific
   const imeta = useMemo(() => isVine ? parseImeta(event.tags) : undefined, [event.tags, isVine]);
@@ -275,8 +285,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   // Shared content block used in both normal and threaded layouts
   const contentBlock = (
     <>
-      {/* Reply context (kind 1 only) — shown above content */}
-      {isReply && replyToPubkeys.length > 0 && (
+      {/* Reply context — shown above content for kind 1 replies and kind 1111 comments */}
+      {(isReply || isComment) && replyToPubkeys.length > 0 && (
         <ReplyContext pubkeys={replyToPubkeys} parentEventId={parentEventId} />
       )}
 
