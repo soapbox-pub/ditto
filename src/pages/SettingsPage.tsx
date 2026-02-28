@@ -1,9 +1,12 @@
 import { useSeoMeta } from '@unhead/react';
+import { useState } from 'react';
 import { ArrowLeft, ChevronRight, Scroll } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppContext } from '@/hooks/useAppContext';
 import { IntroImage } from '@/components/IntroImage';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { toast } from '@/hooks/useToast';
 
 export interface SettingsSection {
   id: string;
@@ -71,7 +74,9 @@ export const settingsSections: SettingsSection[] = [
 
 export function SettingsPage() {
   const { user } = useCurrentUser();
+  const { config, updateConfig } = useAppContext();
   const navigate = useNavigate();
+  const [sigilFlash, setSigilFlash] = useState(false);
   useLayoutOptions({ noBottomSpacer: true });
 
   useSeoMeta({
@@ -79,9 +84,24 @@ export function SettingsPage() {
     description: 'Manage your Ditto settings',
   });
 
+  // Magic section only appears in the menu once unlocked
   const visibleSections = settingsSections.filter(
-    (section) => !section.requiresAuth || user,
+    (section) => (!section.requiresAuth || user) && (section.id !== 'magic' || config.magicMouse),
   );
+
+  function unlockMagic() {
+    if (config.magicMouse) {
+      navigate('/settings/magic');
+      return;
+    }
+    setSigilFlash(true);
+    setTimeout(() => setSigilFlash(false), 1000);
+    updateConfig((c) => ({ ...c, magicMouse: true }));
+    toast({
+      title: '✨ Magical potential unlocked',
+      description: 'You have awakened the arcane. Your cursor now burns with enchanted fire.',
+    });
+  }
 
   return (
     <main
@@ -145,11 +165,44 @@ export function SettingsPage() {
       </div>
 
       {/* Bottom ornament */}
-      <div className="flex items-center gap-3 px-6 pt-4 pb-6">
+      <div className="flex items-center gap-3 px-6 pt-4 pb-2">
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/20 to-primary/30" />
         <span className="text-primary/30 text-[10px] tracking-[0.4em] select-none">◆</span>
         <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/20 to-primary/30" />
       </div>
+
+      {/* Magic sigil — only shown when magic is locked */}
+      {!config.magicMouse && (<div className="flex justify-center pt-16 pb-12">
+        <button
+          onClick={unlockMagic}
+          className="relative group focus:outline-none"
+          aria-label={config.magicMouse ? 'Open Magic settings' : 'Unlock magical potential'}
+        >
+          {/* Ambient radial glow pool — tight, close to the image */}
+          <div
+            className="absolute inset-0 rounded-full blur-xl animate-pulse-slow"
+            style={{
+              background: 'radial-gradient(circle, hsl(var(--primary) / 0.2), transparent 60%)',
+              opacity: sigilFlash ? 1 : undefined,
+              transform: sigilFlash ? 'scale(1.5)' : undefined,
+              transition: 'opacity 0.8s, transform 0.8s',
+            }}
+          />
+          <div
+            className={!sigilFlash && !config.magicMouse ? 'animate-sigil-glow' : undefined}
+            style={sigilFlash || config.magicMouse ? {
+              opacity: sigilFlash ? 1 : 0.55,
+              filter: sigilFlash
+                ? 'drop-shadow(0 0 20px hsl(var(--primary))) drop-shadow(0 0 40px hsl(var(--primary) / 0.4))'
+                : 'drop-shadow(0 0 8px hsl(var(--primary) / 0.7))',
+              transform: sigilFlash ? 'scale(1.12)' : 'scale(1)',
+              transition: 'opacity 0.8s, filter 0.8s, transform 0.5s',
+            } : undefined}
+          >
+            <IntroImage src="/magic-intro.png" size="w-72" />
+          </div>
+        </button>
+      </div>)}
     </main>
   );
 }
