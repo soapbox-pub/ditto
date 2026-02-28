@@ -84,3 +84,13 @@
 .animate-pulse-slow {
   animation: pulse-slow 2.5s ease-in-out infinite;
 }
+
+/* Eerie sigil glow pulse */
+@keyframes sigil-glow {
+  0%, 100% { opacity: 0.12; filter: drop-shadow(0 0 4px hsl(var(--primary) / 0.3)); }
+  50%       { opacity: 0.28; filter: drop-shadow(0 0 12px hsl(var(--primary) / 0.6)) drop-shadow(0 0 24px hsl(var(--primary) / 0.25)); }
+}
+
+.animate-sigil-glow {
+  animation: sigil-glow 4s ease-in-out infinite;
+}
