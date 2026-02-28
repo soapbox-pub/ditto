@@ -224,7 +224,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'colors',
     showKey: 'showColors',
     feedKey: 'feedIncludeColors',
-    label: 'Colors',
+    label: 'Color Moments',
     description: 'Color moment palettes',
     route: 'colors',
     addressable: false,

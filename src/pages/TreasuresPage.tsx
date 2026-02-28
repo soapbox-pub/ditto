@@ -1,6 +1,6 @@
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { getExtraKindDef, getPageKinds } from '@/lib/extraKinds';
-import { ChestIcon } from '@/components/icons/ChestIcon';
+import { sidebarItemIcon } from '@/components/SidebarNavItem';
 import { KindFeedPage } from './KindFeedPage';
 
 /** Find the Treasures definition from EXTRA_KINDS. */
@@ -13,8 +13,8 @@ export function TreasuresPage() {
   return (
     <KindFeedPage
       kind={kinds}
-      title="Treasures"
-      icon={<ChestIcon className="size-5" />}
+      title={treasuresDef.label}
+      icon={sidebarItemIcon('treasures', 'size-5')}
       kindDef={treasuresDef}
       emptyMessage={
         kinds.length === 0

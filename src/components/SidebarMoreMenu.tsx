@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Palette, Plus, Pencil, Check } from 'lucide-react';
+import { Plus, Pencil, Check } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { SIDEBAR_ITEM_ICONS } from '@/components/SidebarNavItem';
+import { sidebarItemIcon } from '@/components/SidebarNavItem';
 import { itemPath } from '@/lib/sidebarItems';
 import type { HiddenSidebarItem } from '@/hooks/useFeedSettings';
 
@@ -49,10 +49,7 @@ export function SidebarMoreMenu({
               onClick={() => { onOpenChange(false); onNavigate?.(); }}
               className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors"
             >
-              {SIDEBAR_ITEM_ICONS[item.id]
-                ? <span className="size-5 flex items-center justify-center [&>svg]:size-5 shrink-0">{SIDEBAR_ITEM_ICONS[item.id]}</span>
-                : <Palette className="size-5 shrink-0" />
-              }
+              {sidebarItemIcon(item.id, 'size-5 shrink-0')}
               <span className="truncate">{item.label}</span>
             </Link>
             <button
