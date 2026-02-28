@@ -671,6 +671,10 @@ export function ComposeBox({
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
         queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
+        // Also invalidate NIP-22 comments cache for non-kind-1 events
+        if (replyTo.kind !== 1) {
+          queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
+        }
       }
       if (quotedEvent) {
         queryClient.invalidateQueries({ queryKey: ['event-stats', quotedEvent.id] });

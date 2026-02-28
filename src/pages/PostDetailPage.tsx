@@ -42,6 +42,7 @@ const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
 /** Kind 30311 = NIP-53 Live Activities. */
 const LIVE_STREAM_KIND = 30311;
 import { useReplies } from '@/hooks/useReplies';
+import { useComments } from '@/hooks/useComments';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMuteList } from '@/hooks/useMuteList';
@@ -613,35 +614,62 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       .map((e) => e.emoji);
   }, [interactions?.reactions]);
 
-  const { data: rawReplies, isLoading: repliesLoading } = useReplies(event.id);
+  // Kind 1 events use NIP-10 replies (kind 1); all other events use NIP-22 comments (kind 1111)
+  const isKind1 = event.kind === 1;
+  const { data: rawReplies, isLoading: kind1RepliesLoading } = useReplies(isKind1 ? event.id : undefined);
+  const { data: commentsData, isLoading: commentsLoading } = useComments(isKind1 ? undefined : event, 500);
+
+  const repliesLoading = isKind1 ? kind1RepliesLoading : commentsLoading;
+
   const replies = useMemo(() => {
-    if (!rawReplies || muteItems.length === 0) return rawReplies;
-    return rawReplies.filter((r) => !isEventMuted(r, muteItems));
-  }, [rawReplies, muteItems]);
+    const source = isKind1 ? rawReplies : commentsData?.allComments;
+    if (!source || muteItems.length === 0) return source;
+    return source.filter((r) => !isEventMuted(r, muteItems));
+  }, [isKind1, rawReplies, commentsData?.allComments, muteItems]);
 
   // Build a reply tree: direct replies each paired with their first sub-reply.
   const orderedReplies = useMemo(() => {
     if (!replies || replies.length === 0) return [];
 
-    const childrenMap = new Map<string, NostrEvent[]>();
-    const directReplies: NostrEvent[] = [];
+    if (isKind1) {
+      // Kind 1: use NIP-10 parent detection via e-tag markers
+      const childrenMap = new Map<string, NostrEvent[]>();
+      const directReplies: NostrEvent[] = [];
 
-    for (const r of replies) {
-      const parentId = getParentEventId(r);
-      if (!parentId || parentId === event.id) {
-        directReplies.push(r);
-      } else {
-        const siblings = childrenMap.get(parentId) || [];
-        siblings.push(r);
-        childrenMap.set(parentId, siblings);
+      for (const r of replies) {
+        const parentId = getParentEventId(r);
+        if (!parentId || parentId === event.id) {
+          directReplies.push(r);
+        } else {
+          const siblings = childrenMap.get(parentId) || [];
+          siblings.push(r);
+          childrenMap.set(parentId, siblings);
+        }
       }
-    }
 
-    return directReplies.map((reply) => ({
-      reply,
-      firstSubReply: (childrenMap.get(reply.id) ?? [])[0] as NostrEvent | undefined,
-    }));
-  }, [replies, event.id]);
+      return directReplies.map((reply) => ({
+        reply,
+        firstSubReply: (childrenMap.get(reply.id) ?? [])[0] as NostrEvent | undefined,
+      }));
+    } else {
+      // Non-kind-1: use NIP-22 comment structure from useComments
+      const topLevel = commentsData?.topLevelComments ?? [];
+      const filteredTopLevel = muteItems.length > 0
+        ? topLevel.filter((r) => !isEventMuted(r, muteItems))
+        : topLevel;
+
+      // Sort oldest-first for threaded conversation view (useComments returns newest-first)
+      const sorted = [...filteredTopLevel].sort((a, b) => a.created_at - b.created_at);
+
+      return sorted.map((reply) => {
+        const directReplies = commentsData?.getDirectReplies(reply.id) ?? [];
+        return {
+          reply,
+          firstSubReply: directReplies[0] as NostrEvent | undefined,
+        };
+      });
+    }
+  }, [isKind1, replies, event.id, commentsData, muteItems]);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
   const [interactionsOpen, setInteractionsOpen] = useState(false);
