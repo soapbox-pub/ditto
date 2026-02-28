@@ -59,6 +59,7 @@ import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { ContentWarningGuard } from '@/components/ContentWarningGuard';
 import { MutedContentGuard } from '@/components/MutedContentGuard';
+import { ExternalContentPreview } from '@/components/ExternalContentHeader';
 import { getParentEventId } from '@/lib/nostrEvents';
 
 
@@ -748,6 +749,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   const parentEventId = useMemo(() => isTextNote ? getParentEventId(event) : undefined, [event, isTextNote]);
 
+  // For kind 1111 comments on external content, extract the I tag for the parent preview
+  const externalIdentifier = useMemo(() => {
+    if (!isComment) return undefined;
+    return event.tags.find(([n]) => n === 'I')?.[1];
+  }, [event, isComment]);
+
   // Keep the focused post pinned to top while ancestor content loads above it.
   // A ResizeObserver on the ancestor container re-scrolls on every layout shift
   // (image loads, skeleton→content swaps) for the first few seconds.
@@ -802,6 +809,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <div ref={ancestorRef}>
           <AncestorThread eventId={parentEventId} />
         </div>
+      )}
+
+      {/* External content preview for kind 1111 comments on URLs/books/etc. */}
+      {externalIdentifier && (
+        <ExternalContentPreview identifier={externalIdentifier} />
       )}
 
       {/* Main post — expanded Ditto-style view */}
