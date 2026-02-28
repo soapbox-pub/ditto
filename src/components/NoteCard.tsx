@@ -11,7 +11,7 @@ import { RepostMenu } from '@/components/RepostMenu';
 import { PollContent } from '@/components/PollContent';
 import { GeocacheContent } from '@/components/GeocacheContent';
 import { FoundLogContent } from '@/components/FoundLogContent';
-import { ColorMomentContent } from '@/components/ColorMomentContent';
+import { ColorMomentContent, ColorMomentEyeButton } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { ArticleContent } from '@/components/ArticleContent';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
@@ -490,6 +490,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
       <div className="flex items-center gap-3">
         {avatarElement}
         {authorInfo}
+        {isColor && <ColorMomentEyeButton event={event} />}
       </div>
 
       {contentBlock}
