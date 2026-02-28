@@ -35,7 +35,7 @@ export function MobileBottomNav() {
     <>
       <MobileSearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 h-14 flex items-center bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom">
 
         <Link
           to="/"
