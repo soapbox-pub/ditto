@@ -902,13 +902,15 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
 // ---------------------------------------------------------------------------
 
 function WelcomeStep({ onNext }: { onNext: () => void }) {
+  const { config } = useAppContext();
+
   return (
     <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <DittoLogo size={80} />
 
       <div className="space-y-3">
         <h1 className="text-2xl font-bold tracking-tight">
-          Welcome to Ditto
+          Welcome to {config.appName}
         </h1>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
           Let's get you set up. It only takes a moment, and you can change anything later in Settings.

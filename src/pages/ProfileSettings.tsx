@@ -2,14 +2,16 @@ import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { EditProfileForm } from '@/components/EditProfileForm';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export function ProfileSettings() {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
 
   useSeoMeta({
-    title: 'Profile | Settings | Ditto',
-    description: 'Edit your Ditto profile',
+    title: `Profile | Settings | ${config.appName}`,
+    description: `Edit your ${config.appName} profile`,
   });
 
   if (!user) {

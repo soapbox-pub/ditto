@@ -1,12 +1,14 @@
 import { useSeoMeta } from "@unhead/react";
 import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
+import { useAppContext } from "@/hooks/useAppContext";
 
 const NotFound = () => {
   const location = useLocation();
+  const { config } = useAppContext();
 
   useSeoMeta({
-    title: "404 - Page Not Found | Ditto",
+    title: `404 - Page Not Found | ${config.appName}`,
     description: "The page you are looking for could not be found.",
   });
 

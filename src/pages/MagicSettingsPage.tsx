@@ -10,7 +10,7 @@ export function MagicSettingsPage() {
   const { config, updateConfig } = useAppContext();
 
   useSeoMeta({
-    title: 'Magic | Settings | Ditto',
+    title: `Magic | Settings | ${config.appName}`,
     description: 'Magical cursor effects and enchanted interface settings',
   });
 

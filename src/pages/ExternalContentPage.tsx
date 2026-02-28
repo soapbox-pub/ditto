@@ -14,6 +14,7 @@ import {
   BookContentHeader,
   CountryContentHeader,
 } from '@/components/ExternalContentHeader';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useComments } from '@/hooks/useComments';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
@@ -26,6 +27,7 @@ import NotFound from './NotFound';
 // ---------------------------------------------------------------------------
 
 export function ExternalContentPage() {
+  const { config } = useAppContext();
   const { '*': rawUri } = useParams();
   const location = useLocation();
 
@@ -47,7 +49,7 @@ export function ExternalContentPage() {
     return parseExternalUri(uri);
   }, [uri]);
 
-  useSeoMeta({ title: content ? seoTitle(content) : 'External Content | Ditto' });
+  useSeoMeta({ title: content ? seoTitle(content, config.appName) : `External Content | ${config.appName}` });
 
   // Build the NIP-73 identifier for comments.
   // For URLs, the raw URL is used. For others, the full prefixed identifier.

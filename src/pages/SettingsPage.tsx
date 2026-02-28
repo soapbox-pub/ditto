@@ -90,8 +90,8 @@ export function SettingsPage() {
   useLayoutOptions({});
 
   useSeoMeta({
-    title: 'Settings | Ditto',
-    description: 'Manage your Ditto settings',
+    title: `Settings | ${config.appName}`,
+    description: `Manage your ${config.appName} settings`,
   });
 
   // Magic section only appears in the menu once unlocked

@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
@@ -52,6 +53,7 @@ function useDomainPubkeys(domain: string | undefined) {
 }
 
 export function DomainFeedPage() {
+  const { config } = useAppContext();
   const { domain } = useParams<{ domain: string }>();
   const navigate = useNavigate();
   const { nostr } = useNostr();
@@ -61,7 +63,7 @@ export function DomainFeedPage() {
   const kindsKey = [...kinds].sort().join(',');
 
   useSeoMeta({
-    title: domain ? `${domain} | Ditto` : 'Domain Feed | Ditto',
+    title: domain ? `${domain} | ${config.appName}` : `Domain Feed | ${config.appName}`,
     description: domain ? `Posts from users on ${domain}` : 'Domain feed',
   });
 

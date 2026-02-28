@@ -35,6 +35,7 @@ import { ThemeContent } from '@/components/ThemeContent';
 import { LiveStreamPage } from '@/components/LiveStreamPage';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
+import { useAppContext } from '@/hooks/useAppContext';
 
 /** Kinds that get the full follow-pack detail view. */
 const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
@@ -167,11 +168,12 @@ function formatFullDate(timestamp: number): string {
 }
 
 export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPageProps) {
+  const { config } = useAppContext();
   const { data: event, isLoading, isError } = useEvent(eventId, relays, authorHint);
   const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
 
   useSeoMeta({
-    title: (event || retryEvent) ? 'Post Details - Ditto' : 'Loading... - Ditto',
+    title: (event || retryEvent) ? `Post Details - ${config.appName}` : `Loading... - ${config.appName}`,
   });
 
   if (isLoading) {
@@ -206,6 +208,7 @@ export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPagePr
 
 /** Detail page for addressable events (naddr). Same layout as PostDetailPage. */
 export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
+  const { config } = useAppContext();
   const { data: event, isLoading, isError } = useAddrEvent(addr, relays);
   const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
 
@@ -213,8 +216,8 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
 
   useSeoMeta({
     title: resolvedEvent
-      ? `${resolvedEvent.tags.find(([n]) => n === 'title')?.[1] || 'Post Details'} - Ditto`
-      : 'Loading... - Ditto',
+      ? `${resolvedEvent.tags.find(([n]) => n === 'title')?.[1] || 'Post Details'} - ${config.appName}`
+      : `Loading... - ${config.appName}`,
   });
 
   if (isLoading) {

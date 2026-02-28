@@ -1,6 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAppContext } from '@/hooks/useAppContext';
 import { cn } from '@/lib/utils';
 
 interface PlaceholderPageProps {
@@ -10,8 +11,10 @@ interface PlaceholderPageProps {
 }
 
 export function PlaceholderPage({ title, icon, description }: PlaceholderPageProps) {
+  const { config } = useAppContext();
+
   useSeoMeta({
-    title: `${title} | Ditto`,
+    title: `${title} | ${config.appName}`,
     description: description || `${title} page`,
   });
 

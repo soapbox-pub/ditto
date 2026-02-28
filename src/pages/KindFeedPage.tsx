@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Feed } from '@/components/Feed';
 import { KindInfoButton } from '@/components/KindInfoButton';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { EXTRA_KINDS, type ExtraKindDef } from '@/lib/extraKinds';
 
@@ -29,6 +30,7 @@ interface KindFeedPageProps {
 }
 
 export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra, onFabClick }: KindFeedPageProps) {
+  const { config } = useAppContext();
   const primaryKind = Array.isArray(kind) ? kind[0] : kind;
 
   const resolvedDef = useMemo(
@@ -37,7 +39,7 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
   );
 
   useSeoMeta({
-    title: `${title} | Ditto`,
+    title: `${title} | ${config.appName}`,
     description: `${title} on Nostr`,
   });
 
