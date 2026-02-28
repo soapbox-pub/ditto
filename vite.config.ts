@@ -33,6 +33,7 @@ function loadDittoConfig(): object | undefined {
  * Recursively handles subdirectories.
  */
 function copyDirSync(src: string, dest: string): void {
+  if (!fs.existsSync(src)) return;
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
     const srcPath = path.join(src, entry.name);
