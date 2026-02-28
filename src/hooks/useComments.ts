@@ -2,12 +2,13 @@ import { NKinds, NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 
-export function useComments(root: NostrEvent | URL | `#${string}`, limit?: number) {
+export function useComments(root: NostrEvent | URL | `#${string}` | undefined, limit?: number) {
   const { nostr } = useNostr();
 
   return useQuery({
-    queryKey: ['nostr', 'comments', root instanceof URL ? root.toString() : typeof root === 'string' ? root : root.id, limit],
+    queryKey: ['nostr', 'comments', root instanceof URL ? root.toString() : typeof root === 'string' ? root : root?.id, limit],
     queryFn: async () => {
+      if (!root) throw new Error('root is required');
       const filter: NostrFilter = { kinds: [1111] };
 
       if (typeof root === 'string') {
