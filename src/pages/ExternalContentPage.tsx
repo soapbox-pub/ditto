@@ -4,6 +4,7 @@ import { ArrowLeft, Globe, MessageSquare } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteCard } from '@/components/NoteCard';
+import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import {
   parseExternalUri,
@@ -112,6 +113,9 @@ export function ExternalContentPage() {
           </div>
         )}
       </div>
+
+      {/* Inline compose box */}
+      <ComposeBox compact replyTo={commentRoot} />
 
       {/* Comment compose dialog (opened via FAB) */}
       <ReplyComposeModal event={commentRoot} open={composeOpen} onOpenChange={setComposeOpen} />
