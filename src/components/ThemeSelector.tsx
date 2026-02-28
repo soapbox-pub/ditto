@@ -139,7 +139,7 @@ function ThemeButton({
       className={cn(
         'relative group rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         isActive ? 'border-primary shadow-sm' : 'border-border hover:border-primary/40',
-        scroll && 'w-28 shrink-0',
+        scroll && 'w-36 sm:w-auto shrink-0 sm:shrink',
       )}
       onClick={onClick}
     >
