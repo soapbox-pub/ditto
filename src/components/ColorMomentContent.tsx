@@ -153,21 +153,43 @@ function CheckerboardLayout({ colors }: { colors: string[] }) {
 
 function DiagonalStripesLayout({ colors }: { colors: string[] }) {
   const n = colors.length;
-  const pct = 100 / n;
-  const stops = colors.map((color, i) => {
-    const start = pct * i;
-    const end = pct * (i + 1);
-    return `${color} ${start}% ${end}%`;
-  }).join(', ');
+  const H = 180;
+  // Use a canvas wider than the visible area by H so that parallelogram stripes
+  // at a 45° diagonal fill the rectangle exactly. The viewBox is (W+H) × H but
+  // we clip it back to W × H via the wrapper div + overflow-hidden.
+  // Each stripe is a true parallelogram with vertical width W/n and a horizontal
+  // shift of H from top to bottom, giving a consistent 45° diagonal boundary.
+  const W = 400;
+  const totalW = W + H; // canvas wide enough so last stripe reaches bottom-right
+  const stripeW = totalW / n;
 
   return (
-    <div
-      className="w-full rounded-2xl"
-      style={{
-        height: 180,
-        background: `linear-gradient(135deg, ${stops})`,
-      }}
-    />
+    <div className="w-full rounded-2xl overflow-hidden" style={{ height: H }}>
+      <svg
+        width="100%"
+        height="100%"
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        xmlns="http://www.w3.org/2000/svg"
+        shapeRendering="geometricPrecision"
+      >
+        {colors.map((color, i) => {
+          // Stripe i: parallelogram where the top edge is at x=[i*sw, (i+1)*sw]
+          // and the bottom edge shifts left by H (height), giving a 45° angle.
+          const tx0 = i * stripeW;             // top-left x
+          const tx1 = (i + 1) * stripeW;     // top-right x
+          const bx0 = i * stripeW - H;       // bottom-left x (shifted left by H)
+          const bx1 = (i + 1) * stripeW - H; // bottom-right x
+          const points = [
+            `${tx0},0`,
+            `${tx1},0`,
+            `${bx1},${H}`,
+            `${bx0},${H}`,
+          ].join(' ');
+          return <polygon key={i} points={points} fill={color} />;
+        })}
+      </svg>
+    </div>
   );
 }
 
