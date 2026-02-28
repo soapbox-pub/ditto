@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { IntroImage } from '@/components/IntroImage';
 import { Switch } from '@/components/ui/switch';
@@ -27,10 +27,7 @@ export function MagicSettingsPage() {
             <ArrowLeft className="size-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold flex items-center gap-2">
-              Magic
-              <Sparkles className="size-4 text-primary/70" />
-            </h1>
+            <h1 className="text-xl font-bold">Magic</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Enchanted cursor effects and mystical interface powers
             </p>
@@ -65,7 +62,6 @@ export function MagicSettingsPage() {
           <div className="flex-1 min-w-0">
             <Label htmlFor="magic-mouse-toggle" className="text-sm font-semibold cursor-pointer flex items-center gap-1.5">
               Magic Mouse
-              {config.magicMouse && <Sparkles className="size-3 text-primary animate-pulse" />}
             </Label>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               Your cursor (or finger on touch devices) will emanate magical fire in the glow of your primary color. Move with purpose — every path you trace becomes a trail of flame.
