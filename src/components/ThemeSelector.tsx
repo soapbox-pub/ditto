@@ -341,13 +341,27 @@ export function ThemeGrid({
       <>
         {/* Mobile carousel */}
         <div className="sm:hidden space-y-3">
-          <div className="relative">
-            {/* Scroll container — 1 card per page, full width */}
+          <div className="flex items-center gap-2">
+            {/* Left arrow */}
+            <button
+              onClick={() => goToPage(activePage - 1)}
+              disabled={!canPrev}
+              className={cn(
+                'shrink-0 size-8 flex items-center justify-center rounded-full',
+                'bg-muted border border-border shadow-sm',
+                'transition-opacity duration-200',
+                canPrev ? 'opacity-100' : 'opacity-0 pointer-events-none',
+              )}
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+
+            {/* Scroll container — 1 card per page, swipeable */}
             <div
               ref={scrollRef}
               onScroll={handleScroll}
-              className="flex w-full overflow-x-hidden snap-x snap-mandatory"
-              style={{ scrollbarWidth: 'none' }}
+              className="flex flex-1 overflow-x-auto snap-x snap-mandatory"
+              style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
             >
               {allItems.map((item) => (
                 <div key={item.key} className="shrink-0 w-full snap-start">
@@ -364,29 +378,13 @@ export function ThemeGrid({
               ))}
             </div>
 
-            {/* Left arrow — overlaid on the card */}
-            <button
-              onClick={() => goToPage(activePage - 1)}
-              disabled={!canPrev}
-              className={cn(
-                'absolute left-2 top-1/2 -translate-y-1/2 z-10',
-                'size-8 flex items-center justify-center rounded-full',
-                'bg-background/80 backdrop-blur-sm border border-border shadow-sm',
-                'transition-opacity duration-200',
-                canPrev ? 'opacity-100' : 'opacity-0 pointer-events-none',
-              )}
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-
-            {/* Right arrow — overlaid on the card */}
+            {/* Right arrow */}
             <button
               onClick={() => goToPage(activePage + 1)}
               disabled={!canNext}
               className={cn(
-                'absolute right-2 top-1/2 -translate-y-1/2 z-10',
-                'size-8 flex items-center justify-center rounded-full',
-                'bg-background/80 backdrop-blur-sm border border-border shadow-sm',
+                'shrink-0 size-8 flex items-center justify-center rounded-full',
+                'bg-muted border border-border shadow-sm',
                 'transition-opacity duration-200',
                 canNext ? 'opacity-100' : 'opacity-0 pointer-events-none',
               )}
