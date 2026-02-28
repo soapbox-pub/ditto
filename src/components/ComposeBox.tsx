@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Paperclip, Smile, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
-import { NKinds, type NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { EmojiShortcodeAutocomplete } from '@/components/EmojiShortcodeAutocompl
 import { NoteContent } from '@/components/NoteContent';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { usePostComment } from '@/hooks/usePostComment';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
@@ -148,6 +149,7 @@ export function ComposeBox({
   const { user, metadata, isLoading: isProfileLoading } = useCurrentUser();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
+  const { mutateAsync: postComment, isPending: isCommentPending } = usePostComment();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -517,55 +519,6 @@ export function ComposeBox({
         }
       }
 
-      if (replyTo && isNip22Reply) {
-        // NIP-22 comment tags (non-kind-1 targets)
-        const dTag = replyTo.tags.find(([name]) => name === 'd')?.[1] ?? '';
-
-        if (replyTo.kind === 1111) {
-          // Replying to a kind 1111 comment: copy uppercase root tags from it
-          for (const tag of replyTo.tags) {
-            if (['A', 'E', 'I', 'K', 'P'].includes(tag[0])) {
-              tags.push([...tag]);
-            }
-          }
-
-          // Lowercase tags point to the parent comment
-          tags.push(['e', replyTo.id, DITTO_RELAY, replyTo.pubkey]);
-          tags.push(['k', '1111']);
-          tags.push(['p', replyTo.pubkey]);
-        } else {
-          // Replying directly to a non-kind-1 event: it is both root and parent
-          // Uppercase tags (root scope)
-          if (NKinds.addressable(replyTo.kind)) {
-            const addr = `${replyTo.kind}:${replyTo.pubkey}:${dTag}`;
-            tags.push(['A', addr, DITTO_RELAY]);
-          } else if (NKinds.replaceable(replyTo.kind)) {
-            const addr = `${replyTo.kind}:${replyTo.pubkey}:`;
-            tags.push(['A', addr, DITTO_RELAY]);
-          } else {
-            tags.push(['E', replyTo.id, DITTO_RELAY, replyTo.pubkey]);
-          }
-          tags.push(['K', replyTo.kind.toString()]);
-          tags.push(['P', replyTo.pubkey]);
-
-          // Lowercase tags (parent = same as root for top-level comments)
-          if (NKinds.addressable(replyTo.kind)) {
-            const addr = `${replyTo.kind}:${replyTo.pubkey}:${dTag}`;
-            tags.push(['a', addr, DITTO_RELAY]);
-            // Also include an e tag referencing the event id for replaceable/addressable events
-            tags.push(['e', replyTo.id, DITTO_RELAY, replyTo.pubkey]);
-          } else if (NKinds.replaceable(replyTo.kind)) {
-            const addr = `${replyTo.kind}:${replyTo.pubkey}:`;
-            tags.push(['a', addr, DITTO_RELAY]);
-            tags.push(['e', replyTo.id, DITTO_RELAY, replyTo.pubkey]);
-          } else {
-            tags.push(['e', replyTo.id, DITTO_RELAY, replyTo.pubkey]);
-          }
-          tags.push(['k', replyTo.kind.toString()]);
-          tags.push(['p', replyTo.pubkey]);
-        }
-      }
-
       // Quote tags (if quoted event and not removed)
       // Per NIP-18, quotes should use the q tag and include the nostr: URI in content
       let finalContent = content.trim();
@@ -648,12 +601,63 @@ export function ComposeBox({
 
 
 
-      await createEvent({
-        kind: isNip22Reply ? 1111 : 1,
-        content: finalContent,
-        tags,
-        created_at: Math.floor(Date.now() / 1000),
-      });
+      if (isNip22Reply) {
+        // NIP-22: use usePostComment for non-kind-1 targets
+        // Determine root and reply params for the comment hook
+        let root: NostrEvent;
+        let reply: NostrEvent | undefined;
+
+        if (replyTo.kind === 1111) {
+          // Replying to a comment: replyTo is the parent, root is derived from its uppercase tags
+          reply = replyTo;
+
+          // Reconstruct minimal root event info from the comment's uppercase tags
+          const K = replyTo.tags.find(([n]) => n === 'K')?.[1];
+          const P = replyTo.tags.find(([n]) => n === 'P')?.[1];
+          const A = replyTo.tags.find(([n]) => n === 'A')?.[1];
+          const E = replyTo.tags.find(([n]) => n === 'E')?.[1];
+
+          const rootKind = K ? parseInt(K, 10) : 0;
+          const rootPubkey = P ?? '';
+
+          if (A) {
+            // Addressable/replaceable root: extract d-tag from the A value
+            const parts = A.split(':');
+            const dValue = parts.length >= 3 ? parts.slice(2).join(':') : '';
+            root = {
+              id: E ?? '',
+              kind: rootKind,
+              pubkey: rootPubkey,
+              content: '',
+              created_at: 0,
+              sig: '',
+              tags: [['d', dValue]],
+            };
+          } else {
+            root = {
+              id: E ?? '',
+              kind: rootKind,
+              pubkey: rootPubkey,
+              content: '',
+              created_at: 0,
+              sig: '',
+              tags: [],
+            };
+          }
+        } else {
+          // Replying directly to a non-kind-1 event: it is the root
+          root = replyTo;
+        }
+
+        await postComment({ root, reply, content: finalContent, tags });
+      } else {
+        await createEvent({
+          kind: 1,
+          content: finalContent,
+          tags,
+          created_at: Math.floor(Date.now() / 1000),
+        });
+      }
 
       setContent('');
       setCwEnabled(false);
@@ -665,10 +669,7 @@ export function ComposeBox({
       setWebxdcUuids(new Map());
       setWebxdcMetas(new Map());
       queryClient.invalidateQueries({ queryKey: ['feed'] });
-      if (replyTo && isNip22Reply) {
-        // Invalidate NIP-22 comments cache
-        queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
-      } else if (replyTo) {
+      if (replyTo) {
         queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
       }
       if (quotedEvent) {
@@ -918,11 +919,11 @@ export function ComposeBox({
 
               <Button
                 onClick={handleSubmit}
-                disabled={!content.trim() || isPending || !user || charCount > MAX_CHARS}
+                disabled={!content.trim() || isPending || isCommentPending || !user || charCount > MAX_CHARS}
                 className="rounded-full px-5 font-bold"
                 size="sm"
               >
-                {isPending ? 'Posting...' : 'Post!'}
+                {isPending || isCommentPending ? 'Posting...' : 'Post!'}
               </Button>
             </div>
           </div>
