@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Radio, Users, Clock } from 'lucide-react';
+import { sidebarItemIcon } from '@/components/SidebarNavItem';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -74,7 +75,7 @@ export function StreamsFeedPage() {
             <Radio className="size-5" />
             <h1 className="text-xl font-bold">Streams</h1>
           </div>
-          <KindInfoButton kindDef={streamsDef} icon={<Radio className="size-5" />} />
+          <KindInfoButton kindDef={streamsDef} icon={sidebarItemIcon('streams', 'size-5')} />
         </div>
 
         {/* Feed */}

@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Scroll } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { IntroImage } from '@/components/IntroImage';
@@ -25,7 +25,7 @@ export const settingsSections: SettingsSection[] = [
   },
   {
     id: 'theme',
-    label: 'Theme',
+    label: 'Vibe',
     description: 'Choose a theme for the interface',
     illustration: '/theme-intro.png',
     path: '/settings/theme',
@@ -82,12 +82,13 @@ export function SettingsPage() {
       style={{ background: 'radial-gradient(ellipse 100% 300px at 50% 0%, hsl(var(--primary) / 0.06), transparent), radial-gradient(ellipse 100% 300px at 50% 100%, hsl(var(--primary) / 0.06), transparent)' }}
     >
       {/* Page header */}
-      <div className="px-4 py-3.5 sidebar:py-5">
+      <div className="flex items-center gap-4 px-4 pt-4 pb-5">
+        <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+          <ArrowLeft className="size-5" />
+        </Link>
         <div className="flex items-center gap-2">
-          <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-            <ArrowLeft className="size-5" />
-          </Link>
-          <h1 className="font-bold text-xl">Settings</h1>
+          <Scroll className="size-5" />
+          <h1 className="text-xl font-bold">Settings</h1>
         </div>
       </div>
 
@@ -96,7 +97,7 @@ export function SettingsPage() {
         <p className="text-xs text-muted-foreground leading-relaxed select-none">
           Shape your identity, tune your feed, and manage how you connect to the Nostr network.<br />Everything you need to make this place feel like yours.
         </p>
-        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/40 select-none pt-6">Codex of Configuration</p>
+        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/60 select-none pt-6">Codex of Configuration</p>
       </div>
 
       {/* Tome ornament */}

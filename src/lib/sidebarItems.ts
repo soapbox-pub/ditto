@@ -26,7 +26,6 @@ export function isItemActive(id: string, pathname: string, search: string, profi
   if (id === 'bookmarks') return pathname === '/bookmarks';
   if (id === 'profile') return !!profilePath && pathname === profilePath;
   if (id === 'theme') return pathname === '/settings/theme';
-  if (id === 'themes') return pathname === '/themes';
   if (id === 'settings') return pathname.startsWith('/settings') && pathname !== '/settings/theme';
   const def = getExtraKindDef(id);
   return def?.route ? pathname === `/${def.route}` : pathname === `/${id}`;

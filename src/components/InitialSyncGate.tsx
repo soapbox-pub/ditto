@@ -30,9 +30,6 @@ import {
   Eye,
   EyeOff,
   Shield,
-  Clapperboard,
-  Palette,
-  Radio,
   Users,
   UserPlus,
   Loader2,
@@ -43,16 +40,14 @@ import {
   ChevronUp,
   Plus,
   Trash2,
-  Blocks,
-  type LucideIcon,
 } from 'lucide-react';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChestIcon } from '@/components/icons/ChestIcon';
-import { CardsIcon } from '@/components/icons/CardsIcon';
+import { EXTRA_KINDS } from '@/lib/extraKinds';
+import { EXTRA_KIND_ICONS } from '@/lib/extraKindIcons';
 
 // ---------------------------------------------------------------------------
 // Onboarding context — lets any component trigger the signup onboarding
@@ -213,23 +208,22 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // Setup Questionnaire
 // ---------------------------------------------------------------------------
 
-interface ContentKind {
-  key: string;
-  label: string;
-  description: string;
-  icon: LucideIcon | React.ComponentType<{ className?: string }>;
-  sidebarKey: string;
-  feedKey: string;
-}
+/** Extra-kind IDs shown in the onboarding content picker, in display order. */
+const ONBOARDING_CONTENT_IDS = ['vines', 'streams', 'colors', 'decks', 'treasures', 'webxdc'];
 
-const CONTENT_KINDS: ContentKind[] = [
-  { key: 'vines', label: 'Vines', description: 'Short video clips', icon: Clapperboard, sidebarKey: 'showVines', feedKey: 'feedIncludeVines' },
-  { key: 'streams', label: 'Streams', description: 'Live broadcasts', icon: Radio, sidebarKey: 'showStreams', feedKey: 'feedIncludeStreams' },
-  { key: 'colors', label: 'Color Moments', description: 'Color palette sharing', icon: Palette, sidebarKey: 'showColors', feedKey: 'feedIncludeColors' },
-  { key: 'decks', label: 'Magic Decks', description: 'MTG deck lists', icon: CardsIcon, sidebarKey: 'showDecks', feedKey: 'feedIncludeDecks' },
-  { key: 'treasures', label: 'Treasures', description: 'Geocaching adventures', icon: ChestIcon, sidebarKey: 'showTreasures', feedKey: 'feedIncludeTreasureGeocaches' },
-  { key: 'webxdc', label: 'Webxdc', description: 'Sandboxed HTML5 mini-apps', icon: Blocks, sidebarKey: 'showWebxdc', feedKey: 'feedIncludeWebxdc' },
-];
+/** Onboarding content kinds derived from EXTRA_KINDS — no separate data to maintain. */
+const CONTENT_KINDS = ONBOARDING_CONTENT_IDS.flatMap((id) => {
+  const def = EXTRA_KINDS.find((d) => d.id === id);
+  if (!def || !def.showKey || !def.feedKey) return [];
+  return [{
+    key: def.id,
+    label: def.label,
+    description: def.description,
+    icon: EXTRA_KIND_ICONS[def.id],
+    sidebarKey: def.showKey as string,
+    feedKey: def.feedKey as string,
+  }];
+});
 
 const CW_OPTIONS: { value: ContentWarningPolicy; label: string; description: string; icon: typeof Eye }[] = [
   { value: 'blur', label: 'Blur', description: 'Blur sensitive content until you tap', icon: Shield },
