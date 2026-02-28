@@ -50,7 +50,7 @@ export function AppRouter() {
           <Route path="/trends" element={<TrendsPage />} />
           <Route path="/profile" element={<ProfileRedirect />} />
           <Route path="/t/:tag" element={<HashtagPage />} />
-          <Route path="/timeline/:domain" element={<DomainFeedPage />} />
+          <Route path="/feed/:domain" element={<DomainFeedPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/profile" element={<ProfileSettings />} />
           <Route path="/settings/theme" element={<ThemeSettingsPage />} />
