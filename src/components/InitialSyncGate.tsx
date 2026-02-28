@@ -968,7 +968,7 @@ function ThemeStep({
           <p className="text-sm text-muted-foreground">Pick a theme that feels right.</p>
         </div>
 
-        <ThemeGrid columns="sm" />
+        <ThemeGrid columns="scroll" />
 
         {isFirst ? (
           <Button onClick={onNext} className="w-full rounded-full h-11 gap-1.5">
