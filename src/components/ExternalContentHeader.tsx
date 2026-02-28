@@ -362,10 +362,6 @@ export function CountryContentHeader({ code }: { code: string }) {
             {info.flag}
           </span>
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <MapPin className="size-3.5 shrink-0" />
-              <span>ISO 3166 {info.subdivision ? `(${info.subdivision})` : `(${code.toUpperCase()})`}</span>
-            </div>
             <h2 className="text-2xl sm:text-3xl font-bold leading-snug">
               {info.name}
             </h2>
@@ -376,19 +372,6 @@ export function CountryContentHeader({ code }: { code: string }) {
             )}
           </div>
         </div>
-      </div>
-
-      <div className="border-t border-border px-5 py-2.5">
-        <a
-          href={`https://en.wikipedia.org/wiki/ISO_3166-2:${code.toUpperCase()}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Globe className="size-3.5" />
-          <span>View on Wikipedia</span>
-          <ExternalLink className="size-3" />
-        </a>
       </div>
     </div>
   );
