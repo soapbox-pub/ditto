@@ -9,7 +9,7 @@
  */
 
 import type { ThemeFont } from '@/themes';
-import { findBundledFont, loadBundledFont } from '@/lib/fonts';
+import { findBundledFont, loadBundledFont, resolveCssFamily } from '@/lib/fonts';
 
 // ─── @font-face injection for remote fonts ────────────────────────────
 
@@ -73,7 +73,8 @@ export function applyFontOverride(font: ThemeFont | undefined): void {
     document.head.appendChild(style);
   }
 
-  style.textContent = `html { font-family: "${font.family}", ${DEFAULT_FONT_STACK} !important; }\n`;
+  const cssFamily = resolveCssFamily(font.family);
+  style.textContent = `html { font-family: "${cssFamily}", ${DEFAULT_FONT_STACK} !important; }\n`;
 }
 
 // ─── High-level font loading ──────────────────────────────────────────

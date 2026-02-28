@@ -6,7 +6,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { bundledFonts, loadBundledFont, type FontCategory } from '@/lib/fonts';
+import { bundledFonts, loadBundledFont, resolveCssFamily, type FontCategory } from '@/lib/fonts';
 import type { ThemeFont } from '@/themes';
 
 /** Category labels for UI display */
@@ -112,7 +112,7 @@ export function FontPicker() {
             role="combobox"
             aria-expanded={open}
             className="w-full justify-between font-normal h-9 text-sm"
-            style={currentFont ? { fontFamily: `"${currentFont.family}", sans-serif` } : undefined}
+            style={currentFont ? { fontFamily: `"${resolveCssFamily(currentFont.family)}", sans-serif` } : undefined}
           >
             {currentFont?.family ?? 'Default (Inter)'}
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
@@ -137,7 +137,7 @@ export function FontPicker() {
                       key={font.family}
                       value={font.family}
                       onSelect={() => handleSelect(font.family)}
-                      style={{ fontFamily: `"${font.family}", sans-serif` }}
+                      style={{ fontFamily: `"${font.cssFamily}", sans-serif` }}
                     >
                       <Check
                         className={cn(
@@ -158,7 +158,7 @@ export function FontPicker() {
       {currentFont && (
         <p
           className="text-sm text-muted-foreground"
-          style={{ fontFamily: `"${currentFont.family}", sans-serif` }}
+          style={{ fontFamily: `"${resolveCssFamily(currentFont.family)}", sans-serif` }}
         >
           The quick brown fox jumps over the lazy dog.
         </p>
