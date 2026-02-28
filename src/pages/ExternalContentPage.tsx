@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft, BookOpen, ExternalLink, Globe, MapPin } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CommentsSection } from '@/components/comments/CommentsSection';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -420,7 +420,20 @@ function seoTitle(content: ExternalContent): string {
 
 export function ExternalContentPage() {
   const { '*': rawUri } = useParams();
-  const uri = rawUri ? decodeURIComponent(rawUri) : '';
+  const location = useLocation();
+
+  // Support both encoded URLs (/i/https%3A%2F%2F...) and bare URLs (/i/https://...?q=x).
+  // For bare URLs the browser splits the target's query string into location.search,
+  // so we reattach it. For encoded URLs we decode the whole thing.
+  const uri = useMemo(() => {
+    if (!rawUri) return '';
+    // If the wildcard param looks already encoded (no "://" present), decode it.
+    if (!rawUri.includes('://')) {
+      return decodeURIComponent(rawUri);
+    }
+    // Otherwise it's a bare URL — reattach any query string the browser separated out.
+    return rawUri + location.search;
+  }, [rawUri, location.search]);
 
   const content = useMemo(() => {
     if (!uri) return null;
