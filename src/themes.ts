@@ -183,11 +183,11 @@ export const themePresets: Record<string, ThemePreset> = {
       text: '0 0% 100%',
       primary: '80 100% 50%',
     },
-    font: { family: 'Permanent Marker' },
+    font: { family: 'Rubik Maps' },
     background: {
-      url: 'https://blossom.ditto.pub/43540c23a2a895162ee43fbf7299b209a3c13ca15e93540d80339750b18f91b8.webp',
+      url: 'https://blossom.primal.net/9c4262aaa53d8feae41b3b6206647e25c6f388d9e836fb3e8abcf9be72be493e.png',
       mode: 'cover',
-      mimeType: 'image/webp',
+      mimeType: 'image/png',
     },
   },
 
@@ -196,15 +196,15 @@ export const themePresets: Record<string, ThemePreset> = {
     emoji: '🌸',
     featured: true,
     colors: {
-      background: '351 100% 86%',
-      text: '270 30% 20%',
-      primary: '300 26% 71%',
+      background: '340 60% 95%',
+      text: '345 30% 35%',
+      primary: '340 100% 76%',
     },
     font: { family: 'Cherry Bomb One' },
     background: {
-      url: 'https://blossom.ditto.pub/71290063b6b9efeb3b8b1e433c6545636aa0219065d1485e122ffb8db9f9c95d.webp',
+      url: 'https://blossom.ditto.pub/4e11a3ca749f9cc8989b61cb9efe78682533d2836eccaf4bccf104dd7b583e09.png',
       mode: 'cover',
-      mimeType: 'image/webp',
+      mimeType: 'image/png',
     },
   },
 
@@ -217,11 +217,11 @@ export const themePresets: Record<string, ThemePreset> = {
       text: '0 0% 75%',
       primary: '328 100% 54%',
     },
-    font: { family: 'Creepster' },
+    font: { family: 'Lacquer' },
     background: {
-      url: 'https://blossom.ditto.pub/d3700f9c689dd46f1a812ad895e8e032e74e690f01b3ea873948508846aa317a.webp',
+      url: 'https://blossom.primal.net/9fa0f1f7cd7da344f3e1db6ecfbdbeb2bb0763d3eaccbc0f5368871d0421b50b.png',
       mode: 'cover',
-      mimeType: 'image/webp',
+      mimeType: 'image/png',
     },
   },
 
@@ -236,9 +236,9 @@ export const themePresets: Record<string, ThemePreset> = {
     },
     font: { family: 'Silkscreen' },
     background: {
-      url: 'https://blossom.ditto.pub/fdab1aed559419daf3a2c446a0b26685b874bca92bc7d48ee50439e3444ce061.webp',
+      url: 'https://blossom.ditto.pub/946fedd46ec6b283472c0b3a102817ff414a6d640517df5c679bb63830ef21bf.png',
       mode: 'cover',
-      mimeType: 'image/webp',
+      mimeType: 'image/png',
     },
   },
 
@@ -247,15 +247,15 @@ export const themePresets: Record<string, ThemePreset> = {
     emoji: '💿',
     featured: true,
     colors: {
-      background: '260 50% 70%',
-      text: '40 30% 15%',
-      primary: '340 100% 76%',
+      background: '45 90% 55%',
+      text: '40 40% 10%',
+      primary: '260 50% 70%',
     },
     font: { family: 'Bungee Shade' },
     background: {
-      url: 'https://blossom.ditto.pub/9202b972513e7392a4afd320890bdc0d7ddee7407973915fd8bfae6864a13dbb.webp',
+      url: 'https://blossom.ditto.pub/3832abebc944668c4c0bd34309b0dfe120054671e20ca8c8e9abbb24114c972e.png',
       mode: 'cover',
-      mimeType: 'image/webp',
+      mimeType: 'image/png',
     },
   },
 
@@ -264,15 +264,15 @@ export const themePresets: Record<string, ThemePreset> = {
     emoji: '🍬',
     featured: true,
     colors: {
-      background: '328 100% 54%',
-      text: '0 0% 100%',
-      primary: '282 37% 53%',
+      background: '0 0% 100%',
+      text: '285 25% 31%',
+      primary: '279 100% 50%',
     },
-    font: { family: 'Luckiest Guy' },
+    font: { family: 'Barriecito' },
     background: {
-      url: 'https://blossom.ditto.pub/13f321714e1cb622f2bbe8e543923f1739e7afe6d9a2378aff28ec51af73be09.webp',
+      url: 'https://blossom.ditto.pub/edd3139e0c4d60b96dcf54edbe7410b1f58d9e5753c8d481fe9bb6812aca00d4.png',
       mode: 'cover',
-      mimeType: 'image/webp',
+      mimeType: 'image/png',
     },
   },
 
@@ -287,9 +287,9 @@ export const themePresets: Record<string, ThemePreset> = {
     },
     font: { family: 'Press Start 2P' },
     background: {
-      url: 'https://blossom.ditto.pub/33dbd024d777e36181cdd526c8fbbb6d22e08ced8ac6d1a4976e3c8c687a9f49.webp',
+      url: 'https://blossom.ditto.pub/c5597382d7da762dcce32b5b5dbbd95a719faee5cad7c356df1956648b58be69.png',
       mode: 'cover',
-      mimeType: 'image/webp',
+      mimeType: 'image/png',
     },
   },
 };
