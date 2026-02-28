@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
-import { Check, Palette, ArrowRight } from 'lucide-react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { Check, Palette, ArrowRight, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -232,61 +232,97 @@ export function ThemeGrid({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activePage, setActivePage] = useState(0);
 
-  const renderButton = (key: string, isActive: boolean, label: string, truncate: boolean, onClick: () => void, children: React.ReactNode) => (
-    <ThemeButton key={key} isActive={isActive} label={label} truncate={truncate} scroll={isScroll} onClick={onClick}>
-      {children}
-    </ThemeButton>
-  );
+  // Build a flat list of item descriptors (needed for carousel auto-select)
+  type ItemDescriptor = {
+    key: string;
+    label: string;
+    truncate: boolean;
+    onSelect: () => void;
+    preview: React.ReactNode;
+    isActive: boolean;
+  };
 
-  const renderBuiltins = () => builtinOptions.map((option) => {
-    if (option.id === 'system') {
-      const isActive = theme === 'system';
-      const lightTokens = coreToTokens(resolveThemeConfig('light', themes).colors);
-      const darkTokens = coreToTokens(resolveThemeConfig('dark', themes).colors);
-      return renderButton('system', isActive, option.label, false, () => handleSelectBuiltin('system'),
-        <div className="aspect-[4/3] rounded-lg overflow-hidden relative">
-          <SystemHalf tokens={lightTokens} side="left" />
-          <SystemHalf tokens={darkTokens} side="right" />
-          {isActive && (
-            <div className="absolute top-1 left-1 size-4 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: hsl(lightTokens.primary) }}
-            >
-              <Check className="size-2.5" style={{ color: hsl(lightTokens.primaryForeground) }} />
+  const buildItems = (): ItemDescriptor[] => {
+    const items: ItemDescriptor[] = [];
+
+    for (const option of builtinOptions) {
+      if (option.id === 'system') {
+        const isActive = theme === 'system';
+        const lightTokens = coreToTokens(resolveThemeConfig('light', themes).colors);
+        const darkTokens = coreToTokens(resolveThemeConfig('dark', themes).colors);
+        items.push({
+          key: 'system',
+          label: option.label,
+          truncate: false,
+          onSelect: () => handleSelectBuiltin('system'),
+          isActive,
+          preview: (
+            <div className="aspect-[4/3] rounded-lg overflow-hidden relative">
+              <SystemHalf tokens={lightTokens} side="left" />
+              <SystemHalf tokens={darkTokens} side="right" />
+              {isActive && (
+                <div className="absolute top-1 left-1 size-4 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: hsl(lightTokens.primary) }}
+                >
+                  <Check className="size-2.5" style={{ color: hsl(lightTokens.primaryForeground) }} />
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      );
+          ),
+        });
+      } else {
+        const colors = resolveThemeConfig(option.id as 'light' | 'dark', themes).colors;
+        const isActive = theme === option.id;
+        items.push({
+          key: option.id,
+          label: option.label,
+          truncate: false,
+          onSelect: () => handleSelectBuiltin(option.id),
+          isActive,
+          preview: <ThemePreviewCard colors={colors} isActive={isActive} />,
+        });
+      }
     }
-    const colors = resolveThemeConfig(option.id as 'light' | 'dark', themes).colors;
-    const isActive = theme === option.id;
-    return renderButton(option.id, isActive, option.label, false, () => handleSelectBuiltin(option.id),
-      <ThemePreviewCard colors={colors} isActive={isActive} />
-    );
-  });
 
-  const renderPresets = () => presetOptions.map((preset) => {
-    const isActive = isPresetActive(preset.colors);
-    return renderButton(preset.id, isActive, preset.label, false, () => handleSelectPreset(preset),
-      <ThemePreviewCard colors={preset.colors} isActive={isActive} backgroundUrl={preset.background?.url} />
-    );
-  });
+    for (const preset of presetOptions) {
+      const isActive = isPresetActive(preset.colors);
+      items.push({
+        key: preset.id,
+        label: preset.label,
+        truncate: false,
+        onSelect: () => handleSelectPreset(preset),
+        isActive,
+        preview: <ThemePreviewCard colors={preset.colors} isActive={isActive} backgroundUrl={preset.background?.url} />,
+      });
+    }
 
-  const renderUserThemes = () => userThemes.data?.map((def) => {
-    const isActive = isUserThemeActive(def);
-    return renderButton(`user:${def.identifier}`, isActive, def.title, true, () => handleSelectUserTheme(def),
-      <ThemePreviewCard colors={def.colors} isActive={isActive} backgroundUrl={def.background?.url} />
-    );
-  });
+    for (const def of (userThemes.data ?? [])) {
+      const isActive = isUserThemeActive(def);
+      items.push({
+        key: `user:${def.identifier}`,
+        label: def.title,
+        truncate: true,
+        onSelect: () => handleSelectUserTheme(def),
+        isActive,
+        preview: <ThemePreviewCard colors={def.colors} isActive={isActive} backgroundUrl={def.background?.url} />,
+      });
+    }
 
-  const allItems = [...renderBuiltins(), ...(renderPresets() ?? []), ...(renderUserThemes() ?? [])];
-  const pageCount = Math.ceil(allItems.length / 2);
+    return items;
+  };
+
+  const allItems = buildItems();
 
   if (isScroll) {
+    // Auto-select the theme that scrolls into view
     const handleScroll = () => {
       const el = scrollRef.current;
       if (!el) return;
       const page = Math.round(el.scrollLeft / el.clientWidth);
-      setActivePage(page);
+      if (page !== activePage) {
+        setActivePage(page);
+        allItems[page]?.onSelect();
+      }
     };
 
     const goToPage = (page: number) => {
@@ -295,32 +331,69 @@ export function ThemeGrid({
       el.scrollTo({ left: page * el.clientWidth, behavior: 'smooth' });
     };
 
-    // Pair items into pages of 2
-    const pages: React.ReactNode[][] = [];
-    for (let i = 0; i < allItems.length; i += 2) {
-      pages.push([allItems[i], allItems[i + 1]].filter(Boolean));
-    }
+    const canPrev = activePage > 0;
+    const canNext = activePage < allItems.length - 1;
 
     return (
       <>
         {/* Mobile carousel */}
-        <div className="sm:hidden">
-          <div
-            ref={scrollRef}
-            onScroll={handleScroll}
-            className="flex overflow-x-auto snap-x snap-mandatory gap-3"
-            style={{ scrollbarWidth: 'none' }}
-          >
-            {pages.map((page, i) => (
-              <div key={i} className="flex gap-3 shrink-0 w-full snap-start">
-                {page.map((item) => item)}
-              </div>
-            ))}
+        <div className="sm:hidden space-y-3">
+          <div className="relative">
+            {/* Left arrow */}
+            <button
+              onClick={() => goToPage(activePage - 1)}
+              disabled={!canPrev}
+              className={cn(
+                'absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10',
+                'size-8 flex items-center justify-center rounded-full',
+                'bg-background/80 backdrop-blur-sm border border-border shadow-sm',
+                'transition-opacity duration-200',
+                canPrev ? 'opacity-100' : 'opacity-0 pointer-events-none',
+              )}
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+
+            {/* Scroll container — 1 card per page */}
+            <div
+              ref={scrollRef}
+              onScroll={handleScroll}
+              className="flex overflow-x-auto snap-x snap-mandatory"
+              style={{ scrollbarWidth: 'none' }}
+            >
+              {allItems.map((item) => (
+                <div key={item.key} className="shrink-0 w-full snap-center px-8">
+                  <ThemeButton
+                    isActive={item.isActive}
+                    label={item.label}
+                    truncate={item.truncate}
+                    onClick={item.onSelect}
+                  >
+                    {item.preview}
+                  </ThemeButton>
+                </div>
+              ))}
+            </div>
+
+            {/* Right arrow */}
+            <button
+              onClick={() => goToPage(activePage + 1)}
+              disabled={!canNext}
+              className={cn(
+                'absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10',
+                'size-8 flex items-center justify-center rounded-full',
+                'bg-background/80 backdrop-blur-sm border border-border shadow-sm',
+                'transition-opacity duration-200',
+                canNext ? 'opacity-100' : 'opacity-0 pointer-events-none',
+              )}
+            >
+              <ChevronRightIcon className="size-4" />
+            </button>
           </div>
 
           {/* Dot indicators */}
-          <div className="flex justify-center gap-1.5 mt-3">
-            {pages.map((_, i) => (
+          <div className="flex justify-center gap-1.5">
+            {allItems.map((_, i) => (
               <button
                 key={i}
                 onClick={() => goToPage(i)}
@@ -337,7 +410,17 @@ export function ThemeGrid({
 
         {/* Desktop grid */}
         <div className="hidden sm:grid sm:grid-cols-3 gap-3">
-          {allItems}
+          {allItems.map((item) => (
+            <ThemeButton
+              key={item.key}
+              isActive={item.isActive}
+              label={item.label}
+              truncate={item.truncate}
+              onClick={item.onSelect}
+            >
+              {item.preview}
+            </ThemeButton>
+          ))}
         </div>
       </>
     );
@@ -350,7 +433,17 @@ export function ThemeGrid({
 
   return (
     <div className={gridClass}>
-      {allItems}
+      {allItems.map((item) => (
+        <ThemeButton
+          key={item.key}
+          isActive={item.isActive}
+          label={item.label}
+          truncate={item.truncate}
+          onClick={item.onSelect}
+        >
+          {item.preview}
+        </ThemeButton>
+      ))}
     </div>
   );
 }
