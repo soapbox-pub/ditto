@@ -29,6 +29,7 @@ export function CursorFireEffect() {
   const posRef = useRef<{ x: number; y: number } | null>(null);
   const rafRef = useRef<number>(0);
   const activeRef = useRef(false);
+  const pulseRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -75,7 +76,7 @@ export function CursorFireEffect() {
       const count = Math.floor(Math.random() * 3) + 3;
       for (let i = 0; i < count; i++) {
         const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.2; // mostly upward
-        const speed = Math.random() * 2.5 + 0.8;
+        const speed = (Math.random() * 2.5 + 0.8) * 0.2;
         particlesRef.current.push({
           x: x + (Math.random() - 0.5) * 8,
           y,
@@ -107,16 +108,16 @@ export function CursorFireEffect() {
         spawnParticles(posRef.current.x, posRef.current.y);
       }
 
-      // Update + draw
+      // Update + draw particles (original, untouched)
       const next: Particle[] = [];
       for (const p of particlesRef.current) {
-        p.life -= 0.025 + Math.random() * 0.01;
+        p.life -= 0.005 + Math.random() * 0.002;
         if (p.life <= 0) continue;
 
         p.x += p.vx;
         p.y += p.vy;
         p.vx += (Math.random() - 0.5) * 0.3; // horizontal flicker
-        p.vy -= 0.04; // upward drift (gravity reversed)
+        p.vy -= 0.008; // upward drift (gravity reversed)
         p.size *= 0.97; // shrink
 
         const t = p.life / p.maxLife; // 1 → 0
@@ -143,19 +144,30 @@ export function CursorFireEffect() {
         ctx.fillStyle = glow;
         ctx.fill();
 
-        // Core bright point
-        const core = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
-        core.addColorStop(0, `hsla(${particleH}, ${Math.max(particleS - 20, 0)}%, 95%, ${alpha})`);
-        core.addColorStop(1, `hsla(${particleH}, ${particleS}%, ${particleL}%, 0)`);
 
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = core;
-        ctx.fill();
 
         next.push(p);
       }
       particlesRef.current = next;
+
+      // Steady soft glow at cursor — slow sine pulse, no randomness
+      if (activeRef.current && posRef.current) {
+        const { x, y } = posRef.current;
+        pulseRef.current += 0.03;
+        const pulse = Math.sin(pulseRef.current) * 0.5 + 0.5; // 0 → 1, slow
+        const radius = 18 + pulse * 8;
+        const alpha = 0.5 + pulse * 0.2;
+
+        const centerGlow = ctx.createRadialGradient(x, y, 0, x, y, radius);
+        centerGlow.addColorStop(0,   `hsla(${h}, ${Math.max(s - 20, 0)}%, 92%, ${alpha})`);
+        centerGlow.addColorStop(0.5, `hsla(${h}, ${s}%, ${Math.min(l + 15, 90)}%, ${alpha * 0.4})`);
+        centerGlow.addColorStop(1,   `hsla(${h}, ${s}%, ${l}%, 0)`);
+
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = centerGlow;
+        ctx.fill();
+      }
 
       rafRef.current = requestAnimationFrame(draw);
     }
