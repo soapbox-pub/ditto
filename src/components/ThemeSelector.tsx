@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { Check, Palette, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { type Theme } from '@/contexts/AppContext';
@@ -139,7 +139,7 @@ function ThemeButton({
       className={cn(
         'relative group rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         isActive ? 'border-primary shadow-sm' : 'border-border hover:border-primary/40',
-        scroll && 'w-36 sm:w-auto shrink-0 sm:shrink',
+        scroll && 'flex-1',
       )}
       onClick={onClick}
     >
@@ -228,65 +228,129 @@ export function ThemeGrid({
 
   const isScroll = columns === 'scroll';
 
-  const wrapperClass = isScroll
-    ? 'flex sm:grid sm:grid-cols-3 gap-3 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory'
-    : columns === '2' ? 'grid grid-cols-2 gap-3'
-    : columns === 'sm' ? 'grid grid-cols-2 sm:grid-cols-3 gap-3'
-    : 'grid grid-cols-2 sidebar:grid-cols-3 gap-3';
+  // Carousel state for scroll mode (mobile only)
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activePage, setActivePage] = useState(0);
+
+  const renderButton = (key: string, isActive: boolean, label: string, truncate: boolean, onClick: () => void, children: React.ReactNode) => (
+    <ThemeButton key={key} isActive={isActive} label={label} truncate={truncate} scroll={isScroll} onClick={onClick}>
+      {children}
+    </ThemeButton>
+  );
 
   const renderBuiltins = () => builtinOptions.map((option) => {
     if (option.id === 'system') {
       const isActive = theme === 'system';
       const lightTokens = coreToTokens(resolveThemeConfig('light', themes).colors);
       const darkTokens = coreToTokens(resolveThemeConfig('dark', themes).colors);
-      return (
-        <ThemeButton key="system" isActive={isActive} label={option.label} scroll={isScroll} onClick={() => handleSelectBuiltin('system')}>
-          <div className="aspect-[4/3] rounded-lg overflow-hidden relative">
-            <SystemHalf tokens={lightTokens} side="left" />
-            <SystemHalf tokens={darkTokens} side="right" />
-            {isActive && (
-              <div className="absolute top-1 left-1 size-4 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: hsl(lightTokens.primary) }}
-              >
-                <Check className="size-2.5" style={{ color: hsl(lightTokens.primaryForeground) }} />
-              </div>
-            )}
-          </div>
-        </ThemeButton>
+      return renderButton('system', isActive, option.label, false, () => handleSelectBuiltin('system'),
+        <div className="aspect-[4/3] rounded-lg overflow-hidden relative">
+          <SystemHalf tokens={lightTokens} side="left" />
+          <SystemHalf tokens={darkTokens} side="right" />
+          {isActive && (
+            <div className="absolute top-1 left-1 size-4 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: hsl(lightTokens.primary) }}
+            >
+              <Check className="size-2.5" style={{ color: hsl(lightTokens.primaryForeground) }} />
+            </div>
+          )}
+        </div>
       );
     }
     const colors = resolveThemeConfig(option.id as 'light' | 'dark', themes).colors;
     const isActive = theme === option.id;
-    return (
-      <ThemeButton key={option.id} isActive={isActive} label={option.label} scroll={isScroll} onClick={() => handleSelectBuiltin(option.id)}>
-        <ThemePreviewCard colors={colors} isActive={isActive} />
-      </ThemeButton>
+    return renderButton(option.id, isActive, option.label, false, () => handleSelectBuiltin(option.id),
+      <ThemePreviewCard colors={colors} isActive={isActive} />
     );
   });
 
   const renderPresets = () => presetOptions.map((preset) => {
     const isActive = isPresetActive(preset.colors);
-    return (
-      <ThemeButton key={preset.id} isActive={isActive} label={preset.label} scroll={isScroll} onClick={() => handleSelectPreset(preset)}>
-        <ThemePreviewCard colors={preset.colors} isActive={isActive} backgroundUrl={preset.background?.url} />
-      </ThemeButton>
+    return renderButton(preset.id, isActive, preset.label, false, () => handleSelectPreset(preset),
+      <ThemePreviewCard colors={preset.colors} isActive={isActive} backgroundUrl={preset.background?.url} />
     );
   });
 
   const renderUserThemes = () => userThemes.data?.map((def) => {
     const isActive = isUserThemeActive(def);
-    return (
-      <ThemeButton key={`user:${def.identifier}`} isActive={isActive} label={def.title} truncate scroll={isScroll} onClick={() => handleSelectUserTheme(def)}>
-        <ThemePreviewCard colors={def.colors} isActive={isActive} backgroundUrl={def.background?.url} />
-      </ThemeButton>
+    return renderButton(`user:${def.identifier}`, isActive, def.title, true, () => handleSelectUserTheme(def),
+      <ThemePreviewCard colors={def.colors} isActive={isActive} backgroundUrl={def.background?.url} />
     );
   });
 
+  const allItems = [...renderBuiltins(), ...(renderPresets() ?? []), ...(renderUserThemes() ?? [])];
+  const pageCount = Math.ceil(allItems.length / 2);
+
+  if (isScroll) {
+    const handleScroll = () => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const page = Math.round(el.scrollLeft / el.clientWidth);
+      setActivePage(page);
+    };
+
+    const goToPage = (page: number) => {
+      const el = scrollRef.current;
+      if (!el) return;
+      el.scrollTo({ left: page * el.clientWidth, behavior: 'smooth' });
+    };
+
+    // Pair items into pages of 2
+    const pages: React.ReactNode[][] = [];
+    for (let i = 0; i < allItems.length; i += 2) {
+      pages.push([allItems[i], allItems[i + 1]].filter(Boolean));
+    }
+
+    return (
+      <>
+        {/* Mobile carousel */}
+        <div className="sm:hidden">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="flex overflow-x-auto snap-x snap-mandatory gap-3"
+            style={{ scrollbarWidth: 'none' }}
+          >
+            {pages.map((page, i) => (
+              <div key={i} className="flex gap-3 shrink-0 w-full snap-start">
+                {page.map((item) => item)}
+              </div>
+            ))}
+          </div>
+
+          {/* Dot indicators */}
+          <div className="flex justify-center gap-1.5 mt-3">
+            {pages.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goToPage(i)}
+                className={cn(
+                  'rounded-full transition-all duration-200',
+                  i === activePage
+                    ? 'w-4 h-1.5 bg-primary'
+                    : 'w-1.5 h-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/60',
+                )}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop grid */}
+        <div className="hidden sm:grid sm:grid-cols-3 gap-3">
+          {allItems}
+        </div>
+      </>
+    );
+  }
+
+  const gridClass =
+    columns === '2' ? 'grid grid-cols-2 gap-3'
+    : columns === 'sm' ? 'grid grid-cols-2 sm:grid-cols-3 gap-3'
+    : 'grid grid-cols-2 sidebar:grid-cols-3 gap-3';
+
   return (
-    <div className={wrapperClass}>
-      {renderBuiltins()}
-      {renderPresets()}
-      {renderUserThemes()}
+    <div className={gridClass}>
+      {allItems}
     </div>
   );
 }
