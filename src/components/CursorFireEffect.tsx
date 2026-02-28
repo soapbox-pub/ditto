@@ -6,41 +6,42 @@ interface Particle {
   vx: number;
   vy: number;
   life: number;
-  maxLife: number;
   size: number;
 }
 
-/** Parse an HSL string like "258 70% 55%" into h, s, l numbers. */
-function parseHslString(hsl: string): { h: number; s: number; l: number } {
-  const parts = hsl.trim().split(/\s+/);
-  const h = parseFloat(parts[0] ?? '0');
-  const s = parseFloat(parts[1] ?? '0');
-  const l = parseFloat(parts[2] ?? '50');
-  return { h, s, l };
+interface Ring {
+  x: number;
+  y: number;
+  radius: number;
+  maxRadius: number;
+  life: number; // 1 → 0
 }
 
-/**
- * Renders a canvas overlay that emits fire particles from the cursor (or finger)
- * position, tinted with the current --primary CSS variable color.
- */
+function parseHslString(hsl: string): { h: number; s: number; l: number } {
+  const parts = hsl.trim().split(/\s+/);
+  return {
+    h: parseFloat(parts[0] ?? '30'),
+    s: parseFloat(parts[1] ?? '100'),
+    l: parseFloat(parts[2] ?? '55'),
+  };
+}
+
 export function CursorFireEffect() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const particlesRef = useRef<Particle[]>([]);
-  const posRef = useRef<{ x: number; y: number } | null>(null);
-  const rafRef = useRef<number>(0);
-  const activeRef = useRef(false);
-  const pulseRef = useRef(0);
-  const orbPosRef = useRef<{ x: number; y: number } | null>(null);
-  const frameRef = useRef(0);
+  const particles = useRef<Particle[]>([]);
+  const rings = useRef<Ring[]>([]);
+  const cursor = useRef<{ x: number; y: number } | null>(null);
+  const active = useRef(false);
+  const raf = useRef(0);
+  const pulse = useRef(0);
+  const frame = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Size canvas to viewport
     function resize() {
       if (!canvas) return;
       canvas.width = window.innerWidth;
@@ -49,143 +50,200 @@ export function CursorFireEffect() {
     resize();
     window.addEventListener('resize', resize);
 
-    // Track pointer position (mouse + touch)
     function onMouseMove(e: MouseEvent) {
-      posRef.current = { x: e.clientX, y: e.clientY };
-      activeRef.current = true;
+      cursor.current = { x: e.clientX, y: e.clientY };
+      active.current = true;
     }
     function onTouchMove(e: TouchEvent) {
       const t = e.touches[0];
-      if (t) {
-        posRef.current = { x: t.clientX, y: t.clientY };
-        activeRef.current = true;
-      }
+      if (t) { cursor.current = { x: t.clientX, y: t.clientY }; active.current = true; }
     }
-    function onMouseLeave() {
-      activeRef.current = false;
+    function onLeave() { active.current = false; }
+
+    function onClick(e: MouseEvent) {
+      spawnClickBurst(e.clientX, e.clientY);
     }
-    function onTouchEnd() {
-      activeRef.current = false;
+    function onTouchStart(e: TouchEvent) {
+      const t = e.touches[0];
+      if (t) spawnClickBurst(t.clientX, t.clientY);
     }
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('touchmove', onTouchMove, { passive: true });
-    window.addEventListener('mouseleave', onMouseLeave);
-    window.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('mouseleave', onLeave);
+    window.addEventListener('touchend', onLeave);
+    window.addEventListener('click', onClick);
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
 
-    function spawnParticles(x: number, y: number) {
-      // Spawn 3-5 particles per frame at cursor
-      const count = Math.floor(Math.random() * 5) + 7;
+    function getPrimary() {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+      return raw ? parseHslString(raw) : { h: 270, s: 80, l: 60 };
+    }
+
+    function spawnWispParticles(x: number, y: number) {
+      const count = Math.floor(Math.random() * 2) + 2;
       for (let i = 0; i < count; i++) {
-        const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.2; // mostly upward
-        const speed = (Math.random() * 2.5 + 0.8) * 0.2;
-        particlesRef.current.push({
-          x: x + (Math.random() - 0.5) * 8,
+        const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.3;
+        const speed = Math.random() * 0.6 + 0.3;
+        particles.current.push({
+          x: x + (Math.random() - 0.5) * 6,
           y,
-          vx: Math.cos(angle) * speed,
+          vx: Math.cos(angle) * speed * 0.2,
           vy: Math.sin(angle) * speed,
           life: 1,
-          maxLife: 1,
-          size: Math.random() * 7 + 4,
+          size: Math.random() * 28 + 20,
         });
       }
     }
 
-    function getPrimaryColor(): { h: number; s: number; l: number } {
-      const raw = getComputedStyle(document.documentElement)
-        .getPropertyValue('--primary')
-        .trim();
-      if (!raw) return { h: 30, s: 100, l: 55 }; // warm orange fallback
-      return parseHslString(raw);
+    function spawnClickBurst(x: number, y: number) {
+      // Expanding shockwave ring
+      rings.current.push({ x, y, radius: 0, maxRadius: 120, life: 1 });
+
+      // Secondary smaller ring
+      rings.current.push({ x, y, radius: 0, maxRadius: 60, life: 1 });
+
+      // Radial burst of particles in all directions
+      const count = 18;
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const speed = Math.random() * 3.5 + 1.5;
+        particles.current.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 1,
+          size: Math.random() * 20 + 12,
+        });
+      }
+
+      // Extra upward plume
+      for (let i = 0; i < 8; i++) {
+        const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.8;
+        const speed = Math.random() * 4 + 2;
+        particles.current.push({
+          x: x + (Math.random() - 0.5) * 10,
+          y,
+          vx: Math.cos(angle) * speed * 0.3,
+          vy: Math.sin(angle) * speed,
+          life: 1,
+          size: Math.random() * 30 + 18,
+        });
+      }
     }
 
     function draw() {
       if (!canvas || !ctx) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const { h, s, l } = getPrimaryColor();
+      const { h, s, l } = getPrimary();
 
-      // Spawn particles every 3rd frame to avoid origin cluster
-      frameRef.current++;
-      if (activeRef.current && posRef.current && frameRef.current % 3 === 0) {
-        spawnParticles(posRef.current.x, posRef.current.y);
+      // Spawn wisp particles every 4th frame
+      frame.current++;
+      if (active.current && cursor.current && frame.current % 4 === 0) {
+        spawnWispParticles(cursor.current.x, cursor.current.y);
       }
 
-      // Update + draw particles (original, untouched)
-      const next: Particle[] = [];
-      for (const p of particlesRef.current) {
+      ctx.globalCompositeOperation = 'screen';
+
+      // Draw expanding rings
+      const aliveRings: Ring[] = [];
+      for (const r of rings.current) {
+        r.life -= 0.022;
+        if (r.life <= 0) continue;
+        r.radius += (r.maxRadius - r.radius) * 0.08;
+
+        const t = r.life;
+        const lineAlpha = Math.pow(t, 1.5) * 0.8;
+        const glowAlpha = Math.pow(t, 2) * 0.4;
+        const lineWidth = t * 3;
+
+        // Outer glow halo
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `hsla(${h}, ${s}%, ${Math.min(l + 20, 85)}%, ${glowAlpha})`;
+        ctx.lineWidth = lineWidth + 8;
+        ctx.stroke();
+
+        // Sharp ring
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `hsla(${h - 10}, ${s}%, 90%, ${lineAlpha})`;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+
+        aliveRings.push(r);
+      }
+      rings.current = aliveRings;
+
+      // Draw flame particles
+      const alive: Particle[] = [];
+      for (const p of particles.current) {
         p.life -= 0.005 + Math.random() * 0.002;
         if (p.life <= 0) continue;
 
         p.x += p.vx;
         p.y += p.vy;
-        p.vx += (Math.random() - 0.5) * 0.3; // horizontal flicker
-        p.vy -= 0.008; // upward drift (gravity reversed)
-        p.size *= 0.97; // shrink
+        p.vy -= 0.018;
+        p.vx *= 0.98;
+        p.size *= 0.985;
 
-        const t = p.life / p.maxLife; // 1 → 0
+        const t = p.life;
+        const ph = h + (1 - t) * 25;
+        const pl = Math.min(l + t * 40, 90);
+        const alpha = Math.pow(t, 1.5) * 0.18;
+        const radius = p.size * (0.4 + t * 0.6);
 
-        // Color shifts from bright core → dimmer tip as particle ages:
-        // young (t≈1): lightness boosted toward white-hot
-        // old (t≈0): darkens and fades out
-        const particleL = Math.min(95, l + t * 35);
-        const particleS = s;
-        // Hue shifts slightly toward warmer (red/orange) as it ages
-        const particleH = h + (1 - t) * 15;
-        const alpha = Math.pow(t, 0.6) * 0.85;
-
-        const radius = Math.max(0.5, p.size * t);
-
-        // Glow: large soft radial gradient
-        const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 2.5);
-        glow.addColorStop(0, `hsla(${particleH}, ${particleS}%, ${particleL}%, ${alpha})`);
-        glow.addColorStop(0.4, `hsla(${particleH + 8}, ${particleS}%, ${Math.max(l - 10, 20)}%, ${alpha * 0.5})`);
-        glow.addColorStop(1, `hsla(${particleH + 15}, ${particleS}%, ${Math.max(l - 20, 10)}%, 0)`);
+        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
+        g.addColorStop(0,    `hsla(${ph - 5},  ${s}%, ${pl}%, ${alpha})`);
+        g.addColorStop(0.35, `hsla(${ph},      ${s}%, ${Math.max(l, 40)}%, ${alpha * 0.6})`);
+        g.addColorStop(0.7,  `hsla(${ph + 15}, ${s}%, ${Math.max(l - 15, 20)}%, ${alpha * 0.2})`);
+        g.addColorStop(1,    `hsla(${ph + 25}, ${s}%, ${Math.max(l - 25, 5)}%, 0)`);
 
         ctx.beginPath();
-        ctx.arc(p.x, p.y, radius * 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = glow;
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = g;
         ctx.fill();
 
-
-
-        next.push(p);
+        alive.push(p);
       }
-      particlesRef.current = next;
+      particles.current = alive;
 
-      // Steady orb — snaps to cursor, slow sine pulse, drawn on top
-      if (activeRef.current && posRef.current) {
-        const { x, y } = posRef.current;
+      // Orb: slow pulsing core glow at cursor
+      if (active.current && cursor.current) {
+        const { x, y } = cursor.current;
+        pulse.current += 0.025;
+        const pv = (Math.sin(pulse.current) + 1) / 2;
+        const r = 20 + pv * 12;
+        const a = 0.5 + pv * 0.3;
 
-        pulseRef.current += 0.008;
-        const pulse = Math.sin(pulseRef.current) * 0.5 + 0.5;
-        const radius = 18 + pulse * 14;
-        const alpha = 0.6 + pulse * 0.25;
-
-        const orb = ctx.createRadialGradient(x, y, 0, x, y, radius);
-        orb.addColorStop(0,    `hsla(${h - 10}, ${s}%, ${Math.min(l + 25, 88)}%, ${alpha})`);
-        orb.addColorStop(0.4,  `hsla(${h},      ${s}%, ${Math.min(l + 10, 75)}%, ${alpha * 0.65})`);
-        orb.addColorStop(0.75, `hsla(${h + 12}, ${s}%, ${Math.max(l - 10, 20)}%, ${alpha * 0.25})`);
-        orb.addColorStop(1,    `hsla(${h + 20}, ${s}%, ${Math.max(l - 20, 10)}%, 0)`);
+        const orb = ctx.createRadialGradient(x, y, 0, x, y, r);
+        orb.addColorStop(0,   `hsla(${h - 10}, ${Math.max(s - 10, 0)}%, 95%, ${a})`);
+        orb.addColorStop(0.4, `hsla(${h},      ${s}%, ${Math.min(l + 15, 85)}%, ${a * 0.5})`);
+        orb.addColorStop(1,   `hsla(${h + 15}, ${s}%, ${l}%, 0)`);
 
         ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fillStyle = orb;
         ctx.fill();
       }
 
-      rafRef.current = requestAnimationFrame(draw);
+      ctx.globalCompositeOperation = 'source-over';
+      raf.current = requestAnimationFrame(draw);
     }
 
-    rafRef.current = requestAnimationFrame(draw);
+    raf.current = requestAnimationFrame(draw);
 
     return () => {
-      cancelAnimationFrame(rafRef.current);
+      cancelAnimationFrame(raf.current);
       window.removeEventListener('resize', resize);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('mouseleave', onMouseLeave);
-      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('mouseleave', onLeave);
+      window.removeEventListener('touchend', onLeave);
+      window.removeEventListener('click', onClick);
+      window.removeEventListener('touchstart', onTouchStart);
     };
   }, []);
 
