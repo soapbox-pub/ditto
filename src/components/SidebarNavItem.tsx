@@ -91,7 +91,7 @@ export function SidebarNavItem({
         className={cn(
           'flex items-center gap-4 py-3 rounded-full transition-colors hover:bg-secondary/60 flex-1 min-w-0',
           editing ? 'px-2' : 'px-3',
-          active ? 'font-bold text-primary' : 'font-normal text-foreground/70',
+          active ? 'font-bold text-primary' : 'font-normal text-foreground',
           linkClassName ?? 'text-lg',
         )}
       >
