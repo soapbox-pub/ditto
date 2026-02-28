@@ -1371,7 +1371,7 @@ export function ProfilePage() {
               </div>
 
               {metadata?.about && (
-                <p className="mt-3 text-sm whitespace-pre-wrap">
+                <p className="mt-3 text-sm whitespace-pre-wrap break-words overflow-hidden">
                   {metadataEvent ? (
                     <EmojifiedText tags={metadataEvent.tags}>{metadata.about}</EmojifiedText>
                   ) : metadata.about}
