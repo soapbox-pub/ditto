@@ -621,15 +621,29 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isKind1 = event.kind === 1;
   const isComment = event.kind === 1111;
 
-  const commentRoot = useMemo<NostrEvent | undefined>(() => {
+  const commentRoot = useMemo<NostrEvent | URL | `#${string}` | undefined>(() => {
     if (isKind1) return undefined;
     if (!isComment) return event; // non-kind-1 root event — use directly
 
-    // Reconstruct the original root event from the comment's uppercase tags
+    // Reconstruct the original root from the comment's uppercase tags
     const K = event.tags.find(([n]) => n === 'K')?.[1];
     const P = event.tags.find(([n]) => n === 'P')?.[1];
     const A = event.tags.find(([n]) => n === 'A')?.[1];
     const E = event.tags.find(([n]) => n === 'E')?.[1];
+    const I = event.tags.find(([n]) => n === 'I')?.[1];
+
+    // External content root (URL or hashtag identifier)
+    if (I) {
+      if (K === '#') {
+        return I as `#${string}`;
+      }
+      try {
+        return new URL(I);
+      } catch {
+        // If it's not a valid URL, treat as a hashtag-style identifier
+        return I as `#${string}`;
+      }
+    }
 
     const rootKind = K ? parseInt(K, 10) : 0;
     const rootPubkey = P ?? '';
