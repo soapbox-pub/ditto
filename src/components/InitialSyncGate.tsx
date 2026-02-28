@@ -31,10 +31,9 @@ import {
   EyeOff,
   Shield,
   Clapperboard,
-  BarChart3,
   Palette,
-  Users,
   Radio,
+  Users,
   UserPlus,
   Loader2,
   Heart,
@@ -53,6 +52,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { ChestIcon } from '@/components/icons/ChestIcon';
+import { CardsIcon } from '@/components/icons/CardsIcon';
 
 // ---------------------------------------------------------------------------
 // Onboarding context — lets any component trigger the signup onboarding
@@ -225,9 +225,8 @@ interface ContentKind {
 const CONTENT_KINDS: ContentKind[] = [
   { key: 'vines', label: 'Vines', description: 'Short video clips', icon: Clapperboard, sidebarKey: 'showVines', feedKey: 'feedIncludeVines' },
   { key: 'streams', label: 'Streams', description: 'Live broadcasts', icon: Radio, sidebarKey: 'showStreams', feedKey: 'feedIncludeStreams' },
-  { key: 'polls', label: 'Polls', description: 'Community polls', icon: BarChart3, sidebarKey: 'showPolls', feedKey: 'feedIncludePolls' },
-  { key: 'packs', label: 'Follow Packs', description: 'Curated follow lists', icon: Users, sidebarKey: 'showPacks', feedKey: 'feedIncludePacks' },
-  { key: 'colors', label: 'Colors', description: 'Color palette sharing', icon: Palette, sidebarKey: 'showColors', feedKey: 'feedIncludeColors' },
+  { key: 'colors', label: 'Color Moments', description: 'Color palette sharing', icon: Palette, sidebarKey: 'showColors', feedKey: 'feedIncludeColors' },
+  { key: 'decks', label: 'Magic Decks', description: 'MTG deck lists', icon: CardsIcon, sidebarKey: 'showDecks', feedKey: 'feedIncludeDecks' },
   { key: 'treasures', label: 'Treasures', description: 'Geocaching adventures', icon: ChestIcon, sidebarKey: 'showTreasures', feedKey: 'feedIncludeTreasureGeocaches' },
   { key: 'webxdc', label: 'Webxdc', description: 'Sandboxed HTML5 mini-apps', icon: Blocks, sidebarKey: 'showWebxdc', feedKey: 'feedIncludeWebxdc' },
 ];
@@ -353,7 +352,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
 
     const feedSettings = {
       showVines: selectedContent.has('vines'),
-      showPolls: selectedContent.has('polls'),
+      showPolls: false,
       feedIncludePosts: true,
       feedIncludeReposts: true,
       feedIncludeArticles: false,
@@ -362,14 +361,14 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       showTreasureGeocaches: true,
       showTreasureFoundLogs: true,
       showColors: selectedContent.has('colors'),
-      showPacks: selectedContent.has('packs'),
+      showPacks: false,
       showStreams: selectedContent.has('streams'),
       feedIncludeVines: selectedContent.has('vines'),
-      feedIncludePolls: selectedContent.has('polls'),
+      feedIncludePolls: false,
       feedIncludeTreasureGeocaches: selectedContent.has('treasures'),
       feedIncludeTreasureFoundLogs: selectedContent.has('treasures'),
       feedIncludeColors: selectedContent.has('colors'),
-      feedIncludePacks: selectedContent.has('packs'),
+      feedIncludePacks: false,
       feedIncludeStreams: selectedContent.has('streams'),
       showDecks: selectedContent.has('decks'),
       feedIncludeDecks: selectedContent.has('decks'),
@@ -384,10 +383,18 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       showCustomProfileThemes: true,
     };
 
+    // Build sidebar order: base built-ins + selected extra kinds in CONTENT_KINDS order
+    const BASE_SIDEBAR = ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'themes', 'theme', 'settings'];
+    const selectedSidebarIds = CONTENT_KINDS
+      .filter((k) => selectedContent.has(k.key))
+      .map((k) => k.key);
+    const sidebarOrder = [...BASE_SIDEBAR, ...selectedSidebarIds];
+
     updateConfig((current) => ({
       ...current,
       feedSettings,
       contentWarningPolicy: selectedCW,
+      sidebarOrder,
     }));
 
     if (user?.signer.nip44) {
@@ -395,6 +402,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
         await updateSettings.mutateAsync({
           feedSettings,
           contentWarningPolicy: selectedCW,
+          sidebarOrder,
         });
       } catch (error) {
         console.warn('Failed to save initial settings to Nostr:', error);
