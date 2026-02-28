@@ -94,7 +94,7 @@ const hardcodedConfig: AppConfig = {
  */
 const defaultConfig: AppConfig = {
   ...hardcodedConfig,
-  ...(__DITTO_CONFIG__ ?? {}),
+  ...(typeof __DITTO_CONFIG__ !== 'undefined' && __DITTO_CONFIG__ ? __DITTO_CONFIG__ : {}),
 };
 
 export function App() {
