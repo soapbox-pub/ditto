@@ -47,6 +47,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useEventStats } from '@/hooks/useTrending';
+import { useEventInteractions } from '@/hooks/useEventInteractions';
+import { type ResolvedEmoji, isCustomEmoji } from '@/components/CustomEmoji';
 import { getDisplayName } from '@/lib/getDisplayName';
 
 import { canZap } from '@/lib/canZap';
@@ -585,6 +587,32 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   }, [imetaMap, isTextNote]);
 
   const { data: stats } = useEventStats(event.id);
+  const { data: interactions } = useEventInteractions(event.id);
+
+  // Derive top 3 reaction emojis from actual interaction events (NIP-85 doesn't provide these)
+  const topEmojis = useMemo<ResolvedEmoji[]>(() => {
+    if (!interactions?.reactions.length) return [];
+
+    const emojiCounts = new Map<string, { emoji: ResolvedEmoji; count: number }>();
+    for (const r of interactions.reactions) {
+      const key = r.emoji;
+      const existing = emojiCounts.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        const resolved: ResolvedEmoji = isCustomEmoji(key) && r.emojiUrl
+          ? { content: key, url: r.emojiUrl, name: key.slice(1, -1) }
+          : { content: key };
+        emojiCounts.set(key, { emoji: resolved, count: 1 });
+      }
+    }
+
+    return Array.from(emojiCounts.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map((e) => e.emoji);
+  }, [interactions?.reactions]);
+
   const { data: rawReplies, isLoading: repliesLoading } = useReplies(event.id);
   const replies = useMemo(() => {
     if (!rawReplies || muteItems.length === 0) return rawReplies;
@@ -774,8 +802,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 className="hover:underline transition-colors"
               >
                 <span className="font-bold text-foreground">{stats.reactions}</span>{' '}
-                {stats.reactionEmojis && stats.reactionEmojis.length > 0
-                  ? stats.reactionEmojis.slice(0, 3).map((emoji, i) => (
+                {topEmojis.length > 0
+                  ? topEmojis.map((emoji, i) => (
                       <RenderResolvedEmoji key={i} emoji={emoji} className="inline-block h-5 w-5 align-text-bottom" />
                     ))
                   : `Like${stats.reactions !== 1 ? 's' : ''}`}
