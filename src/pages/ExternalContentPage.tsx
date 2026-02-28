@@ -1,10 +1,10 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft, Globe, MessageSquare } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteCard } from '@/components/NoteCard';
-import { CommentForm } from '@/components/comments/CommentForm';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import {
   parseExternalUri,
   headerLabel,
@@ -16,6 +16,7 @@ import {
 import { useComments } from '@/hooks/useComments';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import NotFound from './NotFound';
 
@@ -76,6 +77,15 @@ export function ExternalContentPage() {
     });
   }, [commentsData, muteItems]);
 
+  // FAB opens the comment compose dialog
+  const [composeOpen, setComposeOpen] = useState(false);
+  const openCompose = useCallback(() => setComposeOpen(true), []);
+
+  useLayoutOptions({
+    showFAB: true,
+    onFabClick: openCompose,
+  });
+
   if (!content || !uri || !commentRoot) {
     return <NotFound />;
   }
@@ -101,10 +111,10 @@ export function ExternalContentPage() {
             <p className="text-sm text-muted-foreground break-all">{content.value}</p>
           </div>
         )}
-
-        {/* Comment compose form */}
-        <CommentForm root={commentRoot} />
       </div>
+
+      {/* Comment compose dialog (opened via FAB) */}
+      <ReplyComposeModal event={commentRoot} open={composeOpen} onOpenChange={setComposeOpen} />
 
       {/* Threaded comments list */}
       <div>
