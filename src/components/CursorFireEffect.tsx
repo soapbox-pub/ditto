@@ -30,6 +30,7 @@ export function CursorFireEffect() {
   const rafRef = useRef<number>(0);
   const activeRef = useRef(false);
   const pulseRef = useRef(0);
+  const orbPosRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -150,22 +151,24 @@ export function CursorFireEffect() {
       }
       particlesRef.current = next;
 
-      // Steady soft glow at cursor — slow sine pulse, no randomness
+      // Steady orb — snaps to cursor, slow sine pulse, drawn on top
       if (activeRef.current && posRef.current) {
         const { x, y } = posRef.current;
-        pulseRef.current += 0.03;
-        const pulse = Math.sin(pulseRef.current) * 0.5 + 0.5; // 0 → 1, slow
-        const radius = 18 + pulse * 8;
-        const alpha = 0.5 + pulse * 0.2;
 
-        const centerGlow = ctx.createRadialGradient(x, y, 0, x, y, radius);
-        centerGlow.addColorStop(0,   `hsla(${h}, ${Math.max(s - 20, 0)}%, 92%, ${alpha})`);
-        centerGlow.addColorStop(0.5, `hsla(${h}, ${s}%, ${Math.min(l + 15, 90)}%, ${alpha * 0.4})`);
-        centerGlow.addColorStop(1,   `hsla(${h}, ${s}%, ${l}%, 0)`);
+        pulseRef.current += 0.008;
+        const pulse = Math.sin(pulseRef.current) * 0.5 + 0.5;
+        const radius = 18 + pulse * 14;
+        const alpha = 0.6 + pulse * 0.25;
+
+        const orb = ctx.createRadialGradient(x, y, 0, x, y, radius);
+        orb.addColorStop(0,    `hsla(${h - 10}, ${s}%, ${Math.min(l + 25, 88)}%, ${alpha})`);
+        orb.addColorStop(0.4,  `hsla(${h},      ${s}%, ${Math.min(l + 10, 75)}%, ${alpha * 0.65})`);
+        orb.addColorStop(0.75, `hsla(${h + 12}, ${s}%, ${Math.max(l - 10, 20)}%, ${alpha * 0.25})`);
+        orb.addColorStop(1,    `hsla(${h + 20}, ${s}%, ${Math.max(l - 20, 10)}%, 0)`);
 
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = centerGlow;
+        ctx.fillStyle = orb;
         ctx.fill();
       }
 
