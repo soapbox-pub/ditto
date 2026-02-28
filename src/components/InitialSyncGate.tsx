@@ -952,7 +952,8 @@ function ThemeStep({
       {/* Center content — semi-transparent on desktop when bg is active */}
       <div className={cn(
         'relative z-10 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400',
-        bgUrl && 'sm:rounded-2xl sm:p-6 sm:bg-background/60 sm:backdrop-blur-md',
+        'sm:rounded-2xl sm:transition-[background-color,backdrop-filter] sm:duration-700',
+        bgUrl ? 'sm:bg-background/60 sm:backdrop-blur-md sm:-mx-4 sm:px-4 sm:py-4' : '',
       )}>
         <div className="space-y-2">
           <h2 className="text-xl font-semibold tracking-tight">Choose your look</h2>

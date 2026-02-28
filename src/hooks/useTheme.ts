@@ -73,10 +73,13 @@ export function useTheme() {
     // Re-enable transitions after the browser has painted the new theme
     requestAnimationFrame(() => noTransition.remove());
 
-    // Update local immediately
+    // Update local immediately — also clear any background from customTheme
     updateConfig((currentConfig) => ({
       ...currentConfig,
       theme,
+      customTheme: currentConfig.customTheme
+        ? { ...currentConfig.customTheme, background: undefined }
+        : undefined,
     }));
     syncToEncrypted({ theme });
   }, [config.themes, updateConfig, syncToEncrypted]);
@@ -89,13 +92,20 @@ export function useTheme() {
     // Normalize: if it looks like bare CoreThemeColors (has 'background' but no 'colors'), wrap it
     const themeConfig: ThemeConfig = 'colors' in input ? input : { colors: input };
 
+    // Explicitly clear background if the new theme doesn't specify one,
+    // so switching from a background preset to a non-background theme cleans up.
+    const normalizedConfig: ThemeConfig = {
+      ...themeConfig,
+      background: themeConfig.background ?? undefined,
+    };
+
     updateConfig((currentConfig) => ({
       ...currentConfig,
       theme: 'custom' as Theme,
-      customTheme: themeConfig,
+      customTheme: normalizedConfig,
     }));
-    syncToEncrypted({ theme: 'custom', customTheme: themeConfig });
-    autoPublishTheme(themeConfig);
+    syncToEncrypted({ theme: 'custom', customTheme: normalizedConfig });
+    autoPublishTheme(normalizedConfig);
   }, [updateConfig, syncToEncrypted, autoPublishTheme]);
 
   /** Update the autoShareTheme setting. */
