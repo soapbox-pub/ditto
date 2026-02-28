@@ -4,7 +4,7 @@ import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { NoteContent } from '@/components/NoteContent';
+import { NoteContent, isSingleImagePost } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
@@ -520,15 +520,27 @@ function TruncatedNoteContent({ event, videos, imetaMap, webxdcApps = [] }: {
   const [overflows, setOverflows] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
+  const singleImage = isSingleImagePost(event);
+
   const measure = useCallback(() => {
     const el = contentRef.current;
-    if (el) setOverflows(el.scrollHeight > MAX_HEIGHT);
-  }, []);
+    if (el) setOverflows(!singleImage && el.scrollHeight > MAX_HEIGHT);
+  }, [singleImage]);
 
   useEffect(() => {
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  // Re-measure after images load — scrollHeight is unreliable before images have rendered.
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const imgs = el.querySelectorAll('img');
+    if (imgs.length === 0) return;
+    imgs.forEach((img) => img.addEventListener('load', measure, { once: true }));
+    return () => imgs.forEach((img) => img.removeEventListener('load', measure));
   }, [measure]);
 
   const showMedia = !overflows || expanded;
