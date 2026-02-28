@@ -102,6 +102,13 @@ function isOnlyEmojis(text: string): boolean {
   return emojiRegex.test(trimmed) && trimmed.length <= 12; // Max 12 emoji chars for enlarged display
 }
 
+/** Returns true if the event content consists of a single image embed and nothing else. */
+export function isSingleImagePost(event: NostrEvent): boolean {
+  const text = event.content.trim();
+  // Must be a single image URL (possibly preceded/followed by only whitespace)
+  return IMAGE_URL_REGEX.test(text) && text.replace(IMAGE_URL_REGEX, '').trim() === '';
+}
+
 /** Parses content of text note events so that URLs and hashtags are linkified. */
 export function NoteContent({
   event,
@@ -437,13 +444,13 @@ function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEv
   return (
     <button
       type="button"
-      className="block my-2 rounded-lg overflow-hidden max-w-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="block my-2 rounded-lg overflow-hidden w-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       onClick={onClick}
     >
       <img
         src={src}
         alt=""
-        className="block max-w-full max-h-[512px] object-contain rounded-lg hover:opacity-90 transition-opacity"
+        className="block w-full h-auto rounded-lg hover:opacity-90 transition-opacity"
         loading="lazy"
         onError={onError}
       />
