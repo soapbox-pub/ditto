@@ -75,7 +75,7 @@ export function CursorFireEffect() {
 
     function spawnParticles(x: number, y: number) {
       // Spawn 3-5 particles per frame at cursor
-      const count = Math.floor(Math.random() * 3) + 3;
+      const count = Math.floor(Math.random() * 5) + 7;
       for (let i = 0; i < count; i++) {
         const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.2; // mostly upward
         const speed = (Math.random() * 2.5 + 0.8) * 0.2;
