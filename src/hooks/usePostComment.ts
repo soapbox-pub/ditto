@@ -3,8 +3,8 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { NKinds, type NostrEvent } from '@nostrify/nostrify';
 
 interface PostCommentParams {
-  root: NostrEvent | URL; // The root event to comment on
-  reply?: NostrEvent | URL; // Optional reply to another comment
+  root: NostrEvent | URL | `#${string}`; // The root event to comment on
+  reply?: NostrEvent | URL | `#${string}`; // Optional reply to another comment
   content: string;
   tags?: string[][]; // Additional tags (hashtags, mentions, imeta, etc.)
 }
@@ -18,61 +18,15 @@ export function usePostComment() {
     mutationFn: async ({ root, reply, content, tags: extraTags }: PostCommentParams) => {
       const tags: string[][] = [];
 
-      // d-tag identifiers
-      const dRoot = root instanceof URL ? '' : root.tags.find(([name]) => name === 'd')?.[1] ?? '';
-      const dReply = reply instanceof URL ? '' : reply?.tags.find(([name]) => name === 'd')?.[1] ?? '';
-
       // Root event tags
-      if (root instanceof URL) {
-        tags.push(['I', root.toString()]);
-      } else if (NKinds.addressable(root.kind)) {
-        tags.push(['A', `${root.kind}:${root.pubkey}:${dRoot}`]);
-      } else if (NKinds.replaceable(root.kind)) {
-        tags.push(['A', `${root.kind}:${root.pubkey}:`]);
-      } else {
-        tags.push(['E', root.id]);
-      }
-      if (root instanceof URL) {
-        tags.push(['K', root.hostname]);
-      } else {
-        tags.push(['K', root.kind.toString()]);
-        tags.push(['P', root.pubkey]);
-      }
+      tags.push(...makeCommentTags('root', root));
 
       // Reply event tags
       if (reply) {
-        if (reply instanceof URL) {
-          tags.push(['i', reply.toString()]);
-        } else if (NKinds.addressable(reply.kind)) {
-          tags.push(['a', `${reply.kind}:${reply.pubkey}:${dReply}`]);
-        } else if (NKinds.replaceable(reply.kind)) {
-          tags.push(['a', `${reply.kind}:${reply.pubkey}:`]);
-        } else {
-          tags.push(['e', reply.id]);
-        }
-        if (reply instanceof URL) {
-          tags.push(['k', reply.hostname]);
-        } else {
-          tags.push(['k', reply.kind.toString()]);
-          tags.push(['p', reply.pubkey]);
-        }
+        tags.push(...makeCommentTags('reply', reply));
       } else {
         // If this is a top-level comment, use the root event's tags
-        if (root instanceof URL) {
-          tags.push(['i', root.toString()]);
-        } else if (NKinds.addressable(root.kind)) {
-          tags.push(['a', `${root.kind}:${root.pubkey}:${dRoot}`]);
-        } else if (NKinds.replaceable(root.kind)) {
-          tags.push(['a', `${root.kind}:${root.pubkey}:`]);
-        } else {
-          tags.push(['e', root.id]);
-        }
-        if (root instanceof URL) {
-          tags.push(['k', root.hostname]);
-        } else {
-          tags.push(['k', root.kind.toString()]);
-          tags.push(['p', root.pubkey]);
-        }
+        tags.push(...makeCommentTags('reply', root));
       }
 
       // Append any extra tags (hashtags, mentions, imeta, CW, etc.)
@@ -89,10 +43,57 @@ export function usePostComment() {
       return event;
     },
     onSuccess: (_, { root }) => {
+      const rootKey = root instanceof URL ? root.toString() : typeof root === 'string' ? root : root.id;
+
       // Invalidate and refetch comments
       queryClient.invalidateQueries({
-        queryKey: ['nostr', 'comments', root instanceof URL ? root.toString() : root.id]
+        queryKey: ['nostr', 'comments', rootKey]
       });
     },
   });
+}
+
+/** Build NIP-22 comment tags for a given scope and target */
+function makeCommentTags(scope: 'root' | 'reply', target: NostrEvent | URL | `#${string}`): string[][] {
+  const tags: string[][] = [];
+
+  const d = (typeof target === 'string' || target instanceof URL)
+    ? ''
+    : target.tags.find(([name]) => name === 'd')?.[1] ?? '';
+
+  if (typeof target === 'string') {
+    tags.push(['I', target]);
+  } else if (target instanceof URL) {
+    tags.push(['I', target.toString()]);
+  } else if (NKinds.addressable(target.kind)) {
+    tags.push(['A', `${target.kind}:${target.pubkey}:${d}`]);
+  } else if (NKinds.replaceable(target.kind)) {
+    tags.push(['A', `${target.kind}:${target.pubkey}:`]);
+  } else {
+    tags.push(['E', target.id]);
+  }
+  if (typeof target === 'string') {
+    tags.push(['K', '#']);
+  } else if (target instanceof URL) {
+    switch (target.protocol) {
+      case 'http:':
+      case 'https:':
+        tags.push(['K', 'web']);
+        break;
+      default:
+        tags.push(['K', target.protocol.replace(/:$/, '')]);
+        break;
+    }
+  } else {
+    tags.push(['K', target.kind.toString()]);
+    tags.push(['P', target.pubkey]);
+  }
+
+  // Lowercase all tag names for reply scope
+  if (scope === 'reply') {
+    return tags.map(([name, ...values]) => [name.toLowerCase(), ...values]);
+  }
+
+  // Root scope: uppercase tags
+  return tags;
 }
