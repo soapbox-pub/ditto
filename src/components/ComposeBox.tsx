@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Paperclip, Smile, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
-import type { NostrEvent } from '@nostrify/nostrify';
+import { NKinds, type NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -487,9 +487,11 @@ export function ComposeBox({
         tags.push(['p', pk]);
       }
 
-      // NIP-10 reply tags
-      if (replyTo) {
-        // Determine root of the thread
+      // Reply tags: NIP-10 for kind 1 targets, NIP-22 for non-kind-1 targets
+      const isNip22Reply = replyTo && replyTo.kind !== 1;
+
+      if (replyTo && !isNip22Reply) {
+        // NIP-10 reply tags (kind 1 targets only)
         const rootTag = replyTo.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
         if (rootTag) {
           // replyTo is itself a reply – preserve the root and mark replyTo as reply
@@ -512,6 +514,55 @@ export function ComposeBox({
         for (const pk of mentionedPubkeys) pPubkeys.delete(pk);
         for (const pk of pPubkeys) {
           tags.push(['p', pk]);
+        }
+      }
+
+      if (replyTo && isNip22Reply) {
+        // NIP-22 comment tags (non-kind-1 targets)
+        const dTag = replyTo.tags.find(([name]) => name === 'd')?.[1] ?? '';
+
+        if (replyTo.kind === 1111) {
+          // Replying to a kind 1111 comment: copy uppercase root tags from it
+          for (const tag of replyTo.tags) {
+            if (['A', 'E', 'I', 'K', 'P'].includes(tag[0])) {
+              tags.push([...tag]);
+            }
+          }
+
+          // Lowercase tags point to the parent comment
+          tags.push(['e', replyTo.id, DITTO_RELAY, replyTo.pubkey]);
+          tags.push(['k', '1111']);
+          tags.push(['p', replyTo.pubkey]);
+        } else {
+          // Replying directly to a non-kind-1 event: it is both root and parent
+          // Uppercase tags (root scope)
+          if (NKinds.addressable(replyTo.kind)) {
+            const addr = `${replyTo.kind}:${replyTo.pubkey}:${dTag}`;
+            tags.push(['A', addr, DITTO_RELAY]);
+          } else if (NKinds.replaceable(replyTo.kind)) {
+            const addr = `${replyTo.kind}:${replyTo.pubkey}:`;
+            tags.push(['A', addr, DITTO_RELAY]);
+          } else {
+            tags.push(['E', replyTo.id, DITTO_RELAY, replyTo.pubkey]);
+          }
+          tags.push(['K', replyTo.kind.toString()]);
+          tags.push(['P', replyTo.pubkey]);
+
+          // Lowercase tags (parent = same as root for top-level comments)
+          if (NKinds.addressable(replyTo.kind)) {
+            const addr = `${replyTo.kind}:${replyTo.pubkey}:${dTag}`;
+            tags.push(['a', addr, DITTO_RELAY]);
+            // Also include an e tag referencing the event id for replaceable/addressable events
+            tags.push(['e', replyTo.id, DITTO_RELAY, replyTo.pubkey]);
+          } else if (NKinds.replaceable(replyTo.kind)) {
+            const addr = `${replyTo.kind}:${replyTo.pubkey}:`;
+            tags.push(['a', addr, DITTO_RELAY]);
+            tags.push(['e', replyTo.id, DITTO_RELAY, replyTo.pubkey]);
+          } else {
+            tags.push(['e', replyTo.id, DITTO_RELAY, replyTo.pubkey]);
+          }
+          tags.push(['k', replyTo.kind.toString()]);
+          tags.push(['p', replyTo.pubkey]);
         }
       }
 
@@ -598,7 +649,7 @@ export function ComposeBox({
 
 
       await createEvent({
-        kind: 1,
+        kind: isNip22Reply ? 1111 : 1,
         content: finalContent,
         tags,
         created_at: Math.floor(Date.now() / 1000),
@@ -614,7 +665,10 @@ export function ComposeBox({
       setWebxdcUuids(new Map());
       setWebxdcMetas(new Map());
       queryClient.invalidateQueries({ queryKey: ['feed'] });
-      if (replyTo) {
+      if (replyTo && isNip22Reply) {
+        // Invalidate NIP-22 comments cache
+        queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
+      } else if (replyTo) {
         queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
       }
       if (quotedEvent) {
