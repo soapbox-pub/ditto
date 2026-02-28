@@ -941,28 +941,19 @@ function ThemeStep({
 
   return (
     <>
-      {/* Background preview — side panels on sm+, blurred backdrop on mobile */}
+      {/* Background image — full screen behind everything */}
       {bgUrl && (
-        <>
-          {/* Mobile: blurred backdrop behind the content card */}
-          <div
-            className="sm:hidden fixed inset-0 z-0 bg-cover bg-center opacity-20 transition-all duration-700"
-            style={{ backgroundImage: `url(${bgUrl})` }}
-          />
-          {/* Desktop: left panel */}
-          <div
-            className="hidden sm:block fixed inset-y-0 left-0 w-[calc(50%-224px)] bg-cover bg-center opacity-60 transition-all duration-700"
-            style={{ backgroundImage: `url(${bgUrl})` }}
-          />
-          {/* Desktop: right panel */}
-          <div
-            className="hidden sm:block fixed inset-y-0 right-0 w-[calc(50%-224px)] bg-cover bg-center opacity-60 transition-all duration-700"
-            style={{ backgroundImage: `url(${bgUrl})` }}
-          />
-        </>
+        <div
+          className="fixed inset-0 z-0 bg-cover bg-center opacity-50 transition-all duration-700"
+          style={{ backgroundImage: `url(${bgUrl})` }}
+        />
       )}
 
-      <div className="relative z-10 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
+      {/* Center content — semi-transparent on desktop when bg is active */}
+      <div className={cn(
+        'relative z-10 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400',
+        bgUrl && 'sm:rounded-2xl sm:p-6 sm:bg-background/60 sm:backdrop-blur-md',
+      )}>
         <div className="space-y-2">
           <h2 className="text-xl font-semibold tracking-tight">Choose your look</h2>
           <p className="text-sm text-muted-foreground">Pick a theme that feels right.</p>
