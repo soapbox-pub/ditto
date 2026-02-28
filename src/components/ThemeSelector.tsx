@@ -124,6 +124,7 @@ function ThemeButton({
   label,
   truncate = false,
   scroll = false,
+  carousel = false,
   onClick,
   children,
 }: {
@@ -131,6 +132,7 @@ function ThemeButton({
   label: string;
   truncate?: boolean;
   scroll?: boolean;
+  carousel?: boolean;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -140,6 +142,7 @@ function ThemeButton({
         'relative group rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         isActive ? 'border-primary shadow-sm' : 'border-border hover:border-primary/40',
         scroll && 'flex-1',
+        carousel && 'w-full',
       )}
       onClick={onClick}
     >
@@ -339,12 +342,34 @@ export function ThemeGrid({
         {/* Mobile carousel */}
         <div className="sm:hidden space-y-3">
           <div className="relative">
-            {/* Left arrow */}
+            {/* Scroll container — 1 card per page, full width */}
+            <div
+              ref={scrollRef}
+              onScroll={handleScroll}
+              className="flex w-full overflow-x-hidden snap-x snap-mandatory"
+              style={{ scrollbarWidth: 'none' }}
+            >
+              {allItems.map((item) => (
+                <div key={item.key} className="shrink-0 w-full snap-start">
+                  <ThemeButton
+                    isActive={item.isActive}
+                    label={item.label}
+                    truncate={item.truncate}
+                    onClick={item.onSelect}
+                    carousel
+                  >
+                    {item.preview}
+                  </ThemeButton>
+                </div>
+              ))}
+            </div>
+
+            {/* Left arrow — overlaid on the card */}
             <button
               onClick={() => goToPage(activePage - 1)}
               disabled={!canPrev}
               className={cn(
-                'absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10',
+                'absolute left-2 top-1/2 -translate-y-1/2 z-10',
                 'size-8 flex items-center justify-center rounded-full',
                 'bg-background/80 backdrop-blur-sm border border-border shadow-sm',
                 'transition-opacity duration-200',
@@ -354,33 +379,12 @@ export function ThemeGrid({
               <ChevronLeft className="size-4" />
             </button>
 
-            {/* Scroll container — 1 card per page */}
-            <div
-              ref={scrollRef}
-              onScroll={handleScroll}
-              className="flex overflow-x-auto snap-x snap-mandatory"
-              style={{ scrollbarWidth: 'none' }}
-            >
-              {allItems.map((item) => (
-                <div key={item.key} className="shrink-0 w-full snap-center px-8">
-                  <ThemeButton
-                    isActive={item.isActive}
-                    label={item.label}
-                    truncate={item.truncate}
-                    onClick={item.onSelect}
-                  >
-                    {item.preview}
-                  </ThemeButton>
-                </div>
-              ))}
-            </div>
-
-            {/* Right arrow */}
+            {/* Right arrow — overlaid on the card */}
             <button
               onClick={() => goToPage(activePage + 1)}
               disabled={!canNext}
               className={cn(
-                'absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10',
+                'absolute right-2 top-1/2 -translate-y-1/2 z-10',
                 'size-8 flex items-center justify-center rounded-full',
                 'bg-background/80 backdrop-blur-sm border border-border shadow-sm',
                 'transition-opacity duration-200',
