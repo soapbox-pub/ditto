@@ -166,9 +166,58 @@ export function NostrSync() {
         changed = true;
       }
 
+      if (encryptedSettings.sidebarOrder && JSON.stringify(encryptedSettings.sidebarOrder) !== JSON.stringify(current.sidebarOrder)) {
+        updates.sidebarOrder = encryptedSettings.sidebarOrder;
+        changed = true;
+      }
+
+      if (encryptedSettings.corsProxy && encryptedSettings.corsProxy !== current.corsProxy) {
+        updates.corsProxy = encryptedSettings.corsProxy;
+        changed = true;
+      }
+
+      if (encryptedSettings.faviconUrl && encryptedSettings.faviconUrl !== current.faviconUrl) {
+        updates.faviconUrl = encryptedSettings.faviconUrl;
+        changed = true;
+      }
+
+      if (encryptedSettings.linkPreviewUrl && encryptedSettings.linkPreviewUrl !== current.linkPreviewUrl) {
+        updates.linkPreviewUrl = encryptedSettings.linkPreviewUrl;
+        changed = true;
+      }
+
       // Return the same reference if nothing changed to prevent re-render
       return changed ? updates : current;
     });
+
+    // Sync feed tab settings (stored directly in localStorage, not AppConfig)
+    if (encryptedSettings.showGlobalFeed !== undefined) {
+      const current = localStorage.getItem('ditto:showGlobalFeed');
+      const incoming = String(encryptedSettings.showGlobalFeed);
+      if (current !== incoming) {
+        localStorage.setItem('ditto:showGlobalFeed', incoming);
+      }
+    }
+    if (encryptedSettings.showCommunityFeed !== undefined) {
+      const current = localStorage.getItem('ditto:showCommunityFeed');
+      const incoming = String(encryptedSettings.showCommunityFeed);
+      if (current !== incoming) {
+        localStorage.setItem('ditto:showCommunityFeed', incoming);
+      }
+    }
+    if (encryptedSettings.communityData) {
+      const community = {
+        domain: encryptedSettings.communityData.domain,
+        label: encryptedSettings.communityData.label,
+        userCount: encryptedSettings.communityData.userCount,
+      };
+      const currentRaw = localStorage.getItem('ditto:community');
+      const incoming = JSON.stringify(community);
+      if (currentRaw !== incoming) {
+        localStorage.setItem('ditto:community', incoming);
+        localStorage.setItem('ditto:communityData', JSON.stringify({ names: encryptedSettings.communityData.nip05 }));
+      }
+    }
   }, [user, encryptedSettings, settingsLoading, updateConfig, recentlyWritten, seededTimestamp]);
 
   // Sync active profile theme (kind 16767) on pageload when autoShareTheme is enabled.

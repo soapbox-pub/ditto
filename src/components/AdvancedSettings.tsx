@@ -6,10 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
+import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export function AdvancedSettings() {
   const { config, updateConfig } = useAppContext();
   const { toast } = useToast();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
   const [systemOpen, setSystemOpen] = useState(true);
   const [statsPubkey, setStatsPubkey] = useState(config.nip85StatsPubkey);
   const [defaultZapComment, setDefaultZapComment] = useState(config.defaultZapComment);
@@ -116,10 +120,11 @@ export function AdvancedSettings() {
                   id="favicon-url"
                   value={faviconUrl}
                   onChange={(e) => setFaviconUrl(e.target.value)}
-                  onBlur={() => {
+                  onBlur={async () => {
                     const trimmed = faviconUrl.trim();
                     if (trimmed && trimmed !== config.faviconUrl) {
                       updateConfig(() => ({ faviconUrl: trimmed }));
+                      if (user) await updateSettings.mutateAsync({ faviconUrl: trimmed });
                       toast({ title: 'Favicon URL updated' });
                     }
                   }}
@@ -144,10 +149,11 @@ export function AdvancedSettings() {
                   id="link-preview-url"
                   value={linkPreviewUrl}
                   onChange={(e) => setLinkPreviewUrl(e.target.value)}
-                  onBlur={() => {
+                  onBlur={async () => {
                     const trimmed = linkPreviewUrl.trim();
                     if (trimmed && trimmed !== config.linkPreviewUrl) {
                       updateConfig(() => ({ linkPreviewUrl: trimmed }));
+                      if (user) await updateSettings.mutateAsync({ linkPreviewUrl: trimmed });
                       toast({ title: 'Link preview URL updated' });
                     }
                   }}
@@ -172,10 +178,11 @@ export function AdvancedSettings() {
                   id="cors-proxy"
                   value={corsProxy}
                   onChange={(e) => setCorsProxy(e.target.value)}
-                  onBlur={() => {
+                  onBlur={async () => {
                     const trimmed = corsProxy.trim();
                     if (trimmed && trimmed !== config.corsProxy) {
                       updateConfig(() => ({ corsProxy: trimmed }));
+                      if (user) await updateSettings.mutateAsync({ corsProxy: trimmed });
                       toast({ title: 'CORS proxy updated' });
                     }
                   }}
