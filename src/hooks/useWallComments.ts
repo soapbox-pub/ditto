@@ -30,10 +30,13 @@ export function useWallComments(pubkey: string | undefined, followList: string[]
 
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
 
+      // Include the profile owner's own pubkey alongside their follow list
+      const authors = followList.includes(pubkey) ? followList : [pubkey, ...followList];
+
       const filter: NostrFilter = {
         kinds: [1111],
         '#A': [aTag],
-        authors: followList,
+        authors,
         limit: PAGE_SIZE,
       };
 
