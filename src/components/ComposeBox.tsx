@@ -604,45 +604,59 @@ export function ComposeBox({
       if (isNip22Reply) {
         // NIP-22: use usePostComment for non-kind-1 targets
         // Determine root and reply params for the comment hook
-        let root: NostrEvent;
+        let root: NostrEvent | URL | `#${string}`;
         let reply: NostrEvent | undefined;
 
         if (replyTo.kind === 1111) {
           // Replying to a comment: replyTo is the parent, root is derived from its uppercase tags
           reply = replyTo;
 
-          // Reconstruct minimal root event info from the comment's uppercase tags
+          // Reconstruct the original root from the comment's uppercase tags
           const K = replyTo.tags.find(([n]) => n === 'K')?.[1];
           const P = replyTo.tags.find(([n]) => n === 'P')?.[1];
           const A = replyTo.tags.find(([n]) => n === 'A')?.[1];
           const E = replyTo.tags.find(([n]) => n === 'E')?.[1];
+          const I = replyTo.tags.find(([n]) => n === 'I')?.[1];
 
-          const rootKind = K ? parseInt(K, 10) : 0;
-          const rootPubkey = P ?? '';
-
-          if (A) {
-            // Addressable/replaceable root: extract d-tag from the A value
-            const parts = A.split(':');
-            const dValue = parts.length >= 3 ? parts.slice(2).join(':') : '';
-            root = {
-              id: E ?? '',
-              kind: rootKind,
-              pubkey: rootPubkey,
-              content: '',
-              created_at: 0,
-              sig: '',
-              tags: [['d', dValue]],
-            };
+          // External content root (URL or hashtag identifier)
+          if (I) {
+            if (K === '#') {
+              root = I as `#${string}`;
+            } else {
+              try {
+                root = new URL(I);
+              } catch {
+                root = I as `#${string}`;
+              }
+            }
           } else {
-            root = {
-              id: E ?? '',
-              kind: rootKind,
-              pubkey: rootPubkey,
-              content: '',
-              created_at: 0,
-              sig: '',
-              tags: [],
-            };
+            const rootKind = K ? parseInt(K, 10) : 0;
+            const rootPubkey = P ?? '';
+
+            if (A) {
+              // Addressable/replaceable root: extract d-tag from the A value
+              const parts = A.split(':');
+              const dValue = parts.length >= 3 ? parts.slice(2).join(':') : '';
+              root = {
+                id: E ?? '',
+                kind: rootKind,
+                pubkey: rootPubkey,
+                content: '',
+                created_at: 0,
+                sig: '',
+                tags: [['d', dValue]],
+              };
+            } else {
+              root = {
+                id: E ?? '',
+                kind: rootKind,
+                pubkey: rootPubkey,
+                content: '',
+                created_at: 0,
+                sig: '',
+                tags: [],
+              };
+            }
           }
         } else {
           // Replying directly to a non-kind-1 event: it is the root

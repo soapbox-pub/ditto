@@ -1,13 +1,17 @@
 import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, BookOpen, ExternalLink, Globe, MapPin } from 'lucide-react';
+import { ArrowLeft, BookOpen, ExternalLink, Globe, MapPin, MessageSquare } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CommentsSection } from '@/components/comments/CommentsSection';
+import { NoteCard } from '@/components/NoteCard';
+import { CommentForm } from '@/components/comments/CommentForm';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
+import { useComments } from '@/hooks/useComments';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useBookInfo } from '@/hooks/useBookInfo';
+import { useMuteList } from '@/hooks/useMuteList';
+import { isEventMuted } from '@/lib/muteHelpers';
 import { getCountryInfo } from '@/lib/countries';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import NotFound from './NotFound';
@@ -442,15 +446,38 @@ export function ExternalContentPage() {
 
   useSeoMeta({ title: content ? seoTitle(content) : 'External Content | Ditto' });
 
-  if (!content || !uri) {
-    return <NotFound />;
-  }
-
   // Build the NIP-73 identifier for comments.
   // For URLs, the raw URL is used. For others, the full prefixed identifier.
   const commentRoot = useMemo(() => {
+    if (!content) return undefined;
     return new URL(content.value);
-  }, [content.value]);
+  }, [content]);
+
+  const { muteItems } = useMuteList();
+  const { data: commentsData, isLoading: commentsLoading } = useComments(commentRoot, 500);
+
+  // Build a reply tree: direct replies each paired with their first sub-reply.
+  const orderedReplies = useMemo(() => {
+    const topLevel = commentsData?.topLevelComments ?? [];
+    const filteredTopLevel = muteItems.length > 0
+      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
+      : topLevel;
+
+    // Sort oldest-first for threaded conversation view (useComments returns newest-first)
+    const sorted = [...filteredTopLevel].sort((a, b) => a.created_at - b.created_at);
+
+    return sorted.map((reply) => {
+      const directReplies = commentsData?.getDirectReplies(reply.id) ?? [];
+      return {
+        reply,
+        firstSubReply: directReplies[0] as import('@nostrify/nostrify').NostrEvent | undefined,
+      };
+    });
+  }, [commentsData, muteItems]);
+
+  if (!content || !uri || !commentRoot) {
+    return <NotFound />;
+  }
 
   return (
     <main className="min-h-screen">
@@ -474,13 +501,48 @@ export function ExternalContentPage() {
           </div>
         )}
 
-        {/* Comments section */}
-        <CommentsSection
-          root={commentRoot}
-          title="Discussion"
-          emptyStateMessage="No comments yet"
-          emptyStateSubtitle="Be the first to share your thoughts about this!"
-        />
+        {/* Comment compose form */}
+        <CommentForm root={commentRoot} />
+      </div>
+
+      {/* Threaded comments list */}
+      <div>
+        {commentsLoading ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="px-4 py-3">
+                <div className="flex gap-3">
+                  <Skeleton className="size-10 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-3 w-28" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : orderedReplies.length > 0 ? (
+          orderedReplies.map(({ reply, firstSubReply }) => (
+            <div key={reply.id}>
+              <NoteCard event={reply} threaded={!!firstSubReply} />
+              {firstSubReply && (
+                <NoteCard event={firstSubReply} threadedLast />
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="py-12 text-center text-muted-foreground text-sm">
+            <MessageSquare className="size-12 mx-auto mb-4 opacity-30" />
+            <p className="text-lg font-medium mb-2">No comments yet</p>
+            <p>Be the first to share your thoughts about this!</p>
+          </div>
+        )}
       </div>
     </main>
   );
