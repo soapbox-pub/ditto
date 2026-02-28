@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
-import { EyeClosed } from 'lucide-react';
+import { useMemo, useState, useEffect, useId } from 'react';
+
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
 import { hexToHslString, hexToRgb, rgbToHsl, hslToRgb, getLuminance, getContrastRatio, parseHsl, formatHsl } from '@/lib/colorUtils';
@@ -262,13 +262,12 @@ const LAYOUT_MAP: Record<Layout, React.FC<{ colors: string[] }>> = {
   diagonalStripes: DiagonalStripesLayout,
 };
 
-export function ColorMomentContent({ event }: { event: NostrEvent }) {
+/** Standalone blinking eye button for setting a color moment as the active theme. */
+export function ColorMomentEyeButton({ event }: { event: NostrEvent }) {
   const colors = useMemo(() => getColors(event.tags), [event.tags]);
-  const layout = (getTag(event.tags, 'layout') ?? 'horizontal') as Layout;
-  const name = getTag(event.tags, 'name');
-  const emoji = event.content.trim() || undefined;
   const { applyCustomTheme } = useTheme();
   const [isBlinking, setIsBlinking] = useState(false);
+  const uid = useId();
 
   useEffect(() => {
     if (isBlinking) {
@@ -282,6 +281,48 @@ export function ColorMomentContent({ event }: { event: NostrEvent }) {
     setIsBlinking(true);
     applyCustomTheme(paletteToTheme(colors));
   };
+
+  if (colors.length === 0) return null;
+
+  const outer = colors[0] ?? '#888';
+  const iris = colors[colors.length - 1] ?? '#888';
+
+  // Build the eye as a data-URI SVG so the browser renders it as an image
+  // (smooth anti-aliasing, no compositing layer on siblings)
+  const eyeSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="45" fill="${outer}"/>
+    <circle cx="50" cy="50" r="32" fill="white" opacity="0.9"/>
+    <circle cx="50" cy="50" r="20" fill="${iris}"/>
+    <circle cx="50" cy="50" r="10" fill="#1c1917"/>
+    <circle cx="43" cy="43" r="4" fill="white" opacity="0.8"/>
+  </svg>`;
+  const eyeUrl = `data:image/svg+xml,${encodeURIComponent(eyeSvg)}`;
+
+  return (
+    <button
+      onClick={handleSetTheme}
+      className="flex items-center gap-1.5 hover:opacity-80 active:scale-95 transition-all shrink-0"
+      title="Set as theme"
+    >
+      <span className="text-[11px] font-medium text-muted-foreground">Set as theme</span>
+      {/* Eye container — overflow-hidden clips the eyelid, doesn't touch siblings */}
+      <div className="relative size-9 rounded-full overflow-hidden" id={uid}>
+        <img src={eyeUrl} alt="" className="w-9 h-9" />
+        {isBlinking && (
+          <div className="absolute inset-0 animate-eyelid-blink">
+            <div className="absolute rounded-full bg-background w-full h-full bottom-0 left-0" />
+          </div>
+        )}
+      </div>
+    </button>
+  );
+}
+
+export function ColorMomentContent({ event }: { event: NostrEvent }) {
+  const colors = useMemo(() => getColors(event.tags), [event.tags]);
+  const layout = (getTag(event.tags, 'layout') ?? 'horizontal') as Layout;
+  const name = getTag(event.tags, 'name');
+  const emoji = event.content.trim() || undefined;
 
   const LayoutComponent = LAYOUT_MAP[layout] ?? HorizontalLayout;
 
@@ -320,7 +361,7 @@ export function ColorMomentContent({ event }: { event: NostrEvent }) {
         )}
       </div>
 
-      {/* Color hex swatches + set theme button */}
+      {/* Color hex swatches */}
       <div className="flex flex-wrap items-center gap-1.5 mt-2">
         {colors.map((color, i) => (
           <button
@@ -339,38 +380,6 @@ export function ColorMomentContent({ event }: { event: NostrEvent }) {
             {color}
           </button>
         ))}
-        <button
-          onClick={handleSetTheme}
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors ml-auto"
-          title="Set as theme"
-        >
-          {/* Blinking eye icon */}
-          <div className="relative size-3.5 rounded-full overflow-hidden shrink-0">
-            {/* Eye SVG */}
-            <svg viewBox="0 0 100 100" className="w-full h-full">
-              <circle cx="50" cy="50" r="50" fill={colors[0] ?? 'hsl(var(--muted))'} />
-              <circle cx="50" cy="50" r="34" fill="white" opacity="0.9" />
-              <circle cx="50" cy="50" r="20" fill={colors[colors.length - 1] ?? 'hsl(var(--primary))'} />
-              <circle cx="50" cy="50" r="10" fill="#1c1917" />
-              <circle cx="43" cy="43" r="4" fill="white" opacity="0.8" />
-            </svg>
-            {/* Eyelid blink overlay */}
-            {isBlinking && (
-              <div className="absolute inset-0 animate-eyelid-blink">
-                <div
-                  className="absolute rounded-full w-full h-full bottom-0 left-0"
-                  style={{ backgroundColor: colors[Math.floor(colors.length / 2)] ?? 'hsl(var(--primary))' }}
-                />
-                <EyeClosed
-                  className="absolute w-full h-auto text-black/30"
-                  style={{ top: '100%', transform: 'translateY(-60%)' }}
-                  strokeWidth={1.5}
-                />
-              </div>
-            )}
-          </div>
-          Set as theme
-        </button>
       </div>
     </div>
   );
