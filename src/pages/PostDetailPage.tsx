@@ -25,15 +25,17 @@ import { RenderResolvedEmoji, EmojifiedText } from '@/components/CustomEmoji';
 import { PollContent } from '@/components/PollContent';
 import { GeocacheContent } from '@/components/GeocacheContent';
 import { FoundLogContent } from '@/components/FoundLogContent';
-import { ColorMomentContent } from '@/components/ColorMomentContent';
+import { ColorMomentContent, ColorMomentEyeButton } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { FollowPackDetailContent } from '@/components/FollowPackDetailContent';
 import { ArticleContent } from '@/components/ArticleContent';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { FileMetadataContent } from '@/components/FileMetadataContent';
+import { ThemeContent } from '@/components/ThemeContent';
 import { LiveStreamPage } from '@/components/LiveStreamPage';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
+import { useAppContext } from '@/hooks/useAppContext';
 
 /** Kinds that get the full follow-pack detail view. */
 const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
@@ -41,11 +43,15 @@ const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
 /** Kind 30311 = NIP-53 Live Activities. */
 const LIVE_STREAM_KIND = 30311;
 import { useReplies } from '@/hooks/useReplies';
+import { useComments } from '@/hooks/useComments';
+import { CommentContext } from '@/components/CommentContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useEventStats } from '@/hooks/useTrending';
+import { useEventInteractions } from '@/hooks/useEventInteractions';
+import { type ResolvedEmoji, isCustomEmoji } from '@/components/CustomEmoji';
 import { getDisplayName } from '@/lib/getDisplayName';
 
 import { canZap } from '@/lib/canZap';
@@ -54,6 +60,7 @@ import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { ContentWarningGuard } from '@/components/ContentWarningGuard';
 import { MutedContentGuard } from '@/components/MutedContentGuard';
+import { ExternalContentPreview } from '@/components/ExternalContentHeader';
 import { getParentEventId } from '@/lib/nostrEvents';
 
 
@@ -161,11 +168,12 @@ function formatFullDate(timestamp: number): string {
 }
 
 export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPageProps) {
+  const { config } = useAppContext();
   const { data: event, isLoading, isError } = useEvent(eventId, relays, authorHint);
   const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
 
   useSeoMeta({
-    title: (event || retryEvent) ? 'Post Details - Ditto' : 'Loading... - Ditto',
+    title: (event || retryEvent) ? `Post Details - ${config.appName}` : `Loading... - ${config.appName}`,
   });
 
   if (isLoading) {
@@ -200,6 +208,7 @@ export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPagePr
 
 /** Detail page for addressable events (naddr). Same layout as PostDetailPage. */
 export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
+  const { config } = useAppContext();
   const { data: event, isLoading, isError } = useAddrEvent(addr, relays);
   const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
 
@@ -207,8 +216,8 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
 
   useSeoMeta({
     title: resolvedEvent
-      ? `${resolvedEvent.tags.find(([n]) => n === 'title')?.[1] || 'Post Details'} - Ditto`
-      : 'Loading... - Ditto',
+      ? `${resolvedEvent.tags.find(([n]) => n === 'title')?.[1] || 'Post Details'} - ${config.appName}`
+      : `Loading... - ${config.appName}`,
   });
 
   if (isLoading) {
@@ -569,7 +578,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const isArticle = event.kind === 30023;
     const isMagicDeck = event.kind === 37381;
     const isFileMetadata = event.kind === 1063;
-    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isFileMetadata;
+    const isTheme = event.kind === 36767 || event.kind === 16767;
+    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme;
 
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
@@ -583,41 +593,170 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   }, [imetaMap, isTextNote]);
 
   const { data: stats } = useEventStats(event.id);
-  const { data: rawReplies, isLoading: repliesLoading } = useReplies(event.id);
+  const { data: interactions } = useEventInteractions(event.id);
+
+  // Derive top 3 reaction emojis from actual interaction events (NIP-85 doesn't provide these)
+  const topEmojis = useMemo<ResolvedEmoji[]>(() => {
+    if (!interactions?.reactions.length) return [];
+
+    const emojiCounts = new Map<string, { emoji: ResolvedEmoji; count: number }>();
+    for (const r of interactions.reactions) {
+      const key = r.emoji;
+      const existing = emojiCounts.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        const resolved: ResolvedEmoji = isCustomEmoji(key) && r.emojiUrl
+          ? { content: key, url: r.emojiUrl, name: key.slice(1, -1) }
+          : { content: key };
+        emojiCounts.set(key, { emoji: resolved, count: 1 });
+      }
+    }
+
+    return Array.from(emojiCounts.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map((e) => e.emoji);
+  }, [interactions?.reactions]);
+
+  // Kind 1 events use NIP-10 replies (kind 1); all other events use NIP-22 comments (kind 1111).
+  // For kind 1111 events, we reconstruct the original root from uppercase tags so useComments
+  // fetches the full comment tree, then extract replies to this specific comment.
+  const isKind1 = event.kind === 1;
+  const isComment = event.kind === 1111;
+
+  const commentRoot = useMemo<NostrEvent | URL | `#${string}` | undefined>(() => {
+    if (isKind1) return undefined;
+    if (!isComment) return event; // non-kind-1 root event — use directly
+
+    // Reconstruct the original root from the comment's uppercase tags
+    const K = event.tags.find(([n]) => n === 'K')?.[1];
+    const P = event.tags.find(([n]) => n === 'P')?.[1];
+    const A = event.tags.find(([n]) => n === 'A')?.[1];
+    const E = event.tags.find(([n]) => n === 'E')?.[1];
+    const I = event.tags.find(([n]) => n === 'I')?.[1];
+
+    // External content root (URL or hashtag identifier)
+    if (I) {
+      if (K === '#') {
+        return I as `#${string}`;
+      }
+      try {
+        return new URL(I);
+      } catch {
+        // If it's not a valid URL, treat as a hashtag-style identifier
+        return I as `#${string}`;
+      }
+    }
+
+    const rootKind = K ? parseInt(K, 10) : 0;
+    const rootPubkey = P ?? '';
+
+    if (A) {
+      const parts = A.split(':');
+      const dValue = parts.length >= 3 ? parts.slice(2).join(':') : '';
+      return {
+        id: E ?? '',
+        kind: rootKind,
+        pubkey: rootPubkey,
+        content: '',
+        created_at: 0,
+        sig: '',
+        tags: [['d', dValue]],
+      };
+    }
+
+    return {
+      id: E ?? '',
+      kind: rootKind,
+      pubkey: rootPubkey,
+      content: '',
+      created_at: 0,
+      sig: '',
+      tags: [],
+    };
+  }, [event, isKind1, isComment]);
+
+  const { data: rawReplies, isLoading: kind1RepliesLoading } = useReplies(isKind1 ? event.id : undefined);
+  const { data: commentsData, isLoading: commentsLoading } = useComments(commentRoot, 500);
+
+  const repliesLoading = isKind1 ? kind1RepliesLoading : commentsLoading;
+
   const replies = useMemo(() => {
-    if (!rawReplies || muteItems.length === 0) return rawReplies;
-    return rawReplies.filter((r) => !isEventMuted(r, muteItems));
-  }, [rawReplies, muteItems]);
+    const source = isKind1 ? rawReplies : commentsData?.allComments;
+    if (!source || muteItems.length === 0) return source;
+    return source.filter((r) => !isEventMuted(r, muteItems));
+  }, [isKind1, rawReplies, commentsData?.allComments, muteItems]);
 
   // Build a reply tree: direct replies each paired with their first sub-reply.
   const orderedReplies = useMemo(() => {
     if (!replies || replies.length === 0) return [];
 
-    const childrenMap = new Map<string, NostrEvent[]>();
-    const directReplies: NostrEvent[] = [];
+    if (isKind1) {
+      // Kind 1: use NIP-10 parent detection via e-tag markers
+      const childrenMap = new Map<string, NostrEvent[]>();
+      const directReplies: NostrEvent[] = [];
 
-    for (const r of replies) {
-      const parentId = getParentEventId(r);
-      if (!parentId || parentId === event.id) {
-        directReplies.push(r);
-      } else {
-        const siblings = childrenMap.get(parentId) || [];
-        siblings.push(r);
-        childrenMap.set(parentId, siblings);
+      for (const r of replies) {
+        const parentId = getParentEventId(r);
+        if (!parentId || parentId === event.id) {
+          directReplies.push(r);
+        } else {
+          const siblings = childrenMap.get(parentId) || [];
+          siblings.push(r);
+          childrenMap.set(parentId, siblings);
+        }
       }
-    }
 
-    return directReplies.map((reply) => ({
-      reply,
-      firstSubReply: (childrenMap.get(reply.id) ?? [])[0] as NostrEvent | undefined,
-    }));
-  }, [replies, event.id]);
+      return directReplies.map((reply) => ({
+        reply,
+        firstSubReply: (childrenMap.get(reply.id) ?? [])[0] as NostrEvent | undefined,
+      }));
+    } else if (isComment) {
+      // Kind 1111: we're viewing a comment — show replies to this specific comment
+      const directReplies = commentsData?.getDirectReplies(event.id) ?? [];
+      const filteredReplies = muteItems.length > 0
+        ? directReplies.filter((r) => !isEventMuted(r, muteItems))
+        : directReplies;
+
+      return filteredReplies.map((reply) => {
+        const subReplies = commentsData?.getDirectReplies(reply.id) ?? [];
+        return {
+          reply,
+          firstSubReply: subReplies[0] as NostrEvent | undefined,
+        };
+      });
+    } else {
+      // Non-kind-1 root: use NIP-22 comment structure from useComments
+      const topLevel = commentsData?.topLevelComments ?? [];
+      const filteredTopLevel = muteItems.length > 0
+        ? topLevel.filter((r) => !isEventMuted(r, muteItems))
+        : topLevel;
+
+      // Sort oldest-first for threaded conversation view (useComments returns newest-first)
+      const sorted = [...filteredTopLevel].sort((a, b) => a.created_at - b.created_at);
+
+      return sorted.map((reply) => {
+        const directReplies = commentsData?.getDirectReplies(reply.id) ?? [];
+        return {
+          reply,
+          firstSubReply: directReplies[0] as NostrEvent | undefined,
+        };
+      });
+    }
+  }, [isKind1, isComment, replies, event.id, commentsData, muteItems]);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
   const [interactionsOpen, setInteractionsOpen] = useState(false);
   const [interactionsTab, setInteractionsTab] = useState<InteractionTab>('reposts');
 
   const parentEventId = useMemo(() => isTextNote ? getParentEventId(event) : undefined, [event, isTextNote]);
+
+  // For kind 1111 comments on external content, extract the I tag for the parent preview
+  const externalIdentifier = useMemo(() => {
+    if (!isComment) return undefined;
+    return event.tags.find(([n]) => n === 'I')?.[1];
+  }, [event, isComment]);
 
   // Keep the focused post pinned to top while ancestor content loads above it.
   // A ResizeObserver on the ancestor container re-scrolls on every layout shift
@@ -675,6 +814,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         </div>
       )}
 
+      {/* External content preview for kind 1111 comments on URLs/books/etc. */}
+      {externalIdentifier && (
+        <ExternalContentPreview identifier={externalIdentifier} />
+      )}
+
       {/* Main post — expanded Ditto-style view */}
       <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
         {/* Author row */}
@@ -716,9 +860,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               {metadata?.bot && (
                 <span className="text-sm text-primary" title="Bot account">🤖</span>
               )}
+              {isColor && <ColorMomentEyeButton event={event} />}
             </>
           )}
         </div>
+
+        {/* Comment context for kind 1111 */}
+        {event.kind === 1111 && <CommentContext event={event} />}
 
         {/* Post content — kind-based dispatch, guarded by NIP-36 content-warning */}
         <ContentWarningGuard event={event}>
@@ -728,6 +876,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <MagicDeckContent event={event} />
           ) : isFileMetadata ? (
             <FileMetadataContent event={event} />
+          ) : isTheme ? (
+            <ThemeContent event={event} />
           ) : isVine || isPoll || isGeocache || isFoundLog || isColor || isFollowPack ? (
             <>
               {isVine && <VineDetailContent event={event} />}
@@ -770,8 +920,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 className="hover:underline transition-colors"
               >
                 <span className="font-bold text-foreground">{stats.reactions}</span>{' '}
-                {stats.reactionEmojis && stats.reactionEmojis.length > 0
-                  ? stats.reactionEmojis.slice(0, 3).map((emoji, i) => (
+                {topEmojis.length > 0
+                  ? topEmojis.map((emoji, i) => (
                       <RenderResolvedEmoji key={i} emoji={emoji} className="inline-block h-5 w-5 align-text-bottom" />
                     ))
                   : `Like${stats.reactions !== 1 ? 's' : ''}`}

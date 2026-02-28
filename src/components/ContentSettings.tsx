@@ -77,7 +77,6 @@ export function ContentSettings() {
 
               {/* Column headers */}
               <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
-                <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Sidebar</span>
                 <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
               </div>
 
@@ -119,7 +118,6 @@ export function ContentSettings() {
 
               {/* Column headers */}
               <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
-                <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Sidebar</span>
                 <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
               </div>
 
@@ -213,7 +211,7 @@ import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { EXTRA_KINDS, FEED_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
-import { cn } from '@/lib/utils';
+
 
 /** Map route name or kind → lucide icon. */
 const ICONS: Record<string, React.ReactNode> = {
@@ -237,7 +235,7 @@ function KindBadge({ kind }: { kind: number }) {
   );
 }
 
-function SubKindRow({ sub, parentEnabled }: { sub: SubKindDef; parentEnabled: boolean }) {
+function SubKindRow({ sub }: { sub: SubKindDef }) {
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
@@ -250,10 +248,7 @@ function SubKindRow({ sub, parentEnabled }: { sub: SubKindDef; parentEnabled: bo
   };
 
   return (
-    <div className={cn(
-      'flex items-center justify-between py-2.5 pl-12 pr-3 transition-colors',
-      !parentEnabled && 'opacity-40 pointer-events-none',
-    )}>
+    <div className="flex items-center justify-between py-2.5 pl-12 pr-3 transition-colors">
       <div className="min-w-0">
         <span className="text-sm">{sub.label}</span>
         <p className="text-xs text-muted-foreground mt-0.5">
@@ -261,13 +256,6 @@ function SubKindRow({ sub, parentEnabled }: { sub: SubKindDef; parentEnabled: bo
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <div className="w-[52px] flex justify-center">
-          <Switch
-            checked={feedSettings[sub.showKey]}
-            onCheckedChange={(checked) => handleToggle(sub.showKey, checked)}
-            className="scale-90"
-          />
-        </div>
         <div className="w-[52px] flex justify-center">
           <Switch
             checked={feedSettings[sub.feedKey]}
@@ -286,7 +274,6 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
   const { user } = useCurrentUser();
   const icon = ICONS[def.id] ?? <Palette className="size-5" />;
   const hasSubKinds = !!def.subKinds;
-  const isFeedOnly = !!def.feedOnly;
 
   const handleToggle = async (key: string, value: boolean) => {
     updateFeedSettings({ [key]: value });
@@ -308,46 +295,21 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {isFeedOnly ? (
-            <>
-              <div className="w-[52px]" />
-              <div className="w-[52px] flex justify-center">
-                {def.feedKey ? (
-                  <Switch
-                    checked={feedSettings[def.feedKey]}
-                    onCheckedChange={(checked) => handleToggle(def.feedKey!, checked)}
-                  />
-                ) : null}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="w-[52px] flex justify-center">
-                {def.showKey ? (
-                  <Switch
-                    checked={feedSettings[def.showKey]}
-                    onCheckedChange={(checked) => handleToggle(def.showKey!, checked)}
-                  />
-                ) : null}
-              </div>
-              <div className="w-[52px] flex justify-center">
-                {!hasSubKinds && def.feedKey ? (
-                  <Switch
-                    checked={feedSettings[def.feedKey]}
-                    onCheckedChange={(checked) => handleToggle(def.feedKey!, checked)}
-                  />
-                ) : null}
-              </div>
-            </>
-          )}
+          <div className="w-[52px] flex justify-center">
+            {!hasSubKinds && def.feedKey ? (
+              <Switch
+                checked={feedSettings[def.feedKey]}
+                onCheckedChange={(checked) => handleToggle(def.feedKey!, checked)}
+              />
+            ) : null}
+          </div>
         </div>
       </div>
 
-      {hasSubKinds && def.showKey && def.subKinds!.map((sub) => (
+      {hasSubKinds && def.subKinds && def.subKinds.map((sub) => (
         <SubKindRow
           key={sub.showKey}
           sub={sub}
-          parentEnabled={feedSettings[def.showKey!]}
         />
       ))}
     </div>
@@ -390,6 +352,8 @@ function FeedSettingsFormInternals() {
 // Feed Tabs Section Component
 function FeedTabsSection() {
   const { toast } = useToast();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
   const [communityDomain, setCommunityDomain] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
   const [community, setCommunity] = useState<{ domain: string; userCount: number; label: string } | null>(() => {
@@ -407,9 +371,12 @@ function FeedTabsSection() {
     return stored !== null ? stored === 'true' : false; // Default to false
   });
 
-  const handleToggleGlobalFeed = (checked: boolean) => {
+  const handleToggleGlobalFeed = async (checked: boolean) => {
     setShowGlobalFeed(checked);
     localStorage.setItem('ditto:showGlobalFeed', String(checked));
+    if (user) {
+      await updateSettings.mutateAsync({ showGlobalFeed: checked });
+    }
     toast({
       title: checked ? 'Global feed enabled' : 'Global feed disabled',
       description: checked 
@@ -418,9 +385,12 @@ function FeedTabsSection() {
     });
   };
 
-  const handleToggleCommunityFeed = (checked: boolean) => {
+  const handleToggleCommunityFeed = async (checked: boolean) => {
     setShowCommunityFeed(checked);
     localStorage.setItem('ditto:showCommunityFeed', String(checked));
+    if (user) {
+      await updateSettings.mutateAsync({ showCommunityFeed: checked });
+    }
     toast({
       title: checked ? 'Community feed enabled' : 'Community feed disabled',
       description: checked 
@@ -481,6 +451,14 @@ function FeedTabsSection() {
       setShowCommunityFeed(true);
       localStorage.setItem('ditto:showCommunityFeed', 'true');
 
+      // Sync to encrypted settings
+      if (user) {
+        await updateSettings.mutateAsync({
+          communityData: { domain, label, userCount, nip05: data.names },
+          showCommunityFeed: true,
+        });
+      }
+
       toast({
         title: 'Community set',
         description: `${label} with ${userCount} users`,
@@ -499,7 +477,7 @@ function FeedTabsSection() {
     }
   };
 
-  const handleRemoveCommunity = () => {
+  const handleRemoveCommunity = async () => {
     setCommunity(null);
     localStorage.removeItem('ditto:community');
     localStorage.removeItem('ditto:communityData');
@@ -507,6 +485,10 @@ function FeedTabsSection() {
     // Also disable the community feed tab
     setShowCommunityFeed(false);
     localStorage.setItem('ditto:showCommunityFeed', 'false');
+
+    if (user) {
+      await updateSettings.mutateAsync({ communityData: undefined, showCommunityFeed: false });
+    }
     
     toast({
       title: 'Community removed',
@@ -949,12 +931,25 @@ function ThemePreferencesSection() {
   const { user } = useCurrentUser();
 
   const showOnProfiles = feedSettings.showCustomProfileThemes !== false;
-  const showInFeed = feedSettings.feedIncludeProfileThemes !== false;
+  const showInFeed = feedSettings.feedIncludeThemeDefinitions !== false || feedSettings.feedIncludeProfileThemeUpdates !== false;
 
-  const handleToggle = async (key: 'showCustomProfileThemes' | 'feedIncludeProfileThemes', value: boolean) => {
-    updateFeedSettings({ [key]: value });
+  const handleProfileThemeToggle = async (value: boolean) => {
+    updateFeedSettings({ showCustomProfileThemes: value });
     if (user) {
-      const updatedFeedSettings = { ...feedSettings, [key]: value };
+      const updatedFeedSettings = { ...feedSettings, showCustomProfileThemes: value };
+      await updateSettings.mutateAsync({ feedSettings: updatedFeedSettings });
+    }
+  };
+
+  const handleFeedToggle = async (value: boolean) => {
+    const patch = {
+      feedIncludeProfileThemes: value,
+      feedIncludeThemeDefinitions: value,
+      feedIncludeProfileThemeUpdates: value,
+    };
+    updateFeedSettings(patch);
+    if (user) {
+      const updatedFeedSettings = { ...feedSettings, ...patch };
       await updateSettings.mutateAsync({ feedSettings: updatedFeedSettings });
     }
   };
@@ -968,17 +963,17 @@ function ThemePreferencesSection() {
         </div>
         <Switch
           checked={showOnProfiles}
-          onCheckedChange={(val) => handleToggle('showCustomProfileThemes', val)}
+          onCheckedChange={handleProfileThemeToggle}
         />
       </div>
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
           <Label className="text-sm font-medium">Show theme updates in feed</Label>
-          <p className="text-xs text-muted-foreground">Display theme update events from people you follow in your feed</p>
+          <p className="text-xs text-muted-foreground">Display theme events from people you follow in your feed</p>
         </div>
         <Switch
           checked={showInFeed}
-          onCheckedChange={(val) => handleToggle('feedIncludeProfileThemes', val)}
+          onCheckedChange={handleFeedToggle}
         />
       </div>
     </div>

@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { SwatchBook } from 'lucide-react';
+import { useMemo, useState, useEffect, useId } from 'react';
+
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
 import { hexToHslString, hexToRgb, rgbToHsl, hslToRgb, getLuminance, getContrastRatio, parseHsl, formatHsl } from '@/lib/colorUtils';
@@ -153,21 +153,43 @@ function CheckerboardLayout({ colors }: { colors: string[] }) {
 
 function DiagonalStripesLayout({ colors }: { colors: string[] }) {
   const n = colors.length;
-  const pct = 100 / n;
-  const stops = colors.map((color, i) => {
-    const start = pct * i;
-    const end = pct * (i + 1);
-    return `${color} ${start}% ${end}%`;
-  }).join(', ');
+  const H = 180;
+  // Use a canvas wider than the visible area by H so that parallelogram stripes
+  // at a 45° diagonal fill the rectangle exactly. The viewBox is (W+H) × H but
+  // we clip it back to W × H via the wrapper div + overflow-hidden.
+  // Each stripe is a true parallelogram with vertical width W/n and a horizontal
+  // shift of H from top to bottom, giving a consistent 45° diagonal boundary.
+  const W = 400;
+  const totalW = W + H; // canvas wide enough so last stripe reaches bottom-right
+  const stripeW = totalW / n;
 
   return (
-    <div
-      className="w-full rounded-2xl"
-      style={{
-        height: 180,
-        background: `linear-gradient(135deg, ${stops})`,
-      }}
-    />
+    <div className="w-full rounded-2xl overflow-hidden" style={{ height: H }}>
+      <svg
+        width="100%"
+        height="100%"
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        xmlns="http://www.w3.org/2000/svg"
+        shapeRendering="geometricPrecision"
+      >
+        {colors.map((color, i) => {
+          // Stripe i: parallelogram where the top edge is at x=[i*sw, (i+1)*sw]
+          // and the bottom edge shifts left by H (height), giving a 45° angle.
+          const tx0 = i * stripeW;             // top-left x
+          const tx1 = (i + 1) * stripeW;     // top-right x
+          const bx0 = i * stripeW - H;       // bottom-left x (shifted left by H)
+          const bx1 = (i + 1) * stripeW - H; // bottom-right x
+          const points = [
+            `${tx0},0`,
+            `${tx1},0`,
+            `${bx1},${H}`,
+            `${bx0},${H}`,
+          ].join(' ');
+          return <polygon key={i} points={points} fill={color} />;
+        })}
+      </svg>
+    </div>
   );
 }
 
@@ -262,17 +284,67 @@ const LAYOUT_MAP: Record<Layout, React.FC<{ colors: string[] }>> = {
   diagonalStripes: DiagonalStripesLayout,
 };
 
+/** Standalone blinking eye button for setting a color moment as the active theme. */
+export function ColorMomentEyeButton({ event }: { event: NostrEvent }) {
+  const colors = useMemo(() => getColors(event.tags), [event.tags]);
+  const { applyCustomTheme } = useTheme();
+  const [isBlinking, setIsBlinking] = useState(false);
+  const uid = useId();
+
+  useEffect(() => {
+    if (isBlinking) {
+      const timer = setTimeout(() => setIsBlinking(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isBlinking]);
+
+  const handleSetTheme = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsBlinking(true);
+    applyCustomTheme(paletteToTheme(colors));
+  };
+
+  if (colors.length === 0) return null;
+
+  const outer = colors[0] ?? '#888';
+  const iris = colors[colors.length - 1] ?? '#888';
+
+  // Build the eye as a data-URI SVG so the browser renders it as an image
+  // (smooth anti-aliasing, no compositing layer on siblings)
+  const eyeSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="45" fill="${outer}"/>
+    <circle cx="50" cy="50" r="32" fill="white" opacity="0.9"/>
+    <circle cx="50" cy="50" r="20" fill="${iris}"/>
+    <circle cx="50" cy="50" r="10" fill="#1c1917"/>
+    <circle cx="43" cy="43" r="4" fill="white" opacity="0.8"/>
+  </svg>`;
+  const eyeUrl = `data:image/svg+xml,${encodeURIComponent(eyeSvg)}`;
+
+  return (
+    <button
+      onClick={handleSetTheme}
+      className="flex items-center gap-1.5 hover:opacity-80 active:scale-95 transition-all shrink-0"
+      title="Set as theme"
+    >
+      <span className="text-[11px] font-medium text-muted-foreground">Set as theme</span>
+      {/* Eye container — overflow-hidden clips the eyelid, doesn't touch siblings */}
+      <div className="relative size-9 rounded-full overflow-hidden" id={uid}>
+        <img src={eyeUrl} alt="" className="w-9 h-9" />
+        {isBlinking && (
+          <div className="absolute inset-0 animate-eyelid-blink">
+            <div className="absolute rounded-full bg-background w-full h-full bottom-0 left-0" />
+          </div>
+        )}
+      </div>
+    </button>
+  );
+}
+
 export function ColorMomentContent({ event }: { event: NostrEvent }) {
   const colors = useMemo(() => getColors(event.tags), [event.tags]);
   const layout = (getTag(event.tags, 'layout') ?? 'horizontal') as Layout;
   const name = getTag(event.tags, 'name');
   const emoji = event.content.trim() || undefined;
-  const { applyCustomTheme } = useTheme();
-
-  const handleSetTheme = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    applyCustomTheme(paletteToTheme(colors));
-  };
 
   const LayoutComponent = LAYOUT_MAP[layout] ?? HorizontalLayout;
 
@@ -311,7 +383,7 @@ export function ColorMomentContent({ event }: { event: NostrEvent }) {
         )}
       </div>
 
-      {/* Color hex swatches + set theme button */}
+      {/* Color hex swatches */}
       <div className="flex flex-wrap items-center gap-1.5 mt-2">
         {colors.map((color, i) => (
           <button
@@ -330,14 +402,6 @@ export function ColorMomentContent({ event }: { event: NostrEvent }) {
             {color}
           </button>
         ))}
-        <button
-          onClick={handleSetTheme}
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors ml-auto"
-          title="Set as theme"
-        >
-          <SwatchBook className="size-3" />
-          Set as theme
-        </button>
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ import { CommentForm } from './CommentForm';
 import { Comment } from './Comment';
 
 interface CommentsSectionProps {
-  root: NostrEvent | URL;
+  root: NostrEvent | URL | `#${string}`;
   title?: string;
   emptyStateMessage?: string;
   emptyStateSubtitle?: string;

@@ -21,7 +21,7 @@ interface Nip05BadgeProps {
  *
  * - `_@domain.com` renders as `@domain.com` (domain is clickable → domain feed)
  * - `user@domain.com` renders as `@user@domain.com` (domain part is clickable → domain feed)
- * - The domain text and favicon are both clickable links to `/timeline/{domain}`
+ * - The domain text and favicon are both clickable links to `/feed/{domain}`
  * - Returns null while verifying or if verification fails.
  */
 /**
@@ -68,7 +68,7 @@ export function Nip05Badge({ nip05, pubkey, className, iconSize = 16 }: Nip05Bad
     <span className={cn('inline-flex items-center min-w-0', className)}>
       {isDefaultUser ? (
         <Link
-          to={`/timeline/${domain}`}
+          to={`/feed/${domain}`}
           className="truncate min-w-0 hover:underline"
           onClick={(e) => e.stopPropagation()}
           title={`View ${domain} feed`}
@@ -80,7 +80,7 @@ export function Nip05Badge({ nip05, pubkey, className, iconSize = 16 }: Nip05Bad
           <span className="truncate min-w-0">@{user}@</span>
           {domain && (
             <Link
-              to={`/timeline/${domain}`}
+              to={`/feed/${domain}`}
               className="shrink-0 hover:underline"
               onClick={(e) => e.stopPropagation()}
               title={`View ${domain} feed`}
@@ -92,7 +92,7 @@ export function Nip05Badge({ nip05, pubkey, className, iconSize = 16 }: Nip05Bad
       )}
       {domain && (
         <Link
-          to={`/timeline/${domain}`}
+          to={`/feed/${domain}`}
           className="inline-flex items-center shrink-0 ml-1 hover:opacity-80 transition-opacity"
           onClick={(e) => e.stopPropagation()}
           title={`View ${domain} feed`}

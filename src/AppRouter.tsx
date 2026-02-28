@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { Clapperboard, BarChart3, Palette, PartyPopper, FileText, Sparkles } from "lucide-react";
-import { CardsIcon } from "./components/icons/CardsIcon";
+import { getExtraKindDef } from "./lib/extraKinds";
+import { sidebarItemIcon } from "./components/SidebarNavItem";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { MainLayout } from "./components/MainLayout";
 import { useCurrentUser } from "./hooks/useCurrentUser";
@@ -18,6 +18,7 @@ import { ContentSettingsPage } from "./pages/ContentSettingsPage";
 import { WalletSettingsPage } from "./pages/WalletSettingsPage";
 import { NotificationSettings } from "./pages/NotificationSettings";
 import { AdvancedSettingsPage } from "./pages/AdvancedSettingsPage";
+import { MagicSettingsPage } from "./pages/MagicSettingsPage";
 import { NetworkSettingsPage } from "./pages/NetworkSettingsPage";
 import { HashtagPage } from "./pages/HashtagPage";
 import { DomainFeedPage } from "./pages/DomainFeedPage";
@@ -26,7 +27,16 @@ import { KindFeedPage } from "./pages/KindFeedPage";
 import { StreamsFeedPage } from "./pages/StreamsFeedPage";
 import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
+import { ThemesPage } from "./pages/ThemesPage";
 import { ThemeBuilderPage } from "./pages/ThemeBuilderPage";
+import { ExternalContentPage } from "./pages/ExternalContentPage";
+
+const vinesDef = getExtraKindDef('vines')!;
+const pollsDef = getExtraKindDef('polls')!;
+const colorsDef = getExtraKindDef('colors')!;
+const packsDef = getExtraKindDef('packs')!;
+const articlesDef = getExtraKindDef('articles')!;
+const decksDef = getExtraKindDef('decks')!;
 
 /** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
 function ProfileRedirect() {
@@ -49,7 +59,7 @@ export function AppRouter() {
           <Route path="/trends" element={<TrendsPage />} />
           <Route path="/profile" element={<ProfileRedirect />} />
           <Route path="/t/:tag" element={<HashtagPage />} />
-          <Route path="/timeline/:domain" element={<DomainFeedPage />} />
+          <Route path="/feed/:domain" element={<DomainFeedPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/profile" element={<ProfileSettings />} />
           <Route path="/settings/theme" element={<ThemeSettingsPage />} />
@@ -58,18 +68,20 @@ export function AppRouter() {
           <Route path="/settings/wallet" element={<WalletSettingsPage />} />
           <Route path="/settings/notifications" element={<NotificationSettings />} />
           <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
+          <Route path="/settings/magic" element={<MagicSettingsPage />} />
           <Route path="/settings/network" element={<NetworkSettingsPage />} />
-          <Route path="/vines" element={<KindFeedPage kind={34236} title="Vines" icon={<Clapperboard className="size-5" />} />} />
-          <Route path="/polls" element={<KindFeedPage kind={1068} title="Polls" icon={<BarChart3 className="size-5" />} />} />
+          <Route path="/vines" element={<KindFeedPage kind={vinesDef.kind} title={vinesDef.label} icon={sidebarItemIcon('vines', 'size-5')} />} />
+          <Route path="/polls" element={<KindFeedPage kind={pollsDef.kind} title={pollsDef.label} icon={sidebarItemIcon('polls', 'size-5')} />} />
           <Route path="/treasures" element={<TreasuresPage />} />
-          <Route path="/colors" element={<KindFeedPage kind={3367} title="Colors" icon={<Palette className="size-5" />} />} />
-          <Route path="/packs" element={<KindFeedPage kind={39089} title="Follow Packs" icon={<PartyPopper className="size-5" />} />} />
+          <Route path="/colors" element={<KindFeedPage kind={colorsDef.kind} title={colorsDef.label} icon={sidebarItemIcon('colors', 'size-5')} />} />
+          <Route path="/packs" element={<KindFeedPage kind={packsDef.kind} title={packsDef.label} icon={sidebarItemIcon('packs', 'size-5')} />} />
           <Route path="/streams" element={<StreamsFeedPage />} />
           <Route path="/webxdc" element={<WebxdcFeedPage />} />
-          <Route path="/articles" element={<KindFeedPage kind={30023} title="Articles" icon={<FileText className="size-5" />} />} />
-          <Route path="/decks" element={<KindFeedPage kind={37381} title="Magic Decks" icon={<CardsIcon className="size-5" />} />} />
-          <Route path="/themes" element={<KindFeedPage kind={36767} title="Public Themes" icon={<Sparkles className="size-5" />} emptyMessage="No public themes yet. Be the first to share yours!" backTo="/settings/theme" alwaysShowBack fabHref="/settings/theme/edit?new" />} />
+          <Route path="/articles" element={<KindFeedPage kind={articlesDef.kind} title={articlesDef.label} icon={sidebarItemIcon('articles', 'size-5')} />} />
+          <Route path="/decks" element={<KindFeedPage kind={decksDef.kind} title={decksDef.label} icon={sidebarItemIcon('decks', 'size-5')} />} />
+          <Route path="/themes" element={<ThemesPage />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
+          <Route path="/i/*" element={<ExternalContentPage />} />
 
           {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
           <Route path="/:nip19" element={<NIP19Page />} />

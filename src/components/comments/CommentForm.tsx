@@ -9,8 +9,8 @@ import { NostrEvent } from '@nostrify/nostrify';
 import { MessageSquare, Send } from 'lucide-react';
 
 interface CommentFormProps {
-  root: NostrEvent | URL;
-  reply?: NostrEvent | URL;
+  root: NostrEvent | URL | `#${string}`;
+  reply?: NostrEvent | URL | `#${string}`;
   onSuccess?: () => void;
   placeholder?: string;
   compact?: boolean;

@@ -35,6 +35,7 @@ export function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
       return items.filter((item) => {
         const e = item.event;
         if (item.repostedBy) return true; // Always show reposts
+        if (e.kind === 1111) return false; // Kind 1111 comments are always replies
         if (e.kind === 1) return !e.tags.some(([n]) => n === 'e'); // Kind 1 without e tags
         return !e.tags.some(([n]) => n === 'e'); // Other kinds without e tags
       });

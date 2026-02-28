@@ -2,10 +2,13 @@ import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ContentSettings } from '@/components/ContentSettings';
+import { useAppContext } from '@/hooks/useAppContext';
 
 export function ContentSettingsPage() {
+  const { config } = useAppContext();
+
   useSeoMeta({
-    title: 'Content | Settings | Ditto',
+    title: `Content | Settings | ${config.appName}`,
     description: 'Manage your feed and content preferences',
   });
 

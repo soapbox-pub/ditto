@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { useTheme } from '@/hooks/useTheme';
@@ -39,6 +40,7 @@ const COLOR_LABELS: Record<keyof CoreThemeColors, string> = {
 };
 
 export function ThemeBuilderPage() {
+  const { config } = useAppContext();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { theme: currentTheme, customTheme: savedCustomTheme, themes: configuredThemes, applyCustomTheme } = useTheme();
@@ -59,7 +61,7 @@ export function ThemeBuilderPage() {
   const _userThemes = useUserThemes(user?.pubkey);
 
   useSeoMeta({
-    title: 'Theme Builder | Ditto',
+    title: `Theme Builder | ${config.appName}`,
     description: 'Create and customize your profile theme',
   });
 

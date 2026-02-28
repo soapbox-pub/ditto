@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
-import { Check, Palette, ArrowRight } from 'lucide-react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { Check, Palette, ArrowRight, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -118,20 +118,75 @@ function ThemePreviewCard({
   );
 }
 
-export function ThemeSelector() {
-  const { theme, customTheme, themes, autoShareTheme, setTheme, applyCustomTheme, setAutoShareTheme } = useTheme();
+/** A single theme button used inside ThemeGrid */
+function ThemeButton({
+  isActive,
+  label,
+  truncate = false,
+  scroll = false,
+  carousel = false,
+  onClick,
+  children,
+}: {
+  isActive: boolean;
+  label: string;
+  truncate?: boolean;
+  scroll?: boolean;
+  carousel?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      className={cn(
+        'relative group rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        isActive ? 'border-primary shadow-sm' : 'border-border hover:border-primary/40',
+        scroll && 'flex-1',
+        carousel && 'w-full',
+      )}
+      onClick={onClick}
+    >
+      {children}
+      <p className={cn(
+        'mt-1.5 text-xs font-medium text-center transition-colors',
+        isActive ? 'text-foreground' : 'text-muted-foreground',
+        truncate && 'truncate',
+      )}>
+        {label}
+      </p>
+    </button>
+  );
+}
+
+/**
+ * Renders the grid of theme options (builtins + presets + user themes).
+ * Applies selection immediately via `useTheme`. Calls `onSelect` after
+ * each pick so callers (e.g. onboarding) can react without duplicating logic.
+ */
+export function ThemeGrid({
+  onSelect,
+  editingTheme,
+  onEditingThemeChange,
+  columns = 'responsive',
+}: {
+  /** Called after any theme is selected. */
+  onSelect?: () => void;
+  /** Currently-editing user theme (for active state). Pass null if not in editor mode. */
+  editingTheme?: ThemeDefinition | null;
+  /** Callback to update editing theme state in the parent. */
+  onEditingThemeChange?: (def: ThemeDefinition | null) => void;
+  /**
+   * Layout mode:
+   * - 'responsive': 2-col grid on mobile, 3-col at sidebar breakpoint (900px)
+   * - 'sm': 2-col grid on mobile, 3-col at sm (640px)
+   * - '2': always 2-col grid
+   * - 'scroll': horizontal scrolling strip on mobile, 3-col grid at sm+
+   */
+  columns?: 'responsive' | 'sm' | '2' | 'scroll';
+}) {
+  const { theme, customTheme, themes, setTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
-  const { publishTheme, isPending: isPublishing } = usePublishTheme();
-  const { toast } = useToast();
   const userThemes = useUserThemes(user?.pubkey);
-
-  // Editor mode: which user theme is being edited
-  const [editingTheme, setEditingTheme] = useState<ThemeDefinition | null>(null);
-
-  // Publish dialog state
-  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
-  const [publishTitle, setPublishTitle] = useState('');
-  const [publishDescription, setPublishDescription] = useState('');
 
   const builtinOptions: { id: Theme; label: string }[] = [
     { id: 'system', label: 'System' },
@@ -147,16 +202,267 @@ export function ThemeSelector() {
     background: preset.background,
   }));
 
-  /** Check if a preset matches the current custom theme colors */
   const isPresetActive = (presetColors: CoreThemeColors): boolean => {
     if (theme !== 'custom' || !customTheme) return false;
     return JSON.stringify(customTheme.colors) === JSON.stringify(presetColors);
   };
 
-  /** Check if a user theme is the one currently being edited */
   const isUserThemeActive = (def: ThemeDefinition): boolean => {
     return editingTheme?.identifier === def.identifier && theme === 'custom';
   };
+
+  const handleSelectBuiltin = useCallback((id: Theme) => {
+    onEditingThemeChange?.(null);
+    setTheme(id);
+    onSelect?.();
+  }, [setTheme, onSelect, onEditingThemeChange]);
+
+  const handleSelectPreset = useCallback((preset: { colors: CoreThemeColors; font?: ThemeConfig['font']; background?: ThemeConfig['background'] }) => {
+    onEditingThemeChange?.(null);
+    applyCustomTheme({ colors: preset.colors, font: preset.font, background: preset.background });
+    onSelect?.();
+  }, [applyCustomTheme, onSelect, onEditingThemeChange]);
+
+  const handleSelectUserTheme = useCallback((def: ThemeDefinition) => {
+    onEditingThemeChange?.(def);
+    applyCustomTheme({ colors: def.colors, font: def.font, background: def.background, title: def.title });
+    onSelect?.();
+  }, [applyCustomTheme, onSelect, onEditingThemeChange]);
+
+  const isScroll = columns === 'scroll';
+
+  // Carousel state for scroll mode (mobile only)
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activePage, setActivePage] = useState(0);
+
+  // Build a flat list of item descriptors (needed for carousel auto-select)
+  type ItemDescriptor = {
+    key: string;
+    label: string;
+    truncate: boolean;
+    onSelect: () => void;
+    preview: React.ReactNode;
+    isActive: boolean;
+  };
+
+  const buildItems = (): ItemDescriptor[] => {
+    const items: ItemDescriptor[] = [];
+
+    for (const option of builtinOptions) {
+      if (option.id === 'system') {
+        const isActive = theme === 'system';
+        const lightTokens = coreToTokens(resolveThemeConfig('light', themes).colors);
+        const darkTokens = coreToTokens(resolveThemeConfig('dark', themes).colors);
+        items.push({
+          key: 'system',
+          label: option.label,
+          truncate: false,
+          onSelect: () => handleSelectBuiltin('system'),
+          isActive,
+          preview: (
+            <div className="aspect-[4/3] rounded-lg overflow-hidden relative">
+              <SystemHalf tokens={lightTokens} side="left" />
+              <SystemHalf tokens={darkTokens} side="right" />
+              {isActive && (
+                <div className="absolute top-1 left-1 size-4 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: hsl(lightTokens.primary) }}
+                >
+                  <Check className="size-2.5" style={{ color: hsl(lightTokens.primaryForeground) }} />
+                </div>
+              )}
+            </div>
+          ),
+        });
+      } else {
+        const colors = resolveThemeConfig(option.id as 'light' | 'dark', themes).colors;
+        const isActive = theme === option.id;
+        items.push({
+          key: option.id,
+          label: option.label,
+          truncate: false,
+          onSelect: () => handleSelectBuiltin(option.id),
+          isActive,
+          preview: <ThemePreviewCard colors={colors} isActive={isActive} />,
+        });
+      }
+    }
+
+    for (const preset of presetOptions) {
+      const isActive = isPresetActive(preset.colors);
+      items.push({
+        key: preset.id,
+        label: preset.label,
+        truncate: false,
+        onSelect: () => handleSelectPreset(preset),
+        isActive,
+        preview: <ThemePreviewCard colors={preset.colors} isActive={isActive} backgroundUrl={preset.background?.url} />,
+      });
+    }
+
+    for (const def of (userThemes.data ?? [])) {
+      const isActive = isUserThemeActive(def);
+      items.push({
+        key: `user:${def.identifier}`,
+        label: def.title,
+        truncate: true,
+        onSelect: () => handleSelectUserTheme(def),
+        isActive,
+        preview: <ThemePreviewCard colors={def.colors} isActive={isActive} backgroundUrl={def.background?.url} />,
+      });
+    }
+
+    return items;
+  };
+
+  const allItems = buildItems();
+
+  if (isScroll) {
+    // Auto-select the theme that scrolls into view
+    const handleScroll = () => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const page = Math.round(el.scrollLeft / el.clientWidth);
+      if (page !== activePage) {
+        setActivePage(page);
+        allItems[page]?.onSelect();
+      }
+    };
+
+    const goToPage = (page: number) => {
+      const el = scrollRef.current;
+      if (!el) return;
+      el.scrollTo({ left: page * el.clientWidth, behavior: 'smooth' });
+    };
+
+    const canPrev = activePage > 0;
+    const canNext = activePage < allItems.length - 1;
+
+    return (
+      <>
+        {/* Mobile carousel */}
+        <div className="sm:hidden space-y-3">
+          <div className="flex items-center gap-2">
+            {/* Left arrow */}
+            <button
+              onClick={() => goToPage(activePage - 1)}
+              disabled={!canPrev}
+              className={cn(
+                'shrink-0 size-8 flex items-center justify-center rounded-full',
+                'bg-muted border border-border shadow-sm',
+                'transition-opacity duration-200',
+                canPrev ? 'opacity-100' : 'opacity-0 pointer-events-none',
+              )}
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+
+            {/* Scroll container — 1 card per page, swipeable */}
+            <div
+              ref={scrollRef}
+              onScroll={handleScroll}
+              className="flex flex-1 overflow-x-auto snap-x snap-mandatory"
+              style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+            >
+              {allItems.map((item) => (
+                <div key={item.key} className="shrink-0 w-full snap-start">
+                  <ThemeButton
+                    isActive={item.isActive}
+                    label={item.label}
+                    truncate={item.truncate}
+                    onClick={item.onSelect}
+                    carousel
+                  >
+                    {item.preview}
+                  </ThemeButton>
+                </div>
+              ))}
+            </div>
+
+            {/* Right arrow */}
+            <button
+              onClick={() => goToPage(activePage + 1)}
+              disabled={!canNext}
+              className={cn(
+                'shrink-0 size-8 flex items-center justify-center rounded-full',
+                'bg-muted border border-border shadow-sm',
+                'transition-opacity duration-200',
+                canNext ? 'opacity-100' : 'opacity-0 pointer-events-none',
+              )}
+            >
+              <ChevronRightIcon className="size-4" />
+            </button>
+          </div>
+
+          {/* Dot indicators */}
+          <div className="flex justify-center gap-1.5">
+            {allItems.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goToPage(i)}
+                className={cn(
+                  'rounded-full transition-all duration-200',
+                  i === activePage
+                    ? 'w-4 h-1.5 bg-primary'
+                    : 'w-1.5 h-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/60',
+                )}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop grid */}
+        <div className="hidden sm:grid sm:grid-cols-3 gap-3">
+          {allItems.map((item) => (
+            <ThemeButton
+              key={item.key}
+              isActive={item.isActive}
+              label={item.label}
+              truncate={item.truncate}
+              onClick={item.onSelect}
+            >
+              {item.preview}
+            </ThemeButton>
+          ))}
+        </div>
+      </>
+    );
+  }
+
+  const gridClass =
+    columns === '2' ? 'grid grid-cols-2 gap-3'
+    : columns === 'sm' ? 'grid grid-cols-2 sm:grid-cols-3 gap-3'
+    : 'grid grid-cols-2 sidebar:grid-cols-3 gap-3';
+
+  return (
+    <div className={gridClass}>
+      {allItems.map((item) => (
+        <ThemeButton
+          key={item.key}
+          isActive={item.isActive}
+          label={item.label}
+          truncate={item.truncate}
+          onClick={item.onSelect}
+        >
+          {item.preview}
+        </ThemeButton>
+      ))}
+    </div>
+  );
+}
+
+export function ThemeSelector() {
+  const { theme, customTheme, themes, autoShareTheme, applyCustomTheme, setAutoShareTheme } = useTheme();
+  const { user } = useCurrentUser();
+  const { publishTheme, isPending: isPublishing } = usePublishTheme();
+  const { toast } = useToast();
+
+  // Editor mode: which user theme is being edited
+  const [editingTheme, setEditingTheme] = useState<ThemeDefinition | null>(null);
+
+  // Publish dialog state
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [publishTitle, setPublishTitle] = useState('');
+  const [publishDescription, setPublishDescription] = useState('');
 
   /** The effective colors for the current theme (used in the color editor) */
   const effectiveColors = getEffectiveColors(theme, customTheme, themes);
@@ -167,29 +473,6 @@ export function ThemeSelector() {
     const newColors = { ...effectiveColors, [key]: hslValue };
     applyCustomTheme({ ...customTheme, colors: newColors });
   }, [effectiveColors, applyCustomTheme, customTheme]);
-
-  /** Select a builtin theme and exit editor mode */
-  const handleSelectBuiltin = useCallback((id: Theme) => {
-    setEditingTheme(null);
-    setTheme(id);
-  }, [setTheme]);
-
-  /** Select a preset and exit editor mode */
-  const handleSelectPreset = useCallback((preset: { colors: CoreThemeColors; font?: ThemeConfig['font']; background?: ThemeConfig['background'] }) => {
-    setEditingTheme(null);
-    applyCustomTheme({ colors: preset.colors, font: preset.font, background: preset.background });
-  }, [applyCustomTheme]);
-
-  /** Select a user-published theme: apply it and enter editor mode */
-  const handleSelectUserTheme = useCallback((def: ThemeDefinition) => {
-    setEditingTheme(def);
-    applyCustomTheme({
-      colors: def.colors,
-      font: def.font,
-      background: def.background,
-      title: def.title,
-    });
-  }, [applyCustomTheme]);
 
   /** Open the publish dialog for a new theme */
   const handlePublishNew = useCallback(() => {
@@ -202,17 +485,13 @@ export function ThemeSelector() {
   const handleUpdateTheme = useCallback(async () => {
     if (!editingTheme) return;
     try {
-      const themeConfig: ThemeConfig = {
-        ...customTheme,
-        colors: effectiveColors,
-      };
+      const themeConfig: ThemeConfig = { ...customTheme, colors: effectiveColors };
       await publishTheme({
         themeConfig,
         title: editingTheme.title,
         description: editingTheme.description,
         identifier: editingTheme.identifier,
       });
-      // Update local editing state to reflect current colors
       setEditingTheme({
         ...editingTheme,
         colors: effectiveColors,
@@ -233,10 +512,7 @@ export function ThemeSelector() {
       return;
     }
     try {
-      const themeConfig: ThemeConfig = {
-        ...customTheme,
-        colors: effectiveColors,
-      };
+      const themeConfig: ThemeConfig = { ...customTheme, colors: effectiveColors };
       const identifier = await publishTheme({
         themeConfig,
         title: publishTitle.trim(),
@@ -259,137 +535,17 @@ export function ThemeSelector() {
     }
   }, [publishTitle, publishDescription, customTheme, effectiveColors, publishTheme, toast]);
 
-   return (
+  return (
     <div className="space-y-5">
       {/* ── Themes grid ── */}
       <div className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
           Themes
         </h3>
-        <div className="grid grid-cols-2 sidebar:grid-cols-3 gap-3">
-          {builtinOptions.map((option) => {
-            if (option.id === 'system') {
-              const isActive = theme === 'system';
-              const lightTokens = coreToTokens(resolveThemeConfig('light', themes).colors);
-              const darkTokens = coreToTokens(resolveThemeConfig('dark', themes).colors);
-
-              return (
-                <button
-                  key="system"
-                  className={cn(
-                    'relative group rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                    isActive
-                      ? 'border-primary shadow-sm'
-                      : 'border-border hover:border-primary/40',
-                  )}
-                  onClick={() => handleSelectBuiltin('system')}
-                >
-                  {/* Split preview: left light, right dark */}
-                  <div className="aspect-[4/3] rounded-lg overflow-hidden relative">
-                    {/* Light half */}
-                    <SystemHalf tokens={lightTokens} side="left" />
-                    {/* Dark half */}
-                    <SystemHalf tokens={darkTokens} side="right" />
-
-                    {/* Active check mark */}
-                    {isActive && (
-                      <div className="absolute top-1 left-1 size-4 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: hsl(lightTokens.primary) }}
-                      >
-                        <Check className="size-2.5" style={{ color: hsl(lightTokens.primaryForeground) }} />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Label */}
-                  <p className={cn(
-                    'mt-1.5 text-xs font-medium text-center transition-colors',
-                    isActive ? 'text-foreground' : 'text-muted-foreground',
-                  )}>
-                    {option.label}
-                  </p>
-                </button>
-              );
-            }
-
-            // Light / Dark builtin
-            const colors = resolveThemeConfig(option.id as 'light' | 'dark', themes).colors;
-            const isActive = theme === option.id;
-
-            return (
-              <button
-                key={option.id}
-                className={cn(
-                  'relative group rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  isActive
-                    ? 'border-primary shadow-sm'
-                    : 'border-border hover:border-primary/40',
-                )}
-                onClick={() => handleSelectBuiltin(option.id)}
-              >
-                <ThemePreviewCard colors={colors} isActive={isActive} />
-                <p className={cn(
-                  'mt-1.5 text-xs font-medium text-center transition-colors',
-                  isActive ? 'text-foreground' : 'text-muted-foreground',
-                )}>
-                  {option.label}
-                </p>
-              </button>
-            );
-          })}
-
-          {/* Preset buttons */}
-          {presetOptions.map((preset) => {
-            const isActive = isPresetActive(preset.colors);
-
-            return (
-              <button
-                key={preset.id}
-                className={cn(
-                  'relative group rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  isActive
-                    ? 'border-primary shadow-sm'
-                    : 'border-border hover:border-primary/40',
-                )}
-                onClick={() => handleSelectPreset(preset)}
-              >
-                <ThemePreviewCard colors={preset.colors} isActive={isActive} backgroundUrl={preset.background?.url} />
-                <p className={cn(
-                  'mt-1.5 text-xs font-medium text-center transition-colors',
-                  isActive ? 'text-foreground' : 'text-muted-foreground',
-                )}>
-                  {preset.label}
-                </p>
-              </button>
-            );
-          })}
-
-          {/* User's published themes */}
-          {userThemes.data?.map((def) => {
-            const isActive = isUserThemeActive(def);
-
-            return (
-              <button
-                key={`user:${def.identifier}`}
-                className={cn(
-                  'relative group rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  isActive
-                    ? 'border-primary shadow-sm'
-                    : 'border-border hover:border-primary/40',
-                )}
-                onClick={() => handleSelectUserTheme(def)}
-              >
-                <ThemePreviewCard colors={def.colors} isActive={isActive} backgroundUrl={def.background?.url} />
-                <p className={cn(
-                  'mt-1.5 text-xs font-medium text-center transition-colors truncate',
-                  isActive ? 'text-foreground' : 'text-muted-foreground',
-                )}>
-                  {def.title}
-                </p>
-              </button>
-            );
-          })}
-        </div>
+        <ThemeGrid
+          editingTheme={editingTheme}
+          onEditingThemeChange={setEditingTheme}
+        />
       </div>
 
       {/* ── Customize card ── */}
@@ -491,7 +647,6 @@ export function ThemeSelector() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            {/* Color swatch preview */}
             <div className="flex rounded-lg overflow-hidden h-8">
               {CORE_KEYS.map((key) => (
                 <div

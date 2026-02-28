@@ -19,8 +19,8 @@ import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 
 interface ReplyComposeModalProps {
-  /** The event being replied to. When `null`, the modal acts as a "New post" composer. */
-  event?: NostrEvent | null;
+  /** The event being replied to, or a URL for commenting on external content. When `null`, the modal acts as a "New post" composer. */
+  event?: NostrEvent | URL | null;
   /** The event being quoted (for quote posts). */
   quotedEvent?: NostrEvent | null;
   open: boolean;
@@ -34,10 +34,14 @@ function extractImages(content: string): string[] {
 }
 
 export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange }: ReplyComposeModalProps) {
+  const isUrl = event instanceof URL;
   const isReply = !!event;
   const isQuote = !!quotedEvent;
   const [previewMode, setPreviewMode] = useState(false);
   const [hasPreviewableContent, setHasPreviewableContent] = useState(false);
+
+  const title = isUrl ? 'New comment' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post';
+  const placeholder = isUrl ? 'Write a comment...' : isReply ? "What's on your mind?" : isQuote ? 'Add a comment...' : "What's happening?";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -45,7 +49,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange }: Re
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12">
           <DialogTitle className="text-base font-semibold">
-            {isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post'}
+            {title}
           </DialogTitle>
 
           <div className="flex items-center gap-2">
@@ -86,15 +90,15 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange }: Re
           </div>
         </div>
 
-        {/* Embedded original post (reply only - quote embeds are shown in ComposeBox) */}
-        {event && !isQuote && <EmbeddedPost event={event} />}
+        {/* Embedded original post (reply only, not for URL roots or quotes) */}
+        {event && !isUrl && !isQuote && <EmbeddedPost event={event} />}
 
         {/* Compose area */}
         <ComposeBox
           replyTo={isQuote ? undefined : (event ?? undefined)}
           quotedEvent={quotedEvent ?? undefined}
           onSuccess={() => onOpenChange(false)}
-          placeholder={isReply ? "What's on your mind?" : isQuote ? "Add a comment..." : "What's happening?"}
+          placeholder={placeholder}
           forceExpanded
           hideAvatar
           previewMode={previewMode}

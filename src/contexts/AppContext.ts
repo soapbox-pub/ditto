@@ -74,15 +74,27 @@ export interface FeedSettings {
   showWebxdc: boolean;
   /** Include Webxdc apps in the follows/global feed */
   feedIncludeWebxdc: boolean;
-  /** Show Custom Themes (kind 36767) link in sidebar (not used — feed-only) */
+  /** Show Themes link in sidebar */
   showProfileThemes: boolean;
-  /** Include Profile Theme updates in the follows/global feed */
+  /** Include Profile Theme updates in the follows/global feed (legacy key, maps to feedIncludeThemeDefinitions + feedIncludeProfileThemeUpdates) */
   feedIncludeProfileThemes: boolean;
+  /** Show theme definitions (kind 36767) on Themes page */
+  showThemeDefinitions: boolean;
+  /** Include theme definitions in the follows/global feed */
+  feedIncludeThemeDefinitions: boolean;
+  /** Show profile theme updates (kind 16767) on Themes page */
+  showProfileThemeUpdates: boolean;
+  /** Include profile theme updates in the follows/global feed */
+  feedIncludeProfileThemeUpdates: boolean;
   /** Show custom profile themes when visiting other users' profiles */
   showCustomProfileThemes: boolean;
 }
 
 export interface AppConfig {
+  /** Application display name used in page titles, UI text, and branding. Default: "Ditto". */
+  appName: string;
+  /** Enable Magic Mouse mode: cursor/finger emanates magical fire in the primary color */
+  magicMouse: boolean;
   /** Current theme */
   theme: Theme;
   /** Custom theme config (colors, fonts, background). Only used when theme === "custom". */

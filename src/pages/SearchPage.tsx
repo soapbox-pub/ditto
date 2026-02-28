@@ -1,16 +1,18 @@
 import { useSeoMeta } from '@unhead/react';
-import { ChevronUp, ChevronDown, Search as SearchIcon, Image, Video, Film, Languages, UserRoundCheck } from 'lucide-react';
+import { useAppContext } from '@/hooks/useAppContext';
+import { SlidersHorizontal, Search as SearchIcon, Image, Video, Film, Languages, UserRoundCheck } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
@@ -32,8 +34,10 @@ function parseTab(value: string | null): TabType {
 }
 
 export function SearchPage() {
+  const { config } = useAppContext();
+
   useSeoMeta({
-    title: 'Search | Ditto',
+    title: `Search | ${config.appName}`,
     description: 'Search Nostr',
   });
 
@@ -45,7 +49,7 @@ export function SearchPage() {
 
   // Local input state for the search field (avoids trimming while typing)
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Update tab in URL without a feedback loop
   const setActiveTab = useCallback((tab: TabType) => {
@@ -97,29 +101,13 @@ export function SearchPage() {
   const [includeReplies, setIncludeReplies] = useState(true);
   const [mediaType, setMediaType] = useState<'all' | 'images' | 'videos' | 'vines' | 'none'>('all');
   const [language, setLanguage] = useState('global');
-  const [showNostr, setShowNostr] = useState(true);
-  const [showMastodon, setShowMastodon] = useState(false);
+  const [platform, setPlatform] = useState<'nostr' | 'activitypub' | 'atproto'>('nostr');
+
+  const protocols = [platform];
 
   // Hooks
-  const { posts: allPosts, isLoading: postsLoading } = useStreamPosts(searchQuery, { includeReplies, mediaType, language });
+  const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, { includeReplies, mediaType, language, protocols });
   const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
-
-  // Filter by platform (Nostr/Mastodon) client-side
-  const posts = useMemo(() => {
-    return allPosts.filter(event => {
-      const hasActivityPubProxy = event.tags.some(
-        tag => tag[0] === 'proxy' && tag.length > 2 && tag[2] === 'activitypub'
-      );
-      
-      const isMastodon = hasActivityPubProxy;
-      const isNostr = !hasActivityPubProxy;
-      
-      if (isMastodon && !showMastodon) return false;
-      if (isNostr && !showNostr) return false;
-      
-      return true;
-    });
-  }, [allPosts, showNostr, showMastodon]);
 
   return (
       <main className="min-h-screen">
@@ -134,121 +122,127 @@ export function SearchPage() {
         {/* ─── Posts Tab ─── */}
         {activeTab === 'posts' && (
           <>
-            {/* Search input */}
-            <div className="px-4 pt-5 pb-2">
-              <div className="relative">
-                <Input
-                  type="text"
-                  placeholder="Search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
-                />
-                <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Search filters — collapsible */}
-            <div className="border-b border-border">
-              {/* Header row */}
-              <button
-                onClick={() => setFiltersOpen(!filtersOpen)}
-                className="w-full px-4 py-3 flex items-center justify-between"
-              >
-                <h2 className="font-bold text-lg">Search filters</h2>
-                <span className="size-8 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors">
-                  {filtersOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-                </span>
-              </button>
-
-              {/* Filter controls */}
-              {filtersOpen && (
-                <div className="px-4 pb-4 space-y-4">
-                  {/* Including replies */}
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium">Including replies</span>
-                    <Switch
-                      checked={includeReplies}
-                      onCheckedChange={setIncludeReplies}
-                    />
-                  </div>
-
-                  {/* Media type — horizontal wrap */}
-                  <div className="space-y-2">
-                    <span className="font-medium">With ONLY the media type:</span>
-                    <RadioGroup
-                      value={mediaType}
-                      onValueChange={(v) => setMediaType(v as typeof mediaType)}
-                      className="flex flex-wrap gap-x-4 gap-y-2"
-                    >
-                      {[
-                        { value: 'all', label: 'All media' },
-                        { value: 'images', label: 'Images', icon: Image },
-                        { value: 'videos', label: 'Videos', icon: Video },
-                        { value: 'vines', label: 'Vines', icon: Film },
-                        { value: 'none', label: 'No media' },
-                      ].map(({ value, label, icon: Icon }) => (
-                        <div key={value} className="flex items-center space-x-2">
-                          <RadioGroupItem value={value} id={`media-${value}`} />
-                          <Label htmlFor={`media-${value}`} className="font-normal cursor-pointer flex items-center gap-1.5">
-                            {Icon && <Icon className="size-4 text-muted-foreground" />}
-                            {label}
-                          </Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
-                  </div>
-
-                  {/* Language — inline */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <Languages className="size-4 text-muted-foreground" />
-                      <span className="font-medium whitespace-nowrap">In the language:</span>
-                    </div>
-                    <Select value={language} onValueChange={setLanguage}>
-                      <SelectTrigger className="w-40 bg-secondary/50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="global">Global</SelectItem>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
-                        <SelectItem value="de">German</SelectItem>
-                        <SelectItem value="ja">Japanese</SelectItem>
-                        <SelectItem value="zh">Chinese</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Platform filter */}
-                  <div className="space-y-2">
-                    <span className="font-medium">Show posts from:</span>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="platform-nostr"
-                          checked={showNostr}
-                          onCheckedChange={(checked) => setShowNostr(!!checked)}
-                        />
-                        <Label htmlFor="platform-nostr" className="font-normal cursor-pointer">
-                          Nostr
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="platform-mastodon"
-                          checked={showMastodon}
-                          onCheckedChange={(checked) => setShowMastodon(!!checked)}
-                        />
-                        <Label htmlFor="platform-mastodon" className="font-normal cursor-pointer">
-                          Mastodon
-                        </Label>
-                      </div>
-                    </div>
-                  </div>
+            {/* Search input + filter icon */}
+            <div className="px-4 pt-5 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type="text"
+                    placeholder="Search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
+                  />
+                  <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
                 </div>
-              )}
+
+                {/* Filter popover */}
+                <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+                   <PopoverTrigger asChild>
+                     <button
+                       className={cn(
+                          'shrink-0 h-10 w-10 rounded-lg border bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors',
+                          filtersOpen
+                            ? 'border-2 border-primary bg-secondary text-primary'
+                            : (includeReplies !== true || mediaType !== 'all' || language !== 'global' || platform !== 'nostr')
+                              ? 'border-primary text-primary'
+                              : 'border-border',
+                       )}
+                       style={{ outline: 'none' }}
+                       aria-label="Search filters"
+                     >
+                      <SlidersHorizontal className="size-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-72 p-4 space-y-4">
+                    {/* Including replies */}
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">Include replies</span>
+                      <Switch
+                        checked={includeReplies}
+                        onCheckedChange={setIncludeReplies}
+                      />
+                    </div>
+
+                    <Separator />
+
+                    {/* Media type */}
+                    <div className="space-y-2">
+                      <span className="font-medium text-sm">Media type</span>
+                      <RadioGroup
+                        value={mediaType}
+                        onValueChange={(v) => setMediaType(v as typeof mediaType)}
+                        className="space-y-1.5"
+                      >
+                        {[
+                          { value: 'all', label: 'All media' },
+                          { value: 'images', label: 'Images', icon: Image },
+                          { value: 'videos', label: 'Videos', icon: Video },
+                          { value: 'vines', label: 'Vines', icon: Film },
+                          { value: 'none', label: 'No media' },
+                        ].map(({ value, label, icon: Icon }) => (
+                          <div key={value} className="flex items-center space-x-2">
+                            <RadioGroupItem value={value} id={`media-${value}`} />
+                            <Label htmlFor={`media-${value}`} className="font-normal cursor-pointer flex items-center gap-1.5 text-sm">
+                              {Icon && <Icon className="size-3.5 text-muted-foreground" />}
+                              {label}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    </div>
+
+                    <Separator />
+
+                    {/* Language */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <Languages className="size-3.5 text-muted-foreground" />
+                        <span className="font-medium text-sm">Language</span>
+                      </div>
+                      <Select value={language} onValueChange={setLanguage}>
+                        <SelectTrigger className="w-full bg-secondary/50">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="global">Global</SelectItem>
+                          <SelectItem value="en">English</SelectItem>
+                          <SelectItem value="es">Spanish</SelectItem>
+                          <SelectItem value="fr">French</SelectItem>
+                          <SelectItem value="de">German</SelectItem>
+                          <SelectItem value="ja">Japanese</SelectItem>
+                          <SelectItem value="zh">Chinese</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Separator />
+
+                    {/* Platform */}
+                    <div className="space-y-2">
+                      <span className="font-medium text-sm">Show posts from</span>
+                      <RadioGroup
+                        value={platform}
+                        onValueChange={(v) => setPlatform(v as typeof platform)}
+                        className="space-y-1.5"
+                      >
+                        {[
+                          { value: 'nostr', label: 'Nostr' },
+                          { value: 'activitypub', label: 'Mastodon' },
+                          { value: 'atproto', label: 'Bluesky' },
+                        ].map(({ value, label }) => (
+                          <div key={value} className="flex items-center space-x-2">
+                            <RadioGroupItem value={value} id={`platform-${value}`} />
+                            <Label htmlFor={`platform-${value}`} className="font-normal cursor-pointer text-sm">
+                              {label}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
             {/* Post results — stream */}

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/components/InitialSyncGate';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
 import { useInfiniteSortedPosts } from '@/hooks/useTrending';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -33,6 +34,7 @@ interface FeedProps {
 }
 
 export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: FeedProps = {}) {
+  const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
@@ -177,7 +179,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
         <div className="border-b border-border sticky top-mobile-bar sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3">
           <div className="flex items-center justify-center gap-3 px-6">
             <p className="text-[13px] sidebar:text-sm text-muted-foreground">
-              Follow accounts you care about on Ditto
+              Follow accounts you care about on {config.appName}
             </p>
             <Button onClick={() => setLoginDialogOpen(true)} className="rounded-full" size="sm">
               Join

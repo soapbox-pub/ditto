@@ -16,7 +16,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { genUserName } from '@/lib/genUserName';
 
 interface CommentProps {
-  root: NostrEvent | URL;
+  root: NostrEvent | URL | `#${string}`;
   comment: NostrEvent;
   depth?: number;
   maxDepth?: number;

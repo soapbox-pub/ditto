@@ -1,5 +1,7 @@
 import { type FeedSettings } from "@/contexts/AppContext";
 import { useAppContext } from "@/hooks/useAppContext";
+import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { EXTRA_KINDS, getExtraKindDef } from "@/lib/extraKinds";
 import { useCallback, useMemo } from "react";
 
@@ -26,8 +28,7 @@ export const BUILTIN_SIDEBAR_ITEMS: BuiltinSidebarItem[] = [
   { id: 'bookmarks', label: 'Bookmarks', path: '/bookmarks', requiresAuth: true },
   { id: 'profile', label: 'Profile', path: '/profile', requiresAuth: true },
   { id: 'settings', label: 'Settings', path: '/settings' },
-  { id: 'theme', label: 'Theme', path: '/settings/theme' },
-  { id: 'themes', label: 'Themes', path: '/themes' },
+  { id: 'theme', label: 'Vibe', path: '/settings/theme' },
 ];
 
 /** Set of all built-in IDs for quick lookup. */
@@ -167,6 +168,8 @@ function computeHiddenItems(
  */
 export function useFeedSettings() {
   const { config, updateConfig } = useAppContext();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
 
   const orderedItems = useMemo(
     () => computeOrderedItems(config.feedSettings, config.sidebarOrder),
@@ -198,8 +201,11 @@ export function useFeedSettings() {
         ...currentConfig,
         sidebarOrder: newOrder,
       }));
+      if (user) {
+        updateSettings.mutateAsync({ sidebarOrder: newOrder }).catch(() => {});
+      }
     },
-    [updateConfig],
+    [updateConfig, updateSettings, user],
   );
 
   /**
@@ -223,9 +229,13 @@ export function useFeedSettings() {
         updateConfig((currentConfig) => {
           const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
           if (currentOrder.includes(id)) return currentConfig;
+          const newOrder = [...currentOrder, id];
+          if (user) {
+            updateSettings.mutateAsync({ sidebarOrder: newOrder }).catch(() => {});
+          }
           return {
             ...currentConfig,
-            sidebarOrder: [...currentOrder, id],
+            sidebarOrder: newOrder,
           };
         });
       } else {
@@ -235,21 +245,24 @@ export function useFeedSettings() {
 
         updateConfig((currentConfig) => {
           const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
+          const newOrder = currentOrder.includes(id) ? currentOrder : [...currentOrder, id];
+          const newFeedSettings = {
+            ...config.feedSettings,
+            ...currentConfig.feedSettings,
+            [def.showKey!]: true,
+          };
+          if (user) {
+            updateSettings.mutateAsync({ sidebarOrder: newOrder, feedSettings: newFeedSettings }).catch(() => {});
+          }
           return {
             ...currentConfig,
-            feedSettings: {
-              ...config.feedSettings,
-              ...currentConfig.feedSettings,
-              [def.showKey!]: true,
-            },
-            sidebarOrder: currentOrder.includes(id)
-              ? currentOrder
-              : [...currentOrder, id],
+            feedSettings: newFeedSettings,
+            sidebarOrder: newOrder,
           };
         });
       }
     },
-    [config.feedSettings, getEffectiveOrder, updateConfig],
+    [config.feedSettings, getEffectiveOrder, updateConfig, updateSettings, user],
   );
 
   /** Remove an item from the sidebar (handles both built-ins and extra-kinds). */
@@ -259,9 +272,13 @@ export function useFeedSettings() {
         // Built-in: just remove from order
         updateConfig((currentConfig) => {
           const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
+          const newOrder = currentOrder.filter((r) => r !== id);
+          if (user) {
+            updateSettings.mutateAsync({ sidebarOrder: newOrder }).catch(() => {});
+          }
           return {
             ...currentConfig,
-            sidebarOrder: currentOrder.filter((r) => r !== id),
+            sidebarOrder: newOrder,
           };
         });
       } else {
@@ -271,19 +288,24 @@ export function useFeedSettings() {
 
         updateConfig((currentConfig) => {
           const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
+          const newOrder = currentOrder.filter((r) => r !== id);
+          const newFeedSettings = {
+            ...config.feedSettings,
+            ...currentConfig.feedSettings,
+            [def.showKey!]: false,
+          };
+          if (user) {
+            updateSettings.mutateAsync({ sidebarOrder: newOrder, feedSettings: newFeedSettings }).catch(() => {});
+          }
           return {
             ...currentConfig,
-            feedSettings: {
-              ...config.feedSettings,
-              ...currentConfig.feedSettings,
-              [def.showKey!]: false,
-            },
-            sidebarOrder: currentOrder.filter((r) => r !== id),
+            feedSettings: newFeedSettings,
+            sidebarOrder: newOrder,
           };
         });
       }
     },
-    [config.feedSettings, getEffectiveOrder, updateConfig],
+    [config.feedSettings, getEffectiveOrder, updateConfig, updateSettings, user],
   );
 
   return {

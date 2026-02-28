@@ -35,50 +35,52 @@ export function MobileBottomNav() {
     <>
       <MobileSearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom">
+        <div className="h-14 flex items-center">
 
-        <Link
-          to="/"
-          onClick={handleHomeClick}
-          className={cn(
-            'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-            location.pathname === '/' ? 'text-primary' : 'text-muted-foreground',
-          )}
-        >
-          <PlanetIcon className="size-5" />
-          <span className="text-[10px] font-medium">Feed</span>
-        </Link>
-
-        {user && (
           <Link
-            to="/notifications"
-            onClick={handleNotificationsClick}
+            to="/"
+            onClick={handleHomeClick}
             className={cn(
               'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-              location.pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground',
+              location.pathname === '/' ? 'text-primary' : 'text-muted-foreground',
             )}
           >
-            <span className="relative">
-              <Bell className="size-5" />
-              {hasUnread && (
-                <span className="absolute -top-1 right-0 size-2 bg-primary rounded-full" />
-              )}
-            </span>
-            <span className="text-[10px] font-medium">Notifications</span>
+            <PlanetIcon className="size-5" />
+            <span className="text-[10px] font-medium">Feed</span>
           </Link>
-        )}
 
-        <button
-          onClick={handleSearchClick}
-          className={cn(
-            'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-            searchOpen ? 'text-primary' : 'text-muted-foreground',
+          {user && (
+            <Link
+              to="/notifications"
+              onClick={handleNotificationsClick}
+              className={cn(
+                'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+                location.pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground',
+              )}
+            >
+              <span className="relative">
+                <Bell className="size-5" />
+                {hasUnread && (
+                  <span className="absolute -top-1 right-0 size-2 bg-primary rounded-full" />
+                )}
+              </span>
+              <span className="text-[10px] font-medium">Notifications</span>
+            </Link>
           )}
-        >
-          <Search className="size-5" />
-          <span className="text-[10px] font-medium">Search</span>
-        </button>
 
+          <button
+            onClick={handleSearchClick}
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+              searchOpen ? 'text-primary' : 'text-muted-foreground',
+            )}
+          >
+            <Search className="size-5" />
+            <span className="text-[10px] font-medium">Search</span>
+          </button>
+
+        </div>
       </nav>
     </>
   );

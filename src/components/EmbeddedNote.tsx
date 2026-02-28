@@ -61,6 +61,10 @@ function parseEmbedSegments(text: string): EmbedSegment[] {
 interface EmbeddedNoteProps {
   /** Hex event ID to fetch and display. */
   eventId: string;
+  /** Optional relay hints from the nevent1 identifier. */
+  relays?: string[];
+  /** Optional author pubkey hint from the nevent1 identifier. */
+  authorHint?: string;
   className?: string;
   /** When true, ProfileHoverCards inside the card are disabled to prevent nested hover cards. */
   disableHoverCards?: boolean;
@@ -70,8 +74,8 @@ interface EmbeddedNoteProps {
 const MAX_CONTENT_LENGTH = 280;
 
 /** Inline embedded note card – similar to a link preview but for Nostr events. */
-export function EmbeddedNote({ eventId, className, disableHoverCards }: EmbeddedNoteProps) {
-  const { data: event, isLoading, isError } = useEvent(eventId);
+export function EmbeddedNote({ eventId, relays, authorHint, className, disableHoverCards }: EmbeddedNoteProps) {
+  const { data: event, isLoading, isError } = useEvent(eventId, relays, authorHint);
 
   if (isLoading) {
     return <EmbeddedNoteSkeleton className={className} />;
