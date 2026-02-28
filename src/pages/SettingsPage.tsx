@@ -175,7 +175,7 @@ export function SettingsPage() {
                     {section.description}
                   </p>
                 </div>
-                <ChevronRight className="size-4 text-primary/40 shrink-0 group-hover:text-primary/70 transition-colors" />
+                <ChevronRight className="size-4 text-primary/40 shrink-0 group-hover:text-primary/70 transition-colors" strokeWidth={4} />
               </div>
               {i < visibleSections.length - 1 && (
                 <div className="mx-6 h-px bg-primary/10" />
