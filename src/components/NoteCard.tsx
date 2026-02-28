@@ -21,6 +21,7 @@ import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { ReplyContext } from '@/components/ReplyContext';
+import { CommentContext } from '@/components/CommentContext';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -234,11 +235,6 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   
   // Find all people being replied to (for "Replying to @user1 and @user2")
   const replyToPubkeys = useMemo(() => {
-    if (isComment) {
-      // Kind 1111: use uppercase P tag (root author) for context
-      const rootPubkey = event.tags.find(([name]) => name === 'P')?.[1];
-      return rootPubkey ? [rootPubkey] : [];
-    }
     if (!isTextNote || !isReply) return [];
     
     // Get all p tags that aren't marked as mentions
@@ -252,17 +248,13 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
     // Fallback: if all p tags are mentions, use all p tags anyway
     const allPTags = event.tags.filter(([name]) => name === 'p');
     return [...new Set(allPTags.map(([, pubkey]) => pubkey))];
-  }, [event.tags, isTextNote, isReply, isComment]);
+  }, [event.tags, isTextNote, isReply]);
 
   // Extract the parent event ID for reply hover card preview
   const parentEventId = useMemo(() => {
-    if (isComment) {
-      // Kind 1111: use uppercase E tag (root event ID) for hover preview
-      return event.tags.find(([name]) => name === 'E')?.[1];
-    }
     if (!isReply) return undefined;
     return getParentEventId(event);
-  }, [event, isReply, isComment]);
+  }, [event, isReply]);
 
   // Kind 34236 specific
   const imeta = useMemo(() => isVine ? parseImeta(event.tags) : undefined, [event.tags, isVine]);
@@ -285,8 +277,9 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   // Shared content block used in both normal and threaded layouts
   const contentBlock = (
     <>
-      {/* Reply context — shown above content for kind 1 replies and kind 1111 comments */}
-      {(isReply || isComment) && replyToPubkeys.length > 0 && (
+      {/* Reply context (kind 1) or comment context (kind 1111) — shown above content */}
+      {isComment && <CommentContext event={event} />}
+      {isReply && replyToPubkeys.length > 0 && (
         <ReplyContext pubkeys={replyToPubkeys} parentEventId={parentEventId} />
       )}
 
