@@ -89,7 +89,7 @@ export function SettingsPage() {
       inactivityTimer.current = setTimeout(() => setSigilVisible(true), 2 * 60 * 1000);
     }
 
-    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
     events.forEach((e) => window.addEventListener(e, resetTimer, { passive: true }));
     resetTimer();
 
