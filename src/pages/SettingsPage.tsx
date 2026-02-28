@@ -60,6 +60,13 @@ export const settingsSections: SettingsSection[] = [
     illustration: '/advanced-intro.png',
     path: '/settings/advanced',
   },
+  {
+    id: 'magic',
+    label: 'Magic',
+    description: 'Enchanted cursor effects and mystical interface powers',
+    illustration: '/magic-intro.png',
+    path: '/settings/magic',
+  },
 ];
 
 export function SettingsPage() {

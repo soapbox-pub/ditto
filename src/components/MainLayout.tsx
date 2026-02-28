@@ -6,8 +6,10 @@ import { MobileTopBar } from '@/components/MobileTopBar';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { MobileDrawer } from '@/components/MobileDrawer';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
+import { CursorFireEffect } from '@/components/CursorFireEffect';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LayoutStore, LayoutStoreContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
+import { useAppContext } from '@/hooks/useAppContext';
 import { cn } from '@/lib/utils';
 
 /** Skeleton shown in the content area while a lazy page chunk is loading. */
@@ -64,9 +66,13 @@ function PageSkeleton() {
 function MainLayoutInner() {
   const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, noBottomSpacer = false, wrapperClassName } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { config } = useAppContext();
 
   return (
     <>
+      {/* Magic Mouse fire particle overlay */}
+      {config.magicMouse && <CursorFireEffect />}
+
       {/* Mobile top bar - only on small screens */}
       <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} />
 
