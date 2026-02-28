@@ -247,7 +247,7 @@ export const themePresets: Record<string, ThemePreset> = {
     emoji: '💿',
     featured: true,
     colors: {
-      background: '45 90% 55%',
+      background: '244 100% 92%',
       text: '40 40% 10%',
       primary: '260 50% 70%',
     },
