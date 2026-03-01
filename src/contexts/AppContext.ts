@@ -90,6 +90,16 @@ export interface FeedSettings {
   showCustomProfileThemes: boolean;
   /** Include voice messages (kind 1222 + 1244) in the follows/global feed */
   feedIncludeVoiceMessages: boolean;
+  /** Show Photos (NIP-68, kind 20) link in sidebar */
+  showPhotos: boolean;
+  /** Include Photos in the follows/global feed */
+  feedIncludePhotos: boolean;
+  /** Show Videos page (NIP-71 kinds 21/22) link in sidebar */
+  showVideos: boolean;
+  /** Include normal videos (kind 21) in the follows/global feed */
+  feedIncludeNormalVideos: boolean;
+  /** Include short videos (kind 22) in the follows/global feed */
+  feedIncludeShortVideos: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }

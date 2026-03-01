@@ -375,11 +375,16 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       feedIncludeProfileThemes: true,
       feedIncludeThemeDefinitions: true,
       feedIncludeProfileThemeUpdates: true,
+      showPhotos: true,
+      feedIncludePhotos: true,
+      showVideos: true,
+      feedIncludeNormalVideos: true,
+      feedIncludeShortVideos: true,
       followsFeedShowReplies: true,
     };
 
     // Build sidebar order: base built-ins + selected extra kinds in CONTENT_KINDS order
-    const BASE_SIDEBAR = ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'themes', 'theme', 'settings'];
+    const BASE_SIDEBAR = ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings'];
     const selectedSidebarIds = CONTENT_KINDS
       .filter((k) => selectedContent.has(k.key))
       .map((k) => k.key);
