@@ -60,7 +60,7 @@ import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { ContentWarningGuard } from '@/components/ContentWarningGuard';
 import { MutedContentGuard } from '@/components/MutedContentGuard';
-import { ExternalContentPreview } from '@/components/ExternalContentHeader';
+import { ExternalContentPreview, ProfilePreview } from '@/components/ExternalContentHeader';
 import { getParentEventId } from '@/lib/nostrEvents';
 
 
@@ -752,10 +752,21 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   const parentEventId = useMemo(() => isTextNote ? getParentEventId(event) : undefined, [event, isTextNote]);
 
-  // For kind 1111 comments on external content, extract the I tag for the parent preview
+   // For kind 1111 comments on external content, extract the I tag for the parent preview
   const externalIdentifier = useMemo(() => {
     if (!isComment) return undefined;
     return event.tags.find(([n]) => n === 'I')?.[1];
+  }, [event, isComment]);
+
+  // For kind 1111 comments on a profile (kind 0), extract the pubkey for the profile preview
+  const profileRootPubkey = useMemo(() => {
+    if (!isComment) return undefined;
+    const kTag = event.tags.find(([n]) => n === 'K')?.[1];
+    if (kTag !== '0') return undefined;
+    const aTag = event.tags.find(([n]) => n === 'A')?.[1];
+    if (!aTag) return undefined;
+    const parts = aTag.split(':');
+    return parts[1] || undefined;
   }, [event, isComment]);
 
   // Keep the focused post pinned to top while ancestor content loads above it.
@@ -807,16 +818,19 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   return (
     <div>
+      {/* Content preview for kind 1111 comments: external content or profile */}
+      {externalIdentifier && (
+        <ExternalContentPreview identifier={externalIdentifier} />
+      )}
+      {profileRootPubkey && (
+        <ProfilePreview pubkey={profileRootPubkey} />
+      )}
+
       {/* Ancestor thread chain if this is a reply */}
       {parentEventId && (
         <div ref={ancestorRef}>
           <AncestorThread eventId={parentEventId} />
         </div>
-      )}
-
-      {/* External content preview for kind 1111 comments on URLs/books/etc. */}
-      {externalIdentifier && (
-        <ExternalContentPreview identifier={externalIdentifier} />
       )}
 
       {/* Main post — expanded Ditto-style view */}

@@ -1,11 +1,15 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, ExternalLink, Globe, MapPin } from 'lucide-react';
+import { BookOpen, ExternalLink, Globe, MapPin, User } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useBookInfo } from '@/hooks/useBookInfo';
+import { useAuthor } from '@/hooks/useAuthor';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo } from '@/lib/countries';
 import { cn } from '@/lib/utils';
 
@@ -561,6 +565,61 @@ function CountryPreview({ code, link }: { code: string; link: string }) {
       </div>
 
       <ExternalLink className="size-4 text-muted-foreground shrink-0" />
+    </Link>
+  );
+}
+
+/**
+ * Compact preview of a profile, shown above a kind 1111 comment
+ * on its detail page when the root is a kind 0 profile event.
+ * Links to the profile page.
+ */
+export function ProfilePreview({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name ?? genUserName(pubkey);
+  const profileUrl = useProfileUrl(pubkey, metadata);
+
+  if (author.isLoading) {
+    return (
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-12 rounded-full shrink-0" />
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      to={profileUrl}
+      className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors"
+    >
+      <Avatar className="size-12 shrink-0">
+        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarFallback className="bg-primary/20 text-primary">
+          <User className="size-5" />
+        </AvatarFallback>
+      </Avatar>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <User className="size-3 shrink-0" />
+          <span>Profile</span>
+        </div>
+        <p className="text-sm font-medium truncate mt-0.5">
+          {displayName}
+        </p>
+        {metadata?.nip05 && (
+          <p className="text-xs text-muted-foreground truncate">
+            {metadata.nip05}
+          </p>
+        )}
+      </div>
     </Link>
   );
 }
