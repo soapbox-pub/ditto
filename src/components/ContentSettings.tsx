@@ -12,6 +12,7 @@ export function ContentSettings() {
   const [notesOpen, setNotesOpen] = useState(true);
   const [otherStuffOpen, setOtherStuffOpen] = useState(true);
   const [feedTabsOpen, setFeedTabsOpen] = useState(false);
+  const [themePrefsOpen, setThemePrefsOpen] = useState(false);
   const [mutesOpen, setMutesOpen] = useState(false);
   const [sensitiveOpen, setSensitiveOpen] = useState(false);
 
@@ -129,14 +130,28 @@ export function ContentSettings() {
       </div>
 
       {/* Theme Preferences Section */}
-      <div className="px-3 py-4 border-b border-border space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold">Theme Preferences</h3>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Control how custom profile themes are displayed throughout the app.
-          </p>
-        </div>
-        <ThemePreferencesSection />
+      <div>
+        <Collapsible open={themePrefsOpen} onOpenChange={setThemePrefsOpen}>
+          <CollapsibleTrigger asChild>
+            <Button 
+              variant="ghost" 
+              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+            >
+              <span className="text-base font-semibold">Theme Preferences</span>
+              {themePrefsOpen ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-3 py-4">
+              <ThemePreferencesSection />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
 
       {/* Muted Content Section */}
