@@ -29,6 +29,8 @@ interface ReplyComposeModalProps {
   onSuccess?: () => void;
   /** Pre-filled content for the compose box. */
   initialContent?: string;
+  /** Override the modal title. */
+  title?: string;
 }
 
 /** Extracts image URLs from note content. */
@@ -37,14 +39,14 @@ function extractImages(content: string): string[] {
   return content.match(urlRegex) || [];
 }
 
-export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent }: ReplyComposeModalProps) {
+export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, title: titleOverride }: ReplyComposeModalProps) {
   const isUrl = event instanceof URL;
   const isReply = !!event;
   const isQuote = !!quotedEvent;
   const [previewMode, setPreviewMode] = useState(false);
   const [hasPreviewableContent, setHasPreviewableContent] = useState(false);
 
-  const title = isUrl ? 'New comment' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post';
+  const title = titleOverride ?? (isUrl ? 'New comment' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post');
   const placeholder = isUrl ? 'Write a comment...' : isReply ? "What's on your mind?" : isQuote ? 'Add a comment...' : "What's happening?";
 
   return (

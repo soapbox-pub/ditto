@@ -192,6 +192,7 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
         open={shareOpen}
         onOpenChange={setShareOpen}
         initialContent={identifier}
+        title="Share to feed"
       />
     </div>
   );
