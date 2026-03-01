@@ -20,7 +20,7 @@ const PAGE_SIZE = 15;
 export type ProfileTab = 'posts' | 'replies' | 'media' | 'likes' | 'wall';
 
 /** Kinds that are inherently media (video/image) content. */
-const MEDIA_KINDS = new Set([34236]); // vines
+const MEDIA_KINDS = new Set([20, 34236]); // pictures, vines
 
 /** Check if a feed item contains media (URLs in content or media-native kinds like vines). */
 function hasMedia(item: FeedItem): boolean {

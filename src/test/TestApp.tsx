@@ -38,6 +38,8 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeReposts: true,
       feedIncludeArticles: false,
       showArticles: false,
+      showPictures: false,
+      feedIncludePictures: false,
       showVines: true,
       showPolls: false,
       showTreasures: false,

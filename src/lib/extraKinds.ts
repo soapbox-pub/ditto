@@ -124,6 +124,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   // Media
   {
+    kind: 20,
+    id: 'pictures',
+    showKey: 'showPictures',
+    feedKey: 'feedIncludePictures',
+    label: 'Pictures',
+    description: 'Picture-first posts (NIP-68)',
+    route: 'pictures',
+    addressable: false,
+    section: 'media',
+    blurb: 'Photo posts front and center — like Instagram, but on Nostr.',
+  },
+  {
     kind: 1222,
     id: 'voice',
     feedKey: 'feedIncludeVoiceMessages',

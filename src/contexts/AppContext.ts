@@ -36,6 +36,10 @@ export interface FeedSettings {
   feedIncludeArticles: boolean;
   /** Show Articles (kind 30023) link in sidebar */
   showArticles: boolean;
+  /** Show Pictures (kind 20) link in sidebar */
+  showPictures: boolean;
+  /** Include Pictures in the follows/global feed */
+  feedIncludePictures: boolean;
   /** Show Vines (kind 34236) link in sidebar */
   showVines: boolean;
   /** Show Polls (kind 1068) link in sidebar */
