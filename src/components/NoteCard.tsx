@@ -685,12 +685,21 @@ function PhotoContent({ event }: { event: NostrEvent }) {
   const description = event.content;
   const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
 
+  // Build imetaMap with dim + blurhash so ImageGallery can show blurhash placeholders
+  const imetaMap = useMemo(() => {
+    const map = new Map<string, { dim?: string; blurhash?: string }>();
+    for (const photo of photos) {
+      map.set(photo.url, { blurhash: photo.blurhash });
+    }
+    return map;
+  }, [photos]);
+
   if (photos.length === 0) return null;
 
   return (
     <div className="mt-2 space-y-2">
       {title && <p className="font-semibold text-[15px]">{title}</p>}
-      <ImageGallery images={photos.map((p) => p.url)} maxVisible={4} maxGridHeight="480px" />
+      <ImageGallery images={photos.map((p) => p.url)} maxVisible={4} maxGridHeight="480px" imetaMap={imetaMap} />
       {description && <p className="text-[15px] leading-relaxed text-muted-foreground">{description}</p>}
       {hashtags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
