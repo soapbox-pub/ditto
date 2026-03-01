@@ -38,7 +38,7 @@ import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+
 import { DittoLogo } from '@/components/DittoLogo';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { getDisplayName } from '@/lib/getDisplayName';
@@ -223,40 +223,6 @@ function VinesCommentsSidebar({ activeVine }: VinesCommentsSidebarProps) {
   );
 }
 
-// ─── VinesMobileComments ──────────────────────────────────────────────────────
-
-function VinesMobileComments({
-  activeVine,
-  onBack,
-  onComment,
-}: {
-  activeVine: NostrEvent | undefined;
-  onBack: () => void;
-  onComment: () => void;
-}) {
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 h-12 border-b border-border shrink-0">
-        <button
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          onClick={onBack}
-        >
-          <ChevronLeft className="size-4" />
-          Back
-        </button>
-        <span className="text-sm font-semibold">Comments</span>
-        <button
-          className="text-sm font-medium text-primary hover:underline"
-          onClick={onComment}
-        >
-          Comment
-        </button>
-      </div>
-      <VinesCommentsContent activeVine={activeVine} />
-    </div>
-  );
-}
 
 
 function CommentRow({ event }: { event: NostrEvent }) {
@@ -632,7 +598,6 @@ export function VinesFeedPage() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleCommentClick = useCallback(() => {
-    // xl breakpoint = 1280px — desktop opens reply modal, mobile opens comment sheet
     if (window.innerWidth >= 1280) {
       setReplyOpen(true);
     } else {
@@ -787,18 +752,31 @@ export function VinesFeedPage() {
         </div>
       </div>
 
-      {/* ── Mobile comments sheet ───────────────────────────────────── */}
-      <Sheet open={commentsOpen} onOpenChange={setCommentsOpen}>
-        <SheetContent side="bottom" className="xl:hidden h-[75dvh] p-0 flex flex-col rounded-t-2xl">
-          <VinesMobileComments
-            activeVine={activeVine}
-            onBack={() => setCommentsOpen(false)}
-            onComment={() => { setCommentsOpen(false); setReplyOpen(true); }}
-          />
-        </SheetContent>
-      </Sheet>
+      {/* ── Mobile comments panel — full overlay, xl:hidden ─────────── */}
+      {commentsOpen && (
+        <div className="xl:hidden absolute inset-0 z-30 flex flex-col bg-background">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 h-12 border-b border-border shrink-0">
+            <button
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setCommentsOpen(false)}
+            >
+              <ChevronLeft className="size-4" />
+              Back
+            </button>
+            <h2 className="text-base font-semibold">Replies</h2>
+            <button
+              className="text-sm font-medium text-primary hover:underline"
+              onClick={() => { setCommentsOpen(false); setReplyOpen(true); }}
+            >
+              Comment
+            </button>
+          </div>
+          <VinesCommentsContent activeVine={activeVine} />
+        </div>
+      )}
 
-      {/* ── Reply modal (desktop comment click / mobile "Comment" button) */}
+      {/* ── Reply modal ──────────────────────────────────────────────── */}
       {activeVine && (
         <ReplyComposeModal
           event={activeVine}
