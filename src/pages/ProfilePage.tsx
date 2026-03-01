@@ -37,6 +37,8 @@ import type { ProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useWallComments } from '@/hooks/useWallComments';
+import { useComments } from '@/hooks/useComments';
+import { ThreadedReplyList } from '@/components/ThreadedReplyList';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 
@@ -745,6 +747,9 @@ export function ProfilePage() {
     };
   }, [pubkey, metadataEvent]);
 
+  // Fetch all NIP-22 comments on the profile (for sub-reply pairing in the wall tab)
+  const { data: wallCommentsData } = useComments(wallReplyTarget, 500);
+
   // Wall compose modal state (for FAB on wall tab)
   const [wallComposeOpen, setWallComposeOpen] = useState(false);
 
@@ -1031,6 +1036,17 @@ export function ProfilePage() {
     }
     return items;
   }, [wallData?.pages, muteItems]);
+
+  // Pair each wall comment with its first direct sub-reply (same pattern as PostDetailPage replies)
+  const orderedWallReplies = useMemo(() => {
+    return wallComments.map((comment) => {
+      const subReplies = wallCommentsData?.getDirectReplies(comment.id) ?? [];
+      return {
+        reply: comment,
+        firstSubReply: subReplies[0] as NostrEvent | undefined,
+      };
+    });
+  }, [wallComments, wallCommentsData]);
 
   const streak = useMemo(() => {
     if (!feedData?.pages) return 0;
@@ -1545,11 +1561,9 @@ export function ProfilePage() {
                   </div>
                 ))}
               </div>
-            ) : wallComments.length > 0 ? (
+            ) : orderedWallReplies.length > 0 ? (
               <div>
-                {wallComments.map((comment) => (
-                  <NoteCard key={comment.id} event={comment} />
-                ))}
+                <ThreadedReplyList replies={orderedWallReplies} />
 
                 {/* Infinite scroll sentinel */}
                 {hasNextWallPage && (

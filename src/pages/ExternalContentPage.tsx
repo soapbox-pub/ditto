@@ -4,7 +4,7 @@ import { ArrowLeft, Globe, Heart, MessageSquare, Repeat2 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { NoteCard } from '@/components/NoteCard';
+import { ThreadedReplyList } from '@/components/ThreadedReplyList';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { QuickReactMenu } from '@/components/QuickReactMenu';
@@ -326,14 +326,7 @@ export function ExternalContentPage() {
             ))}
           </div>
         ) : orderedReplies.length > 0 ? (
-          orderedReplies.map(({ reply, firstSubReply }) => (
-            <div key={reply.id}>
-              <NoteCard event={reply} threaded={!!firstSubReply} />
-              {firstSubReply && (
-                <NoteCard event={firstSubReply} threadedLast />
-              )}
-            </div>
-          ))
+          <ThreadedReplyList replies={orderedReplies} />
         ) : (
           <div className="py-12 text-center text-muted-foreground text-sm">
             <MessageSquare className="size-12 mx-auto mb-4 opacity-30" />
