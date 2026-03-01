@@ -29,7 +29,6 @@ import { useToast } from '@/hooks/useToast';
 import {
   useExternalUserReaction,
   useExternalReactionCount,
-  useExternalRepostStatus,
 } from '@/hooks/useExternalReactions';
 import NotFound from './NotFound';
 
@@ -59,16 +58,17 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
 
   const userReaction = useExternalUserReaction(content);
   const reactionCount = useExternalReactionCount(content);
-  const repostStatus = useExternalRepostStatus(content);
 
   const hasReacted = !!userReaction;
-  const hasShared = !!repostStatus;
 
   // Reaction popover state
   const [reactOpen, setReactOpen] = useState(false);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const justClosedRef = useRef(false);
   const pickerExpandedRef = useRef(false);
+
+  // Share compose modal state
+  const [shareOpen, setShareOpen] = useState(false);
 
   const handleMouseEnter = useCallback(() => {
     if (!user) return;
@@ -112,36 +112,6 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
           toast({ title: 'Failed to react', variant: 'destructive' });
           queryClient.setQueryData(['external-user-reaction', identifier], null);
           queryClient.setQueryData(['external-reaction-count', identifier], (prev: number | undefined) => Math.max(0, (prev ?? 1) - 1));
-        },
-      },
-    );
-  }, [user, content, identifier, publishEvent, queryClient, toast]);
-
-  // Publish kind 1 note sharing the external content via i tag
-  const handleShare = useCallback(() => {
-    if (!user) return;
-    queryClient.setQueryData(['external-user-repost', identifier], 'optimistic');
-
-    publishEvent(
-      {
-        kind: 1,
-        content: identifier,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [
-          ['i', identifier],
-          ['k', getExternalKTag(content)],
-        ],
-      },
-      {
-        onSuccess: () => {
-          toast({ title: 'Shared!' });
-          setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['external-user-repost', identifier] });
-          }, 3000);
-        },
-        onError: () => {
-          toast({ title: 'Failed to share', variant: 'destructive' });
-          queryClient.setQueryData(['external-user-repost', identifier], null);
         },
       },
     );
@@ -209,19 +179,20 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
         </PopoverContent>
       </Popover>
 
-      {/* Share button */}
+      {/* Share button — opens compose modal pre-filled with the URL */}
       <button
-        className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${
-          hasShared
-            ? 'text-accent'
-            : 'text-muted-foreground hover:text-accent hover:bg-accent/10'
-        }`}
-        title={hasShared ? 'Already shared' : 'Share to feed'}
-        onClick={hasShared ? undefined : handleShare}
-        disabled={hasShared}
+        className="flex items-center gap-1.5 p-2 rounded-full transition-colors text-muted-foreground hover:text-accent hover:bg-accent/10"
+        title="Share to feed"
+        onClick={() => setShareOpen(true)}
       >
         <Repeat2 className="size-5" />
       </button>
+
+      <ReplyComposeModal
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        initialContent={identifier}
+      />
     </div>
   );
 }
