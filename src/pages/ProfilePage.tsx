@@ -633,8 +633,12 @@ export function ProfilePage() {
     return false;
   }, [npub]);
 
-  // Resolve NIP-05 identifier to pubkey if needed
-  const { data: nip05Pubkey, isLoading: nip05Loading } = useNip05Resolve(isNip05Param ? npub : undefined);
+  // Resolve NIP-05 identifier to pubkey if needed.
+  // Use `isPending` (not `isLoading`) so the skeleton shows during the initial
+  // React Query render where fetchStatus is still 'idle' before the first fetch
+  // fires — isLoading (= isPending && isFetching) would be false in that window,
+  // incorrectly triggering the "User not found" branch on a hard refresh.
+  const { data: nip05Pubkey, isPending: nip05Loading } = useNip05Resolve(isNip05Param ? npub : undefined);
 
   // Determine pubkey: from NIP-05 resolution, NIP-19 decoding, or logged-in user
   const pubkey = useMemo(() => {
