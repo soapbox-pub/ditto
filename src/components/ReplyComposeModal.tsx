@@ -53,9 +53,9 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[520px] rounded-2xl p-0 gap-0 border-border overflow-visible [&>button]:hidden">
+      <DialogContent className="max-w-[520px] max-h-[85vh] rounded-2xl p-0 gap-0 border-border overflow-visible [&>button]:hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 h-12">
+        <div className="flex items-center justify-between px-4 h-12 shrink-0">
           <DialogTitle className="text-base font-semibold">
             {title}
           </DialogTitle>
@@ -99,20 +99,26 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
         </div>
 
         {/* Embedded original post (reply only, not for URL roots or quotes) */}
-        {event && !isUrl && !isQuote && <EmbeddedPost event={event} />}
+        {event && !isUrl && !isQuote && (
+          <div className="overflow-y-auto min-h-0 shrink">
+            <EmbeddedPost event={event} />
+          </div>
+        )}
 
         {/* Compose area */}
-        <ComposeBox
-          replyTo={isQuote ? undefined : (event ?? undefined)}
-          quotedEvent={quotedEvent ?? undefined}
-          onSuccess={() => { onOpenChange(false); onSuccess?.(); }}
-          placeholder={placeholder}
-          forceExpanded
-          hideAvatar
-          previewMode={previewMode}
-          onHasPreviewableContentChange={setHasPreviewableContent}
-          initialContent={initialContent}
-        />
+        <div className="shrink-0">
+          <ComposeBox
+            replyTo={isQuote ? undefined : (event ?? undefined)}
+            quotedEvent={quotedEvent ?? undefined}
+            onSuccess={() => { onOpenChange(false); onSuccess?.(); }}
+            placeholder={placeholder}
+            forceExpanded
+            hideAvatar
+            previewMode={previewMode}
+            onHasPreviewableContentChange={setHasPreviewableContent}
+            initialContent={initialContent}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );
