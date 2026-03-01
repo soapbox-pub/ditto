@@ -219,9 +219,8 @@ export function RightSidebar() {
       {/* Footer */}
       <footer className="mt-auto pt-4 pb-4 text-left bg-background/85 rounded-xl p-3 -mx-1">
         <p className="text-xs text-muted-foreground">
-          Vibed with{' '}
-          <a href="https://shakespeare.diy" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
-            Shakespeare
+          <a href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto-mew.git" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+            Edit Ditto with Shakespeare
           </a>
         </p>
       </footer>
