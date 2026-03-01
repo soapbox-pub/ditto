@@ -303,10 +303,12 @@ function VineHeartButton({ event, label }: { event: NostrEvent; label?: string }
 interface VineCardProps {
   event: NostrEvent;
   isActive: boolean;
+  /** True for the card immediately before or after the active one — used to preload video. */
+  isNearActive: boolean;
   onCommentClick: () => void;
 }
 
-function VineCard({ event, isActive, onCommentClick }: VineCardProps) {
+function VineCard({ event, isActive, isNearActive, onCommentClick }: VineCardProps) {
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -382,7 +384,7 @@ function VineCard({ event, isActive, onCommentClick }: VineCardProps) {
             loop
             playsInline
             muted={isMuted}
-            preload="metadata"
+            preload={isActive ? 'auto' : isNearActive ? 'metadata' : 'none'}
             onPlay={() => { setIsPlaying(true); setHasStarted(true); setIsAttemptingPlay(false); }}
             onPause={() => { setIsPlaying(false); setIsAttemptingPlay(false); }}
             onError={onBlossomError}
@@ -622,11 +624,9 @@ export function VinesFeedPage() {
     [events],
   );
 
-  // Reset active index when tab or vine list changes significantly
+  // Reset active index when tab changes
   useEffect(() => {
     setActiveIndex(0);
-    const container = containerRef.current;
-    if (container) container.scrollTop = 0;
   }, [tab]);
 
   const activeVine = vines[activeIndex];
@@ -654,20 +654,10 @@ export function VinesFeedPage() {
     };
   }, [commentsOpen]);
 
-  // Snap-scroll to a specific vine index
-  const scrollToIndex = useCallback((index: number) => {
-    const container = containerRef.current;
-    if (!container) return;
-    const target = container.children[index] as HTMLElement | undefined;
-    if (!target) return;
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
-
-  // Update active index based on intersection
+  // Sync activeIndex when CSS snap settles (touch swipe, mouse wheel, trackpad)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -679,35 +669,35 @@ export function VinesFeedPage() {
       },
       { root: container, threshold: 0.5 },
     );
-
-    const kids = Array.from(container.children);
-    kids.forEach((child) => observer.observe(child));
+    Array.from(container.children).forEach((child) => observer.observe(child));
     return () => observer.disconnect();
   }, [vines]);
 
   // Keyboard arrow navigation
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      const container = containerRef.current;
+      if (!container) return;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         const next = Math.min(activeIndex + 1, vines.length - 1);
+        container.scrollTo({ top: next * container.clientHeight, behavior: 'smooth' });
         setActiveIndex(next);
-        scrollToIndex(next);
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         const prev = Math.max(activeIndex - 1, 0);
+        container.scrollTo({ top: prev * container.clientHeight, behavior: 'smooth' });
         setActiveIndex(prev);
-        scrollToIndex(prev);
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [activeIndex, vines.length, scrollToIndex]);
+  }, [activeIndex, vines.length]);
 
   // ── Loading state ────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex-1 min-w-0 flex flex-col h-[calc(100dvh-3rem-3.5rem)] sidebar:h-screen">
+      <div className="flex-1 min-w-0 flex flex-col">
         <VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
         {/* Vine card skeleton */}
         <div className="flex-1 relative bg-neutral-900 overflow-hidden">
@@ -733,7 +723,7 @@ export function VinesFeedPage() {
   // ── Empty state ──────────────────────────────────────────────────────────
   if (!isLoading && vines.length === 0) {
     return (
-      <div className="flex-1 min-w-0 flex flex-col h-[calc(100dvh-3rem-3.5rem)] sidebar:h-screen">
+      <div className="flex-1 min-w-0 flex flex-col">
         <VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3 px-8">
@@ -763,25 +753,24 @@ export function VinesFeedPage() {
       <VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
 
       {/* ── Scroll container ────────────────────────────────────────── */}
-      <div className="relative flex-1">
-        <div
-          ref={containerRef}
-          className={cn("h-[calc(100dvh-9.5rem)] sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory", commentsOpen ? "overflow-hidden" : "overflow-y-scroll")}
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {vines.map((event, i) => (
-            <div
-              key={event.id}
-              className="w-full h-[calc(100dvh-9.5rem)] sidebar:h-[calc(100vh-3rem)] snap-start snap-always flex-shrink-0"
-            >
-              <VineCard
-                event={event}
-                isActive={i === activeIndex}
-                onCommentClick={handleCommentClick}
-              />
-            </div>
-          ))}
-        </div>
+      <div
+        ref={containerRef}
+        className="vine-slide-height sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory overflow-y-scroll"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', overscrollBehavior: 'none' }}
+      >
+        {vines.map((event, i) => (
+          <div
+            key={event.id}
+            className="w-full vine-slide-height sidebar:h-[calc(100vh-3rem)] snap-start snap-always flex-shrink-0"
+          >
+            <VineCard
+              event={event}
+              isActive={i === activeIndex}
+              isNearActive={Math.abs(i - activeIndex) <= 1}
+              onCommentClick={handleCommentClick}
+            />
+          </div>
+        ))}
       </div>
 
       {/* ── Mobile comments panel — full overlay, xl:hidden ─────────── */}

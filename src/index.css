@@ -49,6 +49,11 @@
   .top-mobile-bar {
     top: calc(3rem + env(safe-area-inset-top, 0px));
   }
+
+  /* Vine feed slide height: full viewport minus top bar, tab bar, bottom nav, and safe-area insets */
+  .vine-slide-height {
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - 3rem - 2.5rem - 3.5rem - env(safe-area-inset-bottom, 0px));
+  }
 }
 
 
