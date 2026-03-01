@@ -175,11 +175,16 @@ function isOnlyEmojisOrCustom(text: string, emojiMap: Map<string, string>): bool
   return true;
 }
 
-/** Returns true if the event content consists of a single image embed and nothing else. */
+/** Returns true if the event content consists of a single image embed and nothing else,
+ *  or a single image with only a short accompanying caption (≤ 100 non-whitespace characters). */
 export function isSingleImagePost(event: NostrEvent): boolean {
   const text = event.content.trim();
-  // Must be a single image URL (possibly preceded/followed by only whitespace)
-  return IMAGE_URL_REGEX.test(text) && text.replace(IMAGE_URL_REGEX, '').trim() === '';
+  const imageMatches = text.match(new RegExp(IMAGE_URL_REGEX.source, 'gi'));
+  // Must contain exactly one image URL
+  if (!imageMatches || imageMatches.length !== 1) return false;
+  // The non-image remainder must be very short (pure-image posts have no remainder at all)
+  const remainder = text.replace(IMAGE_URL_REGEX, '').trim();
+  return remainder.length <= 100;
 }
 
 /** Parses content of text note events so that URLs and hashtags are linkified. */
