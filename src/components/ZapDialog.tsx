@@ -239,9 +239,9 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
 
   useEffect(() => {
     if (target) {
-      setComment(config.defaultZapComment);
+      setComment(`Zapped with ${config.appName}!`);
     }
-  }, [target, config.defaultZapComment]);
+  }, [target, config.appName]);
 
   // Generate QR code
   useEffect(() => {

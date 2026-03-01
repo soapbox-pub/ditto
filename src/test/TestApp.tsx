@@ -23,6 +23,7 @@ export function TestApp({ children }: TestAppProps) {
 
   const defaultConfig: AppConfig = {
     appName: 'Ditto',
+    appId: 'ditto',
     theme: 'light',
     autoShareTheme: true,
     useAppRelays: true,
@@ -68,7 +69,6 @@ export function TestApp({ children }: TestAppProps) {
     sidebarOrder: [],
     nip85StatsPubkey: '5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea',
     blossomServers: ['https://blossom.ditto.pub/', 'https://blossom.dreamith.to/', 'https://blossom.primal.net/'],
-    defaultZapComment: 'Zapped with Ditto!',
     faviconUrl: 'https://fetch.ditto.pub/favicon/{hostname}',
     linkPreviewUrl: 'https://fetch.ditto.pub/link/{url}',
     corsProxy: 'https://proxy.shakespeare.diy/?url={href}',

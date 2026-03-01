@@ -95,7 +95,7 @@ export function useInitialSync() {
             { signal: controller.signal },
           ).catch(() => []),
           nostr.query(
-            [{ kinds: [30078], authors: [user.pubkey], '#d': ['ditto-metadata'], limit: 1 }],
+            [{ kinds: [30078], authors: [user.pubkey], '#d': [`${config.appId}/metadata`], limit: 1 }],
             { signal: controller.signal },
           ).catch(() => []),
           nostr.query(

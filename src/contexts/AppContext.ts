@@ -95,6 +95,10 @@ export interface FeedSettings {
 export interface AppConfig {
   /** Application display name used in page titles, UI text, and branding. Default: "Ditto". */
   appName: string;
+  /** Application identifier used as a prefix for application-specific metadata (NIP-78 d-tags, etc). Default: "ditto". */
+  appId: string;
+  /** NIP-89 addr (`31990:<pubkey>:<d-tag>`) identifying this client's handler event. Included as the third element of the "client" tag. */
+  client?: string;
   /** Enable Magic Mouse mode: cursor/finger emanates magical fire in the primary color */
   magicMouse: boolean;
   /** Current theme */
@@ -117,8 +121,6 @@ export interface AppConfig {
   nip85StatsPubkey: string;
   /** Blossom file upload server URLs */
   blossomServers: string[];
-  /** Default comment attached to zaps */
-  defaultZapComment: string;
   /** Favicon URI template. Supports RFC 6570 variables: {href}, {origin}, {hostname}, etc. */
   faviconUrl: string;
   /** Link preview URI template. Supports RFC 6570 variables: {url}, {href}, {origin}, {hostname}, etc. Returns OEmbed JSON. */

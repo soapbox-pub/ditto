@@ -16,7 +16,6 @@ export function AdvancedSettings() {
   const { user } = useCurrentUser();
   const [systemOpen, setSystemOpen] = useState(true);
   const [statsPubkey, setStatsPubkey] = useState(config.nip85StatsPubkey);
-  const [defaultZapComment, setDefaultZapComment] = useState(config.defaultZapComment);
   const [faviconUrl, setFaviconUrl] = useState(config.faviconUrl);
   const [linkPreviewUrl, setLinkPreviewUrl] = useState(config.linkPreviewUrl);
   const [corsProxy, setCorsProxy] = useState(config.corsProxy);
@@ -78,33 +77,6 @@ export function AdvancedSettings() {
                 <div className="text-xs text-muted-foreground mt-2">
                   <span className="font-medium">Default: </span>
                   <span className="font-mono break-all">5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea</span>
-                </div>
-              </div>
-
-              {/* Default Zap Comment */}
-              <div>
-                <Label htmlFor="default-zap-comment" className="text-sm font-medium">
-                  Default Zap Comment
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  Pre-filled comment when sending zaps.
-                </p>
-                <Input
-                  id="default-zap-comment"
-                  value={defaultZapComment}
-                  onChange={(e) => setDefaultZapComment(e.target.value)}
-                  onBlur={() => {
-                    if (defaultZapComment !== config.defaultZapComment) {
-                      updateConfig(() => ({ defaultZapComment }));
-                      toast({ title: 'Default zap comment updated' });
-                    }
-                  }}
-                  placeholder={`Zapped with ${config.appName}!`}
-                  className="text-sm"
-                />
-                <div className="text-xs text-muted-foreground mt-2">
-                  <span className="font-medium">Default: </span>
-                  <span>Zapped with {config.appName}!</span>
                 </div>
               </div>
 
