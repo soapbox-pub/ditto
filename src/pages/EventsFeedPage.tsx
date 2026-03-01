@@ -181,15 +181,15 @@ function ActivitySection() {
 
   // Fetch RSVPs from followed users
   const rsvpQuery = useInfiniteQuery({
-    queryKey: ['event-rsvps', user?.pubkey ?? '', followedPubkeys.length],
+    queryKey: ['follower-rsvps', user?.pubkey ?? ''],
     queryFn: async ({ pageParam }) => {
-      if (!user || !hasFollows) return { rsvps: [], oldestTimestamp: 0 };
+      if (!user || !hasFollows) return { rsvps: [], oldestTimestamp: 0, rawCount: 0 };
       const signal = AbortSignal.timeout(8000);
 
       const filter: Record<string, unknown> = {
         kinds: [31925],
         authors: followedPubkeys,
-        limit: 30,
+        limit: 50,
       };
       if (pageParam) filter.until = pageParam;
 
@@ -198,24 +198,34 @@ function ActivitySection() {
         { signal },
       );
 
-      // Only keep accepted RSVPs
-      const accepted = events.filter((e) => {
+      // Deduplicate RSVPs: keep only the latest RSVP per author+event coordinate
+      const latestByAuthorEvent = new Map<string, NostrEvent>();
+      for (const ev of events) {
+        const aTag = getTag(ev.tags, 'a');
+        if (!aTag) continue;
+        const key = `${ev.pubkey}:${aTag}`;
+        const existing = latestByAuthorEvent.get(key);
+        if (!existing || ev.created_at > existing.created_at) {
+          latestByAuthorEvent.set(key, ev);
+        }
+      }
+
+      // Only keep accepted RSVPs, filter muted
+      const accepted = Array.from(latestByAuthorEvent.values()).filter((e) => {
         const status = getTag(e.tags, 'status');
-        return status === 'accepted';
+        if (status !== 'accepted') return false;
+        if (muteItems.length > 0 && isEventMuted(e, muteItems)) return false;
+        return true;
       });
 
-      // Filter muted
-      const filtered = muteItems.length > 0
-        ? accepted.filter((e) => !isEventMuted(e, muteItems))
-        : accepted;
-
+      // Use raw events for pagination cursor (not filtered)
       const oldestTimestamp = events.length > 0
         ? Math.min(...events.map((e) => e.created_at))
         : 0;
 
       // Extract referenced event coordinates and batch-fetch them
       const coords = new Set<string>();
-      for (const rsvp of filtered) {
+      for (const rsvp of accepted) {
         const aTag = getTag(rsvp.tags, 'a');
         if (aTag) coords.add(aTag);
       }
@@ -223,7 +233,10 @@ function ActivitySection() {
       const referencedEvents = new Map<string, NostrEvent>();
       if (coords.size > 0) {
         const filters = Array.from(coords).map((coord) => {
-          const [kindStr, pubkey, dTag] = coord.split(':');
+          const parts = coord.split(':');
+          const kindStr = parts[0];
+          const pubkey = parts[1];
+          const dTag = parts.slice(2).join(':'); // d-tag may contain colons
           return { kinds: [parseInt(kindStr, 10)], authors: [pubkey], '#d': [dTag ?? ''], limit: 1 };
         });
 
@@ -244,7 +257,7 @@ function ActivitySection() {
       }
 
       return {
-        rsvps: filtered.map((rsvp) => {
+        rsvps: accepted.map((rsvp) => {
           const aTag = getTag(rsvp.tags, 'a');
           return {
             rsvp,
@@ -252,10 +265,12 @@ function ActivitySection() {
           };
         }),
         oldestTimestamp,
+        rawCount: events.length,
       };
     },
     getNextPageParam: (lastPage) => {
-      if (lastPage.rsvps.length === 0 || lastPage.oldestTimestamp === 0) return undefined;
+      // Continue paginating if we got a full raw batch, even if filtered results were empty
+      if (lastPage.rawCount === 0 || lastPage.oldestTimestamp === 0) return undefined;
       return lastPage.oldestTimestamp - 1;
     },
     initialPageParam: undefined as number | undefined,
@@ -264,7 +279,7 @@ function ActivitySection() {
   });
 
   const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['event-rsvps'] });
+    await queryClient.invalidateQueries({ queryKey: ['follower-rsvps'] });
   }, [queryClient]);
 
   const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
@@ -279,12 +294,15 @@ function ActivitySection() {
 
   const activityItems = useMemo(() => {
     if (!rsvpQuery.data?.pages) return [];
+    // Deduplicate by author+event (across pages)
     const seen = new Set<string>();
     return rsvpQuery.data.pages
       .flatMap((page) => page.rsvps)
       .filter((item) => {
-        if (seen.has(item.rsvp.id)) return false;
-        seen.add(item.rsvp.id);
+        const aTag = getTag(item.rsvp.tags, 'a') ?? '';
+        const key = `${item.rsvp.pubkey}:${aTag}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
         return true;
       });
   }, [rsvpQuery.data?.pages]);

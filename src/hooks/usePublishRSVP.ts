@@ -23,7 +23,9 @@ export function usePublishRSVP() {
 
   return useMutation({
     mutationFn: async ({ eventCoord, eventAuthorPubkey, status, note }: PublishRSVPParams) => {
-      const dTag = crypto.randomUUID();
+      // Use a stable d-tag derived from the event coordinate so that
+      // updating an RSVP replaces the previous one (kind 31925 is addressable).
+      const dTag = eventCoord;
 
       await createEvent({
         kind: 31925,
