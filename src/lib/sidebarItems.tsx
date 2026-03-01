@@ -1,6 +1,6 @@
 import {
   Bell, Search, TrendingUp, User, Bookmark, Settings, SwatchBook, Palette,
-  Clapperboard, BarChart3, PartyPopper, Radio, BookOpen, Sparkles, Blocks,
+  Clapperboard, BarChart3, PartyPopper, BookOpen, Sparkles, Blocks,
   MessageSquare, Repeat2, MessageSquareMore, Mic, Camera, Film,
 } from 'lucide-react';
 import { PlanetIcon } from '@/components/icons/PlanetIcon';
@@ -49,7 +49,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'videos', label: 'Videos', path: '/videos', icon: Film },
   { id: 'articles', label: 'Articles', path: '/articles', icon: BookOpen },
   { id: 'vines', label: 'Vines', path: '/vines', icon: Clapperboard },
-  { id: 'streams', label: 'Streams', path: '/videos', icon: Radio },
+
   { id: 'webxdc', label: 'Webxdc', path: '/webxdc', icon: Blocks },
   { id: 'themes', label: 'Themes', path: '/themes', icon: Sparkles },
   { id: 'polls', label: 'Polls', path: '/polls', icon: BarChart3 },
