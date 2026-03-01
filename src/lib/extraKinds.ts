@@ -190,19 +190,6 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     blurb: 'Short video clips. Record and share from a dedicated app.',
     sites: [{ url: 'https://divine.video' }],
   },
-  {
-    kind: 30311,
-    id: 'streams',
-    showKey: 'showStreams',
-    feedKey: 'feedIncludeStreams',
-    label: 'Streams',
-    description: 'Live streaming events',
-    route: 'streams',
-    addressable: true,
-    section: 'media',
-    blurb: 'Watch and broadcast live video. Start a stream from a streaming app.',
-    sites: [{ url: 'https://zap.stream', name: 'zap.stream' }],
-  },
   // Social
   {
     kind: 1063,
