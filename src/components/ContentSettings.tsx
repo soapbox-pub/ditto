@@ -957,7 +957,6 @@ function ThemePreferencesSection() {
   const { user } = useCurrentUser();
 
   const showOnProfiles = feedSettings.showCustomProfileThemes !== false;
-  const showInFeed = feedSettings.feedIncludeThemeDefinitions !== false || feedSettings.feedIncludeProfileThemeUpdates !== false;
 
   const handleProfileThemeToggle = async (value: boolean) => {
     updateFeedSettings({ showCustomProfileThemes: value });
@@ -967,41 +966,16 @@ function ThemePreferencesSection() {
     }
   };
 
-  const handleFeedToggle = async (value: boolean) => {
-    const patch = {
-      feedIncludeProfileThemes: value,
-      feedIncludeThemeDefinitions: value,
-      feedIncludeProfileThemeUpdates: value,
-    };
-    updateFeedSettings(patch);
-    if (user) {
-      const updatedFeedSettings = { ...feedSettings, ...patch };
-      await updateSettings.mutateAsync({ feedSettings: updatedFeedSettings });
-    }
-  };
-
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
-          <Label className="text-sm font-medium">Show custom profile themes</Label>
-          <p className="text-xs text-muted-foreground">Display other users' custom themes when visiting their profiles</p>
-        </div>
-        <Switch
-          checked={showOnProfiles}
-          onCheckedChange={handleProfileThemeToggle}
-        />
+    <div className="flex items-center justify-between">
+      <div className="space-y-0.5">
+        <Label className="text-sm font-medium">Show custom profile themes</Label>
+        <p className="text-xs text-muted-foreground">Display other users' custom themes when visiting their profiles</p>
       </div>
-      <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
-          <Label className="text-sm font-medium">Show theme updates in feed</Label>
-          <p className="text-xs text-muted-foreground">Display theme events from people you follow in your feed</p>
-        </div>
-        <Switch
-          checked={showInFeed}
-          onCheckedChange={handleFeedToggle}
-        />
-      </div>
+      <Switch
+        checked={showOnProfiles}
+        onCheckedChange={handleProfileThemeToggle}
+      />
     </div>
   );
 }
