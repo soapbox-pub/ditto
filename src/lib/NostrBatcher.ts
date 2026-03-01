@@ -253,6 +253,45 @@ class ReplaceableCollector {
       return;
     }
 
+    // Retry kind 0 profiles not found in the initial query against the loser
+    // relays. The relay race (eoseTimeout) resolves as soon as the first relay
+    // sends EOSE, so slower relays may not have had time to return all profiles.
+    // Collect the missing pubkeys and issue a second batched query so those
+    // relays get a full chance to respond.
+    const missingKind0Pubkeys = [...byKindSet.values()]
+      .filter(({ kinds }) => kinds.includes(0))
+      .flatMap(({ pubkeys }) => pubkeys)
+      .filter((pubkey) => !results.get(pubkey)?.get(0));
+
+    if (missingKind0Pubkeys.length > 0 && !controller.signal.aborted) {
+      try {
+        // Chunk into batches to respect relay filter limits.
+        const chunks: string[][] = [];
+        for (let i = 0; i < missingKind0Pubkeys.length; i += MAX_BATCH_SIZE) {
+          chunks.push(missingKind0Pubkeys.slice(i, i + MAX_BATCH_SIZE));
+        }
+
+        await Promise.all(
+          chunks.map(async (chunk) => {
+            const retryEvents = await this.pool.query(
+              [{ kinds: [0], authors: chunk, limit: chunk.length }],
+              { signal: controller.signal },
+            );
+            for (const event of retryEvents) {
+              if (!results.has(event.pubkey)) results.set(event.pubkey, new Map());
+              const kindMap = results.get(event.pubkey)!;
+              const existing = kindMap.get(0);
+              if (!existing || event.created_at > existing.created_at) {
+                kindMap.set(0, event);
+              }
+            }
+          }),
+        );
+      } catch {
+        // Retry failure is non-fatal — callers still get the initial results.
+      }
+    }
+
     for (const r of live) {
       if (r.signal?.aborted) {
         r.reject(r.signal.reason);
