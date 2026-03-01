@@ -39,7 +39,7 @@ import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 
-import { DittoLogo } from '@/components/DittoLogo';
+
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ComposeBox } from '@/components/ComposeBox';
 import { getDisplayName } from '@/lib/getDisplayName';
@@ -168,7 +168,7 @@ function VinesCommentsContent({ activeVine }: VinesCommentsContentProps) {
   }, [rawReplies]);
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto py-2">
+    <div className="flex-1 min-h-0 overflow-y-auto py-2 sidebar:pt-6">
         {!activeVine ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-muted-foreground text-sm text-center px-6">
@@ -828,7 +828,7 @@ interface VinesTabBarProps {
 
 function VinesTabBar({ tab, onTabChange, hasUser }: VinesTabBarProps) {
   return (
-    <div className="flex h-12 border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 shrink-0">
+    <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 shrink-0">
       {hasUser && (
         <VinesTabButton label="Follows" active={tab === 'follows'} onClick={() => onTabChange('follows')} />
       )}
@@ -842,13 +842,13 @@ function VinesTabButton({ label, active, onClick }: { label: string; active: boo
     <button
       onClick={onClick}
       className={cn(
-        'flex-1 h-full text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
+        'flex-1 py-3.5 sidebar:py-5 text-center text-sm font-medium sidebar:font-semibold transition-colors relative hover:bg-secondary/40',
         active ? 'text-foreground' : 'text-muted-foreground',
       )}
     >
       {label}
       {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 sidebar:h-[3px] bg-primary rounded-full" />
       )}
     </button>
   );
