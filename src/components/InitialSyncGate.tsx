@@ -375,6 +375,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       showProfileThemeUpdates: true,
       feedIncludeProfileThemeUpdates: true,
       showCustomProfileThemes: true,
+      followsFeedShowReplies: true,
     };
 
     // Build sidebar order: base built-ins + selected extra kinds in CONTENT_KINDS order
