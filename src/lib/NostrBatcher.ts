@@ -198,11 +198,20 @@ class ReplaceableCollector {
     }
     if (live.length === 0) return;
 
-    // Group by pubkey, collect unique kinds per pubkey.
-    const byPubkey = new Map<string, Set<number>>();
+    // Collect unique kinds per pubkey.
+    const kindsByPubkey = new Map<string, Set<number>>();
     for (const { pubkey, kind } of live) {
-      if (!byPubkey.has(pubkey)) byPubkey.set(pubkey, new Set());
-      byPubkey.get(pubkey)!.add(kind);
+      if (!kindsByPubkey.has(pubkey)) kindsByPubkey.set(pubkey, new Set());
+      kindsByPubkey.get(pubkey)!.add(kind);
+    }
+
+    // Group pubkeys by their kind-set so pubkeys requesting the same kinds
+    // (e.g. all NoteCard authors requesting only kind 0) are fetched in one REQ.
+    const byKindSet = new Map<string, { kinds: number[]; pubkeys: string[] }>();
+    for (const [pubkey, kinds] of kindsByPubkey) {
+      const key = [...kinds].sort((a, b) => a - b).join(',');
+      if (!byKindSet.has(key)) byKindSet.set(key, { kinds: [...kinds].sort((a, b) => a - b), pubkeys: [] });
+      byKindSet.get(key)!.pubkeys.push(pubkey);
     }
 
     // Combined abort: only abort when ALL callers have aborted.
@@ -220,23 +229,23 @@ class ReplaceableCollector {
 
     try {
       await Promise.all(
-        [...byPubkey.entries()].map(async ([pubkey, kinds]) => {
-          const kindList = [...kinds];
+        [...byKindSet.values()].map(async ({ kinds, pubkeys }) => {
           const events = await this.pool.query(
-            [{ kinds: kindList, authors: [pubkey], limit: kindList.length }],
+            [{ kinds, authors: pubkeys, limit: kinds.length * pubkeys.length }],
             { signal: controller.signal },
           );
-          // Pick newest per kind.
-          const byKind = new Map<number, NostrEvent>();
+          // Index by pubkey+kind, pick newest per pair.
+          for (const pubkey of pubkeys) {
+            if (!results.has(pubkey)) results.set(pubkey, new Map());
+          }
           for (const event of events) {
-            const existing = byKind.get(event.kind);
+            const kindMap = results.get(event.pubkey);
+            if (!kindMap) continue;
+            const existing = kindMap.get(event.kind);
             if (!existing || event.created_at > existing.created_at) {
-              byKind.set(event.kind, event);
+              kindMap.set(event.kind, event);
             }
           }
-          const kindMap = new Map<number, NostrEvent | undefined>();
-          for (const kind of kindList) kindMap.set(kind, byKind.get(kind));
-          results.set(pubkey, kindMap);
         }),
       );
     } catch (error) {
