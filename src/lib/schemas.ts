@@ -172,6 +172,8 @@ export const FeedSettingsSchema = z.looseObject({
  */
 export const AppConfigSchema = z.object({
   appName: z.string().optional(),
+  appId: z.string().optional(),
+  client: z.string().optional(),
   magicMouse: z.boolean().optional(),
   theme: ThemeSchemaCompat,
   customTheme: ThemeConfigCompatSchema.optional(),
@@ -186,7 +188,6 @@ export const AppConfigSchema = z.object({
     { message: 'Must be empty or a valid 64-character hex pubkey' }
   ),
   blossomServers: z.array(z.string().url()),
-  defaultZapComment: z.string(),
   faviconUrl: z.string(),
   linkPreviewUrl: z.string(),
   corsProxy: z.string(),

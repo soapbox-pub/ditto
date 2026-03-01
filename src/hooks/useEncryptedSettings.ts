@@ -10,8 +10,6 @@ import type { ThemeConfig } from '@/themes';
 import type { ContentFilter } from './useContentFilters';
 import { EncryptedSettingsSchema } from '@/lib/schemas';
 
-const SETTINGS_D_TAG = 'ditto-metadata';
-
 /**
  * Timestamp of last local write. NostrSync should skip applying
  * encrypted settings for a short window after a local write to
@@ -93,7 +91,7 @@ export function useEncryptedSettings() {
       const filter: NostrFilter = {
         kinds: [30078],
         authors: [user.pubkey],
-        '#d': [SETTINGS_D_TAG],
+        '#d': [`${config.appId}/metadata`],
         limit: 1,
       };
 
@@ -175,9 +173,9 @@ export function useEncryptedSettings() {
         kind: 30078,
         content: encrypted,
         tags: [
-          ['d', SETTINGS_D_TAG],
+          ['d', `${config.appId}/metadata`],
           ['title', `${config.appName} Metadata`],
-          ['client', location.hostname],
+          ['client', config.appName, ...(config.client ? [config.client] : [])],
         ],
         created_at: Math.floor(Date.now() / 1000),
       };

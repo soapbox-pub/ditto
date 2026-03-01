@@ -1,6 +1,7 @@
 import { useNostr } from "@nostrify/react";
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
 
+import { useAppContext } from "./useAppContext";
 import { useCurrentUser } from "./useCurrentUser";
 
 import type { NostrEvent } from "@nostrify/nostrify";
@@ -8,6 +9,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 export function useNostrPublish(): UseMutationResult<NostrEvent> {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
 
   return useMutation({
     mutationFn: async (t: Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>) => {
@@ -16,7 +18,7 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
 
         // Add the client tag if it doesn't exist
         if (location.protocol === "https:" && !tags.some(([name]) => name === "client")) {
-          tags.push(["client", location.hostname]);
+          tags.push(["client", config.appName, ...(config.client ? [config.client] : [])]);
         }
 
         const event = await user.signer.signEvent({
