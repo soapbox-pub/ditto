@@ -1037,16 +1037,22 @@ export function ProfilePage() {
     return items;
   }, [wallData?.pages, muteItems]);
 
-  // Pair each wall comment with its first direct sub-reply (same pattern as PostDetailPage replies)
+  // Pair each wall comment with its first direct sub-reply (same pattern as PostDetailPage replies).
+  // useWallComments uses #A (uppercase) which returns ALL depth levels, so filter to only
+  // top-level comments (lowercase `a` tag pointing directly at the kind-0 root).
   const orderedWallReplies = useMemo(() => {
-    return wallComments.map((comment) => {
+    const rootATag = pubkey ? `0:${pubkey}:` : '';
+    const topLevel = wallComments.filter((comment) =>
+      comment.tags.some(([name, val]) => name === 'a' && val === rootATag)
+    );
+    return topLevel.map((comment) => {
       const subReplies = wallCommentsData?.getDirectReplies(comment.id) ?? [];
       return {
         reply: comment,
         firstSubReply: subReplies[0] as NostrEvent | undefined,
       };
     });
-  }, [wallComments, wallCommentsData]);
+  }, [wallComments, wallCommentsData, pubkey]);
 
   const streak = useMemo(() => {
     if (!feedData?.pages) return 0;
