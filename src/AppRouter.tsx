@@ -32,7 +32,7 @@ import { ThemesPage } from "./pages/ThemesPage";
 import { ThemeBuilderPage } from "./pages/ThemeBuilderPage";
 import { ExternalContentPage } from "./pages/ExternalContentPage";
 
-const vinesDef = getExtraKindDef('vines')!;
+
 const pollsDef = getExtraKindDef('polls')!;
 const colorsDef = getExtraKindDef('colors')!;
 const packsDef = getExtraKindDef('packs')!;

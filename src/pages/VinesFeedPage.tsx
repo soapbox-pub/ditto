@@ -17,7 +17,7 @@ import {
   Heart,
   ChevronLeft,
 } from 'lucide-react';
-import { nip19 } from 'nostr-tools';
+
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -77,11 +77,7 @@ function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
 }
 
-function encodeVineId(event: NostrEvent): string {
-  const d = getTag(event.tags, 'd');
-  if (d) return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: d });
-  return nip19.neventEncode({ id: event.id, author: event.pubkey });
-}
+
 
 // ─── Global mute state shared across vine cards ───────────────────────────────
 let globalMuted = true;
