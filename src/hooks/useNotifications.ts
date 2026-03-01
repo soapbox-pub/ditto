@@ -215,6 +215,9 @@ export function useNotifications(): NotificationData {
       await updateSettings.mutateAsync({
         notificationsCursor: newestTimestamp,
       });
+      // Immediately clear the nav dot — set to false so it disappears before
+      // the relay re-fetch runs (which would use the old cursor from a stale closure).
+      queryClient.setQueryData(['notifications-unread', user.pubkey], false);
       queryClient.invalidateQueries({ queryKey: ['notifications-unread', user.pubkey] });
     } catch (error) {
       console.error('Failed to mark notifications as read:', error);
