@@ -1,15 +1,21 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { MessageSquare } from 'lucide-react';
 
 import { BlueskyEmbed } from '@/components/BlueskyEmbed';
+import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { LinkPreview } from '@/components/LinkPreview';
 import { MastodonEmbed } from '@/components/MastodonEmbed';
 import { TweetEmbed } from '@/components/TweetEmbed';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { MASTODON_SERVERS } from '@/lib/mastodonServers';
+import { cn } from '@/lib/utils';
 
 interface LinkEmbedProps {
   url: string;
   className?: string;
+  /** Show a "Discuss" link to the /i/:uri page. Defaults to true. */
+  showDiscuss?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -115,27 +121,76 @@ export function embedLabel(url: string): string | null {
  * - Mastodon post URLs → `MastodonEmbed` (iframe embed)
  * - Everything else → `LinkPreview` (OEmbed link preview card)
  */
-export function LinkEmbed({ url, className }: LinkEmbedProps) {
+export function LinkEmbed({ url, className, showDiscuss = true }: LinkEmbedProps) {
   const youtubeId = useMemo(() => extractYouTubeId(url), [url]);
   const tweetId = useMemo(() => extractTweetId(url), [url]);
   const blueskyPost = useMemo(() => extractBlueskyPost(url), [url]);
   const mastodonUrl = useMemo(() => extractMastodonPost(url), [url]);
 
+  let embed: React.ReactNode;
+
   if (youtubeId) {
-    return <YouTubeEmbed videoId={youtubeId} className={className} />;
+    embed = <YouTubeEmbed videoId={youtubeId} />;
+  } else if (tweetId) {
+    embed = <TweetEmbed tweetId={tweetId} />;
+  } else if (blueskyPost) {
+    embed = <BlueskyEmbed author={blueskyPost.author} rkey={blueskyPost.rkey} />;
+  } else if (mastodonUrl) {
+    embed = <MastodonEmbed url={mastodonUrl} />;
+  } else {
+    // LinkPreview has its own built-in Discuss button
+    return <LinkPreview url={url} className={className} />;
   }
 
-  if (tweetId) {
-    return <TweetEmbed tweetId={tweetId} className={className} />;
-  }
+  return (
+    <div className={cn('space-y-0', className)}>
+      {embed}
+      {showDiscuss && <DiscussBar url={url} />}
+    </div>
+  );
+}
 
-  if (blueskyPost) {
-    return <BlueskyEmbed author={blueskyPost.author} rkey={blueskyPost.rkey} className={className} />;
-  }
+/** Small bar below an embed with favicon, domain, and a "Discuss" link. */
+function DiscussBar({ url }: { url: string }) {
+  const navigate = useNavigate();
 
-  if (mastodonUrl) {
-    return <MastodonEmbed url={mastodonUrl} className={className} />;
-  }
+  const domain = useMemo(() => {
+    try {
+      return new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+      return url;
+    }
+  }, [url]);
 
-  return <LinkPreview url={url} className={className} />;
+  return (
+    <div className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground">
+      <ExternalFavicon url={url} size={14} className="shrink-0" />
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="truncate hover:underline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {domain}
+      </a>
+
+      <button
+        type="button"
+        className={cn(
+          'ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full',
+          'text-xs text-muted-foreground',
+          'hover:bg-primary/10 hover:text-primary transition-colors',
+        )}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/i/${encodeURIComponent(url)}`);
+        }}
+      >
+        <MessageSquare className="size-3" />
+        <span>Discuss</span>
+      </button>
+    </div>
+  );
 }
