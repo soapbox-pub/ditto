@@ -5,10 +5,9 @@ import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { LinkPreview } from '@/components/LinkPreview';
+import { LinkEmbed } from '@/components/LinkEmbed';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
-import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { Lightbox } from '@/components/ImageGallery';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { buildEmojiMap, emojify, EmojifiedText } from '@/components/CustomEmoji';
@@ -29,32 +28,6 @@ const IMAGE_URL_REGEX = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|avif)(\?[
 
 /** Regex to detect video/webxdc URLs rendered as embeds by the parent component. */
 const MEDIA_URL_REGEX = /https?:\/\/[^\s]+\.(mp4|webm|mov|xdc)(\?[^\s]*)?/i;
-
-/** Extract a YouTube video ID from a URL, or null if not a YouTube link. */
-function extractYouTubeId(url: string): string | null {
-  try {
-    const u = new URL(url);
-    // youtube.com/watch?v=ID
-    if ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com' || u.hostname === 'm.youtube.com') && u.pathname === '/watch') {
-      return u.searchParams.get('v');
-    }
-    // youtube.com/embed/ID
-    if ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com') && u.pathname.startsWith('/embed/')) {
-      return u.pathname.split('/')[2] || null;
-    }
-    // youtube.com/shorts/ID
-    if ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com') && u.pathname.startsWith('/shorts/')) {
-      return u.pathname.split('/')[2] || null;
-    }
-    // youtu.be/ID
-    if (u.hostname === 'youtu.be') {
-      return u.pathname.slice(1) || null;
-    }
-  } catch {
-    // not a valid URL
-  }
-  return null;
-}
 
 /** Bech32 charset used by NIP-19 identifiers. */
 const BECH32_CHARS = '023456789acdefghjklmnpqrstuvwxyz';
@@ -148,9 +121,8 @@ function linkifyFlags(nodes: ReactNode[]): ReactNode[] {
 type ContentToken =
   | { type: 'text'; value: string }
   | { type: 'image-embed'; url: string }
-  | { type: 'link-preview'; url: string }
+  | { type: 'link-embed'; url: string }
   | { type: 'inline-link'; url: string }
-  | { type: 'youtube-embed'; videoId: string }
   | { type: 'mention'; pubkey: string }
   | { type: 'nevent-embed'; eventId: string; relays?: string[]; author?: string }
   | { type: 'naddr-embed'; addr: AddrCoords; url?: string }
@@ -302,14 +274,8 @@ export function NoteContent({
         if (naddrFromUrl) {
           result.push({ type: 'naddr-embed', addr: naddrFromUrl, url });
         } else if (isEndOfLine) {
-          // YouTube → playable embed
-          const ytId = extractYouTubeId(url);
-          if (ytId) {
-            result.push({ type: 'youtube-embed', videoId: ytId });
-          } else {
-            // Standalone URL → link preview card
-            result.push({ type: 'link-preview', url });
-          }
+          // Standalone URL at end of line → rich embed (YouTube, Tweet, or link preview)
+          result.push({ type: 'link-embed', url });
         } else {
           // Inline URL mid-sentence → plain clickable link
           result.push({ type: 'inline-link', url });
@@ -364,7 +330,7 @@ export function NoteContent({
     // Preserve formatting but prevent too much stacking with the card's own spacing.
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
-      const isBlock = token.type === 'image-embed' || token.type === 'link-preview' || token.type === 'youtube-embed' || token.type === 'nevent-embed'
+      const isBlock = token.type === 'image-embed' || token.type === 'link-embed' || token.type === 'nevent-embed'
         || (token.type === 'naddr-embed' && !token.url);
 
       if (isBlock) {
@@ -452,7 +418,7 @@ export function NoteContent({
               />
             );
           }
-          case 'link-preview':
+          case 'link-embed':
             if (disableEmbeds) {
               return (
                 <a
@@ -467,7 +433,7 @@ export function NoteContent({
                 </a>
               );
             }
-            return <LinkPreview key={i} url={token.url} className="my-2.5" />;
+            return <LinkEmbed key={i} url={token.url} className="my-2.5" />;
           case 'inline-link':
             return (
               <a
@@ -481,8 +447,6 @@ export function NoteContent({
                 {token.url}
               </a>
             );
-          case 'youtube-embed':
-            return <YouTubeEmbed key={i} videoId={token.videoId} className="my-2.5" />;
           case 'nevent-embed':
             return <EmbeddedNote key={i} eventId={token.eventId} relays={token.relays} authorHint={token.author} className="my-2.5" />;
           case 'naddr-embed':

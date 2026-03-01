@@ -4,7 +4,7 @@ import { BookOpen, ExternalLink, Globe, MapPin, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
-import { TweetEmbed } from '@/components/TweetEmbed';
+import { LinkEmbed, extractYouTubeId, extractTweetId } from '@/components/LinkEmbed';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useBookInfo } from '@/hooks/useBookInfo';
@@ -38,42 +38,6 @@ export function parseExternalUri(uri: string): ExternalContent {
     return { type: 'url', value: uri };
   }
   return { type: 'unknown', value: uri };
-}
-
-/** Extract a YouTube video ID from a URL, or null if not a YouTube link. */
-export function extractYouTubeId(url: string): string | null {
-  try {
-    const u = new URL(url);
-    if ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com' || u.hostname === 'm.youtube.com') && u.pathname === '/watch') {
-      return u.searchParams.get('v');
-    }
-    if ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com') && u.pathname.startsWith('/embed/')) {
-      return u.pathname.split('/')[2] || null;
-    }
-    if ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com') && u.pathname.startsWith('/shorts/')) {
-      return u.pathname.split('/')[2] || null;
-    }
-    if (u.hostname === 'youtu.be') {
-      return u.pathname.slice(1) || null;
-    }
-  } catch {
-    // not a valid URL
-  }
-  return null;
-}
-
-/** Extract a tweet/post ID from a Twitter or X URL, or null if not a tweet link. */
-export function extractTweetId(url: string): string | null {
-  try {
-    const u = new URL(url);
-    const host = u.hostname.replace(/^www\./, '').replace(/^mobile\./, '');
-    if (host !== 'twitter.com' && host !== 'x.com') return null;
-    // Match /<user>/status/<id> paths
-    const match = u.pathname.match(/^\/[^/]+\/status\/(\d+)/);
-    return match ? match[1] : null;
-  } catch {
-    return null;
-  }
 }
 
 /** Format an ISBN with hyphens for display (simplified). */
@@ -149,7 +113,7 @@ export function UrlContentHeader({ url }: { url: string }) {
 
   // Twitter/X tweet — render the embedded tweet widget
   if (tweetId) {
-    return <TweetEmbed tweetId={tweetId} />;
+    return <LinkEmbed url={url} />;
   }
 
   if (isLoading && !youtubeId) {

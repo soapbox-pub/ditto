@@ -28,11 +28,9 @@ export function TweetEmbed({ tweetId, className }: TweetEmbedProps) {
 
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
-      // Twitter embed posts resize messages from platform.twitter.com
       if (e.origin !== 'https://platform.twitter.com') return;
       if (!iframeRef.current || e.source !== iframeRef.current.contentWindow) return;
 
-      // Twitter embed wraps messages as: { "twttr.embed": { method, params } }
       const wrapper = e.data?.['twttr.embed'];
       if (!wrapper || typeof wrapper !== 'object') return;
 
@@ -49,13 +47,14 @@ export function TweetEmbed({ tweetId, className }: TweetEmbedProps) {
   }, []);
 
   return (
-    <div className={cn('rounded-2xl border border-border overflow-hidden', className)}>
+    <div className={cn('overflow-hidden', className)}>
       <iframe
         ref={iframeRef}
         src={`https://platform.twitter.com/embed/Tweet.html?${params}`}
         title="Tweet"
         className="w-full border-0"
         style={{ minHeight: 250 }}
+        scrolling="no"
         allowFullScreen
         loading="lazy"
         sandbox="allow-scripts allow-same-origin allow-popups"
