@@ -124,6 +124,17 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   // Media
   {
+    kind: 1222,
+    id: 'voice',
+    feedKey: 'feedIncludeVoiceMessages',
+    label: 'Voice Messages',
+    description: 'Short audio voice messages (NIP-A0)',
+    addressable: false,
+    section: 'media',
+    feedOnly: true,
+    blurb: 'Record and share short voice messages, up to 60 seconds long.',
+  },
+  {
     kind: 34236,
     id: 'vines',
     showKey: 'showVines',
