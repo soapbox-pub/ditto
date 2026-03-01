@@ -84,13 +84,13 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
         <div className="flex flex-col justify-center min-h-0 flex-1 px-2">
           {/* QR Code */}
           <div className="flex justify-center">
-            <Card className="p-3 max-w-[95vw] mx-auto">
+            <Card className="p-3 w-[min(180px,60vw,40vh)] mx-auto">
               <CardContent className="p-0 flex justify-center">
                 {qrCodeUrl ? (
                   <img
                     src={qrCodeUrl}
                     alt="Lightning Invoice QR Code"
-                    className="w-full h-auto aspect-square max-w-full object-contain"
+                    className="w-full h-auto aspect-square object-contain"
                   />
                 ) : (
                   <div className="w-full aspect-square bg-muted animate-pulse rounded" />
