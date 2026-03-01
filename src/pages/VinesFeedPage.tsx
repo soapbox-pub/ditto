@@ -373,13 +373,14 @@ function VineCard({ event, isActive, isNearActive, onCommentClick }: VineCardPro
   }, []);
 
   return (
-    <div className="relative w-full h-full bg-black overflow-hidden flex-shrink-0">
+    <div className="relative w-full h-full bg-neutral-900 overflow-hidden flex-shrink-0">
       {/* ── Video ────────────────────────────────────────────────────── */}
       {imeta.url ? (
         <>
           <video
             ref={videoRef}
             src={src}
+            poster={imeta.thumbnail}
             className="absolute inset-0 w-full h-full object-cover"
             loop
             playsInline
@@ -390,17 +391,6 @@ function VineCard({ event, isActive, isNearActive, onCommentClick }: VineCardPro
             onError={onBlossomError}
             onClick={togglePlay}
           />
-          {/* Poster image rendered separately so it persists until video is playing */}
-          {imeta.thumbnail && (
-            <img
-              src={imeta.thumbnail}
-              aria-hidden
-              className={cn(
-                'absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-300',
-                isPlaying ? 'opacity-0' : 'opacity-100',
-              )}
-            />
-          )}
 
           {/* Big play overlay before first play — hidden while autoplay is attempting */}
           {!hasStarted && !isAttemptingPlay && (
