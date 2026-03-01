@@ -107,6 +107,8 @@ export function useInitialSync() {
         // Apply relay list if found
         if (relayEvents.length > 0) {
           const event = relayEvents[0];
+          // Seed into cache so NostrSync can read it without re-fetching
+          queryClient.setQueryData(['relayList', user.pubkey], event);
           if (event.created_at > config.relayMetadata.updatedAt) {
             const fetchedRelays = event.tags
               .filter(([name]) => name === 'r')
