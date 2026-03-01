@@ -4,9 +4,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useNip85EventStats } from '@/hooks/useNip85Stats';
 import { type ResolvedEmoji } from '@/components/CustomEmoji';
 import { DITTO_RELAY } from '@/lib/appRelays';
-
-/** Trusted pubkey that publishes trend label events (kind 1985). */
-const TRENDS_PUBKEY = '15b68d319a088a9b0c6853d2232aff0d69c8c58f0dccceabfb9a82bd4fd19c58';
+import { useAppContext } from '@/hooks/useAppContext';
 
 export interface TrendingTag {
   tag: string;
@@ -29,15 +27,19 @@ export interface TrendingTagsResult {
  */
 export function useTrendingTags(enabled = true) {
   const { nostr } = useNostr();
+  const { config } = useAppContext();
+  const statsPubkey = config.nip85StatsPubkey;
 
   return useQuery<TrendingTagsResult>({
-    queryKey: ['trending-tags'],
+    queryKey: ['trending-tags', statsPubkey],
     queryFn: async ({ signal }) => {
+      if (!statsPubkey) return { tags: [], labelCreatedAt: 0 };
+
       const ditto = nostr.relay(DITTO_RELAY);
       const events = await ditto.query(
         [{
           kinds: [1985],
-          authors: [TRENDS_PUBKEY],
+          authors: [statsPubkey],
           '#L': ['pub.ditto.trends'],
           '#l': ['#t'],
           limit: 1,
@@ -61,7 +63,7 @@ export function useTrendingTags(enabled = true) {
         labelCreatedAt: events[0].created_at,
       };
     },
-    enabled,
+    enabled: enabled && !!statsPubkey,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -72,15 +74,19 @@ export function useTrendingTags(enabled = true) {
  */
 export function useTrendingPosts(enabled = true) {
   const { nostr } = useNostr();
+  const { config } = useAppContext();
+  const statsPubkey = config.nip85StatsPubkey;
 
   return useQuery<NostrEvent[]>({
-    queryKey: ['trending-posts'],
+    queryKey: ['trending-posts', statsPubkey],
     queryFn: async ({ signal }) => {
+      if (!statsPubkey) return [];
+
       const ditto = nostr.relay(DITTO_RELAY);
       const labelEvents = await ditto.query(
         [{
           kinds: [1985],
-          authors: [TRENDS_PUBKEY],
+          authors: [statsPubkey],
           '#L': ['pub.ditto.trends'],
           '#l': ['#e'],
           limit: 1,
@@ -108,7 +114,7 @@ export function useTrendingPosts(enabled = true) {
       const idOrder = new Map(eventIds.map((id, i) => [id, i]));
       return events.sort((a, b) => (idOrder.get(a.id) ?? 999) - (idOrder.get(b.id) ?? 999));
     },
-    enabled,
+    enabled: enabled && !!statsPubkey,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -273,13 +279,15 @@ function generateSparklineDays(refTimestampSecs: number): { since: number; until
  */
 export function useTagSparklines(tags: string[], labelCreatedAt: number, enabled = true) {
   const { nostr } = useNostr();
+  const { config } = useAppContext();
+  const statsPubkey = config.nip85StatsPubkey;
 
   const sortedTags = [...new Set(tags.map((t) => t.toLowerCase()))].sort();
 
   return useQuery<Map<string, number[]>>({
-    queryKey: ['tag-sparklines', sortedTags.join(','), labelCreatedAt],
+    queryKey: ['tag-sparklines', sortedTags.join(','), labelCreatedAt, statsPubkey],
     queryFn: async ({ signal }) => {
-      if (sortedTags.length === 0 || !labelCreatedAt) return new Map();
+      if (sortedTags.length === 0 || !labelCreatedAt || !statsPubkey) return new Map();
 
       const ditto = nostr.relay(DITTO_RELAY);
 
@@ -301,7 +309,7 @@ export function useTagSparklines(tags: string[], labelCreatedAt: number, enabled
       const filters = sortedTags.flatMap((tag) =>
         days.map(({ since, until }) => ({
           kinds: [1985],
-          authors: [TRENDS_PUBKEY],
+          authors: [statsPubkey],
           '#L': ['pub.ditto.trends'],
           '#l': ['#t'],
           '#t': [tag],
@@ -336,7 +344,7 @@ export function useTagSparklines(tags: string[], labelCreatedAt: number, enabled
 
       return sparkMap;
     },
-    enabled: enabled && sortedTags.length > 0,
+    enabled: enabled && sortedTags.length > 0 && !!statsPubkey,
     staleTime: 5 * 60 * 1000,
   });
 }
