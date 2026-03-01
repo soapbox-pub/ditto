@@ -354,6 +354,7 @@ function FeedTabsSection() {
   const { toast } = useToast();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
+  const { feedSettings, updateFeedSettings } = useFeedSettings();
   const [communityDomain, setCommunityDomain] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
   const [community, setCommunity] = useState<{ domain: string; userCount: number; label: string } | null>(() => {
@@ -510,6 +511,31 @@ function FeedTabsSection() {
       </div>
 
       {/* Feed Tab Toggles */}
+      <div className="border-b border-border">
+        <div className="flex items-center justify-between py-3.5 px-3">
+          <div className="min-w-0">
+            <Label className="text-sm font-medium">Show replies in feed</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Include replies from people you follow, not just top-level posts</p>
+          </div>
+          <Switch
+            checked={feedSettings.followsFeedShowReplies}
+            onCheckedChange={async (checked) => {
+              updateFeedSettings({ followsFeedShowReplies: checked });
+              if (user) {
+                await updateSettings.mutateAsync({ feedSettings: { ...feedSettings, followsFeedShowReplies: checked } });
+              }
+              toast({
+                title: checked ? 'Replies shown' : 'Replies hidden',
+                description: checked
+                  ? 'Replies from people you follow will appear in your feed'
+                  : 'Only top-level posts will appear in your follows feed',
+              });
+            }}
+            className="shrink-0"
+          />
+        </div>
+      </div>
+
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">

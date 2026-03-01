@@ -6,6 +6,7 @@ import { useFollowList } from './useFollowActions';
 import { parseAuthorEvent } from './useAuthor';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { getPaginationCursor, parseRepostContent, isRepostKind, type FeedItem } from '@/lib/feedUtils';
+import { isReplyEvent } from '@/lib/nostrEvents';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
@@ -73,7 +74,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
     // on page load because feedSettings is read from localStorage
     // synchronously — the encrypted settings sync at ~5s only calls
     // updateConfig if values actually differ (NostrSync changed guard).
-    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length],
+    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
@@ -210,7 +211,12 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
           }
         }
 
-        const dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+        let dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+
+        // Filter replies if the user has disabled them
+        if (!feedSettings.followsFeedShowReplies) {
+          dedupedItems = dedupedItems.filter((item) => item.repostedBy || !isReplyEvent(item.event));
+        }
 
         // Seed event cache so embedded note previews resolve instantly.
         // Authors, stats, and reactions are batched automatically by NostrBatcher
@@ -289,7 +295,12 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
           }
         }
 
-        const dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+        let dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+
+        // Filter replies if the user has disabled them
+        if (!feedSettings.followsFeedShowReplies) {
+          dedupedItems = dedupedItems.filter((item) => item.repostedBy || !isReplyEvent(item.event));
+        }
 
         // Seed event cache so embedded note previews resolve instantly.
         cacheEvents(dedupedItems);

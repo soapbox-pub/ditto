@@ -63,7 +63,13 @@ export function AppProvider(props: AppProviderProps) {
     setConfig(updater);
   };
 
-  const config = { ...defaultConfig, ...rawConfig };
+  const config = {
+    ...defaultConfig,
+    ...rawConfig,
+    // Deep-merge feedSettings so new keys added to the default are visible
+    // even for existing users who have an older feedSettings in localStorage.
+    feedSettings: { ...defaultConfig.feedSettings, ...rawConfig.feedSettings },
+  };
 
   const appContextValue: AppContextType = {
     config,
