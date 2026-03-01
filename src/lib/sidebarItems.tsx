@@ -1,7 +1,7 @@
 import {
   Bell, Search, TrendingUp, User, Bookmark, Settings, SwatchBook, Palette,
   Clapperboard, BarChart3, PartyPopper, Radio, BookOpen, Sparkles, Blocks,
-  MessageSquare, Repeat2, MessageSquareMore, Mic,
+  MessageSquare, Repeat2, MessageSquareMore, Mic, Camera, Film,
 } from 'lucide-react';
 import { PlanetIcon } from '@/components/icons/PlanetIcon';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -45,9 +45,11 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'settings', label: 'Settings', path: '/settings', icon: Settings },
   { id: 'theme', label: 'Vibe', path: '/settings/theme', icon: SwatchBook },
   // Content types
+  { id: 'photos', label: 'Photos', path: '/photos', icon: Camera },
+  { id: 'videos', label: 'Videos', path: '/videos', icon: Film },
   { id: 'articles', label: 'Articles', path: '/articles', icon: BookOpen },
   { id: 'vines', label: 'Vines', path: '/vines', icon: Clapperboard },
-  { id: 'streams', label: 'Streams', path: '/streams', icon: Radio },
+  { id: 'streams', label: 'Streams', path: '/videos', icon: Radio },
   { id: 'webxdc', label: 'Webxdc', path: '/webxdc', icon: Blocks },
   { id: 'themes', label: 'Themes', path: '/themes', icon: Sparkles },
   { id: 'polls', label: 'Polls', path: '/polls', icon: BarChart3 },
