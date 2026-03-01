@@ -19,6 +19,8 @@ import { useFeedSettings, getBuiltinItem } from '@/hooks/useFeedSettings';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isItemActive } from '@/lib/sidebarItems';
+import { useTheme } from '@/hooks/useTheme';
+import { resolveTheme, resolveThemeConfig } from '@/themes';
 
 interface MobileDrawerProps {
   open: boolean;
@@ -39,6 +41,22 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const [accountExpanded, setAccountExpanded] = useState(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
+  const { theme, customTheme, themes } = useTheme();
+
+  /** Compute the background image style for the drawer, mirroring the body background. */
+  const bgStyle = useMemo<React.CSSProperties>(() => {
+    const resolved = resolveTheme(theme);
+    const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
+    const bgUrl = activeConfig?.background?.url;
+    if (!bgUrl) return {};
+    const bgMode = activeConfig?.background?.mode ?? 'cover';
+    if (bgMode === 'tile') {
+      return { backgroundColor: 'transparent', backgroundImage: `url("${bgUrl}")`, backgroundRepeat: 'repeat', backgroundSize: 'auto' };
+    }
+    return { backgroundColor: 'transparent', backgroundImage: `url("${bgUrl}")`, backgroundSize: 'cover', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' };
+  }, [theme, customTheme, themes]);
+
+  const hasBgImage = Object.keys(bgStyle).length > 0;
 
   /** Items already covered by the mobile bottom nav — hide from the drawer. */
   const BOTTOM_NAV_ITEMS = new Set(['feed', 'notifications', 'search']);
@@ -63,16 +81,16 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   return (
     <>
         <Sheet open={open} onOpenChange={(v) => { if (!v) setMoreMenuOpen(false); onOpenChange(v); }}>
-        <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col">
+        <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col" style={bgStyle}>
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
 
           {user ? (
-            <>
+            <div className={`flex flex-col h-full ${hasBgImage ? 'py-2 px-2 gap-1' : ''}`}>
               {/* User row with caret */}
               <button
                 onClick={() => setAccountExpanded((v) => !v)}
-                className="flex items-center gap-3 px-3 hover:bg-secondary/60 transition-colors w-full text-left"
-                style={{ height: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
+                className={`flex items-center gap-3 px-3 hover:bg-secondary/60 transition-colors w-full text-left ${hasBgImage ? 'bg-background rounded-xl' : ''}`}
+                style={{ minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
               >
                 <Avatar className="size-7 shrink-0">
                   <AvatarImage src={metadata?.picture} alt={displayName} />
@@ -98,7 +116,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
               {/* Expanded account actions */}
               {accountExpanded && (
-                <div>
+                <div className={hasBgImage ? 'bg-background rounded-xl overflow-hidden' : ''}>
                   {otherUsers.map((account) => (
                     <button
                       key={account.id}
@@ -125,14 +143,14 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                   ))}
                   <button
                     onClick={() => { handleClose(); setLoginDialogOpen(true); }}
-                    className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-muted-foreground hover:bg-secondary/60 transition-colors rounded-full"
+                    className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-muted-foreground hover:bg-secondary/60 transition-colors"
                   >
                     <UserPlus className="size-5 shrink-0" />
                     <span>Add another account</span>
                   </button>
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-destructive hover:bg-destructive/10 transition-colors rounded-full"
+                    className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-destructive hover:bg-destructive/10 transition-colors"
                   >
                     <LogOut className="size-5 shrink-0" />
                     <span>Log out @{metadata?.name || genUserName(user.pubkey)}</span>
@@ -144,42 +162,46 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               <nav
                 className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-1"
               >
-                <SidebarNavList
-                  items={visibleItems}
-                  editing={editing}
-                  onRemove={removeFromSidebar}
-                  onReorder={updateSidebarOrder}
-                  isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl)}
-                  getOnClick={() => handleClose}
-                  getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
-                  getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
-                  linkClassName="text-base"
-                />
-                <SidebarMoreMenu
-                  editing={editing}
-                  hiddenItems={visibleHiddenItems}
-                  onDoneEditing={() => setEditing(false)}
-                  onStartEditing={() => setEditing(true)}
-                  onAdd={addToSidebar}
-                  onNavigate={handleClose}
-                  open={moreMenuOpen}
-                  onOpenChange={setMoreMenuOpen}
-                  inline
-                />
+                <div className={hasBgImage ? 'bg-background rounded-xl p-0.5' : 'contents'}>
+                  <SidebarNavList
+                    items={visibleItems}
+                    editing={editing}
+                    onRemove={removeFromSidebar}
+                    onReorder={updateSidebarOrder}
+                    isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl)}
+                    getOnClick={() => handleClose}
+                    getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
+                    getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
+                    linkClassName="text-base"
+                  />
+                  <SidebarMoreMenu
+                    editing={editing}
+                    hiddenItems={visibleHiddenItems}
+                    onDoneEditing={() => setEditing(false)}
+                    onStartEditing={() => setEditing(true)}
+                    onAdd={addToSidebar}
+                    onNavigate={handleClose}
+                    open={moreMenuOpen}
+                    onOpenChange={setMoreMenuOpen}
+                    inline
+                  />
+                </div>
               </nav>
 
               {/* Theme */}
               <div
-                className="border-t border-border flex items-center"
+                className={`flex items-center ${hasBgImage ? 'bg-background rounded-xl' : 'border-t border-border'}`}
                 style={{ minHeight: '3.5rem', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
               >
                 <SidebarThemeDropdown userPubkey={user.pubkey} onNavigate={handleClose} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 rounded-full transition-colors" />
               </div>
-            </>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full gap-4 px-6">
-              <p className="text-muted-foreground text-center text-sm">Log in to access all features</p>
-              <LoginArea className="w-full flex flex-col" />
+              <div className={`w-full text-center space-y-4 ${hasBgImage ? 'bg-background rounded-xl p-6' : 'p-6'}`}>
+                <p className="text-muted-foreground text-sm">Log in to access all features</p>
+                <LoginArea className="w-full flex flex-col" />
+              </div>
             </div>
           )}
         </SheetContent>
