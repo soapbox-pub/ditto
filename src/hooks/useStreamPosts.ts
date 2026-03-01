@@ -4,6 +4,7 @@ import { useFeedSettings } from './useFeedSettings';
 import { useMuteList } from './useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
+import { isReplyEvent } from '@/lib/nostrEvents';
 import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAY } from '@/lib/appRelays';
@@ -45,7 +46,7 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions, searchQuery
 
   // Filter replies
   if (!options.includeReplies) {
-    if (event.tags.some(([name]) => name === 'e')) return false;
+    if (isReplyEvent(event)) return false;
   }
 
   // Client-side search (for streaming events only - initial query uses relay search)
