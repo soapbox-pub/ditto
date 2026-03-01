@@ -19,6 +19,8 @@ import { useFeedSettings, getBuiltinItem } from '@/hooks/useFeedSettings';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isItemActive } from '@/lib/sidebarItems';
+import { useTheme } from '@/hooks/useTheme';
+import { resolveTheme, resolveThemeConfig } from '@/themes';
 
 interface MobileDrawerProps {
   open: boolean;
@@ -39,6 +41,22 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const [accountExpanded, setAccountExpanded] = useState(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
+  const { theme, customTheme, themes } = useTheme();
+
+  /** Compute the background image style for the drawer, mirroring the body background. */
+  const bgStyle = useMemo<React.CSSProperties>(() => {
+    const resolved = resolveTheme(theme);
+    const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
+    const bgUrl = activeConfig?.background?.url;
+    if (!bgUrl) return {};
+    const bgMode = activeConfig?.background?.mode ?? 'cover';
+    if (bgMode === 'tile') {
+      return { backgroundImage: `url("${bgUrl}")`, backgroundRepeat: 'repeat', backgroundSize: 'auto' };
+    }
+    return { backgroundImage: `url("${bgUrl}")`, backgroundSize: 'cover', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' };
+  }, [theme, customTheme, themes]);
+
+  const hasBgImage = Object.keys(bgStyle).length > 0;
 
   /** Items already covered by the mobile bottom nav — hide from the drawer. */
   const BOTTOM_NAV_ITEMS = new Set(['feed', 'notifications', 'search']);
@@ -63,15 +81,15 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   return (
     <>
         <Sheet open={open} onOpenChange={(v) => { if (!v) setMoreMenuOpen(false); onOpenChange(v); }}>
-        <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col bg-transparent">
+        <SheetContent side="left" className={`w-[300px] p-0 gap-0 border-r-border flex flex-col ${hasBgImage ? 'bg-transparent' : ''}`} style={bgStyle}>
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
 
           {user ? (
-            <div className="flex flex-col h-full py-2 px-2 gap-1">
+            <div className={`flex flex-col h-full ${hasBgImage ? 'py-2 px-2 gap-1' : ''}`}>
               {/* User row with caret */}
               <button
                 onClick={() => setAccountExpanded((v) => !v)}
-                className="flex items-center gap-3 px-3 hover:bg-secondary/60 transition-colors w-full text-left bg-background/85 rounded-xl"
+                className={`flex items-center gap-3 px-3 hover:bg-secondary/60 transition-colors w-full text-left ${hasBgImage ? 'bg-background/85 rounded-xl' : ''}`}
                 style={{ minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
               >
                 <Avatar className="size-7 shrink-0">
@@ -98,7 +116,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
               {/* Expanded account actions */}
               {accountExpanded && (
-                <div className="bg-background/85 rounded-xl overflow-hidden">
+                <div className={hasBgImage ? 'bg-background/85 rounded-xl overflow-hidden' : ''}>
                   {otherUsers.map((account) => (
                     <button
                       key={account.id}
@@ -170,7 +188,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
               {/* Theme */}
               <div
-                className="bg-background/85 rounded-xl flex items-center"
+                className={`flex items-center ${hasBgImage ? 'bg-background/85 rounded-xl' : 'border-t border-border'}`}
                 style={{ minHeight: '3.5rem', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
               >
                 <SidebarThemeDropdown userPubkey={user.pubkey} onNavigate={handleClose} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 rounded-full transition-colors" />
@@ -178,7 +196,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full gap-4 px-6">
-              <div className="bg-background/85 rounded-xl p-6 w-full text-center space-y-4">
+              <div className={`w-full text-center space-y-4 ${hasBgImage ? 'bg-background/85 rounded-xl p-6' : 'p-6'}`}>
                 <p className="text-muted-foreground text-sm">Log in to access all features</p>
                 <LoginArea className="w-full flex flex-col" />
               </div>
