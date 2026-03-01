@@ -14,6 +14,8 @@ import {
   VolumeX,
   MoreHorizontal,
   Play,
+  Heart,
+  ChevronLeft,
 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -27,7 +29,8 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useFollowList } from '@/hooks/useFollowActions';
-import { ReactionButton } from '@/components/ReactionButton';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useUserReaction } from '@/hooks/useUserReaction';
 import { RepostMenu } from '@/components/RepostMenu';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { ZapDialog } from '@/components/ZapDialog';
@@ -37,7 +40,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { DittoLogo } from '@/components/DittoLogo';
-import { ComposeBox } from '@/components/ComposeBox';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { canZap } from '@/lib/canZap';
@@ -160,7 +163,12 @@ interface VinesCommentsContentProps {
 }
 
 function VinesCommentsContent({ activeVine }: VinesCommentsContentProps) {
-  const { data: replies = [], isLoading } = useVineReplies(activeVine);
+  const { data: rawReplies = [], isLoading } = useVineReplies(activeVine);
+  // Deduplicate at render time as a safety net against relay returning duplicates
+  const replies = useMemo(() => {
+    const seen = new Set<string>();
+    return rawReplies.filter((e) => seen.has(e.id) ? false : (seen.add(e.id), true));
+  }, [rawReplies]);
 
   return (
     <>
@@ -193,12 +201,7 @@ function VinesCommentsContent({ activeVine }: VinesCommentsContentProps) {
         )}
       </div>
 
-      {/* Compose */}
-      {activeVine && (
-        <div className="border-t border-border">
-          <ComposeBox replyTo={activeVine} compact placeholder="Add a comment…" />
-        </div>
-      )}
+
     </>
   );
 }
@@ -212,6 +215,9 @@ interface VinesCommentsSidebarProps {
 function VinesCommentsSidebar({ activeVine }: VinesCommentsSidebarProps) {
   return (
     <aside className="w-[320px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen border-l border-border bg-background">
+      <div className="px-4 pt-4 pb-1">
+        <h2 className="text-xl font-bold text-foreground">Replies</h2>
+      </div>
       <VinesCommentsContent activeVine={activeVine} />
     </aside>
   );
@@ -219,9 +225,34 @@ function VinesCommentsSidebar({ activeVine }: VinesCommentsSidebarProps) {
 
 // ─── VinesMobileComments ──────────────────────────────────────────────────────
 
-function VinesMobileComments({ activeVine }: { activeVine: NostrEvent | undefined }) {
+function VinesMobileComments({
+  activeVine,
+  onBack,
+  onComment,
+}: {
+  activeVine: NostrEvent | undefined;
+  onBack: () => void;
+  onComment: () => void;
+}) {
   return (
     <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 h-12 border-b border-border shrink-0">
+        <button
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          onClick={onBack}
+        >
+          <ChevronLeft className="size-4" />
+          Back
+        </button>
+        <span className="text-sm font-semibold">Comments</span>
+        <button
+          className="text-sm font-medium text-primary hover:underline"
+          onClick={onComment}
+        >
+          Comment
+        </button>
+      </div>
       <VinesCommentsContent activeVine={activeVine} />
     </div>
   );
@@ -277,6 +308,35 @@ function CommentSkeleton() {
         <Skeleton className="h-3 w-3/4" />
       </div>
     </div>
+  );
+}
+
+// ─── VineHeartButton ─────────────────────────────────────────────────────────
+
+function VineHeartButton({ event, label }: { event: NostrEvent; label?: string }) {
+  const { user } = useCurrentUser();
+  const userReaction = useUserReaction(event.id);
+  const { mutate: publishEvent } = useNostrPublish();
+  const hasReacted = !!userReaction;
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || hasReacted) return;
+    publishEvent({ kind: 7, content: '+', tags: [['e', event.id], ['p', event.pubkey], ['k', String(event.kind)]] });
+  };
+
+  return (
+    <VineActionButton label={label}>
+      <button
+        className={cn(
+          'size-11 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm bg-black/20 hover:bg-white/10',
+          hasReacted ? 'text-pink-500' : 'text-white hover:text-pink-400',
+        )}
+        onClick={handleClick}
+      >
+        <Heart className="size-6" fill={hasReacted ? 'currentColor' : 'none'} />
+      </button>
+    </VineActionButton>
   );
 }
 
@@ -434,17 +494,7 @@ function VineCard({ event, isActive, onCommentClick }: VineCardProps) {
         </ProfileHoverCard>
 
         {/* React */}
-        <VineActionButton
-          label={stats?.reactions ? String(stats.reactions) : undefined}
-        >
-          <ReactionButton
-            eventId={event.id}
-            eventPubkey={event.pubkey}
-            eventKind={event.kind}
-            reactionCount={0}
-            className="text-white hover:text-pink-400 size-11 rounded-full flex items-center justify-center p-0 bg-black/20 backdrop-blur-sm hover:bg-white/10"
-          />
-        </VineActionButton>
+        <VineHeartButton event={event} label={stats?.reactions ? String(stats.reactions) : undefined} />
 
         {/* Reply */}
         <VineActionButton
@@ -578,7 +628,17 @@ export function VinesFeedPage() {
   const { events, isLoading } = useVinesFeed(tab);
   const [activeIndex, setActiveIndex] = useState(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleCommentClick = useCallback(() => {
+    // xl breakpoint = 1280px — desktop opens reply modal, mobile opens comment sheet
+    if (window.innerWidth >= 1280) {
+      setReplyOpen(true);
+    } else {
+      setCommentsOpen(true);
+    }
+  }, []);
 
   useSeoMeta({
     title: `Vines | ${config.appName}`,
@@ -720,7 +780,7 @@ export function VinesFeedPage() {
               <VineCard
                 event={event}
                 isActive={i === activeIndex}
-                onCommentClick={() => setCommentsOpen(true)}
+                onCommentClick={handleCommentClick}
               />
             </div>
           ))}
@@ -730,9 +790,22 @@ export function VinesFeedPage() {
       {/* ── Mobile comments sheet ───────────────────────────────────── */}
       <Sheet open={commentsOpen} onOpenChange={setCommentsOpen}>
         <SheetContent side="bottom" className="xl:hidden h-[75dvh] p-0 flex flex-col rounded-t-2xl">
-          <VinesMobileComments activeVine={activeVine} />
+          <VinesMobileComments
+            activeVine={activeVine}
+            onBack={() => setCommentsOpen(false)}
+            onComment={() => { setCommentsOpen(false); setReplyOpen(true); }}
+          />
         </SheetContent>
       </Sheet>
+
+      {/* ── Reply modal (desktop comment click / mobile "Comment" button) */}
+      {activeVine && (
+        <ReplyComposeModal
+          event={activeVine}
+          open={replyOpen}
+          onOpenChange={setReplyOpen}
+        />
+      )}
     </div>
   );
 }
