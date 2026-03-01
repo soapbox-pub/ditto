@@ -1,0 +1,374 @@
+/**
+ * PhotosFeedPage — Instagram-style grid feed for NIP-68 photo events (kind 20).
+ *
+ * Layout:
+ * - Follows / Global tabs (same pattern as main Feed)
+ * - Infinite-scroll 3-column photo grid
+ * - Tapping a grid cell opens a detail modal (full NoteCard rendered in an overlay)
+ *   with left/right swipe/click navigation between posts in the current feed
+ */
+
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Camera, ChevronLeft, ChevronRight, X, Images } from 'lucide-react';
+import { useSeoMeta } from '@unhead/react';
+import { useInView } from 'react-intersection-observer';
+import { Loader2 } from 'lucide-react';
+import type { NostrEvent } from '@nostrify/nostrify';
+import { useAppContext } from '@/hooks/useAppContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { useFeed } from '@/hooks/useFeed';
+import { useMuteList } from '@/hooks/useMuteList';
+import { isEventMuted } from '@/lib/muteHelpers';
+import { NoteCard } from '@/components/NoteCard';
+import { Skeleton } from '@/components/ui/skeleton';
+import { KindInfoButton } from '@/components/KindInfoButton';
+import { sidebarItemIcon } from '@/lib/sidebarItems';
+import { getExtraKindDef } from '@/lib/extraKinds';
+import { cn } from '@/lib/utils';
+import type { FeedItem } from '@/lib/feedUtils';
+
+const PHOTO_KIND = 20;
+const photosDef = getExtraKindDef('photos')!;
+
+type FeedTab = 'follows' | 'global';
+
+/** Parse the first imeta image URL from a NIP-68 photo event (for thumbnail). */
+function getPhotoThumbnail(event: NostrEvent): string | undefined {
+  for (const tag of event.tags) {
+    if (tag[0] !== 'imeta') continue;
+    for (let i = 1; i < tag.length; i++) {
+      const p = tag[i];
+      const sp = p.indexOf(' ');
+      if (sp !== -1 && p.slice(0, sp) === 'url') return p.slice(sp + 1);
+    }
+  }
+  return undefined;
+}
+
+/** Count imeta photo entries in a photo event. */
+function getPhotoCount(event: NostrEvent): number {
+  return event.tags.filter(([n]) => n === 'imeta').length;
+}
+
+// ── Grid thumbnail ────────────────────────────────────────────────────────────
+
+function PhotoGridThumb({
+  event,
+  onClick,
+}: {
+  event: NostrEvent;
+  onClick: () => void;
+}) {
+  const thumb = getPhotoThumbnail(event);
+  const count = getPhotoCount(event);
+
+  if (!thumb) return null;
+
+  return (
+    <button
+      className="relative aspect-square overflow-hidden bg-muted group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      onClick={onClick}
+      aria-label="View photo"
+    >
+      <img
+        src={thumb}
+        alt=""
+        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+        loading="lazy"
+      />
+      {/* Multiple images indicator */}
+      {count > 1 && (
+        <div className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded p-0.5">
+          <Images className="size-3.5" />
+        </div>
+      )}
+      {/* Hover overlay */}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors duration-200" />
+    </button>
+  );
+}
+
+// ── Detail overlay ────────────────────────────────────────────────────────────
+
+function PhotoDetailOverlay({
+  events,
+  index,
+  onClose,
+  onPrev,
+  onNext,
+}: {
+  events: NostrEvent[];
+  index: number;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const event = events[index];
+  const hasPrev = index > 0;
+  const hasNext = index < events.length - 1;
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft' && hasPrev) onPrev();
+      if (e.key === 'ArrowRight' && hasNext) onNext();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose, onPrev, onNext, hasPrev, hasNext]);
+
+  // Swipe gesture support
+  const touchStartX = useRef<number | null>(null);
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 50) {
+      if (dx < 0 && hasNext) onNext();
+      if (dx > 0 && hasPrev) onPrev();
+    }
+    touchStartX.current = null;
+  };
+
+  if (!event) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center"
+      onClick={onClose}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Close button */}
+      <button
+        className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+        onClick={onClose}
+        aria-label="Close"
+      >
+        <X className="size-5" />
+      </button>
+
+      {/* Prev arrow */}
+      {hasPrev && (
+        <button
+          className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+          onClick={(e) => { e.stopPropagation(); onPrev(); }}
+          aria-label="Previous photo"
+        >
+          <ChevronLeft className="size-6" />
+        </button>
+      )}
+
+      {/* Next arrow */}
+      {hasNext && (
+        <button
+          className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+          onClick={(e) => { e.stopPropagation(); onNext(); }}
+          aria-label="Next photo"
+        >
+          <ChevronRight className="size-6" />
+        </button>
+      )}
+
+      {/* Post card — stop click from closing overlay */}
+      <div
+        className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-background shadow-2xl mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <NoteCard event={event} />
+      </div>
+
+      {/* Dot indicators (if multiple events) */}
+      {events.length > 1 && events.length <= 20 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+          {events.map((_, i) => (
+            <button
+              key={i}
+              className={cn(
+                'size-1.5 rounded-full transition-colors',
+                i === index ? 'bg-white' : 'bg-white/40',
+              )}
+              onClick={(e) => { e.stopPropagation(); /* handled by parent index state */ }}
+              aria-label={`Photo ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Grid skeleton ─────────────────────────────────────────────────────────────
+
+function PhotoGridSkeleton() {
+  return (
+    <div className="grid grid-cols-3 gap-0.5">
+      {Array.from({ length: 15 }).map((_, i) => (
+        <Skeleton key={i} className="aspect-square w-full rounded-none" />
+      ))}
+    </div>
+  );
+}
+
+// ── Tab button (mirrors Feed.tsx style) ───────────────────────────────────────
+
+function TabButton({ label, active, onClick, disabled }: { label: string; active: boolean; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 disabled:opacity-50',
+        active ? 'text-foreground' : 'text-muted-foreground',
+      )}
+    >
+      {label}
+      {active && (
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
+      )}
+    </button>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export function PhotosFeedPage() {
+  const { config } = useAppContext();
+  const { user } = useCurrentUser();
+  const { muteItems } = useMuteList();
+
+  const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
+  const [detailIndex, setDetailIndex] = useState<number | null>(null);
+
+  useSeoMeta({
+    title: `Photos | ${config.appName}`,
+    description: 'Photo posts on Nostr',
+  });
+
+  useLayoutOptions({ showFAB: false });
+
+  // Switch to follows tab when user logs in
+  useEffect(() => {
+    if (user) setActiveTab('follows');
+  }, [user]);
+
+  // Fetch photo events using same useFeed hook as the main feed
+  const feedQuery = useFeed(activeTab, { kinds: [PHOTO_KIND] });
+  const {
+    data: rawData,
+    isPending,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = feedQuery;
+
+  // Auto-fetch page 2
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
+
+  // Infinite scroll sentinel
+  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) fetchNextPage();
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Flatten and filter — only photo events with at least one image
+  const photoEvents = useMemo(() => {
+    if (!rawData?.pages) return [];
+    const seen = new Set<string>();
+    return (rawData.pages as unknown as { items: FeedItem[] }[])
+      .flatMap((page) => page.items)
+      .filter((item) => {
+        if (seen.has(item.event.id)) return false;
+        seen.add(item.event.id);
+        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        // Only include events that actually have photo data
+        return getPhotoThumbnail(item.event) !== undefined;
+      })
+      .map((item) => item.event);
+  }, [rawData?.pages, muteItems]);
+
+  const showSkeleton = isPending || (isLoading && !rawData);
+
+  // Detail modal navigation
+  const openDetail = useCallback((index: number) => setDetailIndex(index), []);
+  const closeDetail = useCallback(() => setDetailIndex(null), []);
+  const prevDetail = useCallback(() => setDetailIndex((i) => (i !== null && i > 0 ? i - 1 : i)), []);
+  const nextDetail = useCallback(() => setDetailIndex((i) => (i !== null && i < photoEvents.length - 1 ? i + 1 : i)), [photoEvents.length]);
+
+  return (
+    <main className="min-h-screen">
+      {/* Header */}
+      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
+        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+          <ArrowLeft className="size-5" />
+        </Link>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Camera className="size-5" />
+          <h1 className="text-xl font-bold">Photos</h1>
+        </div>
+        <KindInfoButton kindDef={photosDef} icon={sidebarItemIcon('photos', 'size-5')} />
+      </div>
+
+      {/* Tabs — mirror Feed.tsx exactly */}
+      <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+        <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
+        <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+      </div>
+
+      {/* Photo grid */}
+      {showSkeleton ? (
+        <PhotoGridSkeleton />
+      ) : photoEvents.length === 0 ? (
+        <div className="py-16 px-8 text-center">
+          <Camera className="size-10 text-muted-foreground/30 mx-auto mb-3" />
+          <p className="text-muted-foreground">
+            No photos yet.
+            {activeTab === 'follows' ? ' Follow some photographers or switch to Global.' : ' Check your relay connections or come back soon.'}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-0.5">
+            {photoEvents.map((event, i) => (
+              <PhotoGridThumb
+                key={event.id}
+                event={event}
+                onClick={() => openDetail(i)}
+              />
+            ))}
+          </div>
+
+          {/* Infinite scroll sentinel */}
+          <div ref={scrollRef} className="py-4">
+            {isFetchingNextPage && (
+              <div className="flex justify-center">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Detail overlay */}
+      {detailIndex !== null && (
+        <PhotoDetailOverlay
+          events={photoEvents}
+          index={detailIndex}
+          onClose={closeDetail}
+          onPrev={prevDetail}
+          onNext={nextDetail}
+        />
+      )}
+    </main>
+  );
+}
