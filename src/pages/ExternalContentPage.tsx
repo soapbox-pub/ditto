@@ -1,11 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Globe, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Globe, Heart, MessageSquare, Repeat2 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { NoteCard } from '@/components/NoteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
+import { QuickReactMenu } from '@/components/QuickReactMenu';
 import {
   parseExternalUri,
   headerLabel,
@@ -13,13 +15,217 @@ import {
   UrlContentHeader,
   BookContentHeader,
   CountryContentHeader,
+  type ExternalContent,
 } from '@/components/ExternalContentHeader';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useComments } from '@/hooks/useComments';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/useToast';
+import {
+  useExternalUserReaction,
+  useExternalReactionCount,
+  useExternalRepostStatus,
+} from '@/hooks/useExternalReactions';
 import NotFound from './NotFound';
+
+// ---------------------------------------------------------------------------
+// Helper: NIP-73 k tag value
+// ---------------------------------------------------------------------------
+
+function getExternalKTag(content: ExternalContent): string {
+  switch (content.type) {
+    case 'url': return 'web';
+    case 'isbn': return 'isbn';
+    case 'iso3166': return 'iso3166';
+    default: return 'web';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Action bar component for external content (react + share)
+// ---------------------------------------------------------------------------
+
+function ExternalActionBar({ content }: { content: ExternalContent }) {
+  const { user } = useCurrentUser();
+  const { mutate: publishEvent } = useNostrPublish();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const identifier = content.value;
+
+  const userReaction = useExternalUserReaction(content);
+  const reactionCount = useExternalReactionCount(content);
+  const repostStatus = useExternalRepostStatus(content);
+
+  const hasReacted = !!userReaction;
+  const hasShared = !!repostStatus;
+
+  // Reaction popover state
+  const [reactOpen, setReactOpen] = useState(false);
+  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const justClosedRef = useRef(false);
+  const pickerExpandedRef = useRef(false);
+
+  const handleMouseEnter = useCallback(() => {
+    if (!user) return;
+    if (justClosedRef.current) return;
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setReactOpen(true);
+  }, [user]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (pickerExpandedRef.current) return;
+    closeTimeoutRef.current = setTimeout(() => setReactOpen(false), 150);
+  }, []);
+
+  // Publish kind 17 reaction
+  const handleReact = useCallback((emoji: string) => {
+    if (!user) return;
+    queryClient.setQueryData(['external-user-reaction', identifier], emoji || '+');
+    queryClient.setQueryData(['external-reaction-count', identifier], (prev: number | undefined) => (prev ?? 0) + 1);
+
+    publishEvent(
+      {
+        kind: 17,
+        content: emoji,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['k', getExternalKTag(content)],
+          ['i', identifier],
+        ],
+      },
+      {
+        onSuccess: () => {
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['external-user-reaction', identifier] });
+            queryClient.invalidateQueries({ queryKey: ['external-reaction-count', identifier] });
+          }, 3000);
+        },
+        onError: () => {
+          toast({ title: 'Failed to react', variant: 'destructive' });
+          queryClient.setQueryData(['external-user-reaction', identifier], null);
+          queryClient.setQueryData(['external-reaction-count', identifier], (prev: number | undefined) => Math.max(0, (prev ?? 1) - 1));
+        },
+      },
+    );
+  }, [user, content, identifier, publishEvent, queryClient, toast]);
+
+  // Publish kind 1 share note with i tag
+  const handleShare = useCallback(() => {
+    if (!user) return;
+    queryClient.setQueryData(['external-user-repost', identifier], 'optimistic');
+
+    publishEvent(
+      {
+        kind: 1,
+        content: identifier,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['i', identifier],
+          ['k', getExternalKTag(content)],
+          ['alt', `Sharing: ${identifier}`],
+        ],
+      },
+      {
+        onSuccess: () => {
+          toast({ title: 'Shared!' });
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['external-user-repost', identifier] });
+          }, 3000);
+        },
+        onError: () => {
+          toast({ title: 'Failed to share', variant: 'destructive' });
+          queryClient.setQueryData(['external-user-repost', identifier], null);
+        },
+      },
+    );
+  }, [user, content, identifier, publishEvent, queryClient, toast]);
+
+  return (
+    <div className="flex items-center gap-1 px-4 py-2 border-b border-border">
+      {/* Reaction button */}
+      <Popover open={reactOpen} onOpenChange={(open) => {
+        if (open && justClosedRef.current) return;
+        if (!open) pickerExpandedRef.current = false;
+        setReactOpen(open);
+      }}>
+        <PopoverTrigger asChild>
+          <button
+            className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${
+              hasReacted
+                ? 'text-pink-500'
+                : 'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10'
+            }`}
+            title="React"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!user) return;
+              if (justClosedRef.current) return;
+              setReactOpen((prev) => !prev);
+            }}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            {hasReacted ? (
+              <span className="size-5 flex items-center justify-center text-base leading-none">
+                {userReaction === '+' ? '👍' : userReaction}
+              </span>
+            ) : (
+              <Heart className="size-5" />
+            )}
+            {reactionCount > 0 && (
+              <span className="text-sm tabular-nums">{reactionCount}</span>
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-auto p-0 border-0 bg-transparent shadow-none"
+          side="top"
+          align="start"
+          onClick={(e) => e.stopPropagation()}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <QuickReactMenu
+            eventId={identifier}
+            eventPubkey=""
+            eventKind={17}
+            onExpandChange={(expanded) => { pickerExpandedRef.current = expanded; }}
+            onClose={() => {
+              pickerExpandedRef.current = false;
+              justClosedRef.current = true;
+              setReactOpen(false);
+              setTimeout(() => { justClosedRef.current = false; }, 300);
+            }}
+            onReact={handleReact}
+          />
+        </PopoverContent>
+      </Popover>
+
+      {/* Share button */}
+      <button
+        className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${
+          hasShared
+            ? 'text-accent'
+            : 'text-muted-foreground hover:text-accent hover:bg-accent/10'
+        }`}
+        title={hasShared ? 'Already shared' : 'Share to feed'}
+        onClick={hasShared ? undefined : handleShare}
+        disabled={hasShared}
+      >
+        <Repeat2 className="size-5" />
+      </button>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Main page component
@@ -102,7 +308,7 @@ export function ExternalContentPage() {
         <h1 className="text-xl font-bold truncate">{headerLabel(content)}</h1>
       </div>
 
-      <div className="px-4 space-y-6 pb-8">
+      <div className="px-4 space-y-6 pb-4">
         {/* Content-specific header */}
         {content.type === 'url' && <UrlContentHeader url={content.value} />}
         {content.type === 'isbn' && <BookContentHeader isbn={content.value} />}
@@ -114,6 +320,9 @@ export function ExternalContentPage() {
           </div>
         )}
       </div>
+
+      {/* React / share action bar */}
+      <ExternalActionBar content={content} />
 
       {/* Inline compose box */}
       <ComposeBox compact replyTo={commentRoot} />

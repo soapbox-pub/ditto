@@ -21,6 +21,11 @@ interface QuickReactMenuProps {
   onClose?: () => void;
   /** Called when the full picker is opened/closed so the parent can lock the popover open. */
   onExpandChange?: (expanded: boolean) => void;
+  /**
+   * Optional custom handler called when an emoji is selected.
+   * When provided, this replaces the default kind 7 publish behavior.
+   */
+  onReact?: (emoji: string) => void;
   /** Optional extra class names. */
   className?: string;
 }
@@ -31,6 +36,7 @@ export function QuickReactMenu({
   eventKind,
   onClose,
   onExpandChange,
+  onReact,
   className,
 }: QuickReactMenuProps) {
   const { user } = useCurrentUser();
@@ -56,6 +62,12 @@ export function QuickReactMenu({
 
     // Track emoji usage
     trackEmojiUsage(emoji);
+
+    // If a custom handler is provided, delegate to it and skip the default kind 7 publish.
+    if (onReact) {
+      onReact(emoji);
+      return;
+    }
 
     // Optimistically update stats cache immediately
     const displayEmoji = (emoji === '+' || emoji === '') ? '👍' : emoji;
@@ -108,7 +120,7 @@ export function QuickReactMenu({
         },
       },
     );
-  }, [user, eventId, eventPubkey, eventKind, publishEvent, queryClient, trackEmojiUsage, onClose]);
+  }, [user, eventId, eventPubkey, eventKind, onReact, publishEvent, queryClient, trackEmojiUsage, onClose]);
 
   if (!user) return null;
 
