@@ -163,20 +163,21 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
     >
       <div className="relative aspect-video overflow-hidden rounded-xl bg-muted">
-        {blurhash && !imgLoaded && (
+        {blurhash && (
           <Blurhash hash={blurhash} width="100%" height="100%" resolutionX={32} resolutionY={32} punch={1}
-            className="absolute inset-0" style={{ width: '100%', height: '100%' }} />
+            className={cn('absolute inset-0 transition-opacity duration-300', imgLoaded ? 'opacity-0' : 'opacity-100')}
+            style={{ width: '100%', height: '100%' }} />
         )}
         {thumbnail ? (
           <img
             src={thumbnail}
             alt={title}
-            className={cn('w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]', imgLoaded ? 'opacity-100' : 'opacity-0')}
+            className={cn('absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-[1.03]', imgLoaded ? 'opacity-100' : 'opacity-0')}
             loading="lazy"
             onLoad={() => setImgLoaded(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center">
             <Play className="size-10 text-muted-foreground/30" />
           </div>
         )}
@@ -322,20 +323,21 @@ function ShortThumb({ event, onClick }: { event: NostrEvent; onClick: () => void
   return (
     <button className="group block w-full text-left focus:outline-none" onClick={onClick} aria-label={title}>
       <div className="relative w-full aspect-[9/16] overflow-hidden rounded-xl bg-muted">
-        {blurhash && !imgLoaded && (
+        {blurhash && (
           <Blurhash hash={blurhash} width="100%" height="100%" resolutionX={32} resolutionY={32} punch={1}
-            className="absolute inset-0" style={{ width: '100%', height: '100%' }} />
+            className={cn('absolute inset-0 transition-opacity duration-300', imgLoaded ? 'opacity-0' : 'opacity-100')}
+            style={{ width: '100%', height: '100%' }} />
         )}
         {thumbnail ? (
           <img
             src={thumbnail}
             alt={title}
-            className={cn('w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]', imgLoaded ? 'opacity-100' : 'opacity-0')}
+            className={cn('absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-[1.03]', imgLoaded ? 'opacity-100' : 'opacity-0')}
             loading="lazy"
             onLoad={() => setImgLoaded(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center">
             <Play className="size-8 text-muted-foreground/30" />
           </div>
         )}
