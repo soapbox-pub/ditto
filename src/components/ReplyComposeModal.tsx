@@ -12,6 +12,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteContent } from '@/components/NoteContent';
 import { ComposeBox } from '@/components/ComposeBox';
+import { ProfilePreview } from '@/components/ExternalContentHeader';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -46,7 +47,8 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
   const [previewMode, setPreviewMode] = useState(false);
   const [hasPreviewableContent, setHasPreviewableContent] = useState(false);
 
-  const title = titleOverride ?? (isUrl ? 'New comment' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post');
+  const isProfileRoot = !isUrl && event instanceof Object && 'kind' in event && event.kind === 0;
+  const title = titleOverride ?? (isUrl ? 'New comment' : isProfileRoot ? 'Comment on profile' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post');
   const placeholder = isUrl ? 'Write a comment...' : isReply ? "What's on your mind?" : isQuote ? 'Add a comment...' : "What's happening?";
 
   return (
@@ -118,6 +120,20 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
 
 /** Compact embedded preview of the post being replied to. */
 function EmbeddedPost({ event }: { event: NostrEvent }) {
+  // Kind 0 (profile) — show a profile card instead of trying to render the raw JSON content
+  if (event.kind === 0) {
+    return (
+      <div className="mx-4 mb-2 rounded-xl border border-border bg-secondary/30 overflow-hidden">
+        <ProfilePreview pubkey={event.pubkey} />
+      </div>
+    );
+  }
+
+  return <EmbeddedNote event={event} />;
+}
+
+/** Compact embedded preview for regular note events. */
+function EmbeddedNote({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(event.pubkey);
