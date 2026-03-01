@@ -149,7 +149,7 @@ export function UrlContentHeader({ url }: { url: string }) {
 
   // Twitter/X tweet — render the embedded tweet widget
   if (tweetId) {
-    return <TweetEmbed tweetId={tweetId} url={url} />;
+    return <TweetEmbed tweetId={tweetId} />;
   }
 
   if (isLoading && !youtubeId) {
