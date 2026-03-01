@@ -51,9 +51,9 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     if (!bgUrl) return {};
     const bgMode = activeConfig?.background?.mode ?? 'cover';
     if (bgMode === 'tile') {
-      return { backgroundImage: `url("${bgUrl}")`, backgroundRepeat: 'repeat', backgroundSize: 'auto' };
+      return { backgroundColor: 'transparent', backgroundImage: `url("${bgUrl}")`, backgroundRepeat: 'repeat', backgroundSize: 'auto' };
     }
-    return { backgroundImage: `url("${bgUrl}")`, backgroundSize: 'cover', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' };
+    return { backgroundColor: 'transparent', backgroundImage: `url("${bgUrl}")`, backgroundSize: 'cover', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' };
   }, [theme, customTheme, themes]);
 
   const hasBgImage = Object.keys(bgStyle).length > 0;
@@ -81,7 +81,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   return (
     <>
         <Sheet open={open} onOpenChange={(v) => { if (!v) setMoreMenuOpen(false); onOpenChange(v); }}>
-        <SheetContent side="left" className={`w-[300px] p-0 gap-0 border-r-border flex flex-col ${hasBgImage ? 'bg-transparent' : ''}`} style={bgStyle}>
+        <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col" style={bgStyle}>
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
 
           {user ? (
