@@ -97,6 +97,8 @@ interface ComposeBoxProps {
   previewMode?: boolean;
   /** Callback to notify parent of previewable content changes. */
   onHasPreviewableContentChange?: (hasContent: boolean) => void;
+  /** Pre-filled content for the compose box. */
+  initialContent?: string;
 }
 
 /** Circular progress ring for character count. */
@@ -146,6 +148,7 @@ export function ComposeBox({
   hideAvatar = false,
   previewMode: controlledPreviewMode,
   onHasPreviewableContentChange,
+  initialContent = '',
 }: ComposeBoxProps) {
   const { user, metadata, isLoading: isProfileLoading } = useCurrentUser();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
@@ -155,7 +158,7 @@ export function ComposeBox({
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState(initialContent);
   const [expanded, setExpanded] = useState(false);
   const [cwEnabled, setCwEnabled] = useState(false);
   const [cwText, setCwText] = useState('');

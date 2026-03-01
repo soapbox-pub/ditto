@@ -27,6 +27,8 @@ interface ReplyComposeModalProps {
   onOpenChange: (open: boolean) => void;
   /** Called after a post is successfully published. */
   onSuccess?: () => void;
+  /** Pre-filled content for the compose box. */
+  initialContent?: string;
 }
 
 /** Extracts image URLs from note content. */
@@ -35,7 +37,7 @@ function extractImages(content: string): string[] {
   return content.match(urlRegex) || [];
 }
 
-export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess }: ReplyComposeModalProps) {
+export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent }: ReplyComposeModalProps) {
   const isUrl = event instanceof URL;
   const isReply = !!event;
   const isQuote = !!quotedEvent;
@@ -105,6 +107,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
           hideAvatar
           previewMode={previewMode}
           onHasPreviewableContentChange={setHasPreviewableContent}
+          initialContent={initialContent}
         />
       </DialogContent>
     </Dialog>
