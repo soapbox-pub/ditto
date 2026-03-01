@@ -17,12 +17,12 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useTheme } from '@/hooks/useTheme';
-import { useFeedSettings, getBuiltinItem } from '@/hooks/useFeedSettings';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { isItemActive } from '@/lib/sidebarItems';
+import { getSidebarItem, isItemActive } from '@/lib/sidebarItems';
 import { themePresets } from '@/themes';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -44,12 +44,12 @@ export function LeftSidebar() {
 
   const visibleItems = useMemo(() => {
     if (user) return orderedItems;
-    return orderedItems.filter((id) => !getBuiltinItem(id)?.requiresAuth);
+    return orderedItems.filter((id) => !getSidebarItem(id)?.requiresAuth);
   }, [orderedItems, user]);
 
   const visibleHiddenItems = useMemo(() => {
     if (user) return hiddenItems;
-    return hiddenItems.filter((item) => !getBuiltinItem(item.id)?.requiresAuth);
+    return hiddenItems.filter((item) => !getSidebarItem(item.id)?.requiresAuth);
   }, [hiddenItems, user]);
 
   const hasUnread = useHasUnreadNotifications();

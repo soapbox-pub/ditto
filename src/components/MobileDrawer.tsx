@@ -15,10 +15,10 @@ import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
-import { useFeedSettings, getBuiltinItem } from '@/hooks/useFeedSettings';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { isItemActive } from '@/lib/sidebarItems';
+import { getSidebarItem, isItemActive } from '@/lib/sidebarItems';
 import { useTheme } from '@/hooks/useTheme';
 import { resolveTheme, resolveThemeConfig } from '@/themes';
 
@@ -64,13 +64,13 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const visibleItems = useMemo(() => {
     const items = orderedItems.filter((id) => !BOTTOM_NAV_ITEMS.has(id));
     if (user) return items;
-    return items.filter((id) => !getBuiltinItem(id)?.requiresAuth);
+    return items.filter((id) => !getSidebarItem(id)?.requiresAuth);
   }, [orderedItems, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleHiddenItems = useMemo(() => {
     const items = hiddenItems.filter((item) => !BOTTOM_NAV_ITEMS.has(item.id));
     if (user) return items;
-    return items.filter((item) => !getBuiltinItem(item.id)?.requiresAuth);
+    return items.filter((item) => !getSidebarItem(item.id)?.requiresAuth);
   }, [hiddenItems, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClose = () => { onOpenChange(false); setMoreMenuOpen(false); };

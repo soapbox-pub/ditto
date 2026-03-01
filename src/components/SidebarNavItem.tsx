@@ -1,8 +1,5 @@
 import { Link } from 'react-router-dom';
-import {
-  Bell, Search, TrendingUp, User, Bookmark, Scroll, SwatchBook, Palette,
-  GripVertical, X,
-} from 'lucide-react';
+import { GripVertical, X } from 'lucide-react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -11,40 +8,9 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { PlanetIcon } from '@/components/icons/PlanetIcon';
-import { EXTRA_KIND_ICONS } from '@/lib/extraKindIcons';
-import { itemLabel, itemPath } from '@/lib/sidebarItems';
+import { sidebarItemIcon, itemLabel, itemPath } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 import { useCallback } from 'react';
-
-// ── Icon map ──────────────────────────────────────────────────────────────────
-
-type IconComponent = React.ComponentType<{ className?: string }>;
-
-/** Icon components for built-in system sidebar items. */
-const BUILTIN_ICON_COMPONENTS: Record<string, IconComponent> = {
-  feed: PlanetIcon,
-  notifications: Bell,
-  search: Search,
-  trends: TrendingUp,
-  bookmarks: Bookmark,
-  profile: User,
-  settings: Scroll,
-  theme: SwatchBook,
-};
-
-/**
- * Returns the icon element for a sidebar item ID at the given size.
- * Built-in system items are sourced from BUILTIN_ICON_COMPONENTS.
- * Extra-kind items are sourced from EXTRA_KIND_ICONS (the source of truth for non-system items).
- * Falls back to Palette for unknown items.
- */
-export function sidebarItemIcon(id: string, size = 'size-6'): React.ReactElement {
-  const Icon = BUILTIN_ICON_COMPONENTS[id] ?? EXTRA_KIND_ICONS[id] ?? Palette;
-  return <Icon className={size} />;
-}
-
-
 
 // ── Sortable item ─────────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Radio, Users, Clock } from 'lucide-react';
-import { sidebarItemIcon } from '@/components/SidebarNavItem';
+import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';

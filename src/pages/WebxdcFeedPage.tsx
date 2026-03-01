@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { getExtraKindDef } from '@/lib/extraKinds';
-import { sidebarItemIcon } from '@/components/SidebarNavItem';
+import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { KindFeedPage } from '@/pages/KindFeedPage';
 import { WebxdcUploadDialog } from '@/components/WebxdcUploadDialog';
 
