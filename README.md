@@ -2,7 +2,7 @@
 
 Your social media, your way. A fun, customizable [Nostr](https://nostr.com/) client that puts you in control.
 
-**[ditto.pub](https://ditto.pub)** | **[Docs](https://docs.ditto.pub)** | **[Source](https://gitlab.com/soapbox-pub/ditto-mew)**
+**[ditto.pub](https://ditto.pub)** | **[Docs](https://docs.ditto.pub)** | **[Source](https://gitlab.com/soapbox-pub/ditto)**
 
 ## About
 
@@ -30,8 +30,8 @@ Made by [Soapbox](https://soapbox.pub).
 ### Development
 
 ```sh
-git clone https://gitlab.com/soapbox-pub/ditto-mew.git
-cd ditto-mew
+git clone https://gitlab.com/soapbox-pub/ditto.git
+cd ditto
 npm install
 npm run dev
 ```
