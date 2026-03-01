@@ -1,13 +1,20 @@
 import { useMemo } from 'react';
 
+import { BlueskyEmbed } from '@/components/BlueskyEmbed';
 import { LinkPreview } from '@/components/LinkPreview';
+import { MastodonEmbed } from '@/components/MastodonEmbed';
 import { TweetEmbed } from '@/components/TweetEmbed';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
+import { MASTODON_SERVERS } from '@/lib/mastodonServers';
 
 interface LinkEmbedProps {
   url: string;
   className?: string;
 }
+
+// ---------------------------------------------------------------------------
+// URL detection helpers
+// ---------------------------------------------------------------------------
 
 /** Extract a YouTube video ID from a URL, or null if not a YouTube link. */
 export function extractYouTubeId(url: string): string | null {
@@ -37,7 +44,6 @@ export function extractTweetId(url: string): string | null {
     const u = new URL(url);
     const host = u.hostname.replace(/^www\./, '').replace(/^mobile\./, '');
     if (host !== 'twitter.com' && host !== 'x.com') return null;
-    // Match /<user>/status/<id> paths
     const match = u.pathname.match(/^\/[^/]+\/status\/(\d+)/);
     return match ? match[1] : null;
   } catch {
@@ -45,20 +51,75 @@ export function extractTweetId(url: string): string | null {
   }
 }
 
+/** Bluesky post info extracted from a bsky.app URL. */
+export interface BlueskyPostInfo {
+  /** Handle or DID of the author. */
+  author: string;
+  /** Record key of the post. */
+  rkey: string;
+}
+
+/** Extract Bluesky post info from a bsky.app URL, or null if not a Bluesky post link. */
+export function extractBlueskyPost(url: string): BlueskyPostInfo | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    if (host !== 'bsky.app') return null;
+    // Match /profile/{handle-or-did}/post/{rkey}
+    const match = u.pathname.match(/^\/profile\/([^/]+)\/post\/([a-z0-9]+)$/i);
+    return match ? { author: match[1], rkey: match[2] } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Extract a Mastodon post URL if the domain is a known Mastodon instance. */
+export function extractMastodonPost(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    if (!MASTODON_SERVERS.has(host)) return null;
+    // Match /@{user}/{id} or /@{user}@{domain}/{id} (remote posts)
+    if (/^\/@[^/]+\/\d+$/.test(u.pathname)) {
+      return url;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /** Returns true if the URL should be rendered as a rich embed rather than a plain link. */
 export function isEmbeddableUrl(url: string): boolean {
-  return !!extractYouTubeId(url) || !!extractTweetId(url);
+  return !!extractYouTubeId(url) || !!extractTweetId(url) || !!extractBlueskyPost(url) || !!extractMastodonPost(url);
 }
+
+/** Get a short label for the embed type. */
+export function embedLabel(url: string): string | null {
+  if (extractYouTubeId(url)) return 'YouTube';
+  if (extractTweetId(url)) return 'Twitter';
+  if (extractBlueskyPost(url)) return 'Bluesky';
+  if (extractMastodonPost(url)) return 'Mastodon';
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Unified embed component
+// ---------------------------------------------------------------------------
 
 /**
  * Unified link embed component. Given a URL, renders the appropriate embed:
  * - YouTube URLs → `YouTubeEmbed` (click-to-play facade)
  * - Twitter/X tweet URLs → `TweetEmbed` (iframe embed)
+ * - Bluesky post URLs → `BlueskyEmbed` (iframe embed)
+ * - Mastodon post URLs → `MastodonEmbed` (iframe embed)
  * - Everything else → `LinkPreview` (OEmbed link preview card)
  */
 export function LinkEmbed({ url, className }: LinkEmbedProps) {
   const youtubeId = useMemo(() => extractYouTubeId(url), [url]);
   const tweetId = useMemo(() => extractTweetId(url), [url]);
+  const blueskyPost = useMemo(() => extractBlueskyPost(url), [url]);
+  const mastodonUrl = useMemo(() => extractMastodonPost(url), [url]);
 
   if (youtubeId) {
     return <YouTubeEmbed videoId={youtubeId} className={className} />;
@@ -66,6 +127,14 @@ export function LinkEmbed({ url, className }: LinkEmbedProps) {
 
   if (tweetId) {
     return <TweetEmbed tweetId={tweetId} className={className} />;
+  }
+
+  if (blueskyPost) {
+    return <BlueskyEmbed author={blueskyPost.author} rkey={blueskyPost.rkey} className={className} />;
+  }
+
+  if (mastodonUrl) {
+    return <MastodonEmbed url={mastodonUrl} className={className} />;
   }
 
   return <LinkPreview url={url} className={className} />;
