@@ -88,6 +88,8 @@ export interface FeedSettings {
   feedIncludeProfileThemeUpdates: boolean;
   /** Show custom profile themes when visiting other users' profiles */
   showCustomProfileThemes: boolean;
+  /** Include replies in the follows feed (default: true) */
+  followsFeedShowReplies: boolean;
 }
 
 export interface AppConfig {

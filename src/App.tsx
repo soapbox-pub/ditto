@@ -78,6 +78,7 @@ const hardcodedConfig: AppConfig = {
     showProfileThemeUpdates: true,
     feedIncludeProfileThemeUpdates: true,
     showCustomProfileThemes: true,
+    followsFeedShowReplies: true,
   },
   sidebarOrder: ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'themes', 'theme', 'settings'],
   nip85StatsPubkey: '5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea',
