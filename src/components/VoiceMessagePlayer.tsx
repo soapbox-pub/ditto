@@ -1,6 +1,5 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Play, Pause } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { formatTime } from '@/lib/formatTime';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
@@ -48,6 +47,7 @@ export function VoiceMessagePlayer({ event, className }: VoiceMessagePlayerProps
   const audioUrl = event.content.trim();
   const { waveform, duration: imetaDuration } = useMemo(() => parseVoiceImeta(event.tags), [event.tags]);
 
+  // Author data only needed for the AudioVisualizer fallback
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(event.pubkey);
@@ -70,8 +70,6 @@ export function VoiceMessagePlayer({ event, className }: VoiceMessagePlayerProps
       src={audioUrl}
       waveform={waveform}
       imetaDuration={imetaDuration}
-      avatarUrl={avatarUrl}
-      avatarFallback={displayName[0]?.toUpperCase() ?? '?'}
       className={className}
     />
   );
@@ -83,8 +81,6 @@ interface WaveformPlayerProps {
   src: string;
   waveform: number[];
   imetaDuration?: number;
-  avatarUrl?: string;
-  avatarFallback: string;
   className?: string;
 }
 
@@ -92,8 +88,6 @@ function WaveformPlayer({
   src,
   waveform,
   imetaDuration,
-  avatarUrl,
-  avatarFallback,
   className,
 }: WaveformPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -190,23 +184,20 @@ function WaveformPlayer({
         <source src={src} />
       </audio>
 
-      {/* Play/Pause + Avatar */}
+      {/* Play/Pause button */}
       <button
         onClick={togglePlay}
-        className="relative shrink-0 group/play"
+        className={cn(
+          'shrink-0 size-10 rounded-full flex items-center justify-center transition-colors',
+          isPlaying
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-primary/15 text-primary hover:bg-primary/25',
+        )}
         aria-label={isPlaying ? 'Pause' : 'Play'}
       >
-        <Avatar className="size-12 border-2 border-primary/20">
-          <AvatarImage src={avatarUrl} alt={avatarFallback} />
-          <AvatarFallback className="bg-primary/20 text-primary text-sm font-semibold">
-            {avatarFallback}
-          </AvatarFallback>
-        </Avatar>
-        <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover/play:opacity-100 transition-opacity">
-          {isPlaying
-            ? <Pause className="size-5 text-white" fill="white" />
-            : <Play className="size-5 text-white ml-0.5" fill="white" />}
-        </div>
+        {isPlaying
+          ? <Pause className="size-4" fill="currentColor" />
+          : <Play className="size-4 ml-0.5" fill="currentColor" />}
       </button>
 
       {/* Waveform + time */}
