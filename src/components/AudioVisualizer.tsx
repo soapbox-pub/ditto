@@ -166,7 +166,7 @@ export function AudioVisualizer({
     if (!audio) return;
     ensureAudioContext();
     if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
-    audio.paused ? audio.play() : audio.pause();
+    if (audio.paused) { audio.play(); } else { audio.pause(); }
   }, [ensureAudioContext]);
 
   const toggleMute = useCallback((e: React.MouseEvent) => {
