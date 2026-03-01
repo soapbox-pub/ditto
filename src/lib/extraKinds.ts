@@ -162,6 +162,19 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   // Social
   {
+    kind: 31923,
+    id: 'events',
+    showKey: 'showEvents',
+    feedKey: 'feedIncludeEvents',
+    label: 'Events',
+    description: 'Calendar events and meetups (NIP-52)',
+    route: 'events',
+    addressable: true,
+    section: 'social',
+    blurb: 'Discover events and meetups happening across the Nostr network. See what your friends are attending and RSVP.',
+    sites: [{ url: 'https://plektos.app', name: 'Plektos' }],
+  },
+  {
     kind: 1063,
     id: 'webxdc',
     showKey: 'showWebxdc',
