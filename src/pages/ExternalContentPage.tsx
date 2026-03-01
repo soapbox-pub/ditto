@@ -117,20 +117,20 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
     );
   }, [user, content, identifier, publishEvent, queryClient, toast]);
 
-  // Publish kind 1 share note with i tag
+  // Publish kind 16 generic repost with i tag
   const handleShare = useCallback(() => {
     if (!user) return;
     queryClient.setQueryData(['external-user-repost', identifier], 'optimistic');
 
     publishEvent(
       {
-        kind: 1,
-        content: identifier,
+        kind: 16,
+        content: '',
         created_at: Math.floor(Date.now() / 1000),
         tags: [
           ['i', identifier],
           ['k', getExternalKTag(content)],
-          ['alt', `Sharing: ${identifier}`],
+          ['alt', `Repost of ${identifier}`],
         ],
       },
       {
