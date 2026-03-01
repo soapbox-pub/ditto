@@ -13,12 +13,17 @@ interface UsePlayerControlsReturn {
   showControls: boolean;
   revealControls: () => void;
   scheduleHide: () => void;
+  isMuted: boolean;
+  volume: number;
+  toggleMute: (e: React.MouseEvent) => void;
+  handleVolumeChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 /**
  * Shared player control behaviour used by both VideoPlayer and AudioVisualizer:
  * - Auto-hides controls 2.5 s after the last mouse movement while playing.
  * - Pauses playback when the container scrolls out of view.
+ * - Manages volume state and mute toggling.
  */
 export function usePlayerControls({
   mediaRef,
@@ -63,5 +68,39 @@ export function usePlayerControls({
     return () => observer.disconnect();
   }, [mediaRef, containerRef]);
 
-  return { showControls, revealControls, scheduleHide };
+  // ── Volume ─────────────────────────────────────────────────────────────
+  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const prevVolumeRef = useRef(1);
+
+  const toggleMute = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const media = mediaRef.current;
+    if (!media) return;
+    if (media.muted || media.volume === 0) {
+      const restored = prevVolumeRef.current > 0 ? prevVolumeRef.current : 0.5;
+      media.muted = false;
+      media.volume = restored;
+      setIsMuted(false);
+      setVolume(restored);
+    } else {
+      prevVolumeRef.current = media.volume;
+      media.muted = true;
+      setIsMuted(true);
+    }
+  }, [mediaRef]);
+
+  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    const media = mediaRef.current;
+    if (!media) return;
+    const v = parseFloat(e.target.value);
+    media.volume = v;
+    media.muted = v === 0;
+    if (v > 0) prevVolumeRef.current = v;
+    setVolume(v);
+    setIsMuted(v === 0);
+  }, [mediaRef]);
+
+  return { showControls, revealControls, scheduleHide, isMuted, volume, toggleMute, handleVolumeChange };
 }
