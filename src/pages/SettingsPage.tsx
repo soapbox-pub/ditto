@@ -1,6 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ChevronRight, Scroll } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -124,7 +124,7 @@ export function SettingsPage() {
           <ArrowLeft className="size-5" />
         </Link>
         <div className="flex items-center gap-2">
-          <Scroll className="size-5" />
+          <Settings className="size-5" />
           <h1 className="text-xl font-bold">Settings</h1>
         </div>
       </div>

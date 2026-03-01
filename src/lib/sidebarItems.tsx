@@ -1,5 +1,5 @@
 import {
-  Bell, Search, TrendingUp, User, Bookmark, Scroll, SwatchBook, Palette,
+  Bell, Search, TrendingUp, User, Bookmark, Settings, SwatchBook, Palette,
   Clapperboard, BarChart3, PartyPopper, Radio, BookOpen, Sparkles, Blocks,
   MessageSquare, Repeat2, MessageSquareMore,
 } from 'lucide-react';
@@ -42,7 +42,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'trends', label: 'Trends', path: '/trends', icon: TrendingUp },
   { id: 'bookmarks', label: 'Bookmarks', path: '/bookmarks', icon: Bookmark, requiresAuth: true },
   { id: 'profile', label: 'Profile', path: '/profile', icon: User, requiresAuth: true },
-  { id: 'settings', label: 'Settings', path: '/settings', icon: Scroll },
+  { id: 'settings', label: 'Settings', path: '/settings', icon: Settings },
   { id: 'theme', label: 'Vibe', path: '/settings/theme', icon: SwatchBook },
   // Content types
   { id: 'articles', label: 'Articles', path: '/articles', icon: BookOpen },
