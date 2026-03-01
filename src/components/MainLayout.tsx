@@ -80,7 +80,7 @@ function MainLayoutInner() {
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
 
       {/* Main layout - three column on desktop */}
-      <div className={cn("flex justify-center min-h-screen mx-auto max-w-[1200px]", wrapperClassName)}>
+      <div className={cn("flex justify-center mx-auto max-w-[1200px]", wrapperClassName)}>
         {/* Desktop left sidebar - hidden below sidebar breakpoint */}
         <div className="hidden sidebar:block">
           <LeftSidebar />
