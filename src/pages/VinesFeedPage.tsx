@@ -754,21 +754,22 @@ export function VinesFeedPage() {
 
       {/* ── Mobile comments panel — full overlay, xl:hidden ─────────── */}
       {commentsOpen && (
-        <div className="xl:hidden absolute inset-0 z-30 flex flex-col bg-background">
+        <div className="xl:hidden absolute inset-0 z-30 flex flex-col bg-background/80 backdrop-blur-md">
           {/* Header */}
           <div className="flex items-center justify-between px-4 h-12 border-b border-border shrink-0">
             <button
               className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
               onClick={() => setCommentsOpen(false)}
             >
-              <ChevronLeft className="size-4" />
+              <ChevronLeft className="size-4" strokeWidth={4} />
               Back
             </button>
             <h2 className="text-base font-semibold">Replies</h2>
             <button
-              className="text-sm font-medium text-primary hover:underline"
+              className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
               onClick={() => { setCommentsOpen(false); setReplyOpen(true); }}
             >
+              <MessageCircle className="size-4" />
               Comment
             </button>
           </div>
