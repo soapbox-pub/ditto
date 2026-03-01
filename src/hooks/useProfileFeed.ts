@@ -3,6 +3,7 @@ import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useFeedSettings } from './useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { getPaginationCursor, parseRepostContent, isRepostKind, type FeedItem } from '@/lib/feedUtils';
+import { isReplyEvent } from '@/lib/nostrEvents';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /** Extended FeedItem with pagination metadata. */
@@ -36,8 +37,8 @@ export function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
         const e = item.event;
         if (item.repostedBy) return true; // Always show reposts
         if (e.kind === 1111) return false; // Kind 1111 comments are always replies
-        if (e.kind === 1) return !e.tags.some(([n]) => n === 'e'); // Kind 1 without e tags
-        return !e.tags.some(([n]) => n === 'e'); // Other kinds without e tags
+        if (e.kind === 1) return !isReplyEvent(e); // Kind 1 without reply e-tags
+        return !isReplyEvent(e); // Other kinds without reply e-tags
       });
     case 'replies':
       return items;

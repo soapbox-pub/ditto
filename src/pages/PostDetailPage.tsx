@@ -61,7 +61,7 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { ContentWarningGuard } from '@/components/ContentWarningGuard';
 import { MutedContentGuard } from '@/components/MutedContentGuard';
 import { ExternalContentPreview, ProfilePreview } from '@/components/ExternalContentHeader';
-import { getParentEventId } from '@/lib/nostrEvents';
+import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
 
 
 interface PostDetailPageProps {
@@ -698,6 +698,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       const directReplies: NostrEvent[] = [];
 
       for (const r of replies) {
+        if (!isReplyEvent(r)) continue; // mention-only e-tags are quotes, not replies
         const parentId = getParentEventId(r);
         if (!parentId || parentId === event.id) {
           directReplies.push(r);

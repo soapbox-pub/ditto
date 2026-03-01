@@ -46,7 +46,7 @@ import { ZapDialog } from '@/components/ZapDialog';
 import { ContentWarningGuard, getContentWarning } from '@/components/ContentWarningGuard';
 import { ThemeContent } from '@/components/ThemeContent';
 import { useAppContext } from '@/hooks/useAppContext';
-import { getParentEventId } from '@/lib/nostrEvents';
+import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -231,7 +231,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
     );
   }, [imetaMap, isTextNote]);
   const isComment = event.kind === 1111;
-  const isReply = isTextNote && !isComment && event.tags.some(([name]) => name === 'e');
+  const isReply = isTextNote && !isComment && isReplyEvent(event);
   
   // Find all people being replied to (for "Replying to @user1 and @user2")
   const replyToPubkeys = useMemo(() => {
