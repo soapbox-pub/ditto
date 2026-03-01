@@ -215,6 +215,7 @@ export function useNotifications(): NotificationData {
       await updateSettings.mutateAsync({
         notificationsCursor: newestTimestamp,
       });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread', user.pubkey] });
     } catch (error) {
       console.error('Failed to mark notifications as read:', error);
       // Roll back optimistic cursor on failure
