@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { getExtraKindDef } from "./lib/extraKinds";
-import { sidebarItemIcon } from "./components/SidebarNavItem";
+import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { MainLayout } from "./components/MainLayout";
 import { useCurrentUser } from "./hooks/useCurrentUser";

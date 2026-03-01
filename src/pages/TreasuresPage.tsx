@@ -1,6 +1,6 @@
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { getExtraKindDef, getPageKinds } from '@/lib/extraKinds';
-import { sidebarItemIcon } from '@/components/SidebarNavItem';
+import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { KindFeedPage } from './KindFeedPage';
 
 /** Find the Treasures definition from EXTRA_KINDS. */

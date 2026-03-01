@@ -47,7 +47,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
-import { EXTRA_KIND_ICONS } from '@/lib/extraKindIcons';
+import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
 // ---------------------------------------------------------------------------
 // Onboarding context — lets any component trigger the signup onboarding
@@ -214,13 +214,12 @@ const ONBOARDING_CONTENT_IDS = ['vines', 'streams', 'colors', 'decks', 'treasure
 /** Onboarding content kinds derived from EXTRA_KINDS — no separate data to maintain. */
 const CONTENT_KINDS = ONBOARDING_CONTENT_IDS.flatMap((id) => {
   const def = EXTRA_KINDS.find((d) => d.id === id);
-  if (!def || !def.showKey || !def.feedKey) return [];
+  if (!def || !def.feedKey) return [];
   return [{
     key: def.id,
     label: def.label,
     description: def.description,
-    icon: EXTRA_KIND_ICONS[def.id],
-    sidebarKey: def.showKey as string,
+    icon: CONTENT_KIND_ICONS[def.id],
     feedKey: def.feedKey as string,
   }];
 });

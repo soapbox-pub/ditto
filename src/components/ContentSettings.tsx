@@ -224,7 +224,7 @@ import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { EXTRA_KINDS, FEED_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
-import { EXTRA_KIND_ICONS } from '@/lib/extraKindIcons';
+import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
 function KindBadge({ kind }: { kind: number }) {
   return (
@@ -271,7 +271,7 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
-  const IconComponent = EXTRA_KIND_ICONS[def.id] ?? Palette;
+  const IconComponent = CONTENT_KIND_ICONS[def.id] ?? Palette;
   const icon = <IconComponent className="size-5" />;
   const hasSubKinds = !!def.subKinds;
 

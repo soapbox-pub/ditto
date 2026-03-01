@@ -1,6 +1,6 @@
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { THEME_DEFINITION_KIND, ACTIVE_THEME_KIND } from '@/lib/themeEvent';
-import { sidebarItemIcon } from '@/components/SidebarNavItem';
+import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { KindFeedPage } from './KindFeedPage';
 
 /** Find the Themes definition from EXTRA_KINDS. */

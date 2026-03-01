@@ -3,8 +3,7 @@ import { Plus, Pencil, Check } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { sidebarItemIcon } from '@/components/SidebarNavItem';
-import { itemPath } from '@/lib/sidebarItems';
+import { sidebarItemIcon, itemPath } from '@/lib/sidebarItems';
 import type { HiddenSidebarItem } from '@/hooks/useFeedSettings';
 
 interface SidebarMoreMenuProps {

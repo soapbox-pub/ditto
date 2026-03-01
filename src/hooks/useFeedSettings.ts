@@ -2,78 +2,30 @@ import { type FeedSettings } from "@/contexts/AppContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { EXTRA_KINDS } from "@/lib/extraKinds";
+import { SIDEBAR_ITEMS, SIDEBAR_ITEM_IDS } from "@/lib/sidebarItems";
 import { useCallback, useMemo } from "react";
 
-// ── Built-in sidebar items ────────────────────────────────────────────────────
-
-/** Definition for a built-in sidebar item (not backed by EXTRA_KINDS). */
-export interface BuiltinSidebarItem {
-  /** Unique identifier stored in sidebarOrder. */
-  id: string;
-  /** Display label. */
-  label: string;
-  /** Navigation path. */
-  path: string;
-  /** If true, only shown when a user is logged in. */
-  requiresAuth?: boolean;
-}
-
-/** All available built-in sidebar items, in default display order. */
-export const BUILTIN_SIDEBAR_ITEMS: BuiltinSidebarItem[] = [
-  { id: 'feed', label: 'Feed', path: '/' },
-  { id: 'notifications', label: 'Notifications', path: '/notifications', requiresAuth: true },
-  { id: 'search', label: 'Search', path: '/search' },
-  { id: 'trends', label: 'Trends', path: '/trends' },
-  { id: 'bookmarks', label: 'Bookmarks', path: '/bookmarks', requiresAuth: true },
-  { id: 'profile', label: 'Profile', path: '/profile', requiresAuth: true },
-  { id: 'settings', label: 'Settings', path: '/settings' },
-  { id: 'theme', label: 'Vibe', path: '/settings/theme' },
-];
-
-/** Set of all built-in IDs for quick lookup. */
-const BUILTIN_IDS = new Set(BUILTIN_SIDEBAR_ITEMS.map((b) => b.id));
-
-/** Check if a sidebar order entry is a built-in item. */
-export function isBuiltinItem(id: string): boolean {
-  return BUILTIN_IDS.has(id);
-}
-
-/** Get the built-in definition for an ID, or undefined. */
-export function getBuiltinItem(id: string): BuiltinSidebarItem | undefined {
-  return BUILTIN_SIDEBAR_ITEMS.find((b) => b.id === id);
-}
-
 // ── Order computation ─────────────────────────────────────────────────────────
+
+/** Default sidebar order for fresh installs (system pages only). */
+const DEFAULT_SIDEBAR_ORDER = SIDEBAR_ITEMS
+  .filter((s) => ['feed', 'notifications', 'search', 'trends', 'bookmarks', 'profile', 'settings', 'theme'].includes(s.id))
+  .map((s) => s.id);
 
 /**
  * Compute the ordered list of visible sidebar items.
  *
- * Each entry is either:
- * - A built-in ID like `"feed"` or `"trends"`
- * - An extra-kind ID like `"vines"` or `"streams"`
- *
  * `sidebarOrder` is the source of truth. Items present in the array
- * are shown; items absent are hidden. When sidebarOrder is empty
- * (fresh install), produces a default order of built-ins only.
+ * are shown; items absent are hidden. Unknown IDs are silently dropped.
+ * When sidebarOrder is empty (fresh install), produces a default order.
  */
-/** Set of all known extra-kind IDs with a sidebar page. */
-const EXTRA_KIND_IDS = new Set(
-  EXTRA_KINDS
-    .filter((def) => def.showKey && def.route)
-    .map((def) => def.id),
-);
-
 function computeOrderedItems(
   sidebarOrder: string[],
 ): string[] {
-  // If sidebarOrder is empty (fresh install / migration), produce default order
   if (sidebarOrder.length === 0) {
-    return BUILTIN_SIDEBAR_ITEMS.map((b) => b.id);
+    return DEFAULT_SIDEBAR_ORDER;
   }
 
-  // sidebarOrder is the source of truth — keep items that are known
-  // (either a built-in or a recognized extra-kind with a sidebar page).
   const ordered: string[] = [];
   const seen = new Set<string>();
 
@@ -81,7 +33,7 @@ function computeOrderedItems(
     if (seen.has(item)) continue;
     seen.add(item);
 
-    if (isBuiltinItem(item) || EXTRA_KIND_IDS.has(item)) {
+    if (SIDEBAR_ITEM_IDS.has(item)) {
       ordered.push(item);
     }
     // else: unknown entry — skip
@@ -92,15 +44,13 @@ function computeOrderedItems(
 
 /**
  * Compute the list of items available to add to the sidebar.
- * Returns both hidden extra-kind definitions and hidden built-in items.
+ * Returns sidebar items not currently in the ordered list.
  */
 export interface HiddenSidebarItem {
   /** Identifier to pass to addToSidebar. */
   id: string;
   /** Display label. */
   label: string;
-  /** Whether this is a built-in item. */
-  builtin: boolean;
 }
 
 function computeHiddenItems(
@@ -109,17 +59,9 @@ function computeHiddenItems(
   const visibleSet = new Set(orderedItems);
   const hidden: HiddenSidebarItem[] = [];
 
-  // Hidden built-ins (removed by user)
-  for (const b of BUILTIN_SIDEBAR_ITEMS) {
-    if (!visibleSet.has(b.id)) {
-      hidden.push({ id: b.id, label: b.label, builtin: true });
-    }
-  }
-
-  // Hidden extra-kinds (not in sidebarOrder)
-  for (const def of EXTRA_KINDS) {
-    if (def.showKey && def.route && !visibleSet.has(def.id)) {
-      hidden.push({ id: def.id, label: def.label, builtin: false });
+  for (const item of SIDEBAR_ITEMS) {
+    if (!visibleSet.has(item.id)) {
+      hidden.push({ id: item.id, label: item.label });
     }
   }
 
@@ -129,8 +71,7 @@ function computeHiddenItems(
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 /**
- * Hook to get and update feed settings (sidebar links + feed kind inclusion)
- * and manage sidebar order including built-in items.
+ * Hook to get and update feed settings and manage sidebar order.
  */
 export function useFeedSettings() {
   const { config, updateConfig } = useAppContext();
@@ -223,9 +164,9 @@ export function useFeedSettings() {
   return {
     feedSettings: config.feedSettings,
     updateFeedSettings,
-    /** Ordered list of visible sidebar item IDs (built-in + extra-kind). */
+    /** Ordered list of visible sidebar item IDs. */
     orderedItems,
-    /** Items available to add to the sidebar (hidden built-ins + disabled extra-kinds). */
+    /** Items available to add to the sidebar. */
     hiddenItems,
     /** Persist a new order for the sidebar. */
     updateSidebarOrder,
