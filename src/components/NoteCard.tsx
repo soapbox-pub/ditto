@@ -254,8 +254,20 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
     
     // Fallback: if all p tags are mentions, use all p tags anyway
     const allPTags = event.tags.filter(([name]) => name === 'p');
-    return [...new Set(allPTags.map(([, pubkey]) => pubkey))];
-  }, [event.tags, isTextNote, isReply]);
+    if (allPTags.length > 0) {
+      return [...new Set(allPTags.map(([, pubkey]) => pubkey))];
+    }
+
+    // Self-reply fallback: when replying to own post, no p tags are added (the
+    // author's own pubkey is excluded during compose). Try to extract the parent
+    // author from the reply/root e-tag's 5th element (NIP-10 pubkey hint), and
+    // ultimately fall back to the event author (self-reply).
+    const eTags = event.tags.filter(([name, , , marker]) => name === 'e' && marker !== 'mention');
+    const replyTag = eTags.find(([, , , marker]) => marker === 'reply');
+    const rootTag = eTags.find(([, , , marker]) => marker === 'root');
+    const parentAuthor = (replyTag?.[4] || rootTag?.[4] || event.pubkey);
+    return [parentAuthor];
+  }, [event.tags, isTextNote, isReply, event.pubkey]);
 
   // Extract the parent event ID for reply hover card preview
   const parentEventId = useMemo(() => {
@@ -286,7 +298,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
     <>
       {/* Reply context (kind 1) or comment context (kind 1111) — shown above content */}
       {isComment && <CommentContext event={event} />}
-      {isReply && replyToPubkeys.length > 0 && (
+      {isReply && (
         <ReplyContext pubkeys={replyToPubkeys} parentEventId={parentEventId} />
       )}
 
