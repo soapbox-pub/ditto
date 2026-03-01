@@ -318,6 +318,7 @@ function VineCard({ event, isActive, onCommentClick }: VineCardProps) {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [isAttemptingPlay, setIsAttemptingPlay] = useState(isActive);
   const [isMuted, setIsMuted] = useState(globalMuted);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -336,12 +337,15 @@ function VineCard({ event, isActive, onCommentClick }: VineCardProps) {
       video.currentTime = 0;
       video.muted = globalMuted;
       setIsMuted(globalMuted);
+      setIsAttemptingPlay(true);
       video.play().catch(() => {
         // Autoplay blocked — leave paused, user can tap
+        setIsAttemptingPlay(false);
       });
     } else {
       video.pause();
       video.currentTime = 0;
+      setIsAttemptingPlay(false);
     }
   }, [isActive, imeta.url]);
 
@@ -374,20 +378,30 @@ function VineCard({ event, isActive, onCommentClick }: VineCardProps) {
           <video
             ref={videoRef}
             src={src}
-            poster={imeta.thumbnail}
             className="absolute inset-0 w-full h-full object-cover"
             loop
             playsInline
             muted={isMuted}
             preload="metadata"
-            onPlay={() => { setIsPlaying(true); setHasStarted(true); }}
-            onPause={() => setIsPlaying(false)}
+            onPlay={() => { setIsPlaying(true); setHasStarted(true); setIsAttemptingPlay(false); }}
+            onPause={() => { setIsPlaying(false); setIsAttemptingPlay(false); }}
             onError={onBlossomError}
             onClick={togglePlay}
           />
+          {/* Poster image rendered separately so it persists until video is playing */}
+          {imeta.thumbnail && (
+            <img
+              src={imeta.thumbnail}
+              aria-hidden
+              className={cn(
+                'absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-300',
+                isPlaying ? 'opacity-0' : 'opacity-100',
+              )}
+            />
+          )}
 
-          {/* Big play overlay before first play */}
-          {!hasStarted && (
+          {/* Big play overlay before first play — hidden while autoplay is attempting */}
+          {!hasStarted && !isAttemptingPlay && (
             <div
               className="absolute inset-0 flex items-center justify-center cursor-pointer"
               onClick={togglePlay}
@@ -695,10 +709,21 @@ export function VinesFeedPage() {
     return (
       <div className="flex-1 min-w-0 flex flex-col h-[calc(100dvh-3rem-3.5rem)] sidebar:h-screen">
         <VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-6">
-            <DittoLogo size={48} />
-            <div className="size-6 rounded-full border-[2.5px] border-primary/25 border-t-primary animate-spin" />
+        {/* Vine card skeleton */}
+        <div className="flex-1 relative bg-neutral-900 overflow-hidden">
+          <Skeleton className="absolute inset-0 rounded-none bg-neutral-800" />
+          {/* Bottom info strip */}
+          <div className="absolute bottom-6 left-4 right-20 space-y-2">
+            <Skeleton className="h-4 w-28 bg-white/20" />
+            <Skeleton className="h-3 w-48 bg-white/10" />
+            <Skeleton className="h-3 w-20 bg-white/10" />
+          </div>
+          {/* Right action buttons */}
+          <div className="absolute right-3 bottom-24 flex flex-col items-center gap-5">
+            <Skeleton className="size-11 rounded-full bg-white/20" />
+            <Skeleton className="size-11 rounded-full bg-white/20" />
+            <Skeleton className="size-11 rounded-full bg-white/20" />
+            <Skeleton className="size-11 rounded-full bg-white/20" />
           </div>
         </div>
       </div>
