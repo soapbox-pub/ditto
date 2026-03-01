@@ -756,21 +756,18 @@ export function VinesFeedPage() {
       {/* ── Mobile comments panel — full overlay, xl:hidden ─────────── */}
       {commentsOpen && (
         <div className="xl:hidden absolute inset-0 z-30 flex flex-col bg-background/80 backdrop-blur-md">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 h-12 border-b border-border shrink-0">
-            <button
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setCommentsOpen(false)}
-            >
-              <ChevronLeft className="size-4" strokeWidth={4} />
-              Back
-            </button>
-            <h2 className="text-base font-semibold">Replies</h2>
-            <div className="w-16" />
-          </div>
-          {/* Compose at the top */}
+          {/* Compose with back button baked in above it */}
           {activeVine && (
             <div className="border-b border-border shrink-0">
+              <div className="flex items-center gap-1 px-4 pt-2">
+                <button
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setCommentsOpen(false)}
+                >
+                  <ChevronLeft className="size-3.5" />
+                  Back
+                </button>
+              </div>
               <ComposeBox replyTo={activeVine} compact placeholder="Add a comment…" />
             </div>
           )}
