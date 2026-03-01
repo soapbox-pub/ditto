@@ -125,15 +125,133 @@ function isIdsOnlyFilter(filter: NostrFilter): filter is { ids: string[]; limit?
   return keys.every((k) => k === 'ids' || k === 'limit') && Array.isArray(filter.ids) && filter.ids.length === 1;
 }
 
-/** A filter that fetches a single replaceable event by author: `{ kinds: [k], authors: [a], limit?: n }` */
-function isProfileFilter(filter: NostrFilter): boolean {
+/**
+ * Replaceable kinds that are fetched once per author and can be merged into a
+ * single multi-kind query when multiple hooks request different kinds for the
+ * same pubkey in the same microtask tick.
+ */
+const REPLACEABLE_KINDS = new Set([0, 3, 10000, 10001, 10002, 10003, 16767]);
+
+/**
+ * A filter that fetches a single replaceable event by author:
+ * `{ kinds: [k], authors: [a], limit?: n }` where k is a known replaceable kind.
+ */
+function isReplaceableFilter(filter: NostrFilter): boolean {
   const keys = Object.keys(filter);
   return (
     keys.every((k) => k === 'kinds' || k === 'authors' || k === 'limit') &&
     filter.kinds?.length === 1 &&
-    filter.kinds[0] === 0 &&
+    REPLACEABLE_KINDS.has(filter.kinds[0]) &&
     filter.authors?.length === 1
   );
+}
+
+/**
+ * Batches replaceable-kind queries by pubkey across a microtask window.
+ *
+ * When multiple hooks request different kinds for the same pubkey
+ * (e.g. kind 0 from useAuthor, kind 3 from useFollowList, kind 10000 from
+ * useMuteList), they are merged into one REQ:
+ *   { kinds: [0, 3, 10000], authors: [pubkey], limit: 3 }
+ *
+ * Each caller still gets back only its own event (or undefined).
+ */
+class ReplaceableCollector {
+  /** Pending requests keyed by `${pubkey}:${kind}`. */
+  private pending: Array<{
+    pubkey: string;
+    kind: number;
+    resolve: (event: NostrEvent | undefined) => void;
+    reject: (error: unknown) => void;
+    signal?: AbortSignal;
+  }> = [];
+  private scheduled = false;
+
+  constructor(
+    private pool: NPool,
+  ) {}
+
+  request(pubkey: string, kind: number, signal?: AbortSignal): Promise<NostrEvent | undefined> {
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(signal.reason);
+        return;
+      }
+      this.pending.push({ pubkey, kind, resolve, reject, signal });
+      if (!this.scheduled) {
+        this.scheduled = true;
+        queueMicrotask(() => this.flush());
+      }
+    });
+  }
+
+  private async flush(): Promise<void> {
+    const batch = this.pending;
+    this.pending = [];
+    this.scheduled = false;
+
+    if (batch.length === 0) return;
+
+    const live = batch.filter((r) => !r.signal?.aborted);
+    for (const r of batch.filter((r) => r.signal?.aborted)) {
+      r.reject(r.signal!.reason);
+    }
+    if (live.length === 0) return;
+
+    // Group by pubkey, collect unique kinds per pubkey.
+    const byPubkey = new Map<string, Set<number>>();
+    for (const { pubkey, kind } of live) {
+      if (!byPubkey.has(pubkey)) byPubkey.set(pubkey, new Set());
+      byPubkey.get(pubkey)!.add(kind);
+    }
+
+    // Combined abort: only abort when ALL callers have aborted.
+    const controller = new AbortController();
+    const liveSignals = live.map((r) => r.signal).filter(Boolean) as AbortSignal[];
+    if (liveSignals.length > 0 && liveSignals.length === live.length) {
+      const checkAllAborted = () => {
+        if (liveSignals.every((s) => s.aborted)) controller.abort(liveSignals[0].reason);
+      };
+      for (const sig of liveSignals) sig.addEventListener('abort', checkAllAborted, { once: true });
+    }
+
+    // results[pubkey][kind] = event | undefined
+    const results = new Map<string, Map<number, NostrEvent | undefined>>();
+
+    try {
+      await Promise.all(
+        [...byPubkey.entries()].map(async ([pubkey, kinds]) => {
+          const kindList = [...kinds];
+          const events = await this.pool.query(
+            [{ kinds: kindList, authors: [pubkey], limit: kindList.length }],
+            { signal: controller.signal },
+          );
+          // Pick newest per kind.
+          const byKind = new Map<number, NostrEvent>();
+          for (const event of events) {
+            const existing = byKind.get(event.kind);
+            if (!existing || event.created_at > existing.created_at) {
+              byKind.set(event.kind, event);
+            }
+          }
+          const kindMap = new Map<number, NostrEvent | undefined>();
+          for (const kind of kindList) kindMap.set(kind, byKind.get(kind));
+          results.set(pubkey, kindMap);
+        }),
+      );
+    } catch (error) {
+      for (const r of live) r.reject(error);
+      return;
+    }
+
+    for (const r of live) {
+      if (r.signal?.aborted) {
+        r.reject(r.signal.reason);
+      } else {
+        r.resolve(results.get(r.pubkey)?.get(r.kind));
+      }
+    }
+  }
 }
 
 /** A filter for kind:7 reactions by a single author to a single event. */
@@ -256,7 +374,8 @@ function isDTagFilter(filter: NostrFilter): boolean {
  * `nostr.query([{ kinds: [0], authors: [pk], limit: 1 }])` as usual.
  */
 export class NostrBatcher {
-  private profileCollector: BatchCollector<NostrEvent | undefined>;
+  /** Batches replaceable-kind queries by pubkey, merging kinds per pubkey into one REQ. */
+  private replaceableCollector: ReplaceableCollector;
   private eventCollector: BatchCollector<NostrEvent | undefined>;
   /** Keyed by userPubkey so each user's reactions batch separately. */
   private reactionCollectors = new Map<string, BatchCollector<NostrEvent | undefined>>();
@@ -270,9 +389,7 @@ export class NostrBatcher {
   private multiFilterCollectors = new Map<string, BatchCollector<NostrEvent[]>>();
 
   constructor(private pool: NPool) {
-    this.profileCollector = new BatchCollector((pubkeys, signal) =>
-      this.executeProfileBatch(pubkeys, signal),
-    );
+    this.replaceableCollector = new ReplaceableCollector(pool);
     this.eventCollector = new BatchCollector((ids, signal) =>
       this.executeEventBatch(ids, signal),
     );
@@ -296,9 +413,9 @@ export class NostrBatcher {
         return event ? [event] : [];
       }
 
-      // { kinds: [0], authors: [singlePubkey] }
-      if (isProfileFilter(filter)) {
-        const event = await this.profileCollector.request(filter.authors![0], opts?.signal);
+      // { kinds: [replaceableKind], authors: [singlePubkey] }
+      if (isReplaceableFilter(filter)) {
+        const event = await this.replaceableCollector.request(filter.authors![0], filter.kinds![0], opts?.signal);
         return event ? [event] : [];
       }
 
@@ -418,34 +535,6 @@ export class NostrBatcher {
   }
 
   // --- Batch executors ---
-
-  private async executeProfileBatch(
-    pubkeys: string[],
-    signal: AbortSignal,
-  ): Promise<Map<string, NostrEvent | undefined>> {
-    const results = new Map<string, NostrEvent | undefined>();
-    try {
-      const events = await this.pool.query(
-        [{ kinds: [0], authors: pubkeys, limit: pubkeys.length }],
-        { signal },
-      );
-      const byPubkey = new Map<string, NostrEvent>();
-      for (const event of events) {
-        const existing = byPubkey.get(event.pubkey);
-        if (!existing || event.created_at > existing.created_at) {
-          byPubkey.set(event.pubkey, event);
-        }
-      }
-      for (const pubkey of pubkeys) {
-        results.set(pubkey, byPubkey.get(pubkey));
-      }
-    } catch {
-      for (const pubkey of pubkeys) {
-        results.set(pubkey, undefined);
-      }
-    }
-    return results;
-  }
 
   private async executeRepostBatch(
     userPubkey: string,

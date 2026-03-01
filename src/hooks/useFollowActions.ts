@@ -3,8 +3,6 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
-import { parseAuthorEvent } from './useAuthor';
-import { parseMuteTags, setCachedMuteItems } from './useMuteList';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
@@ -59,7 +57,7 @@ function getCachedFollowList(pubkey: string): FollowListData | undefined {
 }
 
 /** Persist follow pubkeys to localStorage. */
-export function setCachedFollowList(pubkey: string, pubkeys: string[]): void {
+function setCachedFollowList(pubkey: string, pubkeys: string[]): void {
   try {
     localStorage.setItem(FOLLOW_CACHE_KEY, JSON.stringify({ pubkey, pubkeys }));
   } catch {
@@ -78,54 +76,21 @@ export function setCachedFollowList(pubkey: string, pubkeys: string[]): void {
 export function useFollowList() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const queryClient = useQueryClient();
 
   return useQuery<FollowListData>({
     queryKey: ['follow-list', user?.pubkey ?? ''],
     queryFn: async ({ signal }) => {
       if (!user) return { event: null, pubkeys: [] };
-
-      // Fetch profile, follow list, and mute list in one REQ so layout
-      // components (useCurrentUser, useMuteList) resolve from cache
-      // instead of each firing their own query.
-      const events = await nostr.query(
-        [{ kinds: [0, 3, 10000], authors: [user.pubkey], limit: 3 }],
+      const [event] = await nostr.query(
+        [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
-
-      const profile = events.find((e) => e.kind === 0);
-      const followList = events.find((e) => e.kind === 3);
-      const muteList = events.find((e) => e.kind === 10000);
-
-      // Seed author cache so useCurrentUser resolves instantly
-      if (profile) {
-        queryClient.setQueryData(['author', user.pubkey], parseAuthorEvent(profile));
-      }
-
-      // Seed mute list cache so useMuteList resolves instantly
-      if (muteList) {
-        queryClient.setQueryData(['muteList', user.pubkey], muteList);
-        if (muteList.content && user.signer.nip44) {
-          try {
-            const decrypted = await user.signer.nip44.decrypt(user.pubkey, muteList.content);
-            const tags = JSON.parse(decrypted) as string[][];
-            const items = parseMuteTags(tags);
-            queryClient.setQueryData(['muteItems', muteList.id], items);
-            setCachedMuteItems(user.pubkey, items);
-          } catch {
-            // Decryption failure is non-critical — useMuteList will retry
-          }
-        }
-      }
-
-      if (!followList) return { event: null, pubkeys: [] };
-
-      const pubkeys = followList.tags
+      if (!event) return { event: null, pubkeys: [] };
+      const pubkeys = event.tags
         .filter(([name]) => name === 'p')
         .map(([, pk]) => pk);
-      // Persist to localStorage for next visit
       setCachedFollowList(user.pubkey, pubkeys);
-      return { event: followList, pubkeys };
+      return { event, pubkeys };
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
