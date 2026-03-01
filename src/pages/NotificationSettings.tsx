@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft, Bell, BellOff, AlertTriangle } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
@@ -31,7 +32,7 @@ export function NotificationSettings() {
   const pushEnabled = settings?.notificationsEnabled ?? false;
 
   const handleTogglePush = async (enabled: boolean) => {
-    if (enabled) {
+    if (enabled && !Capacitor.isNativePlatform()) {
       if (!('Notification' in window)) return;
 
       // Request browser permission first (no-op if already granted/denied)
@@ -50,8 +51,11 @@ export function NotificationSettings() {
     return <Navigate to="/settings" replace />;
   }
 
-  const isSupported = 'Notification' in window;
-  const isDenied = permission === 'denied';
+  // Native platforms use the Java foreground service for notifications,
+  // not the browser Notification API — always supported.
+  const isNative = Capacitor.isNativePlatform();
+  const isSupported = isNative || 'Notification' in window;
+  const isDenied = !isNative && permission === 'denied';
 
   return (
     <main className="min-h-screen">
