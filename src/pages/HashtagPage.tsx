@@ -6,6 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DITTO_RELAY } from '@/lib/appRelays';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useMuteList } from '@/hooks/useMuteList';
@@ -34,11 +35,12 @@ export function HashtagPage() {
     queryKey: ['hashtag', tag ?? '', kindsKey],
     queryFn: async ({ signal }) => {
       if (!tag) return [];
-      const results = await nostr.query(
-        [{ kinds, '#t': [tag.toLowerCase()], limit: 40 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+      const ditto = nostr.relay(DITTO_RELAY);
+      const results = await ditto.query(
+        [{ kinds, '#t': [tag.toLowerCase()], search: 'sort:hot', limit: 40 }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
-      return results.sort((a, b) => b.created_at - a.created_at);
+      return results;
     },
     enabled: !!tag,
   });
