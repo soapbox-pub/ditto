@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
 
@@ -10,9 +12,13 @@ interface TweetEmbedProps {
  * Renders a Twitter/X tweet embed using a direct iframe to Twitter's
  * embed page. No third-party scripts are loaded — just an iframe to
  * `platform.twitter.com/embed/Tweet.html` with the tweet ID and options.
+ *
+ * Listens for `twttr.private.resize` postMessage events from the embed
+ * to auto-size the iframe to fit the tweet content.
  */
 export function TweetEmbed({ tweetId, className }: TweetEmbedProps) {
   const { theme } = useTheme();
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const params = new URLSearchParams({
     id: tweetId,
@@ -20,9 +26,32 @@ export function TweetEmbed({ tweetId, className }: TweetEmbedProps) {
     theme: theme === 'dark' ? 'dark' : 'light',
   });
 
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      // Twitter embed posts resize messages from platform.twitter.com
+      if (e.origin !== 'https://platform.twitter.com') return;
+      if (!iframeRef.current || e.source !== iframeRef.current.contentWindow) return;
+
+      // Twitter embed wraps messages as: { "twttr.embed": { method, params } }
+      const wrapper = e.data?.['twttr.embed'];
+      if (!wrapper || typeof wrapper !== 'object') return;
+
+      if (wrapper.method === 'twttr.private.resize') {
+        const height = wrapper.params?.[0]?.height;
+        if (typeof height === 'number' && height > 0) {
+          iframeRef.current.style.height = `${height}px`;
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
   return (
     <div className={cn('rounded-2xl border border-border overflow-hidden', className)}>
       <iframe
+        ref={iframeRef}
         src={`https://platform.twitter.com/embed/Tweet.html?${params}`}
         title="Tweet"
         className="w-full border-0"
@@ -30,24 +59,6 @@ export function TweetEmbed({ tweetId, className }: TweetEmbedProps) {
         allowFullScreen
         loading="lazy"
         sandbox="allow-scripts allow-same-origin allow-popups"
-        onLoad={(e) => {
-          // Auto-resize iframe to fit tweet content
-          const iframe = e.currentTarget;
-          const tryResize = () => {
-            try {
-              const height = iframe.contentDocument?.documentElement?.scrollHeight;
-              if (height && height > 100) {
-                iframe.style.height = `${height}px`;
-              }
-            } catch {
-              // Cross-origin — can't access contentDocument, keep minHeight
-            }
-          };
-          tryResize();
-          // Retry after a delay since tweets render async inside the iframe
-          setTimeout(tryResize, 1500);
-          setTimeout(tryResize, 3000);
-        }}
       />
     </div>
   );
