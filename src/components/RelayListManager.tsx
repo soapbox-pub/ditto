@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Wifi, Settings, Server, User } from 'lucide-react';
+import { Plus, X, Wifi, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -219,10 +219,7 @@ export function RelayListManager() {
       <div className="pt-4 pb-4">
         <div className="px-3 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Server className="h-5 w-5 text-muted-foreground" />
-              <h3 className="text-sm font-medium">App Relays</h3>
-            </div>
+            <h3 className="text-sm font-medium">App Relays</h3>
             <div className="flex items-center gap-2">
               <Label htmlFor="use-app-relays" className="text-xs text-muted-foreground cursor-pointer">
                 {config.useAppRelays ? 'Enabled' : 'Disabled'}
@@ -269,10 +266,7 @@ export function RelayListManager() {
       {/* User Relays Section */}
       <div className="pb-4 pt-4">
         <div className="px-3 space-y-3">
-          <div className="flex items-center gap-2">
-            <User className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-sm font-medium">Your Relays</h3>
-          </div>
+          <h3 className="text-sm font-medium">Your Relays</h3>
           <p className="text-xs text-muted-foreground">
             Your personal NIP-65 relay list. These are synced to Nostr when logged in.
           </p>
