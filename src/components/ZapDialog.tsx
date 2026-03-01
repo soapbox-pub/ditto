@@ -81,7 +81,7 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
 
         <Separator className="my-4" />
 
-        <div className="flex flex-col justify-center min-h-0 flex-1 px-2">
+        <div className="flex flex-col justify-center min-h-0 flex-1 px-5">
           {/* QR Code */}
           <div className="flex justify-center">
             <Card className="p-3 w-[min(240px,70vw,35vh)] mx-auto">
