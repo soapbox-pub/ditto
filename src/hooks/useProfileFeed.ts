@@ -1,40 +1,10 @@
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useFeedSettings } from './useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { getPaginationCursor, parseRepostContent, isRepostKind, type FeedItem } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import type { NostrEvent } from '@nostrify/nostrify';
-
-/**
- * Fetches the write relay URLs from a user's NIP-65 relay list (kind 10002).
- * Write relays are where the user publishes their content, so querying them
- * directly gives the most complete view of their posts.
- */
-function useProfileWriteRelays(pubkey: string | undefined): string[] {
-  const { nostr } = useNostr();
-
-  const { data } = useQuery({
-    queryKey: ['profileWriteRelays', pubkey ?? ''],
-    queryFn: async ({ signal }) => {
-      if (!pubkey) return [];
-      const events = await nostr.query(
-        [{ kinds: [10002], authors: [pubkey], limit: 1 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-      );
-      if (events.length === 0) return [];
-      return events[0].tags
-        .filter(([name, , marker]) => name === 'r' && marker !== 'read')
-        .map(([, url]) => url)
-        .filter(Boolean);
-    },
-    enabled: !!pubkey,
-    staleTime: 10 * 60 * 1000, // relay lists change infrequently
-    gcTime: 30 * 60 * 1000,
-  });
-
-  return data ?? [];
-}
 
 /** Extended FeedItem with pagination metadata. */
 interface ProfileFeedPage {
@@ -82,8 +52,6 @@ export function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
 /**
  * Infinite-scroll hook for profile posts/replies/media.
  * Fetches paginated events for a given pubkey and tab.
- * Queries the user's NIP-65 write relays first (where they publish content),
- * falling back to the default pool if no write relays are available.
  */
 export function useProfileFeed(pubkey: string | undefined) {
   const { nostr } = useNostr();
@@ -93,13 +61,8 @@ export function useProfileFeed(pubkey: string | undefined) {
   const profileKinds = getEnabledFeedKinds(feedSettings);
   const kindsKey = [...profileKinds].sort().join(',');
 
-  // Fetch the profile user's NIP-65 write relays so we can query them directly.
-  // These are the relays where the user publishes their content.
-  const writeRelays = useProfileWriteRelays(pubkey);
-  const writeRelaysKey = writeRelays.join(',');
-
   return useInfiniteQuery<ProfileFeedPage, Error>({
-    queryKey: ['profile-feed', pubkey ?? '', kindsKey, writeRelaysKey],
+    queryKey: ['profile-feed', pubkey ?? '', kindsKey],
     queryFn: async ({ pageParam, signal }) => {
       if (!pubkey) return { items: [], oldestQueryTimestamp: Math.floor(Date.now() / 1000), rawCount: 0 };
 
@@ -126,12 +89,7 @@ export function useProfileFeed(pubkey: string | undefined) {
         feedFilter.until = pageParam;
       }
 
-      // Query write relays directly if available — this gives the most complete
-      // view of the user's posts since those are the relays they publish to.
-      // Fall back to the default pool (all configured read relays) otherwise.
-      const queryTarget = writeRelays.length > 0 ? nostr.group(writeRelays) : nostr;
-
-      const allEvents = await queryTarget.query(
+      const allEvents = await nostr.query(
         [feedFilter] as { kinds: number[]; authors: string[]; limit: number; until?: number }[],
         { signal: querySignal },
       );
