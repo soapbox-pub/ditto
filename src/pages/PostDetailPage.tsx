@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { NoteContent } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { NoteCard } from '@/components/NoteCard';
+import { ThreadedReplyList } from '@/components/ThreadedReplyList';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ReactionButton } from '@/components/ReactionButton';
@@ -1070,14 +1071,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             ))}
           </div>
         ) : orderedReplies.length > 0 ? (
-          orderedReplies.map(({ reply, firstSubReply }) => (
-            <div key={reply.id}>
-              <NoteCard event={reply} threaded={!!firstSubReply} />
-              {firstSubReply && (
-                <NoteCard event={firstSubReply} threadedLast />
-              )}
-            </div>
-          ))
+          <ThreadedReplyList replies={orderedReplies} />
         ) : !parentEventId ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
             No replies yet. Be the first to reply!
