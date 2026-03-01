@@ -17,7 +17,7 @@ export function ThemeSettingsPage() {
       {/* Header with back link */}
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-center gap-4">
-          <Link to="/settings" className="md:hidden p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
+          <Link to="/settings" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
             <ArrowLeft className="size-5" />
           </Link>
           <div>
