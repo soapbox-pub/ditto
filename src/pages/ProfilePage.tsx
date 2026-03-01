@@ -37,7 +37,6 @@ import type { ProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useWallComments } from '@/hooks/useWallComments';
-import { useComments } from '@/hooks/useComments';
 import { ThreadedReplyList } from '@/components/ThreadedReplyList';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
@@ -747,9 +746,6 @@ export function ProfilePage() {
     };
   }, [pubkey, metadataEvent]);
 
-  // Fetch all NIP-22 comments on the profile (for sub-reply pairing in the wall tab)
-  const { data: wallCommentsData } = useComments(wallReplyTarget, 500);
-
   // Wall compose modal state (for FAB on wall tab)
   const [wallComposeOpen, setWallComposeOpen] = useState(false);
 
@@ -1038,21 +1034,34 @@ export function ProfilePage() {
   }, [wallData?.pages, muteItems]);
 
   // Pair each wall comment with its first direct sub-reply (same pattern as PostDetailPage replies).
-  // useWallComments uses #A (uppercase) which returns ALL depth levels, so filter to only
-  // top-level comments (lowercase `a` tag pointing directly at the kind-0 root).
+  // useWallComments queries #A (uppercase root tag) which returns all depth levels per NIP-22,
+  // so separate top-level from sub-replies using the lowercase `a` tag, then build the lookup
+  // from the already-fetched, follow-filtered wallComments — no extra query needed.
   const orderedWallReplies = useMemo(() => {
     const rootATag = pubkey ? `0:${pubkey}:` : '';
-    const topLevel = wallComments.filter((comment) =>
-      comment.tags.some(([name, val]) => name === 'a' && val === rootATag)
-    );
-    return topLevel.map((comment) => {
-      const subReplies = wallCommentsData?.getDirectReplies(comment.id) ?? [];
-      return {
-        reply: comment,
-        firstSubReply: subReplies[0] as NostrEvent | undefined,
-      };
-    });
-  }, [wallComments, wallCommentsData, pubkey]);
+    const topLevel: NostrEvent[] = [];
+    // Map from parent comment id → direct child comments
+    const childrenByParent = new Map<string, NostrEvent[]>();
+
+    for (const comment of wallComments) {
+      const isTopLevel = comment.tags.some(([name, val]) => name === 'a' && val === rootATag);
+      if (isTopLevel) {
+        topLevel.push(comment);
+      } else {
+        const parentId = comment.tags.find(([name]) => name === 'e')?.[1];
+        if (parentId) {
+          const siblings = childrenByParent.get(parentId) ?? [];
+          siblings.push(comment);
+          childrenByParent.set(parentId, siblings);
+        }
+      }
+    }
+
+    return topLevel.map((comment) => ({
+      reply: comment,
+      firstSubReply: childrenByParent.get(comment.id)?.[0],
+    }));
+  }, [wallComments, pubkey]);
 
   const streak = useMemo(() => {
     if (!feedData?.pages) return 0;
