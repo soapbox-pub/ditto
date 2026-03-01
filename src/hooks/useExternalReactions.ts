@@ -89,7 +89,7 @@ export function useExternalRepostStatus(content: ExternalContent | null | undefi
 
       const events = await nostr.query(
         [{
-          kinds: [16],
+          kinds: [1],
           authors: [user.pubkey],
           '#i': [identifier],
           limit: 1,
