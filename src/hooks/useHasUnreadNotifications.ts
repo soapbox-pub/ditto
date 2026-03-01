@@ -24,7 +24,7 @@ export function useHasUnreadNotifications(): boolean {
     : null;
 
   const { data: hasUnread = false } = useQuery<boolean>({
-    queryKey: ['notifications-unread', user?.pubkey ?? '', notificationsCursor],
+    queryKey: ['notifications-unread', user?.pubkey ?? ''],
     queryFn: async ({ signal }) => {
       if (!user || notificationsCursor === null) return false;
 
