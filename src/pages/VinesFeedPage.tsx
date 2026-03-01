@@ -41,6 +41,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 import { DittoLogo } from '@/components/DittoLogo';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
+import { ComposeBox } from '@/components/ComposeBox';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { canZap } from '@/lib/canZap';
@@ -765,14 +766,14 @@ export function VinesFeedPage() {
               Back
             </button>
             <h2 className="text-base font-semibold">Replies</h2>
-            <button
-              className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-              onClick={() => { setCommentsOpen(false); setReplyOpen(true); }}
-            >
-              <MessageCircle className="size-4" />
-              Comment
-            </button>
+            <div className="w-16" />
           </div>
+          {/* Compose at the top */}
+          {activeVine && (
+            <div className="border-b border-border shrink-0">
+              <ComposeBox replyTo={activeVine} compact placeholder="Add a comment…" />
+            </div>
+          )}
           <VinesCommentsContent activeVine={activeVine} />
         </div>
       )}
