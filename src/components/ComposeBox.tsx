@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Paperclip, Smile, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { Paperclip, Smile, AlertTriangle, X, Loader2, ImagePlay } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EmojiPicker } from '@/components/EmojiPicker';
+import { GifPicker } from '@/components/GifPicker';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { MentionAutocomplete } from '@/components/MentionAutocomplete';
 import { EmojiShortcodeAutocomplete } from '@/components/EmojiShortcodeAutocomplete';
@@ -159,6 +160,7 @@ export function ComposeBox({
   const [cwEnabled, setCwEnabled] = useState(false);
   const [cwText, setCwText] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [gifOpen, setGifOpen] = useState(false);
   const [internalPreviewMode, setInternalPreviewMode] = useState(false);
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const [_uploadedFileTags, setUploadedFileTags] = useState<string[][]>([]);
@@ -901,6 +903,39 @@ export function ComposeBox({
                 >
                   <EmojiPicker onSelect={(emoji) => {
                     insertEmoji(emoji);
+                  }} />
+                </PopoverContent>
+              </Popover>
+
+              {/* GIF picker */}
+              <Popover open={gifOpen} onOpenChange={setGifOpen}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={cn(
+                          'p-2 rounded-full transition-colors',
+                          gifOpen
+                            ? 'text-primary bg-primary/10'
+                            : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
+                        )}
+                      >
+                        <ImagePlay className="size-[18px]" />
+                      </button>
+                    </PopoverTrigger>
+                  </TooltipTrigger>
+                  {!gifOpen && <TooltipContent>GIF</TooltipContent>}
+                </Tooltip>
+                <PopoverContent
+                  align="start"
+                  sideOffset={8}
+                  className="w-auto p-0 border-border"
+                >
+                  <GifPicker onSelect={(gif) => {
+                    setContent((prev) => (prev ? prev + '\n' + gif.url : gif.url));
+                    setGifOpen(false);
+                    expand();
                   }} />
                 </PopoverContent>
               </Popover>

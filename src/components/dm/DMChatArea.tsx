@@ -14,9 +14,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ArrowLeft, Send, Loader2, AlertTriangle, Key, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, AlertTriangle, Key, ShieldCheck, ImagePlay, Smile } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { NoteContent } from '@/components/NoteContent';
+import { GifPicker } from '@/components/GifPicker';
+import { EmojiPicker } from '@/components/EmojiPicker';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 interface DMChatAreaProps {
@@ -222,6 +225,9 @@ export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
   const [messageText, setMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [gifOpen, setGifOpen] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Determine default protocol based on mode
   const getDefaultProtocol = () => {
@@ -364,14 +370,85 @@ export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
       
       <div className="p-4 border-t">
         <div className="flex gap-2">
-          <Textarea
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
-            className="min-h-[80px] resize-none"
-            disabled={isSending}
-          />
+          <div className="flex-1 flex flex-col gap-1.5">
+            <Textarea
+              ref={textareaRef}
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
+              className="min-h-[80px] resize-none"
+              disabled={isSending}
+            />
+            {/* Toolbar row */}
+            <div className="flex items-center gap-0.5">
+              {/* Emoji picker */}
+              <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      'p-1.5 rounded-full transition-colors',
+                      emojiOpen
+                        ? 'text-primary bg-primary/10'
+                        : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
+                    )}
+                  >
+                    <Smile className="size-[16px]" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  sideOffset={8}
+                  className="w-auto p-0 border-border"
+                >
+                  <EmojiPicker onSelect={(emoji) => {
+                    const textarea = textareaRef.current;
+                    if (textarea) {
+                      const start = textarea.selectionStart;
+                      const end = textarea.selectionEnd;
+                      const newText = messageText.slice(0, start) + emoji + messageText.slice(end);
+                      setMessageText(newText);
+                      requestAnimationFrame(() => {
+                        textarea.focus();
+                        const pos = start + emoji.length;
+                        textarea.setSelectionRange(pos, pos);
+                      });
+                    } else {
+                      setMessageText((prev) => prev + emoji);
+                    }
+                  }} />
+                </PopoverContent>
+              </Popover>
+
+              {/* GIF picker */}
+              <Popover open={gifOpen} onOpenChange={setGifOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      'p-1.5 rounded-full transition-colors',
+                      gifOpen
+                        ? 'text-primary bg-primary/10'
+                        : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
+                    )}
+                  >
+                    <ImagePlay className="size-[16px]" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  sideOffset={8}
+                  className="w-auto p-0 border-border"
+                >
+                  <GifPicker onSelect={(gif) => {
+                    setMessageText((prev) => (prev ? prev + '\n' + gif.url : gif.url));
+                    setGifOpen(false);
+                  }} />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
           <div className="flex flex-col gap-2">
             <Button
               onClick={handleSend}
