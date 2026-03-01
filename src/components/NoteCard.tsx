@@ -46,6 +46,7 @@ import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ContentWarningGuard, getContentWarning } from '@/components/ContentWarningGuard';
 import { ThemeContent } from '@/components/ThemeContent';
+import { VoiceMessagePlayer } from '@/components/VoiceMessagePlayer';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
 import { extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
@@ -215,7 +216,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isThemeDefinition = event.kind === 36767;
   const isActiveTheme = event.kind === 16767;
   const isTheme = isThemeDefinition || isActiveTheme;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme;
+  const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideoUrls(event.content) : [], [event.content, isTextNote]);
@@ -329,6 +331,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           <FileMetadataContent event={event} compact />
         ) : isTheme ? (
           <ThemeContent event={event} />
+        ) : isVoiceMessage ? (
+          <VoiceMessagePlayer event={event} />
         ) : (
           <TruncatedNoteContent event={event} videos={videos} audios={audios} imetaMap={imetaMap} webxdcApps={webxdcApps} />
         )}

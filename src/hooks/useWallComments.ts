@@ -34,7 +34,7 @@ export function useWallComments(pubkey: string | undefined, followList: string[]
       const authors = followList.includes(pubkey) ? followList : [pubkey, ...followList];
 
       const filter: NostrFilter = {
-        kinds: [1111],
+        kinds: [1111, 1244],
         '#A': [aTag],
         authors,
         limit: PAGE_SIZE,
