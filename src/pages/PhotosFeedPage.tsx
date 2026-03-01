@@ -1,11 +1,10 @@
 /**
  * PhotosFeedPage — Instagram-style grid feed for NIP-68 photo events (kind 20).
  *
- * Layout:
- * - Follows / Global tabs (same pattern as main Feed)
- * - Infinite-scroll 3-column photo grid
- * - Tapping a grid cell opens a detail modal (full NoteCard rendered in an overlay)
- *   with left/right swipe/click navigation between posts in the current feed
+ * - Follows tab: useFeed (relay pool, chronological)
+ * - Global tab: useInfiniteHotFeed (sort:hot via relay.ditto.pub)
+ * - Infinite-scroll 3-column grid with blurhash placeholders
+ * - Tapping a grid cell opens a NoteCard detail modal with prev/next navigation
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -14,11 +13,13 @@ import { ArrowLeft, Camera, ChevronLeft, ChevronRight, X, Images } from 'lucide-
 import { useSeoMeta } from '@unhead/react';
 import { useInView } from 'react-intersection-observer';
 import { Loader2 } from 'lucide-react';
+import { Blurhash } from 'react-blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useFeed } from '@/hooks/useFeed';
+import { useInfiniteHotFeed } from '@/hooks/useTrending';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { NoteCard } from '@/components/NoteCard';
@@ -34,37 +35,48 @@ const photosDef = getExtraKindDef('photos')!;
 
 type FeedTab = 'follows' | 'global';
 
-/** Parse the first imeta image URL from a NIP-68 photo event (for thumbnail). */
-function getPhotoThumbnail(event: NostrEvent): string | undefined {
-  for (const tag of event.tags) {
+// ── Imeta helpers ─────────────────────────────────────────────────────────────
+
+interface PhotoImeta {
+  url: string;
+  blurhash?: string;
+  dim?: string;
+  alt?: string;
+}
+
+/** Parse all imeta entries from a NIP-68 photo event. */
+function parsePhotoImeta(tags: string[][]): PhotoImeta[] {
+  const results: PhotoImeta[] = [];
+  for (const tag of tags) {
     if (tag[0] !== 'imeta') continue;
+    const parts: Record<string, string> = {};
     for (let i = 1; i < tag.length; i++) {
       const p = tag[i];
       const sp = p.indexOf(' ');
-      if (sp !== -1 && p.slice(0, sp) === 'url') return p.slice(sp + 1);
+      if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
     }
+    if (parts.url) results.push({ url: parts.url, blurhash: parts.blurhash, dim: parts.dim, alt: parts.alt });
   }
-  return undefined;
+  return results;
 }
 
-/** Count imeta photo entries in a photo event. */
-function getPhotoCount(event: NostrEvent): number {
-  return event.tags.filter(([n]) => n === 'imeta').length;
+function getFirstPhoto(event: NostrEvent): PhotoImeta | undefined {
+  return parsePhotoImeta(event.tags)[0];
 }
 
-// ── Grid thumbnail ────────────────────────────────────────────────────────────
+// ── Photo grid thumbnail ──────────────────────────────────────────────────────
 
-function PhotoGridThumb({
-  event,
-  onClick,
-}: {
-  event: NostrEvent;
-  onClick: () => void;
-}) {
-  const thumb = getPhotoThumbnail(event);
-  const count = getPhotoCount(event);
+function PhotoGridThumb({ event, onClick }: { event: NostrEvent; onClick: () => void }) {
+  const first = getFirstPhoto(event);
+  const count = parsePhotoImeta(event.tags).length;
+  const [loaded, setLoaded] = useState(false);
 
-  if (!thumb) return null;
+  if (!first) return null;
+
+  // Parse width/height from dim tag (e.g. "3024x4032")
+  const dim = first.dim?.split('x');
+  const w = dim?.[0] ? parseInt(dim[0]) : undefined;
+  const h = dim?.[1] ? parseInt(dim[1]) : undefined;
 
   return (
     <button
@@ -72,19 +84,39 @@ function PhotoGridThumb({
       onClick={onClick}
       aria-label="View photo"
     >
+      {/* Blurhash placeholder */}
+      {first.blurhash && !loaded && (
+        <Blurhash
+          hash={first.blurhash}
+          width="100%"
+          height="100%"
+          resolutionX={32}
+          resolutionY={32}
+          punch={1}
+          className="absolute inset-0"
+          style={{ width: '100%', height: '100%' }}
+        />
+      )}
+
       <img
-        src={thumb}
-        alt=""
-        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+        src={first.url}
+        alt={first.alt ?? ''}
+        width={w}
+        height={h}
+        className={cn(
+          'w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]',
+          loaded ? 'opacity-100' : 'opacity-0',
+        )}
         loading="lazy"
+        onLoad={() => setLoaded(true)}
       />
+
       {/* Multiple images indicator */}
       {count > 1 && (
         <div className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded p-0.5">
           <Images className="size-3.5" />
         </div>
       )}
-      {/* Hover overlay */}
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors duration-200" />
     </button>
   );
@@ -109,7 +141,6 @@ function PhotoDetailOverlay({
   const hasPrev = index > 0;
   const hasNext = index < events.length - 1;
 
-  // Keyboard navigation
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -120,11 +151,8 @@ function PhotoDetailOverlay({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose, onPrev, onNext, hasPrev, hasNext]);
 
-  // Swipe gesture support
   const touchStartX = useRef<number | null>(null);
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
+  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (touchStartX.current === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
@@ -144,7 +172,6 @@ function PhotoDetailOverlay({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Close button */}
       <button
         className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
         onClick={onClose}
@@ -153,57 +180,36 @@ function PhotoDetailOverlay({
         <X className="size-5" />
       </button>
 
-      {/* Prev arrow */}
       {hasPrev && (
         <button
           className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
           onClick={(e) => { e.stopPropagation(); onPrev(); }}
-          aria-label="Previous photo"
+          aria-label="Previous"
         >
           <ChevronLeft className="size-6" />
         </button>
       )}
-
-      {/* Next arrow */}
       {hasNext && (
         <button
           className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
           onClick={(e) => { e.stopPropagation(); onNext(); }}
-          aria-label="Next photo"
+          aria-label="Next"
         >
           <ChevronRight className="size-6" />
         </button>
       )}
 
-      {/* Post card — stop click from closing overlay */}
       <div
         className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-background shadow-2xl mx-4"
         onClick={(e) => e.stopPropagation()}
       >
         <NoteCard event={event} />
       </div>
-
-      {/* Dot indicators (if multiple events) */}
-      {events.length > 1 && events.length <= 20 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
-          {events.map((_, i) => (
-            <button
-              key={i}
-              className={cn(
-                'size-1.5 rounded-full transition-colors',
-                i === index ? 'bg-white' : 'bg-white/40',
-              )}
-              onClick={(e) => { e.stopPropagation(); /* handled by parent index state */ }}
-              aria-label={`Photo ${i + 1}`}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
-// ── Grid skeleton ─────────────────────────────────────────────────────────────
+// ── Skeleton grid ─────────────────────────────────────────────────────────────
 
 function PhotoGridSkeleton() {
   return (
@@ -215,9 +221,11 @@ function PhotoGridSkeleton() {
   );
 }
 
-// ── Tab button (mirrors Feed.tsx style) ───────────────────────────────────────
+// ── Tab button (mirrors Feed.tsx) ─────────────────────────────────────────────
 
-function TabButton({ label, active, onClick, disabled }: { label: string; active: boolean; onClick: () => void; disabled?: boolean }) {
+function TabButton({ label, active, onClick, disabled }: {
+  label: string; active: boolean; onClick: () => void; disabled?: boolean;
+}) {
   return (
     <button
       onClick={onClick}
@@ -228,9 +236,7 @@ function TabButton({ label, active, onClick, disabled }: { label: string; active
       )}
     >
       {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
-      )}
+      {active && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />}
     </button>
   );
 }
@@ -245,61 +251,53 @@ export function PhotosFeedPage() {
   const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
 
-  useSeoMeta({
-    title: `Photos | ${config.appName}`,
-    description: 'Photo posts on Nostr',
-  });
-
+  useSeoMeta({ title: `Photos | ${config.appName}`, description: 'Photo posts on Nostr' });
   useLayoutOptions({ showFAB: false });
 
-  // Switch to follows tab when user logs in
-  useEffect(() => {
-    if (user) setActiveTab('follows');
-  }, [user]);
+  useEffect(() => { if (user) setActiveTab('follows'); }, [user]);
 
-  // Fetch photo events using same useFeed hook as the main feed
-  const feedQuery = useFeed(activeTab, { kinds: [PHOTO_KIND] });
-  const {
-    data: rawData,
-    isPending,
-    isLoading,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = feedQuery;
+  // ── Follows feed (chronological) ──
+  const followsQuery = useFeed('follows', { kinds: [PHOTO_KIND] });
+
+  // ── Global feed (sort:hot) ──
+  const globalQuery = useInfiniteHotFeed([PHOTO_KIND], activeTab === 'global');
+
+  const activeQuery = activeTab === 'follows' ? followsQuery : globalQuery;
+  const { data: rawData, isPending, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = activeQuery;
 
   // Auto-fetch page 2
   useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) {
-      fetchNextPage();
-    }
+    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
 
-  // Infinite scroll sentinel
+  // Infinite scroll
   const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) fetchNextPage();
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Flatten and filter — only photo events with at least one image
+  // Flatten — follows returns { items: FeedItem[] }, global returns NostrEvent[]
   const photoEvents = useMemo(() => {
     if (!rawData?.pages) return [];
     const seen = new Set<string>();
-    return (rawData.pages as unknown as { items: FeedItem[] }[])
-      .flatMap((page) => page.items)
-      .filter((item) => {
-        if (seen.has(item.event.id)) return false;
-        seen.add(item.event.id);
-        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
-        // Only include events that actually have photo data
-        return getPhotoThumbnail(item.event) !== undefined;
-      })
-      .map((item) => item.event);
-  }, [rawData?.pages, muteItems]);
+
+    const events: NostrEvent[] = activeTab === 'follows'
+      ? (rawData.pages as unknown as { items: FeedItem[] }[])
+          .flatMap((p) => p.items)
+          .map((item) => item.event)
+      : (rawData.pages as unknown as NostrEvent[][]).flat();
+
+    return events.filter((event) => {
+      if (seen.has(event.id)) return false;
+      seen.add(event.id);
+      if (event.kind !== PHOTO_KIND) return false;
+      if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+      return !!getFirstPhoto(event);
+    });
+  }, [rawData?.pages, muteItems, activeTab]);
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
-  // Detail modal navigation
   const openDetail = useCallback((index: number) => setDetailIndex(index), []);
   const closeDetail = useCallback(() => setDetailIndex(null), []);
   const prevDetail = useCallback(() => setDetailIndex((i) => (i !== null && i > 0 ? i - 1 : i)), []);
@@ -319,13 +317,13 @@ export function PhotosFeedPage() {
         <KindInfoButton kindDef={photosDef} icon={sidebarItemIcon('photos', 'size-5')} />
       </div>
 
-      {/* Tabs — mirror Feed.tsx exactly */}
+      {/* Tabs */}
       <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
         <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
         <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
       </div>
 
-      {/* Photo grid */}
+      {/* Grid */}
       {showSkeleton ? (
         <PhotoGridSkeleton />
       ) : photoEvents.length === 0 ? (
@@ -333,22 +331,18 @@ export function PhotosFeedPage() {
           <Camera className="size-10 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-muted-foreground">
             No photos yet.
-            {activeTab === 'follows' ? ' Follow some photographers or switch to Global.' : ' Check your relay connections or come back soon.'}
+            {activeTab === 'follows'
+              ? ' Follow some photographers or switch to Global.'
+              : ' Check your relay connections or come back soon.'}
           </p>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-0.5">
             {photoEvents.map((event, i) => (
-              <PhotoGridThumb
-                key={event.id}
-                event={event}
-                onClick={() => openDetail(i)}
-              />
+              <PhotoGridThumb key={event.id} event={event} onClick={() => openDetail(i)} />
             ))}
           </div>
-
-          {/* Infinite scroll sentinel */}
           <div ref={scrollRef} className="py-4">
             {isFetchingNextPage && (
               <div className="flex justify-center">
