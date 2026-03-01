@@ -188,12 +188,14 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
         <Repeat2 className="size-5" />
       </button>
 
-      <ReplyComposeModal
-        open={shareOpen}
-        onOpenChange={setShareOpen}
-        initialContent={identifier}
-        title="Share to feed"
-      />
+      {shareOpen && (
+        <ReplyComposeModal
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          initialContent={identifier}
+          title="Share to feed"
+        />
+      )}
     </div>
   );
 }
