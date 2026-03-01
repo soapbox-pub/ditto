@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNostr } from '@nostrify/react';
+import { useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { themePresets } from '@/themes';
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from '@/lib/themeEvent';
 import type { ThemeConfig } from '@/themes';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
  * NostrSync - Syncs user's Nostr data
@@ -29,53 +31,51 @@ export function NostrSync() {
   const lastSyncedTimestamp = useRef<number>(0);
   const [seededTimestamp, setSeededTimestamp] = useState(false);
 
+  // Fetch the user's NIP-65 relay list (kind 10002).
+  // useInitialSync seeds ['relayList', pubkey] into the cache on first login,
+  // so this query resolves from cache without a network round-trip in that case.
+  // On subsequent page loads (after sync is done), it fetches once from the relay.
+  const { data: relayListEvent } = useQuery<NostrEvent | null>({
+    queryKey: ['relayList', user?.pubkey ?? ''],
+    queryFn: async ({ signal }) => {
+      if (!user) return null;
+      const events = await nostr.query(
+        [{ kinds: [10002], authors: [user.pubkey], limit: 1 }],
+        { signal },
+      );
+      return events[0] ?? null;
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 1,
+  });
+
   useEffect(() => {
-    if (!user) return;
+    if (!relayListEvent) return;
 
-    // Delay sync by 3 seconds to avoid competing with initial feed load for relay bandwidth
-    const timeoutId = setTimeout(() => {
-      syncRelaysFromNostr();
-    }, 3000);
+    // Only update if the event is newer than our stored data
+    if (relayListEvent.created_at > config.relayMetadata.updatedAt) {
+      const fetchedRelays = relayListEvent.tags
+        .filter(([name]) => name === 'r')
+        .map(([, url, marker]) => ({
+          url: url.replace(/\/+$/, ''),
+          read: !marker || marker === 'read',
+          write: !marker || marker === 'write',
+        }));
 
-    const syncRelaysFromNostr = async () => {
-      try {
-        const events = await nostr.query(
-          [{ kinds: [10002], authors: [user.pubkey], limit: 1 }],
-          { signal: AbortSignal.timeout(5000) }
-        );
-
-        if (events.length > 0) {
-          const event = events[0];
-
-          // Only update if the event is newer than our stored data
-          if (event.created_at > config.relayMetadata.updatedAt) {
-            const fetchedRelays = event.tags
-              .filter(([name]) => name === 'r')
-              .map(([_, url, marker]) => ({
-                url: url.replace(/\/+$/, ''),
-                read: !marker || marker === 'read',
-                write: !marker || marker === 'write',
-              }));
-
-            if (fetchedRelays.length > 0) {
-              console.log('Syncing relay list from Nostr:', fetchedRelays);
-              updateConfig((current) => ({
-                ...current,
-                relayMetadata: {
-                  relays: fetchedRelays,
-                  updatedAt: event.created_at,
-                },
-              }));
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Failed to sync relays from Nostr:', error);
+      if (fetchedRelays.length > 0) {
+        console.log('Syncing relay list from Nostr:', fetchedRelays);
+        updateConfig((current) => ({
+          ...current,
+          relayMetadata: {
+            relays: fetchedRelays,
+            updatedAt: relayListEvent.created_at,
+          },
+        }));
       }
-    };
-
-    return () => clearTimeout(timeoutId);
-  }, [user, config.relayMetadata.updatedAt, nostr, updateConfig]);
+    }
+  }, [relayListEvent, config.relayMetadata.updatedAt, updateConfig]);
 
   // Sync encrypted settings from Nostr on login
   useEffect(() => {
