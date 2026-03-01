@@ -203,29 +203,13 @@ export function ContentSettings() {
 }
 
 // Import the internals from FeedSettingsForm (we'll need to export them)
-import { Clapperboard, BarChart3, Palette, PartyPopper, Radio, MessageSquare, Repeat2, FileText } from 'lucide-react';
-import { ChestIcon } from '@/components/icons/ChestIcon';
-import { CardsIcon } from '@/components/icons/CardsIcon';
+import { Palette } from 'lucide-react';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { EXTRA_KINDS, FEED_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
-
-
-/** Map route name or kind → lucide icon. */
-const ICONS: Record<string, React.ReactNode> = {
-  vines: <Clapperboard className="size-5" />,
-  polls: <BarChart3 className="size-5" />,
-  treasures: <ChestIcon className="size-5" />,
-  colors: <Palette className="size-5" />,
-  packs: <PartyPopper className="size-5" />,
-  streams: <Radio className="size-5" />,
-  articles: <FileText className="size-5" />,
-  decks: <CardsIcon className="size-5" />,
-  posts: <MessageSquare className="size-5" />,
-  reposts: <Repeat2 className="size-5" />,
-};
+import { EXTRA_KIND_ICONS } from '@/lib/extraKindIcons';
 
 function KindBadge({ kind }: { kind: number }) {
   return (
@@ -272,7 +256,8 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
-  const icon = ICONS[def.id] ?? <Palette className="size-5" />;
+  const IconComponent = EXTRA_KIND_ICONS[def.id] ?? Palette;
+  const icon = <IconComponent className="size-5" />;
   const hasSubKinds = !!def.subKinds;
 
   const handleToggle = async (key: string, value: boolean) => {
