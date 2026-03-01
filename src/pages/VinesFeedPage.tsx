@@ -172,9 +172,7 @@ function VinesCommentsContent({ activeVine }: VinesCommentsContentProps) {
   }, [rawReplies]);
 
   return (
-    <>
-      {/* Comment list */}
-      <div className="flex-1 overflow-y-auto py-2">
+    <div className="flex-1 min-h-0 overflow-y-auto py-2">
         {!activeVine ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-muted-foreground text-sm text-center px-6">
@@ -201,9 +199,6 @@ function VinesCommentsContent({ activeVine }: VinesCommentsContentProps) {
           </div>
         )}
       </div>
-
-
-    </>
   );
 }
 
@@ -634,6 +629,21 @@ export function VinesFeedPage() {
     rightSidebar: <VinesCommentsSidebar activeVine={activeVine} />,
   });
 
+  // Lock body scroll when mobile comments are open
+  useEffect(() => {
+    if (commentsOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, [commentsOpen]);
+
   // Snap-scroll to a specific vine index
   const scrollToIndex = useCallback((index: number) => {
     const container = containerRef.current;
@@ -735,7 +745,7 @@ export function VinesFeedPage() {
       <div className="relative flex-1">
         <div
           ref={containerRef}
-          className="h-[calc(100dvh-9.5rem)] sidebar:h-[calc(100vh-3rem)] overflow-y-scroll snap-y snap-mandatory"
+          className={cn("h-[calc(100dvh-9.5rem)] sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory", commentsOpen ? "overflow-hidden" : "overflow-y-scroll")}
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {vines.map((event, i) => (
@@ -755,7 +765,7 @@ export function VinesFeedPage() {
 
       {/* ── Mobile comments panel — full overlay, xl:hidden ─────────── */}
       {commentsOpen && (
-        <div className="xl:hidden absolute inset-0 z-30 flex flex-col bg-background/80 backdrop-blur-md">
+        <div className="xl:hidden fixed inset-x-0 top-12 bottom-0 z-30 flex flex-col bg-background/80 backdrop-blur-md overflow-hidden">
           {/* Compose with back button baked in above it */}
           {activeVine && (
             <div className="border-b border-border shrink-0">
