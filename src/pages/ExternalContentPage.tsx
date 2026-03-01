@@ -19,7 +19,6 @@ import { useComments } from '@/hooks/useComments';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import NotFound from './NotFound';
 
 // ---------------------------------------------------------------------------
@@ -95,8 +94,8 @@ export function ExternalContentPage() {
 
   return (
     <main className="min-h-screen">
-      {/* Sticky header */}
-      <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-4 px-4 mt-4 mb-5 bg-background/80 backdrop-blur-md z-10')}>
+      {/* Non-sticky transparent header */}
+      <div className="flex items-center gap-4 px-4 mt-4 mb-5">
         <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
           <ArrowLeft className="size-5" />
         </Link>
