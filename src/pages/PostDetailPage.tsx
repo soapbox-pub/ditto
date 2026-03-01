@@ -34,6 +34,8 @@ import { FileMetadataContent } from '@/components/FileMetadataContent';
 import { ThemeContent } from '@/components/ThemeContent';
 import { LiveStreamPage } from '@/components/LiveStreamPage';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
+import { AudioVisualizer } from '@/components/AudioVisualizer';
+import { extractAudioUrls } from '@/lib/mediaUrls';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAppContext } from '@/hooks/useAppContext';
 
@@ -583,6 +585,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
+  const audios = useMemo(() => {
+    if (!isTextNote) return [];
+    const imetaAudios = Array.from(imetaMap.values())
+      .filter((e) => e.mime?.startsWith('audio/'))
+      .map((e) => e.url);
+    if (imetaAudios.length > 0) return imetaAudios;
+    return extractAudioUrls(event.content);
+  }, [event.content, event.tags, imetaMap, isTextNote]);
 
   // Extract webxdc attachments from imeta tags
   const webxdcApps = useMemo(() => {
@@ -909,6 +919,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </div>
               {videos.map((url, i) => (
                 <VideoPlayer key={`v-${i}`} src={url} poster={imetaMap.get(url)?.thumbnail} dim={imetaMap.get(url)?.dim} blurhash={imetaMap.get(url)?.blurhash} />
+              ))}
+              {audios.map((url, i) => (
+                <AudioVisualizer
+                  key={`a-${i}`}
+                  src={url}
+                  mime={imetaMap.get(url)?.mime}
+                  avatarUrl={metadata?.picture}
+                  avatarFallback={displayName[0]?.toUpperCase() ?? '?'}
+                />
               ))}
               {webxdcApps.map((app) => (
                 <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} name={app.summary} icon={app.thumbnail} />

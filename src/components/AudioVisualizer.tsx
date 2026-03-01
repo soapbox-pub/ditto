@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, Volume1, Volume2, VolumeX } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
@@ -38,14 +38,13 @@ export function AudioVisualizer({
   const idlePhaseRef = useRef(0);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  const { showControls, revealControls, scheduleHide } = usePlayerControls({
+  const { showControls, revealControls, scheduleHide, isMuted, volume, toggleMute, handleVolumeChange } = usePlayerControls({
     mediaRef: audioRef,
     containerRef,
     isPlaying,
@@ -73,6 +72,14 @@ export function AudioVisualizer({
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, W, H);
 
+    // Read the theme's --primary HSL value at draw time so the wave always
+    // matches the current color scheme (light / dark / custom theme).
+    const primaryHsl = getComputedStyle(canvas).getPropertyValue('--primary').trim();
+    const primaryColor = `hsl(${primaryHsl})`;
+    const primaryFaint = `hsl(${primaryHsl} / 0.15)`;
+    const primaryMid   = `hsl(${primaryHsl} / 0.85)`;
+    const primaryGlow  = `hsl(${primaryHsl} / 0.55)`;
+
     const analyser = analyserRef.current;
     let dataArray: Uint8Array | null = null;
     if (analyser && isPlaying) {
@@ -86,17 +93,17 @@ export function AudioVisualizer({
     const midY = H / 2;
 
     const grad = ctx.createLinearGradient(0, 0, W, 0);
-    grad.addColorStop(0,    'rgba(139,92,246,0.15)');
-    grad.addColorStop(0.35, 'rgba(139,92,246,0.85)');
-    grad.addColorStop(0.5,  'rgba(168,85,247,1)');
-    grad.addColorStop(0.65, 'rgba(139,92,246,0.85)');
-    grad.addColorStop(1,    'rgba(139,92,246,0.15)');
+    grad.addColorStop(0,    primaryFaint);
+    grad.addColorStop(0.35, primaryMid);
+    grad.addColorStop(0.5,  primaryColor);
+    grad.addColorStop(0.65, primaryMid);
+    grad.addColorStop(1,    primaryFaint);
 
     ctx.beginPath();
     ctx.strokeStyle = grad;
     ctx.lineWidth = 2.5;
     ctx.shadowBlur = 10;
-    ctx.shadowColor = 'rgba(168,85,247,0.55)';
+    ctx.shadowColor = primaryGlow;
 
     if (dataArray) {
       // Real-time waveform
@@ -169,14 +176,6 @@ export function AudioVisualizer({
     if (audio.paused) { audio.play(); } else { audio.pause(); }
   }, [ensureAudioContext]);
 
-  const toggleMute = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.muted = !audio.muted;
-    setIsMuted(audio.muted);
-  }, []);
-
   const handleSeek = (e: React.MouseEvent) => {
     e.stopPropagation();
     const audio = audioRef.current;
@@ -232,7 +231,7 @@ export function AudioVisualizer({
     <div
       ref={containerRef}
       className={cn(
-        'relative mt-3 rounded-2xl overflow-hidden border border-border bg-black group',
+        'relative mt-3 rounded-2xl overflow-hidden border border-border bg-background group',
         className,
       )}
       style={{ aspectRatio: '16 / 9' }}
@@ -259,8 +258,8 @@ export function AudioVisualizer({
           className={cn(
             'rounded-full ring-4 transition-all duration-300',
             isPlaying
-              ? 'ring-purple-500/40 shadow-[0_0_28px_8px_rgba(168,85,247,0.4)]'
-              : 'ring-white/10',
+              ? 'ring-primary/40 shadow-[0_0_28px_8px_hsl(var(--primary)/0.4)]'
+              : 'ring-border',
           )}
         >
           <Avatar className="size-20 border-2 border-white/20">
@@ -319,13 +318,34 @@ export function AudioVisualizer({
                 : <Play className="size-5 ml-0.5" fill="white" />}
             </button>
 
-            <button
-              onClick={toggleMute}
-              className="text-white hover:text-white/80 transition-colors"
-              aria-label={isMuted ? 'Unmute' : 'Mute'}
-            >
-              {isMuted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
-            </button>
+            {/* Volume: icon toggles mute, slider sets level */}
+            <div className="flex items-center gap-1.5 group/vol">
+              <button
+                onClick={toggleMute}
+                className="text-white hover:text-white/80 transition-colors shrink-0"
+                aria-label={isMuted ? 'Unmute' : 'Mute'}
+              >
+                {isMuted || volume === 0
+                  ? <VolumeX className="size-5" />
+                  : volume < 0.5
+                    ? <Volume1 className="size-5" />
+                    : <Volume2 className="size-5" />}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.02}
+                value={isMuted ? 0 : volume}
+                onChange={handleVolumeChange}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Volume"
+                className={cn(
+                  'w-0 opacity-0 group-hover/vol:w-16 group-hover/vol:opacity-100',
+                  'transition-all duration-200 cursor-pointer accent-white h-1',
+                )}
+              />
+            </div>
 
             <span className="text-white text-xs tabular-nums min-w-0">
               {formatTime(currentTime)} / {formatTime(duration)}

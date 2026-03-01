@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX, Expand } from 'lucide-react';
+import { Play, Pause, Volume1, Volume2, VolumeX, Expand } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
@@ -92,7 +92,6 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
   const generatedPoster = useVideoThumbnail(src, poster);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
@@ -104,7 +103,7 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  const { showControls, revealControls, scheduleHide } = usePlayerControls({
+  const { showControls, revealControls, scheduleHide, isMuted, volume, toggleMute, handleVolumeChange } = usePlayerControls({
     mediaRef: videoRef,
     containerRef,
     isPlaying,
@@ -119,14 +118,6 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
     } else {
       video.pause();
     }
-  };
-
-  const toggleMute = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = !video.muted;
-    setIsMuted(video.muted);
   };
 
   const handleFullscreen = (e: React.MouseEvent) => {
@@ -258,14 +249,34 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
               {isPlaying ? <Pause className="size-5" fill="white" /> : <Play className="size-5 ml-0.5" fill="white" />}
             </button>
 
-            {/* Volume */}
-            <button
-              onClick={toggleMute}
-              className="text-white hover:text-white/80 transition-colors"
-              aria-label={isMuted ? 'Unmute' : 'Mute'}
-            >
-              {isMuted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
-            </button>
+            {/* Volume: icon toggles mute, slider sets level */}
+            <div className="flex items-center gap-1.5 group/vol">
+              <button
+                onClick={toggleMute}
+                className="text-white hover:text-white/80 transition-colors shrink-0"
+                aria-label={isMuted ? 'Unmute' : 'Mute'}
+              >
+                {isMuted || volume === 0
+                  ? <VolumeX className="size-5" />
+                  : volume < 0.5
+                    ? <Volume1 className="size-5" />
+                    : <Volume2 className="size-5" />}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.02}
+                value={isMuted ? 0 : volume}
+                onChange={handleVolumeChange}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Volume"
+                className={cn(
+                  'w-0 opacity-0 group-hover/vol:w-16 group-hover/vol:opacity-100',
+                  'transition-all duration-200 cursor-pointer accent-white h-1',
+                )}
+              />
+            </div>
 
             {/* Time */}
             <span className="text-white text-xs tabular-nums min-w-0">
