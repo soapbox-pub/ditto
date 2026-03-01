@@ -4,7 +4,7 @@ import { BookOpen, ExternalLink, Globe, MapPin, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
-import { LinkEmbed, extractYouTubeId, extractTweetId } from '@/components/LinkEmbed';
+import { LinkEmbed, extractYouTubeId, extractTweetId, embedLabel } from '@/components/LinkEmbed';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useBookInfo } from '@/hooks/useBookInfo';
@@ -55,14 +55,15 @@ export function formatIsbn(isbn: string): string {
 /** Get a short label for the content type. */
 export function headerLabel(content: ExternalContent): string {
   switch (content.type) {
-    case 'url':
-      if (extractYouTubeId(content.value)) return 'YouTube';
-      if (extractTweetId(content.value)) return 'Twitter';
+    case 'url': {
+      const label = embedLabel(content.value);
+      if (label) return label;
       try {
         return new URL(content.value).hostname.replace(/^www\./, '');
       } catch {
         return 'Web Page';
       }
+    }
     case 'isbn':
       return 'Book';
     case 'iso3166':
