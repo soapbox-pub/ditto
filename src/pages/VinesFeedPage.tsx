@@ -124,15 +124,26 @@ function useVinesFeed(tab: FeedTab) {
 
 // ─── Hook: fetch replies for the active vine ──────────────────────────────────
 
-function useVineReplies(eventId: string | undefined) {
+function useVineReplies(event: NostrEvent | undefined) {
   const { nostr } = useNostr();
+
+  const eventId = event?.id;
+  const aTag = event
+    ? `${event.kind}:${event.pubkey}:${getTag(event.tags, 'd') ?? ''}`
+    : undefined;
+
   return useQuery<NostrEvent[]>({
     queryKey: ['vine-replies', eventId ?? ''],
     queryFn: async ({ signal }) => {
-      if (!eventId) return [];
+      if (!eventId || !aTag) return [];
+      const abort = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
+      // Fetch kind 1 replies (#e) and NIP-22 kind 1111 comments (#A) in one round trip
       const events = await nostr.query(
-        [{ kinds: [1], '#e': [eventId], limit: 80 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+        [
+          { kinds: [1], '#e': [eventId], limit: 80 },
+          { kinds: [1111], '#A': [aTag], limit: 80 },
+        ],
+        { signal: abort },
       );
       const seen = new Set<string>();
       return events
@@ -152,7 +163,7 @@ interface VinesCommentsContentProps {
 }
 
 function VinesCommentsContent({ activeVine }: VinesCommentsContentProps) {
-  const { data: replies = [], isLoading } = useVineReplies(activeVine?.id);
+  const { data: replies = [], isLoading } = useVineReplies(activeVine);
 
   return (
     <>
@@ -426,12 +437,14 @@ function VineCard({ event, isActive, onCommentClick }: VineCardProps) {
         </ProfileHoverCard>
 
         {/* React */}
-        <VineActionButton>
+        <VineActionButton
+          label={stats?.reactions ? String(stats.reactions) : undefined}
+        >
           <ReactionButton
             eventId={event.id}
             eventPubkey={event.pubkey}
             eventKind={event.kind}
-            reactionCount={stats?.reactions}
+            reactionCount={0}
             className="text-white hover:text-pink-400 hover:bg-white/10 size-11 rounded-full flex items-center justify-center p-0"
           />
         </VineActionButton>
