@@ -149,6 +149,22 @@ function isReactionFilter(filter: NostrFilter): boolean {
   );
 }
 
+/** A filter for kind:6/16 reposts by a single author to a single event. */
+function isRepostFilter(filter: NostrFilter): boolean {
+  const keys = Object.keys(filter);
+  const kinds = filter.kinds;
+  if (!kinds || kinds.length === 0) return false;
+  const eTag = (filter as Record<string, unknown>)['#e'];
+  return (
+    keys.every((k) => k === 'kinds' || k === 'authors' || k === '#e' || k === 'limit') &&
+    kinds.every((k) => k === 6 || k === 16) &&
+    filter.authors?.length === 1 &&
+    eTag !== undefined &&
+    Array.isArray(eTag) &&
+    (eTag as string[]).length === 1
+  );
+}
+
 /**
  * A filter that queries by a single `#e` tag with kinds and limit.
  * e.g. `{ kinds: [7, 9735], '#e': [eventId], limit: 10 }`
@@ -244,6 +260,8 @@ export class NostrBatcher {
   private eventCollector: BatchCollector<NostrEvent | undefined>;
   /** Keyed by userPubkey so each user's reactions batch separately. */
   private reactionCollectors = new Map<string, BatchCollector<NostrEvent | undefined>>();
+  /** Keyed by `${userPubkey}:${kindsKey}` so each user's reposts batch separately per kind set. */
+  private repostCollectors = new Map<string, BatchCollector<NostrEvent | undefined>>();
   /** Keyed by `${kind}:${author}` for d-tag batching. */
   private dTagCollectors = new Map<string, BatchCollector<NostrEvent | undefined>>();
   /** Keyed by sorted kinds string for #e-tag batching. Returns arrays. */
@@ -294,6 +312,23 @@ export class NostrBatcher {
             this.executeReactionBatch(userPubkey, eventIds, signal),
           );
           this.reactionCollectors.set(userPubkey, collector);
+        }
+        const event = await collector.request(eventId, opts?.signal);
+        return event ? [event] : [];
+      }
+
+      // { kinds: [6, 16], authors: [user], '#e': [eventId] }
+      if (isRepostFilter(filter)) {
+        const userPubkey = filter.authors![0];
+        const eventId = ((filter as Record<string, unknown>)['#e'] as string[])[0];
+        const kindsKey = [...filter.kinds!].sort().join(',');
+        const collectorKey = `${userPubkey}:${kindsKey}`;
+        let collector = this.repostCollectors.get(collectorKey);
+        if (!collector) {
+          collector = new BatchCollector((eventIds, signal) =>
+            this.executeRepostBatch(userPubkey, filter.kinds!, eventIds, signal),
+          );
+          this.repostCollectors.set(collectorKey, collector);
         }
         const event = await collector.request(eventId, opts?.signal);
         return event ? [event] : [];
@@ -396,7 +431,8 @@ export class NostrBatcher {
       );
       const byPubkey = new Map<string, NostrEvent>();
       for (const event of events) {
-        if (!byPubkey.has(event.pubkey)) {
+        const existing = byPubkey.get(event.pubkey);
+        if (!existing || event.created_at > existing.created_at) {
           byPubkey.set(event.pubkey, event);
         }
       }
@@ -406,6 +442,38 @@ export class NostrBatcher {
     } catch {
       for (const pubkey of pubkeys) {
         results.set(pubkey, undefined);
+      }
+    }
+    return results;
+  }
+
+  private async executeRepostBatch(
+    userPubkey: string,
+    kinds: number[],
+    eventIds: string[],
+    signal: AbortSignal,
+  ): Promise<Map<string, NostrEvent | undefined>> {
+    const results = new Map<string, NostrEvent | undefined>();
+    try {
+      const events = await this.pool.query(
+        [{ kinds, authors: [userPubkey], '#e': eventIds, limit: eventIds.length }],
+        { signal },
+      );
+      const repostMap = new Map<string, NostrEvent>();
+      for (const event of events) {
+        const eTag = event.tags.find(([name]) => name === 'e')?.[1];
+        if (!eTag) continue;
+        const existing = repostMap.get(eTag);
+        if (!existing || event.created_at > existing.created_at) {
+          repostMap.set(eTag, event);
+        }
+      }
+      for (const eventId of eventIds) {
+        results.set(eventId, repostMap.get(eventId));
+      }
+    } catch {
+      for (const eventId of eventIds) {
+        results.set(eventId, undefined);
       }
     }
     return results;
