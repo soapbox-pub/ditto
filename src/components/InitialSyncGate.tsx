@@ -209,7 +209,7 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // ---------------------------------------------------------------------------
 
 /** Extra-kind IDs shown in the onboarding content picker, in display order. */
-const ONBOARDING_CONTENT_IDS = ['vines', 'streams', 'colors', 'decks', 'treasures', 'webxdc'];
+const ONBOARDING_CONTENT_IDS = ['events', 'vines', 'streams', 'colors', 'decks', 'treasures', 'webxdc'];
 
 /** Onboarding content kinds derived from EXTRA_KINDS — no separate data to maintain. */
 const CONTENT_KINDS = ONBOARDING_CONTENT_IDS.flatMap((id) => {
@@ -258,7 +258,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
 
   const [step, setStep] = useState<Step>(steps[0]);
   const [selectedContent, setSelectedContent] = useState<Set<string>>(
-    new Set(['vines', 'streams']),
+    new Set(['events', 'vines', 'streams']),
   );
   const [selectedCW, setSelectedCW] = useState<ContentWarningPolicy>('blur');
   const [isSaving, setIsSaving] = useState(false);
@@ -345,6 +345,8 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
 
     const feedSettings = {
       showArticles: false,
+      showEvents: selectedContent.has('events'),
+      feedIncludeEvents: selectedContent.has('events'),
       showVines: selectedContent.has('vines'),
       showPolls: false,
       showTreasures: selectedContent.has('treasures'),
