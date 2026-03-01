@@ -9,7 +9,7 @@ export function useComments(root: NostrEvent | URL | `#${string}` | undefined, l
     queryKey: ['nostr', 'comments', root instanceof URL ? root.toString() : typeof root === 'string' ? root : root?.id, limit],
     queryFn: async () => {
       if (!root) throw new Error('root is required');
-      const filter: NostrFilter = { kinds: [1111] };
+      const filter: NostrFilter = { kinds: [1111, 1244] };
 
       if (typeof root === 'string') {
         filter['#I'] = [root];

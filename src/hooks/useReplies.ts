@@ -2,7 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-/** Fetches kind:1 reply events that reference the given event ID. */
+/** Fetches kind:1 and kind:1222 (voice) reply events that reference the given event ID. */
 export function useReplies(eventId: string | undefined) {
   const { nostr } = useNostr();
 
@@ -12,7 +12,7 @@ export function useReplies(eventId: string | undefined) {
       if (!eventId) return [];
 
       const events = await nostr.query(
-        [{ kinds: [1], '#e': [eventId], limit: 50 }],
+        [{ kinds: [1, 1222], '#e': [eventId], limit: 50 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
