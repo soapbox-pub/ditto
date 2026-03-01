@@ -139,7 +139,7 @@ function useVineReplies(event: NostrEvent | undefined) {
       const abort = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
       // Kind 34236 is addressable — use NIP-22 kind 1111 comments only (#A tag)
       const events = await nostr.query(
-        [{ kinds: [1111], '#A': [aTag], limit: 80 }],
+        [{ kinds: [1111, 1244], '#A': [aTag], limit: 80 }],
         { signal: abort },
       );
       const seen = new Set<string>();
