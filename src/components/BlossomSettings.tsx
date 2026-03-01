@@ -40,10 +40,7 @@ export function BlossomSettings() {
   return (
     <div className="pt-4 pb-4">
       <div className="px-3 space-y-3">
-        <div className="flex items-center gap-2">
-          <Upload className="h-5 w-5 text-muted-foreground" />
-          <h3 className="text-sm font-medium">Blossom Servers</h3>
-        </div>
+        <h3 className="text-sm font-medium">Blossom Servers</h3>
         <p className="text-xs text-muted-foreground">
           File upload servers for media attachments. Files are uploaded to the first available server.
         </p>
