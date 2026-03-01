@@ -25,6 +25,7 @@ import { DomainFeedPage } from "./pages/DomainFeedPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { KindFeedPage } from "./pages/KindFeedPage";
 import { StreamsFeedPage } from "./pages/StreamsFeedPage";
+import { VinesFeedPage } from "./pages/VinesFeedPage";
 import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
 import { ThemesPage } from "./pages/ThemesPage";
@@ -70,7 +71,7 @@ export function AppRouter() {
           <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
           <Route path="/settings/magic" element={<MagicSettingsPage />} />
           <Route path="/settings/network" element={<NetworkSettingsPage />} />
-          <Route path="/vines" element={<KindFeedPage kind={vinesDef.kind} title={vinesDef.label} icon={sidebarItemIcon('vines', 'size-5')} />} />
+          <Route path="/vines" element={<VinesFeedPage />} />
           <Route path="/polls" element={<KindFeedPage kind={pollsDef.kind} title={pollsDef.label} icon={sidebarItemIcon('polls', 'size-5')} />} />
           <Route path="/treasures" element={<TreasuresPage />} />
           <Route path="/colors" element={<KindFeedPage kind={colorsDef.kind} title={colorsDef.label} icon={sidebarItemIcon('colors', 'size-5')} />} />
