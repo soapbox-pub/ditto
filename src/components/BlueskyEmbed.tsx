@@ -55,6 +55,7 @@ export function BlueskyEmbed({ author, rkey, className }: BlueskyEmbedProps) {
 
       if (typeof data.height === 'number' && data.height > 0) {
         iframeRef.current.style.height = `${data.height}px`;
+        iframeRef.current.style.minHeight = '0';
       }
     };
 
