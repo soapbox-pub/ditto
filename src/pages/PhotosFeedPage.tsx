@@ -84,8 +84,8 @@ function PhotoGridThumb({ event, onClick }: { event: NostrEvent; onClick: () => 
       onClick={onClick}
       aria-label="View photo"
     >
-      {/* Blurhash placeholder */}
-      {first.blurhash && !loaded && (
+      {/* Blurhash — always mounted, fades out once image loads */}
+      {first.blurhash && (
         <Blurhash
           hash={first.blurhash}
           width="100%"
@@ -93,7 +93,7 @@ function PhotoGridThumb({ event, onClick }: { event: NostrEvent; onClick: () => 
           resolutionX={32}
           resolutionY={32}
           punch={1}
-          className="absolute inset-0"
+          className={cn('absolute inset-0 transition-opacity duration-300', loaded ? 'opacity-0' : 'opacity-100')}
           style={{ width: '100%', height: '100%' }}
         />
       )}
@@ -104,7 +104,7 @@ function PhotoGridThumb({ event, onClick }: { event: NostrEvent; onClick: () => 
         width={w}
         height={h}
         className={cn(
-          'w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]',
+          'absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-[1.04]',
           loaded ? 'opacity-100' : 'opacity-0',
         )}
         loading="lazy"
