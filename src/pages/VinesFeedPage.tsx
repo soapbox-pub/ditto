@@ -709,7 +709,7 @@ export function VinesFeedPage() {
   // ── Loading state ────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex-1 min-w-0 flex flex-col vine-slide-height sidebar:h-screen">
+      <div className="flex-1 min-w-0 flex flex-col">
         <VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
         {/* Vine card skeleton */}
         <div className="flex-1 relative bg-neutral-900 overflow-hidden">
@@ -735,7 +735,7 @@ export function VinesFeedPage() {
   // ── Empty state ──────────────────────────────────────────────────────────
   if (!isLoading && vines.length === 0) {
     return (
-      <div className="flex-1 min-w-0 flex flex-col vine-slide-height sidebar:h-screen">
+      <div className="flex-1 min-w-0 flex flex-col">
         <VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3 px-8">
