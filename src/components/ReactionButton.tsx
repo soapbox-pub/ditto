@@ -83,8 +83,8 @@ export function ReactionButton({
           onMouseLeave={handleMouseLeave}
         >
           {hasReacted && userReaction ? (
-            <span className="size-5 flex items-center justify-center text-base leading-none">
-              <RenderResolvedEmoji emoji={userReaction} className="inline-block h-5 w-5" />
+            <span className="size-6 flex items-center justify-center leading-none">
+              <RenderResolvedEmoji emoji={userReaction} className="inline-block h-6 w-6" />
             </span>
           ) : (
             <Heart className="size-5" />
