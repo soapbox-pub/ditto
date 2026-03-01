@@ -152,7 +152,7 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
               Open in Lightning Wallet
             </Button>
 
-            <div className="text-xs text-muted-foreground text-center">
+            <div className="text-xs text-muted-foreground text-center pb-3">
               Scan the QR code or copy the invoice to pay with any Lightning wallet.
             </div>
           </div>
