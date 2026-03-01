@@ -303,10 +303,12 @@ function VineHeartButton({ event, label }: { event: NostrEvent; label?: string }
 interface VineCardProps {
   event: NostrEvent;
   isActive: boolean;
+  /** True for the card immediately before or after the active one — used to preload video. */
+  isNearActive: boolean;
   onCommentClick: () => void;
 }
 
-function VineCard({ event, isActive, onCommentClick }: VineCardProps) {
+function VineCard({ event, isActive, isNearActive, onCommentClick }: VineCardProps) {
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -382,7 +384,7 @@ function VineCard({ event, isActive, onCommentClick }: VineCardProps) {
             loop
             playsInline
             muted={isMuted}
-            preload="metadata"
+            preload={isActive ? 'auto' : isNearActive ? 'metadata' : 'none'}
             onPlay={() => { setIsPlaying(true); setHasStarted(true); setIsAttemptingPlay(false); }}
             onPause={() => { setIsPlaying(false); setIsAttemptingPlay(false); }}
             onError={onBlossomError}
@@ -707,7 +709,7 @@ export function VinesFeedPage() {
   // ── Loading state ────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex-1 min-w-0 flex flex-col h-[calc(100dvh-3rem-3.5rem)] sidebar:h-screen">
+      <div className="flex-1 min-w-0 flex flex-col vine-slide-height sidebar:h-screen">
         <VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
         {/* Vine card skeleton */}
         <div className="flex-1 relative bg-neutral-900 overflow-hidden">
@@ -733,7 +735,7 @@ export function VinesFeedPage() {
   // ── Empty state ──────────────────────────────────────────────────────────
   if (!isLoading && vines.length === 0) {
     return (
-      <div className="flex-1 min-w-0 flex flex-col h-[calc(100dvh-3rem-3.5rem)] sidebar:h-screen">
+      <div className="flex-1 min-w-0 flex flex-col vine-slide-height sidebar:h-screen">
         <VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3 px-8">
@@ -766,17 +768,18 @@ export function VinesFeedPage() {
       <div className="relative flex-1">
         <div
           ref={containerRef}
-          className={cn("h-[calc(100dvh-9.5rem)] sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory", commentsOpen ? "overflow-hidden" : "overflow-y-scroll")}
+          className={cn("vine-slide-height sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory", commentsOpen ? "overflow-hidden" : "overflow-y-scroll")}
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {vines.map((event, i) => (
             <div
               key={event.id}
-              className="w-full h-[calc(100dvh-9.5rem)] sidebar:h-[calc(100vh-3rem)] snap-start snap-always flex-shrink-0"
+              className="w-full vine-slide-height sidebar:h-[calc(100vh-3rem)] snap-start snap-always flex-shrink-0"
             >
               <VineCard
                 event={event}
                 isActive={i === activeIndex}
+                isNearActive={Math.abs(i - activeIndex) <= 1}
                 onCommentClick={handleCommentClick}
               />
             </div>
