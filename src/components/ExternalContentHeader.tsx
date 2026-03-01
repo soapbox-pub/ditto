@@ -4,15 +4,13 @@ import { BookOpen, ExternalLink, Globe, MapPin, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
-import { LinkEmbed, extractYouTubeId, extractTweetId, embedLabel } from '@/components/LinkEmbed';
-import { YouTubeEmbed } from '@/components/YouTubeEmbed';
+import { LinkEmbed, extractYouTubeId, embedLabel } from '@/components/LinkEmbed';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useBookInfo } from '@/hooks/useBookInfo';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo } from '@/lib/countries';
-import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Types & helpers
@@ -100,126 +98,7 @@ export function seoTitle(content: ExternalContent, appName: string): string {
 // ---------------------------------------------------------------------------
 
 export function UrlContentHeader({ url }: { url: string }) {
-  const youtubeId = useMemo(() => extractYouTubeId(url), [url]);
-  const tweetId = useMemo(() => extractTweetId(url), [url]);
-  const { data, isLoading } = useLinkPreview(url);
-
-  const domain = useMemo(() => {
-    try {
-      return new URL(url).hostname.replace(/^www\./, '');
-    } catch {
-      return url;
-    }
-  }, [url]);
-
-  // Twitter/X tweet — render the embedded tweet widget
-  if (tweetId) {
-    return <LinkEmbed url={url} showDiscuss={false} />;
-  }
-
-  if (isLoading && !youtubeId) {
-    return (
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <Skeleton className="w-full h-[220px] rounded-none" />
-        <div className="p-5 space-y-3">
-          <Skeleton className="h-3 w-32" />
-          <Skeleton className="h-6 w-3/4" />
-          <Skeleton className="h-4 w-full" />
-        </div>
-      </div>
-    );
-  }
-
-  const title = data?.title;
-  const author = data?.author_name;
-  const providerName = data?.provider_name || domain;
-
-  if (youtubeId) {
-    return (
-      <div className="space-y-0 rounded-2xl border border-border overflow-hidden">
-        <YouTubeEmbed videoId={youtubeId} className="border-0 rounded-none" />
-
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group block p-5 space-y-2 hover:bg-secondary/40 transition-colors"
-        >
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <ExternalFavicon url={url} size={14} className="shrink-0" />
-            <span className="truncate">{providerName}</span>
-            <ExternalLink className="size-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-
-          {title && (
-            <h2 className="text-xl font-bold leading-snug line-clamp-3">
-              {title}
-            </h2>
-          )}
-
-          {author && (
-            <p className="text-sm text-muted-foreground">
-              by {author}
-            </p>
-          )}
-        </a>
-      </div>
-    );
-  }
-
-  const image = data?.thumbnail_url;
-
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={cn(
-        'group block rounded-2xl border border-border overflow-hidden',
-        'hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300',
-      )}
-    >
-      {image && (
-        <div className="w-full overflow-hidden">
-          <img
-            src={image}
-            alt=""
-            className="w-full h-[220px] object-cover group-hover:scale-[1.02] transition-transform duration-500"
-            loading="lazy"
-            onError={(e) => {
-              (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
-            }}
-          />
-        </div>
-      )}
-
-      <div className="p-5 space-y-2">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <ExternalFavicon url={url} size={14} className="shrink-0" />
-          <span className="truncate">{providerName}</span>
-          <ExternalLink className="size-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
-
-        {title && (
-          <h2 className="text-xl font-bold leading-snug line-clamp-3">
-            {title}
-          </h2>
-        )}
-
-        {!title && (
-          <h2 className="text-xl font-bold leading-snug break-all line-clamp-2 text-muted-foreground">
-            {url}
-          </h2>
-        )}
-
-        {author && (
-          <p className="text-sm text-muted-foreground">
-            by {author}
-          </p>
-        )}
-      </div>
-    </a>
-  );
+  return <LinkEmbed url={url} showDiscuss={false} />;
 }
 
 export function BookContentHeader({ isbn }: { isbn: string }) {
