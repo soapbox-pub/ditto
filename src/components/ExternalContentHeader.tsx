@@ -4,6 +4,7 @@ import { BookOpen, ExternalLink, Globe, MapPin, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
+import { TweetEmbed } from '@/components/TweetEmbed';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useBookInfo } from '@/hooks/useBookInfo';
@@ -61,6 +62,20 @@ export function extractYouTubeId(url: string): string | null {
   return null;
 }
 
+/** Extract a tweet/post ID from a Twitter or X URL, or null if not a tweet link. */
+export function extractTweetId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '').replace(/^mobile\./, '');
+    if (host !== 'twitter.com' && host !== 'x.com') return null;
+    // Match /<user>/status/<id> paths
+    const match = u.pathname.match(/^\/[^/]+\/status\/(\d+)/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Format an ISBN with hyphens for display (simplified). */
 export function formatIsbn(isbn: string): string {
   const digits = isbn.replace(/\D/g, '');
@@ -78,6 +93,7 @@ export function headerLabel(content: ExternalContent): string {
   switch (content.type) {
     case 'url':
       if (extractYouTubeId(content.value)) return 'YouTube';
+      if (extractTweetId(content.value)) return 'Twitter';
       try {
         return new URL(content.value).hostname.replace(/^www\./, '');
       } catch {
@@ -120,6 +136,7 @@ export function seoTitle(content: ExternalContent, appName: string): string {
 
 export function UrlContentHeader({ url }: { url: string }) {
   const youtubeId = useMemo(() => extractYouTubeId(url), [url]);
+  const tweetId = useMemo(() => extractTweetId(url), [url]);
   const { data, isLoading } = useLinkPreview(url);
 
   const domain = useMemo(() => {
@@ -129,6 +146,11 @@ export function UrlContentHeader({ url }: { url: string }) {
       return url;
     }
   }, [url]);
+
+  // Twitter/X tweet — render the embedded tweet widget
+  if (tweetId) {
+    return <TweetEmbed tweetId={tweetId} url={url} />;
+  }
 
   if (isLoading && !youtubeId) {
     return (
