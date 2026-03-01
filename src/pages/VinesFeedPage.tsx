@@ -442,7 +442,7 @@ function VineCard({ event, isActive, onCommentClick }: VineCardProps) {
             eventPubkey={event.pubkey}
             eventKind={event.kind}
             reactionCount={0}
-            className="text-white hover:text-pink-400 hover:bg-white/10 size-11 rounded-full flex items-center justify-center p-0"
+            className="text-white hover:text-pink-400 size-11 rounded-full flex items-center justify-center p-0 bg-black/20 backdrop-blur-sm hover:bg-white/10"
           />
         </VineActionButton>
 
