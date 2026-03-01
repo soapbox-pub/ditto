@@ -13,6 +13,7 @@ import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { buildEmojiMap, emojify, EmojifiedText } from '@/components/CustomEmoji';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { COUNTRIES } from '@/lib/countries';
+import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX } from '@/lib/mediaUrls';
 import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 
@@ -23,11 +24,7 @@ interface NoteContentProps {
   disableEmbeds?: boolean;
 }
 
-/** Regex to detect image URLs that should be rendered inline. */
-const IMAGE_URL_REGEX = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|avif)(\?[^\s]*)?/i;
 
-/** Regex to detect video/webxdc URLs rendered as embeds by the parent component. */
-const MEDIA_URL_REGEX = /https?:\/\/[^\s]+\.(mp4|webm|mov|xdc)(\?[^\s]*)?/i;
 
 /** Bech32 charset used by NIP-19 identifiers. */
 const BECH32_CHARS = '023456789acdefghjklmnpqrstuvwxyz';
@@ -249,7 +246,7 @@ export function NoteContent({
         }
 
         // Skip non-image media URLs — rendered as embedded media by the parent.
-        if (MEDIA_URL_REGEX.test(url)) {
+        if (EMBED_MEDIA_URL_REGEX.test(url)) {
           if (result.length > 0) {
             const prev = result[result.length - 1];
             if (prev.type === 'text') {

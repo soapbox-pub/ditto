@@ -1,7 +1,7 @@
 import { type ReactNode, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
-import { Image, Film, ExternalLink, Blocks } from 'lucide-react';
+import { Image, Film, Music, ExternalLink, Blocks } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -13,6 +13,7 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
+import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
 
 /** Bech32 charset used by NIP-19 identifiers. */
 const B32 = '023456789acdefghjklmnpqrstuvwxyz';
@@ -114,7 +115,7 @@ function EmbeddedNoteCard({
   const truncatedContent = useMemo(() => {
     const cleaned = event.content
       // Strip media URLs (same extensions as NoteContent's MEDIA_URL_REGEX)
-      .replace(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|wav|pdf|xdc)(\?[^\s]*)?/gi, '')
+      .replace(new RegExp(IMETA_MEDIA_URL_REGEX.source, 'gi'), '')
       // Strip embedded event references (nevent / note) so they don't nest
       .replace(/nostr:(nevent1|note1)[023456789acdefghjklmnpqrstuvwxyz]+/g, '')
       // Collapse leftover whitespace
@@ -126,22 +127,18 @@ function EmbeddedNoteCard({
 
   // Extract first image for a small thumbnail
   const firstImage = useMemo(() => {
-    const match = event.content.match(
-      /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/i,
-    );
-    return match?.[0] ?? null;
+    return event.content.match(IMAGE_URL_REGEX)?.[0] ?? null;
   }, [event.content]);
 
   // Detect stripped attachments to show indicator chips
   const attachments = useMemo(() => {
-    const imgs = (event.content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi) || []).length;
-    const vids = (event.content.match(/https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi) || []).length;
+    const imgs = (event.content.match(new RegExp(IMAGE_URL_REGEX.source, 'gi')) || []).length;
+    const vids = extractVideoUrls(event.content).length;
+    const auds = extractAudioUrls(event.content).length;
     const apps = (event.content.match(/https?:\/\/[^\s]+\.xdc(\?[^\s]*)?/gi) || []).length;
-    // Count non-media URLs that were kept as link previews in the full render
     const allUrls = event.content.match(/https?:\/\/[^\s]+/g) || [];
-    const mediaRegex = /\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|wav|pdf|xdc)(\?[^\s]*)?$/i;
-    const links = allUrls.filter((u) => !mediaRegex.test(u)).length;
-    return { imgs, vids, apps, links };
+    const links = allUrls.filter((u) => !IMETA_MEDIA_URL_REGEX.test(u)).length;
+    return { imgs, vids, auds, apps, links };
   }, [event.content]);
 
   // NIP-36 content-warning check
@@ -244,7 +241,7 @@ function EmbeddedNoteCard({
         ) : null}
 
         {/* Attachment indicators for stripped media/links */}
-        {!hasCW && (attachments.imgs > (firstImage ? 1 : 0) || attachments.vids > 0 || attachments.apps > 0 || attachments.links > 0) && (
+        {!hasCW && (attachments.imgs > (firstImage ? 1 : 0) || attachments.vids > 0 || attachments.auds > 0 || attachments.apps > 0 || attachments.links > 0) && (
           <div className="flex items-center gap-2 flex-wrap">
             {attachments.imgs > (firstImage ? 1 : 0) && (
               <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -256,6 +253,12 @@ function EmbeddedNoteCard({
               <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                 <Film className="size-3" />
                 {attachments.vids > 1 ? `${attachments.vids} videos` : 'Video'}
+              </span>
+            )}
+            {attachments.auds > 0 && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Music className="size-3" />
+                {attachments.auds > 1 ? `${attachments.auds} audio files` : 'Audio'}
               </span>
             )}
             {attachments.apps > 0 && (

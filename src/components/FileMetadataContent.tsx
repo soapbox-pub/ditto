@@ -1,10 +1,14 @@
-import { Download, FileIcon, Music } from 'lucide-react';
+import { Download, FileIcon } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Button } from '@/components/ui/button';
 import { ImageGallery } from '@/components/ImageGallery';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
+import { AudioVisualizer } from '@/components/AudioVisualizer';
+import { useAuthor } from '@/hooks/useAuthor';
+import { getDisplayName } from '@/lib/getDisplayName';
+import { genUserName } from '@/lib/genUserName';
 
 /** Extract the first value of a tag by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -23,6 +27,35 @@ function DescriptionCard({ text }: { text: string }) {
   return (
     <div className="mt-2.5 rounded-xl bg-secondary/50 px-3.5 py-2.5">
       <p className="text-sm leading-relaxed text-muted-foreground">{text}</p>
+    </div>
+  );
+}
+
+/** Inner component for audio events — needs author data for avatar. */
+function AudioFileContent({
+  event,
+  url,
+  mime,
+  description,
+}: {
+  event: NostrEvent;
+  url: string;
+  mime: string;
+  description: string | undefined;
+}) {
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = getDisplayName(metadata, event.pubkey) ?? genUserName(event.pubkey);
+
+  return (
+    <div className="mt-3">
+      <AudioVisualizer
+        src={url}
+        mime={mime}
+        avatarUrl={metadata?.picture}
+        avatarFallback={displayName[0]?.toUpperCase() ?? '?'}
+      />
+      {description && <DescriptionCard text={description} />}
     </div>
   );
 }
@@ -98,35 +131,7 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
 
   // ── Audio ───────────────────────────────────────────────────────────
   if (mime.startsWith('audio/')) {
-    const trackName = altText ?? fileName;
-    return (
-      <div className="mt-3">
-        <div className="rounded-2xl border border-border overflow-hidden">
-          <div className="flex items-center gap-3 p-4 pb-3">
-            <div className="flex items-center justify-center size-12 rounded-xl bg-primary/10 shrink-0">
-              <Music className="size-6 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate">{trackName}</p>
-              {sizeStr && (
-                <p className="text-xs text-muted-foreground mt-0.5">{sizeStr}</p>
-              )}
-            </div>
-            <Button variant="ghost" size="icon" className="size-8 shrink-0 text-muted-foreground hover:text-foreground" asChild>
-              <a href={url} download title="Download">
-                <Download className="size-4" />
-              </a>
-            </Button>
-          </div>
-          <div className="px-4 pb-4">
-            <audio controls preload="metadata" className="w-full">
-              <source src={url} type={mime} />
-            </audio>
-          </div>
-        </div>
-        {description && <DescriptionCard text={description} />}
-      </div>
-    );
+    return <AudioFileContent event={event} url={url} mime={mime} description={description} />;
   }
 
   // ── Fallback: generic file ──────────────────────────────────────────

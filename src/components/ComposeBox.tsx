@@ -18,6 +18,7 @@ import { MentionAutocomplete } from '@/components/MentionAutocomplete';
 import { EmojiShortcodeAutocomplete } from '@/components/EmojiShortcodeAutocomplete';
 
 import { NoteContent } from '@/components/NoteContent';
+import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { usePostComment } from '@/hooks/usePostComment';
@@ -26,6 +27,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 import { extractWebxdcMeta } from '@/lib/webxdcMeta';
+import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { DITTO_RELAY } from '@/lib/appRelays';
 
@@ -270,7 +272,7 @@ export function ComposeBox({
       const url = match[0];
       // Skip media URLs that render inline
       // Note: SVGs not excluded - LinkPreview checks content-type and handles both cases
-      if (!/\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|avi|mkv|flv)(\?[^\s]*)?$/i.test(url)) {
+      if (!IMETA_MEDIA_URL_REGEX.test(url)) {
         embeds.push({ type: 'link', value: url, index: match.index! });
       }
     }
@@ -286,11 +288,10 @@ export function ComposeBox({
   );
 
   // Extract videos for preview mode
-  const previewVideos = useMemo(() => {
-    if (!content) return [];
-    const urlRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi;
-    return content.match(urlRegex) || [];
-  }, [content]);
+  const previewVideos = useMemo(() => content ? extractVideoUrls(content) : [], [content]);
+
+  // Extract audio for preview mode
+  const previewAudios = useMemo(() => content ? extractAudioUrls(content) : [], [content]);
 
   // Detect inline images for preview mode
   const hasPreviewImages = useMemo(() => {
@@ -303,10 +304,10 @@ export function ComposeBox({
     return /nostr:(npub1|nprofile1)[023456789acdefghjklmnpqrstuvwxyz]+/.test(content);
   }, [content]);
 
-  // Check if content has any previewable content (link previews, images, videos, or mentions)
+  // Check if content has any previewable content (link previews, images, videos, audio, or mentions)
   const hasPreviewableContent = useMemo(() => {
-    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || hasMentions;
-  }, [visibleEmbeds, hasPreviewImages, previewVideos, hasMentions]);
+    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || previewAudios.length > 0 || hasMentions;
+  }, [visibleEmbeds, hasPreviewImages, previewVideos, previewAudios, hasMentions]);
 
   // Notify parent of previewable content changes
   useEffect(() => {
@@ -546,7 +547,7 @@ export function ComposeBox({
       }
 
       // NIP-92: Add imeta tags for media URLs in content
-      const mediaUrlMatches = finalContent.matchAll(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|avi|mkv|flv|xdc)(\?[^\s]*)?/gi);
+      const mediaUrlMatches = finalContent.matchAll(new RegExp(IMETA_MEDIA_URL_REGEX.source, 'gi'));
       const processedUrls = new Set<string>();
       
       for (const match of mediaUrlMatches) {
@@ -578,19 +579,7 @@ export function ComposeBox({
           }
         } else {
           // Fallback: basic imeta tag with URL and inferred mime type
-          const mimeType = isWebxdc ? 'application/x-webxdc'
-            : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
-            : ext === 'png' ? 'image/png'
-            : ext === 'gif' ? 'image/gif'
-            : ext === 'webp' ? 'image/webp'
-            : ext === 'svg' ? 'image/svg+xml'
-            : ext === 'mp4' ? 'video/mp4'
-            : ext === 'webm' ? 'video/webm'
-            : ext === 'mov' ? 'video/quicktime'
-            : ext === 'avi' ? 'video/x-msvideo'
-            : ext === 'mkv' ? 'video/x-matroska'
-            : ext === 'flv' ? 'video/x-flv'
-            : 'application/octet-stream';
+          const mimeType = mimeFromExt(ext);
           
           const imetaTag = ['imeta', `url ${url}`, `m ${mimeType}`];
           if (isWebxdc) {
@@ -816,6 +805,16 @@ export function ComposeBox({
                     className="w-full h-auto max-h-[500px] bg-muted"
                   />
                 </div>
+              ))}
+
+              {/* Render audio as visualizer */}
+              {previewAudios.map((url, i) => (
+                <AudioVisualizer
+                  key={`audio-${i}`}
+                  src={url}
+                  avatarUrl={metadata?.picture}
+                  avatarFallback={(metadata?.name ?? metadata?.display_name ?? '?')[0]?.toUpperCase() ?? '?'}
+                />
               ))}
             </div>
           )

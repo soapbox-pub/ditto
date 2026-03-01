@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteContent, isSingleImagePost } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { PollContent } from '@/components/PollContent';
@@ -47,6 +48,7 @@ import { ContentWarningGuard, getContentWarning } from '@/components/ContentWarn
 import { ThemeContent } from '@/components/ThemeContent';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
+import { extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -68,11 +70,7 @@ function formatSats(sats: number): string {
   return sats.toString();
 }
 
-/** Extracts video URLs from note content. */
-function extractVideos(content: string): string[] {
-  const urlRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi;
-  return content.match(urlRegex) || [];
-}
+
 
 /** Gets a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -220,7 +218,16 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
-  const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
+  const videos = useMemo(() => isTextNote ? extractVideoUrls(event.content) : [], [event.content, isTextNote]);
+  const audios = useMemo(() => {
+    if (!isTextNote) return [];
+    // Prefer imeta-declared audio over URL scraping
+    const imetaAudios = Array.from(parseImetaMap(event.tags).values())
+      .filter((e) => e.mime?.startsWith('audio/'))
+      .map((e) => e.url);
+    if (imetaAudios.length > 0) return imetaAudios;
+    return extractAudioUrls(event.content);
+  }, [event.content, event.tags, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
 
   // Extract webxdc attachments from imeta tags
@@ -311,7 +318,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
         ) : isTheme ? (
           <ThemeContent event={event} />
         ) : (
-          <TruncatedNoteContent event={event} videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
+          <TruncatedNoteContent event={event} videos={videos} audios={audios} imetaMap={imetaMap} webxdcApps={webxdcApps} />
         )}
       </ContentWarningGuard>
     </>
@@ -511,9 +518,10 @@ const MAX_HEIGHT = 400; // px — posts taller than this get truncated
 
 /** Truncates long text note content with a "Read more" fade + button.
  *  Media attachments are also hidden behind the truncation and revealed on expand. */
-function TruncatedNoteContent({ event, videos, imetaMap, webxdcApps = [] }: {
+function TruncatedNoteContent({ event, videos, audios = [], imetaMap, webxdcApps = [] }: {
   event: NostrEvent;
   videos: string[];
+  audios?: string[];
   imetaMap: Map<string, ImetaEntry>;
   webxdcApps?: ImetaEntry[];
 }) {
@@ -567,15 +575,31 @@ function TruncatedNoteContent({ event, videos, imetaMap, webxdcApps = [] }: {
         </button>
       )}
       {showMedia && (
-        <NoteMedia videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
+        <NoteMedia videos={videos} audios={audios} imetaMap={imetaMap} webxdcApps={webxdcApps} event={event} />
       )}
     </div>
   );
 }
 
-/** Media content for kind 1 text notes — renders videos and webxdc apps (images render inline in NoteContent). */
-function NoteMedia({ videos, imetaMap, webxdcApps = [] }: { videos: string[]; imetaMap: Map<string, ImetaEntry>; webxdcApps?: ImetaEntry[] }) {
-  if (videos.length === 0 && webxdcApps.length === 0) return null;
+/** Media content for kind 1 text notes — renders videos, audio, and webxdc apps. */
+function NoteMedia({
+  videos,
+  audios = [],
+  imetaMap,
+  webxdcApps = [],
+  event,
+}: {
+  videos: string[];
+  audios?: string[];
+  imetaMap: Map<string, ImetaEntry>;
+  webxdcApps?: ImetaEntry[];
+  event: NostrEvent;
+}) {
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = getDisplayName(metadata, event.pubkey) ?? genUserName(event.pubkey);
+
+  if (videos.length === 0 && audios.length === 0 && webxdcApps.length === 0) return null;
 
   return (
     <>
@@ -583,6 +607,20 @@ function NoteMedia({ videos, imetaMap, webxdcApps = [] }: { videos: string[]; im
       {videos.map((url, i) => (
         <NoteVideoPlayer key={`v-${i}`} url={url} poster={imetaMap.get(url)?.thumbnail} dim={imetaMap.get(url)?.dim} blurhash={imetaMap.get(url)?.blurhash} />
       ))}
+
+      {/* Audio — rendered as visualizer with avatar */}
+      {audios.map((url, i) => {
+        const mime = imetaMap.get(url)?.mime;
+        return (
+          <AudioVisualizer
+            key={`a-${i}`}
+            src={url}
+            mime={mime}
+            avatarUrl={metadata?.picture}
+            avatarFallback={displayName[0]?.toUpperCase() ?? '?'}
+          />
+        );
+      })}
 
       {/* Webxdc apps */}
       {webxdcApps.map((app) => (

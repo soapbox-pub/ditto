@@ -1,8 +1,10 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Play, Pause, Volume2, VolumeX, Expand } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
+import { usePlayerControls } from '@/hooks/usePlayerControls';
+import { formatTime } from '@/lib/formatTime';
 
 interface VideoPlayerProps {
   src: string;
@@ -22,15 +24,6 @@ function parseDim(dim: string | undefined): { width: number; height: number } | 
   return { width: w, height: h };
 }
 
-/** Format seconds to m:ss or h:mm:ss. */
-function formatTime(seconds: number): string {
-  if (!isFinite(seconds) || seconds < 0) return '0:00';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
 
 /**
  * Extracts a thumbnail frame from a video URL by loading it off-screen,
@@ -94,7 +87,6 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const { src, onError: onBlossomError } = useBlossomFallback(originalSrc);
 
   const generatedPoster = useVideoThumbnail(src, poster);
@@ -103,7 +95,6 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [showControls, setShowControls] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
   // True once the video has enough data to display a frame (or has a poster/generated thumbnail)
   const [videoReady, setVideoReady] = useState(!!poster);
@@ -113,48 +104,11 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  const scheduleHide = useCallback(() => {
-    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    if (isPlaying) {
-      hideTimeoutRef.current = setTimeout(() => setShowControls(false), 2500);
-    }
-  }, [isPlaying]);
-
-  const revealControls = useCallback(() => {
-    setShowControls(true);
-    scheduleHide();
-  }, [scheduleHide]);
-
-  useEffect(() => {
-    if (isPlaying) {
-      scheduleHide();
-    } else {
-      setShowControls(true);
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    }
-    return () => {
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    };
-  }, [isPlaying, scheduleHide]);
-
-  // Pause video when scrolled out of view
-  useEffect(() => {
-    const video = videoRef.current;
-    const container = containerRef.current;
-    if (!video || !container) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting && !video.paused) {
-          video.pause();
-        }
-      },
-      { threshold: 0.25 },
-    );
-
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
+  const { showControls, revealControls, scheduleHide } = usePlayerControls({
+    mediaRef: videoRef,
+    containerRef,
+    isPlaying,
+  });
 
   const togglePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
