@@ -48,12 +48,12 @@ export function MastodonEmbed({ url, className }: MastodonEmbedProps) {
   const embedUrl = `${url}/embed`;
 
   return (
-    <div className={cn('overflow-hidden', className)}>
+    <div className={cn('overflow-hidden rounded-2xl', className)}>
       <iframe
         ref={iframeRef}
         src={embedUrl}
         title="Mastodon post"
-        className="w-full border-0"
+        className="w-full border-0 rounded-2xl"
         style={{ minHeight: 200 }}
         scrolling="no"
         allowFullScreen
