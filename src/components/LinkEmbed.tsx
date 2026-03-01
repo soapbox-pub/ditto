@@ -6,6 +6,8 @@ import { BlueskyEmbed } from '@/components/BlueskyEmbed';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { LinkPreview } from '@/components/LinkPreview';
 import { MastodonEmbed } from '@/components/MastodonEmbed';
+import { RedditEmbed } from '@/components/RedditEmbed';
+import { SpotifyEmbed } from '@/components/SpotifyEmbed';
 import { TweetEmbed } from '@/components/TweetEmbed';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { MASTODON_SERVERS } from '@/lib/mastodonServers';
@@ -95,9 +97,48 @@ export function extractMastodonPost(url: string): string | null {
   }
 }
 
+/** Spotify embed info extracted from an open.spotify.com URL. */
+export interface SpotifyEmbedInfo {
+  /** Content type: track, album, playlist, episode, show. */
+  type: string;
+  /** Spotify content ID. */
+  id: string;
+}
+
+/** Extract Spotify embed info from an open.spotify.com URL. */
+export function extractSpotifyEmbed(url: string): SpotifyEmbedInfo | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    if (host !== 'open.spotify.com') return null;
+    // Match /{type}/{id} where type is track, album, playlist, episode, or show
+    const match = u.pathname.match(/^\/(track|album|playlist|episode|show)\/([a-zA-Z0-9]+)/);
+    return match ? { type: match[1], id: match[2] } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Extract a Reddit post URL, or null if not a Reddit post link. */
+export function extractRedditPost(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '').replace(/^old\./, '').replace(/^new\./, '');
+    if (host !== 'reddit.com') return null;
+    // Match /r/{subreddit}/comments/{id}/... 
+    if (/^\/r\/[^/]+\/comments\/[a-z0-9]+/i.test(u.pathname)) {
+      return url;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /** Returns true if the URL should be rendered as a rich embed rather than a plain link. */
 export function isEmbeddableUrl(url: string): boolean {
-  return !!extractYouTubeId(url) || !!extractTweetId(url) || !!extractBlueskyPost(url) || !!extractMastodonPost(url);
+  return !!extractYouTubeId(url) || !!extractTweetId(url) || !!extractBlueskyPost(url)
+    || !!extractMastodonPost(url) || !!extractSpotifyEmbed(url) || !!extractRedditPost(url);
 }
 
 /** Get a short label for the embed type. */
@@ -106,6 +147,8 @@ export function embedLabel(url: string): string | null {
   if (extractTweetId(url)) return 'Twitter';
   if (extractBlueskyPost(url)) return 'Bluesky';
   if (extractMastodonPost(url)) return 'Mastodon';
+  if (extractSpotifyEmbed(url)) return 'Spotify';
+  if (extractRedditPost(url)) return 'Reddit';
   return null;
 }
 
@@ -126,6 +169,8 @@ export function LinkEmbed({ url, className, showDiscuss = true }: LinkEmbedProps
   const tweetId = useMemo(() => extractTweetId(url), [url]);
   const blueskyPost = useMemo(() => extractBlueskyPost(url), [url]);
   const mastodonUrl = useMemo(() => extractMastodonPost(url), [url]);
+  const spotifyEmbed = useMemo(() => extractSpotifyEmbed(url), [url]);
+  const redditUrl = useMemo(() => extractRedditPost(url), [url]);
 
   let embed: React.ReactNode;
 
@@ -137,6 +182,10 @@ export function LinkEmbed({ url, className, showDiscuss = true }: LinkEmbedProps
     embed = <BlueskyEmbed author={blueskyPost.author} rkey={blueskyPost.rkey} />;
   } else if (mastodonUrl) {
     embed = <MastodonEmbed url={mastodonUrl} />;
+  } else if (spotifyEmbed) {
+    embed = <SpotifyEmbed type={spotifyEmbed.type} id={spotifyEmbed.id} />;
+  } else if (redditUrl) {
+    embed = <RedditEmbed url={redditUrl} />;
   } else {
     // LinkPreview has its own built-in Discuss button
     return <LinkPreview url={url} className={className} />;
