@@ -23,6 +23,8 @@ function notificationTitle(event: NostrEvent): string {
     case 6:
     case 16:  return 'New repost';
     case 9735: return 'New zap';
+    case 1222:
+    case 1244: return 'New voice message';
     default:  return 'New mention';
   }
 }
@@ -115,7 +117,7 @@ export function useNativeNotifications(): void {
       try {
         const stream = nostrRef.current.req(
           [{
-            kinds: [1, 6, 7, 16, 9735],
+            kinds: [1, 6, 7, 16, 9735, 1222, 1244],
             '#p': [user.pubkey],
             since: subStartRef.current,
           }],

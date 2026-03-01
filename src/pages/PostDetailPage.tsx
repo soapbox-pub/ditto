@@ -33,6 +33,7 @@ import { ArticleContent } from '@/components/ArticleContent';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { FileMetadataContent } from '@/components/FileMetadataContent';
 import { ThemeContent } from '@/components/ThemeContent';
+import { VoiceMessagePlayer } from '@/components/VoiceMessagePlayer';
 import { LiveStreamPage } from '@/components/LiveStreamPage';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
@@ -582,7 +583,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const isMagicDeck = event.kind === 37381;
     const isFileMetadata = event.kind === 1063;
     const isTheme = event.kind === 36767 || event.kind === 16767;
-    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme;
+    const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
+    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme && !isVoiceMessage;
 
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
@@ -904,6 +906,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <FileMetadataContent event={event} />
           ) : isTheme ? (
             <ThemeContent event={event} />
+          ) : isVoiceMessage ? (
+            <VoiceMessagePlayer event={event} />
           ) : isVine || isPoll || isGeocache || isFoundLog || isColor || isFollowPack ? (
             <>
               {isVine && <VineDetailContent event={event} />}
