@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Quote, Heart, Zap, X } from 'lucide-react';
+import { Quote, Heart, Zap, X, ChevronRight } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { nip19 } from 'nostr-tools';
 
@@ -191,10 +191,10 @@ function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
               )}
               <span className="text-xs text-muted-foreground font-medium">{entries.length}</span>
             </div>
-            {/* Users who reacted with this emoji */}
+            {/* Users who reacted with this emoji — each row links to the reaction event */}
             <div className="divide-y divide-border">
               {entries.map((entry, i) => (
-                <UserRow key={`${entry.pubkey}-${i}`} pubkey={entry.pubkey} subtitle={timeAgo(entry.createdAt)} />
+                <ReactionRow key={`${entry.pubkey}-${i}`} entry={entry} />
               ))}
             </div>
           </div>
@@ -231,6 +231,43 @@ function ZapsTab({ zaps }: { zaps: ZapEntry[] }) {
 }
 
 /* ──── Shared Row Components ──── */
+
+function ReactionRow({ entry }: { entry: ReactionEntry }) {
+  const author = useAuthor(entry.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name || genUserName(entry.pubkey);
+  const nevent = useMemo(() => nip19.neventEncode({ id: entry.eventId, author: entry.pubkey }), [entry.eventId, entry.pubkey]);
+
+  return (
+    <Link
+      to={`/${nevent}`}
+      className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
+    >
+      <Avatar className="size-10 shrink-0">
+        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarFallback className="bg-primary/20 text-primary text-sm">
+          {displayName[0].toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="font-bold text-sm truncate">
+            {author.data?.event ? (
+              <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+            ) : displayName}
+          </span>
+          {metadata?.nip05 && (
+            <VerifiedNip05Text nip05={metadata.nip05} pubkey={entry.pubkey} className="text-xs text-muted-foreground truncate" />
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground">{timeAgo(entry.createdAt)}</span>
+      </div>
+
+      <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+    </Link>
+  );
+}
 
 function UserRow({ pubkey, subtitle }: { pubkey: string; subtitle?: string }) {
   const author = useAuthor(pubkey);

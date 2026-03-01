@@ -10,6 +10,8 @@ export interface RepostEntry {
 }
 
 export interface ReactionEntry {
+  /** The kind 7 reaction event's ID. */
+  eventId: string;
   pubkey: string;
   emoji: string;
   /** For NIP-30 custom emojis, the image URL. */
@@ -162,6 +164,7 @@ export function useEventInteractions(eventId: string | undefined) {
             const emoji = (rawEmoji === '+' || rawEmoji === '') ? '👍' : rawEmoji;
             const emojiUrl = isCustomEmoji(emoji) ? getCustomEmojiUrl(emoji, e.tags) : undefined;
             reactions.push({
+              eventId: e.id,
               pubkey: e.pubkey,
               emoji,
               emojiUrl,
