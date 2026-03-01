@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Paperclip, Smile, AlertTriangle, X, Loader2, ImagePlay } from 'lucide-react';
+import { Paperclip, Smile, AlertTriangle, X, Loader2, ImagePlay, Mic, Square } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -29,6 +29,8 @@ import { cn } from '@/lib/utils';
 import { extractWebxdcMeta } from '@/lib/webxdcMeta';
 import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
+import { formatTime } from '@/lib/formatTime';
 import { DITTO_RELAY } from '@/lib/appRelays';
 
 const MAX_CHARS = 5000;
@@ -177,6 +179,10 @@ export function ComposeBox({
   const [webxdcMetas, setWebxdcMetas] = useState<Map<string, { name?: string; iconUrl?: string }>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Voice recording
+  const voiceRecorder = useVoiceRecorder();
+  const [isPublishingVoice, setIsPublishingVoice] = useState(false);
 
   // Use controlled preview mode if provided, otherwise use internal state
   const previewMode = controlledPreviewMode !== undefined ? controlledPreviewMode : internalPreviewMode;
@@ -468,6 +474,128 @@ export function ComposeBox({
       }
     }
   }, [handleFileUpload]);
+
+  /** Start voice recording. */
+  const handleStartRecording = useCallback(async () => {
+    try {
+      await voiceRecorder.startRecording();
+      expand();
+    } catch {
+      toast({ title: 'Microphone access denied', description: 'Please allow microphone access to record voice messages.', variant: 'destructive' });
+    }
+  }, [voiceRecorder, expand, toast]);
+
+  /** Stop recording, upload, and publish as kind 1222 or 1244. */
+  const handleStopAndPublishVoice = useCallback(async () => {
+    if (!user) return;
+    setIsPublishingVoice(true);
+    try {
+      const recording = await voiceRecorder.stopRecording();
+      if (!recording) return;
+
+      // Determine file extension from MIME type
+      const extMap: Record<string, string> = {
+        'audio/mp4': '.m4a',
+        'audio/mp4;codecs=aac': '.m4a',
+        'audio/aac': '.aac',
+        'audio/webm;codecs=opus': '.webm',
+        'audio/webm': '.webm',
+        'audio/ogg;codecs=opus': '.ogg',
+      };
+      const ext = extMap[recording.mimeType] ?? '.webm';
+      const fileName = `voice-message-${Date.now()}${ext}`;
+      const file = new File([recording.blob], fileName, { type: recording.mimeType });
+
+      // Upload to Blossom
+      const tags = await uploadFile(file);
+      const [[, audioUrl]] = tags;
+
+      // Build NIP-A0 imeta tag with waveform and duration
+      const imetaFields = [
+        `url ${audioUrl}`,
+        `m ${recording.mimeType}`,
+        `waveform ${recording.waveform.join(' ')}`,
+        `duration ${Math.round(recording.duration)}`,
+      ];
+      const imetaTag = ['imeta', ...imetaFields];
+
+      // Determine kind: 1244 for NIP-22 replies, 1222 for root messages
+      const isNip22Reply = replyTo && (replyTo instanceof URL || replyTo.kind !== 1);
+      const isKind1Reply = replyTo && !(replyTo instanceof URL) && replyTo.kind === 1;
+
+      if (isNip22Reply) {
+        // NIP-22 voice reply (kind 1244) — use postComment infrastructure
+        // but we need to publish kind 1244 directly since postComment uses kind 1111
+        // Build NIP-22 tags manually
+        const voiceTags: string[][] = [imetaTag];
+
+        if (replyTo instanceof URL) {
+          voiceTags.push(['I', replyTo.toString()]);
+          voiceTags.push(['K', replyTo.protocol === 'http:' || replyTo.protocol === 'https:' ? 'web' : replyTo.protocol.replace(/:$/, '')]);
+          // lowercase reply tags pointing to same root
+          voiceTags.push(['i', replyTo.toString()]);
+          voiceTags.push(['k', replyTo.protocol === 'http:' || replyTo.protocol === 'https:' ? 'web' : replyTo.protocol.replace(/:$/, '')]);
+        } else {
+          voiceTags.push(['E', replyTo.id]);
+          voiceTags.push(['K', replyTo.kind.toString()]);
+          voiceTags.push(['P', replyTo.pubkey]);
+          // lowercase reply tags
+          voiceTags.push(['e', replyTo.id]);
+          voiceTags.push(['k', replyTo.kind.toString()]);
+          voiceTags.push(['p', replyTo.pubkey]);
+        }
+
+        await createEvent({
+          kind: 1244,
+          content: audioUrl,
+          tags: voiceTags,
+        });
+      } else if (isKind1Reply && !(replyTo instanceof URL)) {
+        // NIP-10 voice reply to a kind 1 note — still publish as kind 1222 with reply tags
+        const voiceTags: string[][] = [imetaTag];
+        const rootTag = replyTo.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
+        if (rootTag) {
+          voiceTags.push(['e', rootTag[1], rootTag[2] || DITTO_RELAY, 'root', ...(rootTag[4] ? [rootTag[4]] : [])]);
+          voiceTags.push(['e', replyTo.id, DITTO_RELAY, 'reply', replyTo.pubkey]);
+        } else {
+          voiceTags.push(['e', replyTo.id, DITTO_RELAY, 'root', replyTo.pubkey]);
+        }
+        voiceTags.push(['p', replyTo.pubkey]);
+
+        await createEvent({
+          kind: 1222,
+          content: audioUrl,
+          tags: voiceTags,
+        });
+      } else {
+        // Root voice message (kind 1222)
+        await createEvent({
+          kind: 1222,
+          content: audioUrl,
+          tags: [imetaTag],
+        });
+      }
+
+      // Reset state
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      if (replyTo) {
+        if (replyTo instanceof URL) {
+          queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
+        } else {
+          queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
+          if (replyTo.kind !== 1) {
+            queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
+          }
+        }
+      }
+      toast({ title: 'Voice message sent!', description: 'Your voice message has been published.' });
+      onSuccess?.();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to send voice message.', variant: 'destructive' });
+    } finally {
+      setIsPublishingVoice(false);
+    }
+  }, [user, voiceRecorder, uploadFile, createEvent, replyTo, queryClient, toast, onSuccess]);
 
   const handleSubmit = async () => {
     if (!content.trim() || !user || charCount > MAX_CHARS) return;
@@ -848,147 +976,222 @@ export function ComposeBox({
 
         {/* Toolbar + post button */}
         {isExpanded && (
-          <div className="flex items-center justify-between mt-3">
-            {/* Left: action icons */}
-            <div className="flex items-center gap-1 -ml-2">
-              {/* File upload */}
+          voiceRecorder.isRecording || isPublishingVoice ? (
+            /* ── Voice recording UI ─────────────────────────────── */
+            <div className="flex items-center gap-3 mt-3 rounded-xl bg-destructive/5 border border-destructive/20 px-3 py-2.5">
+              {/* Recording indicator */}
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="size-2.5 rounded-full bg-destructive animate-pulse shrink-0" />
+                <span className="text-sm font-medium tabular-nums text-destructive">
+                  {formatTime(voiceRecorder.recordingDuration)}
+                </span>
+              </div>
+
+              {/* Live waveform preview */}
+              <div className="flex-1 flex items-center gap-[2px] h-6 overflow-hidden">
+                {voiceRecorder.liveWaveform.slice(-60).map((amp, i) => {
+                  const h = 3 + (amp / 100) * 21;
+                  return (
+                    <div
+                      key={i}
+                      className="w-[3px] shrink-0 rounded-full bg-destructive/60"
+                      style={{ height: `${h}px` }}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Cancel button */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading || !user}
-                    className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
+                    onClick={voiceRecorder.cancelRecording}
+                    disabled={isPublishingVoice}
+                    className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
                   >
-                    {isUploading ? <Loader2 className="size-[18px] animate-spin" /> : <Paperclip className="size-[18px]" />}
+                    <X className="size-[18px]" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>Attach file</TooltipContent>
+                <TooltipContent>Cancel</TooltipContent>
               </Tooltip>
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,video/*,audio/*,.xdc"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileUpload(file);
-                  e.target.value = '';
-                }}
-              />
-
-              {/* Emoji picker */}
-              <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        className={cn(
-                          'p-2 rounded-full transition-colors',
-                          emojiOpen
-                            ? 'text-primary bg-primary/10'
-                            : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
-                        )}
-                      >
-                        <Smile className="size-[18px]" />
-                      </button>
-                    </PopoverTrigger>
-                  </TooltipTrigger>
-                  {!emojiOpen && <TooltipContent>Emoji</TooltipContent>}
-                </Tooltip>
-                <PopoverContent
-                  align="start"
-                  sideOffset={8}
-                  className="w-auto p-0 border-border"
-                >
-                  <EmojiPicker onSelect={(emoji) => {
-                    insertEmoji(emoji);
-                  }} />
-                </PopoverContent>
-              </Popover>
-
-              {/* GIF picker */}
-              <Popover open={gifOpen} onOpenChange={setGifOpen}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        className={cn(
-                          'p-2 rounded-full transition-colors',
-                          gifOpen
-                            ? 'text-primary bg-primary/10'
-                            : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
-                        )}
-                      >
-                        <ImagePlay className="size-[18px]" />
-                      </button>
-                    </PopoverTrigger>
-                  </TooltipTrigger>
-                  {!gifOpen && <TooltipContent>GIF</TooltipContent>}
-                </Tooltip>
-                <PopoverContent
-                  align="start"
-                  sideOffset={8}
-                  className="w-auto p-0 border-border"
-                >
-                  <GifPicker onSelect={(gif) => {
-                    setContent((prev) => (prev ? prev + '\n' + gif.url : gif.url));
-                    setGifOpen(false);
-                    expand();
-                  }} />
-                </PopoverContent>
-              </Popover>
-
-              {/* Content warning (NIP-36) */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => setCwEnabled(!cwEnabled)}
-                    className={cn(
-                      'p-2 rounded-full transition-colors',
-                      cwEnabled
-                        ? 'text-amber-500 bg-amber-500/10'
-                        : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10',
-                    )}
-                  >
-                    <AlertTriangle className="size-[18px]" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Content warning (NIP-36)</TooltipContent>
-              </Tooltip>
-            </div>
-
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            {/* Right: char count + post button */}
-            <div className="flex items-center gap-3">
-              {charCount > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <CharRing count={charCount} max={MAX_CHARS} />
-                  <span className={cn(
-                    'text-xs tabular-nums',
-                    remaining < 0 ? 'text-destructive font-semibold' : remaining < 500 ? 'text-amber-500' : 'text-muted-foreground',
-                  )}>
-                    {remaining}
-                  </span>
-                </div>
-              )}
-
+              {/* Stop & send button */}
               <Button
-                onClick={handleSubmit}
-                disabled={!content.trim() || isPending || isCommentPending || !user || charCount > MAX_CHARS}
-                className="rounded-full px-5 font-bold"
+                onClick={handleStopAndPublishVoice}
+                disabled={isPublishingVoice || voiceRecorder.recordingDuration < 0.5}
+                className="rounded-full px-4 font-bold"
                 size="sm"
               >
-                {isPending || isCommentPending ? 'Posting...' : 'Post!'}
+                {isPublishingVoice ? (
+                  <Loader2 className="size-4 animate-spin mr-1.5" />
+                ) : (
+                  <Square className="size-3.5 mr-1.5" fill="currentColor" />
+                )}
+                {isPublishingVoice ? 'Sending...' : 'Send'}
               </Button>
             </div>
-          </div>
+          ) : (
+            /* ── Normal toolbar ──────────────────────────────────── */
+            <div className="flex items-center justify-between mt-3">
+              {/* Left: action icons */}
+              <div className="flex items-center gap-1 -ml-2">
+                {/* File upload */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading || !user}
+                      className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
+                    >
+                      {isUploading ? <Loader2 className="size-[18px] animate-spin" /> : <Paperclip className="size-[18px]" />}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Attach file</TooltipContent>
+                </Tooltip>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*,audio/*,.xdc"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+
+                {/* Voice recording */}
+                {voiceRecorder.isSupported && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={handleStartRecording}
+                        disabled={!user}
+                        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
+                      >
+                        <Mic className="size-[18px]" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Voice message</TooltipContent>
+                  </Tooltip>
+                )}
+
+                {/* Emoji picker */}
+                <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className={cn(
+                            'p-2 rounded-full transition-colors',
+                            emojiOpen
+                              ? 'text-primary bg-primary/10'
+                              : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
+                          )}
+                        >
+                          <Smile className="size-[18px]" />
+                        </button>
+                      </PopoverTrigger>
+                    </TooltipTrigger>
+                    {!emojiOpen && <TooltipContent>Emoji</TooltipContent>}
+                  </Tooltip>
+                  <PopoverContent
+                    align="start"
+                    sideOffset={8}
+                    className="w-auto p-0 border-border"
+                  >
+                    <EmojiPicker onSelect={(emoji) => {
+                      insertEmoji(emoji);
+                    }} />
+                  </PopoverContent>
+                </Popover>
+
+                {/* GIF picker */}
+                <Popover open={gifOpen} onOpenChange={setGifOpen}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className={cn(
+                            'p-2 rounded-full transition-colors',
+                            gifOpen
+                              ? 'text-primary bg-primary/10'
+                              : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
+                          )}
+                        >
+                          <ImagePlay className="size-[18px]" />
+                        </button>
+                      </PopoverTrigger>
+                    </TooltipTrigger>
+                    {!gifOpen && <TooltipContent>GIF</TooltipContent>}
+                  </Tooltip>
+                  <PopoverContent
+                    align="start"
+                    sideOffset={8}
+                    className="w-auto p-0 border-border"
+                  >
+                    <GifPicker onSelect={(gif) => {
+                      setContent((prev) => (prev ? prev + '\n' + gif.url : gif.url));
+                      setGifOpen(false);
+                      expand();
+                    }} />
+                  </PopoverContent>
+                </Popover>
+
+                {/* Content warning (NIP-36) */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setCwEnabled(!cwEnabled)}
+                      className={cn(
+                        'p-2 rounded-full transition-colors',
+                        cwEnabled
+                          ? 'text-amber-500 bg-amber-500/10'
+                          : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10',
+                      )}
+                    >
+                      <AlertTriangle className="size-[18px]" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Content warning (NIP-36)</TooltipContent>
+                </Tooltip>
+              </div>
+
+              {/* Spacer */}
+              <div className="flex-1" />
+
+              {/* Right: char count + post button */}
+              <div className="flex items-center gap-3">
+                {charCount > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <CharRing count={charCount} max={MAX_CHARS} />
+                    <span className={cn(
+                      'text-xs tabular-nums',
+                      remaining < 0 ? 'text-destructive font-semibold' : remaining < 500 ? 'text-amber-500' : 'text-muted-foreground',
+                    )}>
+                      {remaining}
+                    </span>
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!content.trim() || isPending || isCommentPending || !user || charCount > MAX_CHARS}
+                  className="rounded-full px-5 font-bold"
+                  size="sm"
+                >
+                  {isPending || isCommentPending ? 'Posting...' : 'Post!'}
+                </Button>
+              </div>
+            </div>
+          )
         )}
         </div>
       </div>
