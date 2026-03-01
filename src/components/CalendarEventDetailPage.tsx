@@ -210,7 +210,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
     <div className="max-w-2xl mx-auto pb-12">
       {/* Back button */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b px-4 py-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-1.5">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5">
           <ArrowLeft className="size-4" />
           Back
         </Button>
