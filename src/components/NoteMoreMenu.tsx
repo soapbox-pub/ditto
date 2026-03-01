@@ -198,7 +198,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
+      <DialogContent className="max-w-md max-h-[85dvh] p-0 gap-0 rounded-2xl overflow-y-auto [&>button]:hidden">
         <DialogTitle className="sr-only">Post options</DialogTitle>
 
         {/* Post preview */}
@@ -220,7 +220,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
                 <span className="text-muted-foreground shrink-0">·</span>
                 <span className="text-muted-foreground shrink-0 text-xs">{timeAgo(event.created_at)}</span>
               </div>
-              <div className="mt-0.5 text-sm text-muted-foreground line-clamp-3">
+              <div className="mt-0.5 text-sm text-muted-foreground line-clamp-3 max-h-[4.5em] overflow-hidden">
                 <NoteContent event={event} className="text-sm leading-relaxed" disableEmbeds />
               </div>
             </div>
