@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 
-const OpenLibraryBookSchema = z.object({
+const _OpenLibraryBookSchema = z.object({
   title: z.string(),
   authors: z.array(z.object({
     name: z.string(),
@@ -24,7 +24,7 @@ const OpenLibraryBookSchema = z.object({
   })).optional(),
 });
 
-export type BookInfo = z.infer<typeof OpenLibraryBookSchema>;
+export type BookInfo = z.infer<typeof _OpenLibraryBookSchema>;
 
 async function fetchBookInfo(isbn: string, signal?: AbortSignal): Promise<BookInfo | null> {
   try {

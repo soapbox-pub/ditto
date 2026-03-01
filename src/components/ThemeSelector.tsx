@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { Check, Palette, ArrowRight, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { type Theme } from '@/contexts/AppContext';
