@@ -160,30 +160,32 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
               {/* Nav items — scrollable */}
               <nav
-                className={`flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-1 ${hasBgImage ? 'bg-background rounded-xl' : ''}`}
+                className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-1"
               >
-                <SidebarNavList
-                  items={visibleItems}
-                  editing={editing}
-                  onRemove={removeFromSidebar}
-                  onReorder={updateSidebarOrder}
-                  isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl)}
-                  getOnClick={() => handleClose}
-                  getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
-                  getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
-                  linkClassName="text-base"
-                />
-                <SidebarMoreMenu
-                  editing={editing}
-                  hiddenItems={visibleHiddenItems}
-                  onDoneEditing={() => setEditing(false)}
-                  onStartEditing={() => setEditing(true)}
-                  onAdd={addToSidebar}
-                  onNavigate={handleClose}
-                  open={moreMenuOpen}
-                  onOpenChange={setMoreMenuOpen}
-                  inline
-                />
+                <div className={hasBgImage ? 'bg-background rounded-xl p-0.5' : 'contents'}>
+                  <SidebarNavList
+                    items={visibleItems}
+                    editing={editing}
+                    onRemove={removeFromSidebar}
+                    onReorder={updateSidebarOrder}
+                    isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl)}
+                    getOnClick={() => handleClose}
+                    getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
+                    getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
+                    linkClassName="text-base"
+                  />
+                  <SidebarMoreMenu
+                    editing={editing}
+                    hiddenItems={visibleHiddenItems}
+                    onDoneEditing={() => setEditing(false)}
+                    onStartEditing={() => setEditing(true)}
+                    onAdd={addToSidebar}
+                    onNavigate={handleClose}
+                    open={moreMenuOpen}
+                    onOpenChange={setMoreMenuOpen}
+                    inline
+                  />
+                </div>
               </nav>
 
               {/* Theme */}
