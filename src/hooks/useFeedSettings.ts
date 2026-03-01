@@ -2,7 +2,7 @@ import { type FeedSettings } from "@/contexts/AppContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { EXTRA_KINDS, getExtraKindDef } from "@/lib/extraKinds";
+import { EXTRA_KINDS } from "@/lib/extraKinds";
 import { useCallback, useMemo } from "react";
 
 // ── Built-in sidebar items ────────────────────────────────────────────────────
@@ -53,42 +53,27 @@ export function getBuiltinItem(id: string): BuiltinSidebarItem | undefined {
  * - A built-in ID like `"feed"` or `"trends"`
  * - An extra-kind ID like `"vines"` or `"streams"`
  *
- * Uses the persisted `sidebarOrder` for items that are still enabled,
- * then appends any newly-enabled items not yet in the order array.
- * When sidebarOrder is empty (fresh install), produces a default order
- * starting with built-ins, then enabled EXTRA_KINDS.
+ * `sidebarOrder` is the source of truth. Items present in the array
+ * are shown; items absent are hidden. When sidebarOrder is empty
+ * (fresh install), produces a default order of built-ins only.
  */
+/** Set of all known extra-kind IDs with a sidebar page. */
+const EXTRA_KIND_IDS = new Set(
+  EXTRA_KINDS
+    .filter((def) => def.showKey && def.route)
+    .map((def) => def.id),
+);
+
 function computeOrderedItems(
-  feedSettings: FeedSettings,
   sidebarOrder: string[],
 ): string[] {
-  // All currently enabled extra-kind IDs (only those with a sidebar page)
-  const enabledExtraIds = new Set(
-    EXTRA_KINDS
-      .filter((def) => def.showKey && def.route && feedSettings[def.showKey])
-      .map((def) => def.id),
-  );
-
-  // All built-in IDs (always "available" — visible when present in order)
-  const builtinIds = new Set(BUILTIN_SIDEBAR_ITEMS.map((b) => b.id));
-
   // If sidebarOrder is empty (fresh install / migration), produce default order
   if (sidebarOrder.length === 0) {
-    const result: string[] = [];
-    // Built-ins first
-    for (const b of BUILTIN_SIDEBAR_ITEMS) {
-      result.push(b.id);
-    }
-    // Then enabled extra-kinds in definition order
-    for (const def of EXTRA_KINDS) {
-      if (def.route && enabledExtraIds.has(def.id)) {
-        result.push(def.id);
-      }
-    }
-    return result;
+    return BUILTIN_SIDEBAR_ITEMS.map((b) => b.id);
   }
 
-  // Start with persisted order, keeping only still-valid items
+  // sidebarOrder is the source of truth — keep items that are known
+  // (either a built-in or a recognized extra-kind with a sidebar page).
   const ordered: string[] = [];
   const seen = new Set<string>();
 
@@ -96,28 +81,11 @@ function computeOrderedItems(
     if (seen.has(item)) continue;
     seen.add(item);
 
-    if (isBuiltinItem(item)) {
-      // Built-in: always valid if in order
+    if (isBuiltinItem(item) || EXTRA_KIND_IDS.has(item)) {
       ordered.push(item);
-      builtinIds.delete(item);
-    } else if (enabledExtraIds.has(item)) {
-      // Extra-kind: valid if still enabled
-      ordered.push(item);
-      enabledExtraIds.delete(item);
     }
-    // else: stale entry (kind was disabled or unknown) — skip
+    // else: unknown entry — skip
   }
-
-  // Append any newly-enabled extra-kind items not in persisted order
-  for (const def of EXTRA_KINDS) {
-    if (def.route && enabledExtraIds.has(def.id)) {
-      ordered.push(def.id);
-    }
-  }
-
-  // Do NOT auto-append missing built-ins when a persisted order exists.
-  // If a built-in is missing from sidebarOrder, the user removed it.
-  // New built-ins will appear in the "add" menu instead of being forced into the sidebar.
 
   return ordered;
 }
@@ -136,8 +104,6 @@ export interface HiddenSidebarItem {
 }
 
 function computeHiddenItems(
-  feedSettings: FeedSettings,
-  _sidebarOrder: string[],
   orderedItems: string[],
 ): HiddenSidebarItem[] {
   const visibleSet = new Set(orderedItems);
@@ -150,9 +116,9 @@ function computeHiddenItems(
     }
   }
 
-  // Hidden extra-kinds (disabled via feedSettings)
+  // Hidden extra-kinds (not in sidebarOrder)
   for (const def of EXTRA_KINDS) {
-    if (def.showKey && def.route && !feedSettings[def.showKey]) {
+    if (def.showKey && def.route && !visibleSet.has(def.id)) {
       hidden.push({ id: def.id, label: def.label, builtin: false });
     }
   }
@@ -172,13 +138,13 @@ export function useFeedSettings() {
   const { user } = useCurrentUser();
 
   const orderedItems = useMemo(
-    () => computeOrderedItems(config.feedSettings, config.sidebarOrder),
-    [config.feedSettings, config.sidebarOrder],
+    () => computeOrderedItems(config.sidebarOrder),
+    [config.sidebarOrder],
   );
 
   const hiddenItems = useMemo(
-    () => computeHiddenItems(config.feedSettings, config.sidebarOrder, orderedItems),
-    [config.feedSettings, config.sidebarOrder, orderedItems],
+    () => computeHiddenItems(orderedItems),
+    [orderedItems],
   );
 
   const updateFeedSettings = useCallback(
@@ -210,10 +176,6 @@ export function useFeedSettings() {
 
   /**
    * Get the effective sidebar order, using the computed default when the
-   * persisted order is empty (fresh install).
-   */
-  /**
-   * Get the effective sidebar order, using the computed default when the
    * persisted order is empty or undefined (fresh install).
    */
   const getEffectiveOrder = useCallback(
@@ -221,91 +183,41 @@ export function useFeedSettings() {
     [orderedItems],
   );
 
-  /** Add an item to the sidebar (handles both built-ins and extra-kinds). */
+  /** Add an item to the sidebar (append to sidebarOrder). */
   const addToSidebar = useCallback(
     (id: string) => {
-      if (isBuiltinItem(id)) {
-        // Built-in: just add to order (no feedSettings toggle)
-        updateConfig((currentConfig) => {
-          const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
-          if (currentOrder.includes(id)) return currentConfig;
-          const newOrder = [...currentOrder, id];
-          if (user) {
-            updateSettings.mutateAsync({ sidebarOrder: newOrder }).catch(() => {});
-          }
-          return {
-            ...currentConfig,
-            sidebarOrder: newOrder,
-          };
-        });
-      } else {
-        // Extra-kind: enable via feedSettings + add to order
-        const def = getExtraKindDef(id);
-        if (!def?.showKey) return;
-
-        updateConfig((currentConfig) => {
-          const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
-          const newOrder = currentOrder.includes(id) ? currentOrder : [...currentOrder, id];
-          const newFeedSettings = {
-            ...config.feedSettings,
-            ...currentConfig.feedSettings,
-            [def.showKey!]: true,
-          };
-          if (user) {
-            updateSettings.mutateAsync({ sidebarOrder: newOrder, feedSettings: newFeedSettings }).catch(() => {});
-          }
-          return {
-            ...currentConfig,
-            feedSettings: newFeedSettings,
-            sidebarOrder: newOrder,
-          };
-        });
-      }
+      updateConfig((currentConfig) => {
+        const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
+        if (currentOrder.includes(id)) return currentConfig;
+        const newOrder = [...currentOrder, id];
+        if (user) {
+          updateSettings.mutateAsync({ sidebarOrder: newOrder }).catch(() => {});
+        }
+        return {
+          ...currentConfig,
+          sidebarOrder: newOrder,
+        };
+      });
     },
-    [config.feedSettings, getEffectiveOrder, updateConfig, updateSettings, user],
+    [getEffectiveOrder, updateConfig, updateSettings, user],
   );
 
-  /** Remove an item from the sidebar (handles both built-ins and extra-kinds). */
+  /** Remove an item from the sidebar (remove from sidebarOrder). */
   const removeFromSidebar = useCallback(
     (id: string) => {
-      if (isBuiltinItem(id)) {
-        // Built-in: just remove from order
-        updateConfig((currentConfig) => {
-          const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
-          const newOrder = currentOrder.filter((r) => r !== id);
-          if (user) {
-            updateSettings.mutateAsync({ sidebarOrder: newOrder }).catch(() => {});
-          }
-          return {
-            ...currentConfig,
-            sidebarOrder: newOrder,
-          };
-        });
-      } else {
-        // Extra-kind: disable via feedSettings + remove from order
-        const def = getExtraKindDef(id);
-        if (!def?.showKey) return;
-
-        updateConfig((currentConfig) => {
-          const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
-          const newOrder = currentOrder.filter((r) => r !== id);
-          const newFeedSettings = {
-            ...config.feedSettings,
-            ...currentConfig.feedSettings,
-            [def.showKey!]: false,
-          };
-          if (user) {
-            updateSettings.mutateAsync({ sidebarOrder: newOrder, feedSettings: newFeedSettings }).catch(() => {});
-          }
-          return {
-            ...currentConfig,
-            feedSettings: newFeedSettings,
-            sidebarOrder: newOrder,
-          };
-        });
-      }
+      updateConfig((currentConfig) => {
+        const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
+        const newOrder = currentOrder.filter((r) => r !== id);
+        if (user) {
+          updateSettings.mutateAsync({ sidebarOrder: newOrder }).catch(() => {});
+        }
+        return {
+          ...currentConfig,
+          sidebarOrder: newOrder,
+        };
+      });
     },
-    [config.feedSettings, getEffectiveOrder, updateConfig, updateSettings, user],
+    [getEffectiveOrder, updateConfig, updateSettings, user],
   );
 
   return {
@@ -317,9 +229,9 @@ export function useFeedSettings() {
     hiddenItems,
     /** Persist a new order for the sidebar. */
     updateSidebarOrder,
-    /** Add an item to sidebar (enable + append to order). */
+    /** Add an item to sidebar (append to order). */
     addToSidebar,
-    /** Remove an item from sidebar (disable + remove from order). */
+    /** Remove an item from sidebar (remove from order). */
     removeFromSidebar,
   };
 }
