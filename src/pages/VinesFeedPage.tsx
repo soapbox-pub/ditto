@@ -133,16 +133,13 @@ function useVineReplies(event: NostrEvent | undefined) {
     : undefined;
 
   return useQuery<NostrEvent[]>({
-    queryKey: ['vine-replies', eventId ?? ''],
+    queryKey: ['vine-replies', aTag ?? ''],
     queryFn: async ({ signal }) => {
       if (!eventId || !aTag) return [];
       const abort = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-      // Fetch kind 1 replies (#e) and NIP-22 kind 1111 comments (#A) in one round trip
+      // Kind 34236 is addressable — use NIP-22 kind 1111 comments only (#A tag)
       const events = await nostr.query(
-        [
-          { kinds: [1], '#e': [eventId], limit: 80 },
-          { kinds: [1111], '#A': [aTag], limit: 80 },
-        ],
+        [{ kinds: [1111], '#A': [aTag], limit: 80 }],
         { signal: abort },
       );
       const seen = new Set<string>();
