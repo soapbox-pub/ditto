@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Bell, BellOff } from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, AlertTriangle } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { IntroImage } from '@/components/IntroImage';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
@@ -71,60 +70,58 @@ export function NotificationSettings() {
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
-        {/* Push notifications toggle */}
-        <Card>
-          <CardContent className="p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center size-10 rounded-full bg-secondary shrink-0">
-                  {pushEnabled ? (
-                    <Bell className="size-5 text-muted-foreground" />
-                  ) : (
-                    <BellOff className="size-5 text-muted-foreground" />
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="push-notifications" className="text-sm font-semibold cursor-pointer">
-                    Push Notifications
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Receive notifications for mentions, replies, and zaps
-                  </p>
-                </div>
+      <div className="p-4">
+        {/* Intro */}
+        <div className="flex items-center gap-4 px-3 pt-2 pb-4">
+          <IntroImage src="/notification-intro.png" />
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">Stay in the Loop</h2>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Get notified for mentions, replies, and zaps — synced across all your devices.
+            </p>
+          </div>
+        </div>
+
+        {/* Push notifications row */}
+        <div className="border-b border-border last:border-b-0">
+          <div className="flex items-center justify-between py-3.5 px-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="text-muted-foreground shrink-0">
+                {pushEnabled ? <Bell className="size-5" /> : <BellOff className="size-5" />}
+              </span>
+              <div className="min-w-0">
+                <Label htmlFor="push-notifications" className="text-sm font-medium cursor-pointer">
+                  Push Notifications
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Receive notifications for mentions, replies, and zaps
+                </p>
               </div>
-              <Switch
-                id="push-notifications"
-                checked={pushEnabled}
-                onCheckedChange={handleTogglePush}
-                disabled={!isSupported || isDenied || updateSettings.isPending}
-              />
             </div>
+            <Switch
+              id="push-notifications"
+              checked={pushEnabled}
+              onCheckedChange={handleTogglePush}
+              disabled={!isSupported || isDenied || updateSettings.isPending}
+              className="shrink-0"
+            />
+          </div>
 
-            {/* Status info */}
-            {!isSupported && (
-              <div className="flex items-center gap-2 px-1">
-                <Badge variant="secondary" className="text-xs">
-                  Not Supported
-                </Badge>
-                <p className="text-xs text-muted-foreground">
-                  Your browser does not support push notifications.
-                </p>
-              </div>
-            )}
+          {/* Status banners */}
+          {!isSupported && (
+            <div className="flex items-center gap-2 px-3 pb-3 text-muted-foreground">
+              <AlertTriangle className="size-3.5 shrink-0" />
+              <p className="text-xs">Your browser does not support push notifications.</p>
+            </div>
+          )}
 
-            {isDenied && (
-              <div className="flex items-center gap-2 px-1">
-                <Badge variant="destructive" className="text-xs">
-                  Blocked
-                </Badge>
-                <p className="text-xs text-muted-foreground">
-                  Notifications are blocked. Update your browser settings to allow notifications from this site.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          {isDenied && (
+            <div className="flex items-center gap-2 px-3 pb-3 text-destructive">
+              <AlertTriangle className="size-3.5 shrink-0" />
+              <p className="text-xs">Notifications are blocked. Update your browser settings to allow notifications from this site.</p>
+            </div>
+          )}
+        </div>
       </div>
     </main>
   );
