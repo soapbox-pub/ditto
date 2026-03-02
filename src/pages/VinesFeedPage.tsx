@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import {
   useRef,
   useState,
@@ -61,7 +60,7 @@ function formatSats(n: number): string {
 }
 
 /** Parse imeta tags for a vine event → { url, thumbnail }. */
-export function parseVineImeta(tags: string[][]): { url?: string; thumbnail?: string } {
+function parseVineImeta(tags: string[][]): { url?: string; thumbnail?: string } {
   const tag = tags.find(([n]) => n === 'imeta');
   if (!tag) return {};
   const result: Record<string, string> = {};
@@ -82,8 +81,8 @@ function getTag(tags: string[][], name: string): string | undefined {
 
 // ─── Global mute state shared across vine cards ───────────────────────────────
 /** Module-level mute state shared across all vine/short players. */
-export let globalMuted = true;
-export function setGlobalMuted(v: boolean) { globalMuted = v; }
+let globalMuted = true;
+function setGlobalMuted(v: boolean) { globalMuted = v; }
 
 // ─── Hook: stream vine events for follows or global ──────────────────────────
 

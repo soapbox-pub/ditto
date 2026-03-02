@@ -1,5 +1,4 @@
-/* eslint-disable react-refresh/only-export-components */
-import { type ReactNode, useState, useCallback, useMemo, useEffect, useRef, createContext, useContext } from 'react';
+import { type ReactNode, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { IntroImage } from '@/components/IntroImage';
 import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
@@ -50,22 +49,7 @@ import {
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
-// ---------------------------------------------------------------------------
-// Onboarding context — lets any component trigger the signup onboarding
-// ---------------------------------------------------------------------------
-
-interface OnboardingContextValue {
-  startSignup: () => void;
-}
-
-const OnboardingContext = createContext<OnboardingContextValue>({
-  startSignup: () => {},
-});
-
-/** Call `startSignup()` from anywhere to open the full-screen signup onboarding. */
-export function useOnboarding() {
-  return useContext(OnboardingContext);
-}
+import { OnboardingContext } from '@/hooks/useOnboarding';
 
 // ---------------------------------------------------------------------------
 // InitialSyncGate

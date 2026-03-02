@@ -11,7 +11,7 @@ import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
 import { useAppContext } from '@/hooks/useAppContext';
-import { getContentWarning } from '@/components/ContentWarningGuard';
+import { getContentWarning } from '@/lib/contentWarning';
 
 interface ProfileField {
   label: string;

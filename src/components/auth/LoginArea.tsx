@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button.tsx';
 import LoginDialog from './LoginDialog';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
 import { AccountSwitcher } from './AccountSwitcher';
-import { useOnboarding } from '@/components/InitialSyncGate';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { cn } from '@/lib/utils';
 
 export interface LoginAreaProps {

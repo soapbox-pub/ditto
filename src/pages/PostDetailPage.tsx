@@ -55,7 +55,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useEventStats } from '@/hooks/useTrending';
 import { useEventInteractions } from '@/hooks/useEventInteractions';
-import { type ResolvedEmoji, isCustomEmoji } from '@/components/CustomEmoji';
+import { type ResolvedEmoji, isCustomEmoji } from '@/lib/customEmoji';
 import { getDisplayName } from '@/lib/getDisplayName';
 
 import { canZap } from '@/lib/canZap';

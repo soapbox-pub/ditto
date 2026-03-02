@@ -2,7 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNip85EventStats } from '@/hooks/useNip85Stats';
-import { type ResolvedEmoji } from '@/components/CustomEmoji';
+import { type ResolvedEmoji } from '@/lib/customEmoji';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import { useAppContext } from '@/hooks/useAppContext';
 

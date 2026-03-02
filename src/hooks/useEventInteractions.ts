@@ -1,7 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { isCustomEmoji, getCustomEmojiUrl } from '@/components/CustomEmoji';
+import { isCustomEmoji, getCustomEmojiUrl } from '@/lib/customEmoji';
 
 export interface RepostEntry {
   eventId: string;
