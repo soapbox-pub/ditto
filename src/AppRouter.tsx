@@ -39,6 +39,7 @@ const colorsDef = getExtraKindDef('colors')!;
 const packsDef = getExtraKindDef('packs')!;
 const articlesDef = getExtraKindDef('articles')!;
 const decksDef = getExtraKindDef('decks')!;
+const emojiPacksDef = getExtraKindDef('emoji-packs')!;
 
 /** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
 function ProfileRedirect() {
@@ -81,6 +82,7 @@ export function AppRouter() {
           <Route path="/webxdc" element={<WebxdcFeedPage />} />
           <Route path="/articles" element={<KindFeedPage kind={articlesDef.kind} title={articlesDef.label} icon={sidebarItemIcon('articles', 'size-5')} />} />
           <Route path="/decks" element={<KindFeedPage kind={decksDef.kind} title={decksDef.label} icon={sidebarItemIcon('decks', 'size-5')} />} />
+          <Route path="/emoji-packs" element={<KindFeedPage kind={emojiPacksDef.kind} title={emojiPacksDef.label} icon={sidebarItemIcon('emoji-packs', 'size-5')} />} />
           <Route path="/themes" element={<ThemesPage />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
           <Route path="/ai-chat" element={<AIChatPage />} />

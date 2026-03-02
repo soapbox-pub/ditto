@@ -90,6 +90,10 @@ export interface FeedSettings {
   showCustomProfileThemes: boolean;
   /** Include voice messages (kind 1222 + 1244) in the follows/global feed */
   feedIncludeVoiceMessages: boolean;
+  /** Show Emoji Packs (kind 30030) link in sidebar */
+  showEmojiPacks: boolean;
+  /** Include Emoji Packs in the follows/global feed */
+  feedIncludeEmojiPacks: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }

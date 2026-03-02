@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -9,6 +9,7 @@ import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { cn } from '@/lib/utils';
 import type { EventStats } from '@/hooks/useTrending';
 import type { ResolvedEmoji } from '@/components/CustomEmoji';
+import type { CustomEmojiEntry } from '@/hooks/useUserEmojiPacks';
 
 interface QuickReactMenuProps {
   /** The event ID being reacted to. */
@@ -47,10 +48,13 @@ export function QuickReactMenu({
   const [showFullPicker, setShowFullPicker] = useState(false);
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
 
+  // Track custom emoji data for the next reaction publish
+  const pendingCustomEmoji = useRef<{ shortcode: string; url: string } | null>(null);
+
   // Get user's most-used emojis (or defaults)
   const quickEmojis = useMemo(() => getTopEmojis(6), [getTopEmojis]);
 
-  const handleEmojiSelect = useCallback((emoji: string) => {
+  const handleEmojiSelect = useCallback((emoji: string, customEmoji?: { shortcode: string; url: string }) => {
     if (!user) return;
 
     // Close the entire popover (don't reset showFullPicker first — that
@@ -71,7 +75,9 @@ export function QuickReactMenu({
 
     // Optimistically update stats cache immediately
     const displayEmoji = (emoji === '+' || emoji === '') ? '👍' : emoji;
-    const resolvedEmoji: ResolvedEmoji = { content: displayEmoji };
+    const resolvedEmoji: ResolvedEmoji = customEmoji
+      ? { content: displayEmoji, url: customEmoji.url, name: customEmoji.shortcode }
+      : { content: displayEmoji };
     const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
     if (prevStats) {
       queryClient.setQueryData<EventStats>(['event-stats', eventId], {
@@ -86,23 +92,29 @@ export function QuickReactMenu({
     // Store user's own reaction for this event
     queryClient.setQueryData<ResolvedEmoji>(['user-reaction', eventId], resolvedEmoji);
 
+    // Build tags for the kind 7 event
+    const tags: string[][] = [
+      ['e', eventId],
+      ['p', eventPubkey],
+      ['k', String(eventKind)],
+    ];
+
+    // NIP-30: add emoji tag for custom emoji reactions
+    if (customEmoji) {
+      tags.push(['emoji', customEmoji.shortcode, customEmoji.url]);
+    }
+
     // Publish kind 7 reaction
     publishEvent(
       {
         kind: 7,
         content: emoji,
         created_at: Math.floor(Date.now() / 1000),
-        tags: [
-          ['e', eventId],
-          ['p', eventPubkey],
-          ['k', String(eventKind)],
-        ],
+        tags,
       },
       {
         onSuccess: () => {
           // Delay invalidation so the relay has time to index the new event.
-          // Without this, the refetch returns stale counts and overwrites
-          // the optimistic update.
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
             queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
@@ -111,16 +123,18 @@ export function QuickReactMenu({
         onError: () => {
           // Revert optimistic update on failure
           setSelectedEmoji(null);
-          // Revert stats
           if (prevStats) {
             queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
           }
-          // Remove user reaction
           queryClient.removeQueries({ queryKey: ['user-reaction', eventId] });
         },
       },
     );
   }, [user, eventId, eventPubkey, eventKind, onReact, publishEvent, queryClient, trackEmojiUsage, onClose]);
+
+  const handleCustomEmojiSelect = useCallback((emoji: CustomEmojiEntry) => {
+    handleEmojiSelect(`:${emoji.shortcode}:`, { shortcode: emoji.shortcode, url: emoji.url });
+  }, [handleEmojiSelect]);
 
   if (!user) return null;
 
@@ -130,7 +144,10 @@ export function QuickReactMenu({
         className={cn('rounded-xl shadow-xl overflow-hidden', className)}
         onClick={(e) => e.stopPropagation()}
       >
-        <EmojiPicker onSelect={handleEmojiSelect} />
+        <EmojiPicker
+          onSelect={handleEmojiSelect}
+          onCustomEmojiSelect={handleCustomEmojiSelect}
+        />
       </div>
     );
   }
