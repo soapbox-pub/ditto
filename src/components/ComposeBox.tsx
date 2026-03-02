@@ -339,6 +339,21 @@ export function ComposeBox({
     
     const hashtags = content.match(/#\w+/g)?.map((t) => t.slice(1)) || [];
     const tags: string[][] = hashtags.map((t) => ['t', t.toLowerCase()]);
+
+    // NIP-30: Add emoji tags for custom emojis referenced in content
+    if (customEmojis.length > 0) {
+      const emojiMap = new Map(customEmojis.map((e) => [e.shortcode, e.url]));
+      const shortcodeRegex = /:([a-zA-Z0-9_]+):/g;
+      const usedEmojis = new Set<string>();
+      let match;
+      while ((match = shortcodeRegex.exec(content)) !== null) {
+        const shortcode = match[1];
+        if (emojiMap.has(shortcode) && !usedEmojis.has(shortcode)) {
+          usedEmojis.add(shortcode);
+          tags.push(['emoji', shortcode, emojiMap.get(shortcode)!]);
+        }
+      }
+    }
     
     return {
       id: 'preview',
@@ -349,7 +364,7 @@ export function ComposeBox({
       tags,
       sig: '',
     };
-  }, [user, content]);
+  }, [user, content, customEmojis]);
 
   const insertEmoji = useCallback((emoji: string) => {
     const textarea = textareaRef.current;

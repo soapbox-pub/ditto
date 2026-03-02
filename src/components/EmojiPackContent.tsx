@@ -1,13 +1,13 @@
 import { useMemo, useState, useCallback } from 'react';
 import { Plus, Check, Loader2, ExternalLink } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { useQueryClient } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { useUserEmojiPacks } from '@/hooks/useUserEmojiPacks';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 
@@ -55,20 +55,36 @@ interface EmojiPackContentProps {
 export function EmojiPackContent({ event }: EmojiPackContentProps) {
   const pack = useMemo(() => parseEmojiPack(event), [event]);
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
-  const { data: userPacks } = useUserEmojiPacks();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
 
+  // Fetch the user's kind 10030 emoji list to check if this pack is already added
+  const emojiListQuery = useQuery({
+    queryKey: ['emoji-list', user?.pubkey],
+    queryFn: async () => {
+      if (!user) return null;
+      const events = await nostr.query([{
+        kinds: [10030],
+        authors: [user.pubkey],
+        limit: 1,
+      }]);
+      return events[0] ?? null;
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
   // Check if user already has this pack in their kind 10030 list
   const packRef = `30030:${event.pubkey}:${pack?.identifier ?? ''}`;
   const isAdded = useMemo(() => {
-    if (!userPacks?.emojiListEvent) return false;
-    return userPacks.emojiListEvent.tags.some(
+    if (!emojiListQuery.data) return false;
+    return emojiListQuery.data.tags.some(
       ([n, v]) => n === 'a' && v === packRef,
     );
-  }, [userPacks?.emojiListEvent, packRef]);
+  }, [emojiListQuery.data, packRef]);
 
   const handleTogglePack = useCallback(async () => {
     if (!user || !pack) return;
@@ -76,7 +92,7 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
 
     try {
       // Get existing kind 10030 tags or start fresh
-      const existingTags = userPacks?.emojiListEvent?.tags.filter(
+      const existingTags = emojiListQuery.data?.tags.filter(
         ([n]) => n === 'emoji' || n === 'a',
       ) ?? [];
 
@@ -97,7 +113,8 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
         tags: newTags,
       });
 
-      queryClient.invalidateQueries({ queryKey: ['user-emoji-packs'] });
+      queryClient.invalidateQueries({ queryKey: ['emoji-list'] });
+      queryClient.invalidateQueries({ queryKey: ['custom-emojis'] });
       toast({
         title: isAdded ? 'Pack removed' : 'Pack added',
         description: isAdded
@@ -114,7 +131,7 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
     } finally {
       setIsPending(false);
     }
-  }, [user, pack, userPacks, isAdded, packRef, publishEvent, queryClient, toast]);
+  }, [user, pack, emojiListQuery.data, isAdded, packRef, publishEvent, queryClient, toast]);
 
   if (!pack) return null;
 

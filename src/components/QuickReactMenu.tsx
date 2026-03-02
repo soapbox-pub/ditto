@@ -3,6 +3,7 @@ import { MoreHorizontal } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { EmojiPicker, type EmojiSelection } from '@/components/EmojiPicker';
+import { isCustomEmoji } from '@/components/CustomEmoji';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEmojiUsage } from '@/hooks/useEmojiUsage';
@@ -52,8 +53,27 @@ export function QuickReactMenu({
   const [showFullPicker, setShowFullPicker] = useState(false);
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
 
-  // Get user's most-used emojis (or defaults)
-  const quickEmojis = useMemo(() => getTopEmojis(6), [getTopEmojis]);
+  // Build a lookup map from shortcode -> url for custom emojis
+  const customEmojiMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const e of customEmojis) {
+      map.set(e.shortcode, e.url);
+    }
+    return map;
+  }, [customEmojis]);
+
+  // Get user's most-used emojis (or defaults), filtering out
+  // custom emoji shortcodes that are no longer in the user's collection
+  const quickEmojis = useMemo(() => {
+    const top = getTopEmojis(8);
+    return top
+      .filter((emoji) => {
+        if (!isCustomEmoji(emoji)) return true;
+        const shortcode = emoji.slice(1, -1);
+        return customEmojiMap.has(shortcode);
+      })
+      .slice(0, 6);
+  }, [getTopEmojis, customEmojiMap]);
 
   /** Publish a reaction with a native Unicode emoji string. */
   const publishReaction = useCallback((emoji: string, emojiTag?: [string, string, string]) => {
@@ -126,10 +146,18 @@ export function QuickReactMenu({
     );
   }, [user, eventId, eventPubkey, eventKind, onReact, publishEvent, queryClient, trackEmojiUsage, onClose]);
 
-  /** Handle selection from the quick buttons (native emoji string). */
+  /** Handle selection from the quick buttons (native or custom emoji). */
   const handleQuickSelect = useCallback((emoji: string) => {
+    if (isCustomEmoji(emoji)) {
+      const shortcode = emoji.slice(1, -1);
+      const url = customEmojiMap.get(shortcode);
+      if (url) {
+        publishReaction(emoji, ['emoji', shortcode, url]);
+        return;
+      }
+    }
     publishReaction(emoji);
-  }, [publishReaction]);
+  }, [publishReaction, customEmojiMap]);
 
   /** Handle selection from the full EmojiPicker (native or custom). */
   const handlePickerSelect = useCallback((selection: EmojiSelection) => {
@@ -166,19 +194,35 @@ export function QuickReactMenu({
       onClick={(e) => e.stopPropagation()}
     >
       {/* Quick emoji buttons */}
-      {quickEmojis.map((emoji) => (
-        <button
-          key={emoji}
-          onClick={() => handleQuickSelect(emoji)}
-          className={cn(
-            'flex items-center justify-center size-9 rounded-full text-xl transition-all hover:bg-secondary hover:scale-110 active:scale-95',
-            selectedEmoji === emoji && 'bg-secondary scale-110',
-          )}
-          title={`React with ${emoji}`}
-        >
-          {emoji}
-        </button>
-      ))}
+      {quickEmojis.map((emoji) => {
+        const isCustom = isCustomEmoji(emoji);
+        const shortcode = isCustom ? emoji.slice(1, -1) : undefined;
+        const customUrl = shortcode ? customEmojiMap.get(shortcode) : undefined;
+
+        return (
+          <button
+            key={emoji}
+            onClick={() => handleQuickSelect(emoji)}
+            className={cn(
+              'flex items-center justify-center size-9 rounded-full text-xl transition-all hover:bg-secondary hover:scale-110 active:scale-95',
+              selectedEmoji === emoji && 'bg-secondary scale-110',
+            )}
+            title={`React with ${isCustom ? shortcode : emoji}`}
+          >
+            {customUrl ? (
+              <img
+                src={customUrl}
+                alt={emoji}
+                className="size-6 object-contain"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              emoji
+            )}
+          </button>
+        );
+      })}
 
       {/* More button to show full picker */}
       <button

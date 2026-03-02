@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import data from '@emoji-mart/data';
 import { cn } from '@/lib/utils';
-import { useUserEmojiPacks, type CustomEmojiEntry } from '@/hooks/useUserEmojiPacks';
+import { useCustomEmojis, type CustomEmoji } from '@/hooks/useCustomEmojis';
 
 interface EmojiData {
   id: string;
@@ -15,7 +15,7 @@ interface EmojiShortcodeAutocompleteProps {
   content: string;
   onInsertEmoji: (params: { start: number; end: number; replacement: string }) => void;
   /** Called when a custom NIP-30 emoji is selected so the caller can track the emoji tag. */
-  onCustomEmojiInsert?: (emoji: CustomEmojiEntry) => void;
+  onCustomEmojiInsert?: (emoji: CustomEmoji) => void;
 }
 
 /** CSS properties that affect text layout and must be copied to the mirror element. */
@@ -125,7 +125,7 @@ function getEmojiIndex() {
 }
 
 /** Search emojis by shortcode query (includes both native and custom emojis). */
-function searchEmojis(query: string, customEmojis: CustomEmojiEntry[]): EmojiResult[] {
+function searchEmojis(query: string, customEmojis: CustomEmoji[]): EmojiResult[] {
   if (!query) return [];
   const q = query.toLowerCase();
   const results: EmojiResult[] = [];
@@ -175,8 +175,7 @@ export function EmojiShortcodeAutocomplete({
   onInsertEmoji,
   onCustomEmojiInsert,
 }: EmojiShortcodeAutocompleteProps) {
-  const { data: userPacks } = useUserEmojiPacks();
-  const customEmojis = userPacks?.emojis ?? [];
+  const { emojis: customEmojis } = useCustomEmojis();
 
   const [query, setQuery] = useState('');
   const [colonStart, setColonStart] = useState(-1);
