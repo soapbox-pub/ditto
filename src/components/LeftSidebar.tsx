@@ -151,6 +151,18 @@ export function LeftSidebar() {
         />
       </nav>
 
+      {/* Logged-out join pill — same position as account button, pushed up from bottom */}
+      {!user && location.pathname !== '/' && (
+        <div className="pt-2 pb-1">
+          <button
+            onClick={() => setLoginDialogOpen(true)}
+            className="flex items-center justify-center w-full h-10 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors cursor-pointer"
+          >
+            Join
+          </button>
+        </div>
+      )}
+
       {/* User profile at bottom */}
       {user && currentUser && (
         <div className="pt-2">
