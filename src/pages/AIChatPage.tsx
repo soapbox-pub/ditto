@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Bot, Send, Sparkles, Trash2, Sun, Moon, Monitor } from 'lucide-react';
+import { Bot, Send, Sparkles, Trash2, Palette } from 'lucide-react';
 
 import { useShakespeare, type ChatMessage, type Model } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -17,39 +17,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-import type { Theme } from '@/contexts/AppContext';
-
 // ─── Tool Definitions ───
 
-interface ToolDefinition {
-  type: 'function';
-  function: {
-    name: string;
-    description: string;
-    parameters: {
-      type: 'object';
-      properties: Record<string, { type: string; description: string; enum?: string[] }>;
-      required: string[];
-    };
-  };
-}
-
-const TOOLS: ToolDefinition[] = [
+const TOOLS = [
   {
-    type: 'function',
+    type: 'function' as const,
     function: {
       name: 'set_theme',
-      description: 'Set the application theme to light mode, dark mode, or system default. Use this when the user asks to change the theme, switch to dark mode, enable light mode, etc.',
+      description: 'Set a custom color theme for the application. All three color values are required and must be HSL strings WITHOUT the "hsl()" wrapper — just the raw values like "228 20% 10%". Choose colors that work well together: background sets the page color, text is the main readable foreground, and primary is the accent color used for buttons, links, and highlights. Ensure sufficient contrast between background and text for readability.',
       parameters: {
-        type: 'object',
+        type: 'object' as const,
         properties: {
-          theme: {
+          background: {
             type: 'string',
-            description: 'The theme to apply',
-            enum: ['light', 'dark', 'system'],
+            description: 'Background color as an HSL string (e.g. "228 20% 10%" for dark blue, "0 0% 100%" for white). This is the main page background.',
+          },
+          text: {
+            type: 'string',
+            description: 'Text/foreground color as an HSL string (e.g. "210 40% 98%" for near-white, "0 0% 10%" for near-black). Must contrast well with the background.',
+          },
+          primary: {
+            type: 'string',
+            description: 'Primary accent color as an HSL string (e.g. "258 70% 60%" for purple, "142 70% 45%" for green). Used for buttons, links, and interactive elements.',
           },
         },
-        required: ['theme'],
+        required: ['background', 'text', 'primary'],
       },
     },
   },
@@ -74,23 +66,32 @@ interface ToolCall {
 
 // ─── Tool Executor Hook ───
 
+/** Simple HSL format check: "H S% L%" where H is 0-360, S and L are 0-100%. */
+function isValidHsl(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  return /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/.test(value.trim());
+}
+
 function useToolExecutor() {
-  const { setTheme, theme: currentTheme } = useTheme();
+  const { applyCustomTheme } = useTheme();
 
   const executeToolCall = useCallback((name: string, args: Record<string, unknown>): string => {
     switch (name) {
       case 'set_theme': {
-        const theme = args.theme as Theme;
-        if (!['light', 'dark', 'system'].includes(theme)) {
-          return JSON.stringify({ error: `Invalid theme: ${theme}. Must be one of: light, dark, system` });
+        const { background, text, primary } = args;
+        if (!isValidHsl(background) || !isValidHsl(text) || !isValidHsl(primary)) {
+          return JSON.stringify({
+            error: 'Invalid HSL color values. Each must be a string like "228 20% 10%".',
+            received: { background, text, primary },
+          });
         }
-        setTheme(theme);
-        return JSON.stringify({ success: true, theme, previous: currentTheme });
+        applyCustomTheme({ background, text, primary });
+        return JSON.stringify({ success: true, colors: { background, text, primary } });
       }
       default:
         return JSON.stringify({ error: `Unknown tool: ${name}` });
     }
-  }, [setTheme, currentTheme]);
+  }, [applyCustomTheme]);
 
   return { executeToolCall };
 }
@@ -101,9 +102,14 @@ const SYSTEM_PROMPT: ChatMessage = {
   role: 'system',
   content: `You are a helpful AI assistant integrated into Ditto, a Nostr social client. You can help users with questions, conversations, and tasks.
 
-You have access to tools that can control the application. When the user asks you to change something in the app (like the theme), use the appropriate tool.
+You have a set_theme tool that applies a custom color theme. It takes three HSL color values (without the "hsl()" wrapper, just raw values like "228 20% 10%"):
+- background: the page background color
+- text: the main text/foreground color
+- primary: the accent color for buttons, links, and highlights
 
-Be concise and friendly. When you use a tool, briefly confirm what you did.`,
+When the user asks to change the theme, pick colors that match their request and use the tool. Be creative with color choices — you can create any mood or aesthetic. Make sure background and text have good contrast for readability.
+
+Be concise and friendly. When you use a tool, briefly describe the colors you chose.`,
 };
 
 // ─── Page Component ───
@@ -458,9 +464,9 @@ function EmptyState() {
         </p>
       </div>
       <div className="flex flex-wrap gap-2 mt-2 max-w-sm justify-center">
-        <SuggestionChip icon={<Sun className="size-3.5" />} label="Switch to light mode" />
-        <SuggestionChip icon={<Moon className="size-3.5" />} label="Enable dark mode" />
-        <SuggestionChip icon={<Monitor className="size-3.5" />} label="Use system theme" />
+        <SuggestionChip icon={<Palette className="size-3.5" />} label="Make it cyberpunk" />
+        <SuggestionChip icon={<Palette className="size-3.5" />} label="A warm sunset theme" />
+        <SuggestionChip icon={<Palette className="size-3.5" />} label="Ocean blue vibes" />
       </div>
     </div>
   );
@@ -531,16 +537,7 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
 }
 
 function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
-  const themeIcons: Record<string, React.ReactNode> = {
-    light: <Sun className="size-3" />,
-    dark: <Moon className="size-3" />,
-    system: <Monitor className="size-3" />,
-  };
-
-  const themeValue = toolCall.arguments.theme as string | undefined;
-  const icon = toolCall.name === 'set_theme' && themeValue ? themeIcons[themeValue] : <Sparkles className="size-3" />;
-
-  let resultParsed: { success?: boolean; error?: string } = {};
+  let resultParsed: { success?: boolean; error?: string; colors?: { background?: string; text?: string; primary?: string } } = {};
   try {
     resultParsed = JSON.parse(toolCall.result || '{}');
   } catch {
@@ -548,6 +545,7 @@ function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
   }
 
   const isSuccess = resultParsed.success === true;
+  const colors = resultParsed.colors;
 
   return (
     <span
@@ -558,11 +556,21 @@ function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
           : 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-500/20',
       )}
     >
-      {icon}
-      {toolCall.name === 'set_theme'
-        ? `Theme set to ${themeValue}`
-        : toolCall.name
-      }
+      {toolCall.name === 'set_theme' && colors ? (
+        <>
+          <span className="flex items-center gap-1">
+            <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.background})` }} />
+            <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.text})` }} />
+            <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.primary})` }} />
+          </span>
+          Theme applied
+        </>
+      ) : (
+        <>
+          <Palette className="size-3" />
+          {toolCall.name}
+        </>
+      )}
     </span>
   );
 }
