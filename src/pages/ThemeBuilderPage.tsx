@@ -338,7 +338,7 @@ export function ThemeBuilderPage() {
   }, [toast]);
 
   return (
-    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border">
       {/* Header */}
       <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
         <div className="flex items-center gap-4 px-4 pt-3 pb-2">

@@ -29,7 +29,7 @@ export function WorldPage() {
   }, [search]);
 
   return (
-    <main className="min-h-screen">
+    <main className="">
       {/* Header */}
       <div className="px-4 py-3.5 sidebar:py-5">
         <div className="flex items-center gap-2">

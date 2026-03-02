@@ -99,7 +99,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
   const zapAmount = stats.data?.zapAmount ?? 0;
 
   return (
-    <main className="min-h-screen">
+    <main className="">
       {/* Header */}
       <div className="flex items-center gap-4 px-4 mt-4 mb-4">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
@@ -294,7 +294,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
   const trackCount = parsed?.trackRefs.length ?? 0;
 
   return (
-    <main className="min-h-screen">
+    <main className="">
       {/* Header */}
       <div className="flex items-center gap-4 px-4 mt-4 mb-4">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
