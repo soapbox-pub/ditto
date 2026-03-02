@@ -162,6 +162,12 @@ export const FeedSettingsSchema = z.looseObject({
   showEmojiPacks: z.boolean().optional(),
   feedIncludeEmojiPacks: z.boolean().optional(),
   showCustomEmojis: z.boolean().optional(),
+  showMusic: z.boolean().optional(),
+  feedIncludeMusicTracks: z.boolean().optional(),
+  feedIncludeMusicPlaylists: z.boolean().optional(),
+  showPodcasts: z.boolean().optional(),
+  feedIncludePodcastEpisodes: z.boolean().optional(),
+  feedIncludePodcastTrailers: z.boolean().optional(),
 });
 
 // ─── AppConfigSchema ─────────────────────────────────────────────────

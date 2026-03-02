@@ -27,9 +27,11 @@ interface KindFeedPageProps {
   extra?: React.ReactNode;
   /** If set, overrides the default FAB click behavior. */
   onFabClick?: () => void;
+  /** Whether to show the FAB (default: true). */
+  showFAB?: boolean;
 }
 
-export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra, onFabClick }: KindFeedPageProps) {
+export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra, onFabClick, showFAB = true }: KindFeedPageProps) {
   const { config } = useAppContext();
   const primaryKind = Array.isArray(kind) ? kind[0] : kind;
 
@@ -43,7 +45,7 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
     description: `${title} on Nostr`,
   });
 
-  useLayoutOptions({ showFAB: true, fabKind: primaryKind, fabHref, onFabClick });
+  useLayoutOptions({ showFAB, fabKind: primaryKind, fabHref, onFabClick });
 
   const kinds = Array.isArray(kind) ? kind : [kind];
 
