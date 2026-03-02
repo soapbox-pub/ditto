@@ -23,6 +23,8 @@ interface NoteContentProps {
   className?: string;
   /** When true, renders URLs as inline links instead of link preview cards / embeds. */
   disableEmbeds?: boolean;
+  /** When true, hides thumbnail images in link preview cards (useful when a cover image is already shown). */
+  hideEmbedImages?: boolean;
 }
 
 /** Regex matching `:shortcode:` patterns in text. */
@@ -225,6 +227,7 @@ export function NoteContent({
   event,
   className,
   disableEmbeds = false,
+  hideEmbedImages = false,
 }: NoteContentProps) {
   const tokens = useMemo(() => {
     const text = event.content;
@@ -471,7 +474,7 @@ export function NoteContent({
                 </a>
               );
             }
-            return <LinkEmbed key={i} url={token.url} className="my-2.5" />;
+            return <LinkEmbed key={i} url={token.url} className="my-2.5" hideImage={hideEmbedImages} />;
           case 'inline-link':
             return (
               <a

@@ -34,6 +34,7 @@ import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { FileMetadataContent } from '@/components/FileMetadataContent';
 import { ThemeContent } from '@/components/ThemeContent';
 import { VoiceMessagePlayer } from '@/components/VoiceMessagePlayer';
+import { CalendarEventDetailPage } from '@/components/CalendarEventDetailPage';
 import { LiveStreamPage } from '@/components/LiveStreamPage';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
@@ -46,6 +47,8 @@ const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
 
 /** Kind 30311 = NIP-53 Live Activities. */
 const LIVE_STREAM_KIND = 30311;
+/** NIP-52 Calendar Events. */
+const CALENDAR_EVENT_KINDS = new Set([31922, 31923]);
 import { useReplies } from '@/hooks/useReplies';
 import { useComments } from '@/hooks/useComments';
 import { CommentContext } from '@/components/CommentContext';
@@ -257,6 +260,11 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   // Live streams (NIP-53) get their own immersive layout with player + chat
   if (resolvedEvent.kind === LIVE_STREAM_KIND) {
     return <LiveStreamPage event={resolvedEvent} />;
+  }
+
+  // Calendar events (NIP-52) get a dedicated detail page with RSVP
+  if (CALENDAR_EVENT_KINDS.has(resolvedEvent.kind)) {
+    return <CalendarEventDetailPage event={resolvedEvent} />;
   }
 
   return (

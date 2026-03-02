@@ -27,6 +27,7 @@ import { KindFeedPage } from "./pages/KindFeedPage";
 import { VideosFeedPage } from "./pages/VideosFeedPage";
 import { PhotosFeedPage } from "./pages/PhotosFeedPage";
 import { VinesFeedPage } from "./pages/VinesFeedPage";
+import { EventsFeedPage } from "./pages/EventsFeedPage";
 import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
 import { ThemesPage } from "./pages/ThemesPage";
@@ -76,6 +77,7 @@ export function AppRouter() {
           <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
           <Route path="/settings/magic" element={<MagicSettingsPage />} />
           <Route path="/settings/network" element={<NetworkSettingsPage />} />
+          <Route path="/events" element={<EventsFeedPage />} />
           <Route path="/photos" element={<PhotosFeedPage />} />
           <Route path="/videos" element={<VideosFeedPage />} />
           {/* /streams redirects to /videos for backward compatibility */}

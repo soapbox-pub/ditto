@@ -46,6 +46,8 @@ export interface ExtraKindDef {
   showKey?: keyof FeedSettings;
   /** Key in FeedSettings that controls inclusion in mixed feeds (only for entries without subKinds). */
   feedKey?: keyof FeedSettings;
+  /** Additional kind numbers to include alongside `kind` when the feed toggle is on. */
+  extraFeedKinds?: number[];
   /** Human-readable label. */
   label: string;
   /** Short description. */
@@ -192,6 +194,20 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   // Social
   {
+    kind: 31923,
+    id: 'events',
+    showKey: 'showEvents',
+    feedKey: 'feedIncludeEvents',
+    extraFeedKinds: [31922],
+    label: 'Events',
+    description: 'Calendar events and meetups (NIP-52)',
+    route: 'events',
+    addressable: true,
+    section: 'social',
+    blurb: 'Events and meetups on Nostr. RSVP and see who else is going. Create and manage events on Plektos.',
+    sites: [{ url: 'https://plektos.app', name: 'Plektos' }],
+  },
+  {
     kind: 1063,
     id: 'webxdc',
     showKey: 'showWebxdc',
@@ -260,17 +276,6 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     sites: [{ url: 'https://following.space', name: 'following.space' }, { url: 'https://following.party', name: 'following.party' }],
   },
   // Whimsy
-  {
-    kind: 10030,
-    id: 'custom-emojis',
-    showKey: 'showCustomEmojis',
-    label: 'Custom Emojis',
-    description: 'NIP-30 custom emoji in the emoji picker',
-    addressable: false,
-    section: 'whimsy',
-    feedOnly: true,
-    blurb: 'Use custom emojis from your emoji list in posts and reactions. Manage your emoji list in other Nostr clients.',
-  },
   {
     kind: 3367,
     id: 'colors',
@@ -363,6 +368,9 @@ export function getEnabledFeedKinds(feedSettings: FeedSettings): number[] {
       }
     } else if (def.feedKey && feedSettings[def.feedKey]) {
       kinds.push(def.kind);
+      if (def.extraFeedKinds) {
+        kinds.push(...def.extraFeedKinds);
+      }
     }
   }
 

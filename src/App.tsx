@@ -53,6 +53,8 @@ const hardcodedConfig: AppConfig = {
     feedIncludeReposts: true,
     feedIncludeArticles: false,
     showArticles: false,
+    showEvents: false,
+    feedIncludeEvents: false,
     showVines: false,
     showPolls: false,
     showTreasures: false,

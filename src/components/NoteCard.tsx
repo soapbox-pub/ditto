@@ -51,6 +51,7 @@ import { ContentWarningGuard } from '@/components/ContentWarningGuard';
 import { getContentWarning } from '@/lib/contentWarning';
 import { ThemeContent } from '@/components/ThemeContent';
 import { VoiceMessagePlayer } from '@/components/VoiceMessagePlayer';
+import { CalendarEventContent } from '@/components/CalendarEventContent';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
 import { extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
@@ -221,13 +222,14 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isActiveTheme = event.kind === 16767;
   const isTheme = isThemeDefinition || isActiveTheme;
   const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
+  const isCalendarEvent = event.kind === 31922 || event.kind === 31923;
   const isEmojiPack = event.kind === 30030;
   const isReaction = event.kind === 7;
   const isPhoto = event.kind === 20;
   const isNormalVideo = event.kind === 21;
   const isShortVideo = event.kind === 22;
   const isVideo = isNormalVideo || isShortVideo;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isEmojiPack && !isReaction && !isPhoto && !isVideo;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isCalendarEvent && !isEmojiPack && !isReaction && !isPhoto && !isVideo;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideoUrls(event.content) : [], [event.content, isTextNote]);
@@ -349,6 +351,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           <ThemeContent event={event} />
         ) : isVoiceMessage ? (
           <VoiceMessagePlayer event={event} />
+        ) : isCalendarEvent ? (
+          <CalendarEventContent event={event} compact />
         ) : (
           <TruncatedNoteContent event={event} videos={videos} audios={audios} imetaMap={imetaMap} webxdcApps={webxdcApps} />
         )}
