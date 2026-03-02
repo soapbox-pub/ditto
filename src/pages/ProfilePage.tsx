@@ -1533,7 +1533,7 @@ export function ProfilePage() {
 
         {/* Pinned posts (only on Posts tab) */}
         {activeTab === 'posts' && pinnedIds.length > 0 && (
-          <div>
+          <div className="divide-y divide-border">
             {pinnedEventsLoading ? (
               pinnedIds.map((id) => (
                 <div key={`pinned-skeleton-${id}`} className="relative">
@@ -1660,7 +1660,7 @@ export function ProfilePage() {
               ))}
             </div>
           ) : currentItems.length > 0 ? (
-            <div>
+            <div className="divide-y divide-border">
               {currentItems.map((item) => (
                 <NoteCard 
                   key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
