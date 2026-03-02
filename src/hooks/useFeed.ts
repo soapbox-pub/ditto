@@ -26,10 +26,15 @@ interface UseFeedOptions {
   kinds?: number[];
   /** Additional tag filters to apply (e.g. `{ '#m': ['application/x-webxdc'] }`). */
   tagFilters?: Record<string, string[]>;
+  /** Override the authors list (used for pinned list tabs). */
+  authors?: string[];
 }
 
+/** Feed tab type. Includes list: prefix for pinned list feeds. */
+export type FeedTabType = 'follows' | 'global' | 'communities' | `list:${string}`;
+
 /** Hook to fetch the global, followed, or communities feed with infinite scroll pagination. */
-export function useFeed(tab: 'follows' | 'global' | 'communities', options?: UseFeedOptions) {
+export function useFeed(tab: FeedTabType, options?: UseFeedOptions) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
@@ -49,6 +54,9 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
   // For the follows tab, wait until the follow list is loaded before running any query.
   // Without this guard, the query falls through to the global branch while followList is still loading.
   // Allow query to run if not on follows tab, OR if follow list has loaded (even if empty).
+  const isListTab = tab.startsWith('list:');
+  const listAuthors = options?.authors;
+  const listAuthorsKey = listAuthors ? [...listAuthors].sort().join(',') : '';
   const followsReady = tab !== 'follows' || (!!user && followList !== undefined);
 
   // Load community pubkeys from localStorage
@@ -74,7 +82,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
     // on page load because feedSettings is read from localStorage
     // synchronously — the encrypted settings sync at ~5s only calls
     // updateConfig if values actually differ (NostrSync changed guard).
-    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies],
+    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, listAuthorsKey],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
@@ -88,7 +96,75 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         }
       }
 
-      if (tab === 'communities' && communityPubkeys.length > 0) {
+      if (isListTab && listAuthors && listAuthors.length > 0) {
+        // Pinned list feed — posts from list members
+        const filter: Record<string, unknown> = { kinds: allKinds, authors: listAuthors, limit: PAGE_SIZE, ...tagFilters };
+        if (pageParam) filter.until = pageParam;
+
+        const rawEvents = await nostr.query(
+          [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
+          { signal },
+        );
+
+        const validEvents = rawEvents.filter((ev) => ev.created_at <= now);
+        const oldestQueryTimestamp = getPaginationCursor(validEvents);
+
+        const items: FeedItem[] = [];
+        const repostMissingIds: string[] = [];
+        const repostMap = new Map<string, NostrEvent>();
+
+        for (const ev of validEvents) {
+          if (isRepostKind(ev.kind)) {
+            const embedded = parseRepostContent(ev);
+            if (embedded && embedded.created_at <= now) {
+              items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
+            } else {
+              const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
+              if (repostedId) {
+                repostMissingIds.push(repostedId);
+                repostMap.set(repostedId, ev);
+              }
+            }
+          } else {
+            items.push({ event: ev, sortTimestamp: ev.created_at });
+          }
+        }
+
+        if (repostMissingIds.length > 0) {
+          try {
+            const originals = await nostr.query(
+              [{ ids: repostMissingIds, limit: repostMissingIds.length }],
+              { signal },
+            );
+            for (const original of originals) {
+              const repost = repostMap.get(original.id);
+              if (repost && original.created_at <= now) {
+                items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
+              }
+            }
+          } catch {
+            // timeout — skip missing reposts
+          }
+        }
+
+        const seen = new Map<string, FeedItem>();
+        for (const item of items) {
+          const existing = seen.get(item.event.id);
+          if (!existing) seen.set(item.event.id, item);
+          else if (!item.repostedBy && existing.repostedBy) seen.set(item.event.id, item);
+        }
+
+        let dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+
+        // Filter replies if the user has disabled them
+        if (!feedSettings.followsFeedShowReplies) {
+          dedupedItems = dedupedItems.filter((item) => item.repostedBy || !isReplyEvent(item.event));
+        }
+
+        cacheEvents(dedupedItems);
+
+        return { items: dedupedItems, oldestQueryTimestamp };
+      } else if (tab === 'communities' && communityPubkeys.length > 0) {
         // Communities feed — posts from community members with NIP-05 verification
         const filter: Record<string, unknown> = { kinds: allKinds, authors: communityPubkeys, limit: PAGE_SIZE, ...tagFilters };
         if (pageParam) {
@@ -344,7 +420,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
       return lastPage.oldestQueryTimestamp - 1;
     },
     initialPageParam: undefined as number | undefined,
-    enabled: followsReady,
+    enabled: followsReady && (!isListTab || (!!listAuthors && listAuthors.length > 0)),
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
     gcTime: 30 * 60 * 1000, // 30 min — don't GC feed data while the app is open

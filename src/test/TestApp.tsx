@@ -81,6 +81,8 @@ export function TestApp({ children }: TestAppProps) {
       showPodcasts: false,
       feedIncludePodcastEpisodes: false,
       feedIncludePodcastTrailers: false,
+      showLists: false,
+      feedIncludeLists: false,
       followsFeedShowReplies: true,
     },
     sidebarOrder: [],
@@ -94,6 +96,7 @@ export function TestApp({ children }: TestAppProps) {
     sentryDsn: '',
     sentryEnabled: false,
     savedFeeds: [],
+    pinnedLists: [],
   };
 
   return (

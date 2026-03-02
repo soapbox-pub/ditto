@@ -30,6 +30,7 @@ import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent, ColorMomentEyeButton } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { FollowPackDetailContent } from '@/components/FollowPackDetailContent';
+import { ListDetailContent } from '@/components/ListDetailContent';
 import { ArticleContent } from '@/components/ArticleContent';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { FileMetadataContent } from '@/components/FileMetadataContent';
@@ -47,7 +48,10 @@ import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAppContext } from '@/hooks/useAppContext';
 
 /** Kinds that get the full follow-pack detail view. */
-const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
+const FOLLOW_PACK_KINDS = new Set([39089]);
+
+/** Kind 30000 = NIP-51 Follow Sets (Lists). */
+const LIST_KIND = 30000;
 
 /** Kind 30311 = NIP-53 Live Activities. */
 const LIVE_STREAM_KIND = 30311;
@@ -237,6 +241,17 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
           context={{ type: 'addr', addr, relays }}
           onEventFound={setRetryEvent}
         />
+      </PostDetailShell>
+    );
+  }
+
+  // Lists get their own full detail view with feed + members tabs
+  if (resolvedEvent.kind === LIST_KIND) {
+    return (
+      <PostDetailShell title="List Details">
+        <MutedContentGuard event={resolvedEvent}>
+          <ListDetailContent event={resolvedEvent} />
+        </MutedContentGuard>
       </PostDetailShell>
     );
   }

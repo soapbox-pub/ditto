@@ -97,6 +97,8 @@ const hardcodedConfig: AppConfig = {
     showPodcasts: false,
     feedIncludePodcastEpisodes: false,
     feedIncludePodcastTrailers: false,
+    showLists: false,
+    feedIncludeLists: false,
     followsFeedShowReplies: true,
   },
   sidebarOrder: ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings', 'help'],
@@ -109,6 +111,7 @@ const hardcodedConfig: AppConfig = {
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || '',
   sentryEnabled: true,
   savedFeeds: [],
+  pinnedLists: [],
 };
 
 /**

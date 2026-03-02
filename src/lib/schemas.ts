@@ -171,6 +171,8 @@ export const FeedSettingsSchema = z.looseObject({
   showPodcasts: z.boolean().optional(),
   feedIncludePodcastEpisodes: z.boolean().optional(),
   feedIncludePodcastTrailers: z.boolean().optional(),
+  showLists: z.boolean().optional(),
+  feedIncludeLists: z.boolean().optional(),
 });
 
 /** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */
@@ -234,6 +236,7 @@ export const AppConfigSchema = z.object({
       return result.success ? [result.data] : [];
     })
   ).optional().default([]),
+  pinnedLists: z.array(z.string()).optional(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────

@@ -46,6 +46,7 @@ import { UserListsPage } from "./pages/UserListsPage";
 import { HelpPage } from "./pages/HelpPage";
 
 
+
 const pollsDef = getExtraKindDef('polls')!;
 const colorsDef = getExtraKindDef('colors')!;
 const packsDef = getExtraKindDef('packs')!;
