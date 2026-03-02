@@ -53,7 +53,15 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[520px] max-h-[85vh] rounded-2xl p-0 gap-0 border-border overflow-visible [&>button]:hidden flex flex-col">
+      <DialogContent
+        className="max-w-[520px] max-h-[85vh] rounded-2xl p-0 gap-0 border-border overflow-visible [&>button]:hidden flex flex-col"
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          const target = e.target as HTMLElement;
+          const textarea = target.querySelector('textarea');
+          textarea?.focus();
+        }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12 shrink-0">
           <DialogTitle className="text-base font-semibold">
