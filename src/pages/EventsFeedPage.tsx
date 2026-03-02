@@ -302,6 +302,19 @@ function ActivitySection() {
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // Auto-fetch next pages if we got raw results but zero accepted items.
+  // This handles relay non-determinism where a batch may contain only
+  // declined/tentative/malformed RSVPs. Keep paginating until we find
+  // accepted ones or exhaust the data (up to 5 extra pages).
+  useEffect(() => {
+    if (!rsvpQuery.data?.pages || rsvpQuery.isFetching || !hasNextPage) return;
+    const totalAccepted = rsvpQuery.data.pages.reduce((sum, p) => sum + p.rsvps.length, 0);
+    const pageCount = rsvpQuery.data.pages.length;
+    if (totalAccepted === 0 && pageCount < 5) {
+      fetchNextPage();
+    }
+  }, [rsvpQuery.data?.pages, rsvpQuery.isFetching, hasNextPage, fetchNextPage]);
+
   const activityItems = useMemo(() => {
     if (!rsvpQuery.data?.pages) return [];
     // Deduplicate by author+event (across pages)
