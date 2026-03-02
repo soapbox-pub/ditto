@@ -73,6 +73,7 @@ export function TestApp({ children }: TestAppProps) {
       showVideos: true,
       feedIncludeNormalVideos: true,
       feedIncludeShortVideos: true,
+      showUserStatuses: true,
       showMusic: false,
       feedIncludeMusicTracks: false,
       feedIncludeMusicPlaylists: false,

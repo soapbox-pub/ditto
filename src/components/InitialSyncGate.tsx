@@ -360,6 +360,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       showEmojiPacks: selectedContent.has('emoji-packs'),
       feedIncludeEmojiPacks: selectedContent.has('emoji-packs'),
       showCustomEmojis: true,
+      showUserStatuses: true,
       feedIncludeProfileThemes: true,
       feedIncludeThemeDefinitions: true,
       feedIncludeProfileThemeUpdates: true,
