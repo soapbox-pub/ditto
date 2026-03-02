@@ -1,4 +1,5 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import Hls from 'hls.js';
 import { Play, Pause, Volume1, Volume2, VolumeX, Expand } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
@@ -30,57 +31,149 @@ function parseDim(dim: string | undefined): { width: number; height: number } | 
  * drawing the first frame to a canvas, and returning a data URL.
  * Works reliably on Android WebView where preload="metadata" doesn't render a visible frame.
  */
-function useVideoThumbnail(src: string, poster: string | undefined): string | undefined {
+export function useVideoThumbnail(src: string, poster: string | undefined): string | undefined {
   const [thumbnail, setThumbnail] = useState<string | undefined>(poster);
 
   useEffect(() => {
     // Skip if we already have a poster image
     if (poster) return;
-
-    const video = document.createElement('video');
-    video.crossOrigin = 'anonymous';
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = 'auto';
-    // Seek slightly past 0 to avoid blank first frames in some codecs
-    video.currentTime = 0.1;
-    video.src = src;
+    if (!src) return;
 
     let cancelled = false;
 
-    const handleSeeked = () => {
-      if (cancelled) return;
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth || 320;
-        canvas.height = video.videoHeight || 180;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-          // Only use thumbnail if it's not a blank/tiny frame
-          if (dataUrl.length > 1000) {
-            setThumbnail(dataUrl);
+    function grabFrameFromUrl(videoSrc: string) {
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = 'metadata';
+      video.src = videoSrc;
+
+      function captureFrame() {
+        if (cancelled) return;
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth || 320;
+          canvas.height = video.videoHeight || 180;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            if (dataUrl.length > 1000) setThumbnail(dataUrl);
           }
-        }
-      } catch {
-        // CORS or tainted canvas — ignore silently
+        } catch { /* CORS or tainted canvas */ }
+        video.src = '';
+        video.load();
       }
-      video.src = '';
-      video.load();
-    };
 
-    video.addEventListener('seeked', handleSeeked, { once: true });
+      // After metadata loads, seek to 0.1s — then capture on seeked
+      const handleMetadata = () => { video.currentTime = 0.1; };
+      const handleSeeked = () => captureFrame();
 
-    return () => {
-      cancelled = true;
-      video.removeEventListener('seeked', handleSeeked);
-      video.src = '';
-      video.load();
-    };
+      video.addEventListener('loadedmetadata', handleMetadata, { once: true });
+      video.addEventListener('seeked', handleSeeked, { once: true });
+
+      return () => {
+        video.removeEventListener('loadedmetadata', handleMetadata);
+        video.removeEventListener('seeked', handleSeeked);
+        video.src = '';
+        video.load();
+      };
+    }
+
+    // For HLS: use hls.js to load the stream into an off-screen video, then grab a frame
+    if (/\.m3u8(\?|$)/i.test(src)) {
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.muted = true;
+      video.playsInline = true;
+
+      const grabFrame = () => {
+        if (cancelled) return;
+        // Need to play briefly so the video has a rendered frame to draw
+        video.play().then(() => {
+          video.pause();
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 320;
+            canvas.height = video.videoHeight || 180;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+              if (dataUrl.length > 1000) setThumbnail(dataUrl);
+            }
+          } catch { /* tainted canvas */ }
+          hls.destroy();
+          video.src = '';
+        }).catch(() => { hls.destroy(); });
+      };
+
+      // Safari — native HLS support
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = src;
+        video.addEventListener('loadeddata', grabFrame, { once: true });
+        return () => {
+          cancelled = true;
+          video.removeEventListener('loadeddata', grabFrame);
+          video.src = '';
+        };
+      }
+
+      if (!Hls.isSupported()) return;
+
+      const hls = new Hls({ startLevel: -1, maxBufferLength: 5 });
+      hls.loadSource(src);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (cancelled) { hls.destroy(); return; }
+        grabFrame();
+      });
+
+      return () => { cancelled = true; hls.destroy(); video.src = ''; };
+    }
+
+    // Regular video file
+    const cleanupDirect = grabFrameFromUrl(src);
+    return () => { cancelled = true; cleanupDirect(); };
   }, [src, poster]);
 
   return thumbnail;
+}
+
+/** Attaches hls.js to a video element for HLS streams on non-Safari browsers. */
+function useHls(videoRef: React.RefObject<HTMLVideoElement | null>, src: string) {
+  const hlsRef = useRef<Hls | null>(null);
+
+  const isHls = /\.m3u8(\?|$)/i.test(src);
+
+  const attach = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !isHls) return;
+
+    // Safari supports HLS natively
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = src;
+      return;
+    }
+
+    if (!Hls.isSupported()) return;
+
+    const hls = new Hls({ startLevel: -1, autoStartLoad: true });
+    hlsRef.current = hls;
+    hls.loadSource(src);
+    hls.attachMedia(video);
+  }, [videoRef, src, isHls]);
+
+  useEffect(() => {
+    attach();
+    return () => {
+      hlsRef.current?.destroy();
+      hlsRef.current = null;
+    };
+  }, [attach]);
+
+  return { isHls };
 }
 
 export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash }: VideoPlayerProps) {
@@ -88,6 +181,7 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
   const progressRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { src, onError: onBlossomError } = useBlossomFallback(originalSrc);
+  const { isHls } = useHls(videoRef, src);
 
   const generatedPoster = useVideoThumbnail(src, poster);
 
@@ -177,7 +271,7 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
 
       <video
         ref={videoRef}
-        src={src}
+        src={isHls ? undefined : src}
         poster={generatedPoster}
         className={cn(
           'w-full cursor-pointer',
