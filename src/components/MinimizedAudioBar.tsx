@@ -15,9 +15,15 @@ function getStoredPosition(): { x: number; y: number } | null {
   return null;
 }
 
+function getBottomOffset() {
+  // Reserve space for mobile bottom nav (56px) below the sidebar breakpoint
+  const hasSidebar = window.matchMedia('(min-width: 600px)').matches;
+  return hasSidebar ? 0 : 56;
+}
+
 function clampToViewport(x: number, y: number, w: number, h: number) {
   const maxX = window.innerWidth - w;
-  const maxY = window.innerHeight - h;
+  const maxY = window.innerHeight - h - getBottomOffset();
   return {
     x: Math.max(0, Math.min(x, maxX)),
     y: Math.max(0, Math.min(y, maxY)),
@@ -35,7 +41,7 @@ export function MinimizedAudioBar() {
 
   const navigate = useNavigate();
   const barRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState(() => getStoredPosition() ?? { x: 16, y: window.innerHeight - 80 });
+  const [pos, setPos] = useState(() => getStoredPosition() ?? { x: 16, y: window.innerHeight - 80 - getBottomOffset() });
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   // Drag state
