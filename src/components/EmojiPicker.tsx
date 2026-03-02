@@ -50,6 +50,24 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const pickerRef = useRef<InstanceType<typeof Picker> | null>(null);
+
+  // Resolve to 'dark' or 'light' for emoji-mart.
+  // Custom themes set class="custom" on <html> (not .dark), so we can't
+  // rely on the dark class. Instead, check the actual computed background
+  // luminance to determine if the current theme is visually dark.
+  void theme; // depend on theme for reactivity when it changes
+  const resolvedTheme = useMemo(() => {
+    if (typeof document === 'undefined') return 'light';
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
+    if (!bg) return 'light';
+    // HSL format from Tailwind CSS vars: "H S% L%" — check lightness
+    const parts = bg.split(/\s+/);
+    const lightness = parseFloat(parts[parts.length - 1]);
+    if (!isNaN(lightness)) {
+      return lightness < 50 ? 'dark' : 'light';
+    }
+    return 'light';
+  }, [theme]) as 'dark' | 'light';
   const onSelectRef = useRef(onSelect);
 
   // Keep callback ref up to date without re-creating the picker.
@@ -95,7 +113,7 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
     const pickerOptions: Record<string, unknown> = {
       data,
       onEmojiSelect: handleSelect,
-      theme: theme === 'dark' ? 'dark' : 'light',
+      theme: resolvedTheme,
       previewPosition: 'none',
       skinTonePosition: 'search',
       set: 'native',
@@ -121,7 +139,7 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
     };
     // We intentionally depend only on mount/unmount + theme + custom emojis.
     // The handleSelect callback uses a ref so it never goes stale.
-  }, [theme, handleSelect, customCategories]);
+  }, [resolvedTheme, handleSelect, customCategories]);
 
   return (
     <div
