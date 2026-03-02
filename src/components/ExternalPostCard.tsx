@@ -216,11 +216,17 @@ export function ExternalPostCard({ post, className }: ExternalPostCardProps) {
             {formatCount(post.likeCount)}
           </span>
 
-          {/* Platform branding */}
+          {/* Platform branding — links to the original post */}
           {post.brandIcon && (
-            <span className="ml-auto text-[11px] text-muted-foreground flex items-center gap-1">
+            <a
+              href={post.postUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto text-[11px] text-muted-foreground flex items-center gap-1 hover:text-foreground transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
               {post.brandIcon}
-            </span>
+            </a>
           )}
         </div>
       </div>
