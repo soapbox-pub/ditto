@@ -169,7 +169,7 @@ function UpcomingSection() {
 function ActivitySection() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const { data: followData } = useFollowList();
+  const { data: followData, isLoading: followsLoading } = useFollowList();
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
@@ -316,7 +316,8 @@ function ActivitySection() {
       });
   }, [rsvpQuery.data?.pages]);
 
-  const showSkeleton = !isReady || rsvpQuery.isPending || rsvpQuery.isLoading;
+  // Use isLoading (not isPending) so stale data shows during refetch
+  const showSkeleton = followsLoading || rsvpQuery.isLoading;
 
   // Not logged in
   if (!user) {
@@ -340,8 +341,8 @@ function ActivitySection() {
     );
   }
 
-  // Logged in but no follows
-  if (!hasFollows) {
+  // Logged in but no follows (only show after follow list has loaded)
+  if (!hasFollows && !followsLoading) {
     return (
       <div className="py-16 px-8 text-center space-y-3">
         <Users className="size-10 text-muted-foreground/40 mx-auto" />
