@@ -15,7 +15,7 @@ import {
   MoreHorizontal,
   Play,
   Heart,
-  ChevronLeft,
+
 } from 'lucide-react';
 
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -40,12 +40,10 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 
 
-import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { CommentsSheet } from '@/components/CommentsSheet';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { canZap } from '@/lib/canZap';
-import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 
 const VINE_KIND = 34236;
@@ -448,7 +446,6 @@ export function VinesFeedPage() {
   const { events, isLoading } = useVinesFeed(tab);
   const [activeIndex, setActiveIndex] = useState(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [replyOpen, setReplyOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleCommentClick = useCallback(() => {

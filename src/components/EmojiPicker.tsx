@@ -55,7 +55,8 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
   // Custom themes set class="custom" on <html> (not .dark), so we can't
   // rely on the dark class. Instead, check the actual computed background
   // luminance to determine if the current theme is visually dark.
-  void theme; // depend on theme for reactivity when it changes
+  // `theme` is intentionally in the dependency array to trigger recomputation
+  // when the theme changes, even though we read from CSS vars instead.
   const resolvedTheme = useMemo(() => {
     if (typeof document === 'undefined') return 'light';
     const bg = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
@@ -67,6 +68,7 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
       return lightness < 50 ? 'dark' : 'light';
     }
     return 'light';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme]) as 'dark' | 'light';
   const onSelectRef = useRef(onSelect);
 

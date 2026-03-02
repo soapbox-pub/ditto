@@ -48,7 +48,8 @@ export function QuickReactMenu({
   const { trackEmojiUsage, getTopEmojis } = useEmojiUsage();
   const { feedSettings } = useFeedSettings();
   const { emojis: allCustomEmojis } = useCustomEmojis();
-  const customEmojis = feedSettings.showCustomEmojis !== false ? allCustomEmojis : [];
+  const customEmojisEnabled = feedSettings.showCustomEmojis !== false;
+  const customEmojis = useMemo(() => customEmojisEnabled ? allCustomEmojis : [], [customEmojisEnabled, allCustomEmojis]);
 
   const [showFullPicker, setShowFullPicker] = useState(false);
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
