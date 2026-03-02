@@ -5,14 +5,14 @@
 
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Music, ListMusic, Share2, Zap, Clock, MessageCircle, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Music, ListMusic, Zap, Clock } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
-import { useEventInteractions } from '@/hooks/useEventInteractions';
+
 import { useComments } from '@/hooks/useComments';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
@@ -21,8 +21,7 @@ import { formatTime } from '@/lib/formatTime';
 import { canZap } from '@/lib/canZap';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { Nip05Badge } from '@/components/Nip05Badge';
+
 import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
@@ -32,11 +31,7 @@ import { InteractionsModal, type InteractionTab } from '@/components/Interaction
 import { NoteCard } from '@/components/NoteCard';
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
 import { parseMusicTrack, parseMusicPlaylist, toAudioTrack } from '@/lib/musicHelpers';
-import { useAppContext } from '@/hooks/useAppContext';
 
-function getTag(tags: string[][], name: string): string | undefined {
-  return tags.find(([n]) => n === name)?.[1];
-}
 
 /** Format a full date. */
 function formatFullDate(ts: number): string {
@@ -61,7 +56,6 @@ export function MusicDetailContent({ event }: { event: NostrEvent }) {
 
 function TrackDetail({ event }: { event: NostrEvent }) {
   const navigate = useNavigate();
-  const { config } = useAppContext();
   const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
 
@@ -69,16 +63,13 @@ function TrackDetail({ event }: { event: NostrEvent }) {
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
-  const nip05 = metadata?.nip05;
   const { user } = useCurrentUser();
 
   const stats = useEventStats(event.id);
-  const interactions = useEventInteractions(event.id);
   const { muteItems } = useMuteList();
 
   const [replyOpen, setReplyOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
-  const [zapOpen, setZapOpen] = useState(false);
   const [interactionsTab, setInteractionsTab] = useState<InteractionTab | null>(null);
 
   // Comments (NIP-22)
@@ -105,8 +96,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
     }
   };
 
-  const repostTotal = (stats?.reposts ?? 0) + (stats?.genericReposts ?? 0);
-  const zapAmount = stats?.zapAmount ?? 0;
+  const zapAmount = stats.data?.zapAmount ?? 0;
 
   return (
     <main className="min-h-screen">
@@ -181,7 +171,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
               eventId={event.id}
               eventPubkey={event.pubkey}
               eventKind={event.kind}
-              reactionCount={stats?.reactions}
+              reactionCount={stats.data?.reactions}
             />
 
             <RepostMenu event={event}>
@@ -199,20 +189,21 @@ function TrackDetail({ event }: { event: NostrEvent }) {
             </RepostMenu>
 
             {user && canZap(metadata) && (
-              <button
-                onClick={() => setZapOpen(true)}
-                className="size-11 rounded-full bg-secondary/50 text-muted-foreground hover:bg-secondary flex items-center justify-center transition-colors"
-                title="Zap"
-              >
-                <Zap className="size-5" />
-              </button>
+              <ZapDialog target={event}>
+                <button
+                  className="size-11 rounded-full bg-secondary/50 text-muted-foreground hover:bg-secondary flex items-center justify-center transition-colors"
+                  title="Zap"
+                >
+                  <Zap className="size-5" />
+                </button>
+              </ZapDialog>
             )}
 
             {/* Zap stats */}
             {zapAmount > 0 && (
               <button onClick={() => setInteractionsTab('zaps')} className="ml-1 text-right hover:opacity-80">
                 <p className="text-lg font-bold leading-tight">{formatSats(zapAmount)} sats</p>
-                <p className="text-xs text-muted-foreground">{stats?.zapCount ?? 0} zap{(stats?.zapCount ?? 0) !== 1 ? 's' : ''}</p>
+                <p className="text-xs text-muted-foreground">{stats.data?.zapCount ?? 0} zap{(stats.data?.zapCount ?? 0) !== 1 ? 's' : ''}</p>
               </button>
             )}
           </div>
@@ -256,7 +247,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
           onClick={() => setInteractionsTab('reactions')}
           className="flex-1 py-3 text-center text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
         >
-          Reactions <span className="text-xs ml-1 opacity-70">{stats?.reactions || 0}</span>
+          Reactions <span className="text-xs ml-1 opacity-70">{stats.data?.reactions || 0}</span>
         </button>
       </div>
 
@@ -278,7 +269,6 @@ function TrackDetail({ event }: { event: NostrEvent }) {
       {/* Dialogs */}
       <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
       <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
-      {zapOpen && <ZapDialog event={event} open={zapOpen} onOpenChange={setZapOpen} />}
       {interactionsTab && (
         <InteractionsModal
           eventId={event.id}
