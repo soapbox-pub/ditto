@@ -150,7 +150,7 @@ function getTag(tags: string[][], name: string): string | undefined {
 }
 
 /** Parse single imeta tag into structured object (for kind 34236 vines). */
-function parseImeta(tags: string[][]): { url?: string; thumbnail?: string } {
+function parseImeta(tags: string[][]): { url?: string; thumbnail?: string; dim?: string; blurhash?: string } {
   const imetaTag = tags.find(([name]) => name === 'imeta');
   if (!imetaTag) return {};
   const result: Record<string, string> = {};
@@ -162,6 +162,8 @@ function parseImeta(tags: string[][]): { url?: string; thumbnail?: string } {
     const value = part.slice(spaceIdx + 1);
     if (key === 'url') result.url = value;
     else if (key === 'image') result.thumbnail = value;
+    else if (key === 'dim') result.dim = value;
+    else if (key === 'blurhash') result.blurhash = value;
   }
   return result;
 }
@@ -549,6 +551,45 @@ function EventNotFound({
 }
 
 /** Video + title + hashtags for a kind 34236 vine on the detail page. */
+function VideoDetailContent({ event }: { event: NostrEvent }) {
+  const imeta = useMemo(() => parseImeta(event.tags), [event.tags]);
+  const title = getTag(event.tags, 'title');
+  const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
+  const duration = getTag(event.tags, 'duration');
+
+  return (
+    <div className="mt-3">
+      {imeta.url && (
+        <VideoPlayer
+          src={imeta.url}
+          poster={imeta.thumbnail}
+          dim={imeta.dim}
+          blurhash={imeta.blurhash}
+        />
+      )}
+      {title && (
+        <p className="text-[15px] font-semibold leading-snug mt-3 break-words">{title}</p>
+      )}
+      {event.content && (
+        <p className="text-sm text-muted-foreground leading-relaxed mt-1 break-words">{event.content}</p>
+      )}
+      {(hashtags.length > 0 || duration) && (
+        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+          {hashtags.slice(0, 8).map((tag) => (
+            <Link
+              key={tag}
+              to={`/t/${encodeURIComponent(tag)}`}
+              className="text-sm text-primary hover:underline"
+            >
+              #{tag}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VineDetailContent({ event }: { event: NostrEvent }) {
   const imeta = useMemo(() => parseImeta(event.tags), [event.tags]);
   const vineTitle = getTag(event.tags, 'title');
@@ -608,7 +649,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const isTheme = event.kind === 36767 || event.kind === 16767;
     const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
     const isReaction = event.kind === 7;
-    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isEmojiPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme && !isVoiceMessage && !isReaction;
+    const isVideo = event.kind === 21 || event.kind === 22;
+    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isEmojiPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme && !isVoiceMessage && !isReaction && !isVideo;
 
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
@@ -1008,7 +1050,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
         {/* Post content — kind-based dispatch, guarded by NIP-36 content-warning */}
         <ContentWarningGuard event={event}>
-          {isArticle ? (
+          {isVideo ? (
+            <VideoDetailContent event={event} />
+          ) : isArticle ? (
             <ArticleContent event={event} className="mt-3" />
           ) : isMagicDeck ? (
             <MagicDeckContent event={event} />

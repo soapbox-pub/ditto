@@ -13,9 +13,9 @@
  * Streams: live-only query, limit 10
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Film, Radio, Play, Clock, Eye } from 'lucide-react';
+import { ArrowLeft, Film, Radio, Play, Eye } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Blurhash } from 'react-blurhash';
@@ -38,6 +38,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { KindInfoButton } from '@/components/KindInfoButton';
+import { useVideoThumbnail } from '@/components/VideoPlayer';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { timeAgo } from '@/lib/timeAgo';
@@ -94,6 +95,101 @@ function fmtDuration(s: string | undefined): string | undefined {
     : `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
+// ── Drag-to-scroll + edge-hover-scroll for horizontal strips ─────────────────
+
+const EDGE_SIZE = 64;   // px from edge that triggers auto-scroll
+const EDGE_SPEED = 8;   // px per animation frame
+
+function useDragScroll<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeftRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+  const edgeDir = useRef<-1 | 0 | 1>(0);
+
+  // Edge auto-scroll loop
+  const startEdgeScroll = useCallback(() => {
+    if (rafRef.current !== null) return;
+    const tick = () => {
+      const el = ref.current;
+      if (el && edgeDir.current !== 0) {
+        el.scrollLeft += edgeDir.current * EDGE_SPEED;
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = null;
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  const stopEdgeScroll = useCallback(() => {
+    edgeDir.current = 0;
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  }, []);
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el) return;
+    dragging.current = true;
+    startX.current = e.pageX - el.offsetLeft;
+    scrollLeftRef.current = el.scrollLeft;
+    el.style.cursor = 'grabbing';
+    el.style.userSelect = 'none';
+    stopEdgeScroll();
+  }, [stopEdgeScroll]);
+
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el) return;
+
+    if (dragging.current) {
+      e.preventDefault();
+      const x = e.pageX - el.offsetLeft;
+      el.scrollLeft = scrollLeftRef.current - (x - startX.current);
+      return;
+    }
+
+    // Edge detection: x relative to the element's bounding box
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x < EDGE_SIZE) {
+      edgeDir.current = -1;
+      startEdgeScroll();
+    } else if (x > rect.width - EDGE_SIZE) {
+      edgeDir.current = 1;
+      startEdgeScroll();
+    } else {
+      stopEdgeScroll();
+    }
+  }, [startEdgeScroll, stopEdgeScroll]);
+
+  const onMouseUp = useCallback(() => {
+    dragging.current = false;
+    if (ref.current) {
+      ref.current.style.cursor = 'grab';
+      ref.current.style.userSelect = '';
+    }
+  }, []);
+
+  const onMouseLeave = useCallback(() => {
+    dragging.current = false;
+    if (ref.current) {
+      ref.current.style.cursor = 'grab';
+      ref.current.style.userSelect = '';
+    }
+    stopEdgeScroll();
+  }, [stopEdgeScroll]);
+
+  // Clean up on unmount
+  useEffect(() => () => stopEdgeScroll(), [stopEdgeScroll]);
+
+  return { ref, onMouseDown, onMouseMove, onMouseUp, onMouseLeave };
+}
+
 // ── Tab button ────────────────────────────────────────────────────────────────
 
 function TabButton({ label, active, onClick, disabled }: {
@@ -114,41 +210,19 @@ function TabButton({ label, active, onClick, disabled }: {
   );
 }
 
-// ── Author chip ───────────────────────────────────────────────────────────────
-
-function CardAuthor({ pubkey }: { pubkey: string }) {
-  const author = useAuthor(pubkey);
-  const metadata = author.data?.metadata;
-  const displayName = getDisplayName(metadata, pubkey);
-  const profileUrl = useProfileUrl(pubkey, metadata);
-
-  if (author.isLoading) {
-    return (
-      <div className="flex items-center gap-2">
-        <Skeleton className="size-8 rounded-full shrink-0" />
-        <Skeleton className="h-3 w-28" />
-      </div>
-    );
-  }
-
-  return (
-    <Link to={profileUrl} className="flex items-center gap-2 group/a min-w-0" onClick={(e) => e.stopPropagation()}>
-      <Avatar className="size-8 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
-        <AvatarFallback className="bg-primary/20 text-primary text-xs">{displayName[0]?.toUpperCase()}</AvatarFallback>
-      </Avatar>
-      <span className="text-sm text-muted-foreground group-hover/a:text-foreground transition-colors truncate">{displayName}</span>
-    </Link>
-  );
-}
-
-// ── Video grid card (kind 21) ─────────────────────────────────────────────────
+// ── Video grid card (kind 21) — YouTube-style ────────────────────────────────
 
 function VideoGridCard({ event }: { event: NostrEvent }) {
-  const { thumbnail, duration, blurhash } = parseVideoImeta(event.tags);
+  const { url, thumbnail: imetaThumb, duration, blurhash } = parseVideoImeta(event.tags);
   const title = getTag(event.tags, 'title') ?? (event.content.slice(0, 120) || 'Untitled');
   const dur = fmtDuration(duration);
-  const [imgLoaded, setImgLoaded] = useState(false);
+  const generatedThumb = useVideoThumbnail(url ?? '', imetaThumb);
+  const thumbnail = imetaThumb ?? generatedThumb;
+
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = getDisplayName(metadata, event.pubkey);
+  const profileUrl = useProfileUrl(event.pubkey, metadata);
 
   const noteId = nip19.noteEncode(event.id);
   const { onClick, onAuxClick } = useOpenPost(`/${noteId}`);
@@ -162,38 +236,57 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
     >
+      {/* Thumbnail */}
       <div className="relative aspect-video overflow-hidden rounded-xl bg-muted">
         {blurhash && (
           <Blurhash hash={blurhash} width="100%" height="100%" resolutionX={32} resolutionY={32} punch={1}
-            className={cn('absolute inset-0 transition-opacity duration-300', imgLoaded ? 'opacity-0' : 'opacity-100')}
+            className="absolute inset-0"
             style={{ width: '100%', height: '100%' }} />
         )}
         {thumbnail ? (
           <img
             src={thumbnail}
             alt={title}
-            className={cn('absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-[1.03]', imgLoaded ? 'opacity-100' : 'opacity-0')}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             loading="lazy"
-            onLoad={() => setImgLoaded(true)}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
-            <Play className="size-10 text-muted-foreground/30" />
+            <Play className="size-8 text-muted-foreground/20" />
           </div>
         )}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/25">
-          <div className="size-14 rounded-full bg-black/60 flex items-center justify-center">
-            <Play className="size-7 text-white fill-white ml-0.5" />
-          </div>
-        </div>
         {dur && (
-          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-0.5 rounded font-medium pointer-events-none">{dur}</div>
+          <div className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">{dur}</div>
         )}
       </div>
-      <div className="mt-3 space-y-2">
-        <CardAuthor pubkey={event.pubkey} />
-        <h3 className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-primary transition-colors">{title}</h3>
-        <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Clock className="size-3.5 shrink-0" />{timeAgo(event.created_at)}</p>
+
+      {/* Info row: avatar | title + channel + time */}
+      <div className="mt-2.5 flex gap-2.5">
+        <Link to={profileUrl} className="shrink-0 mt-0.5" onClick={(e) => e.stopPropagation()}>
+          {author.isLoading ? (
+            <Skeleton className="size-8 rounded-full" />
+          ) : (
+            <Avatar className="size-8">
+              <AvatarImage src={metadata?.picture} alt={displayName} />
+              <AvatarFallback className="bg-primary/20 text-primary text-[10px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
+            </Avatar>
+          )}
+        </Link>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-xs font-medium leading-snug line-clamp-2 mb-1">{title}</h3>
+          {author.isLoading ? (
+            <Skeleton className="h-2.5 w-20 mb-1" />
+          ) : (
+            <Link
+              to={profileUrl}
+              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors block truncate"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {displayName}
+            </Link>
+          )}
+          <p className="text-[11px] text-muted-foreground">{timeAgo(event.created_at)}</p>
+        </div>
       </div>
     </div>
   );
@@ -201,11 +294,16 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
 
 function VideoSkeleton() {
   return (
-    <div className="space-y-3">
+    <div>
       <Skeleton className="w-full aspect-video rounded-xl" />
-      <div className="flex items-center gap-2"><Skeleton className="size-8 rounded-full shrink-0" /><Skeleton className="h-3 w-28" /></div>
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-3 w-24" />
+      <div className="mt-2.5 flex gap-2.5">
+        <Skeleton className="size-8 rounded-full shrink-0 mt-0.5" />
+        <div className="flex-1 space-y-1.5 pt-0.5">
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-4/5" />
+          <Skeleton className="h-2.5 w-20" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -249,64 +347,61 @@ function LiveStreamCard({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const meta = author.data?.metadata;
   const displayName = getDisplayName(meta, event.pubkey);
-  const profileUrl = useProfileUrl(event.pubkey, meta);
 
   return (
     <div
-      className="cursor-pointer group shrink-0 w-60"
+      className="cursor-pointer group shrink-0 w-40"
       onClick={onClick}
       onAuxClick={onAuxClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
     >
-      <div className="relative aspect-video overflow-hidden rounded-xl bg-muted">
+      <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
         {imageUrl ? (
           <img src={imageUrl} alt={title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-950/40 to-muted">
-            <Radio className="size-6 text-red-400/60" />
+            <Radio className="size-5 text-red-400/60" />
           </div>
         )}
-        <div className="absolute top-2 left-2">
-          <Badge className="text-xs px-1.5 py-0.5 bg-red-600 text-white border-red-600 flex items-center gap-1">
+        <div className="absolute top-1.5 left-1.5">
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-red-600 text-white px-1.5 py-0.5 rounded">
             <span className="size-1.5 rounded-full bg-white animate-pulse" />LIVE
-          </Badge>
+          </span>
         </div>
         {viewers && (
-          <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
-            <Eye className="size-3" />{viewers}
+          <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 bg-black/70 text-white text-[10px] px-1 py-0.5 rounded">
+            <Eye className="size-2.5" />{viewers}
           </div>
         )}
       </div>
-      <div className="mt-2 flex items-start gap-2">
-        <Link to={profileUrl} onClick={(e) => e.stopPropagation()} className="shrink-0 mt-0.5">
-          <Avatar className="size-7">
-            <AvatarImage src={meta?.picture} alt={displayName} />
-            <AvatarFallback className="bg-primary/20 text-primary text-[10px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
-          </Avatar>
-        </Link>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">{title}</p>
-          <p className="text-xs text-muted-foreground truncate mt-0.5">{displayName}</p>
-        </div>
-      </div>
+      <p className="mt-1.5 text-xs font-medium line-clamp-2 leading-snug group-hover:text-primary transition-colors">{title}</p>
+      <p className="text-[11px] text-muted-foreground truncate mt-0.5">{displayName}</p>
     </div>
   );
 }
 
 function LiveStreamsStrip({ tab }: { tab: FeedTab }) {
   const { data: liveEvents = [] } = useLiveStreams(tab);
+  const drag = useDragScroll<HTMLDivElement>();
   if (liveEvents.length === 0) return null;
 
   return (
-    <div className="px-4 pt-3 pb-5">
-      <h2 className="flex items-center gap-1.5 text-sm font-semibold mb-3">
-        <span className="size-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-        Live Now
-        <Badge variant="secondary" className="ml-1 text-xs">{liveEvents.length}</Badge>
-      </h2>
-      <div className="flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+    <div className="px-4 pt-3 pb-4">
+      <p className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2.5">
+        <span className="size-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+        Live now
+      </p>
+      <div
+        ref={drag.ref}
+        className="flex gap-3 overflow-x-auto pb-1 cursor-grab"
+        style={{ scrollbarWidth: 'none' }}
+        onMouseDown={drag.onMouseDown}
+        onMouseMove={drag.onMouseMove}
+        onMouseUp={drag.onMouseUp}
+        onMouseLeave={drag.onMouseLeave}
+      >
         {liveEvents.map((e) => <LiveStreamCard key={e.id} event={e} />)}
       </div>
     </div>
@@ -316,31 +411,31 @@ function LiveStreamsStrip({ tab }: { tab: FeedTab }) {
 // ── Shorts grid thumbnail ─────────────────────────────────────────────────────
 
 function ShortThumb({ event, onClick }: { event: NostrEvent; onClick: () => void }) {
-  const { thumbnail, blurhash } = parseVideoImeta(event.tags);
+  const { url, thumbnail: imetaThumb, blurhash } = parseVideoImeta(event.tags);
   const title = getTag(event.tags, 'title') ?? (event.content.slice(0, 60) || 'Short');
-  const [imgLoaded, setImgLoaded] = useState(false);
+  const generatedThumb = useVideoThumbnail(url ?? '', imetaThumb);
+  const thumbnail = imetaThumb ?? generatedThumb;
 
   return (
     <button className="group block w-full text-left focus:outline-none" onClick={onClick} aria-label={title}>
       <div className="relative w-full aspect-[9/16] overflow-hidden rounded-xl bg-muted">
-        {blurhash && (
+        {blurhash && !thumbnail && (
           <Blurhash hash={blurhash} width="100%" height="100%" resolutionX={32} resolutionY={32} punch={1}
-            className={cn('absolute inset-0 transition-opacity duration-300', imgLoaded ? 'opacity-0' : 'opacity-100')}
+            className="absolute inset-0"
             style={{ width: '100%', height: '100%' }} />
         )}
         {thumbnail ? (
           <img
             src={thumbnail}
             alt={title}
-            className={cn('absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-[1.03]', imgLoaded ? 'opacity-100' : 'opacity-0')}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             loading="lazy"
-            onLoad={() => setImgLoaded(true)}
           />
-        ) : (
+        ) : !blurhash ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <Play className="size-8 text-muted-foreground/30" />
           </div>
-        )}
+        ) : null}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/25">
           <div className="size-12 rounded-full bg-black/60 flex items-center justify-center">
             <Play className="size-6 text-white fill-white ml-0.5" />
@@ -456,19 +551,23 @@ function ShortsPlayer({
 // ── Shorts grid section ───────────────────────────────────────────────────────
 
 function ShortsSection({ events, onOpen }: { events: NostrEvent[]; onOpen: (index: number) => void }) {
+  const drag = useDragScroll<HTMLDivElement>();
   if (events.length === 0) return null;
 
   return (
     <section>
-      <h2 className="flex items-center gap-2 text-base font-semibold mb-4 px-4">
-        <Play className="size-4" />Shorts
-      </h2>
+      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 px-4">Shorts</h2>
       <div
-        className="flex gap-3 overflow-x-auto px-4 pb-2"
+        ref={drag.ref}
+        className="flex gap-2.5 overflow-x-auto px-4 pb-2 cursor-grab"
         style={{ scrollbarWidth: 'none' }}
+        onMouseDown={drag.onMouseDown}
+        onMouseMove={drag.onMouseMove}
+        onMouseUp={drag.onMouseUp}
+        onMouseLeave={drag.onMouseLeave}
       >
         {events.map((e, i) => (
-          <div key={e.id} className="shrink-0 w-36">
+          <div key={e.id} className="shrink-0 w-32">
             <ShortThumb event={e} onClick={() => onOpen(i)} />
           </div>
         ))}
@@ -490,6 +589,7 @@ export function VideosFeedPage() {
   useLayoutOptions({ showFAB: false });
 
   useEffect(() => { if (user) setFeedTab('follows'); }, [user]);
+  useEffect(() => { setShowAllVideos(false); }, [feedTab]);
 
   // ── Follows: chronological, small page ──
   const followsQuery = useFeed('follows', { kinds: [21, 22] });
@@ -523,6 +623,10 @@ export function VideosFeedPage() {
   const shorts = useMemo(() => videoEvents.filter((e) => e.kind === 22), [videoEvents]);
 
   const [shortsPlayerIndex, setShortsPlayerIndex] = useState<number | null>(null);
+  const [showAllVideos, setShowAllVideos] = useState(false);
+  const { data: liveEvents = [] } = useLiveStreams(feedTab);
+  const initialVideoCount = liveEvents.length > 0 ? 4 : 6;
+  const visibleVideos = showAllVideos ? normalVideos : normalVideos.slice(0, initialVideoCount);
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
@@ -562,14 +666,12 @@ export function VideosFeedPage() {
       <LiveStreamsStrip tab={feedTab} />
 
       {showSkeleton ? (
-        <div className="pt-6 pb-8 space-y-10">
-          <div>
-            <Skeleton className="h-5 w-24 mb-5 mx-4" />
-            <div className="flex gap-4 overflow-hidden px-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="shrink-0 w-72"><VideoSkeleton /></div>
-              ))}
-            </div>
+        <div className="pt-3 pb-8 px-4">
+          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Videos</p>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <VideoSkeleton key={i} />
+            ))}
           </div>
         </div>
       ) : videoEvents.length === 0 ? (
@@ -580,27 +682,28 @@ export function VideosFeedPage() {
           </p>
         </div>
       ) : (
-        <div className="pt-5 space-y-10 pb-8">
-          {/* Normal videos — horizontal scroll row */}
+        <div className="pt-3 pb-8">
+          {/* Normal videos — 2-column grid */}
           {normalVideos.length > 0 && (
-            <section>
-              <h2 className="flex items-center gap-2 text-base font-semibold mb-4 px-4">
-                <Film className="size-4" />Videos
-              </h2>
-              <div
-                className="flex gap-4 overflow-x-auto px-4 pb-2"
-                style={{ scrollbarWidth: 'none' }}
-              >
-                {normalVideos.map((e) => (
-                  <div key={e.id} className="shrink-0 w-72">
-                    <VideoGridCard event={e} />
-                  </div>
+            <div className="px-4 mb-8">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Videos</p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-6">
+                {visibleVideos.map((e) => (
+                  <VideoGridCard key={e.id} event={e} />
                 ))}
               </div>
-            </section>
+              {!showAllVideos && normalVideos.length > initialVideoCount && (
+                <button
+                  className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2 border border-border rounded-lg"
+                  onClick={() => setShowAllVideos(true)}
+                >
+                  Show {normalVideos.length - initialVideoCount} more
+                </button>
+              )}
+            </div>
           )}
 
-          {/* Shorts — horizontal scroll row of portrait thumbs, tap opens player */}
+          {/* Shorts shelf */}
           {shorts.length > 0 && <ShortsSection events={shorts} onOpen={setShortsPlayerIndex} />}
         </div>
       )}
