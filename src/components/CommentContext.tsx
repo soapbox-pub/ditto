@@ -4,10 +4,12 @@ import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { ReactionEmoji } from '@/components/CustomEmoji';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAddrEvent, useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
+import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo } from '@/lib/countries';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
@@ -86,6 +88,8 @@ function getKindLabel(rootKind: string | undefined): string {
     if (rootKind === '#') return 'a hashtag';
     return rootKind;
   }
+
+  if (kindNum === 7) return 'a reaction';
 
   const kindDef = EXTRA_KINDS.find((def) =>
     def.subKinds?.some((sub) => sub.kind === kindNum) || def.kind === kindNum,
@@ -241,6 +245,11 @@ function EventCommentContext({ root, className }: { root: CommentRoot; className
     return undefined;
   }, [event, root.eventId]);
 
+  // Kind 7 reactions get special treatment
+  if (event?.kind === 7) {
+    return <ReactionCommentContext event={event} className={className} />;
+  }
+
   if (isLoading) {
     return (
       <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
@@ -250,10 +259,54 @@ function EventCommentContext({ root, className }: { root: CommentRoot; className
     );
   }
 
+  // Fallback for kind 7 when event hasn't loaded yet but rootKind indicates it
+  if (root.rootKind === '7') {
+    return (
+      <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
+        <span className="shrink-0">Commenting on</span>
+        <span className="truncate">a reaction</span>
+      </div>
+    );
+  }
+
   return (
     <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
       <span className="shrink-0">Commenting on</span>
       {label ?? <span className="truncate">{getKindLabel(root.rootKind)}</span>}
+    </div>
+  );
+}
+
+/** Comment context for kind 7 reaction roots — shows "Commenting on {emoji} by {name}". */
+function ReactionCommentContext({ event, className }: { event: NostrEvent; className?: string }) {
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = getDisplayName(metadata, event.pubkey);
+  const reactionLink = getRootLink(event);
+  const profileLink = `/${nip19.npubEncode(event.pubkey)}`;
+
+  return (
+    <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
+      <span className="shrink-0">Commenting on</span>
+      <Link
+        to={reactionLink}
+        className="text-primary hover:underline shrink-0 cursor-pointer"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ReactionEmoji content={event.content} tags={event.tags} className="inline-block align-text-bottom" />
+      </Link>
+      <span className="shrink-0">by</span>
+      {author.isLoading ? (
+        <Skeleton className="h-3.5 w-16 inline-block" />
+      ) : (
+        <Link
+          to={profileLink}
+          className="text-primary hover:underline truncate cursor-pointer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {displayName}
+        </Link>
+      )}
     </div>
   );
 }

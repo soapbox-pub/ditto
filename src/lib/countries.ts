@@ -197,6 +197,53 @@ export const COUNTRIES: Record<string, { name: string; flag: string }> = {
   ZW: { name: 'Zimbabwe', flag: '🇿🇼' },
 };
 
+/** Pre-sorted array of country entries for searching. */
+const COUNTRY_LIST = Object.entries(COUNTRIES)
+  .map(([code, { name, flag }]) => ({ code, name, flag }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+export type CountryEntry = typeof COUNTRY_LIST[number];
+
+export interface CountryMatch {
+  country: CountryEntry;
+  exact: boolean;
+}
+
+/**
+ * Find a single country matching the query (case-insensitive).
+ * Matches exact code/name or name prefix (e.g. "angol" -> Angola).
+ * Returns the match with an `exact` flag indicating whether it was a full match.
+ */
+export function searchCountry(query: string): CountryMatch | null {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return null;
+
+  // Exact code match
+  for (const entry of COUNTRY_LIST) {
+    if (entry.code.toLowerCase() === q) {
+      return { country: entry, exact: true };
+    }
+  }
+
+  // Exact name match
+  for (const entry of COUNTRY_LIST) {
+    if (entry.name.toLowerCase() === q) {
+      return { country: entry, exact: true };
+    }
+  }
+
+  // Prefix match (shortest name = most specific)
+  let best: CountryEntry | null = null;
+  for (const entry of COUNTRY_LIST) {
+    if (entry.name.toLowerCase().startsWith(q)) {
+      if (!best || entry.name.length < best.name.length) {
+        best = entry;
+      }
+    }
+  }
+  return best ? { country: best, exact: false } : null;
+}
+
 /** Get country info from an ISO 3166 code (country or subdivision). */
 export function getCountryInfo(code: string): { name: string; flag: string; subdivision?: string } | null {
   const upper = code.toUpperCase();

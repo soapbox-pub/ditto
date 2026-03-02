@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
-import { useOnboarding } from '@/components/InitialSyncGate';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
 import { useInfiniteSortedPosts } from '@/hooks/useTrending';

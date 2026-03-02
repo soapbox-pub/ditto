@@ -12,7 +12,7 @@ import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { SidebarNavList } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
 import LoginDialog from '@/components/auth/LoginDialog';
-import { useOnboarding } from '@/components/InitialSyncGate';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';

@@ -70,7 +70,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
     setNostrConnectParams(params);
     setNostrConnectUri(uri);
     setConnectError(null);
-  }, [login]);
+  }, [login, config.appName]);
 
   // Start listening for connection (async) - runs after params are set
   useEffect(() => {

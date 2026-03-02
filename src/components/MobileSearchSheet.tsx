@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, UserRoundCheck, X } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -9,6 +9,7 @@ import { genUserName } from '@/lib/genUserName';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { getProfileUrl } from '@/lib/profileUrl';
+import { searchCountry, type CountryEntry } from '@/lib/countries';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +26,16 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { data: profiles, isFetching, followedPubkeys } = useSearchProfiles(query);
+
+  // Country suggestion (local, synchronous)
+  const countryMatch = useMemo(() => searchCountry(query), [query]);
+  const profileCount = profiles?.length ?? 0;
+  const hasCountry = !!countryMatch;
+  // Show country at top only for exact matches; otherwise at bottom (after profiles)
+  const countryAtTop = hasCountry && (countryMatch.exact || profileCount === 0);
+  const totalItems = profileCount + (hasCountry ? 1 : 0);
+  const countryIndex = countryAtTop ? 0 : profileCount;
+  const profileStartIndex = countryAtTop && hasCountry ? 1 : 0;
 
   // Focus input when opened
   useEffect(() => {
@@ -47,6 +58,11 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
     setQuery('');
     onClose();
   }, [onClose]);
+
+  const handleSelectCountry = useCallback((country: CountryEntry) => {
+    handleClose();
+    navigate(`/i/iso3166:${country.code}`);
+  }, [navigate, handleClose]);
 
   const handleSelect = useCallback((profile: SearchProfile) => {
     const nip05 = profile.metadata.nip05;
@@ -78,28 +94,30 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
     }
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (profiles && selectedIndex >= 0 && selectedIndex < profiles.length) {
-        handleSelect(profiles[selectedIndex]);
+      if (selectedIndex >= 0 && selectedIndex < totalItems) {
+        if (hasCountry && selectedIndex === countryIndex) {
+          handleSelectCountry(countryMatch!.country);
+        } else {
+          handleSelect(profiles![selectedIndex - profileStartIndex]);
+        }
       } else {
         handleTextSearch();
       }
       return;
     }
-    if (!profiles || profiles.length === 0) return;
+    if (totalItems === 0) return;
     if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : profiles.length - 1));
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev < profiles.length - 1 ? prev + 1 : 0));
+      setSelectedIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
     }
   };
 
-  const hasResults = query.trim().length > 0 && (profiles && profiles.length > 0);
+  const hasResults = query.trim().length > 0 && (hasCountry || (profiles && profiles.length > 0));
 
   if (!open) return null;
-
-  const resultItems = hasResults ? [...profiles!] : [];
 
   return (
     <>
@@ -116,15 +134,29 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
         {/* Results list — reversed so closest to input = most relevant */}
         {hasResults && (
           <div className="flex flex-col-reverse bg-popover/95 rounded-2xl mx-6 mb-0.5 overflow-hidden max-h-[55vh] overflow-y-auto shadow-lg">
-            {resultItems.map((profile, index) => (
+            {hasCountry && countryAtTop && (
+              <SearchCountryItem
+                country={countryMatch!.country}
+                isSelected={selectedIndex === countryIndex}
+                onClick={handleSelectCountry}
+              />
+            )}
+            {profiles && profiles.map((profile, index) => (
               <SearchProfileItem
                 key={profile.pubkey}
                 profile={profile}
-                isSelected={index === selectedIndex}
+                isSelected={index + profileStartIndex === selectedIndex}
                 isFollowed={followedPubkeys.has(profile.pubkey)}
                 onClick={handleSelect}
               />
             ))}
+            {hasCountry && !countryAtTop && (
+              <SearchCountryItem
+                country={countryMatch!.country}
+                isSelected={selectedIndex === countryIndex}
+                onClick={handleSelectCountry}
+              />
+            )}
           </div>
         )}
 
@@ -169,6 +201,39 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
         </div>
       </div>
     </>
+  );
+}
+
+function SearchCountryItem({
+  country,
+  isSelected,
+  onClick,
+}: {
+  country: CountryEntry;
+  isSelected: boolean;
+  onClick: (country: CountryEntry) => void;
+}) {
+  return (
+    <button
+      role="option"
+      aria-selected={isSelected}
+      className={cn(
+        'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+      onClick={() => onClick(country)}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <div className="size-9 shrink-0 rounded-full bg-secondary flex items-center justify-center">
+        <span className="text-lg leading-none" role="img" aria-label={`Flag of ${country.name}`}>
+          {country.flag}
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <span className="font-semibold text-sm truncate">{country.name}</span>
+        <div className="text-xs text-muted-foreground">{country.code}</div>
+      </div>
+    </button>
   );
 }
 

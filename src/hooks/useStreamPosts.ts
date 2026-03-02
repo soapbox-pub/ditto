@@ -94,8 +94,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Vines filter changes the kind queried, so it must restart the stream
-  const isVines = options.mediaType === 'vines';
+  // These mediaTypes query dedicated event kinds rather than filtering kind 1
+  const isDedicatedKindQuery = options.mediaType === 'vines' || options.mediaType === 'images' || options.mediaType === 'videos';
 
   const enabledKinds = getEnabledFeedKinds(feedSettings);
   const kindsKey = [...enabledKinds].sort().join(',');
@@ -132,10 +132,19 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       setAllEvents(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
     }
 
-    // Build the kinds list: either vines-only or user-selected feed kinds (minus reposts)
-    const kinds: number[] = isVines
-      ? [34236]
-      : enabledKinds.filter((k) => !isRepostKind(k));
+    // Build the kinds list based on mediaType
+    let kinds: number[];
+    if (options.mediaType === 'vines') {
+      kinds = [22, 34236];           // shorts + vines
+    } else if (options.mediaType === 'videos') {
+      kinds = [21, 22, ...enabledKinds.filter((k) => !isRepostKind(k))];
+    } else if (options.mediaType === 'images') {
+      kinds = [20, ...enabledKinds.filter((k) => !isRepostKind(k))];
+    } else {
+      kinds = enabledKinds.filter((k) => !isRepostKind(k));
+    }
+    // Deduplicate
+    kinds = [...new Set(kinds)];
 
     // Base filter for streaming (kinds only - no search)
     const streamFilter: NostrFilter = { kinds };
@@ -160,8 +169,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     }
 
     // Add media filter (NIP-50 extension supported by Ditto)
-    // Only apply to non-vines queries (kind 1)
-    if (!isVines) {
+    // Skip for dedicated-kind queries — kind selection already scopes them
+    if (!isDedicatedKindQuery) {
       if (options.mediaType === 'images') {
         searchParts.push('media:true');
         searchParts.push('video:false');
@@ -228,7 +237,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  }, [nostr, query, isVines, kindsKey, options.language, options.mediaType, protocolsKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols is stabilized via protocolsKey
+  }, [nostr, query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey]);
 
   // Apply client-side filters (including mute filtering) without restarting the stream
   const posts = useMemo(() => {
@@ -236,6 +246,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
       return filterEvent(event, options, query);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
   }, [allEvents, options.includeReplies, options.mediaType, protocolsKey, query, muteItems]);
 
   return { posts, isLoading };

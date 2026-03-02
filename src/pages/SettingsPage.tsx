@@ -8,7 +8,7 @@ import { IntroImage } from '@/components/IntroImage';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { toast } from '@/hooks/useToast';
 
-export interface SettingsSection {
+interface SettingsSection {
   id: string;
   label: string;
   description: string;
@@ -17,7 +17,7 @@ export interface SettingsSection {
   requiresAuth?: boolean;
 }
 
-export const settingsSections: SettingsSection[] = [
+const settingsSections: SettingsSection[] = [
   {
     id: 'profile',
     label: 'Profile',
