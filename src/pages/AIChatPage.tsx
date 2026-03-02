@@ -396,7 +396,7 @@ export function AIChatPage() {
 
   if (!user) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center p-6 gap-6">
+      <main className="flex flex-col items-center justify-center p-6 gap-6">
         <div className="flex flex-col items-center gap-3 text-center max-w-sm">
           <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Bot className="size-8 text-primary" />

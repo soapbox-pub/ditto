@@ -304,7 +304,7 @@ export function PhotosFeedPage() {
   const nextDetail = useCallback(() => setDetailIndex((i) => (i !== null && i < photoEvents.length - 1 ? i + 1 : i)), [photoEvents.length]);
 
   return (
-    <main className="min-h-screen">
+    <main className="">
       {/* Header */}
       <div className="flex items-center gap-4 px-4 mt-4 mb-1">
         <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">

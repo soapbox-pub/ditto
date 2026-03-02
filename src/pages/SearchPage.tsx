@@ -110,7 +110,7 @@ export function SearchPage() {
   const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
 
   return (
-      <main className="min-h-screen">
+      <main className="">
         {/* Tabs — sticky at top */}
         <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
           <div className="flex">

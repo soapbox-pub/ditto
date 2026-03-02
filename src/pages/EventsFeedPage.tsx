@@ -106,7 +106,7 @@ export function EventsFeedPage() {
   const showSkeleton = isPending || (isLoading && !rawData);
 
   return (
-    <main className="min-h-screen max-w-2xl mx-auto">
+    <main className="max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4 px-4 mt-4 mb-1">
         <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">

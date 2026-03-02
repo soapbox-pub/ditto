@@ -58,7 +58,7 @@ export function NotificationSettings() {
   const isDenied = !isNative && permission === 'denied';
 
   return (
-    <main className="min-h-screen">
+    <main className="">
       {/* Header with back link */}
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-center gap-4">
