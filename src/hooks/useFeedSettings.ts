@@ -2,7 +2,7 @@ import { type FeedSettings } from "@/contexts/AppContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { SIDEBAR_ITEMS, SIDEBAR_ITEM_IDS } from "@/lib/sidebarItems";
+import { SIDEBAR_ITEMS, SIDEBAR_ITEM_IDS, SIDEBAR_DIVIDER_ID } from "@/lib/sidebarItems";
 import { useCallback, useMemo } from "react";
 
 // ── Order computation ─────────────────────────────────────────────────────────
@@ -30,6 +30,12 @@ function computeOrderedItems(
   const seen = new Set<string>();
 
   for (const item of sidebarOrder) {
+    // Dividers are allowed multiple times — don't deduplicate them
+    if (item === SIDEBAR_DIVIDER_ID) {
+      ordered.push(item);
+      continue;
+    }
+
     if (seen.has(item)) continue;
     seen.add(item);
 
@@ -143,12 +149,29 @@ export function useFeedSettings() {
     [getEffectiveOrder, updateConfig, updateSettings, user],
   );
 
-  /** Remove an item from the sidebar (remove from sidebarOrder). */
-  const removeFromSidebar = useCallback(
-    (id: string) => {
+  /** Append a divider to the sidebar. */
+  const addDividerToSidebar = useCallback(
+    () => {
       updateConfig((currentConfig) => {
         const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
-        const newOrder = currentOrder.filter((r) => r !== id);
+        const newOrder = [...currentOrder, SIDEBAR_DIVIDER_ID];
+        if (user) {
+          updateSettings.mutateAsync({ sidebarOrder: newOrder }).catch(() => {});
+        }
+        return { ...currentConfig, sidebarOrder: newOrder };
+      });
+    },
+    [getEffectiveOrder, updateConfig, updateSettings, user],
+  );
+
+  /** Remove an item from the sidebar. If index is provided, removes by position (needed for dividers). */
+  const removeFromSidebar = useCallback(
+    (id: string, index?: number) => {
+      updateConfig((currentConfig) => {
+        const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
+        const newOrder = index !== undefined
+          ? currentOrder.filter((_, i) => i !== index)
+          : currentOrder.filter((r) => r !== id);
         if (user) {
           updateSettings.mutateAsync({ sidebarOrder: newOrder }).catch(() => {});
         }
@@ -172,6 +195,8 @@ export function useFeedSettings() {
     updateSidebarOrder,
     /** Add an item to sidebar (append to order). */
     addToSidebar,
+    /** Append a divider to the sidebar. */
+    addDividerToSidebar,
     /** Remove an item from sidebar (remove from order). */
     removeFromSidebar,
   };
