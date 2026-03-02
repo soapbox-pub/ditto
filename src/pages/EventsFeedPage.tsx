@@ -175,15 +175,24 @@ function ActivitySection() {
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
 
-  const followedPubkeys = followData?.pubkeys ?? [];
-  const hasFollows = followedPubkeys.length > 0;
+  const followedPubkeys = followData?.pubkeys;
+  const hasFollows = !!followedPubkeys && followedPubkeys.length > 0;
   const isReady = !!user && hasFollows;
+
+  // Stable key that changes when the follow list actually changes
+  const followsKey = useMemo(
+    () => followedPubkeys ? followedPubkeys.slice(0, 20).join(',') : '',
+    [followedPubkeys],
+  );
 
   // Fetch RSVPs from followed users
   const rsvpQuery = useInfiniteQuery({
-    queryKey: ['follower-rsvps', user?.pubkey ?? ''],
+    queryKey: ['follower-rsvps', user?.pubkey ?? '', followsKey],
     queryFn: async ({ pageParam }) => {
-      if (!user || !hasFollows) return { rsvps: [], oldestTimestamp: 0, rawCount: 0 };
+      // Re-read from the outer scope — these are captured at call time, not mount time
+      if (!followedPubkeys || followedPubkeys.length === 0) {
+        return { rsvps: [], oldestTimestamp: 0, rawCount: 0 };
+      }
       const signal = AbortSignal.timeout(8000);
 
       const filter: Record<string, unknown> = {
