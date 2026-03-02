@@ -57,15 +57,16 @@ export function SidebarMoreMenu({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px)]">
-        <div className="flex items-center gap-3 px-2 py-2 shrink-0">
-          <Search className="size-5 shrink-0" />
+        <div className="flex items-center px-2 py-2 shrink-0">
+          <Search className="size-5 shrink-0 mr-3" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search..."
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+            className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
             autoFocus
           />
+          <div className="w-8 shrink-0" />
         </div>
         <div className="h-px bg-border mb-1 shrink-0" />
         <div className="overflow-y-auto flex-1 min-h-0">
