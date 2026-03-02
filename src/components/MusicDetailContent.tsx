@@ -253,7 +253,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
 
       {/* Comments list */}
       {comments.length > 0 && (
-        <div className="divide-y divide-border">
+        <div>
           {comments.map((comment) => (
             <NoteCard key={comment.id} event={comment} />
           ))}
