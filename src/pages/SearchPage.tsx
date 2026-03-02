@@ -178,7 +178,7 @@ export function SearchPage() {
                           { value: 'all', label: 'All media' },
                           { value: 'images', label: 'Images', icon: Image },
                           { value: 'videos', label: 'Videos', icon: Video },
-                          { value: 'vines', label: 'Vines', icon: Film },
+                           { value: 'vines', label: 'Shorts & Vines', icon: Film },
                           { value: 'none', label: 'No media' },
                         ].map(({ value, label, icon: Icon }) => (
                           <div key={value} className="flex items-center space-x-2">
