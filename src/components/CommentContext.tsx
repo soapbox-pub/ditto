@@ -9,6 +9,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAddrEvent, useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useBookInfo } from '@/hooks/useBookInfo';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo } from '@/lib/countries';
@@ -315,6 +316,11 @@ function ReactionCommentContext({ event, className }: { event: NostrEvent; class
 function ExternalCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
   const identifier = root.identifier ?? '';
 
+  // ISBN identifiers get special treatment — show book title instead of raw ISBN
+  if (identifier.startsWith('isbn:')) {
+    return <IsbnCommentContext identifier={identifier} className={className} />;
+  }
+
   // Determine display text and link
   let displayText: string;
   let link: string | undefined;
@@ -344,7 +350,7 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
     displayText = identifier;
     link = `/i/${encodeURIComponent(identifier)}`;
   } else {
-    // isbn:, podcast:guid:, etc.
+    // podcast:guid:, etc.
     displayText = identifier;
     link = `/i/${encodeURIComponent(identifier)}`;
   }
@@ -363,6 +369,36 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
       ) : (
         <span className="truncate">{displayText}</span>
       )}
+    </div>
+  );
+}
+
+/** Comment context for ISBN identifiers — fetches and displays the book title. */
+function IsbnCommentContext({ identifier, className }: { identifier: string; className?: string }) {
+  const isbn = identifier.slice('isbn:'.length);
+  const { data: bookInfo, isLoading } = useBookInfo(isbn);
+  const link = `/i/${encodeURIComponent(identifier)}`;
+  const displayText = bookInfo?.title ?? identifier;
+
+  if (isLoading) {
+    return (
+      <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
+        <span className="shrink-0">Commenting on</span>
+        <Skeleton className="h-3.5 w-24 inline-block" />
+      </div>
+    );
+  }
+
+  return (
+    <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
+      <span className="shrink-0">Commenting on</span>
+      <Link
+        to={link}
+        className="text-primary hover:underline truncate"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {displayText}
+      </Link>
     </div>
   );
 }

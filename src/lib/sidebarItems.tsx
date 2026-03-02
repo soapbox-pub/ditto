@@ -60,6 +60,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'treasures', label: 'Treasures', path: '/treasures', icon: ChestIcon },
   { id: 'emoji-packs', label: 'Emoji Packs', path: '/emoji-packs', icon: SmilePlus },
   { id: 'world', label: 'World', path: '/world', icon: Globe },
+  { id: 'books', label: 'Books', path: '/books', icon: BookOpen },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */
