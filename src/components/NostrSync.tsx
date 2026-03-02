@@ -30,6 +30,27 @@ export function NostrSync() {
   // settings after a page reload.
   const lastSyncedTimestamp = useRef<number>(0);
   const [seededTimestamp, setSeededTimestamp] = useState(false);
+  const profileThemeSynced = useRef(false);
+
+  // Reset sync state when the user changes (account switch).
+  // We keep seededTimestamp=true so the seeding step (which prevents
+  // re-applying settings useInitialSync already applied on page load)
+  // is skipped. Instead we just reset lastSyncedTimestamp to 0 so
+  // the new user's encrypted settings are applied immediately.
+  // `accountSwitched` signals to the sync effect that missing fields
+  // should be reset to defaults (e.g. theme → "system") rather than
+  // left as-is from the previous user.
+  const prevPubkey = useRef<string | undefined>(undefined);
+  const accountSwitched = useRef(false);
+  useEffect(() => {
+    const pubkey = user?.pubkey;
+    if (prevPubkey.current !== undefined && pubkey !== prevPubkey.current) {
+      lastSyncedTimestamp.current = 0;
+      profileThemeSynced.current = false;
+      accountSwitched.current = true;
+    }
+    prevPubkey.current = pubkey;
+  }, [user?.pubkey]);
 
   // Fetch the user's NIP-65 relay list (kind 10002).
   // useInitialSync seeds ['relayList', pubkey] into the cache on first login,
@@ -79,7 +100,30 @@ export function NostrSync() {
 
   // Sync encrypted settings from Nostr on login
   useEffect(() => {
-    if (!user || settingsLoading || !encryptedSettings) return;
+    if (!user || settingsLoading) return;
+
+    // If this is an account switch and the new user has no encrypted
+    // settings at all, reset theme to the app default so the previous
+    // user's theme doesn't persist.
+    if (!encryptedSettings) {
+      if (accountSwitched.current) {
+        accountSwitched.current = false;
+        updateConfig((current) => {
+          let changed = false;
+          const updates = { ...current };
+          if (current.theme !== 'system') {
+            updates.theme = 'system';
+            changed = true;
+          }
+          if (current.customTheme !== undefined) {
+            updates.customTheme = undefined;
+            changed = true;
+          }
+          return changed ? updates : current;
+        });
+      }
+      return;
+    }
 
     // Get the remote sync timestamp
     const remoteSync = encryptedSettings.lastSync || 0;
@@ -111,6 +155,8 @@ export function NostrSync() {
 
     console.log('Syncing encrypted settings from Nostr', remoteSync);
     lastSyncedTimestamp.current = remoteSync;
+    const isSwitch = accountSwitched.current;
+    accountSwitched.current = false;
 
     // Only call updateConfig if something actually changed to avoid
     // unnecessary re-renders of the entire app tree.
@@ -131,10 +177,25 @@ export function NostrSync() {
           updates.theme = encryptedSettings.theme;
           changed = true;
         }
+      } else if (isSwitch) {
+        // The new user never saved a theme — reset to app default so
+        // the previous user's theme doesn't bleed through.
+        if (current.theme !== 'system') {
+          updates.theme = 'system';
+          changed = true;
+        }
+        if (current.customTheme !== undefined) {
+          updates.customTheme = undefined;
+          changed = true;
+        }
       }
 
       if (encryptedSettings.customTheme && JSON.stringify(encryptedSettings.customTheme) !== JSON.stringify(current.customTheme)) {
         updates.customTheme = encryptedSettings.customTheme;
+        changed = true;
+      } else if (isSwitch && !encryptedSettings.customTheme && current.customTheme !== undefined) {
+        // Clear stale custom theme from the previous account.
+        updates.customTheme = undefined;
         changed = true;
       }
 
@@ -223,7 +284,8 @@ export function NostrSync() {
   // Sync active profile theme (kind 16767) on pageload when autoShareTheme is enabled.
   // This pulls in the user's published theme and applies it as the customTheme
   // without changing the actual theme mode (light/dark/system/custom).
-  const profileThemeSynced = useRef(false);
+  // NOTE: ref is declared near the top of the component so the user-change
+  // reset effect can clear it. See the prevPubkey effect above.
 
   useEffect(() => {
     if (!user || !config.autoShareTheme) return;
