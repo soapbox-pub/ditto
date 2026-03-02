@@ -74,8 +74,13 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
   const visibleItems = useMemo(() => {
     const items = orderedItems.filter((id) => !BOTTOM_NAV_ITEMS.has(id));
-    if (user) return items;
-    return items.filter((id) => !getSidebarItem(id)?.requiresAuth);
+    const filtered = user ? items : items.filter((id) => !getSidebarItem(id)?.requiresAuth);
+    // Remove dividers that have no real items above them (at the top or right after another divider).
+    return filtered.filter((id, i) => {
+      if (id !== 'divider') return true;
+      const prevNonDivider = filtered.slice(0, i).some((prev) => prev !== 'divider');
+      return prevNonDivider;
+    });
   }, [orderedItems, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleHiddenItems = useMemo(() => {
