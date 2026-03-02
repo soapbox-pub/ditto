@@ -102,6 +102,8 @@ export interface FeedSettings {
   feedIncludeNormalVideos: boolean;
   /** Include short videos (kind 22) in the follows/global feed */
   feedIncludeShortVideos: boolean;
+  /** Show NIP-38 user statuses on profiles and note cards */
+  showUserStatuses: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }

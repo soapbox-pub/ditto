@@ -79,6 +79,7 @@ export const CONTENT_KIND_ICONS: Record<string, IconComponent> = {
   'generic-reposts': Repeat2,
   voice: Mic,
   'custom-emojis': Smile,
+  statuses: SmilePlus,
   ...Object.fromEntries(SIDEBAR_ITEMS.filter((s) => s.icon).map((s) => [s.id, s.icon])),
 };
 

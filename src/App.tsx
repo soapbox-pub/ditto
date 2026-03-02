@@ -86,6 +86,7 @@ const hardcodedConfig: AppConfig = {
     showEmojiPacks: false,
     feedIncludeEmojiPacks: false,
     showCustomEmojis: true,
+    showUserStatuses: true,
     followsFeedShowReplies: true,
   },
   sidebarOrder: ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings'],

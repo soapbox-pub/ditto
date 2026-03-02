@@ -52,6 +52,7 @@ import { getContentWarning } from '@/lib/contentWarning';
 import { ThemeContent } from '@/components/ThemeContent';
 import { VoiceMessagePlayer } from '@/components/VoiceMessagePlayer';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useUserStatus } from '@/hooks/useUserStatus';
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
 import { extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
@@ -159,8 +160,10 @@ function encodeEventId(event: NostrEvent): string {
 export function NoteCard({ event, className, repostedBy, compact, threaded, threadedLast }: NoteCardProps) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
+  const { feedSettings } = useFeedSettings();
   const author = useAuthor(event.pubkey);
-  const authorStatus = useUserStatus(event.pubkey);
+  const statusEnabled = feedSettings.showUserStatuses !== false;
+  const authorStatus = useUserStatus(statusEnabled ? event.pubkey : undefined);
 
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
