@@ -1,67 +1,119 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { Picker } from 'emoji-mart';
 import data from '@emoji-mart/data';
 import { useTheme } from '@/hooks/useTheme';
-import { useUserEmojiPacks } from '@/hooks/useUserEmojiPacks';
-import { CustomEmojiPicker } from '@/components/CustomEmojiPicker';
-import { cn } from '@/lib/utils';
-import type { CustomEmojiEntry } from '@/hooks/useUserEmojiPacks';
+import type { CustomEmoji } from '@/hooks/useCustomEmojis';
 
-export interface EmojiPickerProps {
-  /** Called when a native unicode emoji is selected. */
-  onSelect: (emoji: string) => void;
-  /**
-   * Called when a custom NIP-30 emoji is selected.
-   * If not provided, custom emojis are unavailable.
-   */
-  onCustomEmojiSelect?: (emoji: CustomEmojiEntry) => void;
+/** A native Unicode emoji selection. */
+export interface NativeEmojiSelection {
+  type: 'native';
+  emoji: string;
+}
+
+/** A custom NIP-30 emoji selection. */
+export interface CustomEmojiSelection {
+  type: 'custom';
+  shortcode: string;
+  url: string;
+}
+
+export type EmojiSelection = NativeEmojiSelection | CustomEmojiSelection;
+
+interface EmojiPickerProps {
+  onSelect: (selection: EmojiSelection) => void;
+  /** NIP-30 custom emojis to display in a dedicated tab. */
+  customEmojis?: CustomEmoji[];
 }
 
 interface EmojiMartEmoji {
   id: string;
-  native: string;
-  shortcodes: string;
-  unified: string;
+  native?: string;
+  shortcodes?: string;
+  unified?: string;
+  /** Present for custom emojis — the image URL from `skins[0].src`. */
+  src?: string;
 }
-
-type PickerTab = 'native' | 'custom';
 
 /**
  * Emoji picker that manages the emoji-mart Picker (a Web Component) imperatively.
  *
- * Includes a "Custom" tab for NIP-30 custom emojis from the user's emoji packs
- * when they have any configured.
+ * We bypass `@emoji-mart/react` because it creates `new Picker()` inside a
+ * `useEffect`, which can trigger "Failed to construct 'HTMLElement': Illegal
+ * constructor" when React unmounts and remounts the component (e.g. popovers,
+ * strict mode). By attaching the picker to a ref-managed container and only
+ * creating it once per mount, we avoid the illegal constructor error.
+ *
+ * Custom NIP-30 emojis are added via emoji-mart's `custom` prop, which renders
+ * them in a dedicated tab alongside the standard Unicode categories.
  */
-export function EmojiPicker({ onSelect, onCustomEmojiSelect }: EmojiPickerProps) {
+export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
   const { theme } = useTheme();
-  const { data: userPacks } = useUserEmojiPacks();
   const containerRef = useRef<HTMLDivElement>(null);
   const pickerRef = useRef<InstanceType<typeof Picker> | null>(null);
-  const onSelectRef = useRef(onSelect);
 
-  const hasCustomEmojis = (userPacks?.emojis.length ?? 0) > 0;
-  const [activeTab, setActiveTab] = useState<PickerTab>('native');
+  // Resolve to 'dark' or 'light' for emoji-mart.
+  // Custom themes set class="custom" on <html> (not .dark), so we can't
+  // rely on the dark class. Instead, check the actual computed background
+  // luminance to determine if the current theme is visually dark.
+  void theme; // depend on theme for reactivity when it changes
+  const resolvedTheme = useMemo(() => {
+    if (typeof document === 'undefined') return 'light';
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
+    if (!bg) return 'light';
+    // HSL format from Tailwind CSS vars: "H S% L%" — check lightness
+    const parts = bg.split(/\s+/);
+    const lightness = parseFloat(parts[parts.length - 1]);
+    if (!isNaN(lightness)) {
+      return lightness < 50 ? 'dark' : 'light';
+    }
+    return 'light';
+  }, [theme]) as 'dark' | 'light';
+  const onSelectRef = useRef(onSelect);
 
   // Keep callback ref up to date without re-creating the picker.
   onSelectRef.current = onSelect;
 
   const handleSelect = useCallback((emoji: EmojiMartEmoji) => {
-    if (emoji.native) {
-      onSelectRef.current(emoji.native);
+    if (emoji.src) {
+      // Custom emoji — has an image URL
+      onSelectRef.current({
+        type: 'custom',
+        shortcode: emoji.id,
+        url: emoji.src,
+      });
+    } else if (emoji.native) {
+      // Native Unicode emoji
+      onSelectRef.current({
+        type: 'native',
+        emoji: emoji.native,
+      });
     }
   }, []);
 
-  useEffect(() => {
-    if (activeTab !== 'native') return;
+  // Build emoji-mart custom categories from NIP-30 emoji list
+  const customCategories = useMemo(() => {
+    if (!customEmojis || customEmojis.length === 0) return undefined;
+    return [{
+      id: 'custom-nostr',
+      name: 'Custom',
+      emojis: customEmojis.map((e) => ({
+        id: e.shortcode,
+        name: e.shortcode,
+        keywords: [e.shortcode],
+        skins: [{ src: e.url }],
+      })),
+    }];
+  }, [customEmojis]);
 
+  useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     // Create the picker and let it append itself to our container div.
-    const picker = new Picker({
+    const pickerOptions: Record<string, unknown> = {
       data,
       onEmojiSelect: handleSelect,
-      theme: theme === 'dark' ? 'dark' : 'light',
+      theme: resolvedTheme,
       previewPosition: 'none',
       skinTonePosition: 'search',
       set: 'native',
@@ -69,8 +121,13 @@ export function EmojiPicker({ onSelect, onCustomEmojiSelect }: EmojiPickerProps)
       navPosition: 'bottom',
       perLine: 8,
       parent: container,
-    });
+    };
 
+    if (customCategories) {
+      pickerOptions.custom = customCategories;
+    }
+
+    const picker = new Picker(pickerOptions);
     pickerRef.current = picker;
 
     return () => {
@@ -80,74 +137,18 @@ export function EmojiPicker({ onSelect, onCustomEmojiSelect }: EmojiPickerProps)
         container.removeChild(container.firstChild);
       }
     };
-  }, [theme, handleSelect, activeTab]);
-
-  const handleCustomSelect = useCallback((emoji: CustomEmojiEntry) => {
-    if (onCustomEmojiSelect) {
-      onCustomEmojiSelect(emoji);
-    } else {
-      // Fallback: insert `:shortcode:` as text
-      onSelectRef.current(`:${emoji.shortcode}:`);
-    }
-  }, [onCustomEmojiSelect]);
-
-  // If no custom emojis and no handler, just show the native picker
-  if (!hasCustomEmojis && !onCustomEmojiSelect) {
-    return (
-      <div
-        ref={containerRef}
-        className="emoji-mart-wrapper"
-        onWheel={(e) => e.stopPropagation()}
-      />
-    );
-  }
+    // We intentionally depend only on mount/unmount + theme + custom emojis.
+    // The handleSelect callback uses a ref so it never goes stale.
+  }, [resolvedTheme, handleSelect, customCategories]);
 
   return (
-    <div className="flex flex-col">
-      {/* Tab bar */}
-      {hasCustomEmojis && (
-        <div className="flex border-b border-border">
-          <button
-            className={cn(
-              'flex-1 py-2 text-xs font-medium transition-colors relative',
-              activeTab === 'native'
-                ? 'text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-            onClick={() => setActiveTab('native')}
-          >
-            Emoji
-            {activeTab === 'native' && (
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary" />
-            )}
-          </button>
-          <button
-            className={cn(
-              'flex-1 py-2 text-xs font-medium transition-colors relative',
-              activeTab === 'custom'
-                ? 'text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-            onClick={() => setActiveTab('custom')}
-          >
-            Custom
-            {activeTab === 'custom' && (
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary" />
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* Tab content */}
-      {activeTab === 'native' ? (
-        <div
-          ref={containerRef}
-          className="emoji-mart-wrapper"
-          onWheel={(e) => e.stopPropagation()}
-        />
-      ) : (
-        <CustomEmojiPicker onSelect={handleCustomSelect} />
-      )}
-    </div>
+    <div
+      ref={containerRef}
+      className="emoji-mart-wrapper"
+      onWheel={(e) => {
+        // Prevent scroll from bubbling to the page
+        e.stopPropagation();
+      }}
+    />
   );
 }

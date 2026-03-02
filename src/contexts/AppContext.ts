@@ -94,6 +94,8 @@ export interface FeedSettings {
   showEmojiPacks: boolean;
   /** Include Emoji Packs in the follows/global feed */
   feedIncludeEmojiPacks: boolean;
+  /** Show NIP-30 custom emojis in the emoji picker */
+  showCustomEmojis: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }

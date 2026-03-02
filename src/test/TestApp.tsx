@@ -67,6 +67,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeVoiceMessages: false,
       showEmojiPacks: false,
       feedIncludeEmojiPacks: false,
+      showCustomEmojis: true,
       followsFeedShowReplies: true,
     },
     sidebarOrder: [],
