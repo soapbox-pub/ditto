@@ -1572,6 +1572,7 @@ export function ProfilePage() {
               <ComposeBox
                 compact
                 replyTo={wallReplyTarget}
+                placeholder={`Write on ${displayName}'s wall`}
                 onSuccess={() => queryClient.invalidateQueries({ queryKey: ['wall-comments', pubkey] })}
               />
             )}
@@ -1582,6 +1583,7 @@ export function ProfilePage() {
                 event={wallReplyTarget}
                 open={wallComposeOpen}
                 onOpenChange={setWallComposeOpen}
+                placeholder={`Write on ${displayName}'s wall`}
                 onSuccess={() => queryClient.invalidateQueries({ queryKey: ['wall-comments', pubkey] })}
               />
             )}

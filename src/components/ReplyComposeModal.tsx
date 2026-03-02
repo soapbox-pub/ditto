@@ -32,6 +32,8 @@ interface ReplyComposeModalProps {
   initialContent?: string;
   /** Override the modal title. */
   title?: string;
+  /** Override the compose box placeholder text. */
+  placeholder?: string;
 }
 
 /** Extracts image URLs from note content. */
@@ -40,7 +42,7 @@ function extractImages(content: string): string[] {
   return content.match(urlRegex) || [];
 }
 
-export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, title: titleOverride }: ReplyComposeModalProps) {
+export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, title: titleOverride, placeholder: placeholderOverride }: ReplyComposeModalProps) {
   const isUrl = event instanceof URL;
   const isReply = !!event;
   const isQuote = !!quotedEvent;
@@ -49,7 +51,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
 
   const isProfileRoot = !isUrl && event instanceof Object && 'kind' in event && event.kind === 0;
   const title = titleOverride ?? (isUrl ? 'New comment' : isProfileRoot ? 'Comment on profile' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post');
-  const placeholder = isUrl ? 'Write a comment...' : isReply ? "What's on your mind?" : isQuote ? 'Add a comment...' : "What's happening?";
+  const placeholder = placeholderOverride ?? (isUrl ? 'Write a comment...' : isReply ? "What's on your mind?" : isQuote ? 'Add a comment...' : "What's happening?");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
