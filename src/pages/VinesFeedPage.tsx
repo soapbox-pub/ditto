@@ -15,7 +15,6 @@ import {
   MoreHorizontal,
   Play,
   Heart,
-
 } from 'lucide-react';
 
 import type { NostrEvent } from '@nostrify/nostrify';

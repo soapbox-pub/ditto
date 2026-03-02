@@ -35,7 +35,6 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-
 import { Skeleton } from '@/components/ui/skeleton';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { useVideoThumbnail } from '@/components/VideoPlayer';

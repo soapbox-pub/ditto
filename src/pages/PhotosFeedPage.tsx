@@ -32,12 +32,10 @@ import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
-
 import { canZap } from '@/lib/canZap';
 import { ZapDialog } from '@/components/ZapDialog';
 import { RepostMenu } from '@/components/RepostMenu';
@@ -184,7 +182,6 @@ function formatSats(sats: number): string {
   return sats.toString();
 }
 
-
 /**
  * Vine-style photo card for the overlay: image fills all available height,
  * author + caption + actions in a compact strip below.
@@ -195,7 +192,6 @@ function PhotoCard({ event, onCommentClick }: { event: NostrEvent; onCommentClic
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey) ?? genUserName(event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
-
   const { data: stats } = useEventStats(event.id);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const canZapAuthor = user && canZap(metadata);
@@ -203,8 +199,6 @@ function PhotoCard({ event, onCommentClick }: { event: NostrEvent; onCommentClic
   const photos = useMemo(() => parsePhotoImeta(event.tags), [event.tags]);
   const [photoIndex, setPhotoIndex] = useState(0);
   const currentPhoto = photos[photoIndex] ?? photos[0];
-
-
 
   if (!currentPhoto) return null;
 
