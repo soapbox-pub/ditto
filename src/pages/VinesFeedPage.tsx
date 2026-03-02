@@ -124,153 +124,6 @@ function useVinesFeed(tab: FeedTab) {
   return { events: globalEvents, isLoading: globalLoading };
 }
 
-// ─── Hook: fetch replies for the active vine ──────────────────────────────────
-
-function useVineReplies(event: NostrEvent | undefined) {
-  const { nostr } = useNostr();
-
-  const eventId = event?.id;
-  const aTag = event
-    ? `${event.kind}:${event.pubkey}:${getTag(event.tags, 'd') ?? ''}`
-    : undefined;
-
-  return useQuery<NostrEvent[]>({
-    queryKey: ['vine-replies', aTag ?? ''],
-    queryFn: async ({ signal }) => {
-      if (!eventId || !aTag) return [];
-      const abort = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-      // Kind 34236 is addressable — use NIP-22 kind 1111 comments only (#A tag)
-      const events = await nostr.query(
-        [{ kinds: [1111, 1244], '#A': [aTag], limit: 80 }],
-        { signal: abort },
-      );
-      const seen = new Set<string>();
-      return events
-        .filter((e) => { if (seen.has(e.id)) return false; seen.add(e.id); return true; })
-        .sort((a, b) => b.created_at - a.created_at);
-    },
-    enabled: !!eventId,
-    staleTime: 15 * 1000,
-    refetchInterval: 20 * 1000,
-  });
-}
-
-// ─── VinesCommentsContent ────────────────────────────────────────────────────
-
-interface VinesCommentsContentProps {
-  activeVine: NostrEvent | undefined;
-}
-
-function VinesCommentsContent({ activeVine }: VinesCommentsContentProps) {
-  const { data: rawReplies = [], isLoading } = useVineReplies(activeVine);
-  // Deduplicate at render time as a safety net against relay returning duplicates
-  const replies = useMemo(() => {
-    const seen = new Set<string>();
-    return rawReplies.filter((e) => seen.has(e.id) ? false : (seen.add(e.id), true));
-  }, [rawReplies]);
-
-  return (
-    <div className="flex-1 min-h-0 overflow-y-auto py-2 sidebar:pt-6">
-        {!activeVine ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-muted-foreground text-sm text-center px-6">
-              Select a vine to see comments
-            </p>
-          </div>
-        ) : isLoading ? (
-          <div className="space-y-3 px-4 py-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <CommentSkeleton key={i} />
-            ))}
-          </div>
-        ) : replies.length === 0 ? (
-          <div className="flex items-center justify-center h-32">
-            <p className="text-muted-foreground text-sm text-center px-6">
-              No comments yet. Be the first!
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border/50">
-            {replies.map((reply) => (
-              <CommentRow key={reply.id} event={reply} />
-            ))}
-          </div>
-        )}
-      </div>
-  );
-}
-
-// ─── VinesCommentsSidebar ────────────────────────────────────────────────────
-
-interface VinesCommentsSidebarProps {
-  activeVine: NostrEvent | undefined;
-}
-
-function VinesCommentsSidebar({ activeVine }: VinesCommentsSidebarProps) {
-  return (
-    <aside className="w-[320px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen border-l border-border bg-background">
-      <div className="px-4 pt-4 pb-1">
-        <h2 className="text-xl font-bold text-foreground">Replies</h2>
-      </div>
-      <VinesCommentsContent activeVine={activeVine} />
-    </aside>
-  );
-}
-
-
-
-function CommentRow({ event }: { event: NostrEvent }) {
-  const author = useAuthor(event.pubkey);
-  const metadata = author.data?.metadata;
-  const displayName = getDisplayName(metadata, event.pubkey);
-  const profileUrl = useProfileUrl(event.pubkey, metadata);
-
-  return (
-    <div className="flex gap-2.5 px-4 py-2.5 hover:bg-muted/30 transition-colors">
-      <ProfileHoverCard pubkey={event.pubkey} asChild>
-        <Link to={profileUrl} className="shrink-0">
-          {author.isLoading ? (
-            <Skeleton className="size-7 rounded-full" />
-          ) : (
-            <Avatar className="size-7">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="text-[10px] bg-primary/20 text-primary">
-                {displayName[0]?.toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          )}
-        </Link>
-      </ProfileHoverCard>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-1.5 mb-0.5">
-          <ProfileHoverCard pubkey={event.pubkey} asChild>
-            <Link to={profileUrl} className="text-xs font-semibold hover:underline truncate max-w-[120px]">
-              {displayName}
-            </Link>
-          </ProfileHoverCard>
-          <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(event.created_at)}</span>
-        </div>
-        <p className="text-xs text-foreground/90 leading-relaxed break-words line-clamp-4">
-          {event.content}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function CommentSkeleton() {
-  return (
-    <div className="flex gap-2.5 px-4 py-2.5">
-      <Skeleton className="size-7 rounded-full shrink-0" />
-      <div className="flex-1 space-y-1.5">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-3 w-3/4" />
-      </div>
-    </div>
-  );
-}
-
 // ─── VineHeartButton ─────────────────────────────────────────────────────────
 
 export function VineHeartButton({ event, label, noBackground }: { event: NostrEvent; label?: string; noBackground?: boolean }) {
@@ -620,12 +473,9 @@ export function VinesFeedPage() {
 
   const activeVine = vines[activeIndex];
 
-  // Inject comments sidebar as the right sidebar; suppress the bottom spacer
-  // so the bottom nav doesn't double-count in the height calculation.
   useLayoutOptions({
     showFAB: false,
     noBottomSpacer: true,
-    rightSidebar: <VinesCommentsSidebar activeVine={activeVine} />,
   });
 
   // Lock body scroll when mobile comments are open
