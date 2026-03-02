@@ -4,12 +4,12 @@
  * - Follows tab: useFeed (relay pool, chronological)
  * - Global tab: useInfiniteHotFeed (sort:hot via relay.ditto.pub)
  * - Infinite-scroll 3-column grid with blurhash placeholders
- * - Tapping a grid cell opens a NoteCard detail modal with prev/next navigation
+ * - Tapping a grid cell opens a Lightbox with author info + reactions baked in
  */
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Camera, ChevronLeft, ChevronRight, X, Images, MessageCircle, Zap, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, Camera, Images, MessageCircle, Zap, MoreHorizontal } from 'lucide-react';
 import { ReactionButton } from '@/components/ReactionButton';
 import { CommentsSheet } from '@/components/CommentsSheet';
 import { useSeoMeta } from '@unhead/react';
@@ -32,18 +32,16 @@ import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-
-import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
-
 import { canZap } from '@/lib/canZap';
 import { ZapDialog } from '@/components/ZapDialog';
 import { RepostMenu } from '@/components/RepostMenu';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { Lightbox } from '@/components/ImageGallery';
 
 const PHOTO_KIND = 20;
 const photosDef = getExtraKindDef('photos')!;
@@ -88,7 +86,6 @@ function PhotoGridThumb({ event, onClick }: { event: NostrEvent; onClick: () => 
 
   if (!first) return null;
 
-  // Parse width/height from dim tag (e.g. "3024x4032")
   const dim = first.dim?.split('x');
   const w = dim?.[0] ? parseInt(dim[0]) : undefined;
   const h = dim?.[1] ? parseInt(dim[1]) : undefined;
@@ -99,7 +96,6 @@ function PhotoGridThumb({ event, onClick }: { event: NostrEvent; onClick: () => 
       onClick={onClick}
       aria-label="View photo"
     >
-      {/* Blurhash — always mounted, fades out once image loads */}
       {first.blurhash && (
         <Blurhash
           hash={first.blurhash}
@@ -126,7 +122,6 @@ function PhotoGridThumb({ event, onClick }: { event: NostrEvent; onClick: () => 
         onLoad={() => setLoaded(true)}
       />
 
-      {/* Multiple images indicator */}
       {count > 1 && (
         <div className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded p-0.5">
           <Images className="size-3.5" />
@@ -137,46 +132,7 @@ function PhotoGridThumb({ event, onClick }: { event: NostrEvent; onClick: () => 
   );
 }
 
-// ── Photo overlay card ────────────────────────────────────────────────────────
-
-/** Single image panel with blossom fallback. */
-function PhotoSlide({ photo, active }: { photo: PhotoImeta; active: boolean }) {
-  const { src, onError } = useBlossomFallback(photo.url);
-  const [loaded, setLoaded] = useState(false);
-
-  const dim = photo.dim?.split('x');
-  const w = dim?.[0] ? parseInt(dim[0]) : undefined;
-  const h = dim?.[1] ? parseInt(dim[1]) : undefined;
-
-  return (
-    <div className="relative w-full h-full overflow-hidden">
-      {/* Blurhash placeholder */}
-      {photo.blurhash && !loaded && (
-        <Blurhash
-          hash={photo.blurhash}
-          width={32}
-          height={32}
-          resolutionX={32}
-          resolutionY={32}
-          punch={1}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-        />
-      )}
-      {active && (
-        <img
-          src={src}
-          alt={photo.alt ?? ''}
-          width={w}
-          height={h}
-          className={cn('absolute inset-0 w-full h-full object-cover transition-opacity duration-300', loaded ? 'opacity-100' : 'opacity-0')}
-          onLoad={() => setLoaded(true)}
-          onError={onError}
-          draggable={false}
-        />
-      )}
-    </div>
-  );
-}
+// ── Lightbox bottom bar (author info + reactions) ─────────────────────────────
 
 function formatSats(sats: number): string {
   if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
@@ -184,285 +140,88 @@ function formatSats(sats: number): string {
   return sats.toString();
 }
 
-
-/**
- * Vine-style photo card for the overlay: image fills all available height,
- * author + caption + actions in a compact strip below.
- */
-function PhotoCard({ event, onCommentClick }: { event: NostrEvent; onCommentClick: () => void }) {
+function PhotoBottomBar({ event, onCommentClick }: { event: NostrEvent; onCommentClick: () => void }) {
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey) ?? genUserName(event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
-
   const { data: stats } = useEventStats(event.id);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const canZapAuthor = user && canZap(metadata);
 
-  const photos = useMemo(() => parsePhotoImeta(event.tags), [event.tags]);
-  const [photoIndex, setPhotoIndex] = useState(0);
-  const currentPhoto = photos[photoIndex] ?? photos[0];
-
-
-
-  if (!currentPhoto) return null;
-
   return (
-    <div className="group relative w-full h-full" onClick={(e) => e.stopPropagation()}>
-      {/* Image fills everything */}
-      <PhotoSlide photo={currentPhoto} active={true} />
+    <div className="relative pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] sidebar:pb-0">
+      {/* Gradient scrim */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
 
-      {/* Multi-image prev/next */}
-      {photos.length > 1 && photoIndex > 0 && (
-        <button
-          className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white backdrop-blur-sm z-10"
-          onClick={(e) => { e.stopPropagation(); setPhotoIndex((i) => i - 1); }}
-        >
-          <ChevronLeft className="size-5" />
-        </button>
-      )}
-      {photos.length > 1 && photoIndex < photos.length - 1 && (
-        <button
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 text-white backdrop-blur-sm z-10"
-          onClick={(e) => { e.stopPropagation(); setPhotoIndex((i) => i + 1); }}
-        >
-          <ChevronRight className="size-5" />
-        </button>
-      )}
+      <div className="relative flex items-center gap-1 px-3 pt-10 pb-3 max-w-xl mx-auto">
+        {/* Avatar + name */}
+        <ProfileHoverCard pubkey={event.pubkey} asChild>
+          <Link to={profileUrl} className="shrink-0">
+            <Avatar className="size-7">
+              <AvatarImage src={metadata?.picture} alt={displayName} />
+              <AvatarFallback className="bg-white/20 text-white text-xs">
+                {displayName[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
+        </ProfileHoverCard>
+        <ProfileHoverCard pubkey={event.pubkey} asChild>
+          <Link to={profileUrl} className="font-semibold text-sm text-white hover:underline truncate mr-1">
+            {displayName}
+          </Link>
+        </ProfileHoverCard>
 
-      {/* Meta overlay — always visible on mobile, shown on hover on desktop */}
-      <div className="absolute inset-x-0 bottom-0 z-10 opacity-100 sidebar:opacity-0 sidebar:group-hover:opacity-100 transition-opacity duration-200 pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] sidebar:pb-0">
-        {/* Gradient scrim */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+        {/* Actions */}
+        <div className="flex items-center gap-3 ml-auto shrink-0">
+          <ReactionButton
+            eventId={event.id}
+            eventPubkey={event.pubkey}
+            eventKind={event.kind}
+            reactionCount={stats?.reactions}
+            filledHeart
+            className="text-white hover:text-pink-400 hover:bg-white/10 p-0 [&_svg]:size-6"
+          />
 
-        <div className="relative flex items-center gap-1 px-3 pt-10 pb-3 max-w-xl mx-auto">
-          {/* Avatar + name */}
-          <ProfileHoverCard pubkey={event.pubkey} asChild>
-            <Link to={profileUrl} onClick={(e) => e.stopPropagation()} className="shrink-0">
-              <Avatar className="size-7">
-                <AvatarImage src={metadata?.picture} alt={displayName} />
-                <AvatarFallback className="bg-white/20 text-white text-xs">
-                  {displayName[0]?.toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </Link>
-          </ProfileHoverCard>
-          <ProfileHoverCard pubkey={event.pubkey} asChild>
-            <Link to={profileUrl} onClick={(e) => e.stopPropagation()} className="font-semibold text-sm text-white hover:underline truncate mr-1">
-              {displayName}
-            </Link>
-          </ProfileHoverCard>
+          <button
+            className="flex items-center gap-1.5 text-white hover:text-blue-400 transition-colors"
+            onClick={onCommentClick}
+          >
+            <MessageCircle className="size-6" />
+            {!!stats?.replies && <span className="text-sm tabular-nums drop-shadow">{stats.replies}</span>}
+          </button>
 
-          {/* Actions */}
-          <div className="flex items-center gap-3 ml-auto shrink-0">
-            <ReactionButton eventId={event.id} eventPubkey={event.pubkey} eventKind={event.kind} reactionCount={stats?.reactions} filledHeart className="text-white hover:text-pink-400 hover:bg-white/10 p-0 [&_svg]:size-6" />
-
-            <button
-              className="flex items-center gap-1.5 text-white hover:text-blue-400 transition-colors"
-              onClick={(e) => { e.stopPropagation(); onCommentClick(); }}
-            >
-              <MessageCircle className="size-6" />
-              {!!stats?.replies && <span className="text-sm tabular-nums drop-shadow">{stats.replies}</span>}
-            </button>
-
-            <RepostMenu event={event}>
-              {(isReposted: boolean) => (
-                <button className={`flex items-center gap-1.5 transition-colors ${isReposted ? 'text-accent' : 'text-white hover:text-accent'}`}>
-                  <RepostIcon className="size-6" />
-                  {!!((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) && <span className="text-sm tabular-nums drop-shadow">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span>}
-                </button>
-              )}
-            </RepostMenu>
-
-            {canZapAuthor && (
-              <ZapDialog target={event}>
-                <button className="flex items-center gap-1.5 text-white hover:text-amber-400 transition-colors">
-                  <Zap className="size-6" />
-                  {!!stats?.zapAmount && <span className="text-sm tabular-nums drop-shadow">{formatSats(stats.zapAmount)}</span>}
-                </button>
-              </ZapDialog>
+          <RepostMenu event={event}>
+            {(isReposted: boolean) => (
+              <button className={`flex items-center gap-1.5 transition-colors ${isReposted ? 'text-accent' : 'text-white hover:text-accent'}`}>
+                <RepostIcon className="size-6" />
+                {!!((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) && (
+                  <span className="text-sm tabular-nums drop-shadow">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span>
+                )}
+              </button>
             )}
+          </RepostMenu>
 
-            <button
-              className="text-white/80 hover:text-white transition-colors"
-              onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
-            >
-              <MoreHorizontal className="size-6" />
-            </button>
-          </div>
+          {canZapAuthor && (
+            <ZapDialog target={event}>
+              <button className="flex items-center gap-1.5 text-white hover:text-amber-400 transition-colors">
+                <Zap className="size-6" />
+                {!!stats?.zapAmount && <span className="text-sm tabular-nums drop-shadow">{formatSats(stats.zapAmount)}</span>}
+              </button>
+            </ZapDialog>
+          )}
+
+          <button
+            className="text-white/80 hover:text-white transition-colors"
+            onClick={() => setMoreMenuOpen(true)}
+          >
+            <MoreHorizontal className="size-6" />
+          </button>
         </div>
       </div>
 
       <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
-    </div>
-  );
-}
-
-// ── Detail overlay ────────────────────────────────────────────────────────────
-
-function PhotoDetailOverlay({
-  events,
-  index,
-  onClose,
-  onPrev,
-  onNext,
-}: {
-  events: NostrEvent[];
-  index: number;
-  onClose: () => void;
-  onPrev: () => void;
-  onNext: () => void;
-}) {
-  const hasPrev = index > 0;
-  const hasNext = index < events.length - 1;
-  const [commentsEvent, setCommentsEvent] = useState<NostrEvent | null>(null);
-
-  // The strip is a flex row; we translate it so the current card is centred.
-  // During a drag we mutate the style directly (no React re-render) for
-  // zero-jank 1:1 finger tracking, then snap/commit on release.
-  const stripRef = useRef<HTMLDivElement>(null);
-  const touchStartX = useRef<number | null>(null);
-  const touchStartY = useRef<number | null>(null);
-  const lockedAxis = useRef<'h' | 'v' | null>(null);
-
-  // Centred offset for a given index (each card is 100vw wide)
-  const offsetFor = (i: number) => -i * 100;
-
-  // Apply transform without transition (live drag)
-  const setOffset = useCallback((pct: number, animated: boolean) => {
-    const el = stripRef.current;
-    if (!el) return;
-    el.style.transition = animated ? 'transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94)' : 'none';
-    el.style.transform = `translateX(${pct}vw)`;
-  }, []);
-
-  // Snap strip to current index whenever index changes
-  useEffect(() => {
-    setOffset(offsetFor(index), true);
-  }, [index, setOffset]);
-
-  // Keyboard nav
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowLeft' && hasPrev) onPrev();
-      if (e.key === 'ArrowRight' && hasNext) onNext();
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose, onPrev, onNext, hasPrev, hasNext]);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-    lockedAxis.current = null;
-    // Disable transition while dragging
-    setOffset(offsetFor(index), false);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartX.current === null || touchStartY.current === null) return;
-    const dx = e.touches[0].clientX - touchStartX.current;
-    const dy = e.touches[0].clientY - touchStartY.current;
-
-    if (!lockedAxis.current) {
-      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
-      lockedAxis.current = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
-    }
-    if (lockedAxis.current !== 'h') return;
-
-    e.preventDefault();
-    const base = offsetFor(index);
-    const dxVw = (dx / window.innerWidth) * 100;
-    // Resist at edges
-    const atEdge = (dx > 0 && !hasPrev) || (dx < 0 && !hasNext);
-    setOffset(base + (atEdge ? dxVw * 0.15 : dxVw), false);
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null || lockedAxis.current !== 'h') {
-      touchStartX.current = null;
-      lockedAxis.current = null;
-      setOffset(offsetFor(index), true);
-      return;
-    }
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    touchStartX.current = null;
-    lockedAxis.current = null;
-
-    const threshold = window.innerWidth * 0.3;
-    if (dx < -threshold && hasNext) {
-      // Snap to next — index update will re-snap strip
-      onNext();
-    } else if (dx > threshold && hasPrev) {
-      onPrev();
-    } else {
-      // Snap back to current
-      setOffset(offsetFor(index), true);
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm overflow-hidden"
-      onClick={onClose}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      <button
-        className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
-        onClick={onClose}
-        aria-label="Close"
-      >
-        <X className="size-5" />
-      </button>
-
-      {hasPrev && (
-        <button
-          className="hidden sm:block absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
-          onClick={(e) => { e.stopPropagation(); onPrev(); }}
-          aria-label="Previous"
-        >
-          <ChevronLeft className="size-6" />
-        </button>
-      )}
-      {hasNext && (
-        <button
-          className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
-          onClick={(e) => { e.stopPropagation(); onNext(); }}
-          aria-label="Next"
-        >
-          <ChevronRight className="size-6" />
-        </button>
-      )}
-
-      {/* Strip: one 100vw slot per event, all rendered side-by-side */}
-      <div
-        ref={stripRef}
-        className="flex h-full will-change-transform"
-        style={{ transform: `translateX(${offsetFor(index)}vw)` }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {events.map((ev, i) => {
-          // Only render neighbours to save memory
-          if (Math.abs(i - index) > 1) {
-            return <div key={ev.id} className="w-screen h-full shrink-0" />;
-          }
-          return (
-            <div key={ev.id} className="w-screen h-full shrink-0">
-              <PhotoCard event={ev} onCommentClick={() => setCommentsEvent(ev)} />
-            </div>
-          );
-        })}
-      </div>
-
-      <CommentsSheet
-        event={commentsEvent ?? undefined}
-        open={!!commentsEvent}
-        onClose={() => setCommentsEvent(null)}
-      />
     </div>
   );
 }
@@ -501,13 +260,25 @@ function TabButton({ label, active, onClick, disabled }: {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+/**
+ * Overlay state: which event and which image within that event.
+ * imageIndex = 0 when opening from the grid; the Lightbox prev/next within
+ * an event uses its own internal index cursor, so we track event-level jumps
+ * with onNextEvent / onPrevEvent.
+ */
+interface OverlayState {
+  eventIndex: number;
+  imageIndex: number;
+}
+
 export function PhotosFeedPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
 
   const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
-  const [detailIndex, setDetailIndex] = useState<number | null>(null);
+  const [overlay, setOverlay] = useState<OverlayState | null>(null);
+  const [commentsEvent, setCommentsEvent] = useState<NostrEvent | null>(null);
 
   useSeoMeta({ title: `Photos | ${config.appName}`, description: 'Photo posts on Nostr' });
   useLayoutOptions({ showFAB: false });
@@ -539,11 +310,12 @@ export function PhotosFeedPage() {
     if (!rawData?.pages) return [];
     const seen = new Set<string>();
 
-    const events: NostrEvent[] = activeTab === 'follows'
-      ? (rawData.pages as unknown as { items: FeedItem[] }[])
-          .flatMap((p) => p.items)
-          .map((item) => item.event)
-      : (rawData.pages as unknown as NostrEvent[][]).flat();
+    const events: NostrEvent[] =
+      activeTab === 'follows'
+        ? (rawData.pages as unknown as { items: FeedItem[] }[])
+            .flatMap((p) => p.items)
+            .map((item) => item.event)
+        : (rawData.pages as unknown as NostrEvent[][]).flat();
 
     return events.filter((event) => {
       if (seen.has(event.id)) return false;
@@ -556,10 +328,42 @@ export function PhotosFeedPage() {
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
-  const openDetail = useCallback((index: number) => setDetailIndex(index), []);
-  const closeDetail = useCallback(() => setDetailIndex(null), []);
-  const prevDetail = useCallback(() => setDetailIndex((i) => (i !== null && i > 0 ? i - 1 : i)), []);
-  const nextDetail = useCallback(() => setDetailIndex((i) => (i !== null && i < photoEvents.length - 1 ? i + 1 : i)), [photoEvents.length]);
+  // ── Overlay helpers ────────────────────────────────────────────────────────
+
+  const openOverlay = useCallback((eventIndex: number) => {
+    setOverlay({ eventIndex, imageIndex: 0 });
+  }, []);
+
+  const closeOverlay = useCallback(() => setOverlay(null), []);
+
+  const goNextEvent = useCallback(() => {
+    setOverlay((prev) => {
+      if (!prev) return null;
+      const next = prev.eventIndex + 1;
+      return next < photoEvents.length ? { eventIndex: next, imageIndex: 0 } : prev;
+    });
+  }, [photoEvents.length]);
+
+  const goPrevEvent = useCallback(() => {
+    setOverlay((prev) => {
+      if (!prev) return null;
+      const next = prev.eventIndex - 1;
+      return next >= 0 ? { eventIndex: next, imageIndex: 0 } : prev;
+    });
+  }, []);
+
+  // Derive the image list and imetaMap for the active event
+  const activeEvent = overlay !== null ? photoEvents[overlay.eventIndex] : null;
+  const activePhotos = useMemo(
+    () => (activeEvent ? parsePhotoImeta(activeEvent.tags) : []),
+    [activeEvent],
+  );
+  const activeImages = useMemo(() => activePhotos.map((p) => p.url), [activePhotos]);
+  const activeImetaMap = useMemo(() => {
+    const map = new Map<string, { dim?: string; blurhash?: string }>();
+    for (const p of activePhotos) map.set(p.url, { dim: p.dim, blurhash: p.blurhash });
+    return map;
+  }, [activePhotos]);
 
   return (
     <main className="">
@@ -598,7 +402,7 @@ export function PhotosFeedPage() {
         <>
           <div className="grid grid-cols-3 gap-0.5">
             {photoEvents.map((event, i) => (
-              <PhotoGridThumb key={event.id} event={event} onClick={() => openDetail(i)} />
+              <PhotoGridThumb key={event.id} event={event} onClick={() => openOverlay(i)} />
             ))}
           </div>
           <div ref={scrollRef} className="py-4">
@@ -611,16 +415,38 @@ export function PhotosFeedPage() {
         </>
       )}
 
-      {/* Detail overlay */}
-      {detailIndex !== null && (
-        <PhotoDetailOverlay
-          events={photoEvents}
-          index={detailIndex}
-          onClose={closeDetail}
-          onPrev={prevDetail}
-          onNext={nextDetail}
+      {/* Photo lightbox — Lightbox extended with author info + reactions */}
+      {overlay !== null && activeEvent && activeImages.length > 0 && (
+        <Lightbox
+          images={activeImages}
+          currentIndex={overlay.imageIndex}
+          onClose={closeOverlay}
+          onNext={() => setOverlay((prev) => prev && { ...prev, imageIndex: Math.min(prev.imageIndex + 1, activeImages.length - 1) })}
+          onPrev={() => setOverlay((prev) => prev && { ...prev, imageIndex: Math.max(prev.imageIndex - 1, 0) })}
+          onNextEvent={overlay.eventIndex < photoEvents.length - 1 ? goNextEvent : undefined}
+          onPrevEvent={overlay.eventIndex > 0 ? goPrevEvent : undefined}
+          showDownload={true}
+          topBarLeft={
+            activeImages.length > 1 ? (
+              <span className="text-white/80 text-sm font-medium tabular-nums">
+                {overlay.imageIndex + 1} / {activeImages.length}
+              </span>
+            ) : undefined
+          }
+          bottomBar={
+            <PhotoBottomBar
+              event={activeEvent}
+              onCommentClick={() => setCommentsEvent(activeEvent)}
+            />
+          }
         />
       )}
+
+      <CommentsSheet
+        event={commentsEvent ?? undefined}
+        open={!!commentsEvent}
+        onClose={() => setCommentsEvent(null)}
+      />
     </main>
   );
 }

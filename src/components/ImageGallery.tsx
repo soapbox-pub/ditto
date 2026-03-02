@@ -23,6 +23,20 @@ interface ImageGalleryProps {
    * Used to size skeleton placeholders correctly before the image loads.
    */
   imetaMap?: Map<string, ImetaDimensions>;
+  /** Forwarded to Lightbox — custom content pinned to the bottom of the overlay. */
+  lightboxBottomBar?: React.ReactNode;
+  /** Forwarded to Lightbox — called when navigating past the last image. */
+  onLightboxNextEvent?: () => void;
+  /** Forwarded to Lightbox — called when navigating before the first image. */
+  onLightboxPrevEvent?: () => void;
+  /** Forwarded to Lightbox — custom left top-bar content. */
+  lightboxTopBarLeft?: React.ReactNode;
+  /** Controlled lightbox index (optional). When provided the component is semi-controlled. */
+  lightboxIndex?: number | null;
+  /** Called when the lightbox wants to open at an index. */
+  onLightboxOpen?: (index: number) => void;
+  /** Called when the lightbox wants to close. */
+  onLightboxClose?: () => void;
 }
 
 /**
@@ -36,8 +50,18 @@ export function ImageGallery({
   maxVisible = 4,
   maxGridHeight = '400px',
   imetaMap,
+  lightboxBottomBar,
+  onLightboxNextEvent,
+  onLightboxPrevEvent,
+  lightboxTopBarLeft,
+  lightboxIndex: controlledIndex,
+  onLightboxOpen,
+  onLightboxClose,
 }: ImageGalleryProps) {
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [internalIndex, setInternalIndex] = useState<number | null>(null);
+
+  // Support both controlled and uncontrolled lightbox index
+  const lightboxIndex = controlledIndex !== undefined ? controlledIndex : internalIndex;
 
   const visibleImages = images.slice(0, maxVisible);
   const overflow = images.length - maxVisible;
@@ -45,7 +69,8 @@ export function ImageGallery({
   const openLightbox = (index: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setLightboxIndex(index);
+    if (onLightboxOpen) onLightboxOpen(index);
+    else setInternalIndex(index);
   };
 
   const closeLightbox = useCallback((e?: React.MouseEvent) => {
@@ -53,16 +78,25 @@ export function ImageGallery({
       e.stopPropagation();
       e.preventDefault();
     }
-    setLightboxIndex(null);
-  }, []);
+    if (onLightboxClose) onLightboxClose();
+    else setInternalIndex(null);
+  }, [onLightboxClose]);
 
   const goNext = useCallback(() => {
-    setLightboxIndex((prev) => (prev !== null ? (prev + 1) % images.length : null));
-  }, [images.length]);
+    if (onLightboxOpen && lightboxIndex !== null && lightboxIndex !== undefined) {
+      onLightboxOpen(lightboxIndex + 1 < images.length ? lightboxIndex + 1 : lightboxIndex);
+    } else {
+      setInternalIndex((prev) => (prev !== null ? Math.min(prev + 1, images.length - 1) : null));
+    }
+  }, [images.length, lightboxIndex, onLightboxOpen]);
 
   const goPrev = useCallback(() => {
-    setLightboxIndex((prev) => (prev !== null ? (prev - 1 + images.length) % images.length : null));
-  }, [images.length]);
+    if (onLightboxOpen && lightboxIndex !== null && lightboxIndex !== undefined) {
+      onLightboxOpen(lightboxIndex - 1 >= 0 ? lightboxIndex - 1 : lightboxIndex);
+    } else {
+      setInternalIndex((prev) => (prev !== null ? Math.max(prev - 1, 0) : null));
+    }
+  }, [lightboxIndex, onLightboxOpen]);
 
   if (images.length === 0) return null;
 
@@ -92,13 +126,17 @@ export function ImageGallery({
       </div>
 
       {/* Lightbox */}
-      {lightboxIndex !== null && (
+      {lightboxIndex !== null && lightboxIndex !== undefined && (
         <Lightbox
           images={images}
           currentIndex={lightboxIndex}
           onClose={closeLightbox}
           onNext={goNext}
           onPrev={goPrev}
+          topBarLeft={lightboxTopBarLeft}
+          bottomBar={lightboxBottomBar}
+          onNextEvent={onLightboxNextEvent}
+          onPrevEvent={onLightboxPrevEvent}
         />
       )}
     </>
@@ -258,9 +296,24 @@ export interface LightboxProps {
   showDownload?: boolean;
   /** Max number of images before dot indicators are hidden on mobile (default 10). */
   maxDotIndicators?: number;
+  /**
+   * Custom content rendered in a bar pinned to the bottom of the lightbox.
+   * Use this to add author info, reactions, captions, etc.
+   */
+  bottomBar?: React.ReactNode;
+  /**
+   * Called when the user swipes/navigates past the last image (forward).
+   * If provided, navigation wraps to the next "event" instead of looping.
+   */
+  onNextEvent?: () => void;
+  /**
+   * Called when the user swipes/navigates before the first image (backward).
+   * If provided, navigation goes to the previous "event" instead of looping.
+   */
+  onPrevEvent?: () => void;
 }
 
-export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBarLeft, showDownload = true, maxDotIndicators = 10 }: LightboxProps) {
+export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBarLeft, showDownload = true, maxDotIndicators = 10, bottomBar, onNextEvent, onPrevEvent }: LightboxProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchDelta, setTouchDelta] = useState(0);
@@ -268,6 +321,20 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
 
   const currentUrl = images[currentIndex];
   const hasMultiple = images.length > 1;
+
+  // Whether there is a "real" prev/next within this image set, or a cross-event jump available
+  const canGoNext = currentIndex < images.length - 1 || !!onNextEvent;
+  const canGoPrev = currentIndex > 0 || !!onPrevEvent;
+
+  const handleNext = useCallback(() => {
+    if (currentIndex < images.length - 1) onNext();
+    else onNextEvent?.();
+  }, [currentIndex, images.length, onNext, onNextEvent]);
+
+  const handlePrev = useCallback(() => {
+    if (currentIndex > 0) onPrev();
+    else onPrevEvent?.();
+  }, [currentIndex, onPrev, onPrevEvent]);
 
   // Reset load state when image changes
   useEffect(() => {
@@ -282,17 +349,17 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
           onClose();
           break;
         case 'ArrowRight':
-          if (hasMultiple) onNext();
+          if (canGoNext) handleNext();
           break;
         case 'ArrowLeft':
-          if (hasMultiple) onPrev();
+          if (canGoPrev) handlePrev();
           break;
       }
     };
 
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [onClose, onNext, onPrev, hasMultiple]);
+  }, [onClose, handleNext, handlePrev, canGoNext, canGoPrev]);
 
   // Lock body scroll
   useEffect(() => {
@@ -315,9 +382,9 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
   };
 
   const handleTouchEnd = () => {
-    if (Math.abs(touchDelta) > 60 && hasMultiple) {
-      if (touchDelta > 0) onPrev();
-      else onNext();
+    if (Math.abs(touchDelta) > 60) {
+      if (touchDelta > 0 && canGoPrev) handlePrev();
+      else if (touchDelta < 0 && canGoNext) handleNext();
     }
     setTouchStart(null);
     setTouchDelta(0);
@@ -391,9 +458,9 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
       </div>
 
       {/* Previous button */}
-      {hasMultiple && (
+      {canGoPrev && (
         <button
-          onClick={(e) => { e.stopPropagation(); onPrev(); }}
+          onClick={(e) => { e.stopPropagation(); handlePrev(); }}
           className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex"
           title="Previous"
         >
@@ -402,9 +469,9 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
       )}
 
       {/* Next button */}
-      {hasMultiple && (
+      {canGoNext && (
         <button
-          onClick={(e) => { e.stopPropagation(); onNext(); }}
+          onClick={(e) => { e.stopPropagation(); handleNext(); }}
           className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex"
           title="Next"
         >
@@ -435,9 +502,12 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
         />
       </div>
 
-      {/* Dot indicators (mobile) */}
+      {/* Dot indicators (mobile) — shift up when bottomBar is present */}
       {hasMultiple && images.length <= maxDotIndicators && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:hidden">
+        <div className={cn(
+          'absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:hidden',
+          bottomBar ? 'bottom-20' : 'bottom-6',
+        )}>
           {images.map((_, i) => (
             <div
               key={i}
@@ -449,6 +519,13 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
               )}
             />
           ))}
+        </div>
+      )}
+
+      {/* Bottom bar — author info, reactions, captions, etc. */}
+      {bottomBar && (
+        <div className="absolute inset-x-0 bottom-0 z-10" onClick={(e) => e.stopPropagation()}>
+          {bottomBar}
         </div>
       )}
     </div>
