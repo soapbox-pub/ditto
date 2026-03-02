@@ -318,8 +318,9 @@ function useLiveStreams(tab: FeedTab) {
   return useQuery<NostrEvent[]>({
     queryKey: ['live-streams', tab, followedPubkeys.join(',')],
     queryFn: async ({ signal }) => {
+      if (tab === 'follows' && followedPubkeys.length === 0) return [];
       const base: Record<string, unknown> = { kinds: [30311], '#status': ['live'], limit: 10 };
-      if (tab === 'follows' && followedPubkeys.length > 0) {
+      if (tab === 'follows') {
         base.authors = followedPubkeys;
       }
       const events = await nostr.query(
@@ -676,7 +677,7 @@ export function VideosFeedPage() {
         </div>
       ) : videoEvents.length === 0 ? (
         <div className="py-16 px-8 text-center">
-          <Film className="size-10 text-muted-foreground/30 mx-auto mb-3" />
+
           <p className="text-muted-foreground">
             No videos yet.{feedTab === 'follows' ? ' Follow some creators or switch to Global.' : ' Check your relay connections or come back soon.'}
           </p>
