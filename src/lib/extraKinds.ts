@@ -46,6 +46,8 @@ export interface ExtraKindDef {
   showKey?: keyof FeedSettings;
   /** Key in FeedSettings that controls inclusion in mixed feeds (only for entries without subKinds). */
   feedKey?: keyof FeedSettings;
+  /** Additional kind numbers to include alongside `kind` when the feed toggle is on. */
+  extraFeedKinds?: number[];
   /** Human-readable label. */
   label: string;
   /** Short description. */
@@ -166,6 +168,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'events',
     showKey: 'showEvents',
     feedKey: 'feedIncludeEvents',
+    extraFeedKinds: [31922],
     label: 'Events',
     description: 'Calendar events and meetups (NIP-52)',
     route: 'events',
@@ -322,6 +325,9 @@ export function getEnabledFeedKinds(feedSettings: FeedSettings): number[] {
       }
     } else if (def.feedKey && feedSettings[def.feedKey]) {
       kinds.push(def.kind);
+      if (def.extraFeedKinds) {
+        kinds.push(...def.extraFeedKinds);
+      }
     }
   }
 
