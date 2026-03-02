@@ -1533,7 +1533,7 @@ export function ProfilePage() {
 
         {/* Pinned posts (only on Posts tab) */}
         {activeTab === 'posts' && pinnedIds.length > 0 && (
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border border-b border-border">
             {pinnedEventsLoading ? (
               pinnedIds.map((id) => (
                 <div key={`pinned-skeleton-${id}`} className="relative">
