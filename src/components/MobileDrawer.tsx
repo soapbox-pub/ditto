@@ -9,7 +9,7 @@ import { SidebarThemeDropdown } from '@/components/SidebarThemeDropdown';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import LoginDialog from '@/components/auth/LoginDialog';
-import { useOnboarding } from '@/components/InitialSyncGate';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useCurrentUser } from '@/hooks/useCurrentUser';

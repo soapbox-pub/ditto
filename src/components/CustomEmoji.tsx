@@ -1,35 +1,6 @@
 import type { ReactNode } from 'react';
-import type { NostrEvent } from '@nostrify/nostrify';
 
-/**
- * Checks if a string is a NIP-30 custom emoji shortcode (`:shortcode:` format).
- */
-export function isCustomEmoji(content: string): boolean {
-  return /^:[a-zA-Z0-9_]+:$/.test(content);
-}
-
-/**
- * Extracts the custom emoji URL from a NostrEvent's tags for a given shortcode.
- * The shortcode should include the colons (e.g., `:soapbox:`).
- */
-export function getCustomEmojiUrl(shortcode: string, tags: string[][]): string | undefined {
-  const name = shortcode.slice(1, -1); // Remove surrounding colons
-  const emojiTag = tags.find(([tagName, tagShortcode]) => tagName === 'emoji' && tagShortcode === name);
-  return emojiTag?.[2];
-}
-
-/**
- * Builds a map of shortcode -> URL from an event's emoji tags.
- */
-export function buildEmojiMap(tags: string[][]): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const tag of tags) {
-    if (tag[0] === 'emoji' && tag[1] && tag[2]) {
-      map.set(tag[1], tag[2]);
-    }
-  }
-  return map;
-}
+import { isCustomEmoji, getCustomEmojiUrl, buildEmojiMap, type ResolvedEmoji } from '@/lib/customEmoji';
 
 interface CustomEmojiImgProps {
   /** The shortcode name (without colons). */
@@ -72,8 +43,8 @@ interface ReactionEmojiProps {
  * emoji tags and renders an inline image. For unicode emojis, it renders the text directly.
  */
 export function ReactionEmoji({ content, tags, className }: ReactionEmojiProps) {
-  // Normalize '+' and empty to thumbs up
-  const emoji = (content === '+' || content === '') ? '👍' : content;
+  // Normalize '+' and empty to thumbs up, '-' to thumbs down
+  const emoji = (content === '+' || content === '') ? '👍' : content === '-' ? '👎' : content;
 
   // Check for custom emoji
   if (isCustomEmoji(emoji) && tags) {
@@ -89,40 +60,6 @@ export function ReactionEmoji({ content, tags, className }: ReactionEmojiProps) 
 }
 
 /**
- * Represents a resolved reaction emoji that can be rendered.
- * For custom emojis, includes the URL; for unicode, just the content string.
- */
-export interface ResolvedEmoji {
-  /** The display content — unicode emoji string or `:shortcode:` */
-  content: string;
-  /** For custom emojis, the image URL. Undefined for unicode emojis. */
-  url?: string;
-  /** For custom emojis, the shortcode name (without colons). */
-  name?: string;
-}
-
-/**
- * Resolves a reaction emoji from a kind 7 event into a ResolvedEmoji.
- */
-export function resolveReactionEmoji(event: NostrEvent): ResolvedEmoji {
-  const content = event.content.trim();
-  const emoji = (content === '+' || content === '') ? '👍' : content;
-
-  if (content === '-') {
-    return { content: emoji };
-  }
-
-  if (isCustomEmoji(emoji)) {
-    const url = getCustomEmojiUrl(emoji, event.tags);
-    if (url) {
-      return { content: emoji, url, name: emoji.slice(1, -1) };
-    }
-  }
-
-  return { content: emoji };
-}
-
-/**
  * Renders a ResolvedEmoji inline.
  */
 export function RenderResolvedEmoji({ emoji, className }: { emoji: ResolvedEmoji; className?: string }) {
@@ -135,19 +72,8 @@ export function RenderResolvedEmoji({ emoji, className }: { emoji: ResolvedEmoji
 /** Regex matching `:shortcode:` patterns in text. */
 const SHORTCODE_REGEX = /:([a-zA-Z0-9_]+):/g;
 
-/**
- * Replaces `:shortcode:` patterns in text with inline custom emoji images.
- * 
- * Takes a text string and an emoji map (shortcode -> URL), and returns an array
- * of React nodes where matched shortcodes are replaced with `<CustomEmojiImg>`.
- * If no emoji tags are present, returns the text as-is for zero overhead.
- * 
- * @param text - The text to emojify.
- * @param emojiMap - Map of shortcode names (without colons) to image URLs. 
- *                   Build with `buildEmojiMap(event.tags)`.
- * @param imgClassName - Optional CSS class for the custom emoji images.
- */
-export function emojify(
+/** Replaces `:shortcode:` patterns in text with inline custom emoji images. */
+function emojify(
   text: string,
   emojiMap: Map<string, string>,
   imgClassName?: string,
@@ -158,7 +84,6 @@ export function emojify(
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  // Reset lastIndex since the regex is global
   SHORTCODE_REGEX.lastIndex = 0;
 
   while ((match = SHORTCODE_REGEX.exec(text)) !== null) {
@@ -167,7 +92,6 @@ export function emojify(
 
     if (!url) continue;
 
-    // Add text before this match
     if (match.index > lastIndex) {
       result.push(text.substring(lastIndex, match.index));
     }
@@ -184,7 +108,6 @@ export function emojify(
     lastIndex = match.index + fullMatch.length;
   }
 
-  // Add remaining text
   if (lastIndex < text.length) {
     result.push(text.substring(lastIndex));
   }

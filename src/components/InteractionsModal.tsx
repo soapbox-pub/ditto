@@ -12,7 +12,8 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CustomEmojiImg, isCustomEmoji, EmojifiedText } from '@/components/CustomEmoji';
+import { CustomEmojiImg, EmojifiedText } from '@/components/CustomEmoji';
+import { isCustomEmoji } from '@/lib/customEmoji';
 import { useEventInteractions, type RepostEntry, type QuoteEntry, type ReactionEntry, type ZapEntry } from '@/hooks/useEventInteractions';
 import { useAuthor } from '@/hooks/useAuthor';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';

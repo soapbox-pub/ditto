@@ -98,6 +98,7 @@ export function ThemeBuilderPage() {
     const target = _userThemes.data.find(t => t.identifier === editIdentifier);
     if (target && activeEditingTheme?.identifier !== editIdentifier) {
       setColors(target.colors);
+      applyCustomTheme({ colors: target.colors, font: target.font, background: target.background });
       setActiveEditingTheme(target);
     }
   }, [editIdentifier, _userThemes.data]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -120,6 +121,7 @@ export function ThemeBuilderPage() {
       const target = importThemesQuery.data.find(t => t.identifier === importThemeId);
       if (target) {
         setColors(target.colors);
+        applyCustomTheme({ colors: target.colors, font: target.font, background: target.background });
         setActiveEditingTheme(null);
         toast({ title: 'Theme imported', description: `Imported "${target.title}". Customize it and save!` });
       }
@@ -127,6 +129,7 @@ export function ThemeBuilderPage() {
     // Import from active profile theme
     else if (importActiveQuery.data?.colors) {
       setColors(importActiveQuery.data.colors);
+      applyCustomTheme({ colors: importActiveQuery.data.colors, font: importActiveQuery.data.font, background: importActiveQuery.data.background });
       setActiveEditingTheme(null);
       toast({ title: 'Theme imported', description: 'Imported theme from profile. Customize it and save!' });
     }
@@ -201,7 +204,7 @@ export function ThemeBuilderPage() {
       }
     } else {
       setPreviewing(true);
-      applyCustomTheme(colors);
+      applyCustomTheme({ colors, font: savedCustomTheme?.font, background: savedCustomTheme?.background });
     }
   }, [previewing, currentTheme, savedCustomTheme, colors, applyCustomTheme]);
 
@@ -213,12 +216,12 @@ export function ThemeBuilderPage() {
 
   // Save: apply locally + update/publish depending on context
   const handleSave = useCallback(async () => {
-    applyCustomTheme(colors);
+    applyCustomTheme({ colors, font: savedCustomTheme?.font, background: savedCustomTheme?.background });
     setPreviewing(false);
 
     if (user && activeEditingTheme) {
       try {
-        const themeConfig = { colors };
+        const themeConfig = { colors, font: savedCustomTheme?.font, background: savedCustomTheme?.background };
         await publishTheme({
           themeConfig,
           title: activeEditingTheme.title,
@@ -245,7 +248,7 @@ export function ThemeBuilderPage() {
     } else {
       toast({ title: 'Theme saved', description: 'Your custom theme is now active.' });
     }
-  }, [colors, user, activeEditingTheme, ownActiveTheme.data, applyCustomTheme, publishTheme, setActiveTheme, toast]);
+  }, [colors, savedCustomTheme, user, activeEditingTheme, ownActiveTheme.data, applyCustomTheme, publishTheme, setActiveTheme, toast]);
 
   // Publish theme as kind 36767
   const handlePublish = useCallback(async () => {
@@ -255,7 +258,7 @@ export function ThemeBuilderPage() {
     }
     try {
       const isUpdate = !!editingTheme;
-      const themeConfig = { colors };
+      const themeConfig = { colors, font: savedCustomTheme?.font, background: savedCustomTheme?.background };
       const identifier = await publishTheme({
         themeConfig,
         title: publishTitle.trim(),
@@ -269,6 +272,8 @@ export function ThemeBuilderPage() {
         title: publishTitle.trim(),
         description: publishDescription.trim() || undefined,
         colors,
+        font: savedCustomTheme?.font,
+        background: savedCustomTheme?.background,
         event: {} as ThemeDefinition['event'],
       });
 
@@ -286,7 +291,7 @@ export function ThemeBuilderPage() {
       console.error('Failed to publish theme:', error);
       toast({ title: 'Publish failed', description: 'Could not publish your theme.', variant: 'destructive' });
     }
-  }, [publishTitle, publishDescription, colors, editingTheme, user, publishTheme, setActiveTheme, toast]);
+  }, [publishTitle, publishDescription, colors, savedCustomTheme, editingTheme, user, publishTheme, setActiveTheme, toast]);
 
   // Skip publish — just save locally
   const handleSkipPublish = useCallback(() => {
@@ -375,7 +380,7 @@ export function ThemeBuilderPage() {
                 Active
               </Badge>
             ) : (
-              <Button variant="outline" size="sm" onClick={() => { applyCustomTheme(colors); toast({ title: 'Theme applied' }); }}>
+              <Button variant="outline" size="sm" onClick={() => { applyCustomTheme({ colors, font: savedCustomTheme?.font, background: savedCustomTheme?.background }); toast({ title: 'Theme applied' }); }}>
                 <Palette className="size-4 mr-1.5" />
                 Use
               </Button>

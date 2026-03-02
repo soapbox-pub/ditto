@@ -20,6 +20,8 @@ import { cn } from '@/lib/utils';
 import { NoteContent } from '@/components/NoteContent';
 import { GifPicker } from '@/components/GifPicker';
 import { EmojiPicker } from '@/components/EmojiPicker';
+import { useCustomEmojis } from '@/hooks/useCustomEmojis';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 interface DMChatAreaProps {
@@ -227,6 +229,9 @@ export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [gifOpen, setGifOpen] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const { feedSettings } = useFeedSettings();
+  const { emojis: allCustomEmojis } = useCustomEmojis();
+  const customEmojis = feedSettings.showCustomEmojis !== false ? allCustomEmojis : [];
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Determine default protocol based on mode
@@ -402,22 +407,26 @@ export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
                   sideOffset={8}
                   className="w-auto p-0 border-border"
                 >
-                  <EmojiPicker onSelect={(emoji) => {
-                    const textarea = textareaRef.current;
-                    if (textarea) {
-                      const start = textarea.selectionStart;
-                      const end = textarea.selectionEnd;
-                      const newText = messageText.slice(0, start) + emoji + messageText.slice(end);
-                      setMessageText(newText);
-                      requestAnimationFrame(() => {
-                        textarea.focus();
-                        const pos = start + emoji.length;
-                        textarea.setSelectionRange(pos, pos);
-                      });
-                    } else {
-                      setMessageText((prev) => prev + emoji);
-                    }
-                  }} />
+                  <EmojiPicker
+                    customEmojis={customEmojis}
+                    onSelect={(selection) => {
+                      const text = selection.type === 'native' ? selection.emoji : `:${selection.shortcode}:`;
+                      const textarea = textareaRef.current;
+                      if (textarea) {
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        const newText = messageText.slice(0, start) + text + messageText.slice(end);
+                        setMessageText(newText);
+                        requestAnimationFrame(() => {
+                          textarea.focus();
+                          const pos = start + text.length;
+                          textarea.setSelectionRange(pos, pos);
+                        });
+                      } else {
+                        setMessageText((prev) => prev + text);
+                      }
+                    }}
+                  />
                 </PopoverContent>
               </Popover>
 

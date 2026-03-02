@@ -9,14 +9,11 @@ import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { QuickReactMenu } from '@/components/QuickReactMenu';
 import {
-  parseExternalUri,
-  headerLabel,
-  seoTitle,
   UrlContentHeader,
   BookContentHeader,
   CountryContentHeader,
-  type ExternalContent,
 } from '@/components/ExternalContentHeader';
+import { parseExternalUri, headerLabel, seoTitle, type ExternalContent } from '@/lib/externalContent';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useComments } from '@/hooks/useComments';
 import { useMuteList } from '@/hooks/useMuteList';

@@ -1,7 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { type ExternalContent } from '@/components/ExternalContentHeader';
+import { type ExternalContent } from '@/lib/externalContent';
 
 /**
  * Returns the current user's kind 17 reaction for a given external content identifier, if any.

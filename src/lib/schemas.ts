@@ -161,6 +161,9 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeProfileThemeUpdates: z.boolean().optional(),
   showCustomProfileThemes: z.boolean().optional(),
   feedIncludeVoiceMessages: z.boolean().optional(),
+  showEmojiPacks: z.boolean().optional(),
+  feedIncludeEmojiPacks: z.boolean().optional(),
+  showCustomEmojis: z.boolean().optional(),
 });
 
 // ─── AppConfigSchema ─────────────────────────────────────────────────

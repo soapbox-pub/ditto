@@ -1,7 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { type ResolvedEmoji, resolveReactionEmoji } from '@/components/CustomEmoji';
+import { type ResolvedEmoji, resolveReactionEmoji } from '@/lib/customEmoji';
 
 /**
  * Returns the current user's reaction for a given event, if any.

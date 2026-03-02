@@ -24,7 +24,8 @@ import { HashtagPage } from "./pages/HashtagPage";
 import { DomainFeedPage } from "./pages/DomainFeedPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { KindFeedPage } from "./pages/KindFeedPage";
-import { StreamsFeedPage } from "./pages/StreamsFeedPage";
+import { VideosFeedPage } from "./pages/VideosFeedPage";
+import { PhotosFeedPage } from "./pages/PhotosFeedPage";
 import { VinesFeedPage } from "./pages/VinesFeedPage";
 import { EventsFeedPage } from "./pages/EventsFeedPage";
 import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
@@ -32,6 +33,8 @@ import { TreasuresPage } from "./pages/TreasuresPage";
 import { ThemesPage } from "./pages/ThemesPage";
 import { ThemeBuilderPage } from "./pages/ThemeBuilderPage";
 import { ExternalContentPage } from "./pages/ExternalContentPage";
+import { AIChatPage } from "./pages/AIChatPage";
+import { WorldPage } from "./pages/WorldPage";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -39,6 +42,7 @@ const colorsDef = getExtraKindDef('colors')!;
 const packsDef = getExtraKindDef('packs')!;
 const articlesDef = getExtraKindDef('articles')!;
 const decksDef = getExtraKindDef('decks')!;
+const emojiPacksDef = getExtraKindDef('emoji-packs')!;
 
 /** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
 function ProfileRedirect() {
@@ -73,17 +77,23 @@ export function AppRouter() {
           <Route path="/settings/magic" element={<MagicSettingsPage />} />
           <Route path="/settings/network" element={<NetworkSettingsPage />} />
           <Route path="/events" element={<EventsFeedPage />} />
+          <Route path="/photos" element={<PhotosFeedPage />} />
+          <Route path="/videos" element={<VideosFeedPage />} />
+          {/* /streams redirects to /videos for backward compatibility */}
+          <Route path="/streams" element={<Navigate to="/videos" replace />} />
           <Route path="/vines" element={<VinesFeedPage />} />
           <Route path="/polls" element={<KindFeedPage kind={pollsDef.kind} title={pollsDef.label} icon={sidebarItemIcon('polls', 'size-5')} />} />
           <Route path="/treasures" element={<TreasuresPage />} />
           <Route path="/colors" element={<KindFeedPage kind={colorsDef.kind} title={colorsDef.label} icon={sidebarItemIcon('colors', 'size-5')} />} />
           <Route path="/packs" element={<KindFeedPage kind={packsDef.kind} title={packsDef.label} icon={sidebarItemIcon('packs', 'size-5')} />} />
-          <Route path="/streams" element={<StreamsFeedPage />} />
           <Route path="/webxdc" element={<WebxdcFeedPage />} />
           <Route path="/articles" element={<KindFeedPage kind={articlesDef.kind} title={articlesDef.label} icon={sidebarItemIcon('articles', 'size-5')} />} />
           <Route path="/decks" element={<KindFeedPage kind={decksDef.kind} title={decksDef.label} icon={sidebarItemIcon('decks', 'size-5')} />} />
+          <Route path="/emoji-packs" element={<KindFeedPage kind={emojiPacksDef.kind} title={emojiPacksDef.label} icon={sidebarItemIcon('emoji-packs', 'size-5')} />} />
           <Route path="/themes" element={<ThemesPage />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
+          <Route path="/ai-chat" element={<AIChatPage />} />
+          <Route path="/world" element={<WorldPage />} />
           <Route path="/i/*" element={<ExternalContentPage />} />
 
           {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
