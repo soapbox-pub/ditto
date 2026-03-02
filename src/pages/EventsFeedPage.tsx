@@ -530,7 +530,7 @@ export function EventsFeedPage() {
   const [activeMainTab, setActiveMainTab] = useState<MainTab>('upcoming');
 
   useSeoMeta({ title: `Events | ${config.appName}` });
-  useLayoutOptions({ showFAB: false });
+  useLayoutOptions({ showFAB: true, fabKind: 31923 });
 
   return (
     <main className="min-h-screen max-w-2xl mx-auto">
