@@ -137,6 +137,66 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [playlist, currentIndex]);
 
+  // Media Session API — populates Android/iOS notification panel with track info and controls
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    if (!currentTrack) {
+      navigator.mediaSession.metadata = null;
+      return;
+    }
+    const artwork: MediaImage[] = currentTrack.artwork
+      ? [{ src: currentTrack.artwork, sizes: '512x512', type: 'image/jpeg' }]
+      : [];
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentTrack.title,
+      artist: currentTrack.artist,
+      artwork,
+    });
+  }, [currentTrack]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    const audio = audioRef.current;
+
+    navigator.mediaSession.setActionHandler('play', () => audio?.play().catch(() => {}));
+    navigator.mediaSession.setActionHandler('pause', () => audio?.pause());
+    navigator.mediaSession.setActionHandler('previoustrack', () => {
+      if (audio && audio.currentTime > 3) { audio.currentTime = 0; return; }
+      const prev = currentIndex - 1;
+      if (prev < 0 || playlist.length === 0) return;
+      setCurrentIndex(prev);
+      setCurrentTrack(playlist[prev]);
+      setCurrentTime(0);
+      setDuration(playlist[prev].duration ?? 0);
+      if (audio) { audio.src = playlist[prev].url; audio.play().catch(() => {}); }
+    });
+    navigator.mediaSession.setActionHandler('nexttrack', () => {
+      const next = currentIndex + 1;
+      if (next >= playlist.length) return;
+      setCurrentIndex(next);
+      setCurrentTrack(playlist[next]);
+      setCurrentTime(0);
+      setDuration(playlist[next].duration ?? 0);
+      if (audio) { audio.src = playlist[next].url; audio.play().catch(() => {}); }
+    });
+    navigator.mediaSession.setActionHandler('seekto', (details) => {
+      if (audio && details.seekTime != null) audio.currentTime = details.seekTime;
+    });
+
+    return () => {
+      navigator.mediaSession.setActionHandler('play', null);
+      navigator.mediaSession.setActionHandler('pause', null);
+      navigator.mediaSession.setActionHandler('previoustrack', null);
+      navigator.mediaSession.setActionHandler('nexttrack', null);
+      navigator.mediaSession.setActionHandler('seekto', null);
+    };
+  }, [currentIndex, playlist]);
+
   // beforeunload warning when playing
   useEffect(() => {
     if (!currentTrack) return;
