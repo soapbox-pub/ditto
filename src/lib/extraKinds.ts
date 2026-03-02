@@ -46,6 +46,8 @@ export interface ExtraKindDef {
   showKey?: keyof FeedSettings;
   /** Key in FeedSettings that controls inclusion in mixed feeds (only for entries without subKinds). */
   feedKey?: keyof FeedSettings;
+  /** Additional kind numbers to include alongside `kind` when the feed toggle is on. */
+  extraFeedKinds?: number[];
   /** Human-readable label. */
   label: string;
   /** Short description. */
@@ -190,6 +192,65 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     blurb: 'Short video clips. Record and share from a dedicated app.',
     sites: [{ url: 'https://divine.video' }],
   },
+  {
+    kind: 36787,
+    id: 'music',
+    showKey: 'showMusic',
+    label: 'Music',
+    description: 'Music tracks and playlists',
+    route: 'music',
+    addressable: true,
+    section: 'media',
+    blurb: 'Discover and listen to music tracks and playlists shared on Nostr. Upload music and create playlists from a dedicated music app.',
+    sites: [{ url: 'https://nodecast.xyz' }],
+    subKinds: [
+      {
+        kind: 36787,
+        showKey: 'showMusic',
+        feedKey: 'feedIncludeMusicTracks',
+        label: 'Tracks',
+        description: 'Music tracks (kind 36787)',
+        addressable: true,
+      },
+      {
+        kind: 34139,
+        showKey: 'showMusic',
+        feedKey: 'feedIncludeMusicPlaylists',
+        label: 'Playlists',
+        description: 'Music playlists (kind 34139)',
+        addressable: true,
+      },
+    ],
+  },
+  {
+    kind: 30054,
+    id: 'podcasts',
+    showKey: 'showPodcasts',
+    label: 'Podcasts',
+    description: 'Podcast episodes and trailers',
+    route: 'podcasts',
+    addressable: true,
+    section: 'media',
+    blurb: 'Listen to podcast episodes and trailers shared on Nostr.',
+    subKinds: [
+      {
+        kind: 30054,
+        showKey: 'showPodcasts',
+        feedKey: 'feedIncludePodcastEpisodes',
+        label: 'Episodes',
+        description: 'Podcast episodes (kind 30054)',
+        addressable: true,
+      },
+      {
+        kind: 30055,
+        showKey: 'showPodcasts',
+        feedKey: 'feedIncludePodcastTrailers',
+        label: 'Trailers',
+        description: 'Podcast trailers (kind 30055)',
+        addressable: true,
+      },
+    ],
+  },
   // Social
   {
     kind: 30315,
@@ -201,6 +262,20 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'social',
     feedOnly: true,
     blurb: 'See what people are up to — statuses appear next to names on posts and on profile pages.',
+  },
+  {
+    kind: 31923,
+    id: 'events',
+    showKey: 'showEvents',
+    feedKey: 'feedIncludeEvents',
+    extraFeedKinds: [31922],
+    label: 'Events',
+    description: 'Calendar events and meetups (NIP-52)',
+    route: 'events',
+    addressable: true,
+    section: 'social',
+    blurb: 'Events and meetups on Nostr. RSVP and see who else is going. Create and manage events on Plektos.',
+    sites: [{ url: 'https://plektos.app', name: 'Plektos' }],
   },
   {
     kind: 1063,
@@ -363,6 +438,9 @@ export function getEnabledFeedKinds(feedSettings: FeedSettings): number[] {
       }
     } else if (def.feedKey && feedSettings[def.feedKey]) {
       kinds.push(def.kind);
+      if (def.extraFeedKinds) {
+        kinds.push(...def.extraFeedKinds);
+      }
     }
   }
 

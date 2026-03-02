@@ -1,7 +1,8 @@
 import {
   Bell, Search, TrendingUp, User, Bookmark, Settings, SwatchBook, Palette,
-  Clapperboard, BarChart3, PartyPopper, BookOpen, Sparkles, Blocks,
-  MessageSquare, Repeat2, MessageSquareMore, Mic, Smile, Bot, SmilePlus, Camera, Film, Globe,
+  Clapperboard, BarChart3, PartyPopper, BookOpen, BookMarked, Sparkles, Blocks,
+  MessageSquare, Repeat2, MessageSquareMore, Mic, Smile, Bot, SmilePlus, Camera, Film, Globe, CalendarDays,
+  Music, Podcast,
 } from 'lucide-react';
 import { PlanetIcon } from '@/components/icons/PlanetIcon';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -46,10 +47,14 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'theme', label: 'Vibe', path: '/settings/theme', icon: SwatchBook },
   { id: 'ai-chat', label: 'AI Chat', path: '/ai-chat', icon: Bot, requiresAuth: true },
   // Content types
+  { id: 'events', label: 'Events', path: '/events', icon: CalendarDays },
   { id: 'photos', label: 'Photos', path: '/photos', icon: Camera },
   { id: 'videos', label: 'Videos', path: '/videos', icon: Film },
   { id: 'articles', label: 'Articles', path: '/articles', icon: BookOpen },
+  { id: 'books', label: 'Books', path: '/books', icon: BookMarked },
   { id: 'vines', label: 'Vines', path: '/vines', icon: Clapperboard },
+  { id: 'music', label: 'Music', path: '/music', icon: Music },
+  { id: 'podcasts', label: 'Podcasts', path: '/podcasts', icon: Podcast },
 
   { id: 'webxdc', label: 'Webxdc', path: '/webxdc', icon: Blocks },
   { id: 'themes', label: 'Themes', path: '/themes', icon: Sparkles },

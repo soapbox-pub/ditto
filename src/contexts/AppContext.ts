@@ -36,6 +36,10 @@ export interface FeedSettings {
   feedIncludeArticles: boolean;
   /** Show Articles (kind 30023) link in sidebar */
   showArticles: boolean;
+  /** Show Events (kind 31922/31923) link in sidebar */
+  showEvents: boolean;
+  /** Include calendar events in the follows/global feed */
+  feedIncludeEvents: boolean;
   /** Show Vines (kind 34236) link in sidebar */
   showVines: boolean;
   /** Show Polls (kind 1068) link in sidebar */
@@ -104,6 +108,18 @@ export interface FeedSettings {
   feedIncludeShortVideos: boolean;
   /** Show NIP-38 user statuses on profiles and note cards */
   showUserStatuses: boolean;
+  /** Show Music (kind 36787 tracks + kind 34139 playlists) link in sidebar */
+  showMusic: boolean;
+  /** Include music tracks (kind 36787) in the follows/global feed */
+  feedIncludeMusicTracks: boolean;
+  /** Include music playlists (kind 34139) in the follows/global feed */
+  feedIncludeMusicPlaylists: boolean;
+  /** Show Podcasts (kind 30054 episodes + kind 30055 trailers) link in sidebar */
+  showPodcasts: boolean;
+  /** Include podcast episodes (kind 30054) in the follows/global feed */
+  feedIncludePodcastEpisodes: boolean;
+  /** Include podcast trailers (kind 30055) in the follows/global feed */
+  feedIncludePodcastTrailers: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }
