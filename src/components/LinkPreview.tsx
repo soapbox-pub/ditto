@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 interface LinkPreviewProps {
   url: string;
   className?: string;
+  /** When true, hides the thumbnail image in the preview card. */
+  hideImage?: boolean;
 }
 
 /** Extracts the display domain from a URL (e.g. "www.example.com" -> "example.com"). */
@@ -21,7 +23,7 @@ function displayDomain(url: string): string {
 }
 
 /** Rich link preview card rendered from OEmbed data. */
-export function LinkPreview({ url, className }: LinkPreviewProps) {
+export function LinkPreview({ url, className, hideImage }: LinkPreviewProps) {
   const { data, isLoading } = useLinkPreview(url);
   const navigate = useNavigate();
 
@@ -45,7 +47,7 @@ export function LinkPreview({ url, className }: LinkPreviewProps) {
       onClick={(e) => e.stopPropagation()}
     >
       {/* Thumbnail image */}
-      {image && (
+      {image && !hideImage && (
         <div className="w-full overflow-hidden">
           <img
             src={image}
