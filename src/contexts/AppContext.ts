@@ -36,6 +36,10 @@ export interface FeedSettings {
   feedIncludeArticles: boolean;
   /** Show Articles (kind 30023) link in sidebar */
   showArticles: boolean;
+  /** Show Events (kind 31922/31923) link in sidebar */
+  showEvents: boolean;
+  /** Include calendar events in the follows/global feed */
+  feedIncludeEvents: boolean;
   /** Show Vines (kind 34236) link in sidebar */
   showVines: boolean;
   /** Show Polls (kind 1068) link in sidebar */

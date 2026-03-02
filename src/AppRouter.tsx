@@ -30,6 +30,7 @@ import { KindFeedPage } from "./pages/KindFeedPage";
 import { VideosFeedPage } from "./pages/VideosFeedPage";
 import { PhotosFeedPage } from "./pages/PhotosFeedPage";
 import { VinesFeedPage } from "./pages/VinesFeedPage";
+import { EventsFeedPage } from "./pages/EventsFeedPage";
 import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
 import { ThemesPage } from "./pages/ThemesPage";
@@ -39,6 +40,7 @@ import { AIChatPage } from "./pages/AIChatPage";
 import { WorldPage } from "./pages/WorldPage";
 import { MusicFeedPage } from "./pages/MusicFeedPage";
 import { PodcastsFeedPage } from "./pages/PodcastsFeedPage";
+import { BooksPage } from "./pages/BooksPage";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -83,6 +85,7 @@ export function AppRouter() {
           <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
           <Route path="/settings/magic" element={<MagicSettingsPage />} />
           <Route path="/settings/network" element={<NetworkSettingsPage />} />
+          <Route path="/events" element={<EventsFeedPage />} />
           <Route path="/photos" element={<PhotosFeedPage />} />
           <Route path="/videos" element={<VideosFeedPage />} />
           {/* /streams redirects to /videos for backward compatibility */}
@@ -102,6 +105,7 @@ export function AppRouter() {
           <Route path="/bookmarks" element={<BookmarksPage />} />
           <Route path="/ai-chat" element={<AIChatPage />} />
           <Route path="/world" element={<WorldPage />} />
+          <Route path="/books" element={<BooksPage />} />
           <Route path="/i/*" element={<ExternalContentPage />} />
 
           {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
