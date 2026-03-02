@@ -22,6 +22,11 @@ interface SidebarMoreMenuProps {
 export function SidebarMoreMenu({
   editing, hiddenItems, onDoneEditing, onStartEditing, onAdd, onAddDivider, onNavigate, open, onOpenChange,
 }: SidebarMoreMenuProps) {
+  const [query, setQuery] = useState('');
+  const filtered = hiddenItems.filter((item) =>
+    item.label.toLowerCase().includes(query.toLowerCase())
+  );
+
   if (editing) {
     return (
       <div className="flex flex-col gap-0.5">
@@ -42,11 +47,6 @@ export function SidebarMoreMenu({
       </div>
     );
   }
-
-  const [query, setQuery] = useState('');
-  const filtered = hiddenItems.filter((item) =>
-    item.label.toLowerCase().includes(query.toLowerCase())
-  );
 
   return (
     <DropdownMenu open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setQuery(''); }}>

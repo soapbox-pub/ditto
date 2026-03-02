@@ -164,7 +164,7 @@ export function ComposeBox({
   const { feedSettings } = useFeedSettings();
   const customEmojisEnabled = feedSettings.showCustomEmojis !== false;
   const { emojis: allCustomEmojis } = useCustomEmojis();
-  const customEmojis = customEmojisEnabled ? allCustomEmojis : [];
+  const customEmojis = useMemo(() => customEmojisEnabled ? allCustomEmojis : [], [customEmojisEnabled, allCustomEmojis]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 

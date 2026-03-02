@@ -32,19 +32,18 @@ import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { useOpenPost } from '@/hooks/useOpenPost';
+
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
-import { timeAgo } from '@/lib/timeAgo';
+
 import { canZap } from '@/lib/canZap';
 import { ZapDialog } from '@/components/ZapDialog';
 import { RepostMenu } from '@/components/RepostMenu';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { nip19 } from 'nostr-tools';
 
 const PHOTO_KIND = 20;
 const photosDef = getExtraKindDef('photos')!;
@@ -185,15 +184,6 @@ function formatSats(sats: number): string {
   return sats.toString();
 }
 
-function encodeEvent(event: NostrEvent): string {
-  if (event.kind >= 30000 && event.kind < 40000) {
-    const d = event.tags.find(([n]) => n === 'd')?.[1];
-    if (d) return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: d });
-  }
-  return nip19.neventEncode({ id: event.id, author: event.pubkey });
-}
-
-
 
 /**
  * Vine-style photo card for the overlay: image fills all available height,
@@ -205,7 +195,7 @@ function PhotoCard({ event, onCommentClick }: { event: NostrEvent; onCommentClic
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey) ?? genUserName(event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
-  const encodedId = useMemo(() => encodeEvent(event), [event]);
+
   const { data: stats } = useEventStats(event.id);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const canZapAuthor = user && canZap(metadata);
@@ -214,7 +204,7 @@ function PhotoCard({ event, onCommentClick }: { event: NostrEvent; onCommentClic
   const [photoIndex, setPhotoIndex] = useState(0);
   const currentPhoto = photos[photoIndex] ?? photos[0];
 
-  const { onClick: openPost } = useOpenPost(`/${encodedId}`);
+
 
   if (!currentPhoto) return null;
 
