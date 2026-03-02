@@ -1,15 +1,11 @@
 /**
  * MediaGrid — generic 3-column square-thumbnail grid for Nostr media events.
  *
- * Accepts any mix of event kinds and extracts the first image URL from each
- * event, handling both NIP-68/NIP-94 `imeta` tags (kind 20, 21, 22, 34236)
- * and inline image URLs from kind-1 content.
- *
- * Tapping a cell opens the Lightbox with author info + reactions in the
- * bottom bar and cross-event prev/next navigation.
+ * All images across all events are flattened into a single array so the
+ * Lightbox swipe just moves through them in order with no special-casing.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { Images } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -21,23 +17,16 @@ import { cn } from '@/lib/utils';
 // ── Media extraction ──────────────────────────────────────────────────────────
 
 export interface MediaItem {
-  /** The primary display URL (first image). */
   url: string;
   blurhash?: string;
-  dim?: string;
   alt?: string;
-  /** All image URLs in the event (for lightbox navigation within one event). */
   allUrls: string[];
-  /** Map from URL → imeta metadata for Lightbox. */
-  imetaMap: Map<string, { dim?: string; blurhash?: string }>;
   event: NostrEvent;
-  /** Whether there are more images in this event beyond the thumbnail. */
   hasMultiple: boolean;
 }
 
-/** Parse all `imeta` entries from event tags (NIP-94 / NIP-68). */
-function parseImeta(tags: string[][]): { url: string; blurhash?: string; dim?: string; alt?: string }[] {
-  const results: { url: string; blurhash?: string; dim?: string; alt?: string }[] = [];
+function parseImeta(tags: string[][]): { url: string; blurhash?: string; alt?: string }[] {
+  const results: { url: string; blurhash?: string; alt?: string }[] = [];
   for (const tag of tags) {
     if (tag[0] !== 'imeta') continue;
     const parts: Record<string, string> = {};
@@ -45,55 +34,45 @@ function parseImeta(tags: string[][]): { url: string; blurhash?: string; dim?: s
       const sp = tag[i].indexOf(' ');
       if (sp !== -1) parts[tag[i].slice(0, sp)] = tag[i].slice(sp + 1);
     }
-    if (parts.url) results.push({ url: parts.url, blurhash: parts.blurhash, dim: parts.dim, alt: parts.alt });
+    if (parts.url) results.push({ url: parts.url, blurhash: parts.blurhash, alt: parts.alt });
   }
   return results;
 }
 
-/** Extract image URLs embedded in plain-text content (kind 1). */
 function extractImageUrls(content: string): string[] {
-  const regex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
-  return content.match(regex) ?? [];
+  return content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi) ?? [];
 }
 
-/**
- * Derive a `MediaItem` from a single Nostr event.
- * Returns `null` if no image can be found.
- */
 export function eventToMediaItem(event: NostrEvent): MediaItem | null {
-  // Prefer imeta tags (NIP-68 / NIP-94 native kinds and tagged kind 1s)
-  const imetaEntries = parseImeta(event.tags);
-  if (imetaEntries.length > 0) {
-    const first = imetaEntries[0];
-    const imetaMap = new Map<string, { dim?: string; blurhash?: string }>();
-    for (const e of imetaEntries) imetaMap.set(e.url, { dim: e.dim, blurhash: e.blurhash });
+  const imeta = parseImeta(event.tags);
+  if (imeta.length > 0) {
     return {
-      url: first.url,
-      blurhash: first.blurhash,
-      dim: first.dim,
-      alt: first.alt,
-      allUrls: imetaEntries.map((e) => e.url),
-      imetaMap,
+      url: imeta[0].url,
+      blurhash: imeta[0].blurhash,
+      alt: imeta[0].alt,
+      allUrls: imeta.map((e) => e.url),
       event,
-      hasMultiple: imetaEntries.length > 1,
+      hasMultiple: imeta.length > 1,
     };
   }
-
-  // Fallback: extract image URLs from kind-1 content
   if (event.kind === 1) {
     const urls = extractImageUrls(event.content);
     if (urls.length > 0) {
-      return {
-        url: urls[0],
-        allUrls: urls,
-        imetaMap: new Map(),
-        event,
-        hasMultiple: urls.length > 1,
-      };
+      return { url: urls[0], allUrls: urls, event, hasMultiple: urls.length > 1 };
     }
   }
-
   return null;
+}
+
+// ── Flat entry — one per image URL across all events ─────────────────────────
+
+interface FlatEntry {
+  url: string;
+  event: NostrEvent;
+  /** 0-based index of this image within its event */
+  indexInEvent: number;
+  /** total images in this event */
+  countInEvent: number;
 }
 
 // ── Grid thumbnail ────────────────────────────────────────────────────────────
@@ -122,7 +101,6 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
       {!item.blurhash && !loaded && (
         <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
       )}
-
       <img
         src={item.url}
         alt={item.alt ?? ''}
@@ -133,7 +111,6 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
         loading="lazy"
         onLoad={() => setLoaded(true)}
       />
-
       {item.hasMultiple && (
         <div className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded p-0.5">
           <Images className="size-3.5" />
@@ -156,13 +133,6 @@ export function MediaGridSkeleton({ count = 15 }: { count?: number }) {
   );
 }
 
-// ── Overlay state ─────────────────────────────────────────────────────────────
-
-interface OverlayState {
-  itemIndex: number;   // which MediaItem in the list
-  imageIndex: number;  // which image within that item's allUrls
-}
-
 // ── MediaGrid ─────────────────────────────────────────────────────────────────
 
 interface MediaGridProps {
@@ -170,44 +140,41 @@ interface MediaGridProps {
   className?: string;
 }
 
-/**
- * Generic 3-column media grid with a full-screen lightbox.
- * Pass any Nostr events that contain images; the component extracts
- * the first image per event and renders a square thumbnail grid.
- */
 export function MediaGrid({ events, className }: MediaGridProps) {
   const items = useMemo(
     () => events.map(eventToMediaItem).filter((x): x is MediaItem => x !== null),
     [events],
   );
 
-  const [overlay, setOverlay] = useState<OverlayState | null>(null);
+  // Flat list of every image URL in order, each paired with its source event.
+  // This is what the Lightbox receives — swipe just advances the flat index.
+  const flat = useMemo<FlatEntry[]>(
+    () => items.flatMap((item) =>
+      item.allUrls.map((url, indexInEvent) => ({
+        url,
+        event: item.event,
+        indexInEvent,
+        countInEvent: item.allUrls.length,
+      })),
+    ),
+    [items],
+  );
+
+  // Map from item index → flat index of its first image, for grid tap.
+  const itemStartIndex = useMemo(() => {
+    const starts: number[] = [];
+    let cursor = 0;
+    for (const item of items) {
+      starts.push(cursor);
+      cursor += item.allUrls.length;
+    }
+    return starts;
+  }, [items]);
+
+  const [flatIndex, setFlatIndex] = useState<number | null>(null);
   const [commentsEvent, setCommentsEvent] = useState<NostrEvent | null>(null);
 
-  const activeItem = overlay !== null ? items[overlay.itemIndex] : null;
-  const activeImages = activeItem?.allUrls ?? [];
-
-  const openOverlay = useCallback((itemIndex: number) => {
-    setOverlay({ itemIndex, imageIndex: 0 });
-  }, []);
-
-  const closeOverlay = useCallback(() => setOverlay(null), []);
-
-  const goNextEvent = useCallback(() => {
-    setOverlay((prev) => {
-      if (!prev) return null;
-      const next = prev.itemIndex + 1;
-      return next < items.length ? { itemIndex: next, imageIndex: 0 } : prev;
-    });
-  }, [items.length]);
-
-  const goPrevEvent = useCallback(() => {
-    setOverlay((prev) => {
-      if (!prev) return null;
-      const next = prev.itemIndex - 1;
-      return next >= 0 ? { itemIndex: next, imageIndex: 0 } : prev;
-    });
-  }, []);
+  const activeEntry = flatIndex !== null ? flat[flatIndex] : null;
 
   if (items.length === 0) return null;
 
@@ -215,38 +182,32 @@ export function MediaGrid({ events, className }: MediaGridProps) {
     <>
       <div className={cn('grid grid-cols-3 gap-0.5', className)}>
         {items.map((item, i) => (
-          <MediaThumb key={item.event.id} item={item} onClick={() => openOverlay(i)} />
+          <MediaThumb
+            key={item.event.id}
+            item={item}
+            onClick={() => setFlatIndex(itemStartIndex[i])}
+          />
         ))}
       </div>
 
-      {overlay !== null && activeItem && activeImages.length > 0 && (
+      {flatIndex !== null && activeEntry && (
         <Lightbox
-          images={activeImages}
-          currentIndex={overlay.imageIndex}
-          onClose={closeOverlay}
-          onNext={() =>
-            setOverlay((prev) =>
-              prev ? { ...prev, imageIndex: Math.min(prev.imageIndex + 1, activeImages.length - 1) } : null,
-            )
-          }
-          onPrev={() =>
-            setOverlay((prev) =>
-              prev ? { ...prev, imageIndex: Math.max(prev.imageIndex - 1, 0) } : null,
-            )
-          }
-          onNextEvent={overlay.itemIndex < items.length - 1 ? goNextEvent : undefined}
-          onPrevEvent={overlay.itemIndex > 0 ? goPrevEvent : undefined}
+          images={flat.map((e) => e.url)}
+          currentIndex={flatIndex}
+          onClose={() => setFlatIndex(null)}
+          onNext={() => setFlatIndex((i) => (i !== null ? Math.min(i + 1, flat.length - 1) : null))}
+          onPrev={() => setFlatIndex((i) => (i !== null ? Math.max(i - 1, 0) : null))}
           topBarLeft={
-            activeImages.length > 1 ? (
+            activeEntry.countInEvent > 1 ? (
               <span className="text-white/80 text-sm font-medium tabular-nums">
-                {overlay.imageIndex + 1} / {activeImages.length}
+                {activeEntry.indexInEvent + 1} / {activeEntry.countInEvent}
               </span>
-            ) : undefined
+            ) : <span />
           }
           bottomBar={
             <PhotoBottomBar
-              event={activeItem.event}
-              onCommentClick={() => setCommentsEvent(activeItem.event)}
+              event={activeEntry.event}
+              onCommentClick={() => setCommentsEvent(activeEntry.event)}
               commentsEvent={commentsEvent}
               onCommentsClose={() => setCommentsEvent(null)}
             />

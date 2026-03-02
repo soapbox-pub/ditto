@@ -75,29 +75,29 @@ export function PhotoBottomBar({ event, onCommentClick, commentsEvent, onComment
             </Link>
           </ProfileHoverCard>
 
-          {/* Actions */}
-          <div className="flex items-center gap-3 ml-auto shrink-0">
+          {/* Actions — p-2.5 on each button matches the top bar button padding */}
+          <div className="flex items-center ml-auto shrink-0">
             <ReactionButton
               eventId={event.id}
               eventPubkey={event.pubkey}
               eventKind={event.kind}
               reactionCount={stats?.reactions}
               filledHeart
-              className="text-white hover:text-pink-400 hover:bg-white/10 p-0 [&_svg]:size-6"
+              className="text-white hover:text-pink-400 hover:bg-white/10 p-2.5 [&_svg]:size-5"
             />
 
             <button
-              className="flex items-center gap-1.5 text-white hover:text-blue-400 transition-colors"
+              className="flex items-center gap-1 p-2.5 text-white hover:text-blue-400 transition-colors"
               onClick={onCommentClick}
             >
-              <MessageCircle className="size-6" />
+              <MessageCircle className="size-5" />
               {!!stats?.replies && <span className="text-sm tabular-nums drop-shadow">{stats.replies}</span>}
             </button>
 
             <RepostMenu event={event}>
               {(isReposted: boolean) => (
-                <button className={`flex items-center gap-1.5 transition-colors ${isReposted ? 'text-accent' : 'text-white hover:text-accent'}`}>
-                  <RepostIcon className="size-6" />
+                <button className={`flex items-center gap-1 p-2.5 transition-colors ${isReposted ? 'text-accent' : 'text-white hover:text-accent'}`}>
+                  <RepostIcon className="size-5" />
                   {!!((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) && (
                     <span className="text-sm tabular-nums drop-shadow">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span>
                   )}
@@ -107,18 +107,18 @@ export function PhotoBottomBar({ event, onCommentClick, commentsEvent, onComment
 
             {canZapAuthor && (
               <ZapDialog target={event}>
-                <button className="flex items-center gap-1.5 text-white hover:text-amber-400 transition-colors">
-                  <Zap className="size-6" />
+                <button className="flex items-center gap-1 p-2.5 text-white hover:text-amber-400 transition-colors">
+                  <Zap className="size-5" />
                   {!!stats?.zapAmount && <span className="text-sm tabular-nums drop-shadow">{formatSats(stats.zapAmount)}</span>}
                 </button>
               </ZapDialog>
             )}
 
             <button
-              className="text-white/80 hover:text-white transition-colors"
+              className="p-2.5 text-white/70 hover:text-white transition-colors"
               onClick={() => setMoreMenuOpen(true)}
             >
-              <MoreHorizontal className="size-6" />
+              <MoreHorizontal className="size-5" />
             </button>
           </div>
         </div>
