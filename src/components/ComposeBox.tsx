@@ -316,10 +316,21 @@ export function ComposeBox({
     return /nostr:(npub1|nprofile1)[023456789acdefghjklmnpqrstuvwxyz]+/.test(content);
   }, [content]);
 
-  // Check if content has any previewable content (link previews, images, videos, audio, or mentions)
+  // Detect custom emojis in content for preview mode
+  const hasCustomEmojis = useMemo(() => {
+    if (customEmojis.length === 0 || !content) return false;
+    const emojiSet = new Set(customEmojis.map((e) => e.shortcode));
+    const matches = content.matchAll(/:([a-zA-Z0-9_]+):/g);
+    for (const match of matches) {
+      if (emojiSet.has(match[1])) return true;
+    }
+    return false;
+  }, [content, customEmojis]);
+
+  // Check if content has any previewable content (link previews, images, videos, audio, mentions, or custom emojis)
   const hasPreviewableContent = useMemo(() => {
-    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || previewAudios.length > 0 || hasMentions;
-  }, [visibleEmbeds, hasPreviewImages, previewVideos, previewAudios, hasMentions]);
+    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || previewAudios.length > 0 || hasMentions || hasCustomEmojis;
+  }, [visibleEmbeds, hasPreviewImages, previewVideos, previewAudios, hasMentions, hasCustomEmojis]);
 
   // Notify parent of previewable content changes
   useEffect(() => {
