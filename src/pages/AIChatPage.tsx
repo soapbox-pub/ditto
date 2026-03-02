@@ -410,7 +410,7 @@ export function AIChatPage() {
   }
 
   return (
-    <main className="flex flex-col sidebar:h-dvh" style={{ height: 'calc(100dvh - 3rem - 3.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))' }}>
+    <main className="flex flex-col ai-chat-height sidebar:h-dvh">
       {/* Header */}
       <div className="shrink-0 border-b border-border bg-background/80 backdrop-blur-md px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
         <div className="flex items-center gap-2.5">
