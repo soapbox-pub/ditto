@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CalendarDays, Loader2, Users } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Loader2, SlidersHorizontal, Users } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
@@ -10,7 +10,9 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { NoteCard } from '@/components/NoteCard';
@@ -32,7 +34,6 @@ import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 
 type FeedTab = 'follows' | 'global';
-type MainTab = 'upcoming' | 'activity';
 
 const eventsDef = getExtraKindDef('events')!;
 
@@ -41,155 +42,27 @@ function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
 }
 
-// ─── UpcomingSection ──────────────────────────────────────────────────────────
+// ─── Activity data hook ───────────────────────────────────────────────────────
 
-function UpcomingSection() {
-  const { user } = useCurrentUser();
-  const { muteItems } = useMuteList();
-  const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
-
-  useEffect(() => {
-    if (user) setActiveTab('follows');
-  }, [user]);
-
-  const feedQuery = useFeed(activeTab, { kinds: [31922, 31923] });
-  const queryKey = useMemo(() => ['feed', activeTab], [activeTab]);
-
-  const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey });
-  }, [queryClient, queryKey]);
-
-  const {
-    data: rawData,
-    isPending,
-    isLoading,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = feedQuery;
-
-  // Auto-fetch page 2 for smoother scrolling
-  useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) {
-      fetchNextPage();
-    }
-  }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
-
-  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
-
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) fetchNextPage();
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  // Flatten, deduplicate, filter muted, then sort: future events first
-  const feedItems = useMemo(() => {
-    if (!rawData?.pages) return [];
-    const seen = new Set<string>();
-    const now = Math.floor(Date.now() / 1000);
-
-    const items = (rawData.pages as { items: { event: NostrEvent; repostedBy?: string }[] }[])
-      .flatMap((page) => page.items)
-      .filter((item) => {
-        if (seen.has(item.event.id)) return false;
-        seen.add(item.event.id);
-        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
-        return true;
-      });
-
-    // Sort: future start dates first (by start asc), then past events (by start desc)
-    return items.sort((a, b) => {
-      const aStart = parseInt(getTag(a.event.tags, 'start') ?? '0', 10);
-      const bStart = parseInt(getTag(b.event.tags, 'start') ?? '0', 10);
-      const aFuture = aStart >= now;
-      const bFuture = bStart >= now;
-      if (aFuture && !bFuture) return -1;
-      if (!aFuture && bFuture) return 1;
-      if (aFuture && bFuture) return aStart - bStart; // soonest first
-      return bStart - aStart; // most recent past first
-    });
-  }, [rawData?.pages, muteItems]);
-
-  const showSkeleton = isPending || (isLoading && !rawData);
-
-  return (
-    <>
-      {/* Sub-tabs: Follows / Global */}
-      {user && (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
-          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
-        </div>
-      )}
-
-      <PullToRefresh onRefresh={handleRefresh}>
-        {showSkeleton ? (
-          <div className="divide-y divide-border">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <EventCardSkeleton key={i} />
-            ))}
-          </div>
-        ) : feedItems.length > 0 ? (
-          <div>
-            {feedItems.map((item) => (
-              <NoteCard key={item.event.id} event={item.event} />
-            ))}
-            {hasNextPage && (
-              <div ref={scrollRef} className="py-4">
-                {isFetchingNextPage && (
-                  <div className="flex justify-center">
-                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="py-16 px-8 text-center space-y-3">
-            <CalendarDays className="size-10 text-muted-foreground/40 mx-auto" />
-            <p className="text-muted-foreground">
-              {activeTab === 'follows'
-                ? 'No events from people you follow yet. Try the Global tab.'
-                : 'No calendar events found. Check your relay connections or try again later.'}
-            </p>
-            {activeTab === 'follows' && (
-              <button className="text-sm text-primary hover:underline" onClick={() => setActiveTab('global')}>
-                Switch to Global
-              </button>
-            )}
-          </div>
-        )}
-      </PullToRefresh>
-    </>
-  );
-}
-
-// ─── ActivitySection ──────────────────────────────────────────────────────────
-
-function ActivitySection() {
+function useActivityFeed(enabled: boolean) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData, isLoading: followsLoading } = useFollowList();
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
-  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
-  const { startSignup } = useOnboarding();
 
   const followedPubkeys = followData?.pubkeys;
   const hasFollows = !!followedPubkeys && followedPubkeys.length > 0;
-  const isReady = !!user && hasFollows;
+  const isReady = enabled && !!user && hasFollows;
 
-  // Stable key that changes when the follow list actually changes
   const followsKey = useMemo(
     () => followedPubkeys ? followedPubkeys.slice(0, 20).join(',') : '',
     [followedPubkeys],
   );
 
-  // Fetch RSVPs from followed users
   const rsvpQuery = useInfiniteQuery({
     queryKey: ['follower-rsvps', user?.pubkey ?? '', followsKey],
     queryFn: async ({ pageParam }) => {
-      // Re-read from the outer scope — these are captured at call time, not mount time
       if (!followedPubkeys || followedPubkeys.length === 0) {
         return { rsvps: [], oldestTimestamp: 0, rawCount: 0 };
       }
@@ -228,7 +101,6 @@ function ActivitySection() {
         return true;
       });
 
-      // Use raw events for pagination cursor (not filtered)
       const oldestTimestamp = events.length > 0
         ? Math.min(...events.map((e) => e.created_at))
         : 0;
@@ -240,14 +112,13 @@ function ActivitySection() {
         if (aTag) coords.add(aTag);
       }
 
-
       const referencedEvents = new Map<string, NostrEvent>();
       if (coords.size > 0) {
         const filters = Array.from(coords).map((coord) => {
           const parts = coord.split(':');
           const kindStr = parts[0];
           const pubkey = parts[1];
-          const dTag = parts.slice(2).join(':'); // d-tag may contain colons
+          const dTag = parts.slice(2).join(':');
           return { kinds: [parseInt(kindStr, 10)], authors: [pubkey], '#d': [dTag ?? ''], limit: 1 };
         });
 
@@ -256,7 +127,6 @@ function ActivitySection() {
           for (const ev of fetched) {
             const d = getTag(ev.tags, 'd') ?? '';
             const key = `${ev.kind}:${ev.pubkey}:${d}`;
-            // Seed event cache
             if (!queryClient.getQueryData(['event', ev.id])) {
               queryClient.setQueryData(['event', ev.id], ev);
             }
@@ -280,7 +150,6 @@ function ActivitySection() {
       };
     },
     getNextPageParam: (lastPage) => {
-      // Continue paginating if we got a full raw batch, even if filtered results were empty
       if (lastPage.rawCount === 0 || lastPage.oldestTimestamp === 0) return undefined;
       return lastPage.oldestTimestamp - 1;
     },
@@ -289,36 +158,18 @@ function ActivitySection() {
     staleTime: 60 * 1000,
   });
 
-  const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['follower-rsvps'] });
-  }, [queryClient]);
-
-  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
-
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = rsvpQuery;
-
+  // Auto-fetch next pages if we got raw results but zero accepted items
   useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  // Auto-fetch next pages if we got raw results but zero accepted items.
-  // This handles relay non-determinism where a batch may contain only
-  // malformed RSVPs (no status tag). Keep paginating until we find
-  // valid ones or exhaust the data (up to 5 extra pages).
-  useEffect(() => {
-    if (!rsvpQuery.data?.pages || rsvpQuery.isFetching || !hasNextPage) return;
+    if (!rsvpQuery.data?.pages || rsvpQuery.isFetching || !rsvpQuery.hasNextPage) return;
     const totalItems = rsvpQuery.data.pages.reduce((sum, p) => sum + p.rsvps.length, 0);
     const pageCount = rsvpQuery.data.pages.length;
     if (totalItems === 0 && pageCount < 5) {
-      fetchNextPage();
+      rsvpQuery.fetchNextPage();
     }
-  }, [rsvpQuery.data?.pages, rsvpQuery.isFetching, hasNextPage, fetchNextPage]);
+  }, [rsvpQuery.data?.pages, rsvpQuery.isFetching, rsvpQuery.hasNextPage, rsvpQuery.fetchNextPage]);
 
   const activityItems = useMemo(() => {
     if (!rsvpQuery.data?.pages) return [];
-    // Deduplicate by author+event (across pages), skip items with no referenced event
     const seen = new Set<string>();
     return rsvpQuery.data.pages
       .flatMap((page) => page.rsvps)
@@ -332,79 +183,250 @@ function ActivitySection() {
       });
   }, [rsvpQuery.data?.pages]);
 
-  // Use isLoading (not isPending) so stale data shows during refetch
-  const showSkeleton = followsLoading || rsvpQuery.isLoading;
+  return {
+    activityItems,
+    isLoading: followsLoading || rsvpQuery.isLoading,
+    hasNextPage: rsvpQuery.hasNextPage,
+    isFetchingNextPage: rsvpQuery.isFetchingNextPage,
+    fetchNextPage: rsvpQuery.fetchNextPage,
+    hasFollows,
+    followsLoading,
+  };
+}
 
-  // Not logged in
-  if (!user) {
-    return (
-      <div className="py-16 px-8 text-center space-y-4">
-        <Users className="size-10 text-muted-foreground/40 mx-auto" />
-        <p className="text-muted-foreground">Log in to see what events your friends are attending.</p>
-        <button
-          className="text-sm text-primary hover:underline font-medium"
-          onClick={() => setLoginDialogOpen(true)}
-        >
-          Log in
-        </button>
-        <LoginDialog
-          isOpen={loginDialogOpen}
-          onClose={() => setLoginDialogOpen(false)}
-          onLogin={() => setLoginDialogOpen(false)}
-          onSignupClick={startSignup}
-        />
-      </div>
-    );
-  }
+// ─── EventsFeedPage ───────────────────────────────────────────────────────────
 
-  // Logged in but no follows (only show after follow list has loaded)
-  if (!hasFollows && !followsLoading) {
-    return (
-      <div className="py-16 px-8 text-center space-y-3">
-        <Users className="size-10 text-muted-foreground/40 mx-auto" />
-        <p className="text-muted-foreground">
-          Follow some people to see their event RSVPs here.
-        </p>
-      </div>
-    );
-  }
+export function EventsFeedPage() {
+  const { config } = useAppContext();
+  const { user } = useCurrentUser();
+  const { muteItems } = useMuteList();
+  const queryClient = useQueryClient();
+
+  const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
+  const [showActivity, setShowActivity] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const { startSignup } = useOnboarding();
+
+  useEffect(() => {
+    if (user) setActiveTab('follows');
+  }, [user]);
+
+  useSeoMeta({ title: `Events | ${config.appName}` });
+  useLayoutOptions({ showFAB: true, fabKind: 31923 });
+
+  // Calendar events feed
+  const feedQuery = useFeed(activeTab, { kinds: [31922, 31923] });
+  const queryKey = useMemo(() => ['feed', activeTab], [activeTab]);
+
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey });
+    if (showActivity) {
+      await queryClient.invalidateQueries({ queryKey: ['follower-rsvps'] });
+    }
+  }, [queryClient, queryKey, showActivity]);
+
+  const {
+    data: rawData,
+    isPending,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = feedQuery;
+
+  // Auto-fetch page 2 for smoother scrolling
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
+
+  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) fetchNextPage();
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Flatten, deduplicate, filter muted, then sort: future events first
+  const feedItems = useMemo(() => {
+    if (!rawData?.pages) return [];
+    const seen = new Set<string>();
+    const now = Math.floor(Date.now() / 1000);
+
+    const items = (rawData.pages as { items: { event: NostrEvent; repostedBy?: string }[] }[])
+      .flatMap((page) => page.items)
+      .filter((item) => {
+        if (seen.has(item.event.id)) return false;
+        seen.add(item.event.id);
+        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        return true;
+      });
+
+    return items.sort((a, b) => {
+      const aStart = parseInt(getTag(a.event.tags, 'start') ?? '0', 10);
+      const bStart = parseInt(getTag(b.event.tags, 'start') ?? '0', 10);
+      const aFuture = aStart >= now;
+      const bFuture = bStart >= now;
+      if (aFuture && !bFuture) return -1;
+      if (!aFuture && bFuture) return 1;
+      if (aFuture && bFuture) return aStart - bStart;
+      return bStart - aStart;
+    });
+  }, [rawData?.pages, muteItems]);
+
+  // Activity feed (only loaded when showActivity is true and user is on follows tab)
+  const activityEnabled = showActivity && activeTab === 'follows' && !!user;
+  const activity = useActivityFeed(activityEnabled);
+
+  const showSkeleton = isPending || (isLoading && !rawData);
+  const hasFiltersActive = showActivity;
 
   return (
-    <PullToRefresh onRefresh={handleRefresh}>
-      {showSkeleton ? (
-        <div className="divide-y divide-border">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <ActivityItemSkeleton key={i} />
-          ))}
+    <main className="min-h-screen max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
+        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+          <ArrowLeft className="size-5" />
+        </Link>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <CalendarDays className="size-5" />
+          <h1 className="text-xl font-bold">Events</h1>
         </div>
-      ) : activityItems.length > 0 ? (
-        <div>
-          {activityItems.map((item) => (
-            <ActivityItem
-              key={item.rsvp.id}
-              rsvp={item.rsvp}
-              referencedEvent={item.referencedEvent}
-            />
-          ))}
-          {hasNextPage && (
-            <div ref={scrollRef} className="py-4">
-              {isFetchingNextPage && (
-                <div className="flex justify-center">
-                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+
+        {/* Filter toggle */}
+        {user && (
+          <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className={cn(
+                  'shrink-0 h-10 w-10 rounded-lg border bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors',
+                  filtersOpen
+                    ? 'border-2 border-primary bg-secondary text-primary'
+                    : hasFiltersActive
+                      ? 'border-primary text-primary'
+                      : 'border-border',
+                )}
+                style={{ outline: 'none' }}
+                aria-label="Event filters"
+              >
+                <SlidersHorizontal className="size-4" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="font-medium text-sm">Show activity</span>
+                  <p className="text-xs text-muted-foreground">See RSVPs from people you follow</p>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="py-16 px-8 text-center space-y-3">
-          <CalendarDays className="size-10 text-muted-foreground/40 mx-auto" />
-          <p className="text-muted-foreground">
-            No event RSVPs from your follows yet. Events will appear here as people RSVP.
-          </p>
+                <Switch
+                  checked={showActivity}
+                  onCheckedChange={setShowActivity}
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+
+        <KindInfoButton kindDef={eventsDef} icon={sidebarItemIcon('events', 'size-5')} />
+      </div>
+
+      {/* Follows / Global tabs */}
+      {user && (
+        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
+          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
         </div>
       )}
-    </PullToRefresh>
+
+      <PullToRefresh onRefresh={handleRefresh}>
+        {showSkeleton ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <EventCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : feedItems.length > 0 || (activityEnabled && activity.activityItems.length > 0) ? (
+          <div>
+            {/* Calendar events */}
+            {feedItems.map((item) => (
+              <NoteCard key={item.event.id} event={item.event} />
+            ))}
+
+            {/* Activity section (when enabled) */}
+            {activityEnabled && activity.activityItems.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-secondary/30">
+                  <Users className="size-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground">Activity from your follows</span>
+                </div>
+                {activity.activityItems.map((item) => (
+                  <ActivityItem
+                    key={item.rsvp.id}
+                    rsvp={item.rsvp}
+                    referencedEvent={item.referencedEvent}
+                  />
+                ))}
+                {activity.hasNextPage && (
+                  <div className="py-4">
+                    {activity.isFetchingNextPage && (
+                      <div className="flex justify-center">
+                        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Activity loading state */}
+            {activityEnabled && activity.isLoading && (
+              <div className="divide-y divide-border">
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-secondary/30">
+                  <Users className="size-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground">Activity from your follows</span>
+                </div>
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <ActivityItemSkeleton key={i} />
+                ))}
+              </div>
+            )}
+
+            {/* Infinite scroll trigger for calendar events */}
+            {hasNextPage && (
+              <div ref={scrollRef} className="py-4">
+                {isFetchingNextPage && (
+                  <div className="flex justify-center">
+                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="py-16 px-8 text-center space-y-3">
+            <CalendarDays className="size-10 text-muted-foreground/40 mx-auto" />
+            <p className="text-muted-foreground">
+              {activeTab === 'follows'
+                ? 'No events from people you follow yet. Try the Global tab.'
+                : 'No calendar events found. Check your relay connections or try again later.'}
+            </p>
+            {activeTab === 'follows' && (
+              <button className="text-sm text-primary hover:underline" onClick={() => setActiveTab('global')}>
+                Switch to Global
+              </button>
+            )}
+          </div>
+        )}
+      </PullToRefresh>
+
+      <LoginDialog
+        isOpen={loginDialogOpen}
+        onClose={() => setLoginDialogOpen(false)}
+        onLogin={() => setLoginDialogOpen(false)}
+        onSignupClick={startSignup}
+      />
+    </main>
   );
 }
 
@@ -520,39 +542,5 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
       )}
     </button>
-  );
-}
-
-// ─── EventsFeedPage ───────────────────────────────────────────────────────────
-
-export function EventsFeedPage() {
-  const { config } = useAppContext();
-  const [activeMainTab, setActiveMainTab] = useState<MainTab>('upcoming');
-
-  useSeoMeta({ title: `Events | ${config.appName}` });
-  useLayoutOptions({ showFAB: true, fabKind: 31923 });
-
-  return (
-    <main className="min-h-screen max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <CalendarDays className="size-5" />
-          <h1 className="text-xl font-bold">Events</h1>
-        </div>
-        <KindInfoButton kindDef={eventsDef} icon={sidebarItemIcon('events', 'size-5')} />
-      </div>
-
-      {/* Main tabs: Upcoming | Activity */}
-      <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        <TabButton label="Upcoming" active={activeMainTab === 'upcoming'} onClick={() => setActiveMainTab('upcoming')} />
-        <TabButton label="Activity" active={activeMainTab === 'activity'} onClick={() => setActiveMainTab('activity')} />
-      </div>
-
-      {activeMainTab === 'upcoming' ? <UpcomingSection /> : <ActivitySection />}
-    </main>
   );
 }
