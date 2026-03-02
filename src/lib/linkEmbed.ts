@@ -111,10 +111,33 @@ export function extractRedditPost(url: string): string | null {
   }
 }
 
+/** Wavlake embed info extracted from a wavlake.com URL. */
+export interface WavlakeEmbedInfo {
+  /** Content type: track or album. */
+  type: 'track' | 'album';
+  /** Wavlake content UUID. */
+  id: string;
+}
+
+/** Extract Wavlake embed info from a wavlake.com URL. */
+export function extractWavlakeEmbed(url: string): WavlakeEmbedInfo | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    if (host !== 'wavlake.com') return null;
+    // Match /{type}/{uuid}
+    const match = u.pathname.match(/^\/(track|album)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
+    return match ? { type: match[1] as 'track' | 'album', id: match[2] } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Returns true if the URL should be rendered as a rich embed rather than a plain link. */
 export function isEmbeddableUrl(url: string): boolean {
   return !!extractYouTubeId(url) || !!extractTweetId(url) || !!extractBlueskyPost(url)
-    || !!extractMastodonPost(url) || !!extractSpotifyEmbed(url) || !!extractRedditPost(url);
+    || !!extractMastodonPost(url) || !!extractSpotifyEmbed(url) || !!extractRedditPost(url)
+    || !!extractWavlakeEmbed(url);
 }
 
 /** Get a short label for the embed type. */
@@ -124,6 +147,7 @@ export function embedLabel(url: string): string | null {
   if (extractBlueskyPost(url)) return 'Bluesky';
   if (extractMastodonPost(url)) return 'Mastodon';
   if (extractSpotifyEmbed(url)) return 'Spotify';
+  if (extractWavlakeEmbed(url)) return 'Wavlake';
   if (extractRedditPost(url)) return 'Reddit';
   return null;
 }

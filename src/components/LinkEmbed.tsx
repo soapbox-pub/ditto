@@ -9,6 +9,7 @@ import { MastodonEmbed } from '@/components/MastodonEmbed';
 import { RedditEmbed } from '@/components/RedditEmbed';
 import { SpotifyEmbed } from '@/components/SpotifyEmbed';
 import { TweetEmbed } from '@/components/TweetEmbed';
+import { WavlakeEmbed } from '@/components/WavlakeEmbed';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import {
   extractYouTubeId,
@@ -16,6 +17,7 @@ import {
   extractBlueskyPost,
   extractMastodonPost,
   extractSpotifyEmbed,
+  extractWavlakeEmbed,
   extractRedditPost,
 } from '@/lib/linkEmbed';
 import { cn } from '@/lib/utils';
@@ -39,6 +41,8 @@ interface LinkEmbedProps {
  * - Twitter/X tweet URLs → `TweetEmbed` (iframe embed)
  * - Bluesky post URLs → `BlueskyEmbed` (native card via Bluesky API)
  * - Mastodon post URLs → `MastodonEmbed` (native card via Mastodon API)
+ * - Spotify URLs → `SpotifyEmbed` (iframe embed)
+ * - Wavlake URLs → `WavlakeEmbed` (iframe embed)
  * - Everything else → `LinkPreview` (OEmbed link preview card)
  */
 export function LinkEmbed({ url, className, showDiscuss = true, hideImage }: LinkEmbedProps) {
@@ -47,6 +51,7 @@ export function LinkEmbed({ url, className, showDiscuss = true, hideImage }: Lin
   const blueskyPost = useMemo(() => extractBlueskyPost(url), [url]);
   const mastodonUrl = useMemo(() => extractMastodonPost(url), [url]);
   const spotifyEmbed = useMemo(() => extractSpotifyEmbed(url), [url]);
+  const wavlakeEmbed = useMemo(() => extractWavlakeEmbed(url), [url]);
   const redditUrl = useMemo(() => extractRedditPost(url), [url]);
 
   let embed: React.ReactNode;
@@ -63,6 +68,8 @@ export function LinkEmbed({ url, className, showDiscuss = true, hideImage }: Lin
     return <MastodonEmbed url={mastodonUrl} className={className} />;
   } else if (spotifyEmbed) {
     embed = <SpotifyEmbed type={spotifyEmbed.type} id={spotifyEmbed.id} />;
+  } else if (wavlakeEmbed) {
+    embed = <WavlakeEmbed type={wavlakeEmbed.type} id={wavlakeEmbed.id} />;
   } else if (redditUrl) {
     embed = <RedditEmbed url={redditUrl} />;
   } else {
