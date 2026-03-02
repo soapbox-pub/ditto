@@ -1,13 +1,16 @@
 import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Check, Loader2, Plus } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useInterests } from '@/hooks/useInterests';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
@@ -22,6 +25,10 @@ export function HashtagPage() {
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
   const { muteItems } = useMuteList();
+  const { user } = useCurrentUser();
+  const { hasInterest, addInterest, removeInterest } = useInterests();
+
+  const isFollowing = tag ? hasInterest(tag) : false;
 
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
   const kindsKey = [...kinds].sort().join(',');
@@ -56,7 +63,25 @@ export function HashtagPage() {
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <h1 className="text-xl font-bold">#{tag}</h1>
+          <h1 className="text-xl font-bold flex-1">#{tag}</h1>
+          {user && tag && (
+            <Button
+              variant={isFollowing ? 'outline' : 'default'}
+              size="sm"
+              className="gap-1.5 rounded-full"
+              disabled={addInterest.isPending || removeInterest.isPending}
+              onClick={() => isFollowing ? removeInterest.mutate(tag) : addInterest.mutate(tag)}
+            >
+              {(addInterest.isPending || removeInterest.isPending) ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : isFollowing ? (
+                <Check className="size-3.5" />
+              ) : (
+                <Plus className="size-3.5" />
+              )}
+              {isFollowing ? 'Following' : 'Follow'}
+            </Button>
+          )}
         </div>
 
         {isLoading ? (

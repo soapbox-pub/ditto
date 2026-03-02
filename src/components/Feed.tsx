@@ -13,7 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Check, ChevronDown, Globe, List, Loader2, Users } from 'lucide-react';
+import { Check, ChevronDown, Globe, Hash, List, Loader2, Plus, Users } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -21,6 +22,7 @@ import { useFeed, type FeedTabType } from '@/hooks/useFeed';
 import { useInfiniteSortedPosts } from '@/hooks/useTrending';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePersonalLists } from '@/hooks/usePersonalLists';
+import { useInterests } from '@/hooks/useInterests';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { cn } from '@/lib/utils';
@@ -47,6 +49,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
   const { lists } = usePersonalLists();
+  const { hashtags: interestHashtags, addInterest } = useInterests();
 
   // Pinned lists resolved to titles + pubkeys
   const pinnedLists = useMemo(() => {
@@ -85,6 +88,8 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
 
   const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [addingHashtag, setAddingHashtag] = useState(false);
+  const [newHashtag, setNewHashtag] = useState('');
   const { startSignup } = useOnboarding();
 
   // Switch to follows tab when user logs in
@@ -113,6 +118,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
     if (activeTab.startsWith('list:')) {
       const dTag = activeTab.slice(5);
       return pinnedLists.find((l) => l.dTag === dTag)?.title ?? 'List';
+    }
+    if (activeTab.startsWith('hashtag:')) {
+      return `#${activeTab.slice(8)}`;
     }
     return 'Feed';
   }, [activeTab, pinnedLists, communityLabel]);
@@ -211,7 +219,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
       {/* Feed selector (logged in) or CTA (logged out, main feed only) */}
       {user ? (
         <div className="flex items-center border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 px-4 h-14">
-          <DropdownMenu>
+          <DropdownMenu onOpenChange={(open) => { if (!open) { setAddingHashtag(false); setNewHashtag(''); } }}>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 rounded-full border border-border bg-secondary/30 px-4 py-2 text-[15px] font-semibold shadow-sm hover:bg-secondary/60 active:scale-[0.97] transition-all">
                 {activeTabLabel}
@@ -260,6 +268,60 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
                     />
                   ))}
                 </>
+              )}
+              <DropdownMenuSeparator className="my-1.5" />
+              <DropdownMenuLabel className="px-2.5 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Interests
+              </DropdownMenuLabel>
+              {interestHashtags.map((tag) => (
+                <FeedMenuItem
+                  key={tag}
+                  icon={<Hash className="size-4" />}
+                  label={`#${tag}`}
+                  active={activeTab === `hashtag:${tag}`}
+                  onClick={() => setActiveTab(`hashtag:${tag}`)}
+                />
+              ))}
+              {addingHashtag ? (
+                <div className="px-2 py-1.5">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const tag = newHashtag.trim().toLowerCase().replace(/^#/, '');
+                      if (tag) {
+                        addInterest.mutate(tag);
+                        setActiveTab(`hashtag:${tag}` as FeedTab);
+                      }
+                      setNewHashtag('');
+                      setAddingHashtag(false);
+                    }}
+                  >
+                    <Input
+                      placeholder="e.g. nostr"
+                      value={newHashtag}
+                      onChange={(e) => setNewHashtag(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setNewHashtag('');
+                          setAddingHashtag(false);
+                        }
+                      }}
+                      className="h-8 text-sm"
+                      autoFocus
+                    />
+                  </form>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setAddingHashtag(true);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-md px-2.5 py-2.5 text-sm text-muted-foreground hover:bg-accent transition-colors"
+                >
+                  <Plus className="size-4" />
+                  <span>Add hashtag</span>
+                </button>
               )}
             </DropdownMenuContent>
           </DropdownMenu>

@@ -30,8 +30,8 @@ interface UseFeedOptions {
   authors?: string[];
 }
 
-/** Feed tab type. Includes list: prefix for pinned list feeds. */
-export type FeedTabType = 'follows' | 'global' | 'communities' | `list:${string}`;
+/** Feed tab type. Includes list: prefix for pinned list feeds and hashtag: prefix for interest feeds. */
+export type FeedTabType = 'follows' | 'global' | 'communities' | `list:${string}` | `hashtag:${string}`;
 
 /** Hook to fetch the global, followed, or communities feed with infinite scroll pagination. */
 export function useFeed(tab: FeedTabType, options?: UseFeedOptions) {
@@ -55,6 +55,8 @@ export function useFeed(tab: FeedTabType, options?: UseFeedOptions) {
   // Without this guard, the query falls through to the global branch while followList is still loading.
   // Allow query to run if not on follows tab, OR if follow list has loaded (even if empty).
   const isListTab = tab.startsWith('list:');
+  const isHashtagTab = tab.startsWith('hashtag:');
+  const hashtagValue = isHashtagTab ? tab.slice(8).toLowerCase() : '';
   const listAuthors = options?.authors;
   const listAuthorsKey = listAuthors ? [...listAuthors].sort().join(',') : '';
   const followsReady = tab !== 'follows' || (!!user && followList !== undefined);
@@ -82,7 +84,7 @@ export function useFeed(tab: FeedTabType, options?: UseFeedOptions) {
     // on page load because feedSettings is read from localStorage
     // synchronously — the encrypted settings sync at ~5s only calls
     // updateConfig if values actually differ (NostrSync changed guard).
-    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, listAuthorsKey],
+    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, listAuthorsKey, hashtagValue],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
@@ -382,6 +384,27 @@ export function useFeed(tab: FeedTabType, options?: UseFeedOptions) {
         cacheEvents(dedupedItems);
 
         return { items: dedupedItems, oldestQueryTimestamp };
+      } else if (isHashtagTab && hashtagValue) {
+        // Hashtag/interest feed — posts tagged with this hashtag
+        const hashtagKinds = allKinds.filter((k) => !isRepostKind(k));
+        const filter: Record<string, unknown> = { kinds: hashtagKinds, '#t': [hashtagValue], limit: PAGE_SIZE, ...tagFilters };
+        if (pageParam) filter.until = pageParam;
+
+        const rawEvents = await nostr.query(
+          [filter as { kinds: number[]; '#t': string[]; limit: number; until?: number }],
+          { signal },
+        );
+
+        const validEvents = rawEvents.filter((ev) => ev.created_at <= now);
+        const oldestQueryTimestamp = getPaginationCursor(validEvents);
+
+        const items = validEvents
+          .sort((a, b) => b.created_at - a.created_at)
+          .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
+
+        cacheEvents(items);
+
+        return { items, oldestQueryTimestamp };
       } else {
         // Global feed — all enabled kinds except reposts (too noisy without author filter)
         const globalKinds = allKinds.filter((k) => !isRepostKind(k));
@@ -420,7 +443,7 @@ export function useFeed(tab: FeedTabType, options?: UseFeedOptions) {
       return lastPage.oldestQueryTimestamp - 1;
     },
     initialPageParam: undefined as number | undefined,
-    enabled: followsReady && (!isListTab || (!!listAuthors && listAuthors.length > 0)),
+    enabled: followsReady && (!isListTab || (!!listAuthors && listAuthors.length > 0)) && (!isHashtagTab || !!hashtagValue),
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
     gcTime: 30 * 60 * 1000, // 30 min — don't GC feed data while the app is open
