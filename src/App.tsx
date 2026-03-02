@@ -80,6 +80,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludeProfileThemeUpdates: true,
     showCustomProfileThemes: true,
     feedIncludeVoiceMessages: false,
+    showCustomEmojis: true,
     followsFeedShowReplies: true,
   },
   sidebarOrder: ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'themes', 'theme', 'settings'],

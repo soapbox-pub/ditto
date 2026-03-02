@@ -65,6 +65,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeProfileThemeUpdates: true,
       showCustomProfileThemes: true,
       feedIncludeVoiceMessages: false,
+      showCustomEmojis: true,
       followsFeedShowReplies: true,
     },
     sidebarOrder: [],

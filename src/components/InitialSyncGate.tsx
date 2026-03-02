@@ -372,6 +372,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       feedIncludeTreasureFoundLogs: selectedContent.has('treasures'),
       feedIncludeWebxdc: selectedContent.has('webxdc'),
       feedIncludeVoiceMessages: false,
+      showCustomEmojis: true,
       feedIncludeProfileThemes: true,
       feedIncludeThemeDefinitions: true,
       feedIncludeProfileThemeUpdates: true,

@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EmojiPicker } from '@/components/EmojiPicker';
+import { useCustomEmojis } from '@/hooks/useCustomEmojis';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { GifPicker } from '@/components/GifPicker';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { MentionAutocomplete } from '@/components/MentionAutocomplete';
@@ -159,6 +161,10 @@ export function ComposeBox({
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
   const { mutateAsync: postComment, isPending: isCommentPending } = usePostComment();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
+  const { feedSettings } = useFeedSettings();
+  const customEmojisEnabled = feedSettings.showCustomEmojis !== false;
+  const { emojis: allCustomEmojis } = useCustomEmojis();
+  const customEmojis = customEmojisEnabled ? allCustomEmojis : [];
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -674,6 +680,21 @@ export function ComposeBox({
         }
       }
 
+      // NIP-30: Add emoji tags for custom emojis referenced in content
+      if (customEmojis.length > 0) {
+        const emojiMap = new Map(customEmojis.map((e) => [e.shortcode, e.url]));
+        const shortcodeRegex = /:([a-zA-Z0-9_]+):/g;
+        const usedEmojis = new Set<string>();
+        let emojiMatch;
+        while ((emojiMatch = shortcodeRegex.exec(finalContent)) !== null) {
+          const shortcode = emojiMatch[1];
+          if (emojiMap.has(shortcode) && !usedEmojis.has(shortcode)) {
+            usedEmojis.add(shortcode);
+            tags.push(['emoji', shortcode, emojiMap.get(shortcode)!]);
+          }
+        }
+      }
+
       // NIP-92: Add imeta tags for media URLs in content
       const mediaUrlMatches = finalContent.matchAll(new RegExp(IMETA_MEDIA_URL_REGEX.source, 'gi'));
       const processedUrls = new Set<string>();
@@ -1105,9 +1126,16 @@ export function ComposeBox({
                     sideOffset={8}
                     className="w-auto p-0 border-border"
                   >
-                    <EmojiPicker onSelect={(emoji) => {
-                      insertEmoji(emoji);
-                    }} />
+                    <EmojiPicker
+                      customEmojis={customEmojis}
+                      onSelect={(selection) => {
+                        if (selection.type === 'native') {
+                          insertEmoji(selection.emoji);
+                        } else {
+                          insertEmoji(`:${selection.shortcode}:`);
+                        }
+                      }}
+                    />
                   </PopoverContent>
                 </Popover>
 
