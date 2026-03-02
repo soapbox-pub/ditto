@@ -1,13 +1,15 @@
-import { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Button } from '@/components/ui/button';
+import { ToastAction } from '@/components/ui/toast';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTheme } from '@/hooks/useTheme';
 import { toast } from '@/hooks/useToast';
 import { parseThemeDefinition, parseActiveProfileTheme, THEME_DEFINITION_KIND, ACTIVE_THEME_KIND } from '@/lib/themeEvent';
+import { type Theme } from '@/contexts/AppContext';
 import { coreToTokens, type CoreThemeColors, type ThemeConfig } from '@/themes';
 
 interface ThemeContentProps {
@@ -26,7 +28,7 @@ function hsl(value: string): string {
  */
 export function ThemeContent({ event }: ThemeContentProps) {
   const { user } = useCurrentUser();
-  const { applyCustomTheme } = useTheme();
+  const { theme, customTheme, setTheme, applyCustomTheme } = useTheme();
   const isOwn = user?.pubkey === event.pubkey;
 
   const parsed = useMemo(() => {
@@ -58,10 +60,16 @@ export function ThemeContent({ event }: ThemeContentProps) {
   const isDefinition = event.kind === THEME_DEFINITION_KIND;
   const identifier = isDefinition ? (parsed as { identifier?: string }).identifier : undefined;
 
-  /** Apply the theme directly when clicked (non-own themes only). */
+  const previousThemeRef = useRef<{ mode: Theme; config?: ThemeConfig }>();
+
+  /** Apply the theme directly when clicked. */
   const handleApplyTheme = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+
+    // Snapshot current theme so we can undo
+    previousThemeRef.current = { mode: theme, config: customTheme };
+
     const themeConfig: ThemeConfig = {
       colors: parsed.colors,
       title: parsed.title,
@@ -69,22 +77,32 @@ export function ThemeContent({ event }: ThemeContentProps) {
       background: parsed.background,
     };
     applyCustomTheme(themeConfig);
-    toast({ title: 'Theme applied', description: `"${parsed.title}" is now your active theme.` });
-  }, [parsed, applyCustomTheme]);
+    const undo = () => {
+      const prev = previousThemeRef.current;
+      if (!prev) return;
+      if (prev.mode === 'custom' && prev.config) {
+        applyCustomTheme(prev.config);
+      } else {
+        setTheme(prev.mode);
+      }
+    };
+
+    toast({
+      title: 'Theme applied',
+      description: `"${parsed.title}" is now your active theme.`,
+      action: <ToastAction altText="Undo theme change" onClick={undo}>Undo</ToastAction>,
+    });
+  }, [parsed, theme, customTheme, applyCustomTheme, setTheme]);
 
   return (
     <div className="mt-2 space-y-2">
-      {!isOwn ? (
-        <button
-          type="button"
-          className="w-full text-left cursor-pointer transition-opacity hover:opacity-90 active:opacity-75"
-          onClick={handleApplyTheme}
-        >
-          <ThemeMockup colors={colors} title={title} description={description} backgroundUrl={backgroundUrl} />
-        </button>
-      ) : (
+      <button
+        type="button"
+        className="w-full text-left cursor-pointer transition-opacity hover:opacity-90 active:opacity-75"
+        onClick={handleApplyTheme}
+      >
         <ThemeMockup colors={colors} title={title} description={description} backgroundUrl={backgroundUrl} />
-      )}
+      </button>
 
       {/* Actions — only Edit for own theme definitions */}
       {isDefinition && identifier && isOwn && (
