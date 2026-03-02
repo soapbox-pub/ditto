@@ -1155,8 +1155,8 @@ export function ProfilePage() {
 
   useLayoutOptions(pubkey ? {
     rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} />,
-    showFAB: true,
-    onFabClick: activeTab === 'wall' && profileFollowsMe ? openWallCompose : undefined,
+    showFAB: !(activeTab === 'wall' && !profileFollowsMe),
+    onFabClick: activeTab === 'wall' ? openWallCompose : undefined,
   } : {});
 
   if (!pubkey) {
