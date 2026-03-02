@@ -844,7 +844,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {/* Ancestor thread chain if this is a reply */}
       {parentEventId && (
         <div ref={ancestorRef}>
-          <AncestorThread eventId={parentEventId} collapseAfter={isReaction ? 1 : undefined} />
+          <AncestorThread eventId={parentEventId} collapseAfter={isReaction ? 0 : undefined} />
         </div>
       )}
 
