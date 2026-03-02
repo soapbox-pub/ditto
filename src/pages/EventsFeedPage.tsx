@@ -239,6 +239,7 @@ function ActivitySection() {
         if (aTag) coords.add(aTag);
       }
 
+
       const referencedEvents = new Map<string, NostrEvent>();
       if (coords.size > 0) {
         const filters = Array.from(coords).map((coord) => {
