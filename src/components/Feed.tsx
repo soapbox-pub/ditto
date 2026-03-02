@@ -197,7 +197,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
             ))}
           </div>
         ) : feedItems.length > 0 ? (
-          <div>
+          <div className="divide-y divide-border">
             {feedItems.map((item: FeedItem) => (
               <NoteCard
                 key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
