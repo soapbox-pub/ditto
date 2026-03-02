@@ -5,6 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteContent, isSingleImagePost } from '@/components/NoteContent';
+import { ImageGallery } from '@/components/ImageGallery';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { ReactionButton } from '@/components/ReactionButton';
@@ -26,7 +27,7 @@ import { ReplyContext } from '@/components/ReplyContext';
 import { CommentContext } from '@/components/CommentContext';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { EmojifiedText } from '@/components/CustomEmoji';
+import { EmojifiedText, ReactionEmoji } from '@/components/CustomEmoji';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -219,7 +220,12 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isTheme = isThemeDefinition || isActiveTheme;
   const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
   const isEmojiPack = event.kind === 30030;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isEmojiPack;
+  const isReaction = event.kind === 7;
+  const isPhoto = event.kind === 20;
+  const isNormalVideo = event.kind === 21;
+  const isShortVideo = event.kind === 22;
+  const isVideo = isNormalVideo || isShortVideo;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isEmojiPack && !isReaction && !isPhoto && !isVideo;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideoUrls(event.content) : [], [event.content, isTextNote]);
@@ -308,7 +314,11 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
 
       {/* Content — kind-based dispatch, guarded by NIP-36 content-warning */}
       <ContentWarningGuard event={event}>
-        {isVine ? (
+        {isPhoto ? (
+          <PhotoContent event={event} />
+        ) : isVideo ? (
+          <VideoContent event={event} />
+        ) : isVine ? (
           <>
             {vineTitle && <p className="text-[15px] mt-2 leading-relaxed break-words overflow-hidden">{vineTitle}</p>}
             <VineMedia imeta={imeta} hashtags={hashtags} />
@@ -448,6 +458,116 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
       </button>
     </div>
   );
+
+  // ── Reaction layout (kind 7) — compact activity-style card ──
+  if (isReaction) {
+    // Threaded reaction (used in AncestorThread with connector line)
+    if (threaded || threadedLast) {
+      return (
+        <article
+          className={cn(
+            'px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
+            threaded ? 'pb-0' : 'pb-3 border-b border-border',
+            className,
+          )}
+          onClick={handleCardClick}
+          onAuxClick={handleAuxClick}
+        >
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {/* Reaction emoji bubble instead of avatar */}
+              <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0">
+                <ReactionEmoji content={event.content} tags={event.tags} className="text-lg leading-none" />
+              </div>
+              {threaded && <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />}
+            </div>
+            <div className={cn('flex-1 min-w-0 flex items-center min-h-10', threaded && 'pb-3')}>
+              <div className="flex items-center gap-2">
+                {author.isLoading ? (
+                  <Skeleton className="size-6 rounded-full shrink-0" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <Avatar className="size-6">
+                        <AvatarImage src={metadata?.picture} alt={displayName} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                          {displayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                {author.isLoading ? (
+                  <Skeleton className="h-3.5 w-20" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
+                      {author.data?.event ? (
+                        <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                      ) : displayName}
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                <span className="text-sm text-muted-foreground">reacted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at)}</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      );
+    }
+
+    // Normal reaction card (standalone or in feed)
+    return (
+      <article
+        className={cn(
+          'px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        <div className="flex items-center gap-3">
+          {/* Large reaction emoji */}
+          <div className="flex items-center justify-center size-11 rounded-full bg-pink-500/10 shrink-0">
+            <ReactionEmoji content={event.content} tags={event.tags} className="text-xl leading-none" />
+          </div>
+
+          {/* Author + "reacted" label */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {author.isLoading ? (
+              <>
+                <Skeleton className="size-6 rounded-full shrink-0" />
+                <Skeleton className="h-4 w-24" />
+              </>
+            ) : (
+              <>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <Avatar className="size-6">
+                      <AvatarImage src={metadata?.picture} alt={displayName} />
+                      <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                        {displayName[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                </ProfileHoverCard>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link to={profileUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
+                    {author.data?.event ? (
+                      <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                    ) : displayName}
+                  </Link>
+                </ProfileHoverCard>
+                <span className="text-sm text-muted-foreground">reacted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at)}</span>
+              </>
+            )}
+          </div>
+        </div>
+      </article>
+    );
+  }
 
   // ── Threaded layout (with or without connector line) ──
   if (threaded || threadedLast) {
@@ -658,6 +778,134 @@ function NoteMedia({
 /** Inline video player for kind 1 notes. */
 function NoteVideoPlayer({ url, poster, dim, blurhash }: { url: string; poster?: string; dim?: string; blurhash?: string }) {
   return <VideoPlayer src={url} poster={poster} dim={dim} blurhash={blurhash} />;
+}
+
+// ── NIP-68 Photo content (kind 20) ────────────────────────────────────────────
+
+/** Parse all imeta image URLs from NIP-68 photo events. */
+function parsePhotoUrls(tags: string[][]): Array<{ url: string; alt?: string; blurhash?: string }> {
+  const results: Array<{ url: string; alt?: string; blurhash?: string }> = [];
+  for (const tag of tags) {
+    if (tag[0] !== 'imeta') continue;
+    const parts: Record<string, string> = {};
+    for (let i = 1; i < tag.length; i++) {
+      const p = tag[i];
+      const sp = p.indexOf(' ');
+      if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
+    }
+    if (parts.url) results.push({ url: parts.url, alt: parts.alt, blurhash: parts.blurhash });
+  }
+  return results;
+}
+
+/** Inline photo gallery for NIP-68 kind 20 events. */
+function PhotoContent({ event }: { event: NostrEvent }) {
+  const photos = useMemo(() => parsePhotoUrls(event.tags), [event.tags]);
+  const title = getTag(event.tags, 'title');
+  const description = event.content;
+  const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
+
+  // Build imetaMap with dim + blurhash so ImageGallery can show blurhash placeholders
+  const imetaMap = useMemo(() => {
+    const map = new Map<string, { dim?: string; blurhash?: string }>();
+    for (const photo of photos) {
+      map.set(photo.url, { blurhash: photo.blurhash });
+    }
+    return map;
+  }, [photos]);
+
+  if (photos.length === 0) return null;
+
+  return (
+    <div className="mt-2 space-y-2">
+      {title && <p className="font-semibold text-[15px]">{title}</p>}
+      <ImageGallery images={photos.map((p) => p.url)} maxVisible={4} maxGridHeight="480px" imetaMap={imetaMap} />
+      {description && <p className="text-[15px] leading-relaxed text-muted-foreground">{description}</p>}
+      {hashtags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {hashtags.slice(0, 5).map((tag) => (
+            <Link key={tag} to={`/t/${encodeURIComponent(tag)}`} className="text-xs text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+              #{tag}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── NIP-71 Video content (kinds 21 & 22) ──────────────────────────────────────
+
+/** Parse the primary video url and thumbnail from NIP-71 imeta tags. */
+function parseVideoImeta(tags: string[][]): { url?: string; thumbnail?: string; duration?: string } {
+  for (const tag of tags) {
+    if (tag[0] !== 'imeta') continue;
+    const parts: Record<string, string> = {};
+    for (let i = 1; i < tag.length; i++) {
+      const p = tag[i];
+      const sp = p.indexOf(' ');
+      if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
+    }
+    if (parts.url) return { url: parts.url, thumbnail: parts.image, duration: parts.duration };
+  }
+  // Fallback to plain url/thumb tags
+  return {
+    url: tags.find(([n]) => n === 'url')?.[1],
+    thumbnail: tags.find(([n]) => n === 'thumb')?.[1] ?? tags.find(([n]) => n === 'image')?.[1],
+  };
+}
+
+/** Format seconds into MM:SS / HH:MM:SS. */
+function fmtDuration(seconds: string | undefined): string | undefined {
+  const s = parseFloat(seconds ?? '');
+  if (isNaN(s) || s <= 0) return undefined;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = Math.floor(s % 60);
+  const mm = String(m).padStart(2, '0');
+  const ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/** Inline video player for NIP-71 kind 21/22 events. */
+function VideoContent({ event }: { event: NostrEvent }) {
+  const { url, thumbnail, duration } = useMemo(() => parseVideoImeta(event.tags), [event.tags]);
+  const title = getTag(event.tags, 'title');
+  const description = event.content;
+  const isShort = event.kind === 22;
+  const formattedDuration = fmtDuration(duration);
+  const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
+
+  if (!url) return null;
+
+  return (
+    <div className="mt-2 space-y-2">
+      {title && <p className="font-semibold text-[15px]">{title}</p>}
+      <div className={cn('relative rounded-xl overflow-hidden bg-muted', isShort ? 'max-w-[280px]' : '')}>
+        <VideoPlayer src={url} poster={thumbnail} />
+        {formattedDuration && (
+          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">
+            {formattedDuration}
+          </div>
+        )}
+        {isShort && (
+          <div className="absolute top-2 left-2 pointer-events-none">
+            <span className="text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">Short</span>
+          </div>
+        )}
+      </div>
+      {description && <p className="text-[15px] leading-relaxed text-muted-foreground">{description}</p>}
+      {hashtags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {hashtags.slice(0, 5).map((tag) => (
+            <Link key={tag} to={`/t/${encodeURIComponent(tag)}`} className="text-xs text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+              #{tag}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Media content for kind 34236 vine events — rendered at full card width. */

@@ -22,7 +22,7 @@ import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { InteractionsModal, type InteractionTab } from '@/components/InteractionsModal';
 import { ZapDialog } from '@/components/ZapDialog';
-import { RenderResolvedEmoji, EmojifiedText } from '@/components/CustomEmoji';
+import { RenderResolvedEmoji, EmojifiedText, ReactionEmoji } from '@/components/CustomEmoji';
 import { PollContent } from '@/components/PollContent';
 import { GeocacheContent } from '@/components/GeocacheContent';
 import { FoundLogContent } from '@/components/FoundLogContent';
@@ -584,7 +584,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const isFileMetadata = event.kind === 1063;
     const isTheme = event.kind === 36767 || event.kind === 16767;
     const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
-    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme && !isVoiceMessage;
+    const isReaction = event.kind === 7;
+    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme && !isVoiceMessage && !isReaction;
 
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
@@ -764,7 +765,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const [interactionsOpen, setInteractionsOpen] = useState(false);
   const [interactionsTab, setInteractionsTab] = useState<InteractionTab>('reposts');
 
-  const parentEventId = useMemo(() => isTextNote ? getParentEventId(event) : undefined, [event, isTextNote]);
+  const parentEventId = useMemo(() => (isTextNote || isReaction) ? getParentEventId(event) : undefined, [event, isTextNote, isReaction]);
 
    // For kind 1111 comments on external content, extract the I tag for the parent preview
   const externalIdentifier = useMemo(() => {
@@ -843,12 +844,98 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {/* Ancestor thread chain if this is a reply */}
       {parentEventId && (
         <div ref={ancestorRef}>
-          <AncestorThread eventId={parentEventId} />
+          <AncestorThread eventId={parentEventId} collapseAfter={isReaction ? 0 : undefined} />
         </div>
       )}
 
+      {/* Reaction event — compact activity-style card */}
+      {isReaction && (
+        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+          <div className="flex items-center gap-3">
+            {/* Reaction emoji bubble — size-10 matches the threaded ancestor avatar column */}
+            <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0">
+              <ReactionEmoji content={event.content} tags={event.tags} className="text-xl leading-none" />
+            </div>
+
+            {/* Author + "reacted" label + timestamp — single line */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              {author.isLoading ? (
+                <>
+                  <Skeleton className="size-6 rounded-full shrink-0" />
+                  <Skeleton className="h-4 w-28" />
+                </>
+              ) : (
+                <>
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="shrink-0">
+                      <Avatar className="size-6">
+                        <AvatarImage src={metadata?.picture} alt={displayName} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                          {displayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="font-bold text-sm hover:underline truncate">
+                      {author.data?.event ? (
+                        <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                      ) : displayName}
+                    </Link>
+                  </ProfileHoverCard>
+                  <span className="text-sm text-muted-foreground">reacted</span>
+                  <span className="text-xs text-muted-foreground ml-auto shrink-0">{formatFullDate(event.created_at)}</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-between py-1 mt-2 border-t border-b border-border -mx-4 px-4">
+            <button
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="Reply"
+              onClick={() => setReplyOpen(true)}
+            >
+              <MessageCircle className="size-5" />
+              {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
+            </button>
+
+            <RepostMenu event={event}>
+              {(isReposted: boolean) => (
+                <button
+                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
+                  title={isReposted ? 'Undo repost' : 'Repost'}
+                >
+                  <RepostIcon className="size-5" />
+                  {repostTotal ? <span className="text-sm tabular-nums">{repostTotal}</span> : null}
+                </button>
+              )}
+            </RepostMenu>
+
+            <ReactionButton
+              eventId={event.id}
+              eventPubkey={event.pubkey}
+              eventKind={event.kind}
+              reactionCount={stats?.reactions}
+            />
+
+            <button
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="More"
+              onClick={() => setMoreMenuOpen(true)}
+            >
+              <MoreHorizontal className="size-5" />
+            </button>
+          </div>
+
+          <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+          <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+        </article>
+      )}
+
       {/* Main post — expanded Ditto-style view */}
-      <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+      {!isReaction && <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
         {/* Author row */}
         <div className="flex items-center gap-3">
           {author.isLoading ? (
@@ -1064,7 +1151,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           onOpenChange={setInteractionsOpen}
           initialTab={interactionsTab}
         />
-      </article>
+      </article>}
 
       {/* Replies */}
       <div>
@@ -1091,14 +1178,18 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
  * Recursively fetches parent -> grandparent -> ... -> root, then renders
  * them top-down with thread connector lines.
  */
-function AncestorThread({ eventId, depth = 0 }: { eventId: string; depth?: number }) {
+function AncestorThread({ eventId, depth = 0, collapseAfter }: { eventId: string; depth?: number; collapseAfter?: number }) {
   const { data: event, isLoading } = useEvent(eventId);
+  const [expanded, setExpanded] = useState(false);
 
   // Determine this ancestor's own parent
   const parentId = useMemo(() => event ? getParentEventId(event) : undefined, [event]);
 
   // Cap recursion to avoid runaway chains
   const MAX_DEPTH = 20;
+
+  // When collapseAfter is set and we've reached the limit, collapse remaining ancestors
+  const shouldCollapse = collapseAfter !== undefined && depth >= collapseAfter && parentId && !expanded;
 
   if (isLoading) {
     return (
@@ -1129,7 +1220,23 @@ function AncestorThread({ eventId, depth = 0 }: { eventId: string; depth?: numbe
     <>
       {/* Render this event's parent first (if any), so ancestors appear top-down */}
       {parentId && depth < MAX_DEPTH && (
-        <AncestorThread eventId={parentId} depth={depth + 1} />
+        shouldCollapse ? (
+          <button
+            onClick={() => setExpanded(true)}
+            className="flex items-center gap-3 px-4 py-2 w-full hover:bg-secondary/30 transition-colors"
+          >
+            <div className="flex flex-col items-center w-10">
+              <div className="w-0.5 h-2 bg-foreground/20 rounded-full" />
+              <div className="size-1.5 rounded-full bg-foreground/30 my-0.5" />
+              <div className="size-1.5 rounded-full bg-foreground/20 my-0.5" />
+              <div className="size-1.5 rounded-full bg-foreground/10 my-0.5" />
+              <div className="w-0.5 h-2 bg-foreground/20 rounded-full" />
+            </div>
+            <span className="text-sm text-primary font-medium">Show earlier posts</span>
+          </button>
+        ) : (
+          <AncestorThread eventId={parentId} depth={depth + 1} collapseAfter={collapseAfter} />
+        )
       )}
       <NoteCard event={event} threaded />
     </>
