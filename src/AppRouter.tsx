@@ -24,7 +24,8 @@ import { HashtagPage } from "./pages/HashtagPage";
 import { DomainFeedPage } from "./pages/DomainFeedPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { KindFeedPage } from "./pages/KindFeedPage";
-import { StreamsFeedPage } from "./pages/StreamsFeedPage";
+import { VideosFeedPage } from "./pages/VideosFeedPage";
+import { PhotosFeedPage } from "./pages/PhotosFeedPage";
 import { VinesFeedPage } from "./pages/VinesFeedPage";
 import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
@@ -73,12 +74,15 @@ export function AppRouter() {
           <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
           <Route path="/settings/magic" element={<MagicSettingsPage />} />
           <Route path="/settings/network" element={<NetworkSettingsPage />} />
+          <Route path="/photos" element={<PhotosFeedPage />} />
+          <Route path="/videos" element={<VideosFeedPage />} />
+          {/* /streams redirects to /videos for backward compatibility */}
+          <Route path="/streams" element={<Navigate to="/videos" replace />} />
           <Route path="/vines" element={<VinesFeedPage />} />
           <Route path="/polls" element={<KindFeedPage kind={pollsDef.kind} title={pollsDef.label} icon={sidebarItemIcon('polls', 'size-5')} />} />
           <Route path="/treasures" element={<TreasuresPage />} />
           <Route path="/colors" element={<KindFeedPage kind={colorsDef.kind} title={colorsDef.label} icon={sidebarItemIcon('colors', 'size-5')} />} />
           <Route path="/packs" element={<KindFeedPage kind={packsDef.kind} title={packsDef.label} icon={sidebarItemIcon('packs', 'size-5')} />} />
-          <Route path="/streams" element={<StreamsFeedPage />} />
           <Route path="/webxdc" element={<WebxdcFeedPage />} />
           <Route path="/articles" element={<KindFeedPage kind={articlesDef.kind} title={articlesDef.label} icon={sidebarItemIcon('articles', 'size-5')} />} />
           <Route path="/decks" element={<KindFeedPage kind={decksDef.kind} title={decksDef.label} icon={sidebarItemIcon('decks', 'size-5')} />} />

@@ -185,6 +185,40 @@ export function useInfiniteSortedPosts(sort: SortMode, enabled = true) {
   });
 }
 
+/**
+ * Fetches hot-sorted events for specific kinds with infinite scroll.
+ * Uses NIP-50 search extension `sort:hot` against relay.ditto.pub.
+ */
+export function useInfiniteHotFeed(kinds: number[], enabled = true, limit = SORTED_PAGE_SIZE) {
+  const { nostr } = useNostr();
+
+  return useInfiniteQuery<NostrEvent[], Error>({
+    queryKey: ['infinite-hot-feed', kinds.join(','), limit],
+    queryFn: async ({ pageParam, signal }) => {
+      const ditto = nostr.relay(DITTO_RELAY);
+      const filter: Record<string, unknown> = {
+        kinds,
+        search: 'sort:hot protocol:nostr',
+        limit,
+      };
+      if (pageParam) filter.until = pageParam;
+      return ditto.query(
+        [filter as { kinds: number[]; search: string; limit: number; until?: number }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
+      );
+    },
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length === 0) return undefined;
+      return lastPage[lastPage.length - 1].created_at - 1;
+    },
+    initialPageParam: undefined as number | undefined,
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    placeholderData: (prev) => prev,
+  });
+}
+
 /** Fetches the latest kind 0 profiles seen on the relay. */
 export function useLatestAccounts(enabled = true) {
   const { nostr } = useNostr();

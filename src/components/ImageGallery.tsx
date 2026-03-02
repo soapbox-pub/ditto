@@ -71,7 +71,7 @@ export function ImageGallery({
       {/* Thumbnail grid */}
       <div
         className={cn(
-          'mt-3 rounded-2xl overflow-hidden border border-border',
+          'mt-3 rounded-2xl overflow-hidden',
           visibleImages.length > 1 && 'grid grid-cols-2 gap-0.5',
           className,
         )}
@@ -412,9 +412,9 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
         </button>
       )}
 
-      {/* Image */}
+      {/* Image — fills the entire viewport; top/bottom space is consumed by the top bar overlay */}
       <div
-        className="relative z-[1] flex items-center justify-center w-full h-full px-4 py-16 sm:px-16"
+        className="relative z-[1] flex items-center justify-center w-full h-full"
         style={{
           transform: isDragging ? `translateX(${touchDelta}px)` : undefined,
           transition: isDragging ? 'none' : 'transform 0.2s ease-out',
@@ -464,7 +464,7 @@ function LightboxImage({ url, isLoaded, onLoad }: { url: string; isLoaded: boole
       src={src}
       alt=""
       className={cn(
-        'max-w-full max-h-full object-contain rounded-lg select-none transition-opacity duration-300',
+        'w-full h-full object-contain select-none transition-opacity duration-300',
         isLoaded ? 'opacity-100' : 'opacity-0',
       )}
       onLoad={onLoad}
