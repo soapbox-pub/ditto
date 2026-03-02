@@ -56,7 +56,7 @@ export function SidebarMoreMenu({
           <span>More...</span>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px)]">
+      <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px)]">
         <div className="flex items-center gap-3 px-2 py-2 shrink-0 bg-muted/50 rounded-t-[inherit]">
           <Search className="size-5 shrink-0" />
           <input
