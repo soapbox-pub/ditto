@@ -1,7 +1,7 @@
 import {
   Bell, Search, TrendingUp, User, Bookmark, Settings, SwatchBook, Palette,
   Clapperboard, BarChart3, PartyPopper, Radio, BookOpen, Sparkles, Blocks,
-  MessageSquare, Repeat2, MessageSquareMore, Mic, Bot,
+  MessageSquare, Repeat2, MessageSquareMore, Mic, Bot, SmilePlus,
 } from 'lucide-react';
 import { PlanetIcon } from '@/components/icons/PlanetIcon';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -56,6 +56,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'colors', label: 'Color Moments', path: '/colors', icon: Palette },
   { id: 'decks', label: 'Magic Decks', path: '/decks', icon: CardsIcon },
   { id: 'treasures', label: 'Treasures', path: '/treasures', icon: ChestIcon },
+  { id: 'emoji-packs', label: 'Emoji Packs', path: '/emoji-packs', icon: SmilePlus },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */
