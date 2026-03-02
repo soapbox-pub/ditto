@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Copy, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useTheme } from '@/hooks/useTheme';
+import { toast } from '@/hooks/useToast';
 import { parseThemeDefinition, parseActiveProfileTheme, THEME_DEFINITION_KIND, ACTIVE_THEME_KIND } from '@/lib/themeEvent';
-import { coreToTokens, type CoreThemeColors } from '@/themes';
+import { coreToTokens, type CoreThemeColors, type ThemeConfig } from '@/themes';
 
 interface ThemeContentProps {
   event: NostrEvent;
@@ -24,6 +26,7 @@ function hsl(value: string): string {
  */
 export function ThemeContent({ event }: ThemeContentProps) {
   const { user } = useCurrentUser();
+  const { applyCustomTheme } = useTheme();
   const isOwn = user?.pubkey === event.pubkey;
 
   const parsed = useMemo(() => {
@@ -40,6 +43,7 @@ export function ThemeContent({ event }: ThemeContentProps) {
         description: undefined as string | undefined,
         identifier: undefined as string | undefined,
         background: active.background,
+        font: active.font,
         sourceRef: active.sourceRef,
       };
     }
@@ -54,37 +58,45 @@ export function ThemeContent({ event }: ThemeContentProps) {
   const isDefinition = event.kind === THEME_DEFINITION_KIND;
   const identifier = isDefinition ? (parsed as { identifier?: string }).identifier : undefined;
 
+  /** Apply the theme directly when clicked (non-own themes only). */
+  const handleApplyTheme = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const themeConfig: ThemeConfig = {
+      colors: parsed.colors,
+      title: parsed.title,
+      font: parsed.font,
+      background: parsed.background,
+    };
+    applyCustomTheme(themeConfig);
+    toast({ title: 'Theme applied', description: `"${parsed.title}" is now your active theme.` });
+  }, [parsed, applyCustomTheme]);
+
   return (
     <div className="mt-2 space-y-2">
-      <ThemeMockup colors={colors} title={title} description={description} backgroundUrl={backgroundUrl} />
+      {!isOwn ? (
+        <button
+          type="button"
+          className="w-full text-left cursor-pointer transition-opacity hover:opacity-90 active:opacity-75"
+          onClick={handleApplyTheme}
+        >
+          <ThemeMockup colors={colors} title={title} description={description} backgroundUrl={backgroundUrl} />
+        </button>
+      ) : (
+        <ThemeMockup colors={colors} title={title} description={description} backgroundUrl={backgroundUrl} />
+      )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-        {isDefinition && identifier && isOwn && (
+      {/* Actions — only Edit for own theme definitions */}
+      {isDefinition && identifier && isOwn && (
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <Link to={`/settings/theme/edit?edit=${identifier}`}>
             <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-accent">
               <Pencil className="size-3.5 mr-1" />
               Edit Theme
             </Button>
           </Link>
-        )}
-        {isDefinition && identifier && !isOwn && (
-          <Link to={`/settings/theme/edit?import=${event.pubkey}&theme=${identifier}`}>
-            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-primary">
-              <Copy className="size-3.5 mr-1" />
-              Copy Theme
-            </Button>
-          </Link>
-        )}
-        {!isDefinition && !isOwn && (
-          <Link to={`/settings/theme/edit?import=${event.pubkey}`}>
-            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-primary">
-              <Copy className="size-3.5 mr-1" />
-              Copy Theme
-            </Button>
-          </Link>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
