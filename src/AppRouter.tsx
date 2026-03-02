@@ -31,6 +31,7 @@ import { TreasuresPage } from "./pages/TreasuresPage";
 import { ThemesPage } from "./pages/ThemesPage";
 import { ThemeBuilderPage } from "./pages/ThemeBuilderPage";
 import { ExternalContentPage } from "./pages/ExternalContentPage";
+import { AIChatPage } from "./pages/AIChatPage";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -82,6 +83,7 @@ export function AppRouter() {
           <Route path="/decks" element={<KindFeedPage kind={decksDef.kind} title={decksDef.label} icon={sidebarItemIcon('decks', 'size-5')} />} />
           <Route path="/themes" element={<ThemesPage />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
+          <Route path="/ai-chat" element={<AIChatPage />} />
           <Route path="/i/*" element={<ExternalContentPage />} />
 
           {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
