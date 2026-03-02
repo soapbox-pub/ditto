@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import { useMemo, useState, useCallback, type ReactNode } from 'react';
 import { type NostrEvent } from '@nostrify/nostrify';
 import { Link } from 'react-router-dom';
@@ -11,7 +10,8 @@ import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { Lightbox } from '@/components/ImageGallery';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { buildEmojiMap, emojify, EmojifiedText } from '@/components/CustomEmoji';
+import { EmojifiedText, CustomEmojiImg } from '@/components/CustomEmoji';
+import { buildEmojiMap } from '@/lib/customEmoji';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { COUNTRIES } from '@/lib/countries';
 import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX } from '@/lib/mediaUrls';
@@ -25,7 +25,53 @@ interface NoteContentProps {
   disableEmbeds?: boolean;
 }
 
+/** Regex matching `:shortcode:` patterns in text. */
+const SHORTCODE_REGEX = /:([a-zA-Z0-9_]+):/g;
 
+/**
+ * Replaces `:shortcode:` patterns in text with inline custom emoji images.
+ */
+function emojify(
+  text: string,
+  emojiMap: Map<string, string>,
+  imgClassName?: string,
+): ReactNode[] {
+  if (emojiMap.size === 0) return [text];
+
+  const result: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  SHORTCODE_REGEX.lastIndex = 0;
+
+  while ((match = SHORTCODE_REGEX.exec(text)) !== null) {
+    const [fullMatch, shortcode] = match;
+    const url = emojiMap.get(shortcode);
+
+    if (!url) continue;
+
+    if (match.index > lastIndex) {
+      result.push(text.substring(lastIndex, match.index));
+    }
+
+    result.push(
+      <CustomEmojiImg
+        key={`emoji-${match.index}`}
+        name={shortcode}
+        url={url}
+        className={imgClassName}
+      />,
+    );
+
+    lastIndex = match.index + fullMatch.length;
+  }
+
+  if (lastIndex < text.length) {
+    result.push(text.substring(lastIndex));
+  }
+
+  return result.length > 0 ? result : [text];
+}
 
 /** Bech32 charset used by NIP-19 identifiers. */
 const BECH32_CHARS = '023456789acdefghjklmnpqrstuvwxyz';
@@ -173,17 +219,6 @@ function isOnlyEmojisOrCustom(text: string, emojiMap: Map<string, string>): bool
   return true;
 }
 
-/** Returns true if the event content consists of a single image embed and nothing else,
- *  or a single image with only a short accompanying caption (≤ 100 non-whitespace characters). */
-export function isSingleImagePost(event: NostrEvent): boolean {
-  const text = event.content.trim();
-  const imageMatches = text.match(new RegExp(IMAGE_URL_REGEX.source, 'gi'));
-  // Must contain exactly one image URL
-  if (!imageMatches || imageMatches.length !== 1) return false;
-  // The non-image remainder must be very short (pure-image posts have no remainder at all)
-  const remainder = text.replace(IMAGE_URL_REGEX, '').trim();
-  return remainder.length <= 100;
-}
 
 /** Parses content of text note events so that URLs and hashtags are linkified. */
 export function NoteContent({

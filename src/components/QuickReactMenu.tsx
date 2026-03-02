@@ -8,7 +8,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { cn } from '@/lib/utils';
 import type { EventStats } from '@/hooks/useTrending';
-import type { ResolvedEmoji } from '@/components/CustomEmoji';
+import type { ResolvedEmoji } from '@/lib/customEmoji';
 
 interface QuickReactMenuProps {
   /** The event ID being reacted to. */
