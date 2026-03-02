@@ -28,7 +28,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   const { data: profiles, isFetching, followedPubkeys } = useSearchProfiles(query);
 
   // Country suggestions (local, synchronous)
-  const countries = useMemo(() => searchCountries(query, 3), [query]);
+  const countries = useMemo(() => searchCountries(query), [query]);
 
   // Total selectable items: countries + profiles
   const totalItems = countries.length + (profiles?.length ?? 0);

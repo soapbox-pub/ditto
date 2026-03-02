@@ -45,7 +45,7 @@ export function ProfileSearchDropdown({
   const { data: profiles, isFetching, followedPubkeys } = useSearchProfiles(query);
 
   // Country suggestions (local, synchronous)
-  const countries = useMemo(() => searchCountries(query, 3), [query]);
+  const countries = useMemo(() => searchCountries(query), [query]);
 
   // Show dropdown when we have results, or when text search is enabled and there's a query
   useEffect(() => {
