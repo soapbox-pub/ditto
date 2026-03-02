@@ -1444,7 +1444,7 @@ export function ProfilePage() {
               )}
 
               {/* NIP-38 user status */}
-              {profileStatus.status && (
+              {feedSettings.showUserStatuses !== false && profileStatus.status && (
                 <p className="text-sm text-muted-foreground italic mt-1">
                   {profileStatus.url ? (
                     <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">

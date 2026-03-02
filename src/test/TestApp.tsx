@@ -71,6 +71,7 @@ export function TestApp({ children }: TestAppProps) {
       showVideos: true,
       feedIncludeNormalVideos: true,
       feedIncludeShortVideos: true,
+      showUserStatuses: true,
       followsFeedShowReplies: true,
     },
     sidebarOrder: [],
