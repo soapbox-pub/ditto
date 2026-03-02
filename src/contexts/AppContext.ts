@@ -90,6 +90,8 @@ export interface FeedSettings {
   showCustomProfileThemes: boolean;
   /** Include voice messages (kind 1222 + 1244) in the follows/global feed */
   feedIncludeVoiceMessages: boolean;
+  /** Show NIP-30 custom emojis in the emoji picker */
+  showCustomEmojis: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }
