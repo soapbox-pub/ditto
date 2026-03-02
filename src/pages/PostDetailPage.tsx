@@ -844,7 +844,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {/* Ancestor thread chain if this is a reply */}
       {parentEventId && (
         <div ref={ancestorRef}>
-          <AncestorThread eventId={parentEventId} />
+          <AncestorThread eventId={parentEventId} collapseAfter={isReaction ? 1 : undefined} />
         </div>
       )}
 
@@ -1136,14 +1136,18 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
  * Recursively fetches parent -> grandparent -> ... -> root, then renders
  * them top-down with thread connector lines.
  */
-function AncestorThread({ eventId, depth = 0 }: { eventId: string; depth?: number }) {
+function AncestorThread({ eventId, depth = 0, collapseAfter }: { eventId: string; depth?: number; collapseAfter?: number }) {
   const { data: event, isLoading } = useEvent(eventId);
+  const [expanded, setExpanded] = useState(false);
 
   // Determine this ancestor's own parent
   const parentId = useMemo(() => event ? getParentEventId(event) : undefined, [event]);
 
   // Cap recursion to avoid runaway chains
   const MAX_DEPTH = 20;
+
+  // When collapseAfter is set and we've reached the limit, collapse remaining ancestors
+  const shouldCollapse = collapseAfter !== undefined && depth >= collapseAfter && parentId && !expanded;
 
   if (isLoading) {
     return (
@@ -1174,7 +1178,23 @@ function AncestorThread({ eventId, depth = 0 }: { eventId: string; depth?: numbe
     <>
       {/* Render this event's parent first (if any), so ancestors appear top-down */}
       {parentId && depth < MAX_DEPTH && (
-        <AncestorThread eventId={parentId} depth={depth + 1} />
+        shouldCollapse ? (
+          <button
+            onClick={() => setExpanded(true)}
+            className="flex items-center gap-3 px-4 py-2 w-full hover:bg-secondary/30 transition-colors"
+          >
+            <div className="flex flex-col items-center w-10">
+              <div className="w-0.5 h-2 bg-foreground/20 rounded-full" />
+              <div className="size-1.5 rounded-full bg-foreground/30 my-0.5" />
+              <div className="size-1.5 rounded-full bg-foreground/20 my-0.5" />
+              <div className="size-1.5 rounded-full bg-foreground/10 my-0.5" />
+              <div className="w-0.5 h-2 bg-foreground/20 rounded-full" />
+            </div>
+            <span className="text-sm text-primary font-medium">Show earlier posts</span>
+          </button>
+        ) : (
+          <AncestorThread eventId={parentId} depth={depth + 1} collapseAfter={collapseAfter} />
+        )
       )}
       <NoteCard event={event} threaded />
     </>
