@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useSeoMeta } from '@unhead/react';
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ChevronRight, Settings } from 'lucide-react';

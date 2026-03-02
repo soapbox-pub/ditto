@@ -596,7 +596,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       .map((e) => e.url);
     if (imetaAudios.length > 0) return imetaAudios;
     return extractAudioUrls(event.content);
-  }, [event.content, event.tags, imetaMap, isTextNote]);
+  }, [event.content, imetaMap, isTextNote]);
 
   // Extract webxdc attachments from imeta tags
   const webxdcApps = useMemo(() => {

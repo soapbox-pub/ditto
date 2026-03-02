@@ -237,6 +237,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols is stabilized via protocolsKey
   }, [nostr, query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey]);
 
   // Apply client-side filters (including mute filtering) without restarting the stream
@@ -245,6 +246,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
       return filterEvent(event, options, query);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
   }, [allEvents, options.includeReplies, options.mediaType, protocolsKey, query, muteItems]);
 
   return { posts, isLoading };

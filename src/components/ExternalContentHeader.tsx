@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, ExternalLink, Globe, MapPin, User } from 'lucide-react';
