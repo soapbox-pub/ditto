@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MessageCircle, Zap, MoreHorizontal, Play, Radio, Users, Palette } from 'lucide-react';
+import { MessageCircle, Zap, MoreHorizontal, Play, Radio, Users, Palette, SmilePlus } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import { FollowPackContent } from '@/components/FollowPackContent';
 import { ArticleContent } from '@/components/ArticleContent';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
+import { EmojiPackContent } from '@/components/EmojiPackContent';
 import { FileMetadataContent } from '@/components/FileMetadataContent';
 import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -220,12 +221,13 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isActiveTheme = event.kind === 16767;
   const isTheme = isThemeDefinition || isActiveTheme;
   const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
+  const isEmojiPack = event.kind === 30030;
   const isReaction = event.kind === 7;
   const isPhoto = event.kind === 20;
   const isNormalVideo = event.kind === 21;
   const isShortVideo = event.kind === 22;
   const isVideo = isNormalVideo || isShortVideo;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isReaction && !isPhoto && !isVideo;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isEmojiPack && !isReaction && !isPhoto && !isVideo;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideoUrls(event.content) : [], [event.content, isTextNote]);
@@ -341,6 +343,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           <StreamContent event={event} />
         ) : isFileMetadata ? (
           <FileMetadataContent event={event} compact />
+        ) : isEmojiPack ? (
+          <EmojiPackContent event={event} />
         ) : isTheme ? (
           <ThemeContent event={event} />
         ) : isVoiceMessage ? (
@@ -629,6 +633,11 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
       {/* Theme header — "<palette> <name> shared/updated a theme" */}
       {isTheme && !repostedBy && (
         <ThemeHeader pubkey={event.pubkey} variant={isThemeDefinition ? 'shared' : 'updated'} />
+      )}
+
+      {/* Emoji pack header — "<smile> <name> shared an emoji pack" */}
+      {isEmojiPack && !repostedBy && (
+        <EmojiPackHeader pubkey={event.pubkey} />
       )}
 
       {/* Header: avatar + name/handle stacked */}
@@ -1246,6 +1255,34 @@ function ThemeHeader({ pubkey, variant }: { pubkey: string; variant: 'shared' | 
         <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
           {variant === 'shared' ? 'shared a theme' : 'updated their theme'}
         </span>
+      </div>
+    </div>
+  );
+}
+
+function EmojiPackHeader({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const name = author.data?.metadata?.name || genUserName(pubkey);
+  const url = useProfileUrl(pubkey, author.data?.metadata);
+
+  return (
+    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
+      <div className="w-11 shrink-0 flex justify-end">
+        <SmilePlus className="size-4 text-primary translate-y-px" />
+      </div>
+      <div className="flex items-center min-w-0">
+        {author.isLoading ? (
+          <Skeleton className="h-3 w-20 inline-block" />
+        ) : (
+          <Link
+            to={url}
+            className="font-medium hover:underline mr-1 truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
+          </Link>
+        )}
+        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>shared an emoji pack</span>
       </div>
     </div>
   );

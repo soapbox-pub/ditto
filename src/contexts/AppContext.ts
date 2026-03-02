@@ -86,6 +86,12 @@ export interface FeedSettings {
   showCustomProfileThemes: boolean;
   /** Include voice messages (kind 1222 + 1244) in the follows/global feed */
   feedIncludeVoiceMessages: boolean;
+  /** Show NIP-30 custom emojis in the emoji picker */
+  showCustomEmojis: boolean;
+  /** Show Emoji Packs (kind 30030) link in sidebar */
+  showEmojiPacks: boolean;
+  /** Include Emoji Packs in the follows/global feed */
+  feedIncludeEmojiPacks: boolean;
   /** Show Photos (NIP-68, kind 20) link in sidebar */
   showPhotos: boolean;
   /** Include Photos in the follows/global feed */

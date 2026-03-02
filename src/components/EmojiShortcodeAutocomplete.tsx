@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import data from '@emoji-mart/data';
 import { cn } from '@/lib/utils';
+import { useCustomEmojis, type CustomEmoji } from '@/hooks/useCustomEmojis';
 
 interface EmojiData {
   id: string;
@@ -13,6 +14,8 @@ interface EmojiShortcodeAutocompleteProps {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   content: string;
   onInsertEmoji: (params: { start: number; end: number; replacement: string }) => void;
+  /** Called when a custom NIP-30 emoji is selected so the caller can track the emoji tag. */
+  onCustomEmojiInsert?: (emoji: CustomEmoji) => void;
 }
 
 /** CSS properties that affect text layout and must be copied to the mirror element. */
@@ -70,6 +73,18 @@ function getCaretCoordinates(textarea: HTMLTextAreaElement, position: number): {
 
 const MAX_RESULTS = 8;
 
+/** A result entry that can be either a native emoji or a custom NIP-30 emoji. */
+interface EmojiResult {
+  id: string;
+  name: string;
+  /** For native emojis */
+  native?: string;
+  /** For custom emojis */
+  customUrl?: string;
+  /** Search score (lower = better match) */
+  score: number;
+}
+
 /** Build a flat searchable list of emojis from emoji-mart data. */
 function buildEmojiIndex(): Array<{ id: string; name: string; native: string; keywords: string[] }> {
   const emojis = (data as { emojis: Record<string, EmojiData>; aliases: Record<string, string> }).emojis;
@@ -109,43 +124,39 @@ function getEmojiIndex() {
   return emojiIndex;
 }
 
-/** Search emojis by shortcode query. */
-function searchEmojis(query: string): Array<{ id: string; name: string; native: string }> {
+/** Search emojis by shortcode query (includes both native and custom emojis). */
+function searchEmojis(query: string, customEmojis: CustomEmoji[]): EmojiResult[] {
   if (!query) return [];
   const q = query.toLowerCase();
-  const index = getEmojiIndex();
-  const results: Array<{ id: string; name: string; native: string; score: number }> = [];
+  const results: EmojiResult[] = [];
 
+  // Search custom emojis first (they get priority)
+  for (const emoji of customEmojis) {
+    const sc = emoji.shortcode.toLowerCase();
+    if (sc === q) {
+      results.push({ id: `custom:${emoji.shortcode}`, name: emoji.shortcode, customUrl: emoji.url, score: -1 });
+    } else if (sc.startsWith(q)) {
+      results.push({ id: `custom:${emoji.shortcode}`, name: emoji.shortcode, customUrl: emoji.url, score: 0 });
+    } else if (sc.includes(q)) {
+      results.push({ id: `custom:${emoji.shortcode}`, name: emoji.shortcode, customUrl: emoji.url, score: 1 });
+    }
+  }
+
+  // Search native emojis
+  const index = getEmojiIndex();
   for (const emoji of index) {
-    // Exact id match gets highest priority
     if (emoji.id === q) {
-      results.push({ ...emoji, score: 0 });
-      continue;
-    }
-    // Id starts with query
-    if (emoji.id.startsWith(q)) {
-      results.push({ ...emoji, score: 1 });
-      continue;
-    }
-    // Id contains query
-    if (emoji.id.includes(q)) {
-      results.push({ ...emoji, score: 2 });
-      continue;
-    }
-    // Name starts with query
-    if (emoji.name.toLowerCase().startsWith(q)) {
-      results.push({ ...emoji, score: 3 });
-      continue;
-    }
-    // Name contains query
-    if (emoji.name.toLowerCase().includes(q)) {
-      results.push({ ...emoji, score: 4 });
-      continue;
-    }
-    // Keyword match
-    if (emoji.keywords.some((kw) => kw.startsWith(q) || kw.includes(q))) {
-      results.push({ ...emoji, score: 5 });
-      continue;
+      results.push({ id: emoji.id, name: emoji.name, native: emoji.native, score: 2 });
+    } else if (emoji.id.startsWith(q)) {
+      results.push({ id: emoji.id, name: emoji.name, native: emoji.native, score: 3 });
+    } else if (emoji.id.includes(q)) {
+      results.push({ id: emoji.id, name: emoji.name, native: emoji.native, score: 4 });
+    } else if (emoji.name.toLowerCase().startsWith(q)) {
+      results.push({ id: emoji.id, name: emoji.name, native: emoji.native, score: 5 });
+    } else if (emoji.name.toLowerCase().includes(q)) {
+      results.push({ id: emoji.id, name: emoji.name, native: emoji.native, score: 6 });
+    } else if (emoji.keywords?.some((kw: string) => kw.startsWith(q) || kw.includes(q))) {
+      results.push({ id: emoji.id, name: emoji.name, native: emoji.native, score: 7 });
     }
   }
 
@@ -156,13 +167,16 @@ function searchEmojis(query: string): Array<{ id: string; name: string; native: 
 /**
  * Detects `:shortcode` at the cursor position in a textarea and shows
  * an emoji autocomplete dropdown. On selection, replaces `:shortcode`
- * with the native emoji character in the content.
+ * with the native emoji character or `:shortcode:` for custom emojis.
  */
 export function EmojiShortcodeAutocomplete({
   textareaRef,
   content,
   onInsertEmoji,
+  onCustomEmojiInsert,
 }: EmojiShortcodeAutocompleteProps) {
+  const { emojis: customEmojis } = useCustomEmojis();
+
   const [query, setQuery] = useState('');
   const [colonStart, setColonStart] = useState(-1);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -171,7 +185,7 @@ export function EmojiShortcodeAutocomplete({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const results = useMemo(() => searchEmojis(query), [query]);
+  const results = useMemo(() => searchEmojis(query, customEmojis), [query, customEmojis]);
 
   // Detect :shortcode query at cursor
   const detectShortcode = useCallback((text?: string, cursorPos?: number) => {
@@ -185,17 +199,13 @@ export function EmojiShortcodeAutocomplete({
     let colonPos = -1;
     for (let i = cursor - 1; i >= 0; i--) {
       const ch = value[i];
-      // Stop at whitespace, newline, or another colon (closing a previous shortcode)
       if (ch === ' ' || ch === '\n' || ch === '\t') break;
-      // If we find a closing colon (i.e. `:fire:` is already complete), bail
       if (ch === ':' && i < cursor - 1) {
-        // This is our trigger colon — must be at start of text or preceded by whitespace
         if (i === 0 || /[\s]/.test(value[i - 1])) {
           colonPos = i;
         }
         break;
       }
-      // If we hit the beginning of the string, no colon was found
     }
 
     if (colonPos === -1) {
@@ -207,7 +217,6 @@ export function EmojiShortcodeAutocomplete({
 
     const q = value.slice(colonPos + 1, cursor);
 
-    // Don't show for empty query, very short query, or very long queries
     if (q.length < 2 || q.length > 32) {
       setIsOpen(false);
       setQuery('');
@@ -215,7 +224,6 @@ export function EmojiShortcodeAutocomplete({
       return;
     }
 
-    // Don't show if the query contains a closing colon (already completed shortcode)
     if (q.includes(':')) {
       setIsOpen(false);
       setQuery('');
@@ -313,20 +321,36 @@ export function EmojiShortcodeAutocomplete({
     }
   }, [selectedIndex]);
 
-  const selectEmoji = useCallback((emoji: { id: string; native: string }) => {
+  const selectEmoji = useCallback((emoji: EmojiResult) => {
     const textarea = textareaRef.current;
     const cursor = textarea?.selectionStart ?? colonStart + query.length + 1;
 
-    onInsertEmoji({
-      start: colonStart,
-      end: cursor,
-      replacement: emoji.native,
-    });
+    if (emoji.customUrl) {
+      // Custom emoji: replace with `:shortcode: ` and track the emoji tag
+      const shortcode = emoji.name;
+      onInsertEmoji({
+        start: colonStart,
+        end: cursor,
+        replacement: `:${shortcode}: `,
+      });
+      // Notify parent to track this custom emoji for the emoji tag
+      const entry = customEmojis.find((e) => e.shortcode === shortcode);
+      if (entry && onCustomEmojiInsert) {
+        onCustomEmojiInsert(entry);
+      }
+    } else if (emoji.native) {
+      // Native emoji: replace with the unicode character
+      onInsertEmoji({
+        start: colonStart,
+        end: cursor,
+        replacement: emoji.native,
+      });
+    }
 
     setIsOpen(false);
     setQuery('');
     setColonStart(-1);
-  }, [colonStart, query, textareaRef, onInsertEmoji]);
+  }, [colonStart, query, textareaRef, onInsertEmoji, onCustomEmojiInsert, customEmojis]);
 
   if (!isOpen || !dropdownPos || results.length === 0) {
     return null;
@@ -350,9 +374,18 @@ export function EmojiShortcodeAutocomplete({
             onClick={() => selectEmoji(emoji)}
             onMouseDown={(e) => e.preventDefault()}
           >
-            <span className="text-xl leading-none shrink-0">{emoji.native}</span>
+            {emoji.customUrl ? (
+              <img
+                src={emoji.customUrl}
+                alt={`:${emoji.name}:`}
+                className="size-5 object-contain shrink-0"
+                loading="lazy"
+              />
+            ) : (
+              <span className="text-xl leading-none shrink-0">{emoji.native}</span>
+            )}
             <span className="text-sm truncate text-muted-foreground">
-              :{emoji.id}:
+              :{emoji.id.replace('custom:', '')}:
             </span>
           </button>
         ))}
