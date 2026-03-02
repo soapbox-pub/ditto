@@ -9,7 +9,7 @@ import { genUserName } from '@/lib/genUserName';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { getProfileUrl } from '@/lib/profileUrl';
-import { searchCountries, type CountryEntry } from '@/lib/countries';
+import { searchCountry, type CountryEntry } from '@/lib/countries';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
@@ -27,11 +27,15 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
 
   const { data: profiles, isFetching, followedPubkeys } = useSearchProfiles(query);
 
-  // Country suggestions (local, synchronous)
-  const countries = useMemo(() => searchCountries(query), [query]);
-
-  // Total selectable items: countries + profiles
-  const totalItems = countries.length + (profiles?.length ?? 0);
+  // Country suggestion (local, synchronous)
+  const countryMatch = useMemo(() => searchCountry(query), [query]);
+  const profileCount = profiles?.length ?? 0;
+  const hasCountry = !!countryMatch;
+  // Show country at top only for exact matches; otherwise at bottom (after profiles)
+  const countryAtTop = hasCountry && (countryMatch.exact || profileCount === 0);
+  const totalItems = profileCount + (hasCountry ? 1 : 0);
+  const countryIndex = countryAtTop ? 0 : profileCount;
+  const profileStartIndex = countryAtTop && hasCountry ? 1 : 0;
 
   // Focus input when opened
   useEffect(() => {
@@ -91,10 +95,10 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (selectedIndex >= 0 && selectedIndex < totalItems) {
-        if (selectedIndex < countries.length) {
-          handleSelectCountry(countries[selectedIndex]);
+        if (hasCountry && selectedIndex === countryIndex) {
+          handleSelectCountry(countryMatch!.country);
         } else {
-          handleSelect(profiles![selectedIndex - countries.length]);
+          handleSelect(profiles![selectedIndex - profileStartIndex]);
         }
       } else {
         handleTextSearch();
@@ -111,7 +115,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
     }
   };
 
-  const hasResults = query.trim().length > 0 && (countries.length > 0 || (profiles && profiles.length > 0));
+  const hasResults = query.trim().length > 0 && (hasCountry || (profiles && profiles.length > 0));
 
   if (!open) return null;
 
@@ -130,23 +134,29 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
         {/* Results list — reversed so closest to input = most relevant */}
         {hasResults && (
           <div className="flex flex-col-reverse bg-popover/95 rounded-2xl mx-6 mb-0.5 overflow-hidden max-h-[55vh] overflow-y-auto shadow-lg">
-            {countries.map((country, index) => (
+            {hasCountry && countryAtTop && (
               <SearchCountryItem
-                key={country.code}
-                country={country}
-                isSelected={index === selectedIndex}
+                country={countryMatch!.country}
+                isSelected={selectedIndex === countryIndex}
                 onClick={handleSelectCountry}
               />
-            ))}
+            )}
             {profiles && profiles.map((profile, index) => (
               <SearchProfileItem
                 key={profile.pubkey}
                 profile={profile}
-                isSelected={index + countries.length === selectedIndex}
+                isSelected={index + profileStartIndex === selectedIndex}
                 isFollowed={followedPubkeys.has(profile.pubkey)}
                 onClick={handleSelect}
               />
             ))}
+            {hasCountry && !countryAtTop && (
+              <SearchCountryItem
+                country={countryMatch!.country}
+                isSelected={selectedIndex === countryIndex}
+                onClick={handleSelectCountry}
+              />
+            )}
           </div>
         )}
 

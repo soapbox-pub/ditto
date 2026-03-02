@@ -11,7 +11,7 @@ import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getProfileUrl } from '@/lib/profileUrl';
-import { searchCountries, type CountryEntry } from '@/lib/countries';
+import { searchCountry, type CountryEntry } from '@/lib/countries';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
@@ -44,17 +44,20 @@ export function ProfileSearchDropdown({
 
   const { data: profiles, isFetching, followedPubkeys } = useSearchProfiles(query);
 
-  // Country suggestions (local, synchronous)
-  const countries = useMemo(() => searchCountries(query), [query]);
+  // Country suggestion (local, synchronous)
+  const countryMatch = useMemo(() => searchCountry(query), [query]);
+  const profileCount = profiles?.length ?? 0;
+  // Show country at top only for exact matches; otherwise at bottom (after profiles)
+  const countryAtTop = !!countryMatch && (countryMatch.exact || profileCount === 0);
 
   // Show dropdown when we have results, or when text search is enabled and there's a query
   useEffect(() => {
     if (query.trim().length > 0) {
-      if (enableTextSearch || (profiles && profiles.length > 0) || countries.length > 0) {
+      if (enableTextSearch || (profiles && profiles.length > 0) || countryMatch) {
         setOpen(true);
       }
     }
-  }, [profiles, query, enableTextSearch, countries.length]);
+  }, [profiles, query, enableTextSearch, countryMatch]);
 
   // Reset selected index when results change
   useEffect(() => {
@@ -99,8 +102,15 @@ export function ProfileSearchDropdown({
     navigate(`/search?q=${encodeURIComponent(query.trim())}`);
   }, [enableTextSearch, query, navigate]);
 
-  // Total selectable items: countries + profiles
-  const totalItems = countries.length + (profiles?.length ?? 0);
+  // Total selectable items: profiles + optional country
+  const hasCountry = !!countryMatch;
+  const totalItems = profileCount + (hasCountry ? 1 : 0);
+
+  // Map selectedIndex to what it refers to.
+  // When countryAtTop: [country, ...profiles]
+  // When country at bottom: [...profiles, country]
+  const countryIndex = countryAtTop ? 0 : profileCount;
+  const profileStartIndex = countryAtTop && hasCountry ? 1 : 0;
 
   const handleSelectCountry = useCallback((country: CountryEntry) => {
     setOpen(false);
@@ -119,19 +129,16 @@ export function ProfileSearchDropdown({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (open && selectedIndex >= 0 && selectedIndex < totalItems) {
-        if (selectedIndex < countries.length) {
-          // Country item
-          handleSelectCountry(countries[selectedIndex]);
+        if (hasCountry && selectedIndex === countryIndex) {
+          handleSelectCountry(countryMatch!.country);
         } else {
-          // Profile item
-          const profileIndex = selectedIndex - countries.length;
-          const profile = profiles![profileIndex];
+          const profileIdx = selectedIndex - profileStartIndex;
+          const profile = profiles![profileIdx];
           const nip05 = profile.metadata.nip05;
           const nip05Verified = !!nip05 && queryClient.getQueryData<boolean>(['nip05-verify', nip05, profile.pubkey]) === true;
           handleSelect(profile, getProfileUrl(profile.pubkey, profile.metadata, nip05Verified));
         }
       } else {
-        // Otherwise do a text search
         handleTextSearch();
       }
       return;
@@ -206,30 +213,36 @@ export function ProfileSearchDropdown({
       </div>
 
       {/* Dropdown results — only when text search is not enabled */}
-      {!enableTextSearch && open && (countries.length > 0 || (profiles && profiles.length > 0)) && (
+      {!enableTextSearch && open && (hasCountry || (profiles && profiles.length > 0)) && (
         <div
           ref={listRef}
           role="listbox"
           className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
         >
           <div className="max-h-[320px] overflow-y-auto py-1">
-            {countries.map((country, index) => (
+            {hasCountry && countryAtTop && (
               <CountryItem
-                key={country.code}
-                country={country}
-                isSelected={index === selectedIndex}
+                country={countryMatch!.country}
+                isSelected={selectedIndex === countryIndex}
                 onClick={handleSelectCountry}
               />
-            ))}
+            )}
             {profiles && profiles.map((profile, index) => (
               <ProfileItem
                 key={profile.pubkey}
                 profile={profile}
-                isSelected={index + countries.length === selectedIndex}
+                isSelected={index + profileStartIndex === selectedIndex}
                 isFollowed={followedPubkeys.has(profile.pubkey)}
                 onClick={handleSelect}
               />
             ))}
+            {hasCountry && !countryAtTop && (
+              <CountryItem
+                country={countryMatch!.country}
+                isSelected={selectedIndex === countryIndex}
+                onClick={handleSelectCountry}
+              />
+            )}
           </div>
         </div>
       )}
@@ -255,32 +268,40 @@ export function ProfileSearchDropdown({
               </span>
             </button>
 
-            {/* Country results */}
-            {countries.map((country, index) => (
+            {/* Country result (top — exact match only) */}
+            {hasCountry && countryAtTop && (
               <CountryItem
-                key={country.code}
-                country={country}
-                isSelected={index === selectedIndex}
+                country={countryMatch!.country}
+                isSelected={selectedIndex === countryIndex}
                 onClick={handleSelectCountry}
               />
-            ))}
+            )}
 
             {/* Profile results */}
             {profiles && profiles.length > 0 && profiles.map((profile, index) => (
               <ProfileItem
                 key={profile.pubkey}
                 profile={profile}
-                isSelected={index + countries.length === selectedIndex}
+                isSelected={index + profileStartIndex === selectedIndex}
                 isFollowed={followedPubkeys.has(profile.pubkey)}
                 onClick={handleSelect}
               />
             ))}
+
+            {/* Country result (bottom — prefix match with profiles present) */}
+            {hasCountry && !countryAtTop && (
+              <CountryItem
+                country={countryMatch!.country}
+                isSelected={selectedIndex === countryIndex}
+                onClick={handleSelectCountry}
+              />
+            )}
           </div>
         </div>
       )}
 
       {/* Empty state — only when text search is not enabled */}
-      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && countries.length === 0 && profiles && profiles.length === 0 && (
+      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && !hasCountry && profiles && profiles.length === 0 && (
         <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
           <div className="py-6 text-center text-sm text-muted-foreground">
             No profiles found
