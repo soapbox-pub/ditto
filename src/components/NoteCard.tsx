@@ -461,25 +461,34 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           onAuxClick={handleAuxClick}
         >
           <div className="flex gap-3">
-            {/* Left column: avatar with emoji badge overlay + optional thread line */}
             <div className="flex flex-col items-center">
-              <div className="relative shrink-0">
-                {avatarElement}
-                {/* Emoji badge overlaid at bottom-right of avatar */}
-                <div className="absolute -bottom-1 -right-1 flex items-center justify-center size-5 rounded-full bg-pink-500/10 ring-2 ring-background">
-                  <ReactionEmoji content={event.content} tags={event.tags} className="text-xs leading-none" />
-                </div>
+              {/* Reaction emoji bubble instead of avatar */}
+              <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0">
+                <ReactionEmoji content={event.content} tags={event.tags} className="text-lg leading-none" />
               </div>
               {threaded && <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />}
             </div>
             <div className={cn('flex-1 min-w-0', threaded && 'pb-3')}>
-              {/* Author name + "reacted" label */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 {author.isLoading ? (
-                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="size-5 rounded-full shrink-0" />
                 ) : (
                   <ProfileHoverCard pubkey={event.pubkey} asChild>
-                    <Link to={profileUrl} className="font-bold text-[15px] hover:underline truncate" onClick={(e) => e.stopPropagation()}>
+                    <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <Avatar className="size-5">
+                        <AvatarImage src={metadata?.picture} alt={displayName} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                          {displayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                {author.isLoading ? (
+                  <Skeleton className="h-3.5 w-20" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
                       {author.data?.event ? (
                         <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
                       ) : displayName}
@@ -506,29 +515,43 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
         onAuxClick={handleAuxClick}
       >
         <div className="flex items-center gap-3">
-          <div className="relative shrink-0">
-            {avatarElement}
-            {/* Emoji badge overlaid at bottom-right of avatar */}
-            <div className="absolute -bottom-1 -right-1 flex items-center justify-center size-6 rounded-full bg-pink-500/10 ring-2 ring-background">
-              <ReactionEmoji content={event.content} tags={event.tags} className="text-sm leading-none" />
-            </div>
+          {/* Large reaction emoji */}
+          <div className="flex items-center justify-center size-11 rounded-full bg-pink-500/10 shrink-0">
+            <ReactionEmoji content={event.content} tags={event.tags} className="text-xl leading-none" />
           </div>
 
           {/* Author + "reacted" label */}
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            {author.isLoading ? (
-              <Skeleton className="h-4 w-24" />
-            ) : (
-              <ProfileHoverCard pubkey={event.pubkey} asChild>
-                <Link to={profileUrl} className="font-bold text-[15px] hover:underline truncate" onClick={(e) => e.stopPropagation()}>
-                  {author.data?.event ? (
-                    <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-                  ) : displayName}
-                </Link>
-              </ProfileHoverCard>
-            )}
-            <span className="text-sm text-muted-foreground">reacted</span>
-            <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at)}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              {author.isLoading ? (
+                <>
+                  <Skeleton className="size-5 rounded-full shrink-0" />
+                  <Skeleton className="h-4 w-24" />
+                </>
+              ) : (
+                <>
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <Avatar className="size-5">
+                        <AvatarImage src={metadata?.picture} alt={displayName} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                          {displayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
+                      {author.data?.event ? (
+                        <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                      ) : displayName}
+                    </Link>
+                  </ProfileHoverCard>
+                  <span className="text-sm text-muted-foreground">reacted</span>
+                  <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at)}</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </article>
