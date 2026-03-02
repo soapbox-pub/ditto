@@ -179,6 +179,7 @@ export const DeckColumnConfigSchema = z.object({
   id: z.string(),
   type: z.string(),
   width: z.number().optional(),
+  params: z.record(z.string(), z.string()).optional(),
 });
 
 // ─── AppConfigSchema ─────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { Suspense, useState, useMemo, useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { RightSidebar } from '@/components/RightSidebar';
 import { MobileTopBar } from '@/components/MobileTopBar';
@@ -85,11 +85,7 @@ function MainLayoutInner() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { config } = useAppContext();
   const isDesktop = useIsSidebarWidth();
-  const { pathname } = useLocation();
-
-  // Routes that temporarily exit deck mode to show their page content
-  const deckOverridePath = pathname.startsWith('/settings');
-  const showDeck = config.deckMode && isDesktop && !deckOverridePath;
+  const showDeck = config.deckMode && isDesktop;
 
   return (
     <>

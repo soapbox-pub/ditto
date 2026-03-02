@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  UserPlus, LogOut, Check, Moon, Sun, Monitor, Palette, ChevronDown, Columns3, LayoutTemplate, Settings, SwatchBook,
+  UserPlus, LogOut, Check, Moon, Sun, Monitor, Palette, ChevronDown, Columns3, LayoutTemplate, Settings, SwatchBook, Plus,
   Loader2,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,6 +12,7 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { SidebarNavList } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useDeckSettings } from '@/hooks/useDeckSettings';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
@@ -52,7 +53,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
   const {
     orderedItems, hiddenItems, updateSidebarOrder, addToSidebar, addDividerToSidebar, removeFromSidebar,
   } = useFeedSettings();
-  const { deckMode, toggleDeckMode } = useDeckSettings();
+  const { deckMode, deckColumns, toggleDeckMode, openColumn } = useDeckSettings();
 
   const visibleItems = useMemo(() => {
     if (user) return orderedItems;
@@ -67,6 +68,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
   const hasUnread = useHasUnreadNotifications();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [composeOpen, setComposeOpen] = useState(false);
   const { startSignup } = useOnboarding();
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -131,6 +133,17 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
           </div>
         </Link>
       </div>
+
+      {/* Compose — deck mode only, under logo */}
+      {collapsed && user && (
+        <button
+          onClick={() => setComposeOpen(true)}
+          className="flex items-center justify-center p-2.5 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 transition-colors mt-3"
+          title="New post"
+        >
+          <Plus className="size-5" strokeWidth={3} />
+        </button>
+      )}
 
       {/* Search — hidden in collapsed mode */}
       {!collapsed && (
@@ -198,30 +211,30 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
 
         {/* Settings */}
         {collapsed && (
-          <Link
-            to="/settings"
+          <button
+            onClick={() => openColumn('settings')}
             className={cn(
               'flex items-center justify-center p-2.5 rounded-full transition-colors hover:bg-secondary/60',
-              location.pathname.startsWith('/settings') && location.pathname !== '/settings/theme' ? 'text-primary' : 'text-muted-foreground',
+              deckColumns.some((c) => c.type === 'settings') ? 'text-primary' : 'text-muted-foreground',
             )}
             title="Settings"
           >
             <Settings className="size-5" />
-          </Link>
+          </button>
         )}
 
         {/* Vibe */}
         {collapsed && (
-          <Link
-            to="/settings/theme"
+          <button
+            onClick={() => openColumn('theme')}
             className={cn(
               'flex items-center justify-center p-2.5 rounded-full transition-colors hover:bg-secondary/60',
-              location.pathname === '/settings/theme' ? 'text-primary' : 'text-muted-foreground',
+              deckColumns.some((c) => c.type === 'theme') ? 'text-primary' : 'text-muted-foreground',
             )}
             title="Vibe"
           >
             <SwatchBook className="size-5" />
-          </Link>
+          </button>
         )}
 
         {/* User profile */}
@@ -452,6 +465,7 @@ export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
       </div>
 
       <LoginDialog isOpen={loginDialogOpen} onClose={() => setLoginDialogOpen(false)} onLogin={() => setLoginDialogOpen(false)} onSignupClick={startSignup} />
+      <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
     </aside>
   );
 }

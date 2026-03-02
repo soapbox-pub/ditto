@@ -127,10 +127,12 @@ export interface FeedSettings {
 export interface DeckColumnConfig {
   /** Unique instance ID. */
   id: string;
-  /** Sidebar item ID ('feed', 'notifications', 'search', etc.). */
+  /** Sidebar item ID ('feed', 'notifications', 'search', etc.) or special types like 'hashtag'. */
   type: string;
   /** Optional pixel width override (default: 400). */
   width?: number;
+  /** Optional parameters (e.g. { tag: 'bitcoin' } for hashtag columns, { path: '/settings/content' } for settings). */
+  params?: Record<string, string>;
 }
 
 export interface AppConfig {

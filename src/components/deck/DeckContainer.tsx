@@ -5,14 +5,15 @@ import {
 import {
   SortableContext, horizontalListSortingStrategy, arrayMove,
 } from '@dnd-kit/sortable';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { DeckColumn } from '@/components/deck/DeckColumn';
 import { AddColumnCard } from '@/components/deck/AddColumnCard';
+import { DeckNavigationContext, type DeckNavigationContextType } from '@/components/deck/DeckNavigationContext';
 import { useDeckSettings } from '@/hooks/useDeckSettings';
 
 /** Top-level deck layout: horizontal scrollable list of sortable columns. */
 export function DeckContainer() {
-  const { deckColumns, addColumn, removeColumn, reorderColumns } = useDeckSettings();
+  const { deckColumns, addColumn, removeColumn, reorderColumns, openColumn } = useDeckSettings();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -28,16 +29,25 @@ export function DeckContainer() {
     reorderColumns(arrayMove(deckColumns, oldIndex, newIndex));
   }, [deckColumns, reorderColumns]);
 
+  // Deck navigation context: allows child components to open new deck columns
+  const deckNav = useMemo<DeckNavigationContextType>(() => ({
+    openHashtag: (tag: string) => openColumn('hashtag', { tag }),
+    openDiscuss: (uri: string) => openColumn('discuss', { uri }),
+    openDomainFeed: (domain: string) => openColumn('domain-feed', { domain }),
+  }), [openColumn]);
+
   return (
-    <div className="flex h-screen overflow-x-auto flex-1 min-w-0">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={deckColumns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
-          {deckColumns.map((col) => (
-            <DeckColumn key={col.id} config={col} onRemove={removeColumn} />
-          ))}
-        </SortableContext>
-      </DndContext>
-      <AddColumnCard onAdd={addColumn} />
-    </div>
+    <DeckNavigationContext.Provider value={deckNav}>
+      <div className="flex h-screen overflow-x-auto flex-1 min-w-0 deck-scroll">
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={deckColumns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
+            {deckColumns.map((col) => (
+              <DeckColumn key={col.id} config={col} onRemove={removeColumn} />
+            ))}
+          </SortableContext>
+        </DndContext>
+        <AddColumnCard onAdd={addColumn} />
+      </div>
+    </DeckNavigationContext.Provider>
   );
 }

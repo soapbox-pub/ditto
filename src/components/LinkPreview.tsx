@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
+import { useDeckNavigation } from '@/components/deck/DeckNavigationContext';
 import { cn } from '@/lib/utils';
 
 interface LinkPreviewProps {
@@ -26,6 +27,7 @@ function displayDomain(url: string): string {
 export function LinkPreview({ url, className, hideImage }: LinkPreviewProps) {
   const { data, isLoading } = useLinkPreview(url);
   const navigate = useNavigate();
+  const deckNav = useDeckNavigation();
 
   if (isLoading) {
     return <LinkPreviewSkeleton className={className} />;
@@ -81,7 +83,11 @@ export function LinkPreview({ url, className, hideImage }: LinkPreviewProps) {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              navigate(`/i/${encodeURIComponent(url)}`);
+              if (deckNav) {
+                deckNav.openDiscuss(url);
+              } else {
+                navigate(`/i/${encodeURIComponent(url)}`);
+              }
             }}
           >
             <MessageSquare className="size-3" />

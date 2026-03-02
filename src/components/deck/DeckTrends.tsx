@@ -6,12 +6,14 @@ import { TrendSparkline } from '@/components/RightSidebar';
 import { useTrendingTags, useSortedPosts, useTagSparklines } from '@/hooks/useTrending';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
+import { useDeckNavigation } from '@/components/deck/DeckNavigationContext';
 
 /** Trending tags + hot posts for a deck column. */
 export function DeckTrends() {
   const { data: trendingTagsResult, isLoading: tagsLoading } = useTrendingTags(true);
   const { data: rawHotPosts, isLoading: hotLoading } = useSortedPosts('hot', 10, true);
   const { muteItems } = useMuteList();
+  const deckNav = useDeckNavigation();
 
   const trendingTags = trendingTagsResult?.tags;
   const labelCreatedAt = trendingTagsResult?.labelCreatedAt ?? 0;
@@ -40,27 +42,48 @@ export function DeckTrends() {
           </div>
         ) : trendingTags && trendingTags.length > 0 ? (
           <div className="space-y-2">
-            {trendingTags.slice(0, 8).map((item) => (
-              <Link
-                key={item.tag}
-                to={`/t/${item.tag}`}
-                className="flex items-center justify-between hover:bg-secondary/40 -mx-2 px-2 py-1.5 rounded-lg transition-colors"
-              >
-                <div>
-                  <div className="font-bold text-sm">#{item.tag}</div>
-                  {item.accounts > 0 && (
-                    <div className="text-xs text-muted-foreground">
-                      <span className="text-primary font-semibold">{item.accounts.toLocaleString()}</span> people
-                    </div>
+            {trendingTags.slice(0, 8).map((item) => {
+              const inner = (
+                <>
+                  <div>
+                    <div className="font-bold text-sm">#{item.tag}</div>
+                    {item.accounts > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        <span className="text-primary font-semibold">{item.accounts.toLocaleString()}</span> people
+                      </div>
+                    )}
+                  </div>
+                  {sparklinesLoading ? (
+                    <Skeleton className="h-[28px] w-[50px] rounded" />
+                  ) : (
+                    <TrendSparkline data={sparklineData?.get(item.tag) ?? []} />
                   )}
-                </div>
-                {sparklinesLoading ? (
-                  <Skeleton className="h-[28px] w-[50px] rounded" />
-                ) : (
-                  <TrendSparkline data={sparklineData?.get(item.tag) ?? []} />
-                )}
-              </Link>
-            ))}
+                </>
+              );
+
+              // In deck mode, open a hashtag column instead of navigating
+              if (deckNav) {
+                return (
+                  <button
+                    key={item.tag}
+                    onClick={() => deckNav.openHashtag(item.tag)}
+                    className="flex items-center justify-between hover:bg-secondary/40 -mx-2 px-2 py-1.5 rounded-lg transition-colors w-full text-left"
+                  >
+                    {inner}
+                  </button>
+                );
+              }
+
+              return (
+                <Link
+                  key={item.tag}
+                  to={`/t/${item.tag}`}
+                  className="flex items-center justify-between hover:bg-secondary/40 -mx-2 px-2 py-1.5 rounded-lg transition-colors"
+                >
+                  {inner}
+                </Link>
+              );
+            })}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">No trends available.</p>

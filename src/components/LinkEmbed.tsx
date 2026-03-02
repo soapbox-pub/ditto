@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
+import { useDeckNavigation } from '@/components/deck/DeckNavigationContext';
 
 import { BlueskyEmbed } from '@/components/BlueskyEmbed';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -81,6 +82,7 @@ export function LinkEmbed({ url, className, showDiscuss = true, hideImage }: Lin
 /** Small bar below an embed with favicon, domain, and a "Discuss" link. */
 function DiscussBar({ url }: { url: string }) {
   const navigate = useNavigate();
+  const deckNav = useDeckNavigation();
 
   const domain = useMemo(() => {
     try {
@@ -113,7 +115,11 @@ function DiscussBar({ url }: { url: string }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          navigate(`/i/${encodeURIComponent(url)}`);
+          if (deckNav) {
+            deckNav.openDiscuss(url);
+          } else {
+            navigate(`/i/${encodeURIComponent(url)}`);
+          }
         }}
       >
         <MessageSquare className="size-3" />
