@@ -413,7 +413,7 @@ function ActivitySection() {
 const RSVP_DISPLAY: Record<string, { verb: string; label: string; className: string }> = {
   accepted: { verb: 'is going to', label: 'Going', className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' },
   tentative: { verb: 'might go to', label: 'Maybe', className: 'bg-amber-500/10 text-amber-600 border-amber-500/30' },
-  declined: { verb: "can't make it to", label: "Can't Go", className: 'bg-muted text-muted-foreground border-border' },
+  declined: { verb: "can't make it to", label: "Can't Go", className: 'bg-red-500/10 text-red-600 border-red-500/30' },
 };
 
 function ActivityItem({ rsvp, referencedEvent }: { rsvp: NostrEvent; referencedEvent?: NostrEvent }) {
