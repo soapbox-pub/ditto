@@ -6,7 +6,14 @@ import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Check, ChevronDown, Globe, List, Loader2, Users } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -97,6 +104,18 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
     const dTag = activeTab.slice(5);
     return pinnedLists.find((l) => l.dTag === dTag)?.pubkeys;
   }, [activeTab, pinnedLists]);
+
+  // Compute the display label for the active tab
+  const activeTabLabel = useMemo(() => {
+    if (activeTab === 'follows') return 'Follows';
+    if (activeTab === 'global') return 'Global';
+    if (activeTab === 'communities') return communityLabel;
+    if (activeTab.startsWith('list:')) {
+      const dTag = activeTab.slice(5);
+      return pinnedLists.find((l) => l.dTag === dTag)?.title ?? 'List';
+    }
+    return 'Feed';
+  }, [activeTab, pinnedLists, communityLabel]);
 
   // Standard feed query (used when logged in, or on kind-specific pages)
   const feedQuery = useFeed(
@@ -189,24 +208,61 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
 
       {header}
 
-      {/* Tabs (logged in) or CTA (logged out, main feed only) */}
+      {/* Feed selector (logged in) or CTA (logged out, main feed only) */}
       {user ? (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none">
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
-          {pinnedLists.map((pl) => (
-            <TabButton
-              key={pl.dTag}
-              label={pl.title}
-              active={activeTab === `list:${pl.dTag}`}
-              onClick={() => setActiveTab(`list:${pl.dTag}`)}
-            />
-          ))}
-          {showCommunityFeed && (
-            <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => setActiveTab('communities')} />
-          )}
-          {showGlobalFeed && (
-            <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
-          )}
+        <div className="flex items-center border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 px-4 h-14">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 rounded-full border border-border bg-secondary/30 px-4 py-2 text-[15px] font-semibold shadow-sm hover:bg-secondary/60 active:scale-[0.97] transition-all">
+                {activeTabLabel}
+                <ChevronDown className="size-3.5 opacity-50" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-[220px] p-1.5">
+              <DropdownMenuLabel className="px-2.5 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Feed
+              </DropdownMenuLabel>
+              <FeedMenuItem
+                icon={<Users className="size-4" />}
+                label="Follows"
+                active={activeTab === 'follows'}
+                onClick={() => setActiveTab('follows')}
+              />
+              {showGlobalFeed && (
+                <FeedMenuItem
+                  icon={<Globe className="size-4" />}
+                  label="Global"
+                  active={activeTab === 'global'}
+                  onClick={() => setActiveTab('global')}
+                />
+              )}
+              {showCommunityFeed && (
+                <FeedMenuItem
+                  icon={<Users className="size-4" />}
+                  label={communityLabel}
+                  active={activeTab === 'communities'}
+                  onClick={() => setActiveTab('communities')}
+                />
+              )}
+              {pinnedLists.length > 0 && (
+                <>
+                  <DropdownMenuSeparator className="my-1.5" />
+                  <DropdownMenuLabel className="px-2.5 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Lists
+                  </DropdownMenuLabel>
+                  {pinnedLists.map((pl) => (
+                    <FeedMenuItem
+                      key={pl.dTag}
+                      icon={<List className="size-4" />}
+                      label={pl.title}
+                      active={activeTab === `list:${pl.dTag}`}
+                      onClick={() => setActiveTab(`list:${pl.dTag}`)}
+                    />
+                  ))}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ) : !kinds && (
         <div className="border-b border-border sticky top-mobile-bar sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3">
@@ -270,19 +326,20 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   );
 }
 
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function FeedMenuItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
-        active ? 'text-foreground' : 'text-muted-foreground',
+        'flex w-full items-center gap-3 rounded-md px-2.5 py-2.5 text-sm transition-colors',
+        active
+          ? 'bg-primary/10 text-primary font-semibold'
+          : 'text-foreground hover:bg-accent',
       )}
     >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
-      )}
+      <span className={cn('shrink-0', active ? 'text-primary' : 'text-muted-foreground')}>{icon}</span>
+      <span className="flex-1 text-left truncate">{label}</span>
+      {active && <Check className="size-4 shrink-0 text-primary" />}
     </button>
   );
 }
