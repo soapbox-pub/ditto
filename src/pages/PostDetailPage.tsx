@@ -852,41 +852,42 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {isReaction && (
         <article ref={focusedPostRef} className="px-4 py-3">
           <div className="flex items-center gap-3">
-            {/* Reaction emoji bubble — size-10 matches the threaded ancestor avatar column */}
-            <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0">
-              <ReactionEmoji content={event.content} tags={event.tags} className="text-xl leading-none" />
+            {/* Avatar with emoji badge overlay */}
+            <div className="relative shrink-0">
+              {author.isLoading ? (
+                <Skeleton className="size-11 rounded-full" />
+              ) : (
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link to={profileUrl}>
+                    <Avatar className="size-11">
+                      <AvatarImage src={metadata?.picture} alt={displayName} />
+                      <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                        {displayName[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                </ProfileHoverCard>
+              )}
+              <div className="absolute -bottom-1 -right-1 flex items-center justify-center size-6 rounded-full bg-pink-500/10 ring-2 ring-background">
+                <ReactionEmoji content={event.content} tags={event.tags} className="text-sm leading-none" />
+              </div>
             </div>
 
-            {/* Author + "reacted" label + timestamp — single line */}
-            <div className="flex items-center gap-2 flex-1 min-w-0">
+            {/* Author + "reacted" label + timestamp */}
+            <div className="flex items-center gap-1.5 flex-1 min-w-0">
               {author.isLoading ? (
-                <>
-                  <Skeleton className="size-6 rounded-full shrink-0" />
-                  <Skeleton className="h-4 w-28" />
-                </>
+                <Skeleton className="h-4 w-28" />
               ) : (
-                <>
-                  <ProfileHoverCard pubkey={event.pubkey} asChild>
-                    <Link to={profileUrl} className="shrink-0">
-                      <Avatar className="size-6">
-                        <AvatarImage src={metadata?.picture} alt={displayName} />
-                        <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-                          {displayName[0]?.toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Link>
-                  </ProfileHoverCard>
-                  <ProfileHoverCard pubkey={event.pubkey} asChild>
-                    <Link to={profileUrl} className="font-bold text-sm hover:underline truncate">
-                      {author.data?.event ? (
-                        <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-                      ) : displayName}
-                    </Link>
-                  </ProfileHoverCard>
-                  <span className="text-sm text-muted-foreground">reacted</span>
-                  <span className="text-xs text-muted-foreground ml-auto shrink-0">{formatFullDate(event.created_at)}</span>
-                </>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link to={profileUrl} className="font-bold text-[15px] hover:underline truncate">
+                    {author.data?.event ? (
+                      <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                    ) : displayName}
+                  </Link>
+                </ProfileHoverCard>
               )}
+              <span className="text-sm text-muted-foreground">reacted</span>
+              <span className="text-xs text-muted-foreground ml-auto shrink-0">{formatFullDate(event.created_at)}</span>
             </div>
           </div>
         </article>
