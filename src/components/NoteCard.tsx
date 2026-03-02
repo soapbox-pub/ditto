@@ -16,6 +16,8 @@ import { GeocacheContent } from '@/components/GeocacheContent';
 import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent, ColorMomentEyeButton } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
+import { ListCard as ListCardContent } from '@/components/ListCard';
+import { DEPRECATED_DTAGS } from '@/hooks/usePersonalLists';
 import { ArticleContent } from '@/components/ArticleContent';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
@@ -214,7 +216,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isFoundLog = event.kind === 7516;
   const isTreasure = isGeocache || isFoundLog;
   const isColor = event.kind === 3367;
-  const isFollowPack = event.kind === 39089 || event.kind === 30000;
+  const isList = event.kind === 30000;
+  const isFollowPack = event.kind === 39089;
   const isArticle = event.kind === 30023;
   const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
@@ -235,7 +238,14 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isPodcastEpisode = event.kind === 30054;
   const isPodcastTrailer = event.kind === 30055;
   const isAudioKind = isMusicTrack || isMusicPlaylist || isPodcastEpisode || isPodcastTrailer;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isCalendarEvent && !isEmojiPack && !isReaction && !isPhoto && !isVideo && !isAudioKind;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isList && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isCalendarEvent && !isEmojiPack && !isReaction && !isPhoto && !isVideo && !isAudioKind;
+
+  // Filter out non-list kind 30000 events: deprecated d-tags (mute, pin, etc.)
+  // and app-storage events that lack any p tags or title/name tags
+  const isJunkList = isList && (
+    DEPRECATED_DTAGS.has(event.tags.find(([n]) => n === 'd')?.[1] ?? '') ||
+    (!event.tags.some(([n]) => n === 'p') && !event.tags.some(([n]) => n === 'title' || n === 'name'))
+  );
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideoUrls(event.content) : [], [event.content, isTextNote]);
@@ -341,6 +351,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           <FoundLogContent event={event} />
         ) : isColor ? (
           <ColorMomentContent event={event} />
+        ) : isList ? (
+          <ListCardContent event={event} />
         ) : isFollowPack ? (
           <FollowPackContent event={event} />
         ) : isArticle ? (
@@ -478,6 +490,9 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
       </button>
     </div>
   );
+
+  // Hide deprecated NIP-51 kind 30000 events (mute, pin, bookmark, communities)
+  if (isJunkList) return null;
 
   // ── Reaction layout (kind 7) — compact activity-style card ──
   if (isReaction) {

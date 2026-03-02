@@ -80,6 +80,8 @@ export function TestApp({ children }: TestAppProps) {
       showPodcasts: false,
       feedIncludePodcastEpisodes: false,
       feedIncludePodcastTrailers: false,
+      showLists: false,
+      feedIncludeLists: false,
       followsFeedShowReplies: true,
     },
     sidebarOrder: [],
@@ -90,6 +92,7 @@ export function TestApp({ children }: TestAppProps) {
     corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
     magicMouse: false,
     contentWarningPolicy: 'blur',
+    pinnedLists: [],
   };
 
   return (

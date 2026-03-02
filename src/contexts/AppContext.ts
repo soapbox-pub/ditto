@@ -120,6 +120,10 @@ export interface FeedSettings {
   feedIncludePodcastEpisodes: boolean;
   /** Include podcast trailers (kind 30055) in the follows/global feed */
   feedIncludePodcastTrailers: boolean;
+  /** Show Lists (kind 30000) link in sidebar */
+  showLists: boolean;
+  /** Include Lists in the follows/global feed */
+  feedIncludeLists: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }
@@ -161,6 +165,8 @@ export interface AppConfig {
   corsProxy: string;
   /** How to handle NIP-36 content-warning events (blur, hide, or show). Default: "blur". */
   contentWarningPolicy: ContentWarningPolicy;
+  /** d-tags of lists pinned to the main feed tab bar */
+  pinnedLists: string[];
 }
 
 export interface AppContextType {

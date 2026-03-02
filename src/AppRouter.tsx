@@ -41,6 +41,7 @@ import { WorldPage } from "./pages/WorldPage";
 import { MusicFeedPage } from "./pages/MusicFeedPage";
 import { PodcastsFeedPage } from "./pages/PodcastsFeedPage";
 import { BooksPage } from "./pages/BooksPage";
+import { ListsPage } from "./pages/ListsPage";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -96,6 +97,7 @@ export function AppRouter() {
           <Route path="/polls" element={<KindFeedPage kind={pollsDef.kind} title={pollsDef.label} icon={sidebarItemIcon('polls', 'size-5')} />} />
           <Route path="/treasures" element={<TreasuresPage />} />
           <Route path="/colors" element={<KindFeedPage kind={colorsDef.kind} title={colorsDef.label} icon={sidebarItemIcon('colors', 'size-5')} />} />
+          <Route path="/lists" element={<ListsPage />} />
           <Route path="/packs" element={<KindFeedPage kind={packsDef.kind} title={packsDef.label} icon={sidebarItemIcon('packs', 'size-5')} />} />
           <Route path="/webxdc" element={<WebxdcFeedPage />} />
           <Route path="/articles" element={<KindFeedPage kind={articlesDef.kind} title={articlesDef.label} icon={sidebarItemIcon('articles', 'size-5')} />} />

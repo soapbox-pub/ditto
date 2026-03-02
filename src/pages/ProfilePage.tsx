@@ -5,7 +5,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Trash2, Eye, EyeOff, RefreshCw, MessageSquare } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, List } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { AddToListDialog } from '@/components/AddToListDialog';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { NoteCard } from '@/components/NoteCard';
@@ -111,9 +112,10 @@ interface ProfileMoreMenuProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isOwnProfile?: boolean;
+  onAddToList?: () => void;
 }
 
-function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile }: ProfileMoreMenuProps) {
+function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile, onAddToList }: ProfileMoreMenuProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
@@ -204,6 +206,16 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             <Separator />
 
             <div className="py-1">
+              {onAddToList && (
+                <MenuRow
+                  icon={<List className="size-5" />}
+                  label="Add to list"
+                  onClick={() => {
+                    close();
+                    onAddToList();
+                  }}
+                />
+              )}
               <MenuRow
                 icon={<VolumeX className="size-5" />}
                 label={userMuted ? `Unmute @${displayName}` : `Mute @${displayName}`}
@@ -622,6 +634,7 @@ export function ProfilePage() {
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
   const [followingModalOpen, setFollowingModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
@@ -1697,6 +1710,17 @@ export function ProfilePage() {
             open={moreMenuOpen}
             onOpenChange={setMoreMenuOpen}
             isOwnProfile={isOwnProfile}
+            onAddToList={user && !isOwnProfile ? () => setAddToListOpen(true) : undefined}
+          />
+        )}
+
+        {/* Add to List Dialog */}
+        {pubkey && user && !isOwnProfile && (
+          <AddToListDialog
+            open={addToListOpen}
+            onOpenChange={setAddToListOpen}
+            pubkey={pubkey}
+            displayName={displayName}
           />
         )}
 

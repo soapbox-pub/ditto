@@ -10,15 +10,16 @@ import { Loader2 } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useFeed } from '@/hooks/useFeed';
+import { useFeed, type FeedTabType } from '@/hooks/useFeed';
 import { useInfiniteSortedPosts } from '@/hooks/useTrending';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { usePersonalLists } from '@/hooks/usePersonalLists';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 
-type FeedTab = 'follows' | 'global' | 'communities';
+type FeedTab = FeedTabType;
 
 interface FeedProps {
   /** Override the kinds list instead of using feed settings. */
@@ -38,6 +39,18 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
+  const { lists } = usePersonalLists();
+
+  // Pinned lists resolved to titles + pubkeys
+  const pinnedLists = useMemo(() => {
+    const pinned = config.pinnedLists ?? [];
+    return pinned
+      .map((dTag) => {
+        const list = lists.find((l) => l.dTag === dTag);
+        return list ? { dTag, title: list.title, pubkeys: list.pubkeys } : null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+  }, [config.pinnedLists, lists]);
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
@@ -78,8 +91,20 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   // feed instead of the noisy global feed so new visitors see quality content.
   const useTopFeedForLoggedOut = !user && !kinds;
 
+  // Resolve list authors for pinned list tabs
+  const activeListAuthors = useMemo(() => {
+    if (!activeTab.startsWith('list:')) return undefined;
+    const dTag = activeTab.slice(5);
+    return pinnedLists.find((l) => l.dTag === dTag)?.pubkeys;
+  }, [activeTab, pinnedLists]);
+
   // Standard feed query (used when logged in, or on kind-specific pages)
-  const feedQuery = useFeed(activeTab, (kinds || tagFilters) ? { kinds, tagFilters } : undefined);
+  const feedQuery = useFeed(
+    activeTab,
+    (kinds || tagFilters || activeListAuthors)
+      ? { kinds, tagFilters, authors: activeListAuthors }
+      : undefined,
+  );
 
   // "Hot" sorted feed query (used when logged out on the home page)
   const topQuery = useInfiniteSortedPosts('hot', useTopFeedForLoggedOut);
@@ -166,8 +191,16 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
 
       {/* Tabs (logged in) or CTA (logged out, main feed only) */}
       {user ? (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none">
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
+          {pinnedLists.map((pl) => (
+            <TabButton
+              key={pl.dTag}
+              label={pl.title}
+              active={activeTab === `list:${pl.dTag}`}
+              onClick={() => setActiveTab(`list:${pl.dTag}`)}
+            />
+          ))}
           {showCommunityFeed && (
             <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => setActiveTab('communities')} />
           )}

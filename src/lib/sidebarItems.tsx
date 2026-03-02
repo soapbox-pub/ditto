@@ -2,7 +2,7 @@ import {
   Bell, Search, TrendingUp, User, Bookmark, Settings, SwatchBook, Palette,
   Clapperboard, BarChart3, PartyPopper, BookOpen, BookMarked, Sparkles, Blocks,
   MessageSquare, Repeat2, MessageSquareMore, Mic, Smile, Bot, SmilePlus, Camera, Film, Earth, CalendarDays,
-  Music, Podcast,
+  Music, Podcast, List,
 } from 'lucide-react';
 import { PlanetIcon } from '@/components/icons/PlanetIcon';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -67,6 +67,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'webxdc', label: 'Webxdc', path: '/webxdc', icon: Blocks },
   { id: 'themes', label: 'Themes', path: '/themes', icon: Sparkles },
   { id: 'polls', label: 'Polls', path: '/polls', icon: BarChart3 },
+  { id: 'lists', label: 'Lists', path: '/lists', icon: List, requiresAuth: true },
   { id: 'packs', label: 'Follow Packs', path: '/packs', icon: PartyPopper },
   { id: 'colors', label: 'Color Moments', path: '/colors', icon: Palette },
   { id: 'decks', label: 'Magic Decks', path: '/decks', icon: CardsIcon },

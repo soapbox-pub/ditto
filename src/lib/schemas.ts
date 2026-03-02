@@ -171,6 +171,8 @@ export const FeedSettingsSchema = z.looseObject({
   showPodcasts: z.boolean().optional(),
   feedIncludePodcastEpisodes: z.boolean().optional(),
   feedIncludePodcastTrailers: z.boolean().optional(),
+  showLists: z.boolean().optional(),
+  feedIncludeLists: z.boolean().optional(),
 });
 
 // ─── AppConfigSchema ─────────────────────────────────────────────────
@@ -205,6 +207,7 @@ export const AppConfigSchema = z.object({
   linkPreviewUrl: z.string(),
   corsProxy: z.string(),
   contentWarningPolicy: ContentWarningPolicySchema,
+  pinnedLists: z.array(z.string()).optional(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────

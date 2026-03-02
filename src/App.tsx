@@ -95,6 +95,8 @@ const hardcodedConfig: AppConfig = {
     showPodcasts: false,
     feedIncludePodcastEpisodes: false,
     feedIncludePodcastTrailers: false,
+    showLists: false,
+    feedIncludeLists: false,
     followsFeedShowReplies: true,
   },
   sidebarOrder: ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings'],
@@ -104,6 +106,7 @@ const hardcodedConfig: AppConfig = {
   linkPreviewUrl: 'https://fetch.ditto.pub/link/{url}',
   corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
   contentWarningPolicy: 'blur',
+  pinnedLists: [],
 };
 
 /**

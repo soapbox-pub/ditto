@@ -29,6 +29,7 @@ import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent, ColorMomentEyeButton } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { FollowPackDetailContent } from '@/components/FollowPackDetailContent';
+import { ListDetailContent } from '@/components/ListDetailContent';
 import { ArticleContent } from '@/components/ArticleContent';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { FileMetadataContent } from '@/components/FileMetadataContent';
@@ -44,7 +45,10 @@ import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAppContext } from '@/hooks/useAppContext';
 
 /** Kinds that get the full follow-pack detail view. */
-const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
+const FOLLOW_PACK_KINDS = new Set([39089]);
+
+/** Kind 30000 = NIP-51 Follow Sets (Lists). */
+const LIST_KIND = 30000;
 
 /** Kind 30311 = NIP-53 Live Activities. */
 const LIVE_STREAM_KIND = 30311;
@@ -253,6 +257,17 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
     );
   }
 
+  // Lists get their own full detail view with feed + members tabs
+  if (resolvedEvent.kind === LIST_KIND) {
+    return (
+      <PostDetailShell title="List Details">
+        <MutedContentGuard event={resolvedEvent}>
+          <ListDetailContent event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
+    );
+  }
+
   // Follow packs get their own full detail view with member list + Follow All
   if (FOLLOW_PACK_KINDS.has(resolvedEvent.kind)) {
     return (
@@ -292,12 +307,11 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   );
 }
 
-export function PostDetailShell({ children }: { children: React.ReactNode }) {
+export function PostDetailShell({ children, title = 'Post Details' }: { children: React.ReactNode; title?: string }) {
   const navigate = useNavigate();
 
   return (
     <main className="">
-      {/* Header — matches Ditto: ← Post Details */}
       <div className="flex items-center gap-4 px-4 mt-4 mb-5">
         <button
           onClick={() => navigate(-1)}
@@ -306,7 +320,7 @@ export function PostDetailShell({ children }: { children: React.ReactNode }) {
         >
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-xl font-bold">Post Details</h1>
+        <h1 className="text-xl font-bold">{title}</h1>
       </div>
 
       {children}
