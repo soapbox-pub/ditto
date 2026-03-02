@@ -261,6 +261,17 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   // Whimsy
   {
+    kind: 10030,
+    id: 'custom-emojis',
+    showKey: 'showCustomEmojis',
+    label: 'Custom Emojis',
+    description: 'NIP-30 custom emoji in the emoji picker',
+    addressable: false,
+    section: 'whimsy',
+    feedOnly: true,
+    blurb: 'Use custom emojis from your emoji list in posts and reactions. Manage your emoji list in other Nostr clients.',
+  },
+  {
     kind: 3367,
     id: 'colors',
     showKey: 'showColors',
@@ -285,6 +296,19 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'whimsy',
     blurb: 'Magic: The Gathering deck lists. Build and share decks with other players.',
     sites: [{ url: 'https://surveil.cards' }],
+  },
+  {
+    kind: 30030,
+    id: 'emoji-packs',
+    showKey: 'showEmojiPacks',
+    feedKey: 'feedIncludeEmojiPacks',
+    label: 'Emoji Packs',
+    description: 'Custom emoji collections (NIP-30)',
+    route: 'emoji-packs',
+    addressable: true,
+    section: 'social',
+    blurb: 'Custom emoji packs for reactions, posts, and profiles. Browse, collect, and use custom emojis from the Nostr community.',
+    sites: [{ url: 'https://emojiverse.shakespeare.wtf', name: 'EmojiVerse' }],
   },
   {
     kind: 37516,
