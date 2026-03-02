@@ -22,7 +22,7 @@ import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { InteractionsModal, type InteractionTab } from '@/components/InteractionsModal';
 import { ZapDialog } from '@/components/ZapDialog';
-import { RenderResolvedEmoji, EmojifiedText } from '@/components/CustomEmoji';
+import { RenderResolvedEmoji, EmojifiedText, ReactionEmoji } from '@/components/CustomEmoji';
 import { PollContent } from '@/components/PollContent';
 import { GeocacheContent } from '@/components/GeocacheContent';
 import { FoundLogContent } from '@/components/FoundLogContent';
@@ -584,7 +584,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const isFileMetadata = event.kind === 1063;
     const isTheme = event.kind === 36767 || event.kind === 16767;
     const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
-    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme && !isVoiceMessage;
+    const isReaction = event.kind === 7;
+    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme && !isVoiceMessage && !isReaction;
 
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
@@ -847,8 +848,56 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         </div>
       )}
 
+      {/* Reaction event — compact activity-style card */}
+      {isReaction && (
+        <article ref={focusedPostRef} className="px-4 py-4">
+          <div className="flex items-center gap-3">
+            {/* Large reaction emoji */}
+            <div className="flex items-center justify-center size-12 rounded-full bg-pink-500/10 shrink-0">
+              <ReactionEmoji content={event.content} tags={event.tags} className="text-2xl leading-none" />
+            </div>
+
+            {/* Author + "reacted" label */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                {author.isLoading ? (
+                  <>
+                    <Skeleton className="size-6 rounded-full shrink-0" />
+                    <Skeleton className="h-4 w-28" />
+                  </>
+                ) : (
+                  <>
+                    <ProfileHoverCard pubkey={event.pubkey} asChild>
+                      <Link to={profileUrl} className="shrink-0">
+                        <Avatar className="size-6">
+                          <AvatarImage src={metadata?.picture} alt={displayName} />
+                          <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                            {displayName[0]?.toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Link>
+                    </ProfileHoverCard>
+                    <ProfileHoverCard pubkey={event.pubkey} asChild>
+                      <Link to={profileUrl} className="font-bold text-sm hover:underline truncate">
+                        {author.data?.event ? (
+                          <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                        ) : displayName}
+                      </Link>
+                    </ProfileHoverCard>
+                    <span className="text-sm text-muted-foreground">reacted</span>
+                  </>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground mt-0.5 block">
+                {formatFullDate(event.created_at)}
+              </span>
+            </div>
+          </div>
+        </article>
+      )}
+
       {/* Main post — expanded Ditto-style view */}
-      <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+      {!isReaction && <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
         {/* Author row */}
         <div className="flex items-center gap-3">
           {author.isLoading ? (
@@ -1064,7 +1113,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           onOpenChange={setInteractionsOpen}
           initialTab={interactionsTab}
         />
-      </article>
+      </article>}
 
       {/* Replies */}
       <div>
