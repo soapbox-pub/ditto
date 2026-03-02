@@ -852,9 +852,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {isReaction && (
         <article ref={focusedPostRef} className="px-4 py-4">
           <div className="flex items-center gap-3">
-            {/* Large reaction emoji */}
-            <div className="flex items-center justify-center size-12 rounded-full bg-pink-500/10 shrink-0">
-              <ReactionEmoji content={event.content} tags={event.tags} className="text-2xl leading-none" />
+            {/* Reaction emoji bubble — size-10 matches the threaded ancestor avatar column */}
+            <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0">
+              <ReactionEmoji content={event.content} tags={event.tags} className="text-xl leading-none" />
             </div>
 
             {/* Author + "reacted" label */}
