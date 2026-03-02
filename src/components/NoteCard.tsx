@@ -54,8 +54,6 @@ import { VoiceMessagePlayer } from '@/components/VoiceMessagePlayer';
 import { MusicTrackContent, MusicPlaylistContent, PodcastEpisodeContent, PodcastTrailerContent } from '@/components/AudioKindContent';
 import { CalendarEventContent } from '@/components/CalendarEventContent';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { useUserStatus } from '@/hooks/useUserStatus';
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
 import { extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
 
@@ -162,10 +160,7 @@ function encodeEventId(event: NostrEvent): string {
 export function NoteCard({ event, className, repostedBy, compact, threaded, threadedLast }: NoteCardProps) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { feedSettings } = useFeedSettings();
   const author = useAuthor(event.pubkey);
-  const statusEnabled = feedSettings.showUserStatuses !== false;
-  const authorStatus = useUserStatus(statusEnabled ? event.pubkey : undefined);
 
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
@@ -401,14 +396,6 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
         </ProfileHoverCard>
         {metadata?.bot && (
           <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
-        )}
-        {authorStatus.status && (
-          <>
-            <span className="text-muted-foreground/50 shrink-0">·</span>
-            <span className="text-xs text-muted-foreground/70 italic truncate max-w-[120px]" title={authorStatus.status}>
-              {authorStatus.status}
-            </span>
-          </>
         )}
       </div>
       <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
