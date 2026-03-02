@@ -850,7 +850,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Reaction event — compact activity-style card */}
       {isReaction && (
-        <article ref={focusedPostRef} className="px-4 py-3">
+        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
           <div className="flex items-center gap-3">
             {/* Reaction emoji bubble — size-10 matches the threaded ancestor avatar column */}
             <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0">
@@ -889,6 +889,48 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               )}
             </div>
           </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-between py-1 mt-2 border-t border-b border-border -mx-4 px-4">
+            <button
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="Reply"
+              onClick={() => setReplyOpen(true)}
+            >
+              <MessageCircle className="size-5" />
+              {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
+            </button>
+
+            <RepostMenu event={event}>
+              {(isReposted: boolean) => (
+                <button
+                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
+                  title={isReposted ? 'Undo repost' : 'Repost'}
+                >
+                  <RepostIcon className="size-5" />
+                  {repostTotal ? <span className="text-sm tabular-nums">{repostTotal}</span> : null}
+                </button>
+              )}
+            </RepostMenu>
+
+            <ReactionButton
+              eventId={event.id}
+              eventPubkey={event.pubkey}
+              eventKind={event.kind}
+              reactionCount={stats?.reactions}
+            />
+
+            <button
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="More"
+              onClick={() => setMoreMenuOpen(true)}
+            >
+              <MoreHorizontal className="size-5" />
+            </button>
+          </div>
+
+          <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+          <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
         </article>
       )}
 
