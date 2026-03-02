@@ -25,7 +25,7 @@ import { ReplyContext } from '@/components/ReplyContext';
 import { CommentContext } from '@/components/CommentContext';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { EmojifiedText } from '@/components/CustomEmoji';
+import { EmojifiedText, ReactionEmoji } from '@/components/CustomEmoji';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -217,7 +217,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isActiveTheme = event.kind === 16767;
   const isTheme = isThemeDefinition || isActiveTheme;
   const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage;
+  const isReaction = event.kind === 7;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isReaction;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideoUrls(event.content) : [], [event.content, isTextNote]);
@@ -444,6 +445,118 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
       </button>
     </div>
   );
+
+  // ── Reaction layout (kind 7) — compact activity-style card ──
+  if (isReaction) {
+    // Threaded reaction (used in AncestorThread with connector line)
+    if (threaded || threadedLast) {
+      return (
+        <article
+          className={cn(
+            'px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
+            threaded ? 'pb-0' : 'pb-3 border-b border-border',
+            className,
+          )}
+          onClick={handleCardClick}
+          onAuxClick={handleAuxClick}
+        >
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {/* Reaction emoji bubble instead of avatar */}
+              <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0">
+                <ReactionEmoji content={event.content} tags={event.tags} className="text-lg leading-none" />
+              </div>
+              {threaded && <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />}
+            </div>
+            <div className={cn('flex-1 min-w-0', threaded && 'pb-3')}>
+              <div className="flex items-center gap-2">
+                {author.isLoading ? (
+                  <Skeleton className="size-5 rounded-full shrink-0" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <Avatar className="size-5">
+                        <AvatarImage src={metadata?.picture} alt={displayName} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                          {displayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                {author.isLoading ? (
+                  <Skeleton className="h-3.5 w-20" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
+                      {author.data?.event ? (
+                        <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                      ) : displayName}
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                <span className="text-sm text-muted-foreground">reacted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at)}</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      );
+    }
+
+    // Normal reaction card (standalone or in feed)
+    return (
+      <article
+        className={cn(
+          'px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        <div className="flex items-center gap-3">
+          {/* Large reaction emoji */}
+          <div className="flex items-center justify-center size-11 rounded-full bg-pink-500/10 shrink-0">
+            <ReactionEmoji content={event.content} tags={event.tags} className="text-xl leading-none" />
+          </div>
+
+          {/* Author + "reacted" label */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              {author.isLoading ? (
+                <>
+                  <Skeleton className="size-5 rounded-full shrink-0" />
+                  <Skeleton className="h-4 w-24" />
+                </>
+              ) : (
+                <>
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <Avatar className="size-5">
+                        <AvatarImage src={metadata?.picture} alt={displayName} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                          {displayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
+                      {author.data?.event ? (
+                        <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                      ) : displayName}
+                    </Link>
+                  </ProfileHoverCard>
+                  <span className="text-sm text-muted-foreground">reacted</span>
+                  <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at)}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </article>
+    );
+  }
 
   // ── Threaded layout (with or without connector line) ──
   if (threaded || threadedLast) {
