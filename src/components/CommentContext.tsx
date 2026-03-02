@@ -60,13 +60,13 @@ function getEventDisplayName(event: NostrEvent): string {
   const title = event.tags.find(([name]) => name === 'title')?.[1];
   if (title) return title;
 
+  // Try name tag (used by communities, emoji packs, etc.)
+  const name = event.tags.find(([name]) => name === 'name')?.[1];
+  if (name) return name;
+
   // Try d tag (addressable events use this as an identifier)
   const dTag = event.tags.find(([name]) => name === 'd')?.[1];
   if (dTag) return dTag;
-
-  // Try name tag (used by some events)
-  const name = event.tags.find(([name]) => name === 'name')?.[1];
-  if (name) return name;
 
   // Fall back to kind label from EXTRA_KINDS
   const kindDef = EXTRA_KINDS.find((def) =>
@@ -181,10 +181,13 @@ function ProfileCommentContext({ pubkey, className }: { pubkey: string; classNam
 function GenericAddrCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
   const { data: event, isLoading } = useAddrEvent(root.addr);
 
+  const isCommunity = root.rootKind === '34550' || root.addr?.kind === 34550;
+  const prefix = isCommunity ? 'Posted in' : 'Commenting on';
+
   if (isLoading) {
     return (
       <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
-        <span className="shrink-0">Commenting on</span>
+        <span className="shrink-0">{prefix}</span>
         <Skeleton className="h-3.5 w-24 inline-block" />
       </div>
     );
@@ -195,7 +198,7 @@ function GenericAddrCommentContext({ root, className }: { root: CommentRoot; cla
 
   return (
     <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
-      <span className="shrink-0">Commenting on</span>
+      <span className="shrink-0">{prefix}</span>
       {link ? (
         <Link
           to={link}

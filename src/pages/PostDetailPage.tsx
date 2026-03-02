@@ -71,7 +71,7 @@ import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { ContentWarningGuard } from '@/components/ContentWarningGuard';
 import { MutedContentGuard } from '@/components/MutedContentGuard';
-import { ExternalContentPreview, ProfilePreview } from '@/components/ExternalContentHeader';
+import { ExternalContentPreview, ProfilePreview, CommunityPreview } from '@/components/ExternalContentHeader';
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
 import { EmojiPackContent } from '@/components/EmojiPackContent';
 import { CommunityContent } from '@/components/CommunityContent';
@@ -851,6 +851,21 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     return parts[1] || undefined;
   }, [event, isComment]);
 
+  // For kind 1111 comments on a community (kind 34550), extract the addr for the community preview
+  const communityRootAddr = useMemo(() => {
+    if (!isComment) return undefined;
+    const kTag = event.tags.find(([n]) => n === 'K')?.[1];
+    if (kTag !== '34550') return undefined;
+    const aTag = event.tags.find(([n]) => n === 'A')?.[1];
+    if (!aTag) return undefined;
+    const parts = aTag.split(':');
+    const kind = parseInt(parts[0], 10);
+    const pubkey = parts[1];
+    const identifier = parts.slice(2).join(':');
+    if (!pubkey || isNaN(kind)) return undefined;
+    return { kind, pubkey, identifier };
+  }, [event, isComment]);
+
   // Keep the focused post pinned to top while ancestor content loads above it.
   // A ResizeObserver on the ancestor container re-scrolls on every layout shift
   // (image loads, skeleton→content swaps) for the first few seconds.
@@ -900,12 +915,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   return (
     <div>
-      {/* Content preview for kind 1111 comments: external content or profile */}
+      {/* Content preview for kind 1111 comments: external content, profile, or community */}
       {externalIdentifier && (
         <ExternalContentPreview identifier={externalIdentifier} />
       )}
       {profileRootPubkey && (
         <ProfilePreview pubkey={profileRootPubkey} />
+      )}
+      {communityRootAddr && (
+        <CommunityPreview addr={communityRootAddr} />
       )}
 
       {/* Ancestor thread chain if this is a reply */}

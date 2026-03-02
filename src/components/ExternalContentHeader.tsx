@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, ExternalLink, Globe, MapPin, User } from 'lucide-react';
+import { BookOpen, ExternalLink, Globe, MapPin, User, Users } from 'lucide-react';
+import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -8,6 +9,7 @@ import { LinkEmbed } from '@/components/LinkEmbed';
 import { extractYouTubeId } from '@/lib/linkEmbed';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useBookInfo } from '@/hooks/useBookInfo';
+import { useAddrEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { genUserName } from '@/lib/genUserName';
@@ -361,6 +363,78 @@ function CountryPreview({ code, link }: { code: string; link: string }) {
  * on its detail page when the root is a kind 0 profile event.
  * Links to the profile page.
  */
+/**
+ * Compact preview of a NIP-72 community, shown above a kind 1111 comment
+ * on its detail page when the root is a kind 34550 community definition.
+ * Links to the community detail page.
+ */
+export function CommunityPreview({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
+  const { data: event, isLoading } = useAddrEvent(addr);
+
+  const communityName = event?.tags.find(([n]) => n === 'name')?.[1]
+    || event?.tags.find(([n]) => n === 'd')?.[1]
+    || 'Community';
+  const communityImage = event?.tags.find(([n]) => n === 'image')?.[1];
+  const communityDescription = event?.tags.find(([n]) => n === 'description')?.[1];
+  const moderatorCount = event?.tags.filter(([n, , , role]) => n === 'p' && role === 'moderator').length ?? 0;
+
+  const link = useMemo(() => {
+    return `/${nip19.naddrEncode({ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier })}`;
+  }, [addr]);
+
+  if (isLoading) {
+    return (
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-12 rounded-lg shrink-0" />
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      to={link}
+      className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors"
+    >
+      {communityImage ? (
+        <img
+          src={communityImage}
+          alt={communityName}
+          className="size-12 rounded-lg object-cover shrink-0"
+          loading="lazy"
+        />
+      ) : (
+        <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <Users className="size-5 text-primary/50" />
+        </div>
+      )}
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Users className="size-3 shrink-0" />
+          <span>Community</span>
+          {moderatorCount > 0 && (
+            <span className="text-muted-foreground/60">&middot; {moderatorCount} mod{moderatorCount !== 1 ? 's' : ''}</span>
+          )}
+        </div>
+        <p className="text-sm font-medium truncate mt-0.5">
+          {communityName}
+        </p>
+        {communityDescription && (
+          <p className="text-xs text-muted-foreground truncate">
+            {communityDescription}
+          </p>
+        )}
+      </div>
+    </Link>
+  );
+}
+
 export function ProfilePreview({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
