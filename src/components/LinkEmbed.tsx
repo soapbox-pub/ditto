@@ -37,8 +37,8 @@ interface LinkEmbedProps {
  * Unified link embed component. Given a URL, renders the appropriate embed:
  * - YouTube URLs → `YouTubeEmbed` (click-to-play facade)
  * - Twitter/X tweet URLs → `TweetEmbed` (iframe embed)
- * - Bluesky post URLs → `BlueskyEmbed` (iframe embed)
- * - Mastodon post URLs → `MastodonEmbed` (iframe embed)
+ * - Bluesky post URLs → `BlueskyEmbed` (native card via Bluesky API)
+ * - Mastodon post URLs → `MastodonEmbed` (native card via Mastodon API)
  * - Everything else → `LinkPreview` (OEmbed link preview card)
  */
 export function LinkEmbed({ url, className, showDiscuss = true, hideImage }: LinkEmbedProps) {
@@ -56,9 +56,11 @@ export function LinkEmbed({ url, className, showDiscuss = true, hideImage }: Lin
   } else if (tweetId) {
     embed = <TweetEmbed tweetId={tweetId} />;
   } else if (blueskyPost) {
-    embed = <BlueskyEmbed author={blueskyPost.author} rkey={blueskyPost.rkey} />;
+    // BlueskyEmbed has built-in /i/ navigation, no DiscussBar needed
+    return <BlueskyEmbed author={blueskyPost.author} rkey={blueskyPost.rkey} className={className} />;
   } else if (mastodonUrl) {
-    embed = <MastodonEmbed url={mastodonUrl} />;
+    // MastodonEmbed has built-in /i/ navigation, no DiscussBar needed
+    return <MastodonEmbed url={mastodonUrl} className={className} />;
   } else if (spotifyEmbed) {
     embed = <SpotifyEmbed type={spotifyEmbed.type} id={spotifyEmbed.id} />;
   } else if (redditUrl) {
