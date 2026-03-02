@@ -1,17 +1,21 @@
 /**
- * VideosFeedPage — YouTube-style vertical video feed.
+ * VideosFeedPage — unified video + stream feed.
  *
- * Layout (top to bottom):
- *  ┌─ Follows | Global tabs ──────────────────────────┐
- *  ├─ Live Now strip (horizontal, compact) ────────────┤
- *  ├─ Video card (thumbnail + title + author + time) ──┤
- *  ├─ Video card ...                                   │
- *  └───────────────────────────────────────────────────┘
+ *  ┌─ Follows | Global tabs ─────────────────────┐
+ *  ├─ Live Now horizontal strip (live-only) ──────┤
+ *  ├─ Videos (kind 21) grid ──────────────────────┤
+ *  ├─ Shorts (kind 22) — inline snap-scroll ──────┤
+ *  │  (exactly like VinesFeedPage, within column) │
+ *  └──────────────────────────────────────────────┘
+ *
+ * Global: sort:hot (ditto relay, limit 8/page)
+ * Follows: chronological (useFeed, limit 8/page via PAGE_SIZE override)
+ * Streams: live-only query, limit 10
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Film, Radio, Play, Clock, Eye, Tv2 } from 'lucide-react';
+import { ArrowLeft, Film, Radio, Play, Clock, Eye } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Blurhash } from 'react-blurhash';
@@ -45,8 +49,8 @@ import { VineCard } from '@/pages/VinesFeedPage';
 
 const videosDef = getExtraKindDef('videos')!;
 
-/** Items per page for video feeds. */
-const VIDEO_PAGE_SIZE = 20;
+/** Items per page for video feeds — enough to fill the horizontal row with overflow. */
+const VIDEO_PAGE_SIZE = 12;
 
 type FeedTab = 'follows' | 'global';
 
@@ -57,6 +61,7 @@ function getTag(tags: string[][], name: string): string | undefined {
 }
 
 function parseVideoImeta(tags: string[][]): { url?: string; thumbnail?: string; duration?: string; blurhash?: string } {
+  // Standalone fallback tags (checked after imeta)
   const standaloneThumb = getTag(tags, 'thumb') ?? getTag(tags, 'image');
 
   for (const tag of tags) {
@@ -70,6 +75,7 @@ function parseVideoImeta(tags: string[][]): { url?: string; thumbnail?: string; 
     if (parts.url) {
       return {
         url: parts.url,
+        // imeta uses "image" key for thumbnail; fall back to standalone tags
         thumbnail: parts.image ?? parts.thumb ?? standaloneThumb,
         duration: parts.duration,
         blurhash: parts.blurhash,
@@ -108,7 +114,7 @@ function TabButton({ label, active, onClick, disabled }: {
   );
 }
 
-// ── Author chip (inline, for video card row) ──────────────────────────────────
+// ── Author chip ───────────────────────────────────────────────────────────────
 
 function CardAuthor({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
@@ -136,13 +142,12 @@ function CardAuthor({ pubkey }: { pubkey: string }) {
   );
 }
 
-// ── Main video card (YouTube-style, stacked vertically) ───────────────────────
+// ── Video grid card (kind 21) ─────────────────────────────────────────────────
 
-function VideoCard({ event }: { event: NostrEvent }) {
+function VideoGridCard({ event }: { event: NostrEvent }) {
   const { thumbnail, duration, blurhash } = parseVideoImeta(event.tags);
   const title = getTag(event.tags, 'title') ?? (event.content.slice(0, 120) || 'Untitled');
   const dur = fmtDuration(duration);
-  const isShort = event.kind === 22;
   const [imgLoaded, setImgLoaded] = useState(false);
 
   const noteId = nip19.noteEncode(event.id);
@@ -157,31 +162,17 @@ function VideoCard({ event }: { event: NostrEvent }) {
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
     >
-      {/* Thumbnail */}
-      <div className={cn(
-        'relative overflow-hidden rounded-xl bg-muted',
-        isShort ? 'aspect-[9/16] max-w-[220px]' : 'aspect-video w-full',
-      )}>
+      <div className="relative aspect-video overflow-hidden rounded-xl bg-muted">
         {blurhash && (
-          <Blurhash
-            hash={blurhash}
-            width="100%"
-            height="100%"
-            resolutionX={32}
-            resolutionY={32}
-            punch={1}
+          <Blurhash hash={blurhash} width="100%" height="100%" resolutionX={32} resolutionY={32} punch={1}
             className={cn('absolute inset-0 transition-opacity duration-300', imgLoaded ? 'opacity-0' : 'opacity-100')}
-            style={{ width: '100%', height: '100%' }}
-          />
+            style={{ width: '100%', height: '100%' }} />
         )}
         {thumbnail ? (
           <img
             src={thumbnail}
             alt={title}
-            className={cn(
-              'absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-[1.03]',
-              imgLoaded ? 'opacity-100' : 'opacity-0',
-            )}
+            className={cn('absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-[1.03]', imgLoaded ? 'opacity-100' : 'opacity-0')}
             loading="lazy"
             onLoad={() => setImgLoaded(true)}
           />
@@ -190,106 +181,36 @@ function VideoCard({ event }: { event: NostrEvent }) {
             <Play className="size-10 text-muted-foreground/30" />
           </div>
         )}
-
-        {/* Play overlay on hover */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/25">
           <div className="size-14 rounded-full bg-black/60 flex items-center justify-center">
             <Play className="size-7 text-white fill-white ml-0.5" />
           </div>
         </div>
-
-        {/* Duration badge */}
         {dur && (
-          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-medium pointer-events-none">
-            {dur}
-          </div>
-        )}
-
-        {/* Short badge */}
-        {isShort && (
-          <div className="absolute top-2 left-2">
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium">Short</Badge>
-          </div>
+          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-0.5 rounded font-medium pointer-events-none">{dur}</div>
         )}
       </div>
-
-      {/* Info row */}
-      <div className="mt-3 flex gap-3">
-        {/* Author avatar (large, left column like YouTube) */}
-        <AuthorAvatarOnly pubkey={event.pubkey} />
-
-        {/* Title + meta */}
-        <div className="flex-1 min-w-0 space-y-1">
-          <h3 className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-            {title}
-          </h3>
-          <AuthorNameOnly pubkey={event.pubkey} />
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <Clock className="size-3 shrink-0" />
-            {timeAgo(event.created_at)}
-          </p>
-        </div>
+      <div className="mt-3 space-y-2">
+        <CardAuthor pubkey={event.pubkey} />
+        <h3 className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-primary transition-colors">{title}</h3>
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Clock className="size-3.5 shrink-0" />{timeAgo(event.created_at)}</p>
       </div>
     </div>
   );
 }
 
-/** Just the avatar circle for the YouTube-style left column. */
-function AuthorAvatarOnly({ pubkey }: { pubkey: string }) {
-  const author = useAuthor(pubkey);
-  const metadata = author.data?.metadata;
-  const displayName = getDisplayName(metadata, pubkey);
-  const profileUrl = useProfileUrl(pubkey, metadata);
-
-  if (author.isLoading) return <Skeleton className="size-9 rounded-full shrink-0 mt-0.5" />;
-
-  return (
-    <Link to={profileUrl} className="shrink-0 mt-0.5" onClick={(e) => e.stopPropagation()}>
-      <Avatar className="size-9">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
-        <AvatarFallback className="bg-primary/20 text-primary text-xs">{displayName[0]?.toUpperCase()}</AvatarFallback>
-      </Avatar>
-    </Link>
-  );
-}
-
-/** Just the author name line. */
-function AuthorNameOnly({ pubkey }: { pubkey: string }) {
-  const author = useAuthor(pubkey);
-  const metadata = author.data?.metadata;
-  const displayName = getDisplayName(metadata, pubkey);
-  const profileUrl = useProfileUrl(pubkey, metadata);
-
-  if (author.isLoading) return <Skeleton className="h-3 w-24" />;
-
-  return (
-    <Link
-      to={profileUrl}
-      className="text-xs text-muted-foreground hover:text-foreground transition-colors truncate block"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {displayName}
-    </Link>
-  );
-}
-
-function VideoCardSkeleton() {
+function VideoSkeleton() {
   return (
     <div className="space-y-3">
       <Skeleton className="w-full aspect-video rounded-xl" />
-      <div className="flex gap-3">
-        <Skeleton className="size-9 rounded-full shrink-0 mt-0.5" />
-        <div className="flex-1 space-y-1.5">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-3 w-3/4" />
-          <Skeleton className="h-3 w-24" />
-        </div>
-      </div>
+      <div className="flex items-center gap-2"><Skeleton className="size-8 rounded-full shrink-0" /><Skeleton className="h-3 w-28" /></div>
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-3 w-24" />
     </div>
   );
 }
 
-// ── Live streams — horizontal compact shelf ───────────────────────────────────
+// ── Live streams — targeted query: status=live only, limit 10 ─────────────────
 
 function useLiveStreams(tab: FeedTab) {
   const { nostr } = useNostr();
@@ -314,7 +235,7 @@ function useLiveStreams(tab: FeedTab) {
   });
 }
 
-function LiveStreamChip({ event }: { event: NostrEvent }) {
+function LiveStreamCard({ event }: { event: NostrEvent }) {
   const title = getTag(event.tags, 'title') || 'Untitled Stream';
   const imageUrl = getTag(event.tags, 'image');
   const viewers = getTag(event.tags, 'current_participants');
@@ -328,38 +249,48 @@ function LiveStreamChip({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const meta = author.data?.metadata;
   const displayName = getDisplayName(meta, event.pubkey);
+  const profileUrl = useProfileUrl(event.pubkey, meta);
 
   return (
     <div
-      className="cursor-pointer group shrink-0 w-44"
+      className="cursor-pointer group shrink-0 w-60"
       onClick={onClick}
       onAuxClick={onAuxClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
     >
-      <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
+      <div className="relative aspect-video overflow-hidden rounded-xl bg-muted">
         {imageUrl ? (
           <img src={imageUrl} alt={title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-950/40 to-muted">
-            <Tv2 className="size-5 text-red-400/60" />
+            <Radio className="size-6 text-red-400/60" />
           </div>
         )}
-        <div className="absolute top-1.5 left-1.5">
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-red-600 text-white px-1.5 py-0.5 rounded">
-            <span className="size-1.5 rounded-full bg-white animate-pulse" />
-            LIVE
-          </span>
+        <div className="absolute top-2 left-2">
+          <Badge className="text-xs px-1.5 py-0.5 bg-red-600 text-white border-red-600 flex items-center gap-1">
+            <span className="size-1.5 rounded-full bg-white animate-pulse" />LIVE
+          </Badge>
         </div>
         {viewers && (
-          <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 bg-black/70 text-white text-[10px] px-1 py-0.5 rounded">
-            <Eye className="size-2.5" />{viewers}
+          <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
+            <Eye className="size-3" />{viewers}
           </div>
         )}
       </div>
-      <p className="mt-1.5 text-xs font-medium line-clamp-1 group-hover:text-primary transition-colors">{title}</p>
-      <p className="text-[11px] text-muted-foreground truncate">{displayName}</p>
+      <div className="mt-2 flex items-start gap-2">
+        <Link to={profileUrl} onClick={(e) => e.stopPropagation()} className="shrink-0 mt-0.5">
+          <Avatar className="size-7">
+            <AvatarImage src={meta?.picture} alt={displayName} />
+            <AvatarFallback className="bg-primary/20 text-primary text-[10px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
+          </Avatar>
+        </Link>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">{title}</p>
+          <p className="text-xs text-muted-foreground truncate mt-0.5">{displayName}</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -369,20 +300,59 @@ function LiveStreamsStrip({ tab }: { tab: FeedTab }) {
   if (liveEvents.length === 0) return null;
 
   return (
-    <div className="px-4 pt-4 pb-5 border-b border-border">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="px-4 pt-3 pb-5">
+      <h2 className="flex items-center gap-1.5 text-sm font-semibold mb-3">
         <span className="size-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-        <h2 className="text-sm font-semibold">Live now</h2>
-        <span className="text-xs text-muted-foreground">{liveEvents.length} stream{liveEvents.length !== 1 ? 's' : ''}</span>
-      </div>
-      <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-        {liveEvents.map((e) => <LiveStreamChip key={e.id} event={e} />)}
+        Live Now
+        <Badge variant="secondary" className="ml-1 text-xs">{liveEvents.length}</Badge>
+      </h2>
+      <div className="flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+        {liveEvents.map((e) => <LiveStreamCard key={e.id} event={e} />)}
       </div>
     </div>
   );
 }
 
-// ── Shorts player (full-screen snap, reuses VineCard) ─────────────────────────
+// ── Shorts grid thumbnail ─────────────────────────────────────────────────────
+
+function ShortThumb({ event, onClick }: { event: NostrEvent; onClick: () => void }) {
+  const { thumbnail, blurhash } = parseVideoImeta(event.tags);
+  const title = getTag(event.tags, 'title') ?? (event.content.slice(0, 60) || 'Short');
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  return (
+    <button className="group block w-full text-left focus:outline-none" onClick={onClick} aria-label={title}>
+      <div className="relative w-full aspect-[9/16] overflow-hidden rounded-xl bg-muted">
+        {blurhash && (
+          <Blurhash hash={blurhash} width="100%" height="100%" resolutionX={32} resolutionY={32} punch={1}
+            className={cn('absolute inset-0 transition-opacity duration-300', imgLoaded ? 'opacity-0' : 'opacity-100')}
+            style={{ width: '100%', height: '100%' }} />
+        )}
+        {thumbnail ? (
+          <img
+            src={thumbnail}
+            alt={title}
+            className={cn('absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-[1.03]', imgLoaded ? 'opacity-100' : 'opacity-0')}
+            loading="lazy"
+            onLoad={() => setImgLoaded(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Play className="size-8 text-muted-foreground/30" />
+          </div>
+        )}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/25">
+          <div className="size-12 rounded-full bg-black/60 flex items-center justify-center">
+            <Play className="size-6 text-white fill-white ml-0.5" />
+          </div>
+        </div>
+      </div>
+      <p className="mt-1.5 text-xs font-medium line-clamp-2 leading-snug group-hover:text-primary transition-colors w-full overflow-hidden">{title}</p>
+    </button>
+  );
+}
+
+// ── Shorts full-screen player (VineCard) with back-to-grid button ─────────────
 
 function ShortsPlayer({
   events,
@@ -396,6 +366,7 @@ function ShortsPlayer({
   const [activeIndex, setActiveIndex] = useState(startIndex);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Scroll to startIndex on mount
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -403,6 +374,7 @@ function ShortsPlayer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // IntersectionObserver syncs activeIndex as user scrolls
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -421,6 +393,7 @@ function ShortsPlayer({
     return () => observer.disconnect();
   }, [events]);
 
+  // Keyboard nav + Escape to go back
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const container = containerRef.current;
@@ -442,8 +415,10 @@ function ShortsPlayer({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose, activeIndex, events.length]);
 
+  // Same structure as VinesFeedPage: tab bar + snap container, filling the feed column
   return (
     <div className="flex-1 min-w-0 flex flex-col">
+      {/* Tab bar — same chrome as VinesTabBar, back button replaces tabs */}
       <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 shrink-0">
         <button
           onClick={onClose}
@@ -453,6 +428,8 @@ function ShortsPlayer({
           Back to Videos
         </button>
       </div>
+
+      {/* Snap-scroll VineCard column — identical sizing to VinesFeedPage */}
       <div
         ref={containerRef}
         className="vine-slide-height sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory overflow-y-scroll"
@@ -476,6 +453,30 @@ function ShortsPlayer({
   );
 }
 
+// ── Shorts grid section ───────────────────────────────────────────────────────
+
+function ShortsSection({ events, onOpen }: { events: NostrEvent[]; onOpen: (index: number) => void }) {
+  if (events.length === 0) return null;
+
+  return (
+    <section>
+      <h2 className="flex items-center gap-2 text-base font-semibold mb-4 px-4">
+        <Play className="size-4" />Shorts
+      </h2>
+      <div
+        className="flex gap-3 overflow-x-auto px-4 pb-2"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {events.map((e, i) => (
+          <div key={e.id} className="shrink-0 w-36">
+            <ShortThumb event={e} onClick={() => onOpen(i)} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function VideosFeedPage() {
@@ -490,14 +491,16 @@ export function VideosFeedPage() {
 
   useEffect(() => { if (user) setFeedTab('follows'); }, [user]);
 
-  // ── Follows: chronological ──
+  // ── Follows: chronological, small page ──
   const followsQuery = useFeed('follows', { kinds: [21, 22] });
 
-  // ── Global: sort:hot ──
+  // ── Global: sort:hot, limit 8/page ──
   const globalQuery = useInfiniteHotFeed([21, 22], feedTab === 'global', VIDEO_PAGE_SIZE);
 
   const activeQuery = feedTab === 'follows' ? followsQuery : globalQuery;
   const { data: rawData, isPending, isLoading } = activeQuery;
+
+
 
   const videoEvents = useMemo(() => {
     if (!rawData?.pages) return [];
@@ -516,13 +519,15 @@ export function VideosFeedPage() {
     });
   }, [rawData?.pages, muteItems, feedTab]);
 
-  // Shorts (kind 22) get their own player when tapped
+  const normalVideos = useMemo(() => videoEvents.filter((e) => e.kind === 21), [videoEvents]);
   const shorts = useMemo(() => videoEvents.filter((e) => e.kind === 22), [videoEvents]);
+
   const [shortsPlayerIndex, setShortsPlayerIndex] = useState<number | null>(null);
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
-  // Shorts full-screen player
+  // When the shorts player is open, render it directly as the page root —
+  // same flex-1 column that VinesFeedPage uses, fully replacing the feed UI.
   if (shortsPlayerIndex !== null) {
     return (
       <ShortsPlayer
@@ -534,8 +539,8 @@ export function VideosFeedPage() {
   }
 
   return (
-    <main>
-      {/* ── Header ── */}
+    <main className="">
+      {/* Header */}
       <div className="flex items-center gap-4 px-4 mt-4 mb-1">
         <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
           <ArrowLeft className="size-5" />
@@ -547,126 +552,59 @@ export function VideosFeedPage() {
         <KindInfoButton kindDef={videosDef} icon={sidebarItemIcon('videos', 'size-5')} />
       </div>
 
-      {/* ── Tabs ── */}
+      {/* Follows / Global tabs */}
       <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
         <TabButton label="Follows" active={feedTab === 'follows'} onClick={() => setFeedTab('follows')} disabled={!user} />
         <TabButton label="Global" active={feedTab === 'global'} onClick={() => setFeedTab('global')} />
       </div>
 
-      {/* ── Live strip ── */}
+      {/* Live streams strip — follows tab filters by followed authors */}
       <LiveStreamsStrip tab={feedTab} />
 
-      {/* ── Feed ── */}
       {showSkeleton ? (
-        <div className="px-4 pt-5 pb-8 space-y-8">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <VideoCardSkeleton key={i} />
-          ))}
+        <div className="pt-6 pb-8 space-y-10">
+          <div>
+            <Skeleton className="h-5 w-24 mb-5 mx-4" />
+            <div className="flex gap-4 overflow-hidden px-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="shrink-0 w-72"><VideoSkeleton /></div>
+              ))}
+            </div>
+          </div>
         </div>
       ) : videoEvents.length === 0 ? (
         <div className="py-16 px-8 text-center">
-          <Radio className="size-10 text-muted-foreground/30 mx-auto mb-3" />
+          <Film className="size-10 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-muted-foreground">
-            {feedTab === 'follows'
-              ? 'No videos from people you follow yet. Try Global.'
-              : 'No videos found. Check your relay connections or come back soon.'}
+            No videos yet.{feedTab === 'follows' ? ' Follow some creators or switch to Global.' : ' Check your relay connections or come back soon.'}
           </p>
-          {feedTab === 'follows' && (
-            <button
-              className="mt-3 text-sm text-primary hover:underline"
-              onClick={() => setFeedTab('global')}
-            >
-              Switch to Global
-            </button>
+        </div>
+      ) : (
+        <div className="pt-5 space-y-10 pb-8">
+          {/* Normal videos — horizontal scroll row */}
+          {normalVideos.length > 0 && (
+            <section>
+              <h2 className="flex items-center gap-2 text-base font-semibold mb-4 px-4">
+                <Film className="size-4" />Videos
+              </h2>
+              <div
+                className="flex gap-4 overflow-x-auto px-4 pb-2"
+                style={{ scrollbarWidth: 'none' }}
+              >
+                {normalVideos.map((e) => (
+                  <div key={e.id} className="shrink-0 w-72">
+                    <VideoGridCard event={e} />
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
-        </div>
-      ) : (
-        <div className="px-4 pt-5 pb-8 space-y-8">
-          {videoEvents.map((event) => {
-            if (event.kind === 22) {
-              // Shorts get a portrait card that opens the TikTok-style player
-              const shortIndex = shorts.indexOf(event);
-              return (
-                <div
-                  key={event.id}
-                  className="cursor-pointer group flex gap-3"
-                  onClick={() => setShortsPlayerIndex(shortIndex)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === 'Enter' && setShortsPlayerIndex(shortIndex)}
-                >
-                  <ShortCardLeft event={event} />
-                  <ShortCardRight event={event} />
-                </div>
-              );
-            }
-            return <VideoCard key={event.id} event={event} />;
-          })}
+
+          {/* Shorts — horizontal scroll row of portrait thumbs, tap opens player */}
+          {shorts.length > 0 && <ShortsSection events={shorts} onOpen={setShortsPlayerIndex} />}
         </div>
       )}
+
     </main>
-  );
-}
-
-/** Portrait thumbnail (left column) for a short in the vertical feed. */
-function ShortCardLeft({ event }: { event: NostrEvent }) {
-  const { thumbnail, blurhash } = parseVideoImeta(event.tags);
-  const title = getTag(event.tags, 'title') ?? 'Short';
-  const [imgLoaded, setImgLoaded] = useState(false);
-
-  return (
-    <div className="relative w-[100px] aspect-[9/16] shrink-0 overflow-hidden rounded-xl bg-muted">
-      {blurhash && (
-        <Blurhash
-          hash={blurhash}
-          width="100%"
-          height="100%"
-          resolutionX={32}
-          resolutionY={32}
-          punch={1}
-          className={cn('absolute inset-0 transition-opacity duration-300', imgLoaded ? 'opacity-0' : 'opacity-100')}
-          style={{ width: '100%', height: '100%' }}
-        />
-      )}
-      {thumbnail ? (
-        <img
-          src={thumbnail}
-          alt={title}
-          className={cn('absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-[1.03]', imgLoaded ? 'opacity-100' : 'opacity-0')}
-          loading="lazy"
-          onLoad={() => setImgLoaded(true)}
-        />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Play className="size-6 text-muted-foreground/30" />
-        </div>
-      )}
-      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
-        <div className="size-10 rounded-full bg-black/60 flex items-center justify-center">
-          <Play className="size-5 text-white fill-white ml-0.5" />
-        </div>
-      </div>
-      <div className="absolute top-1.5 left-1.5">
-        <Badge variant="secondary" className="text-[9px] px-1 py-0 font-medium leading-4">Short</Badge>
-      </div>
-    </div>
-  );
-}
-
-/** Text info (right column) for a short in the vertical feed. */
-function ShortCardRight({ event }: { event: NostrEvent }) {
-  const title = getTag(event.tags, 'title') ?? (event.content.slice(0, 80) || 'Short');
-
-  return (
-    <div className="flex-1 min-w-0 space-y-2 pt-1">
-      <h3 className="text-sm font-semibold leading-snug line-clamp-3 group-hover:text-primary transition-colors">
-        {title}
-      </h3>
-      <CardAuthor pubkey={event.pubkey} />
-      <p className="text-xs text-muted-foreground flex items-center gap-1">
-        <Clock className="size-3 shrink-0" />
-        {timeAgo(event.created_at)}
-      </p>
-    </div>
   );
 }
