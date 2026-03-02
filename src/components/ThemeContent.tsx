@@ -52,20 +52,14 @@ export function ThemeContent({ event }: ThemeContentProps) {
     return null;
   }, [event]);
 
-  if (!parsed) return null;
-
-  const { colors, title, description } = parsed;
-  const backgroundUrl = parsed.background?.url;
-
-  const isDefinition = event.kind === THEME_DEFINITION_KIND;
-  const identifier = isDefinition ? (parsed as { identifier?: string }).identifier : undefined;
-
   const previousThemeRef = useRef<{ mode: Theme; config?: ThemeConfig }>();
 
   /** Apply the theme directly when clicked. */
   const handleApplyTheme = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+
+    if (!parsed) return;
 
     // Snapshot current theme so we can undo
     previousThemeRef.current = { mode: theme, config: customTheme };
@@ -93,6 +87,14 @@ export function ThemeContent({ event }: ThemeContentProps) {
       action: <ToastAction altText="Undo theme change" onClick={undo}>Undo</ToastAction>,
     });
   }, [parsed, theme, customTheme, applyCustomTheme, setTheme]);
+
+  if (!parsed) return null;
+
+  const { colors, title, description } = parsed;
+  const backgroundUrl = parsed.background?.url;
+
+  const isDefinition = event.kind === THEME_DEFINITION_KIND;
+  const identifier = isDefinition ? (parsed as { identifier?: string }).identifier : undefined;
 
   return (
     <div className="mt-2 space-y-2">
