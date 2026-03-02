@@ -765,7 +765,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const [interactionsOpen, setInteractionsOpen] = useState(false);
   const [interactionsTab, setInteractionsTab] = useState<InteractionTab>('reposts');
 
-  const parentEventId = useMemo(() => isTextNote ? getParentEventId(event) : undefined, [event, isTextNote]);
+  const parentEventId = useMemo(() => (isTextNote || isReaction) ? getParentEventId(event) : undefined, [event, isTextNote, isReaction]);
 
    // For kind 1111 comments on external content, extract the I tag for the parent preview
   const externalIdentifier = useMemo(() => {
