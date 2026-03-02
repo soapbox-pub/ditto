@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useUserStatus } from '@/hooks/useUserStatus';
 import { genUserName } from '@/lib/genUserName';
 import { formatNip05Display, getNip05Domain } from '@/lib/nip05';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
@@ -34,6 +35,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
   const nip05Domain = getNip05Domain(nip05);
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
   const nip05Display = nip05Verified && nip05 ? formatNip05Display(nip05) : undefined;
+  const { status: userStatus, url: statusUrl } = useUserStatus(pubkey);
 
   useEffect(() => {
     queryClient.refetchQueries({ queryKey: ['author', pubkey] });
@@ -104,6 +106,19 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
             {author.data?.event ? (
               <EmojifiedText tags={author.data.event.tags}>{metadata.about}</EmojifiedText>
             ) : metadata.about}
+          </p>
+        )}
+
+        {/* NIP-38 user status */}
+        {userStatus && (
+          <p className="text-xs text-muted-foreground italic mt-2 truncate">
+            {statusUrl ? (
+              <a href={statusUrl} target="_blank" rel="noopener noreferrer" className="hover:underline" onClick={(e) => e.stopPropagation()}>
+                {userStatus}
+              </a>
+            ) : (
+              userStatus
+            )}
           </p>
         )}
       </div>

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronDown, ChevronUp, LogOut, UserPlus, SmilePlus, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, LogOut, UserPlus, Loader2 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { SidebarNavList } from '@/components/SidebarNavItem';
@@ -241,7 +241,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     }}
                     className="flex items-center gap-3 w-full px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors"
                   >
-                    <SmilePlus className="size-4 text-muted-foreground shrink-0" />
                     {userStatus.status ? (
                       <span className="truncate text-muted-foreground italic text-xs">{userStatus.status}</span>
                     ) : (

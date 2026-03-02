@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   UserPlus, LogOut, Check, Moon, Sun, Monitor, Palette, ChevronDown,
-  SmilePlus, Loader2,
+  Loader2,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -276,7 +276,6 @@ export function LeftSidebar() {
                     }}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-secondary/60 transition-colors"
                   >
-                    <SmilePlus className="size-4 text-muted-foreground shrink-0" />
                     {userStatus.status ? (
                       <span className="truncate text-muted-foreground italic text-xs">{userStatus.status}</span>
                     ) : (
