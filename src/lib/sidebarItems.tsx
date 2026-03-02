@@ -1,6 +1,6 @@
 import {
   Bell, Search, TrendingUp, User, Bookmark, Settings, SwatchBook, Palette,
-  Clapperboard, BarChart3, PartyPopper, BookOpen, Sparkles, Blocks,
+  Clapperboard, BarChart3, PartyPopper, BookOpen, BookMarked, Sparkles, Blocks,
   MessageSquare, Repeat2, MessageSquareMore, Mic, Smile, Bot, SmilePlus, Camera, Film, Globe, CalendarDays,
 } from 'lucide-react';
 import { PlanetIcon } from '@/components/icons/PlanetIcon';
@@ -50,6 +50,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'photos', label: 'Photos', path: '/photos', icon: Camera },
   { id: 'videos', label: 'Videos', path: '/videos', icon: Film },
   { id: 'articles', label: 'Articles', path: '/articles', icon: BookOpen },
+  { id: 'books', label: 'Books', path: '/books', icon: BookMarked },
   { id: 'vines', label: 'Vines', path: '/vines', icon: Clapperboard },
 
   { id: 'webxdc', label: 'Webxdc', path: '/webxdc', icon: Blocks },
@@ -61,7 +62,6 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'treasures', label: 'Treasures', path: '/treasures', icon: ChestIcon },
   { id: 'emoji-packs', label: 'Emoji Packs', path: '/emoji-packs', icon: SmilePlus },
   { id: 'world', label: 'World', path: '/world', icon: Globe },
-  { id: 'books', label: 'Books', path: '/books', icon: BookOpen },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */
