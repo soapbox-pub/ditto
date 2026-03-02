@@ -219,10 +219,11 @@ function ActivitySection() {
         }
       }
 
-      // Only keep accepted RSVPs, filter muted
-      const accepted = Array.from(latestByAuthorEvent.values()).filter((e) => {
+      // Keep RSVPs with a valid status, filter muted
+      const validStatuses = new Set(['accepted', 'tentative', 'declined']);
+      const filtered = Array.from(latestByAuthorEvent.values()).filter((e) => {
         const status = getTag(e.tags, 'status');
-        if (status !== 'accepted') return false;
+        if (!status || !validStatuses.has(status)) return false;
         if (muteItems.length > 0 && isEventMuted(e, muteItems)) return false;
         return true;
       });
@@ -234,7 +235,7 @@ function ActivitySection() {
 
       // Extract referenced event coordinates and batch-fetch them
       const coords = new Set<string>();
-      for (const rsvp of accepted) {
+      for (const rsvp of filtered) {
         const aTag = getTag(rsvp.tags, 'a');
         if (aTag) coords.add(aTag);
       }
@@ -267,7 +268,7 @@ function ActivitySection() {
       }
 
       return {
-        rsvps: accepted.map((rsvp) => {
+        rsvps: filtered.map((rsvp) => {
           const aTag = getTag(rsvp.tags, 'a');
           return {
             rsvp,
@@ -304,13 +305,13 @@ function ActivitySection() {
 
   // Auto-fetch next pages if we got raw results but zero accepted items.
   // This handles relay non-determinism where a batch may contain only
-  // declined/tentative/malformed RSVPs. Keep paginating until we find
-  // accepted ones or exhaust the data (up to 5 extra pages).
+  // malformed RSVPs (no status tag). Keep paginating until we find
+  // valid ones or exhaust the data (up to 5 extra pages).
   useEffect(() => {
     if (!rsvpQuery.data?.pages || rsvpQuery.isFetching || !hasNextPage) return;
-    const totalAccepted = rsvpQuery.data.pages.reduce((sum, p) => sum + p.rsvps.length, 0);
+    const totalItems = rsvpQuery.data.pages.reduce((sum, p) => sum + p.rsvps.length, 0);
     const pageCount = rsvpQuery.data.pages.length;
-    if (totalAccepted === 0 && pageCount < 5) {
+    if (totalItems === 0 && pageCount < 5) {
       fetchNextPage();
     }
   }, [rsvpQuery.data?.pages, rsvpQuery.isFetching, hasNextPage, fetchNextPage]);
@@ -409,11 +410,19 @@ function ActivitySection() {
 
 // ─── ActivityItem ─────────────────────────────────────────────────────────────
 
+const RSVP_DISPLAY: Record<string, { verb: string; label: string; className: string }> = {
+  accepted: { verb: 'is going to', label: 'Going', className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' },
+  tentative: { verb: 'might go to', label: 'Maybe', className: 'bg-amber-500/10 text-amber-600 border-amber-500/30' },
+  declined: { verb: "can't make it to", label: "Can't Go", className: 'bg-muted text-muted-foreground border-border' },
+};
+
 function ActivityItem({ rsvp, referencedEvent }: { rsvp: NostrEvent; referencedEvent?: NostrEvent }) {
   const author = useAuthor(rsvp.pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, rsvp.pubkey);
   const profileUrl = useProfileUrl(rsvp.pubkey, metadata);
+  const status = getTag(rsvp.tags, 'status') ?? 'accepted';
+  const display = RSVP_DISPLAY[status] ?? RSVP_DISPLAY.accepted;
 
   return (
     <div className="border-b border-border px-4 py-3">
@@ -435,9 +444,9 @@ function ActivityItem({ rsvp, referencedEvent }: { rsvp: NostrEvent; referencedE
           <Link to={profileUrl} className="font-semibold truncate max-w-[160px] hover:underline">
             {displayName}
           </Link>
-          <span className="text-muted-foreground shrink-0">is going to an event</span>
-          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px] shrink-0">
-            Attending
+          <span className="text-muted-foreground shrink-0">{display.verb} an event</span>
+          <Badge variant="outline" className={cn(display.className, 'text-[10px] shrink-0')}>
+            {display.label}
           </Badge>
         </div>
       </div>
