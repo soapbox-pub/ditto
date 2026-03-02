@@ -2,12 +2,13 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Bot, Send, Sparkles, Trash2, Palette } from 'lucide-react';
+import { Bot, Send, Sparkles, Trash2, Palette, Type } from 'lucide-react';
 
 import { useShakespeare, type ChatMessage, type Model } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { bundledFonts } from '@/lib/fonts';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,14 +18,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
+import type { ThemeConfig } from '@/themes';
+
 // ─── Tool Definitions ───
+
+/** Build the list of available bundled font names for the tool description. */
+const AVAILABLE_FONTS = bundledFonts.map((f) => f.family).join(', ');
 
 const TOOLS = [
   {
     type: 'function' as const,
     function: {
       name: 'set_theme',
-      description: 'Set a custom color theme for the application. All three color values are required and must be HSL strings WITHOUT the "hsl()" wrapper — just the raw values like "228 20% 10%". Choose colors that work well together: background sets the page color, text is the main readable foreground, and primary is the accent color used for buttons, links, and highlights. Ensure sufficient contrast between background and text for readability.',
+      description: `Set a custom theme for the application. You can set colors, a font, and a background image — all in one call. Colors are required; font and background are optional.
+
+Color values must be HSL strings WITHOUT the "hsl()" wrapper — just raw values like "228 20% 10%". Choose colors that work well together and ensure good contrast between background and text.
+
+For fonts, choose from the available bundled fonts: ${AVAILABLE_FONTS}. Pick a font that matches the mood of the theme.
+
+For backgrounds, provide a URL to a publicly accessible image. Choose images that complement the color scheme. Use mode "cover" for full-bleed backgrounds or "tile" for repeating patterns.`,
       parameters: {
         type: 'object' as const,
         properties: {
@@ -39,6 +51,19 @@ const TOOLS = [
           primary: {
             type: 'string',
             description: 'Primary accent color as an HSL string (e.g. "258 70% 60%" for purple, "142 70% 45%" for green). Used for buttons, links, and interactive elements.',
+          },
+          font: {
+            type: 'string',
+            description: `Optional font family name. Must be one of the available bundled fonts: ${AVAILABLE_FONTS}. Choose a font that matches the theme's mood and aesthetic.`,
+          },
+          background_url: {
+            type: 'string',
+            description: 'Optional URL to a background image. Should be a direct link to a publicly accessible image file (JPEG, PNG, WebP, etc.).',
+          },
+          background_mode: {
+            type: 'string',
+            description: 'How to display the background image. "cover" fills the viewport (good for photos/landscapes). "tile" repeats the image (good for patterns/textures). Defaults to "cover".',
+            enum: ['cover', 'tile'],
           },
         },
         required: ['background', 'text', 'primary'],
@@ -78,15 +103,56 @@ function useToolExecutor() {
   const executeToolCall = useCallback((name: string, args: Record<string, unknown>): string => {
     switch (name) {
       case 'set_theme': {
-        const { background, text, primary } = args;
+        const { background, text, primary, font, background_url, background_mode } = args;
+
+        // Validate required color values
         if (!isValidHsl(background) || !isValidHsl(text) || !isValidHsl(primary)) {
           return JSON.stringify({
             error: 'Invalid HSL color values. Each must be a string like "228 20% 10%".',
             received: { background, text, primary },
           });
         }
-        applyCustomTheme({ background, text, primary });
-        return JSON.stringify({ success: true, colors: { background, text, primary } });
+
+        // Build theme config
+        const themeConfig: ThemeConfig = {
+          colors: {
+            background: background as string,
+            text: text as string,
+            primary: primary as string,
+          },
+        };
+
+        // Add font if provided
+        if (typeof font === 'string' && font.trim()) {
+          const bundled = bundledFonts.find((f) => f.family.toLowerCase() === font.trim().toLowerCase());
+          if (bundled) {
+            themeConfig.font = { family: bundled.family };
+          } else {
+            return JSON.stringify({
+              error: `Unknown font "${font}". Available fonts: ${AVAILABLE_FONTS}`,
+            });
+          }
+        }
+
+        // Add background if provided
+        if (typeof background_url === 'string' && background_url.trim()) {
+          themeConfig.background = {
+            url: background_url.trim(),
+            mode: background_mode === 'tile' ? 'tile' : 'cover',
+          };
+        }
+
+        applyCustomTheme(themeConfig);
+
+        // Build result summary
+        const result: Record<string, unknown> = {
+          success: true,
+          colors: { background, text, primary },
+        };
+        if (themeConfig.font) result.font = themeConfig.font.family;
+        if (themeConfig.background) result.background = { url: themeConfig.background.url, mode: themeConfig.background.mode };
+
+        return JSON.stringify(result);
       }
       default:
         return JSON.stringify({ error: `Unknown tool: ${name}` });
@@ -102,14 +168,20 @@ const SYSTEM_PROMPT: ChatMessage = {
   role: 'system',
   content: `You are a helpful AI assistant integrated into Ditto, a Nostr social client. You can help users with questions, conversations, and tasks.
 
-You have a set_theme tool that applies a custom color theme. It takes three HSL color values (without the "hsl()" wrapper, just raw values like "228 20% 10%"):
-- background: the page background color
-- text: the main text/foreground color
-- primary: the accent color for buttons, links, and highlights
+You have a set_theme tool that applies a full custom theme. It supports:
 
-When the user asks to change the theme, pick colors that match their request and use the tool. Be creative with color choices — you can create any mood or aesthetic. Make sure background and text have good contrast for readability.
+**Colors** (required): Three HSL values without the "hsl()" wrapper (e.g. "228 20% 10%"):
+- background: page background color
+- text: main text/foreground color (must contrast well with background)
+- primary: accent color for buttons, links, and highlights
 
-Be concise and friendly. When you use a tool, briefly describe the colors you chose.`,
+**Font** (optional): Choose from bundled fonts to match the theme's mood. Available: ${AVAILABLE_FONTS}
+
+**Background image** (optional): A URL to a publicly accessible image. Set mode to "cover" for full-bleed or "tile" for repeating patterns.
+
+When the user asks to change the theme, be creative — combine colors, fonts, and backgrounds to create a cohesive aesthetic. Always set colors. Add a font when it enhances the mood. Add a background image only when you have a suitable URL or the user requests one.
+
+Be concise and friendly. When you use a tool, briefly describe the theme you created.`,
 };
 
 // ─── Page Component ───
@@ -464,9 +536,9 @@ function EmptyState() {
         </p>
       </div>
       <div className="flex flex-wrap gap-2 mt-2 max-w-sm justify-center">
-        <SuggestionChip icon={<Palette className="size-3.5" />} label="Make it cyberpunk" />
-        <SuggestionChip icon={<Palette className="size-3.5" />} label="A warm sunset theme" />
-        <SuggestionChip icon={<Palette className="size-3.5" />} label="Ocean blue vibes" />
+        <SuggestionChip icon={<Palette className="size-3.5" />} label="Cyberpunk neon theme" />
+        <SuggestionChip icon={<Type className="size-3.5" />} label="Cozy retro with a fun font" />
+        <SuggestionChip icon={<Palette className="size-3.5" />} label="Minimal dark mode" />
       </div>
     </div>
   );
@@ -537,7 +609,13 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
 }
 
 function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
-  let resultParsed: { success?: boolean; error?: string; colors?: { background?: string; text?: string; primary?: string } } = {};
+  let resultParsed: {
+    success?: boolean;
+    error?: string;
+    colors?: { background?: string; text?: string; primary?: string };
+    font?: string;
+    background?: { url?: string; mode?: string };
+  } = {};
   try {
     resultParsed = JSON.parse(toolCall.result || '{}');
   } catch {
@@ -547,29 +625,36 @@ function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
   const isSuccess = resultParsed.success === true;
   const colors = resultParsed.colors;
 
-  return (
-    <span
-      className={cn(
+  if (toolCall.name !== 'set_theme' || !isSuccess) {
+    return (
+      <span className={cn(
         'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium',
         isSuccess
           ? 'bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20'
           : 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-500/20',
+      )}>
+        <Palette className="size-3" />
+        {resultParsed.error || toolCall.name}
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[11px] font-medium bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">
+      {/* Color swatches */}
+      {colors && (
+        <span className="flex items-center gap-0.5">
+          <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.background})` }} />
+          <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.text})` }} />
+          <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.primary})` }} />
+        </span>
       )}
-    >
-      {toolCall.name === 'set_theme' && colors ? (
-        <>
-          <span className="flex items-center gap-1">
-            <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.background})` }} />
-            <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.text})` }} />
-            <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.primary})` }} />
-          </span>
-          Theme applied
-        </>
-      ) : (
-        <>
-          <Palette className="size-3" />
-          {toolCall.name}
-        </>
+      Theme applied
+      {resultParsed.font && (
+        <span className="inline-flex items-center gap-0.5 opacity-80">
+          <Type className="size-2.5" />
+          {resultParsed.font}
+        </span>
       )}
     </span>
   );
