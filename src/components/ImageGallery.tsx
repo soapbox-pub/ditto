@@ -25,10 +25,6 @@ interface ImageGalleryProps {
   imetaMap?: Map<string, ImetaDimensions>;
   /** Forwarded to Lightbox — custom content pinned to the bottom of the overlay. */
   lightboxBottomBar?: React.ReactNode;
-  /** Forwarded to Lightbox — called when navigating past the last image. */
-  onLightboxNextEvent?: () => void;
-  /** Forwarded to Lightbox — called when navigating before the first image. */
-  onLightboxPrevEvent?: () => void;
   /** Forwarded to Lightbox — custom left top-bar content. */
   lightboxTopBarLeft?: React.ReactNode;
   /** Controlled lightbox index (optional). When provided the component is semi-controlled. */
@@ -51,8 +47,6 @@ export function ImageGallery({
   maxGridHeight = '400px',
   imetaMap,
   lightboxBottomBar,
-  onLightboxNextEvent,
-  onLightboxPrevEvent,
   lightboxTopBarLeft,
   lightboxIndex: controlledIndex,
   onLightboxOpen,
@@ -135,8 +129,6 @@ export function ImageGallery({
           onPrev={goPrev}
           topBarLeft={lightboxTopBarLeft}
           bottomBar={lightboxBottomBar}
-          onNextEvent={onLightboxNextEvent}
-          onPrevEvent={onLightboxPrevEvent}
         />
       )}
     </>
@@ -301,259 +293,206 @@ export interface LightboxProps {
    * Use this to add author info, reactions, captions, etc.
    */
   bottomBar?: React.ReactNode;
-  /**
-   * Called when the user swipes/navigates past the last image (forward).
-   * If provided, navigation wraps to the next "event" instead of looping.
-   */
-  onNextEvent?: () => void;
-  /**
-   * Called when the user swipes/navigates before the first image (backward).
-   * If provided, navigation goes to the previous "event" instead of looping.
-   */
-  onPrevEvent?: () => void;
 }
 
-export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBarLeft, showDownload = true, maxDotIndicators = 10, bottomBar, onNextEvent, onPrevEvent }: LightboxProps) {
+export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBarLeft, showDownload = true, maxDotIndicators = 10, bottomBar }: LightboxProps) {
   const [isLoaded, setIsLoaded] = useState(false);
-
   const currentUrl = images[currentIndex];
   const hasMultiple = images.length > 1;
-
-  // Whether there is a "real" prev/next within this image set, or a cross-event jump available
-  const canGoNext = currentIndex < images.length - 1 || !!onNextEvent;
-  const canGoPrev = currentIndex > 0 || !!onPrevEvent;
-
-  const handleNext = useCallback(() => {
-    if (currentIndex < images.length - 1) onNext();
-    else onNextEvent?.();
-  }, [currentIndex, images.length, onNext, onNextEvent]);
-
-  const handlePrev = useCallback(() => {
-    if (currentIndex > 0) onPrev();
-    else onPrevEvent?.();
-  }, [currentIndex, onPrev, onPrevEvent]);
+  const canGoNext = currentIndex < images.length - 1;
+  const canGoPrev = currentIndex > 0;
 
   // Reset load state when image changes
-  useEffect(() => {
-    setIsLoaded(false);
-  }, [currentIndex]);
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case 'Escape':
-          onClose();
-          break;
-        case 'ArrowRight':
-          if (canGoNext) handleNext();
-          break;
-        case 'ArrowLeft':
-          if (canGoPrev) handlePrev();
-          break;
-      }
-    };
-
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose, handleNext, handlePrev, canGoNext, canGoPrev]);
+  useEffect(() => { setIsLoaded(false); }, [currentIndex]);
 
   // Lock body scroll
   useEffect(() => {
     const original = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = original;
-    };
+    return () => { document.body.style.overflow = original; };
   }, []);
 
-  // ── Swipe gesture — direct DOM mutation for zero-jank 1:1 tracking ──────────
-  const imageWrapRef = useRef<HTMLDivElement>(null);
-  const touchStartX = useRef<number | null>(null);
-  const touchStartY = useRef<number | null>(null);
-  const lockedAxis = useRef<'h' | 'v' | null>(null);
-  const SNAP_THRESHOLD = 0.3; // fraction of viewport width
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight' && canGoNext) onNext();
+      if (e.key === 'ArrowLeft' && canGoPrev) onPrev();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose, onNext, onPrev, canGoNext, canGoPrev]);
 
-  const setTranslate = (px: number, animated: boolean) => {
-    const el = imageWrapRef.current;
+  // ── Strip swipe ───────────────────────────────────────────────────────────────
+  // 3-slot strip: [prev][current][next], each 100vw wide.
+  // Strip starts translated to -100vw (showing the middle slot).
+  // During drag we mutate transform directly; on release we animate to the
+  // adjacent slot then call onNext/onPrev, which shifts currentIndex and the
+  // useEffect below immediately resets the strip to -100vw without animation
+  // so the new neighbours are in place for the next swipe.
+  const stripRef = useRef<HTMLDivElement>(null);
+  const dragX = useRef<number | null>(null);
+  const dragY = useRef<number | null>(null);
+  const axis = useRef<'h' | 'v' | null>(null);
+  const swipeCommitted = useRef(false); // true while strip is mid-swipe-commit animation
+  const EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+
+  const setStrip = (pct: number, animated: boolean) => {
+    const el = stripRef.current;
     if (!el) return;
-    el.style.transition = animated ? 'transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
-    el.style.transform = px === 0 ? '' : `translateX(${px}px)`;
+    el.style.transition = animated ? `transform 0.28s ${EASING}` : 'none';
+    el.style.transform = `translateX(calc(-100vw + ${pct}%))`;
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-    lockedAxis.current = null;
-    setTranslate(0, false);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartX.current === null || touchStartY.current === null) return;
-    const dx = e.touches[0].clientX - touchStartX.current;
-    const dy = e.touches[0].clientY - touchStartY.current;
-
-    // Determine dominant axis on first significant movement
-    if (!lockedAxis.current) {
-      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
-      lockedAxis.current = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+  // After currentIndex changes, reset strip to centre.
+  // If driven by a swipe commit the strip is at ±200vw — we need to snap it
+  // back to -100vw, but we must do it in the *next* frame after React has
+  // painted the new neighbours into slots, otherwise the jump is visible.
+  useEffect(() => {
+    if (swipeCommitted.current) {
+      swipeCommitted.current = false;
+      requestAnimationFrame(() => setStrip(0, false));
+    } else {
+      setStrip(0, false);
     }
-    if (lockedAxis.current !== 'h') return;
+  }, [currentIndex]);
 
-    e.preventDefault();
-
-    // Rubber-band resistance at edges
-    const atEdge = (dx > 0 && !canGoPrev) || (dx < 0 && !canGoNext);
-    setTranslate(atEdge ? dx * 0.2 : dx, false);
+  const onTouchStart = (e: React.TouchEvent) => {
+    dragX.current = e.touches[0].clientX;
+    dragY.current = e.touches[0].clientY;
+    axis.current = null;
+    setStrip(0, false);
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null || lockedAxis.current !== 'h') {
-      touchStartX.current = null;
-      lockedAxis.current = null;
-      setTranslate(0, true);
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (dragX.current === null || dragY.current === null) return;
+    const dx = e.touches[0].clientX - dragX.current;
+    const dy = e.touches[0].clientY - dragY.current;
+    if (!axis.current) {
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      axis.current = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+    }
+    if (axis.current !== 'h') return;
+    e.preventDefault();
+    const atEdge = (dx > 0 && !canGoPrev) || (dx < 0 && !canGoNext);
+    const pct = (atEdge ? dx * 0.2 : dx) / window.innerWidth * 100;
+    setStrip(pct, false);
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (dragX.current === null || axis.current !== 'h') {
+      dragX.current = null; axis.current = null;
+      setStrip(0, true);
       return;
     }
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    touchStartX.current = null;
-    lockedAxis.current = null;
+    const dx = e.changedTouches[0].clientX - dragX.current;
+    dragX.current = null; axis.current = null;
 
-    const threshold = window.innerWidth * SNAP_THRESHOLD;
-    if (dx < -threshold && canGoNext) {
-      handleNext();
-      setTranslate(0, false); // parent will swap image; just reset without animation
-    } else if (dx > threshold && canGoPrev) {
-      handlePrev();
-      setTranslate(0, false);
+    if (dx < -window.innerWidth * 0.2 && canGoNext) {
+      const el = stripRef.current;
+      if (el) {
+        swipeCommitted.current = true;
+        el.style.transition = `transform 0.28s ${EASING}`;
+        el.style.transform = 'translateX(-200vw)';
+        el.addEventListener('transitionend', () => onNext(), { once: true });
+      } else { onNext(); }
+    } else if (dx > window.innerWidth * 0.2 && canGoPrev) {
+      const el = stripRef.current;
+      if (el) {
+        swipeCommitted.current = true;
+        el.style.transition = `transform 0.28s ${EASING}`;
+        el.style.transform = 'translateX(0vw)';
+        el.addEventListener('transitionend', () => onPrev(), { once: true });
+      } else { onPrev(); }
     } else {
-      setTranslate(0, true); // spring back
+      setStrip(0, true);
     }
   };
 
-  // Click anywhere that isn't a button or the image itself to close
   const handleBackdropClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    // Don't close if clicking on the image, a button, or inside the top bar
     if (target.tagName === 'IMG' || target.closest('button') || target.closest('[data-gallery-topbar]')) return;
-    e.stopPropagation();
-    e.preventDefault();
+    e.stopPropagation(); e.preventDefault();
     onClose();
   };
 
   const handleDownload = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
+    e.stopPropagation(); e.preventDefault();
     const a = document.createElement('a');
-    a.href = currentUrl;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
+    a.href = currentUrl; a.target = '_blank'; a.rel = 'noopener noreferrer';
     a.click();
   };
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] animate-in fade-in duration-200 overflow-hidden"
       onClick={handleBackdropClick}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
 
       {/* Top bar */}
       <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-between px-4 py-3 safe-area-inset-top">
-        {/* Left side: custom content or default counter */}
         {topBarLeft !== undefined ? topBarLeft : (
           <>
-            {hasMultiple && (
-              <span className="text-white/80 text-sm font-medium tabular-nums">
-                {currentIndex + 1} / {images.length}
-              </span>
-            )}
+            {hasMultiple && <span className="text-white/80 text-sm font-medium tabular-nums">{currentIndex + 1} / {images.length}</span>}
             {!hasMultiple && <span />}
           </>
         )}
-
-        {/* Actions */}
         <div className="flex items-center gap-1">
           {showDownload && (
-            <button
-              onClick={handleDownload}
-              className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-              title="Open original"
-            >
+            <button onClick={handleDownload} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Open original">
               <Download className="size-5" />
             </button>
           )}
-          <button
-            onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
-            className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            title="Close (Esc)"
-          >
+          <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Close (Esc)">
             <X className="size-5" />
           </button>
         </div>
       </div>
 
-      {/* Previous button */}
+      {/* Prev/next buttons (desktop) */}
       {canGoPrev && (
-        <button
-          onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-          className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex"
-          title="Previous"
-        >
+        <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Previous">
           <ChevronLeft className="size-6" />
         </button>
       )}
-
-      {/* Next button */}
       {canGoNext && (
-        <button
-          onClick={(e) => { e.stopPropagation(); handleNext(); }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex"
-          title="Next"
-        >
+        <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Next">
           <ChevronRight className="size-6" />
         </button>
       )}
 
-      {/* Image — fills the entire viewport; top/bottom space is consumed by the top bar overlay */}
+      {/* Image strip — 3 slots × 100vw, centred on slot 1 (-100vw) */}
       <div
-        ref={imageWrapRef}
-        className="relative z-[1] flex items-center justify-center w-full h-full"
+        ref={stripRef}
+        className="absolute inset-y-0 flex will-change-transform"
+        style={{ width: '300vw', left: 0, transform: 'translateX(-100vw)' }}
       >
-        {/* Spinner while loading */}
-        {!isLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
-          </div>
-        )}
-
-        <LightboxImage
-          key={currentUrl}
-          url={currentUrl}
-          isLoaded={isLoaded}
-          onLoad={() => setIsLoaded(true)}
-        />
+        <div className="w-screen h-full flex items-center justify-center shrink-0">
+          {canGoPrev && <LightboxImage url={images[currentIndex - 1]} isLoaded={true} onLoad={() => {}} />}
+        </div>
+        <div className="w-screen h-full flex items-center justify-center shrink-0 relative">
+          {!isLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+            </div>
+          )}
+          <LightboxImage key={currentUrl} url={currentUrl} isLoaded={isLoaded} onLoad={() => setIsLoaded(true)} />
+        </div>
+        <div className="w-screen h-full flex items-center justify-center shrink-0">
+          {canGoNext && <LightboxImage url={images[currentIndex + 1]} isLoaded={true} onLoad={() => {}} />}
+        </div>
       </div>
 
-      {/* Dot indicators (mobile) — shift up when bottomBar is present */}
+      {/* Dot indicators */}
       {hasMultiple && images.length <= maxDotIndicators && (
-        <div className={cn(
-          'absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:hidden',
-          bottomBar ? 'bottom-20' : 'bottom-6',
-        )}>
+        <div className={cn('absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:hidden', bottomBar ? 'bottom-20' : 'bottom-6')}>
           {images.map((_, i) => (
-            <div
-              key={i}
-              className={cn(
-                'rounded-full transition-all duration-200',
-                i === currentIndex
-                  ? 'size-2 bg-white'
-                  : 'size-1.5 bg-white/40',
-              )}
-            />
+            <div key={i} className={cn('rounded-full transition-all duration-200', i === currentIndex ? 'size-2 bg-white' : 'size-1.5 bg-white/40')} />
           ))}
         </div>
       )}
