@@ -171,6 +171,8 @@ export const FeedSettingsSchema = z.looseObject({
   showPodcasts: z.boolean().optional(),
   feedIncludePodcastEpisodes: z.boolean().optional(),
   feedIncludePodcastTrailers: z.boolean().optional(),
+  showDevelopment: z.boolean().optional(),
+  feedIncludeDevelopment: z.boolean().optional(),
 });
 
 // ─── AppConfigSchema ─────────────────────────────────────────────────

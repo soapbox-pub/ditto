@@ -120,6 +120,10 @@ export interface FeedSettings {
   feedIncludePodcastEpisodes: boolean;
   /** Include podcast trailers (kind 30055) in the follows/global feed */
   feedIncludePodcastTrailers: boolean;
+  /** Show Development (NIP-34 repos, patches, PRs, custom NIPs, app submissions) link in sidebar */
+  showDevelopment: boolean;
+  /** Include Development content in the follows/global feed */
+  feedIncludeDevelopment: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }

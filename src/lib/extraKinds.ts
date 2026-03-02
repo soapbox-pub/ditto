@@ -24,18 +24,19 @@ export interface ExtraKindSite {
 }
 
 /** Section labels for grouping extra kinds in settings UI. */
-export type ExtraKindSection = 'feed' | 'media' | 'social' | 'whimsy';
+export type ExtraKindSection = 'feed' | 'media' | 'social' | 'development' | 'whimsy';
 
 /** Display labels for each section. */
 export const SECTION_LABELS: Record<ExtraKindSection, string> = {
   feed: 'Feed',
   media: 'Media',
   social: 'Social',
+  development: 'Development',
   whimsy: 'Whimsy',
 };
 
 /** Ordered list of sections for the "Other Stuff" settings UI. */
-export const SECTION_ORDER: ExtraKindSection[] = ['media', 'social', 'whimsy'];
+export const SECTION_ORDER: ExtraKindSection[] = ['media', 'social', 'development', 'whimsy'];
 
 /** Metadata for an extra (non-kind-1) content type. */
 export interface ExtraKindDef {
@@ -414,6 +415,21 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
         addressable: false,
       },
     ],
+  },
+  // Development
+  {
+    kind: 30617,
+    id: 'development',
+    showKey: 'showDevelopment',
+    feedKey: 'feedIncludeDevelopment',
+    extraFeedKinds: [1617, 1618, 30817, 31733],
+    label: 'Development',
+    description: 'Git repos, patches, PRs, NIPs, and apps',
+    route: 'dev',
+    addressable: true,
+    section: 'development',
+    blurb: 'Nostr-native git repositories, patches, pull requests, custom NIPs, and published applications.',
+    sites: [{ url: 'https://gitworkshop.dev', name: 'Gitworkshop' }, { url: 'https://nostrhub.io', name: 'NostrHub' }],
   },
 ];
 

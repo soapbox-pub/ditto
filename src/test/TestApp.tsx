@@ -80,6 +80,8 @@ export function TestApp({ children }: TestAppProps) {
       showPodcasts: false,
       feedIncludePodcastEpisodes: false,
       feedIncludePodcastTrailers: false,
+      showDevelopment: false,
+      feedIncludeDevelopment: false,
       followsFeedShowReplies: true,
     },
     sidebarOrder: [],
