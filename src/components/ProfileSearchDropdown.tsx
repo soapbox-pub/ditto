@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, UserRoundCheck } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -11,6 +11,7 @@ import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getProfileUrl } from '@/lib/profileUrl';
+import { searchCountries, type CountryEntry } from '@/lib/countries';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
@@ -43,14 +44,17 @@ export function ProfileSearchDropdown({
 
   const { data: profiles, isFetching, followedPubkeys } = useSearchProfiles(query);
 
+  // Country suggestions (local, synchronous)
+  const countries = useMemo(() => searchCountries(query, 3), [query]);
+
   // Show dropdown when we have results, or when text search is enabled and there's a query
   useEffect(() => {
     if (query.trim().length > 0) {
-      if (enableTextSearch || (profiles && profiles.length > 0)) {
+      if (enableTextSearch || (profiles && profiles.length > 0) || countries.length > 0) {
         setOpen(true);
       }
     }
-  }, [profiles, query, enableTextSearch]);
+  }, [profiles, query, enableTextSearch, countries.length]);
 
   // Reset selected index when results change
   useEffect(() => {
@@ -95,6 +99,15 @@ export function ProfileSearchDropdown({
     navigate(`/search?q=${encodeURIComponent(query.trim())}`);
   }, [enableTextSearch, query, navigate]);
 
+  // Total selectable items: countries + profiles
+  const totalItems = countries.length + (profiles?.length ?? 0);
+
+  const handleSelectCountry = useCallback((country: CountryEntry) => {
+    setOpen(false);
+    setQuery('');
+    navigate(`/i/iso3166:${country.code}`);
+  }, [navigate]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -105,12 +118,18 @@ export function ProfileSearchDropdown({
 
     if (e.key === 'Enter') {
       e.preventDefault();
-      // If a profile is highlighted, select it
-      if (open && profiles && selectedIndex >= 0 && selectedIndex < profiles.length) {
-        const profile = profiles[selectedIndex];
-        const nip05 = profile.metadata.nip05;
-        const nip05Verified = !!nip05 && queryClient.getQueryData<boolean>(['nip05-verify', nip05, profile.pubkey]) === true;
-        handleSelect(profile, getProfileUrl(profile.pubkey, profile.metadata, nip05Verified));
+      if (open && selectedIndex >= 0 && selectedIndex < totalItems) {
+        if (selectedIndex < countries.length) {
+          // Country item
+          handleSelectCountry(countries[selectedIndex]);
+        } else {
+          // Profile item
+          const profileIndex = selectedIndex - countries.length;
+          const profile = profiles![profileIndex];
+          const nip05 = profile.metadata.nip05;
+          const nip05Verified = !!nip05 && queryClient.getQueryData<boolean>(['nip05-verify', nip05, profile.pubkey]) === true;
+          handleSelect(profile, getProfileUrl(profile.pubkey, profile.metadata, nip05Verified));
+        }
       } else {
         // Otherwise do a text search
         handleTextSearch();
@@ -118,16 +137,16 @@ export function ProfileSearchDropdown({
       return;
     }
 
-    if (!open || !profiles || profiles.length === 0) return;
+    if (!open || totalItems === 0) return;
 
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setSelectedIndex((prev) => (prev < profiles.length - 1 ? prev + 1 : 0));
+        setSelectedIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : profiles.length - 1));
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
         break;
     }
   };
@@ -135,7 +154,7 @@ export function ProfileSearchDropdown({
   // Scroll selected item into view
   useEffect(() => {
     if (selectedIndex >= 0 && listRef.current) {
-      const items = listRef.current.querySelectorAll('[data-profile-item]');
+      const items = listRef.current.querySelectorAll('[data-search-item]');
       items[selectedIndex]?.scrollIntoView({ block: 'nearest' });
     }
   }, [selectedIndex]);
@@ -187,18 +206,26 @@ export function ProfileSearchDropdown({
       </div>
 
       {/* Dropdown results — only when text search is not enabled */}
-      {!enableTextSearch && open && profiles && profiles.length > 0 && (
+      {!enableTextSearch && open && (countries.length > 0 || (profiles && profiles.length > 0)) && (
         <div
           ref={listRef}
           role="listbox"
           className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
         >
           <div className="max-h-[320px] overflow-y-auto py-1">
-            {profiles.map((profile, index) => (
+            {countries.map((country, index) => (
+              <CountryItem
+                key={country.code}
+                country={country}
+                isSelected={index === selectedIndex}
+                onClick={handleSelectCountry}
+              />
+            ))}
+            {profiles && profiles.map((profile, index) => (
               <ProfileItem
                 key={profile.pubkey}
                 profile={profile}
-                isSelected={index === selectedIndex}
+                isSelected={index + countries.length === selectedIndex}
                 isFollowed={followedPubkeys.has(profile.pubkey)}
                 onClick={handleSelect}
               />
@@ -210,12 +237,12 @@ export function ProfileSearchDropdown({
       {/* Text search option */}
       {enableTextSearch && open && query.trim().length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
-          <div className="max-h-[320px] overflow-y-auto py-1">
+          <div ref={listRef} className="max-h-[320px] overflow-y-auto py-1">
             {/* Search text option */}
             <button
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer',
-                (!profiles || profiles.length === 0 || selectedIndex === -1) ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+                (totalItems === 0 || selectedIndex === -1) ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
               )}
               onClick={handleTextSearch}
               onMouseDown={(e) => e.preventDefault()}
@@ -228,12 +255,22 @@ export function ProfileSearchDropdown({
               </span>
             </button>
 
+            {/* Country results */}
+            {countries.map((country, index) => (
+              <CountryItem
+                key={country.code}
+                country={country}
+                isSelected={index === selectedIndex}
+                onClick={handleSelectCountry}
+              />
+            ))}
+
             {/* Profile results */}
             {profiles && profiles.length > 0 && profiles.map((profile, index) => (
               <ProfileItem
                 key={profile.pubkey}
                 profile={profile}
-                isSelected={index === selectedIndex}
+                isSelected={index + countries.length === selectedIndex}
                 isFollowed={followedPubkeys.has(profile.pubkey)}
                 onClick={handleSelect}
               />
@@ -243,7 +280,7 @@ export function ProfileSearchDropdown({
       )}
 
       {/* Empty state — only when text search is not enabled */}
-      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && profiles && profiles.length === 0 && (
+      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && countries.length === 0 && profiles && profiles.length === 0 && (
         <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
           <div className="py-6 text-center text-sm text-muted-foreground">
             No profiles found
@@ -251,6 +288,40 @@ export function ProfileSearchDropdown({
         </div>
       )}
     </div>
+  );
+}
+
+function CountryItem({
+  country,
+  isSelected,
+  onClick,
+}: {
+  country: CountryEntry;
+  isSelected: boolean;
+  onClick: (country: CountryEntry) => void;
+}) {
+  return (
+    <button
+      data-search-item
+      role="option"
+      aria-selected={isSelected}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+      onClick={() => onClick(country)}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <div className="size-10 shrink-0 rounded-full bg-secondary flex items-center justify-center">
+        <span className="text-lg leading-none" role="img" aria-label={`Flag of ${country.name}`}>
+          {country.flag}
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <span className="font-semibold text-sm truncate">{country.name}</span>
+        <div className="text-xs text-muted-foreground">{country.code}</div>
+      </div>
+    </button>
   );
 }
 
@@ -279,7 +350,7 @@ function ProfileItem({
 
   return (
     <button
-      data-profile-item
+      data-search-item
       role="option"
       aria-selected={isSelected}
       className={cn(
