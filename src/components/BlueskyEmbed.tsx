@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { Heart, MessageCircle, Repeat2 } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -50,20 +51,31 @@ export function BlueskyEmbed({ author, rkey, className }: BlueskyEmbedProps) {
     return null;
   }
 
+  const navigate = useNavigate();
   const postUrl = `https://bsky.app/profile/${post.author.handle}/post/${rkey}`;
+  const profileUrl = `https://bsky.app/profile/${post.author.handle}`;
   const displayName = post.author.displayName || post.author.handle;
 
   return (
-    <a
-      href={postUrl}
-      target="_blank"
-      rel="noopener noreferrer"
+    <div
       className={cn(
         'group block rounded-2xl border border-border overflow-hidden',
-        'hover:bg-secondary/40 transition-colors',
+        'hover:bg-secondary/40 transition-colors cursor-pointer',
         className,
       )}
-      onClick={(e) => e.stopPropagation()}
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/i/${encodeURIComponent(postUrl)}`);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/i/${encodeURIComponent(postUrl)}`);
+        }
+      }}
     >
       {/* Images */}
       {post.images && post.images.length > 0 && (
@@ -108,16 +120,32 @@ export function BlueskyEmbed({ author, rkey, className }: BlueskyEmbedProps) {
       <div className="px-3 py-2 space-y-1.5">
         {/* Author row */}
         <div className="flex items-center gap-2 min-w-0">
-          <Avatar className="size-5 shrink-0">
-            <AvatarImage src={post.author.avatar} alt={displayName} />
-            <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-              {displayName[0]?.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <button
+            type="button"
+            className="shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/i/${encodeURIComponent(profileUrl)}`);
+            }}
+          >
+            <Avatar className="size-5">
+              <AvatarImage src={post.author.avatar} alt={displayName} />
+              <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                {displayName[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </button>
 
-          <span className="text-sm font-semibold truncate">
+          <button
+            type="button"
+            className="text-sm font-semibold truncate hover:underline"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/i/${encodeURIComponent(profileUrl)}`);
+            }}
+          >
             {displayName}
-          </span>
+          </button>
 
           <span className="text-xs text-muted-foreground truncate">
             @{post.author.handle}
@@ -163,7 +191,7 @@ export function BlueskyEmbed({ author, rkey, className }: BlueskyEmbedProps) {
           </span>
         </div>
       </div>
-    </a>
+    </div>
   );
 }
 
