@@ -1175,7 +1175,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       </article>}
 
       {/* Replies */}
-      <div>
+      <div className="pb-16 sidebar:pb-0">
         {repliesLoading ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 3 }).map((_, i) => (
