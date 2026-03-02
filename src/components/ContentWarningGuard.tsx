@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useState } from 'react';
 import { ShieldAlert, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';

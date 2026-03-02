@@ -231,7 +231,7 @@ export function useInitialSync() {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [user, nostr, config.relayMetadata.updatedAt, updateConfig, queryClient, markSyncComplete]);
+  }, [user, nostr, config.appId, config.relayMetadata.updatedAt, updateConfig, queryClient, markSyncComplete]);
 
   const markComplete = useCallback(() => {
     markSyncComplete();

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { type ReactNode, useState, useCallback, useMemo, useEffect, useRef, createContext, useContext } from 'react';
 import { IntroImage } from '@/components/IntroImage';
 import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';

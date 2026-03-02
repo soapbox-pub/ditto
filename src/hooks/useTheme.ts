@@ -82,7 +82,7 @@ export function useTheme() {
         : undefined,
     }));
     syncToEncrypted({ theme });
-  }, [config.themes, updateConfig, syncToEncrypted]);
+  }, [config.themes, config.customTheme?.colors, updateConfig, syncToEncrypted]);
 
   /**
    * Set theme to "custom" and apply the given theme config.
