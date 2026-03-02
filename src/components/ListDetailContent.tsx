@@ -1,14 +1,16 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Users, UserPlus, Check, Loader2, Copy, List, Trash2, Pin, PinOff, X } from 'lucide-react';
+import { Users, UserPlus, Check, Loader2, Copy, List, Trash2, Pin, PinOff, X, CopyPlus } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { NoteCard } from '@/components/NoteCard';
@@ -21,7 +23,8 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { usePersonalLists } from '@/hooks/usePersonalLists';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { getPaginationCursor } from '@/lib/feedUtils';
+import { getPaginationCursor, isRepostKind, parseRepostContent } from '@/lib/feedUtils';
+import type { FeedItem } from '@/lib/feedUtils';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { cn } from '@/lib/utils';
@@ -67,6 +70,7 @@ export function ListDetailContent({ event }: { event: NostrEvent }) {
   const [activeTab, setActiveTab] = useState<DetailTab>('feed');
   const [copied, setCopied] = useState(false);
   const [isFollowingAll, setIsFollowingAll] = useState(false);
+  const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
   const [addMembersOpen, setAddMembersOpen] = useState(false);
 
   // Follow state
@@ -239,6 +243,12 @@ export function ListDetailContent({ event }: { event: NostrEvent }) {
             </Button>
           )}
 
+          {!isOwner && user && (
+            <Button variant="outline" size="icon" onClick={() => setCloneDialogOpen(true)} title="Clone list">
+              <CopyPlus className="size-4" />
+            </Button>
+          )}
+
           <Button variant="outline" size="icon" onClick={handleCopyLink}>
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
           </Button>
@@ -304,6 +314,17 @@ export function ListDetailContent({ event }: { event: NostrEvent }) {
           currentMembers={pubkeys}
         />
       )}
+
+      {!isOwner && user && (
+        <CloneListDialog
+          open={cloneDialogOpen}
+          onOpenChange={setCloneDialogOpen}
+          title={title}
+          description={description}
+          image={image}
+          pubkeys={pubkeys}
+        />
+      )}
     </div>
   );
 }
@@ -331,9 +352,58 @@ function ListFeedTab({ pubkeys, feedSettings }: { pubkeys: string[]; feedSetting
 
       const validEvents = rawEvents.filter((ev) => ev.created_at <= now);
       const oldestQueryTimestamp = getPaginationCursor(validEvents);
-      const items = validEvents.sort((a, b) => b.created_at - a.created_at);
 
-      return { items, oldestQueryTimestamp };
+      // Unwrap reposts (kind 6/16) into FeedItems
+      const items: FeedItem[] = [];
+      const repostMissingIds: string[] = [];
+      const repostMap = new Map<string, NostrEvent>();
+
+      for (const ev of validEvents) {
+        if (isRepostKind(ev.kind)) {
+          const embedded = parseRepostContent(ev);
+          if (embedded && embedded.created_at <= now) {
+            items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
+          } else {
+            const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
+            if (repostedId) {
+              repostMissingIds.push(repostedId);
+              repostMap.set(repostedId, ev);
+            }
+          }
+        } else {
+          items.push({ event: ev, sortTimestamp: ev.created_at });
+        }
+      }
+
+      // Fetch any reposted originals not embedded in the repost content
+      if (repostMissingIds.length > 0) {
+        try {
+          const originals = await nostr.query(
+            [{ ids: repostMissingIds, limit: repostMissingIds.length }],
+            { signal },
+          );
+          for (const original of originals) {
+            const repost = repostMap.get(original.id);
+            if (repost && original.created_at <= now) {
+              items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
+            }
+          }
+        } catch {
+          // timeout — skip missing reposts
+        }
+      }
+
+      // Deduplicate, preferring direct posts over reposts of the same event
+      const seen = new Map<string, FeedItem>();
+      for (const item of items) {
+        const existing = seen.get(item.event.id);
+        if (!existing) seen.set(item.event.id, item);
+        else if (!item.repostedBy && existing.repostedBy) seen.set(item.event.id, item);
+      }
+
+      const dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+
+      return { items: dedupedItems, oldestQueryTimestamp };
     },
     getNextPageParam: (lastPage) => {
       if (lastPage.items.length === 0) return undefined;
@@ -347,14 +417,14 @@ function ListFeedTab({ pubkeys, feedSettings }: { pubkeys: string[]; feedSetting
 
   const { data: feedData, hasNextPage, isFetchingNextPage, fetchNextPage, isLoading: feedLoading } = feedQuery;
 
-  const events = useMemo(() => {
+  const feedItems = useMemo(() => {
     if (!feedData?.pages) return [];
     const seen = new Set<string>();
     return feedData.pages
       .flatMap((page) => page.items)
-      .filter((ev) => {
-        if (seen.has(ev.id)) return false;
-        seen.add(ev.id);
+      .filter((item) => {
+        if (seen.has(item.event.id)) return false;
+        seen.add(item.event.id);
         return true;
       });
   }, [feedData?.pages]);
@@ -403,7 +473,7 @@ function ListFeedTab({ pubkeys, feedSettings }: { pubkeys: string[]; feedSetting
     );
   }
 
-  if (events.length === 0) {
+  if (feedItems.length === 0) {
     return (
       <div className="py-16 px-8 text-center">
         <p className="text-muted-foreground">No posts from list members yet.</p>
@@ -413,8 +483,8 @@ function ListFeedTab({ pubkeys, feedSettings }: { pubkeys: string[]; feedSetting
 
   return (
     <div className="divide-y divide-border">
-      {events.map((event) => (
-        <NoteCard key={event.id} event={event} />
+      {feedItems.map((item) => (
+        <NoteCard key={item.event.id} event={item.event} repostedBy={item.repostedBy} />
       ))}
       {hasNextPage && (
         <div ref={scrollRef} className="py-4">
@@ -517,5 +587,88 @@ function MemberCardSkeleton() {
       </div>
       <Skeleton className="h-8 w-20 rounded-md" />
     </div>
+  );
+}
+
+function CloneListDialog({
+  open, onOpenChange, title: sourceTitle, description, image, pubkeys,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  image?: string;
+  pubkeys: string[];
+}) {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useCurrentUser();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+
+  const [name, setName] = useState(`Copy of ${sourceTitle}`);
+  const [isPending, setIsPending] = useState(false);
+
+  // Reset name when dialog opens with a new source title
+  useEffect(() => {
+    if (open) setName(`Copy of ${sourceTitle}`);
+  }, [open, sourceTitle]);
+
+  const handleClone = async () => {
+    if (!user || !name.trim()) return;
+
+    setIsPending(true);
+    try {
+      const newDTag = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+
+      const tags: string[][] = [['d', newDTag], ['title', name.trim()]];
+      if (description) tags.push(['description', description]);
+      if (image) tags.push(['image', image]);
+      for (const pk of pubkeys) {
+        tags.push(['p', pk]);
+      }
+
+      await publishEvent({ kind: 30000, content: '', tags });
+
+      queryClient.invalidateQueries({ queryKey: ['personal-lists', user.pubkey] });
+
+      const naddr = nip19.naddrEncode({ kind: 30000, pubkey: user.pubkey, identifier: newDTag });
+      toast({ title: 'List cloned!', description: `"${name.trim()}" has been added to your lists.` });
+      onOpenChange(false);
+      navigate(`/${naddr}`);
+    } catch (error) {
+      console.error('Failed to clone list:', error);
+      toast({ title: 'Failed to clone list', description: 'There was an error cloning this list.', variant: 'destructive' });
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Clone List</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Input
+              placeholder="List name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleClone(); }}
+              autoFocus
+            />
+            <p className="text-sm text-muted-foreground mt-2">
+              {pubkeys.length} member{pubkeys.length !== 1 ? 's' : ''} will be copied to your new list.
+            </p>
+          </div>
+          <Button className="w-full" onClick={handleClone} disabled={!name.trim() || isPending}>
+            {isPending ? <Loader2 className="size-4 animate-spin mr-2" /> : <CopyPlus className="size-4 mr-2" />}
+            Clone List
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
