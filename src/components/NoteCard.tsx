@@ -51,6 +51,7 @@ import { ContentWarningGuard } from '@/components/ContentWarningGuard';
 import { getContentWarning } from '@/lib/contentWarning';
 import { ThemeContent } from '@/components/ThemeContent';
 import { VoiceMessagePlayer } from '@/components/VoiceMessagePlayer';
+import { MusicTrackContent, MusicPlaylistContent, PodcastEpisodeContent, PodcastTrailerContent } from '@/components/AudioKindContent';
 import { CalendarEventContent } from '@/components/CalendarEventContent';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
@@ -229,7 +230,12 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isNormalVideo = event.kind === 21;
   const isShortVideo = event.kind === 22;
   const isVideo = isNormalVideo || isShortVideo;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isCalendarEvent && !isEmojiPack && !isReaction && !isPhoto && !isVideo;
+  const isMusicTrack = event.kind === 36787;
+  const isMusicPlaylist = event.kind === 34139;
+  const isPodcastEpisode = event.kind === 30054;
+  const isPodcastTrailer = event.kind === 30055;
+  const isAudioKind = isMusicTrack || isMusicPlaylist || isPodcastEpisode || isPodcastTrailer;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isCalendarEvent && !isEmojiPack && !isReaction && !isPhoto && !isVideo && !isAudioKind;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideoUrls(event.content) : [], [event.content, isTextNote]);
@@ -353,6 +359,14 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           <VoiceMessagePlayer event={event} />
         ) : isCalendarEvent ? (
           <CalendarEventContent event={event} compact />
+        ) : isMusicTrack ? (
+          <MusicTrackContent event={event} />
+        ) : isMusicPlaylist ? (
+          <MusicPlaylistContent event={event} />
+        ) : isPodcastEpisode ? (
+          <PodcastEpisodeContent event={event} />
+        ) : isPodcastTrailer ? (
+          <PodcastTrailerContent event={event} />
         ) : (
           <TruncatedNoteContent event={event} videos={videos} audios={audios} imetaMap={imetaMap} webxdcApps={webxdcApps} />
         )}

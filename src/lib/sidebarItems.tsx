@@ -2,6 +2,7 @@ import {
   Bell, Search, TrendingUp, User, Bookmark, Settings, SwatchBook, Palette,
   Clapperboard, BarChart3, PartyPopper, BookOpen, BookMarked, Sparkles, Blocks,
   MessageSquare, Repeat2, MessageSquareMore, Mic, Smile, Bot, SmilePlus, Camera, Film, Globe, CalendarDays,
+  Music, Podcast,
 } from 'lucide-react';
 import { PlanetIcon } from '@/components/icons/PlanetIcon';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -52,6 +53,8 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'articles', label: 'Articles', path: '/articles', icon: BookOpen },
   { id: 'books', label: 'Books', path: '/books', icon: BookMarked },
   { id: 'vines', label: 'Vines', path: '/vines', icon: Clapperboard },
+  { id: 'music', label: 'Music', path: '/music', icon: Music },
+  { id: 'podcasts', label: 'Podcasts', path: '/podcasts', icon: Podcast },
 
   { id: 'webxdc', label: 'Webxdc', path: '/webxdc', icon: Blocks },
   { id: 'themes', label: 'Themes', path: '/themes', icon: Sparkles },

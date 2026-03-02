@@ -368,6 +368,12 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       showVideos: true,
       feedIncludeNormalVideos: true,
       feedIncludeShortVideos: true,
+      showMusic: false,
+      feedIncludeMusicTracks: false,
+      feedIncludeMusicPlaylists: false,
+      showPodcasts: false,
+      feedIncludePodcastEpisodes: false,
+      feedIncludePodcastTrailers: false,
       followsFeedShowReplies: true,
     };
 

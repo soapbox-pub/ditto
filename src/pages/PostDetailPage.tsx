@@ -36,6 +36,7 @@ import { ThemeContent } from '@/components/ThemeContent';
 import { VoiceMessagePlayer } from '@/components/VoiceMessagePlayer';
 import { CalendarEventDetailPage } from '@/components/CalendarEventDetailPage';
 import { LiveStreamPage } from '@/components/LiveStreamPage';
+import { MusicDetailContent } from '@/components/MusicDetailContent';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { extractAudioUrls } from '@/lib/mediaUrls';
@@ -47,6 +48,9 @@ const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
 
 /** Kind 30311 = NIP-53 Live Activities. */
 const LIVE_STREAM_KIND = 30311;
+
+/** Music kinds that get a rich detail view. */
+const MUSIC_KINDS = new Set([36787, 34139]);
 /** NIP-52 Calendar Events. */
 const CALENDAR_EVENT_KINDS = new Set([31922, 31923]);
 import { useReplies } from '@/hooks/useReplies';
@@ -260,6 +264,15 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   // Live streams (NIP-53) get their own immersive layout with player + chat
   if (resolvedEvent.kind === LIVE_STREAM_KIND) {
     return <LiveStreamPage event={resolvedEvent} />;
+  }
+
+  // Music tracks and playlists get a rich detail view
+  if (MUSIC_KINDS.has(resolvedEvent.kind)) {
+    return (
+      <MutedContentGuard event={resolvedEvent}>
+        <MusicDetailContent event={resolvedEvent} />
+      </MutedContentGuard>
+    );
   }
 
   // Calendar events (NIP-52) get a dedicated detail page with RSVP
