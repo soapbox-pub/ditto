@@ -19,6 +19,8 @@ interface ReactionButtonProps {
   reactionCount?: number;
   /** Optional extra class names. */
   className?: string;
+  /** Show a filled heart icon instead of outline. */
+  filledHeart?: boolean;
 }
 
 export function ReactionButton({
@@ -27,6 +29,7 @@ export function ReactionButton({
   eventKind,
   reactionCount = 0,
   className,
+  filledHeart = false,
 }: ReactionButtonProps) {
   const { user } = useCurrentUser();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -67,10 +70,9 @@ export function ReactionButton({
         <button
           className={cn(
             'flex items-center gap-1.5 p-2 rounded-full transition-colors',
-            hasReacted
-              ? 'text-pink-500'
-              : 'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
+            'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
             className,
+            hasReacted && 'text-pink-500',
           )}
           title="React"
           onClick={(e) => {
@@ -82,9 +84,11 @@ export function ReactionButton({
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          {hasReacted && userReaction ? (
-            <span className="size-6 flex items-center justify-center leading-none">
-              <RenderResolvedEmoji emoji={userReaction} className="inline-block h-6 w-6" />
+          {filledHeart ? (
+            <Heart className="size-6" fill={hasReacted ? 'currentColor' : 'none'} />
+          ) : hasReacted && userReaction ? (
+            <span className="size-5 flex items-center justify-center leading-none">
+              <RenderResolvedEmoji emoji={userReaction} className="inline-block h-5 w-5" />
             </span>
           ) : (
             <Heart className="size-5" />

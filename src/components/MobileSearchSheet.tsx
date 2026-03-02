@@ -128,7 +128,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
       />
 
       {/* Bottom sheet — sits above the bottom nav bar */}
-      <div className="fixed left-0 right-0 z-50 sidebar:hidden animate-in slide-in-from-bottom-4 duration-200"
+      <div className="fixed left-0 right-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200"
         style={{ bottom: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }}
       >
         {/* Results list — reversed so closest to input = most relevant */}
