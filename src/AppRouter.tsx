@@ -33,6 +33,7 @@ import { ThemesPage } from "./pages/ThemesPage";
 import { ThemeBuilderPage } from "./pages/ThemeBuilderPage";
 import { ExternalContentPage } from "./pages/ExternalContentPage";
 import { AIChatPage } from "./pages/AIChatPage";
+import { WorldPage } from "./pages/WorldPage";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -88,6 +89,7 @@ export function AppRouter() {
           <Route path="/themes" element={<ThemesPage />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
           <Route path="/ai-chat" element={<AIChatPage />} />
+          <Route path="/world" element={<WorldPage />} />
           <Route path="/i/*" element={<ExternalContentPage />} />
 
           {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
