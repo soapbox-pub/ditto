@@ -74,6 +74,7 @@ import { MutedContentGuard } from '@/components/MutedContentGuard';
 import { ExternalContentPreview, ProfilePreview } from '@/components/ExternalContentHeader';
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
 import { EmojiPackContent } from '@/components/EmojiPackContent';
+import { CommunityContent } from '@/components/CommunityContent';
 
 
 interface PostDetailPageProps {
@@ -230,7 +231,7 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
 
   useSeoMeta({
     title: resolvedEvent
-      ? `${resolvedEvent.tags.find(([n]) => n === 'title')?.[1] || 'Post Details'} - ${config.appName}`
+      ? `${resolvedEvent.tags.find(([n]) => n === 'title')?.[1] || resolvedEvent.tags.find(([n]) => n === 'name')?.[1] || 'Post Details'} - ${config.appName}`
       : `Loading... - ${config.appName}`,
   });
 
@@ -650,7 +651,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
     const isReaction = event.kind === 7;
     const isVideo = event.kind === 21 || event.kind === 22;
-    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isEmojiPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme && !isVoiceMessage && !isReaction && !isVideo;
+    const isCommunity = event.kind === 34550;
+    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isEmojiPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme && !isVoiceMessage && !isReaction && !isVideo && !isCommunity;
 
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
@@ -1062,6 +1064,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <ThemeContent event={event} />
           ) : isVoiceMessage ? (
             <VoiceMessagePlayer event={event} />
+          ) : isCommunity ? (
+            <CommunityContent event={event} />
           ) : isVine || isPoll || isGeocache || isFoundLog || isColor || isFollowPack || isEmojiPack ? (
             <>
               {isVine && <VineDetailContent event={event} />}
