@@ -48,6 +48,7 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
 import { useTheme } from '@/hooks/useTheme';
+import { useUserStatus } from '@/hooks/useUserStatus';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
@@ -674,6 +675,7 @@ export function ProfilePage() {
   // Kind 0 — resolved from the author cache (seeded by the feed query above).
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const profileStatus = useUserStatus(pubkey);
 
   // Refetch the author's profile whenever we navigate to this profile page.
   useEffect(() => {
@@ -1388,18 +1390,40 @@ export function ProfilePage() {
           ) : (
             <>
               <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
-                <button
-                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
-                  onClick={() => metadata?.picture && setLightboxImage(metadata.picture)}
-                  disabled={!metadata?.picture}
-                >
-                  <Avatar className={cn('size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
-                    <AvatarImage src={metadata?.picture} alt={displayName} />
-                    <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
-                      {displayName[0].toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
+                <div className="relative">
+                  <button
+                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
+                    onClick={() => metadata?.picture && setLightboxImage(metadata.picture)}
+                    disabled={!metadata?.picture}
+                  >
+                    <Avatar className={cn('size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
+                      <AvatarImage src={metadata?.picture} alt={displayName} />
+                      <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
+                        {displayName[0].toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+
+                  {/* NIP-38 thought bubble — floats beside the avatar over the banner */}
+                  {feedSettings.showUserStatuses !== false && profileStatus.status && (
+                    <div className="absolute -top-2 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
+                      <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg">
+                        <p className="text-xs md:text-sm text-foreground italic truncate">
+                          {profileStatus.url ? (
+                            <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                              {profileStatus.status}
+                            </a>
+                          ) : (
+                            profileStatus.status
+                          )}
+                        </p>
+                        {/* Speech bubble triangle tail — slightly angled toward avatar */}
+                        <div className="absolute -bottom-[6px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-t-[6px] border-t-border" />
+                        <div className="absolute -bottom-[5px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-t-[6px] border-t-background" />
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center gap-2 mt-14 md:mt-20">
                   {/* More menu */}
                   <Button

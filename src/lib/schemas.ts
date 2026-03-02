@@ -164,6 +164,7 @@ export const FeedSettingsSchema = z.looseObject({
   showEmojiPacks: z.boolean().optional(),
   feedIncludeEmojiPacks: z.boolean().optional(),
   showCustomEmojis: z.boolean().optional(),
+  showUserStatuses: z.boolean().optional(),
   showMusic: z.boolean().optional(),
   feedIncludeMusicTracks: z.boolean().optional(),
   feedIncludeMusicPlaylists: z.boolean().optional(),

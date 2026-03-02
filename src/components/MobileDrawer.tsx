@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronDown, ChevronUp, LogOut, UserPlus } from 'lucide-react';
+import { ChevronDown, ChevronUp, LogOut, UserPlus, Loader2 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { SidebarNavList } from '@/components/SidebarNavItem';
@@ -20,6 +20,10 @@ import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getSidebarItem, isItemActive } from '@/lib/sidebarItems';
 import { useTheme } from '@/hooks/useTheme';
+import { useUserStatus } from '@/hooks/useUserStatus';
+import { usePublishStatus } from '@/hooks/usePublishStatus';
+import { useToast } from '@/hooks/useToast';
+import { Input } from '@/components/ui/input';
 import { resolveTheme, resolveThemeConfig } from '@/themes';
 
 interface MobileDrawerProps {
@@ -42,6 +46,13 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
   const { theme, customTheme, themes } = useTheme();
+
+  // NIP-38 status
+  const userStatus = useUserStatus(user?.pubkey);
+  const publishStatus = usePublishStatus();
+  const { toast } = useToast();
+  const [statusEditing, setStatusEditing] = useState(false);
+  const [statusDraft, setStatusDraft] = useState('');
 
   /** Compute the background image style for the drawer, mirroring the body background. */
   const bgStyle = useMemo<React.CSSProperties>(() => {
@@ -157,6 +168,87 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                   </button>
                 </div>
               )}
+
+              {/* Status editor */}
+              <div className={`${hasBgImage ? 'bg-background rounded-xl' : ''} border-b border-border`}>
+                {statusEditing ? (
+                  <div className="px-3 py-2 space-y-2">
+                    <Input
+                      value={statusDraft}
+                      onChange={(e) => setStatusDraft(e.target.value.slice(0, 80))}
+                      placeholder="What are you up to?"
+                      className="h-8 text-sm"
+                      maxLength={80}
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const text = statusDraft.trim();
+                          publishStatus.mutateAsync({ status: text }).then(() => {
+                            setStatusEditing(false);
+                            setStatusDraft('');
+                            toast({ title: text ? 'Status updated' : 'Status cleared' });
+                          });
+                        } else if (e.key === 'Escape') {
+                          setStatusEditing(false);
+                          setStatusDraft('');
+                        }
+                      }}
+                    />
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          const text = statusDraft.trim();
+                          publishStatus.mutateAsync({ status: text }).then(() => {
+                            setStatusEditing(false);
+                            setStatusDraft('');
+                            toast({ title: text ? 'Status updated' : 'Status cleared' });
+                          });
+                        }}
+                        disabled={publishStatus.isPending}
+                        className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                      >
+                        {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : 'Save'}
+                      </button>
+                      {userStatus.status && (
+                        <button
+                          onClick={() => {
+                            publishStatus.mutateAsync({ status: '' }).then(() => {
+                              setStatusEditing(false);
+                              setStatusDraft('');
+                              toast({ title: 'Status cleared' });
+                            });
+                          }}
+                          disabled={publishStatus.isPending}
+                          className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
+                        >
+                          Clear
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setStatusEditing(false); setStatusDraft(''); }}
+                        className="text-xs text-muted-foreground hover:underline ml-auto"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setStatusEditing(true);
+                      setStatusDraft(userStatus.status ?? '');
+                    }}
+                    className="flex items-center gap-3 w-full px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors"
+                  >
+                    {userStatus.status ? (
+                      <span className="truncate text-muted-foreground italic text-xs">{userStatus.status}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Set a status</span>
+                    )}
+                  </button>
+                )}
+              </div>
 
               {/* Nav items — scrollable */}
               <nav
