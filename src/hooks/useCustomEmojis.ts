@@ -8,12 +8,22 @@ export interface CustomEmoji {
   url: string;
 }
 
+/** Well-known relays that commonly store replaceable list events like kind 10030. */
+const EMOJI_RELAYS = [
+  'wss://relay.ditto.pub/',
+  'wss://relay.primal.net/',
+  'wss://relay.damus.io/',
+  'wss://nos.lol/',
+  'wss://purplepag.es/',
+  'wss://relay.nostr.band/',
+];
+
 /**
  * Query the current user's NIP-30 custom emoji list (kind 10030).
  *
- * Extracts all `['emoji', shortcode, url]` tags from the user's
- * replaceable emoji list event. Returns an empty array if the user
- * has no emoji list or is not logged in.
+ * Queries both the default relay pool and well-known profile relays
+ * to maximize the chance of finding the user's emoji list. Extracts
+ * all `['emoji', shortcode, url]` tags from the most recent event.
  */
 export function useCustomEmojis() {
   const { nostr } = useNostr();
@@ -24,15 +34,21 @@ export function useCustomEmojis() {
     queryFn: async ({ signal }) => {
       if (!user) return [];
 
-      const events = await nostr.query(
-        [{ kinds: [10030], authors: [user.pubkey], limit: 1 }],
-        { signal },
-      );
+      // Query both the default pool and a broader relay group in parallel
+      const broadGroup = nostr.group(EMOJI_RELAYS);
+      const [poolEvents, broadEvents] = await Promise.all([
+        nostr.query([{ kinds: [10030], authors: [user.pubkey], limit: 1 }], { signal }).catch(() => []),
+        broadGroup.query([{ kinds: [10030], authors: [user.pubkey], limit: 1 }], { signal }).catch(() => []),
+      ]);
 
-      if (events.length === 0) return [];
+      // Pick the most recent event across both sources
+      const allEvents = [...poolEvents, ...broadEvents];
+      if (allEvents.length === 0) return [];
+
+      const latest = allEvents.reduce((a, b) => a.created_at >= b.created_at ? a : b);
 
       const emojis: CustomEmoji[] = [];
-      for (const tag of events[0].tags) {
+      for (const tag of latest.tags) {
         if (tag[0] === 'emoji' && tag[1] && tag[2]) {
           emojis.push({ shortcode: tag[1], url: tag[2] });
         }
