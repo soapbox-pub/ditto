@@ -410,9 +410,9 @@ export function AIChatPage() {
   }
 
   return (
-    <main className="flex flex-col h-[calc(100dvh-3.5rem)] sidebar:h-dvh">
+    <main className="flex flex-col h-[calc(100dvh-6.5rem)] sidebar:h-dvh">
       {/* Header */}
-      <div className="shrink-0 border-b border-border bg-background/80 backdrop-blur-md px-4 py-3 flex items-center justify-between gap-3">
+      <div className="shrink-0 border-b border-border bg-background/80 backdrop-blur-md px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
         <div className="flex items-center gap-2.5">
           <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
             <Sparkles className="size-4 text-primary" />
@@ -423,7 +423,7 @@ export function AIChatPage() {
         <div className="flex items-center gap-2">
           {/* Model selector */}
           <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
-            <SelectTrigger className="w-44 h-8 text-xs">
+            <SelectTrigger className="w-full sidebar:w-44 h-8 text-xs">
               <SelectValue placeholder={modelsLoading ? 'Loading models...' : 'Select model'} />
             </SelectTrigger>
             <SelectContent>
