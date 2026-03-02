@@ -368,6 +368,8 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       showPodcasts: false,
       feedIncludePodcastEpisodes: false,
       feedIncludePodcastTrailers: false,
+      showDevelopment: false,
+      feedIncludeDevelopment: false,
       followsFeedShowReplies: true,
     };
 

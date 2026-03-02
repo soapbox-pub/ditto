@@ -1,8 +1,8 @@
 import {
   Bell, Search, TrendingUp, User, Bookmark, Settings, SwatchBook, Palette,
   Clapperboard, BarChart3, PartyPopper, BookOpen, BookMarked, Sparkles, Blocks,
-  MessageSquare, Repeat2, MessageSquareMore, Mic, Smile, Bot, SmilePlus, Camera, Film, Earth, Calendar,
-  Music, Podcast,
+  MessageSquare, Repeat2, MessageSquareMore, Mic, Smile, Bot, SmilePlus, Camera, Film, Earth, CalendarDays,
+  Music, Podcast, Code,
 } from 'lucide-react';
 import { PlanetIcon } from '@/components/icons/PlanetIcon';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -55,7 +55,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'theme', label: 'Vibe', path: '/settings/theme', icon: SwatchBook },
   { id: 'ai-chat', label: 'AI Chat', path: '/ai-chat', icon: Bot, requiresAuth: true },
   // Content types
-  { id: 'events', label: 'Events', path: '/events', icon: Calendar },
+  { id: 'events', label: 'Events', path: '/events', icon: CalendarDays },
   { id: 'photos', label: 'Photos', path: '/photos', icon: Camera },
   { id: 'videos', label: 'Videos', path: '/videos', icon: Film },
   { id: 'articles', label: 'Articles', path: '/articles', icon: BookOpen },
@@ -72,6 +72,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'decks', label: 'Magic Decks', path: '/decks', icon: CardsIcon },
   { id: 'treasures', label: 'Treasures', path: '/treasures', icon: ChestIcon },
   { id: 'emoji-packs', label: 'Emoji Packs', path: '/emoji-packs', icon: SmilePlus },
+  { id: 'development', label: 'Development', path: '/dev', icon: Code },
   { id: 'world', label: 'World', path: '/world', icon: Earth },
 ];
 

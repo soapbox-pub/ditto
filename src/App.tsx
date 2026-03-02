@@ -95,6 +95,8 @@ const hardcodedConfig: AppConfig = {
     showPodcasts: false,
     feedIncludePodcastEpisodes: false,
     feedIncludePodcastTrailers: false,
+    showDevelopment: false,
+    feedIncludeDevelopment: false,
     followsFeedShowReplies: true,
   },
   sidebarOrder: ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings'],

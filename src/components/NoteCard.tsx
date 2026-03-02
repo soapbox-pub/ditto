@@ -16,8 +16,14 @@ import { GeocacheContent } from '@/components/GeocacheContent';
 import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent, ColorMomentEyeButton } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
+import { AppSubmissionCard } from '@/components/AppSubmissionCard';
 import { ArticleContent } from '@/components/ArticleContent';
 import { type ImetaEntry, parseImetaMap } from '@/lib/imeta';
+import { CustomNipCard } from '@/components/CustomNipCard';
+import { GitRepoCard } from '@/components/GitRepoCard';
+import { PatchCard } from '@/components/PatchCard';
+import { PullRequestCard } from '@/components/PullRequestCard';
+import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { EmojiPackContent } from '@/components/EmojiPackContent';
 import { FileMetadataContent } from '@/components/FileMetadataContent';
@@ -193,7 +199,13 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isPodcastEpisode = event.kind === 30054;
   const isPodcastTrailer = event.kind === 30055;
   const isAudioKind = isMusicTrack || isMusicPlaylist || isPodcastEpisode || isPodcastTrailer;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isCalendarEvent && !isEmojiPack && !isReaction && !isPhoto && !isVideo && !isAudioKind;
+  const isGitRepo = event.kind === 30617;
+  const isPatch = event.kind === 1617;
+  const isPullRequest = event.kind === 1618;
+  const isCustomNip = event.kind === 30817;
+  const isAppSubmission = event.kind === 31733;
+  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isAppSubmission;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isCalendarEvent && !isEmojiPack && !isReaction && !isPhoto && !isVideo && !isAudioKind && !isDevKind;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideoUrls(event.content) : [], [event.content, isTextNote]);
@@ -325,6 +337,16 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           <PodcastEpisodeContent event={event} />
         ) : isPodcastTrailer ? (
           <PodcastTrailerContent event={event} />
+        ) : isGitRepo ? (
+          <GitRepoCard event={event} />
+        ) : isPatch ? (
+          <PatchCard event={event} />
+        ) : isPullRequest ? (
+          <PullRequestCard event={event} />
+        ) : isCustomNip ? (
+          <CustomNipCard event={event} />
+        ) : isAppSubmission ? (
+          <AppSubmissionCard event={event} />
         ) : (
           <TruncatedNoteContent event={event} videos={videos} audios={audios} imetaMap={imetaMap} webxdcApps={webxdcApps} />
         )}
