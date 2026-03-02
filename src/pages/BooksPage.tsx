@@ -17,7 +17,7 @@ export function BooksPage() {
   });
 
   return (
-    <main className="">
+    <main className="pb-16 sidebar:pb-0">
       {/* Page header */}
       <div className="px-4 py-3.5 sidebar:py-5">
         <div className="flex items-center gap-2">

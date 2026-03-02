@@ -73,6 +73,7 @@ import { ContentWarningGuard } from '@/components/ContentWarningGuard';
 import { MutedContentGuard } from '@/components/MutedContentGuard';
 import { ExternalContentPreview, ProfilePreview } from '@/components/ExternalContentHeader';
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
+import { EmojiPackContent } from '@/components/EmojiPackContent';
 
 
 interface PostDetailPageProps {
@@ -600,13 +601,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const isFoundLog = event.kind === 7516;
     const isColor = event.kind === 3367;
     const isFollowPack = event.kind === 39089 || event.kind === 30000;
+    const isEmojiPack = event.kind === 30030;
     const isArticle = event.kind === 30023;
     const isMagicDeck = event.kind === 37381;
     const isFileMetadata = event.kind === 1063;
     const isTheme = event.kind === 36767 || event.kind === 16767;
     const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
     const isReaction = event.kind === 7;
-    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme && !isVoiceMessage && !isReaction;
+    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isEmojiPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme && !isVoiceMessage && !isReaction;
 
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
@@ -1016,7 +1018,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <ThemeContent event={event} />
           ) : isVoiceMessage ? (
             <VoiceMessagePlayer event={event} />
-          ) : isVine || isPoll || isGeocache || isFoundLog || isColor || isFollowPack ? (
+          ) : isVine || isPoll || isGeocache || isFoundLog || isColor || isFollowPack || isEmojiPack ? (
             <>
               {isVine && <VineDetailContent event={event} />}
               {isPoll && <PollContent event={event} />}
@@ -1024,6 +1026,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               {isFoundLog && <FoundLogContent event={event} />}
               {isColor && <ColorMomentContent event={event} />}
               {isFollowPack && <FollowPackContent event={event} />}
+              {isEmojiPack && <EmojiPackContent event={event} />}
             </>
           ) : (
             <>
@@ -1175,7 +1178,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       </article>}
 
       {/* Replies */}
-      <div>
+      <div className="pb-16 sidebar:pb-0">
         {repliesLoading ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 3 }).map((_, i) => (

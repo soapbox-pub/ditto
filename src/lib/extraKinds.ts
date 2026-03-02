@@ -253,6 +253,17 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   // Social
   {
+    kind: 30315,
+    id: 'statuses',
+    showKey: 'showUserStatuses',
+    label: 'User Statuses',
+    description: 'Live statuses on profiles and posts (NIP-38)',
+    addressable: true,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'See what people are up to — statuses appear next to names on posts and on profile pages.',
+  },
+  {
     kind: 31923,
     id: 'events',
     showKey: 'showEvents',
