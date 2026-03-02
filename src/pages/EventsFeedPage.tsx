@@ -317,11 +317,12 @@ function ActivitySection() {
 
   const activityItems = useMemo(() => {
     if (!rsvpQuery.data?.pages) return [];
-    // Deduplicate by author+event (across pages)
+    // Deduplicate by author+event (across pages), skip items with no referenced event
     const seen = new Set<string>();
     return rsvpQuery.data.pages
       .flatMap((page) => page.rsvps)
       .filter((item) => {
+        if (!item.referencedEvent) return false;
         const aTag = getTag(item.rsvp.tags, 'a') ?? '';
         const key = `${item.rsvp.pubkey}:${aTag}`;
         if (seen.has(key)) return false;
