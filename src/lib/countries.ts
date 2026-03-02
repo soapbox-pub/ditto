@@ -204,16 +204,32 @@ const COUNTRY_LIST = Object.entries(COUNTRIES)
 
 export type CountryEntry = typeof COUNTRY_LIST[number];
 
-/** Find a country by exact name or code match (case-insensitive). Returns 0 or 1 result. */
+/**
+ * Find a single country matching the query (case-insensitive).
+ * Matches exact code (e.g. "br" -> Brazil) or name prefix (e.g. "angol" -> Angola).
+ * Returns the shortest-name match to prefer the most specific result.
+ */
 export function searchCountries(query: string): CountryEntry[] {
   const q = query.trim().toLowerCase();
-  if (!q) return [];
+  if (q.length < 2) return [];
+
+  // Exact code match takes priority
   for (const entry of COUNTRY_LIST) {
-    if (entry.name.toLowerCase() === q || entry.code.toLowerCase() === q) {
+    if (entry.code.toLowerCase() === q) {
       return [entry];
     }
   }
-  return [];
+
+  // Otherwise find the best prefix match (shortest name = most specific)
+  let best: CountryEntry | null = null;
+  for (const entry of COUNTRY_LIST) {
+    if (entry.name.toLowerCase().startsWith(q)) {
+      if (!best || entry.name.length < best.name.length) {
+        best = entry;
+      }
+    }
+  }
+  return best ? [best] : [];
 }
 
 /** Get country info from an ISO 3166 code (country or subdivision). */
