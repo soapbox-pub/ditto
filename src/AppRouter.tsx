@@ -5,6 +5,9 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import { MainLayout } from "./components/MainLayout";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 import { useProfileUrl } from "./hooks/useProfileUrl";
+import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
+import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
+import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { NIP19Page } from "./pages/NIP19Page";
@@ -34,6 +37,8 @@ import { ThemeBuilderPage } from "./pages/ThemeBuilderPage";
 import { ExternalContentPage } from "./pages/ExternalContentPage";
 import { AIChatPage } from "./pages/AIChatPage";
 import { WorldPage } from "./pages/WorldPage";
+import { MusicFeedPage } from "./pages/MusicFeedPage";
+import { PodcastsFeedPage } from "./pages/PodcastsFeedPage";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -53,7 +58,10 @@ function ProfileRedirect() {
 
 export function AppRouter() {
   return (
+    <AudioPlayerProvider>
     <BrowserRouter>
+      <MinimizedAudioBar />
+      <AudioNavigationGuard />
       <ScrollToTop />
       <Routes>
         {/* All routes share the persistent MainLayout (sidebar + nav) */}
@@ -80,6 +88,8 @@ export function AppRouter() {
           {/* /streams redirects to /videos for backward compatibility */}
           <Route path="/streams" element={<Navigate to="/videos" replace />} />
           <Route path="/vines" element={<VinesFeedPage />} />
+          <Route path="/music" element={<MusicFeedPage />} />
+          <Route path="/podcasts" element={<PodcastsFeedPage />} />
           <Route path="/polls" element={<KindFeedPage kind={pollsDef.kind} title={pollsDef.label} icon={sidebarItemIcon('polls', 'size-5')} />} />
           <Route path="/treasures" element={<TreasuresPage />} />
           <Route path="/colors" element={<KindFeedPage kind={colorsDef.kind} title={colorsDef.label} icon={sidebarItemIcon('colors', 'size-5')} />} />
@@ -101,6 +111,7 @@ export function AppRouter() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </AudioPlayerProvider>
   );
 }
 export default AppRouter;

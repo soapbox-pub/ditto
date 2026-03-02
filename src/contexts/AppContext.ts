@@ -102,6 +102,18 @@ export interface FeedSettings {
   feedIncludeNormalVideos: boolean;
   /** Include short videos (kind 22) in the follows/global feed */
   feedIncludeShortVideos: boolean;
+  /** Show Music (kind 36787 tracks + kind 34139 playlists) link in sidebar */
+  showMusic: boolean;
+  /** Include music tracks (kind 36787) in the follows/global feed */
+  feedIncludeMusicTracks: boolean;
+  /** Include music playlists (kind 34139) in the follows/global feed */
+  feedIncludeMusicPlaylists: boolean;
+  /** Show Podcasts (kind 30054 episodes + kind 30055 trailers) link in sidebar */
+  showPodcasts: boolean;
+  /** Include podcast episodes (kind 30054) in the follows/global feed */
+  feedIncludePodcastEpisodes: boolean;
+  /** Include podcast trailers (kind 30055) in the follows/global feed */
+  feedIncludePodcastTrailers: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }
