@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { isSyncDone } from '@/hooks/useInitialSync';
 import { themePresets } from '@/themes';
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from '@/lib/themeEvent';
 import type { ThemeConfig } from '@/themes';
@@ -105,22 +106,29 @@ export function NostrSync() {
     // If this is an account switch and the new user has no encrypted
     // settings at all, reset theme to the app default so the previous
     // user's theme doesn't persist.
+    // Skip the reset during a fresh signup (sync not yet done) — the
+    // onboarding questionnaire owns theme state until it saves settings.
     if (!encryptedSettings) {
       if (accountSwitched.current) {
+        // Only reset theme for real account switches, not fresh signups.
+        // During signup, isSyncDone returns false and the onboarding
+        // questionnaire owns theme state until it saves settings.
+        if (isSyncDone(user.pubkey)) {
+          updateConfig((current) => {
+            let changed = false;
+            const updates = { ...current };
+            if (current.theme !== 'system') {
+              updates.theme = 'system';
+              changed = true;
+            }
+            if (current.customTheme !== undefined) {
+              updates.customTheme = undefined;
+              changed = true;
+            }
+            return changed ? updates : current;
+          });
+        }
         accountSwitched.current = false;
-        updateConfig((current) => {
-          let changed = false;
-          const updates = { ...current };
-          if (current.theme !== 'system') {
-            updates.theme = 'system';
-            changed = true;
-          }
-          if (current.customTheme !== undefined) {
-            updates.customTheme = undefined;
-            changed = true;
-          }
-          return changed ? updates : current;
-        });
       }
       return;
     }

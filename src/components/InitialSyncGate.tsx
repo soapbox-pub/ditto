@@ -199,13 +199,15 @@ const ONBOARDING_CONTENT_IDS = ['events', 'vines', 'colors', 'decks', 'treasures
 /** Onboarding content kinds derived from EXTRA_KINDS — no separate data to maintain. */
 const CONTENT_KINDS = ONBOARDING_CONTENT_IDS.flatMap((id) => {
   const def = EXTRA_KINDS.find((d) => d.id === id);
-  if (!def || !def.feedKey) return [];
+  // Use top-level feedKey, or fall back to the first subKind's feedKey for entries like treasures
+  const feedKey = def?.feedKey ?? def?.subKinds?.[0]?.feedKey;
+  if (!def || !feedKey) return [];
   return [{
     key: def.id,
     label: def.label,
     description: def.description,
     icon: CONTENT_KIND_ICONS[def.id],
-    feedKey: def.feedKey as string,
+    feedKey: feedKey as string,
   }];
 });
 

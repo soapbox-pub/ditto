@@ -29,7 +29,7 @@ const SYNC_TIMEOUT_MS = 8000;
  * Uses a localStorage flag so the sync screen only shows once per user
  * (not on every page refresh or new session while logged in).
  */
-function isSyncDone(pubkey: string): boolean {
+export function isSyncDone(pubkey: string): boolean {
   try {
     return localStorage.getItem(`ditto:sync-done:${pubkey}`) === '1';
   } catch {
