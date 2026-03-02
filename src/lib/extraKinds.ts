@@ -231,6 +231,17 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   // Whimsy
   {
+    kind: 10030,
+    id: 'custom-emojis',
+    showKey: 'showCustomEmojis',
+    label: 'Custom Emojis',
+    description: 'NIP-30 custom emoji in the emoji picker',
+    addressable: false,
+    section: 'whimsy',
+    feedOnly: true,
+    blurb: 'Use custom emojis from your emoji list in posts and reactions. Manage your emoji list in other Nostr clients.',
+  },
+  {
     kind: 3367,
     id: 'colors',
     showKey: 'showColors',

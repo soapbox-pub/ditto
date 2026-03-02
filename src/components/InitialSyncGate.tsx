@@ -374,6 +374,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       feedIncludeVoiceMessages: false,
       showEmojiPacks: selectedContent.has('emoji-packs'),
       feedIncludeEmojiPacks: selectedContent.has('emoji-packs'),
+      showCustomEmojis: true,
       feedIncludeProfileThemes: true,
       feedIncludeThemeDefinitions: true,
       feedIncludeProfileThemeUpdates: true,

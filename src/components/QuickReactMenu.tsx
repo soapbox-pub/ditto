@@ -1,15 +1,16 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { EmojiPicker } from '@/components/EmojiPicker';
+import { EmojiPicker, type EmojiSelection } from '@/components/EmojiPicker';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEmojiUsage } from '@/hooks/useEmojiUsage';
+import { useCustomEmojis } from '@/hooks/useCustomEmojis';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { cn } from '@/lib/utils';
 import type { EventStats } from '@/hooks/useTrending';
 import type { ResolvedEmoji } from '@/components/CustomEmoji';
-import type { CustomEmojiEntry } from '@/hooks/useUserEmojiPacks';
 
 interface QuickReactMenuProps {
   /** The event ID being reacted to. */
@@ -44,39 +45,39 @@ export function QuickReactMenu({
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
   const { trackEmojiUsage, getTopEmojis } = useEmojiUsage();
+  const { feedSettings } = useFeedSettings();
+  const { emojis: allCustomEmojis } = useCustomEmojis();
+  const customEmojis = feedSettings.showCustomEmojis !== false ? allCustomEmojis : [];
 
   const [showFullPicker, setShowFullPicker] = useState(false);
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
 
-  // Track custom emoji data for the next reaction publish
-  const pendingCustomEmoji = useRef<{ shortcode: string; url: string } | null>(null);
-
   // Get user's most-used emojis (or defaults)
   const quickEmojis = useMemo(() => getTopEmojis(6), [getTopEmojis]);
 
-  const handleEmojiSelect = useCallback((emoji: string, customEmoji?: { shortcode: string; url: string }) => {
+  /** Publish a reaction with a native Unicode emoji string. */
+  const publishReaction = useCallback((emoji: string, emojiTag?: [string, string, string]) => {
     if (!user) return;
 
-    // Close the entire popover (don't reset showFullPicker first — that
-    // causes the quick-select to flash before the popover unmounts).
+    // Close the entire popover
     onClose?.();
 
     // Set selected emoji for optimistic update
     setSelectedEmoji(emoji);
 
-    // Track emoji usage
-    trackEmojiUsage(emoji);
+    // Track emoji usage (only for native emojis)
+    if (!emojiTag) trackEmojiUsage(emoji);
 
-    // If a custom handler is provided, delegate to it and skip the default kind 7 publish.
+    // If a custom handler is provided, delegate to it
     if (onReact) {
       onReact(emoji);
       return;
     }
 
-    // Optimistically update stats cache immediately
+    // Optimistic update
     const displayEmoji = (emoji === '+' || emoji === '') ? '👍' : emoji;
-    const resolvedEmoji: ResolvedEmoji = customEmoji
-      ? { content: displayEmoji, url: customEmoji.url, name: customEmoji.shortcode }
+    const resolvedEmoji: ResolvedEmoji = emojiTag
+      ? { content: displayEmoji, url: emojiTag[2], name: emojiTag[1] }
       : { content: displayEmoji };
     const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
     if (prevStats) {
@@ -89,20 +90,15 @@ export function QuickReactMenu({
       });
     }
 
-    // Store user's own reaction for this event
     queryClient.setQueryData<ResolvedEmoji>(['user-reaction', eventId], resolvedEmoji);
 
-    // Build tags for the kind 7 event
+    // Build tags
     const tags: string[][] = [
       ['e', eventId],
       ['p', eventPubkey],
       ['k', String(eventKind)],
     ];
-
-    // NIP-30: add emoji tag for custom emoji reactions
-    if (customEmoji) {
-      tags.push(['emoji', customEmoji.shortcode, customEmoji.url]);
-    }
+    if (emojiTag) tags.push(emojiTag);
 
     // Publish kind 7 reaction
     publishEvent(
@@ -114,14 +110,12 @@ export function QuickReactMenu({
       },
       {
         onSuccess: () => {
-          // Delay invalidation so the relay has time to index the new event.
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
             queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
           }, 3000);
         },
         onError: () => {
-          // Revert optimistic update on failure
           setSelectedEmoji(null);
           if (prevStats) {
             queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
@@ -132,9 +126,23 @@ export function QuickReactMenu({
     );
   }, [user, eventId, eventPubkey, eventKind, onReact, publishEvent, queryClient, trackEmojiUsage, onClose]);
 
-  const handleCustomEmojiSelect = useCallback((emoji: CustomEmojiEntry) => {
-    handleEmojiSelect(`:${emoji.shortcode}:`, { shortcode: emoji.shortcode, url: emoji.url });
-  }, [handleEmojiSelect]);
+  /** Handle selection from the quick buttons (native emoji string). */
+  const handleQuickSelect = useCallback((emoji: string) => {
+    publishReaction(emoji);
+  }, [publishReaction]);
+
+  /** Handle selection from the full EmojiPicker (native or custom). */
+  const handlePickerSelect = useCallback((selection: EmojiSelection) => {
+    if (selection.type === 'native') {
+      publishReaction(selection.emoji);
+    } else {
+      // Custom NIP-30 emoji — content is :shortcode:, with emoji tag
+      publishReaction(
+        `:${selection.shortcode}:`,
+        ['emoji', selection.shortcode, selection.url],
+      );
+    }
+  }, [publishReaction]);
 
   if (!user) return null;
 
@@ -144,10 +152,7 @@ export function QuickReactMenu({
         className={cn('rounded-xl shadow-xl overflow-hidden', className)}
         onClick={(e) => e.stopPropagation()}
       >
-        <EmojiPicker
-          onSelect={handleEmojiSelect}
-          onCustomEmojiSelect={handleCustomEmojiSelect}
-        />
+        <EmojiPicker customEmojis={customEmojis} onSelect={handlePickerSelect} />
       </div>
     );
   }
@@ -164,7 +169,7 @@ export function QuickReactMenu({
       {quickEmojis.map((emoji) => (
         <button
           key={emoji}
-          onClick={() => handleEmojiSelect(emoji)}
+          onClick={() => handleQuickSelect(emoji)}
           className={cn(
             'flex items-center justify-center size-9 rounded-full text-xl transition-all hover:bg-secondary hover:scale-110 active:scale-95',
             selectedEmoji === emoji && 'bg-secondary scale-110',

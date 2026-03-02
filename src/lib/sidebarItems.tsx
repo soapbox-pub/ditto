@@ -1,7 +1,7 @@
 import {
   Bell, Search, TrendingUp, User, Bookmark, Settings, SwatchBook, Palette,
   Clapperboard, BarChart3, PartyPopper, Radio, BookOpen, Sparkles, Blocks,
-  MessageSquare, Repeat2, MessageSquareMore, Mic, Bot, SmilePlus,
+  MessageSquare, Repeat2, MessageSquareMore, Mic, Smile, Bot, SmilePlus,
 } from 'lucide-react';
 import { PlanetIcon } from '@/components/icons/PlanetIcon';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -75,6 +75,7 @@ export const CONTENT_KIND_ICONS: Record<string, IconComponent> = {
   reposts: Repeat2,
   'generic-reposts': Repeat2,
   voice: Mic,
+  'custom-emojis': Smile,
   ...Object.fromEntries(SIDEBAR_ITEMS.filter((s) => s.icon).map((s) => [s.id, s.icon])),
 };
 

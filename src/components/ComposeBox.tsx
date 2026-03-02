@@ -12,8 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EmojiPicker } from '@/components/EmojiPicker';
+import { useCustomEmojis } from '@/hooks/useCustomEmojis';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { GifPicker } from '@/components/GifPicker';
-import type { CustomEmojiEntry } from '@/hooks/useUserEmojiPacks';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { MentionAutocomplete } from '@/components/MentionAutocomplete';
 import { EmojiShortcodeAutocomplete } from '@/components/EmojiShortcodeAutocomplete';
@@ -160,6 +161,10 @@ export function ComposeBox({
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
   const { mutateAsync: postComment, isPending: isCommentPending } = usePostComment();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
+  const { feedSettings } = useFeedSettings();
+  const customEmojisEnabled = feedSettings.showCustomEmojis !== false;
+  const { emojis: allCustomEmojis } = useCustomEmojis();
+  const customEmojis = customEmojisEnabled ? allCustomEmojis : [];
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -169,8 +174,6 @@ export function ComposeBox({
   const [cwText, setCwText] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [gifOpen, setGifOpen] = useState(false);
-  /** Tracks custom NIP-30 emojis used in the current compose content. */
-  const [customEmojiTags, setCustomEmojiTags] = useState<Map<string, string>>(new Map());
   const [internalPreviewMode, setInternalPreviewMode] = useState(false);
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const [_uploadedFileTags, setUploadedFileTags] = useState<string[][]>([]);
@@ -379,18 +382,6 @@ export function ComposeBox({
       }
     });
   }, [content]);
-
-  const insertCustomEmoji = useCallback((emoji: CustomEmojiEntry) => {
-    // Insert `:shortcode:` into content
-    const shortcodeText = `:${emoji.shortcode}: `;
-    insertEmoji(shortcodeText);
-    // Track the emoji tag for inclusion when publishing
-    setCustomEmojiTags((prev) => {
-      const next = new Map(prev);
-      next.set(emoji.shortcode, emoji.url);
-      return next;
-    });
-  }, [insertEmoji]);
 
   const handleInsertShortcodeEmoji = useCallback(({ start, end, replacement }: { start: number; end: number; replacement: string }) => {
     const newContent = content.slice(0, start) + replacement + content.slice(end);
@@ -689,6 +680,21 @@ export function ComposeBox({
         }
       }
 
+      // NIP-30: Add emoji tags for custom emojis referenced in content
+      if (customEmojis.length > 0) {
+        const emojiMap = new Map(customEmojis.map((e) => [e.shortcode, e.url]));
+        const shortcodeRegex = /:([a-zA-Z0-9_]+):/g;
+        const usedEmojis = new Set<string>();
+        let emojiMatch;
+        while ((emojiMatch = shortcodeRegex.exec(finalContent)) !== null) {
+          const shortcode = emojiMatch[1];
+          if (emojiMap.has(shortcode) && !usedEmojis.has(shortcode)) {
+            usedEmojis.add(shortcode);
+            tags.push(['emoji', shortcode, emojiMap.get(shortcode)!]);
+          }
+        }
+      }
+
       // NIP-92: Add imeta tags for media URLs in content
       const mediaUrlMatches = finalContent.matchAll(new RegExp(IMETA_MEDIA_URL_REGEX.source, 'gi'));
       const processedUrls = new Set<string>();
@@ -737,13 +743,6 @@ export function ComposeBox({
       }
 
 
-
-      // NIP-30: Add custom emoji tags for any `:shortcode:` patterns used in content
-      for (const [shortcode, url] of customEmojiTags) {
-        if (finalContent.includes(`:${shortcode}:`)) {
-          tags.push(['emoji', shortcode, url]);
-        }
-      }
 
       if (isNip22Reply) {
         // NIP-22: use usePostComment for non-kind-1 targets and URL roots
@@ -829,7 +828,6 @@ export function ComposeBox({
       setUploadedFileGroups(new Map());
       setWebxdcUuids(new Map());
       setWebxdcMetas(new Map());
-      setCustomEmojiTags(new Map());
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
         if (replyTo instanceof URL) {
@@ -938,13 +936,6 @@ export function ComposeBox({
               textareaRef={textareaRef}
               content={content}
               onInsertEmoji={handleInsertShortcodeEmoji}
-              onCustomEmojiInsert={(emoji) => {
-                setCustomEmojiTags((prev) => {
-                  const next = new Map(prev);
-                  next.set(emoji.shortcode, emoji.url);
-                  return next;
-                });
-              }}
             />
           </div>
         ) : (
@@ -1135,12 +1126,16 @@ export function ComposeBox({
                     sideOffset={8}
                     className="w-auto p-0 border-border"
                   >
-                    <EmojiPicker onSelect={(emoji) => {
-                      insertEmoji(emoji);
-                    }} onCustomEmojiSelect={(emoji) => {
-                      insertCustomEmoji(emoji);
-                      setEmojiOpen(false);
-                    }} />
+                    <EmojiPicker
+                      customEmojis={customEmojis}
+                      onSelect={(selection) => {
+                        if (selection.type === 'native') {
+                          insertEmoji(selection.emoji);
+                        } else {
+                          insertEmoji(`:${selection.shortcode}:`);
+                        }
+                      }}
+                    />
                   </PopoverContent>
                 </Popover>
 
