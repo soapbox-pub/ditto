@@ -12,6 +12,14 @@ import { CardsIcon } from '@/components/icons/CardsIcon';
 
 type IconComponent = React.ComponentType<{ className?: string }>;
 
+/** Sentinel ID used to represent a visual divider in the sidebar order. */
+export const SIDEBAR_DIVIDER_ID = 'divider';
+
+/** Returns true if the given sidebar order ID is a divider sentinel. */
+export function isSidebarDivider(id: string): boolean {
+  return id === SIDEBAR_DIVIDER_ID;
+}
+
 /** A sidebar-capable item with everything needed for display and navigation. */
 export interface SidebarItemDef {
   /** Unique identifier stored in sidebarOrder. */

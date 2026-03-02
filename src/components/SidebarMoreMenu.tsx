@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Check } from 'lucide-react';
+import { Plus, Pencil, Check, SeparatorHorizontal } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -12,6 +12,7 @@ interface SidebarMoreMenuProps {
   onDoneEditing: () => void;
   onStartEditing: () => void;
   onAdd: (id: string) => void;
+  onAddDivider: () => void;
   onNavigate?: () => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -20,17 +21,26 @@ interface SidebarMoreMenuProps {
 }
 
 export function SidebarMoreMenu({
-  editing, hiddenItems, onDoneEditing, onStartEditing, onAdd, onNavigate, open, onOpenChange, inline,
+  editing, hiddenItems, onDoneEditing, onStartEditing, onAdd, onAddDivider, onNavigate, open, onOpenChange, inline,
 }: SidebarMoreMenuProps) {
   if (editing) {
     return (
-      <button
-        onClick={onDoneEditing}
-        className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-primary font-medium hover:bg-primary/10 bg-background/85"
-      >
-        <Check className="size-4" />
-        <span>Done editing</span>
-      </button>
+      <div className="flex flex-col gap-0.5">
+        <button
+          onClick={onAddDivider}
+          className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85"
+        >
+          <SeparatorHorizontal className="size-4" />
+          <span>Add divider</span>
+        </button>
+        <button
+          onClick={onDoneEditing}
+          className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-primary font-medium hover:bg-primary/10 bg-background/85"
+        >
+          <Check className="size-4" />
+          <span>Done editing</span>
+        </button>
+      </div>
     );
   }
 

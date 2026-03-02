@@ -38,7 +38,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const { logout } = useLoginActions();
   const { otherUsers, setLogin } = useLoggedInAccounts();
-  const { orderedItems, hiddenItems, addToSidebar, removeFromSidebar, updateSidebarOrder } = useFeedSettings();
+  const { orderedItems, hiddenItems, addToSidebar, addDividerToSidebar, removeFromSidebar, updateSidebarOrder } = useFeedSettings();
   const hasUnread = useHasUnreadNotifications();
   const [editing, setEditing] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -272,6 +272,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     onDoneEditing={() => setEditing(false)}
                     onStartEditing={() => setEditing(true)}
                     onAdd={addToSidebar}
+                    onAddDivider={addDividerToSidebar}
                     onNavigate={handleClose}
                     open={moreMenuOpen}
                     onOpenChange={setMoreMenuOpen}

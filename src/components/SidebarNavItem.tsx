@@ -8,7 +8,7 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { sidebarItemIcon, itemLabel, itemPath } from '@/lib/sidebarItems';
+import { sidebarItemIcon, itemLabel, itemPath, isSidebarDivider } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 import { useCallback } from 'react';
 
@@ -18,7 +18,7 @@ export interface SidebarNavItemProps {
   id: string;
   active: boolean;
   editing: boolean;
-  onRemove: (id: string) => void;
+  onRemove: (id: string, index?: number) => void;
   onClick?: (e: React.MouseEvent) => void;
   profilePath?: string;
   showIndicator?: boolean;
@@ -83,12 +83,55 @@ export function SidebarNavItem({
   );
 }
 
+// ── Divider item ──────────────────────────────────────────────────────────────
+
+interface SidebarDividerItemProps {
+  sortableId: string;
+  editing: boolean;
+  onRemove: () => void;
+}
+
+function SidebarDividerItem({ sortableId, editing, onRemove }: SidebarDividerItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sortableId, disabled: !editing });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn('flex items-center rounded-full transition-colors relative bg-background/85', isDragging && 'z-10 opacity-80 shadow-lg')}
+    >
+      {editing && (
+        <button
+          className="flex items-center justify-center w-8 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+      )}
+      <div className={cn('flex-1 flex items-center py-3', editing ? 'px-2' : 'px-3')}>
+        <div className="h-px w-full bg-border" />
+      </div>
+      {editing && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          title="Remove divider"
+        >
+          <X className="size-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── DnD-aware nav list ────────────────────────────────────────────────────────
 
 export interface SidebarNavListProps {
   items: string[];
   editing: boolean;
-  onRemove: (id: string) => void;
+  onRemove: (id: string, index?: number) => void;
   onReorder: (newOrder: string[]) => void;
   isActive: (id: string) => boolean;
   getOnClick?: (id: string) => ((e: React.MouseEvent) => void) | undefined;
@@ -105,31 +148,47 @@ export function SidebarNavList({
     useSensor(KeyboardSensor),
   );
 
+  // Assign unique sortable IDs: regular items use their id, dividers get "divider-{index}"
+  const sortableIds = items.map((id, i) => isSidebarDivider(id) ? `divider-${i}` : id);
+
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = items.indexOf(active.id as string);
-    const newIndex = items.indexOf(over.id as string);
+    const oldIndex = sortableIds.indexOf(active.id as string);
+    const newIndex = sortableIds.indexOf(over.id as string);
     if (oldIndex === -1 || newIndex === -1) return;
     onReorder(arrayMove(items, oldIndex, newIndex));
-  }, [items, onReorder]);
+  }, [sortableIds, items, onReorder]);
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={items} strategy={verticalListSortingStrategy}>
-        {items.map((id) => (
-          <SidebarNavItem
-            key={id}
-            id={id}
-            active={isActive(id)}
-            editing={editing}
-            onRemove={onRemove}
-            onClick={getOnClick?.(id)}
-            profilePath={getProfilePath?.(id)}
-            showIndicator={getShowIndicator?.(id)}
-            linkClassName={linkClassName}
-          />
-        ))}
+      <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+        {items.map((id, i) => {
+          const sortableId = sortableIds[i];
+          if (isSidebarDivider(id)) {
+            return (
+              <SidebarDividerItem
+                key={sortableId}
+                sortableId={sortableId}
+                editing={editing}
+                onRemove={() => onRemove(id, i)}
+              />
+            );
+          }
+          return (
+            <SidebarNavItem
+              key={id}
+              id={id}
+              active={isActive(id)}
+              editing={editing}
+              onRemove={(removeId) => onRemove(removeId, i)}
+              onClick={getOnClick?.(id)}
+              profilePath={getProfilePath?.(id)}
+              showIndicator={getShowIndicator?.(id)}
+              linkClassName={linkClassName}
+            />
+          );
+        })}
       </SortableContext>
     </DndContext>
   );

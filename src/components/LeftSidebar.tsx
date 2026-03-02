@@ -44,7 +44,7 @@ export function LeftSidebar() {
   const { logout } = useLoginActions();
   const { theme, setTheme, applyCustomTheme, customTheme } = useTheme();
   const {
-    orderedItems, hiddenItems, updateSidebarOrder, addToSidebar, removeFromSidebar,
+    orderedItems, hiddenItems, updateSidebarOrder, addToSidebar, addDividerToSidebar, removeFromSidebar,
   } = useFeedSettings();
 
   const visibleItems = useMemo(() => {
@@ -146,6 +146,7 @@ export function LeftSidebar() {
           onDoneEditing={() => setEditing(false)}
           onStartEditing={() => setEditing(true)}
           onAdd={addToSidebar}
+          onAddDivider={addDividerToSidebar}
           open={moreMenuOpen}
           onOpenChange={setMoreMenuOpen}
         />
