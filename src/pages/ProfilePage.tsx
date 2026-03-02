@@ -35,6 +35,7 @@ import { isEventMuted } from '@/lib/muteHelpers';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, filterByTab } from '@/hooks/useProfileFeed';
 import type { ProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
+import { MediaGrid, MediaGridSkeleton } from '@/components/MediaGrid';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useWallComments } from '@/hooks/useWallComments';
 import { ThreadedReplyList } from '@/components/ThreadedReplyList';
@@ -1643,8 +1644,30 @@ export function ProfilePage() {
           </div>
         )}
 
-        {/* Tab content (non-wall tabs) */}
-        {activeTab !== 'wall' && (
+        {/* Media tab — 3-column grid with lightbox */}
+        {activeTab === 'media' && (
+          <div>
+            {mediaPending ? (
+              <MediaGridSkeleton count={15} />
+            ) : mediaEvents.length > 0 ? (
+              <>
+                <MediaGrid events={mediaEvents} />
+                {hasNextMediaPage && (
+                  <div ref={scrollRef} className="flex justify-center py-6">
+                    {isFetchingNextMediaPage && (
+                      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="py-12 text-center text-muted-foreground">No media posts yet.</div>
+            )}
+          </div>
+        )}
+
+        {/* Tab content (posts / replies / likes) */}
+        {activeTab !== 'wall' && activeTab !== 'media' && (
         <div>
           {currentLoading ? (
             <div className="space-y-0">
@@ -1684,7 +1707,6 @@ export function ProfilePage() {
             <div className="py-12 text-center text-muted-foreground">
               {activeTab === 'posts' && 'No posts yet.'}
               {activeTab === 'replies' && 'No posts or replies yet.'}
-              {activeTab === 'media' && 'No media posts yet.'}
               {activeTab === 'likes' && 'No likes yet.'}
             </div>
           )}
