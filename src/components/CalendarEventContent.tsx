@@ -23,6 +23,25 @@ function getAllTags(tags: string[][], name: string): string[][] {
   return tags.filter(([n]) => n === name);
 }
 
+/**
+ * Parse a location tag value. Some clients encode location as JSON
+ * (e.g. `{"description":"Riga, Latvia","coordinates":{"lat":56.9,"lon":24.1}}`).
+ * Extract a human-readable string when possible, otherwise return the raw value.
+ */
+function parseLocation(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith('{')) return raw;
+  try {
+    const obj = JSON.parse(trimmed);
+    if (typeof obj.description === 'string' && obj.description) return obj.description;
+    if (typeof obj.name === 'string' && obj.name) return obj.name;
+    if (typeof obj.address === 'string' && obj.address) return obj.address;
+  } catch {
+    // not JSON, return as-is
+  }
+  return raw;
+}
+
 /** Date-only formatter: "Jan 15, 2026" */
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -123,7 +142,8 @@ function formatEventDate(event: NostrEvent): string {
 export function CalendarEventContent({ event, compact, className }: CalendarEventContentProps) {
   const title = useMemo(() => getTag(event.tags, 'title'), [event.tags]);
   const image = useMemo(() => getTag(event.tags, 'image'), [event.tags]);
-  const location = useMemo(() => getTag(event.tags, 'location'), [event.tags]);
+  const locationRaw = useMemo(() => getTag(event.tags, 'location'), [event.tags]);
+  const location = useMemo(() => locationRaw ? parseLocation(locationRaw) : undefined, [locationRaw]);
   const dateDisplay = useMemo(() => formatEventDate(event), [event]);
   const hashtags = useMemo(() => getAllTags(event.tags, 't').map(([, v]) => v).filter(Boolean), [event.tags]);
   const participants = useMemo(() => getAllTags(event.tags, 'p'), [event.tags]);

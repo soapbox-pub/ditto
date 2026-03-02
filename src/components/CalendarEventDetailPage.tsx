@@ -42,6 +42,25 @@ function getAllTags(tags: string[][], name: string): string[][] {
   return tags.filter(([n]) => n === name);
 }
 
+/**
+ * Parse a location tag value. Some clients encode location as JSON
+ * (e.g. `{"description":"Riga, Latvia","coordinates":{"lat":56.9,"lon":24.1}}`).
+ * Extract a human-readable string when possible, otherwise return the raw value.
+ */
+function parseLocation(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith('{')) return raw;
+  try {
+    const obj = JSON.parse(trimmed);
+    if (typeof obj.description === 'string' && obj.description) return obj.description;
+    if (typeof obj.name === 'string' && obj.name) return obj.name;
+    if (typeof obj.address === 'string' && obj.address) return obj.address;
+  } catch {
+    // not JSON, return as-is
+  }
+  return raw;
+}
+
 function getEventCoord(event: NostrEvent): string {
   const d = getTag(event.tags, 'd') ?? '';
   return `${event.kind}:${event.pubkey}:${d}`;
@@ -136,7 +155,8 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
 
   const title = getTag(event.tags, 'title') ?? 'Untitled Event';
   const image = getTag(event.tags, 'image');
-  const location = getTag(event.tags, 'location');
+  const locationRaw = getTag(event.tags, 'location');
+  const location = locationRaw ? parseLocation(locationRaw) : undefined;
   const summary = getTag(event.tags, 'summary');
   const hashtags = getAllTags(event.tags, 't').map(([, v]) => v).filter(Boolean);
   const links = getAllTags(event.tags, 'r').map(([, v]) => v).filter(Boolean);
@@ -255,9 +275,9 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
 
         {/* Description */}
         {(event.content || summary) && (
-          <div className="prose prose-sm dark:prose-invert max-w-none">
+          <div className="max-w-none">
             {event.content ? (
-              <NoteContent event={event} className="text-sm leading-relaxed" hideEmbedImages={!!image} />
+              <NoteContent event={event} className="text-sm leading-relaxed text-foreground" hideEmbedImages={!!image} />
             ) : (
               <p className="text-sm text-muted-foreground">{summary}</p>
             )}
