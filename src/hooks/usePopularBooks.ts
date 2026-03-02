@@ -35,7 +35,7 @@ interface TrendingResponse {
 
 async function fetchPopularBooks(signal?: AbortSignal): Promise<PopularBook[]> {
   const response = await fetch(
-    'https://openlibrary.org/trending/yearly.json?limit=20',
+    'https://openlibrary.org/trending/hourly.json?limit=20',
     { signal, headers: { Accept: 'application/json' } },
   );
   if (!response.ok) return [];
@@ -70,8 +70,8 @@ export function usePopularBooks() {
   return useQuery({
     queryKey: ['popular-books'],
     queryFn: ({ signal }) => fetchPopularBooks(signal),
-    staleTime: 1000 * 60 * 60 * 6, // 6 hours
-    gcTime: 1000 * 60 * 60 * 24, // 24 hours
+    staleTime: 1000 * 60 * 30, // 30 minutes
+    gcTime: 1000 * 60 * 60 * 2, // 2 hours
     retry: 1,
   });
 }

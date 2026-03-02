@@ -13,7 +13,7 @@ export function BooksPage() {
 
   useSeoMeta({
     title: `Books | ${config.appName}`,
-    description: 'Popular books trending this year on OpenLibrary',
+    description: 'Popular books trending now on OpenLibrary',
   });
 
   return (
@@ -24,7 +24,7 @@ export function BooksPage() {
           <BookOpen className="size-5" />
           <h1 className="font-bold text-xl">Books</h1>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">Popular books trending this year</p>
+        <p className="text-sm text-muted-foreground mt-1">Popular books trending now</p>
       </div>
 
       {/* Book list */}
