@@ -88,6 +88,7 @@ const hardcodedConfig: AppConfig = {
     showEmojiPacks: false,
     feedIncludeEmojiPacks: false,
     showCustomEmojis: true,
+    showUserStatuses: true,
     showMusic: false,
     feedIncludeMusicTracks: false,
     feedIncludeMusicPlaylists: false,

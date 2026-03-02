@@ -106,6 +106,8 @@ export interface FeedSettings {
   feedIncludeNormalVideos: boolean;
   /** Include short videos (kind 22) in the follows/global feed */
   feedIncludeShortVideos: boolean;
+  /** Show NIP-38 user statuses on profiles and note cards */
+  showUserStatuses: boolean;
   /** Show Music (kind 36787 tracks + kind 34139 playlists) link in sidebar */
   showMusic: boolean;
   /** Include music tracks (kind 36787) in the follows/global feed */
