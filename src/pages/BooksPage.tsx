@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { BookOpen } from 'lucide-react';
+import { BookMarked } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,7 +21,7 @@ export function BooksPage() {
       {/* Page header */}
       <div className="px-4 py-3.5 sidebar:py-5">
         <div className="flex items-center gap-2">
-          <BookOpen className="size-5" />
+          <BookMarked className="size-5" />
           <h1 className="font-bold text-xl">Books</h1>
         </div>
         <p className="text-sm text-muted-foreground mt-1">Popular books trending now</p>
@@ -72,7 +72,7 @@ function BookItem({ book }: { book: PopularBook }) {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <BookOpen className="size-5 text-muted-foreground/40" />
+            <BookMarked className="size-5 text-muted-foreground/40" />
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
-import { Globe, Search } from 'lucide-react';
+import { Earth, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useAppContext } from '@/hooks/useAppContext';
 import { COUNTRIES } from '@/lib/countries';
@@ -33,7 +33,7 @@ export function WorldPage() {
       {/* Header */}
       <div className="px-4 py-3.5 sidebar:py-5">
         <div className="flex items-center gap-2">
-          <Globe className="size-5" />
+          <Earth className="size-5" />
           <h1 className="font-bold text-xl">World</h1>
         </div>
       </div>
