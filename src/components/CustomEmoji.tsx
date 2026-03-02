@@ -72,8 +72,8 @@ interface ReactionEmojiProps {
  * emoji tags and renders an inline image. For unicode emojis, it renders the text directly.
  */
 export function ReactionEmoji({ content, tags, className }: ReactionEmojiProps) {
-  // Normalize '+' and empty to thumbs up
-  const emoji = (content === '+' || content === '') ? '👍' : content;
+  // Normalize '+' and empty to thumbs up, '-' to thumbs down
+  const emoji = (content === '+' || content === '') ? '👍' : content === '-' ? '👎' : content;
 
   // Check for custom emoji
   if (isCustomEmoji(emoji) && tags) {
@@ -106,11 +106,7 @@ export interface ResolvedEmoji {
  */
 export function resolveReactionEmoji(event: NostrEvent): ResolvedEmoji {
   const content = event.content.trim();
-  const emoji = (content === '+' || content === '') ? '👍' : content;
-
-  if (content === '-') {
-    return { content: emoji };
-  }
+  const emoji = (content === '+' || content === '') ? '👍' : content === '-' ? '👎' : content;
 
   if (isCustomEmoji(emoji)) {
     const url = getCustomEmojiUrl(emoji, event.tags);
