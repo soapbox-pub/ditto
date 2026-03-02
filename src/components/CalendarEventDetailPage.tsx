@@ -257,7 +257,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
         {(event.content || summary) && (
           <div className="prose prose-sm dark:prose-invert max-w-none">
             {event.content ? (
-              <NoteContent event={event} className="text-sm leading-relaxed" />
+              <NoteContent event={event} className="text-sm leading-relaxed" hideEmbedImages={!!image} />
             ) : (
               <p className="text-sm text-muted-foreground">{summary}</p>
             )}

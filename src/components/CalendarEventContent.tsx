@@ -191,7 +191,7 @@ export function CalendarEventContent({ event, compact, className }: CalendarEven
         {/* Description (event.content) via NoteContent */}
         {hasContent && (
           <div className={cn(compact && 'line-clamp-2')}>
-            <NoteContent event={event} className="text-sm" />
+            <NoteContent event={event} className="text-sm" hideEmbedImages={!!image} />
           </div>
         )}
 
