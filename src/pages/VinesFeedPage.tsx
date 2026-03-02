@@ -60,7 +60,7 @@ function formatSats(n: number): string {
 }
 
 /** Parse imeta tags for a vine event → { url, thumbnail }. */
-function parseVineImeta(tags: string[][]): { url?: string; thumbnail?: string } {
+export function parseVineImeta(tags: string[][]): { url?: string; thumbnail?: string } {
   const tag = tags.find(([n]) => n === 'imeta');
   if (!tag) return {};
   const result: Record<string, string> = {};
@@ -80,7 +80,9 @@ function getTag(tags: string[][], name: string): string | undefined {
 
 
 // ─── Global mute state shared across vine cards ───────────────────────────────
-let globalMuted = true;
+/** Module-level mute state shared across all vine/short players. */
+export let globalMuted = true;
+export function setGlobalMuted(v: boolean) { globalMuted = v; }
 
 // ─── Hook: stream vine events for follows or global ──────────────────────────
 
@@ -271,7 +273,7 @@ function CommentSkeleton() {
 
 // ─── VineHeartButton ─────────────────────────────────────────────────────────
 
-function VineHeartButton({ event, label }: { event: NostrEvent; label?: string }) {
+export function VineHeartButton({ event, label }: { event: NostrEvent; label?: string }) {
   const { user } = useCurrentUser();
   const userReaction = useUserReaction(event.id);
   const { mutate: publishEvent } = useNostrPublish();
@@ -300,7 +302,7 @@ function VineHeartButton({ event, label }: { event: NostrEvent; label?: string }
 
 // ─── VineCard ────────────────────────────────────────────────────────────────
 
-interface VineCardProps {
+export interface VineCardProps {
   event: NostrEvent;
   isActive: boolean;
   /** True for the card immediately before or after the active one — used to preload video. */
@@ -308,7 +310,7 @@ interface VineCardProps {
   onCommentClick: () => void;
 }
 
-function VineCard({ event, isActive, isNearActive, onCommentClick }: VineCardProps) {
+export function VineCard({ event, isActive, isNearActive, onCommentClick }: VineCardProps) {
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -368,7 +370,7 @@ function VineCard({ event, isActive, isNearActive, onCommentClick }: VineCardPro
     if (!video) return;
     const next = !video.muted;
     video.muted = next;
-    globalMuted = next;
+    setGlobalMuted(next);
     setIsMuted(next);
   }, []);
 
@@ -542,7 +544,7 @@ function VineCard({ event, isActive, isNearActive, onCommentClick }: VineCardPro
 
 // ─── VineActionButton ─────────────────────────────────────────────────────────
 
-interface VineActionButtonProps {
+export interface VineActionButtonProps {
   icon?: React.ReactNode;
   label?: string;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -550,7 +552,7 @@ interface VineActionButtonProps {
   children?: React.ReactNode;
 }
 
-function VineActionButton({ icon, label, onClick, className, children }: VineActionButtonProps) {
+export function VineActionButton({ icon, label, onClick, className, children }: VineActionButtonProps) {
   return (
     <div className="flex flex-col items-center gap-1">
       {children ?? (

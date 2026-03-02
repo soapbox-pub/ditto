@@ -209,7 +209,7 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // ---------------------------------------------------------------------------
 
 /** Extra-kind IDs shown in the onboarding content picker, in display order. */
-const ONBOARDING_CONTENT_IDS = ['vines', 'streams', 'colors', 'decks', 'treasures', 'webxdc'];
+const ONBOARDING_CONTENT_IDS = ['vines', 'colors', 'decks', 'treasures', 'webxdc'];
 
 /** Onboarding content kinds derived from EXTRA_KINDS — no separate data to maintain. */
 const CONTENT_KINDS = ONBOARDING_CONTENT_IDS.flatMap((id) => {
@@ -258,7 +258,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
 
   const [step, setStep] = useState<Step>(steps[0]);
   const [selectedContent, setSelectedContent] = useState<Set<string>>(
-    new Set(['vines', 'streams']),
+    new Set(['vines']),
   );
   const [selectedCW, setSelectedCW] = useState<ContentWarningPolicy>('blur');
   const [isSaving, setIsSaving] = useState(false);
@@ -352,7 +352,6 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       showTreasureFoundLogs: true,
       showColors: selectedContent.has('colors'),
       showPacks: false,
-      showStreams: selectedContent.has('streams'),
       showDecks: selectedContent.has('decks'),
       showWebxdc: selectedContent.has('webxdc'),
       showProfileThemes: false,
@@ -364,7 +363,6 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       feedIncludeArticles: false,
       feedIncludeVines: selectedContent.has('vines'),
       feedIncludePolls: false,
-      feedIncludeStreams: selectedContent.has('streams'),
       feedIncludeColors: selectedContent.has('colors'),
       feedIncludeDecks: selectedContent.has('decks'),
       feedIncludePacks: false,
@@ -375,11 +373,16 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       feedIncludeProfileThemes: true,
       feedIncludeThemeDefinitions: true,
       feedIncludeProfileThemeUpdates: true,
+      showPhotos: true,
+      feedIncludePhotos: true,
+      showVideos: true,
+      feedIncludeNormalVideos: true,
+      feedIncludeShortVideos: true,
       followsFeedShowReplies: true,
     };
 
     // Build sidebar order: base built-ins + selected extra kinds in CONTENT_KINDS order
-    const BASE_SIDEBAR = ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'themes', 'theme', 'settings'];
+    const BASE_SIDEBAR = ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings'];
     const selectedSidebarIds = CONTENT_KINDS
       .filter((k) => selectedContent.has(k.key))
       .map((k) => k.key);

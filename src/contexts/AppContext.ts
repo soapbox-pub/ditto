@@ -50,8 +50,6 @@ export interface FeedSettings {
   showColors: boolean;
   /** Show Follow Packs (kind 39089) link in sidebar */
   showPacks: boolean;
-  /** Show Streams (kind 30311) link in sidebar */
-  showStreams: boolean;
   /** Include Vines in the follows/global feed */
   feedIncludeVines: boolean;
   /** Include Polls in the follows/global feed */
@@ -64,8 +62,6 @@ export interface FeedSettings {
   feedIncludeColors: boolean;
   /** Include Follow Packs in the follows/global feed */
   feedIncludePacks: boolean;
-  /** Include Streams in the follows/global feed */
-  feedIncludeStreams: boolean;
   /** Show Magic Decks (kind 37381) link in sidebar */
   showDecks: boolean;
   /** Include Magic Decks in the follows/global feed */
@@ -90,6 +86,16 @@ export interface FeedSettings {
   showCustomProfileThemes: boolean;
   /** Include voice messages (kind 1222 + 1244) in the follows/global feed */
   feedIncludeVoiceMessages: boolean;
+  /** Show Photos (NIP-68, kind 20) link in sidebar */
+  showPhotos: boolean;
+  /** Include Photos in the follows/global feed */
+  feedIncludePhotos: boolean;
+  /** Show Videos page (NIP-71 kinds 21/22) link in sidebar */
+  showVideos: boolean;
+  /** Include normal videos (kind 21) in the follows/global feed */
+  feedIncludeNormalVideos: boolean;
+  /** Include short videos (kind 22) in the follows/global feed */
+  feedIncludeShortVideos: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }
