@@ -132,6 +132,8 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeReposts: z.boolean().optional(),
   feedIncludeArticles: z.boolean().optional(),
   showArticles: z.boolean().optional(),
+  showEvents: z.boolean().optional(),
+  feedIncludeEvents: z.boolean().optional(),
   showVines: z.boolean().optional(),
   showPolls: z.boolean().optional(),
   showTreasures: z.boolean().optional(),
@@ -163,6 +165,12 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeEmojiPacks: z.boolean().optional(),
   showCustomEmojis: z.boolean().optional(),
   showUserStatuses: z.boolean().optional(),
+  showMusic: z.boolean().optional(),
+  feedIncludeMusicTracks: z.boolean().optional(),
+  feedIncludeMusicPlaylists: z.boolean().optional(),
+  showPodcasts: z.boolean().optional(),
+  feedIncludePodcastEpisodes: z.boolean().optional(),
+  feedIncludePodcastTrailers: z.boolean().optional(),
 });
 
 // ─── AppConfigSchema ─────────────────────────────────────────────────
