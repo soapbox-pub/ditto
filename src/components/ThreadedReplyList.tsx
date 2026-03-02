@@ -17,7 +17,7 @@ interface ThreadedReplyListProps {
  */
 export function ThreadedReplyList({ replies }: ThreadedReplyListProps) {
   return (
-    <>
+    <div className="divide-y divide-border">
       {replies.map(({ reply, firstSubReply }) => (
         <div key={reply.id}>
           <NoteCard event={reply} threaded={!!firstSubReply} />
@@ -26,6 +26,6 @@ export function ThreadedReplyList({ replies }: ThreadedReplyListProps) {
           )}
         </div>
       ))}
-    </>
+    </div>
   );
 }
