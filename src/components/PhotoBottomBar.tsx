@@ -52,12 +52,12 @@ export function PhotoBottomBar({ event, onCommentClick, commentsEvent, onComment
 
   return (
     <>
-      {/* Gradient scrim + action strip */}
-      <div className="relative pb-[env(safe-area-inset-bottom,0px)]">
-        {/* Gradient scrim */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+      {/* Action strip — mirrors top bar: px-4 py-3 + safe-area */}
+      <div className="relative safe-area-bottom">
+        {/* Gradient scrim: tall enough to fade nicely over the image above the bar */}
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
 
-        <div className="relative flex items-center gap-1 px-3 pt-10 pb-3 max-w-xl mx-auto">
+        <div className="relative flex items-center gap-1 px-4 py-3 max-w-xl mx-auto">
           {/* Avatar + name */}
           <ProfileHoverCard pubkey={event.pubkey} asChild>
             <Link to={profileUrl} className="shrink-0">

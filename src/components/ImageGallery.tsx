@@ -315,9 +315,6 @@ export interface LightboxProps {
 
 export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBarLeft, showDownload = true, maxDotIndicators = 10, bottomBar, onNextEvent, onPrevEvent }: LightboxProps) {
   const [isLoaded, setIsLoaded] = useState(false);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchDelta, setTouchDelta] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
 
   const currentUrl = images[currentIndex];
   const hasMultiple = images.length > 1;
@@ -370,25 +367,67 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
     };
   }, []);
 
-  // Touch handlers for swipe
+  // ── Swipe gesture — direct DOM mutation for zero-jank 1:1 tracking ──────────
+  const imageWrapRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const lockedAxis = useRef<'h' | 'v' | null>(null);
+  const SNAP_THRESHOLD = 0.3; // fraction of viewport width
+
+  const setTranslate = (px: number, animated: boolean) => {
+    const el = imageWrapRef.current;
+    if (!el) return;
+    el.style.transition = animated ? 'transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
+    el.style.transform = px === 0 ? '' : `translateX(${px}px)`;
+  };
+
   const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.touches[0].clientX);
-    setIsDragging(true);
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    lockedAxis.current = null;
+    setTranslate(0, false);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStart === null) return;
-    setTouchDelta(e.touches[0].clientX - touchStart);
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = e.touches[0].clientY - touchStartY.current;
+
+    // Determine dominant axis on first significant movement
+    if (!lockedAxis.current) {
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      lockedAxis.current = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+    }
+    if (lockedAxis.current !== 'h') return;
+
+    e.preventDefault();
+
+    // Rubber-band resistance at edges
+    const atEdge = (dx > 0 && !canGoPrev) || (dx < 0 && !canGoNext);
+    setTranslate(atEdge ? dx * 0.2 : dx, false);
   };
 
-  const handleTouchEnd = () => {
-    if (Math.abs(touchDelta) > 60) {
-      if (touchDelta > 0 && canGoPrev) handlePrev();
-      else if (touchDelta < 0 && canGoNext) handleNext();
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || lockedAxis.current !== 'h') {
+      touchStartX.current = null;
+      lockedAxis.current = null;
+      setTranslate(0, true);
+      return;
     }
-    setTouchStart(null);
-    setTouchDelta(0);
-    setIsDragging(false);
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    lockedAxis.current = null;
+
+    const threshold = window.innerWidth * SNAP_THRESHOLD;
+    if (dx < -threshold && canGoNext) {
+      handleNext();
+      setTranslate(0, false); // parent will swap image; just reset without animation
+    } else if (dx > threshold && canGoPrev) {
+      handlePrev();
+      setTranslate(0, false);
+    } else {
+      setTranslate(0, true); // spring back
+    }
   };
 
   // Click anywhere that isn't a button or the image itself to close
@@ -481,11 +520,8 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
 
       {/* Image — fills the entire viewport; top/bottom space is consumed by the top bar overlay */}
       <div
+        ref={imageWrapRef}
         className="relative z-[1] flex items-center justify-center w-full h-full"
-        style={{
-          transform: isDragging ? `translateX(${touchDelta}px)` : undefined,
-          transition: isDragging ? 'none' : 'transform 0.2s ease-out',
-        }}
       >
         {/* Spinner while loading */}
         {!isLoaded && (
