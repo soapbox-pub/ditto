@@ -41,7 +41,13 @@ export function MinimizedAudioBar() {
 
   const navigate = useNavigate();
   const barRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState(() => getStoredPosition() ?? { x: 16, y: window.innerHeight - 80 - getBottomOffset() });
+  const [pos, setPos] = useState(() => {
+    const stored = getStoredPosition();
+    const defaultPos = { x: 16, y: window.innerHeight - 80 - getBottomOffset() };
+    if (!stored) return defaultPos;
+    // Clamp stored position in case viewport or bottom offset changed
+    return clampToViewport(stored.x, stored.y, 300, 64);
+  });
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   // Drag state
