@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -40,12 +40,15 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
     [kindDef, primaryKind],
   );
 
+  const [infoOpen, setInfoOpen] = useState(false);
+
   useSeoMeta({
     title: `${title} | ${config.appName}`,
     description: `${title} on Nostr`,
   });
 
-  useLayoutOptions({ showFAB, fabKind: primaryKind, fabHref, onFabClick });
+  const fabClick = onFabClick ?? (resolvedDef ? () => setInfoOpen(true) : undefined);
+  useLayoutOptions({ showFAB, fabKind: primaryKind, fabHref, onFabClick: fabClick });
 
   const kinds = Array.isArray(kind) ? kind : [kind];
 
@@ -65,7 +68,7 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
               {icon}
               <h1 className="text-xl font-bold">{title}</h1>
             </div>
-            {resolvedDef && <KindInfoButton kindDef={resolvedDef} icon={icon} />}
+            {resolvedDef && <KindInfoButton kindDef={resolvedDef} icon={icon} open={infoOpen} onOpenChange={setInfoOpen} />}
           </div>
         }
       />

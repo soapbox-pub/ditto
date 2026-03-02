@@ -14,16 +14,18 @@ import { ExternalFavicon } from '@/components/ExternalFavicon';
 interface KindInfoButtonProps {
   kindDef: ExtraKindDef;
   icon?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /** Info button that opens a modal with a blurb and external site links for an extra kind. */
-export function KindInfoButton({ kindDef, icon }: KindInfoButtonProps) {
+export function KindInfoButton({ kindDef, icon, open, onOpenChange }: KindInfoButtonProps) {
   const { label, blurb, sites } = kindDef;
 
   if (!sites?.length && !blurb) return null;
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="size-8 rounded-full text-muted-foreground hover:text-foreground">
           <Info className="size-4" />

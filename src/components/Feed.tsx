@@ -159,7 +159,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   const showSkeleton = isPending || (isLoading && !rawData);
 
   return (
-    <main className="flex-1 min-w-0">
+    <main className="flex-1 min-w-0 h-full">
       {!hideCompose && <ComposeBox compact />}
 
       {header}
