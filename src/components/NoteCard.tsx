@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageCircle, Zap, MoreHorizontal, Play, Radio, Users, Palette, SmilePlus } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
@@ -157,7 +158,7 @@ function encodeEventId(event: NostrEvent): string {
   return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
 
-export function NoteCard({ event, className, repostedBy, compact, threaded, threadedLast }: NoteCardProps) {
+export const NoteCard = memo(function NoteCard({ event, className, repostedBy, compact, threaded, threadedLast }: NoteCardProps) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
@@ -678,7 +679,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
       )}
     </article>
   );
-}
+});
 
 const MAX_HEIGHT = 400; // px — posts taller than this get truncated
 
