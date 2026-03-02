@@ -281,7 +281,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     onNavigate={handleClose}
                     open={moreMenuOpen}
                     onOpenChange={setMoreMenuOpen}
-                    inline
                   />
                 </div>
               </nav>
