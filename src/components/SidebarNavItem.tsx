@@ -24,16 +24,39 @@ export interface SidebarNavItemProps {
   showIndicator?: boolean;
   /** Extra classes on the link. Defaults to 'text-lg' for desktop. */
   linkClassName?: string;
+  /** Icon-only rendering for collapsed sidebar. */
+  compact?: boolean;
 }
 
 export function SidebarNavItem({
-  id, active, editing, onRemove, onClick, profilePath, showIndicator, linkClassName,
+  id, active, editing, onRemove, onClick, profilePath, showIndicator, linkClassName, compact,
 }: SidebarNavItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !editing });
   const style = { transform: CSS.Transform.toString(transform), transition };
-  const icon = sidebarItemIcon(id);
+  const icon = sidebarItemIcon(id, compact ? 'size-5' : 'size-6');
   const label = itemLabel(id);
   const path = itemPath(id, profilePath);
+
+  if (compact) {
+    return (
+      <Link
+        to={path}
+        onClick={onClick}
+        className={cn(
+          'flex items-center justify-center p-2.5 rounded-full transition-colors hover:bg-secondary/60 relative',
+          active ? 'text-primary' : 'text-foreground',
+        )}
+        title={label}
+      >
+        <span className="relative">
+          {icon}
+          {showIndicator && (
+            <span className="absolute -top-1 -right-1 size-2.5 bg-primary rounded-full" />
+          )}
+        </span>
+      </Link>
+    );
+  }
 
   return (
     <div

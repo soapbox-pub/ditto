@@ -173,6 +173,14 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludePodcastTrailers: z.boolean().optional(),
 });
 
+// ─── Deck Schemas ────────────────────────────────────────────────────
+
+export const DeckColumnConfigSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  width: z.number().optional(),
+});
+
 // ─── AppConfigSchema ─────────────────────────────────────────────────
 
 /**
@@ -205,6 +213,8 @@ export const AppConfigSchema = z.object({
   linkPreviewUrl: z.string(),
   corsProxy: z.string(),
   contentWarningPolicy: ContentWarningPolicySchema,
+  deckMode: z.boolean().optional(),
+  deckColumns: z.array(DeckColumnConfigSchema).optional(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────

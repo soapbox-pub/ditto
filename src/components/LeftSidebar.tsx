@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  UserPlus, LogOut, Check, Moon, Sun, Monitor, Palette, ChevronDown,
+  UserPlus, LogOut, Check, Moon, Sun, Monitor, Palette, ChevronDown, Columns3, LayoutTemplate, Settings, SwatchBook,
   Loader2,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,6 +12,7 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { SidebarNavList } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
+import { useDeckSettings } from '@/hooks/useDeckSettings';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -24,6 +25,7 @@ import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getSidebarItem, isItemActive } from '@/lib/sidebarItems';
+import { cn } from '@/lib/utils';
 import { themePresets } from '@/themes';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -36,7 +38,11 @@ import { useToast } from '@/hooks/useToast';
 import { Input } from '@/components/ui/input';
 import type { Theme } from '@/contexts/AppContext';
 
-export function LeftSidebar() {
+interface LeftSidebarProps {
+  collapsed?: boolean;
+}
+
+export function LeftSidebar({ collapsed = false }: LeftSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, metadata, event: currentUserEvent, isLoading: isProfileLoading } = useCurrentUser();
@@ -46,6 +52,7 @@ export function LeftSidebar() {
   const {
     orderedItems, hiddenItems, updateSidebarOrder, addToSidebar, addDividerToSidebar, removeFromSidebar,
   } = useFeedSettings();
+  const { deckMode, toggleDeckMode } = useDeckSettings();
 
   const visibleItems = useMemo(() => {
     if (user) return orderedItems;
@@ -112,48 +119,57 @@ export function LeftSidebar() {
   })();
 
   return (
-    <aside className="flex flex-col h-screen sticky top-0 py-3 px-4 w-[300px] shrink-0">
+    <aside className={cn(
+      'flex flex-col h-screen sticky top-0 py-3 shrink-0 transition-[width] duration-200',
+      collapsed ? 'w-16 px-1 items-center' : 'w-[300px] px-4',
+    )}>
       {/* Logo */}
-      <div className="flex items-center px-3 mb-1">
+      <div className={cn('flex items-center mb-1', collapsed ? 'justify-center' : 'px-3')}>
         <Link to="/" onClick={scrollToTopIfCurrent('/')}>
           <div className="bg-background/85 rounded-full">
-            <DittoLogo size={48} />
+            <DittoLogo size={collapsed ? 36 : 48} />
           </div>
         </Link>
       </div>
 
-      {/* Search */}
-      <div className="px-2 py-4">
-        <ProfileSearchDropdown placeholder="Search..." inputClassName="py-3.5" enableTextSearch />
-      </div>
+      {/* Search — hidden in collapsed mode */}
+      {!collapsed && (
+        <div className="px-2 py-4">
+          <ProfileSearchDropdown placeholder="Search..." inputClassName="py-3.5" enableTextSearch />
+        </div>
+      )}
 
       {/* Nav */}
-      <nav className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        <SidebarNavList
-          items={visibleItems}
-          editing={editing}
-          onRemove={removeFromSidebar}
-          onReorder={updateSidebarOrder}
-          isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl)}
-          getOnClick={(id) => id === 'feed' ? scrollToTopIfCurrent('/') : undefined}
-          getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
-          getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
-        />
+      {collapsed ? (
+        <div className="flex-1" />
+      ) : (
+        <nav className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+          <SidebarNavList
+            items={visibleItems}
+            editing={editing}
+            onRemove={removeFromSidebar}
+            onReorder={updateSidebarOrder}
+            isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl)}
+            getOnClick={(id) => id === 'feed' ? scrollToTopIfCurrent('/') : undefined}
+            getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
+            getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
+          />
 
-        <SidebarMoreMenu
-          editing={editing}
-          hiddenItems={visibleHiddenItems}
-          onDoneEditing={() => setEditing(false)}
-          onStartEditing={() => setEditing(true)}
-          onAdd={addToSidebar}
-          onAddDivider={addDividerToSidebar}
-          open={moreMenuOpen}
-          onOpenChange={setMoreMenuOpen}
-        />
-      </nav>
+          <SidebarMoreMenu
+            editing={editing}
+            hiddenItems={visibleHiddenItems}
+            onDoneEditing={() => setEditing(false)}
+            onStartEditing={() => setEditing(true)}
+            onAdd={addToSidebar}
+            onAddDivider={addDividerToSidebar}
+            open={moreMenuOpen}
+            onOpenChange={setMoreMenuOpen}
+          />
+        </nav>
+      )}
 
-      {/* Logged-out join pill — same position as account button, pushed up from bottom */}
-      {!user && location.pathname !== '/' && (
+      {/* Logged-out join pill */}
+      {!collapsed && !user && location.pathname !== '/' && (
         <div className="pt-2 pb-1">
           <button
             onClick={() => setLoginDialogOpen(true)}
@@ -164,38 +180,86 @@ export function LeftSidebar() {
         </div>
       )}
 
-      {/* User profile at bottom */}
-      {user && currentUser && (
-        <div className="pt-2">
+      {/* Bottom actions: deck toggle, settings, vibe, user */}
+      <div className={cn('flex flex-col', collapsed ? 'items-center gap-1 pt-2' : 'gap-0')}>
+        {/* Deck toggle */}
+        <button
+          onClick={toggleDeckMode}
+          className={cn(
+            'flex items-center gap-3 rounded-full transition-colors hover:bg-secondary/60',
+            collapsed ? 'p-2.5 justify-center' : 'p-3 w-full',
+            deckMode ? 'text-primary' : 'text-muted-foreground',
+          )}
+          title={deckMode ? 'Switch to normal layout' : 'Switch to deck layout'}
+        >
+          {deckMode ? <LayoutTemplate className="size-5" /> : <Columns3 className="size-5" />}
+          {!collapsed && <span className="text-sm font-medium">{deckMode ? 'Normal View' : 'Deck View'}</span>}
+        </button>
+
+        {/* Settings */}
+        {collapsed && (
+          <Link
+            to="/settings"
+            className={cn(
+              'flex items-center justify-center p-2.5 rounded-full transition-colors hover:bg-secondary/60',
+              location.pathname.startsWith('/settings') && location.pathname !== '/settings/theme' ? 'text-primary' : 'text-muted-foreground',
+            )}
+            title="Settings"
+          >
+            <Settings className="size-5" />
+          </Link>
+        )}
+
+        {/* Vibe */}
+        {collapsed && (
+          <Link
+            to="/settings/theme"
+            className={cn(
+              'flex items-center justify-center p-2.5 rounded-full transition-colors hover:bg-secondary/60',
+              location.pathname === '/settings/theme' ? 'text-primary' : 'text-muted-foreground',
+            )}
+            title="Vibe"
+          >
+            <SwatchBook className="size-5" />
+          </Link>
+        )}
+
+        {/* User profile */}
+        {user && currentUser && (
           <Popover open={accountPopoverOpen} onOpenChange={setAccountPopoverOpen}>
             <PopoverTrigger asChild>
-              <button className="flex items-center gap-3 p-3 rounded-full hover:bg-secondary/60 transition-colors cursor-pointer w-full text-left bg-background/85">
+              <button className={cn(
+                'flex items-center rounded-full hover:bg-secondary/60 transition-colors cursor-pointer bg-background/85',
+                collapsed ? 'p-1.5 justify-center' : 'gap-3 p-3 w-full text-left',
+              )}>
                 {isProfileLoading ? (
-                  <Skeleton className="size-10 shrink-0 rounded-full" />
+                  <Skeleton className={cn('shrink-0 rounded-full', collapsed ? 'size-8' : 'size-10')} />
                 ) : (
-                  <Avatar className="size-10 shrink-0">
+                  <Avatar className={cn('shrink-0', collapsed ? 'size-8' : 'size-10')}>
                     <AvatarImage src={metadata?.picture} alt={metadata?.name} />
                     <AvatarFallback className="bg-primary/20 text-primary text-sm">
                       {(metadata?.name?.[0] || '?').toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 )}
-                <div className="flex flex-col min-w-0 flex-1 gap-1">
-                  {isProfileLoading ? (
-                    <><Skeleton className="h-3.5 w-24" /><Skeleton className="h-3 w-16" /></>
-                  ) : (
-                    <>
-                      <span className="font-semibold text-sm truncate">
-                        {currentUserEvent && metadata?.name
-                          ? <EmojifiedText tags={currentUserEvent.tags}>{metadata.name}</EmojifiedText>
-                          : (metadata?.name || genUserName(user.pubkey))}
-                      </span>
-                      {metadata?.nip05 && (
-                        <VerifiedNip05Text nip05={metadata.nip05} pubkey={user.pubkey} className="text-xs text-muted-foreground truncate" />
-                      )}
-                    </>
-                  )}
-                </div>
+                {!collapsed && (
+                  <div className="flex flex-col min-w-0 flex-1 gap-1">
+                    {isProfileLoading ? (
+                      <><Skeleton className="h-3.5 w-24" /><Skeleton className="h-3 w-16" /></>
+                    ) : (
+                      <>
+                        <span className="font-semibold text-sm truncate">
+                          {currentUserEvent && metadata?.name
+                            ? <EmojifiedText tags={currentUserEvent.tags}>{metadata.name}</EmojifiedText>
+                            : (metadata?.name || genUserName(user.pubkey))}
+                        </span>
+                        {metadata?.nip05 && (
+                          <VerifiedNip05Text nip05={metadata.nip05} pubkey={user.pubkey} className="text-xs text-muted-foreground truncate" />
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </button>
             </PopoverTrigger>
             <PopoverContent side="top" align="start" sideOffset={8} className="w-[260px] p-0 rounded-2xl shadow-xl border border-border overflow-hidden">
@@ -384,8 +448,8 @@ export function LeftSidebar() {
               </div>
             </PopoverContent>
           </Popover>
-        </div>
-      )}
+        )}
+      </div>
 
       <LoginDialog isOpen={loginDialogOpen} onClose={() => setLoginDialogOpen(false)} onLogin={() => setLoginDialogOpen(false)} onSignupClick={startSignup} />
     </aside>

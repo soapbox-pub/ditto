@@ -1,5 +1,5 @@
-import { Suspense, useState, useMemo } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Suspense, useState, useMemo, useEffect } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { RightSidebar } from '@/components/RightSidebar';
 import { MobileTopBar } from '@/components/MobileTopBar';
@@ -10,7 +10,24 @@ import { CursorFireEffect } from '@/components/CursorFireEffect';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LayoutStore, LayoutStoreContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
+import { DeckContainer } from '@/components/deck/DeckContainer';
 import { cn } from '@/lib/utils';
+
+const SIDEBAR_BREAKPOINT = 900;
+
+/** Returns true when the viewport is at least the sidebar breakpoint. */
+function useIsSidebarWidth(): boolean {
+  const [wide, setWide] = useState(window.innerWidth >= SIDEBAR_BREAKPOINT);
+
+  useEffect(() => {
+    const mql = window.matchMedia(`(min-width: ${SIDEBAR_BREAKPOINT}px)`);
+    const onChange = () => setWide(mql.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+
+  return wide;
+}
 
 /** Skeleton shown in the content area while a lazy page chunk is loading. */
 function PageSkeleton() {
@@ -67,6 +84,12 @@ function MainLayoutInner() {
   const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, noBottomSpacer = false, wrapperClassName } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { config } = useAppContext();
+  const isDesktop = useIsSidebarWidth();
+  const { pathname } = useLocation();
+
+  // Routes that temporarily exit deck mode to show their page content
+  const deckOverridePath = pathname.startsWith('/settings');
+  const showDeck = config.deckMode && isDesktop && !deckOverridePath;
 
   return (
     <>
@@ -79,28 +102,37 @@ function MainLayoutInner() {
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
 
-      {/* Main layout - three column on desktop */}
-      <div className={cn("flex justify-center mx-auto max-w-[1200px]", wrapperClassName)}>
+      {/* Main layout */}
+      <div className={cn(
+        "flex mx-auto",
+        showDeck ? '' : 'justify-center max-w-[1200px]',
+        wrapperClassName,
+      )}>
         {/* Desktop left sidebar - hidden below sidebar breakpoint */}
         <div className="hidden sidebar:block">
-          <LeftSidebar />
+          <LeftSidebar collapsed={showDeck} />
         </div>
 
-        {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
-        <Suspense fallback={<PageSkeleton />}>
-          {/* Wrap the center column in a relative container for the FAB */}
-          <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l border-r border-border bg-background/85")}>
-            <Outlet />
-            {showFAB && (
-              <div className="sticky bottom-fab sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
-                <div className="pointer-events-auto">
-                  <FloatingComposeButton kind={fabKind} href={fabHref} onFabClick={onFabClick} />
+        {showDeck ? (
+          /* Deck mode: multi-column view replaces Outlet + RightSidebar */
+          <DeckContainer />
+        ) : (
+          /* Normal mode */
+          <Suspense fallback={<PageSkeleton />}>
+            {/* Wrap the center column in a relative container for the FAB */}
+            <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l border-r border-border bg-background/85")}>
+              <Outlet />
+              {showFAB && (
+                <div className="sticky bottom-fab sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
+                  <div className="pointer-events-auto">
+                    <FloatingComposeButton kind={fabKind} href={fabHref} onFabClick={onFabClick} />
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-          {rightSidebar ?? <RightSidebar />}
-        </Suspense>
+              )}
+            </div>
+            {rightSidebar ?? <RightSidebar />}
+          </Suspense>
+        )}
       </div>
 
       {/* Mobile bottom nav - only on small screens */}

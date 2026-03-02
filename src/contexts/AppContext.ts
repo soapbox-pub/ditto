@@ -124,6 +124,15 @@ export interface FeedSettings {
   followsFeedShowReplies: boolean;
 }
 
+export interface DeckColumnConfig {
+  /** Unique instance ID. */
+  id: string;
+  /** Sidebar item ID ('feed', 'notifications', 'search', etc.). */
+  type: string;
+  /** Optional pixel width override (default: 400). */
+  width?: number;
+}
+
 export interface AppConfig {
   /** Application display name used in page titles, UI text, and branding. Default: "Ditto". */
   appName: string;
@@ -161,6 +170,10 @@ export interface AppConfig {
   corsProxy: string;
   /** How to handle NIP-36 content-warning events (blur, hide, or show). Default: "blur". */
   contentWarningPolicy: ContentWarningPolicy;
+  /** Whether deck (multi-column) mode is active. Desktop only. */
+  deckMode: boolean;
+  /** Ordered list of deck columns. */
+  deckColumns: DeckColumnConfig[];
 }
 
 export interface AppContextType {

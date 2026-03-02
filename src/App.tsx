@@ -104,6 +104,8 @@ const hardcodedConfig: AppConfig = {
   linkPreviewUrl: 'https://fetch.ditto.pub/link/{url}',
   corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
   contentWarningPolicy: 'blur',
+  deckMode: false,
+  deckColumns: [],
 };
 
 /**
