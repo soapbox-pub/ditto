@@ -1,17 +1,37 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { Picker } from 'emoji-mart';
 import data from '@emoji-mart/data';
 import { useTheme } from '@/hooks/useTheme';
+import type { CustomEmoji } from '@/hooks/useCustomEmojis';
+
+/** A native Unicode emoji selection. */
+export interface NativeEmojiSelection {
+  type: 'native';
+  emoji: string;
+}
+
+/** A custom NIP-30 emoji selection. */
+export interface CustomEmojiSelection {
+  type: 'custom';
+  shortcode: string;
+  url: string;
+}
+
+export type EmojiSelection = NativeEmojiSelection | CustomEmojiSelection;
 
 interface EmojiPickerProps {
-  onSelect: (emoji: string) => void;
+  onSelect: (selection: EmojiSelection) => void;
+  /** NIP-30 custom emojis to display in a dedicated tab. */
+  customEmojis?: CustomEmoji[];
 }
 
 interface EmojiMartEmoji {
   id: string;
-  native: string;
-  shortcodes: string;
-  unified: string;
+  native?: string;
+  shortcodes?: string;
+  unified?: string;
+  /** Present for custom emojis — the image URL from `skins[0].src`. */
+  src?: string;
 }
 
 /**
@@ -22,31 +42,78 @@ interface EmojiMartEmoji {
  * constructor" when React unmounts and remounts the component (e.g. popovers,
  * strict mode). By attaching the picker to a ref-managed container and only
  * creating it once per mount, we avoid the illegal constructor error.
+ *
+ * Custom NIP-30 emojis are added via emoji-mart's `custom` prop, which renders
+ * them in a dedicated tab alongside the standard Unicode categories.
  */
-export function EmojiPicker({ onSelect }: EmojiPickerProps) {
+export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const pickerRef = useRef<InstanceType<typeof Picker> | null>(null);
+
+  // Resolve to 'dark' or 'light' for emoji-mart.
+  // Custom themes set class="custom" on <html> (not .dark), so we can't
+  // rely on the dark class. Instead, check the actual computed background
+  // luminance to determine if the current theme is visually dark.
+  void theme; // depend on theme for reactivity when it changes
+  const resolvedTheme = useMemo(() => {
+    if (typeof document === 'undefined') return 'light';
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
+    if (!bg) return 'light';
+    // HSL format from Tailwind CSS vars: "H S% L%" — check lightness
+    const parts = bg.split(/\s+/);
+    const lightness = parseFloat(parts[parts.length - 1]);
+    if (!isNaN(lightness)) {
+      return lightness < 50 ? 'dark' : 'light';
+    }
+    return 'light';
+  }, [theme]) as 'dark' | 'light';
   const onSelectRef = useRef(onSelect);
 
   // Keep callback ref up to date without re-creating the picker.
   onSelectRef.current = onSelect;
 
   const handleSelect = useCallback((emoji: EmojiMartEmoji) => {
-    if (emoji.native) {
-      onSelectRef.current(emoji.native);
+    if (emoji.src) {
+      // Custom emoji — has an image URL
+      onSelectRef.current({
+        type: 'custom',
+        shortcode: emoji.id,
+        url: emoji.src,
+      });
+    } else if (emoji.native) {
+      // Native Unicode emoji
+      onSelectRef.current({
+        type: 'native',
+        emoji: emoji.native,
+      });
     }
   }, []);
+
+  // Build emoji-mart custom categories from NIP-30 emoji list
+  const customCategories = useMemo(() => {
+    if (!customEmojis || customEmojis.length === 0) return undefined;
+    return [{
+      id: 'custom-nostr',
+      name: 'Custom',
+      emojis: customEmojis.map((e) => ({
+        id: e.shortcode,
+        name: e.shortcode,
+        keywords: [e.shortcode],
+        skins: [{ src: e.url }],
+      })),
+    }];
+  }, [customEmojis]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     // Create the picker and let it append itself to our container div.
-    const picker = new Picker({
+    const pickerOptions: Record<string, unknown> = {
       data,
       onEmojiSelect: handleSelect,
-      theme: theme === 'dark' ? 'dark' : 'light',
+      theme: resolvedTheme,
       previewPosition: 'none',
       skinTonePosition: 'search',
       set: 'native',
@@ -54,8 +121,13 @@ export function EmojiPicker({ onSelect }: EmojiPickerProps) {
       navPosition: 'bottom',
       perLine: 8,
       parent: container,
-    });
+    };
 
+    if (customCategories) {
+      pickerOptions.custom = customCategories;
+    }
+
+    const picker = new Picker(pickerOptions);
     pickerRef.current = picker;
 
     return () => {
@@ -65,9 +137,9 @@ export function EmojiPicker({ onSelect }: EmojiPickerProps) {
         container.removeChild(container.firstChild);
       }
     };
-    // We intentionally depend only on mount/unmount + theme.
+    // We intentionally depend only on mount/unmount + theme + custom emojis.
     // The handleSelect callback uses a ref so it never goes stale.
-  }, [theme, handleSelect]);
+  }, [resolvedTheme, handleSelect, customCategories]);
 
   return (
     <div

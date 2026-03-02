@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EmojiPicker } from '@/components/EmojiPicker';
+import { useCustomEmojis } from '@/hooks/useCustomEmojis';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { GifPicker } from '@/components/GifPicker';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { MentionAutocomplete } from '@/components/MentionAutocomplete';
@@ -159,6 +161,10 @@ export function ComposeBox({
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
   const { mutateAsync: postComment, isPending: isCommentPending } = usePostComment();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
+  const { feedSettings } = useFeedSettings();
+  const customEmojisEnabled = feedSettings.showCustomEmojis !== false;
+  const { emojis: allCustomEmojis } = useCustomEmojis();
+  const customEmojis = customEmojisEnabled ? allCustomEmojis : [];
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -310,10 +316,21 @@ export function ComposeBox({
     return /nostr:(npub1|nprofile1)[023456789acdefghjklmnpqrstuvwxyz]+/.test(content);
   }, [content]);
 
-  // Check if content has any previewable content (link previews, images, videos, audio, or mentions)
+  // Detect custom emojis in content for preview mode
+  const hasCustomEmojis = useMemo(() => {
+    if (customEmojis.length === 0 || !content) return false;
+    const emojiSet = new Set(customEmojis.map((e) => e.shortcode));
+    const matches = content.matchAll(/:([a-zA-Z0-9_]+):/g);
+    for (const match of matches) {
+      if (emojiSet.has(match[1])) return true;
+    }
+    return false;
+  }, [content, customEmojis]);
+
+  // Check if content has any previewable content (link previews, images, videos, audio, mentions, or custom emojis)
   const hasPreviewableContent = useMemo(() => {
-    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || previewAudios.length > 0 || hasMentions;
-  }, [visibleEmbeds, hasPreviewImages, previewVideos, previewAudios, hasMentions]);
+    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || previewAudios.length > 0 || hasMentions || hasCustomEmojis;
+  }, [visibleEmbeds, hasPreviewImages, previewVideos, previewAudios, hasMentions, hasCustomEmojis]);
 
   // Notify parent of previewable content changes
   useEffect(() => {
@@ -333,6 +350,21 @@ export function ComposeBox({
     
     const hashtags = content.match(/#\w+/g)?.map((t) => t.slice(1)) || [];
     const tags: string[][] = hashtags.map((t) => ['t', t.toLowerCase()]);
+
+    // NIP-30: Add emoji tags for custom emojis referenced in content
+    if (customEmojis.length > 0) {
+      const emojiMap = new Map(customEmojis.map((e) => [e.shortcode, e.url]));
+      const shortcodeRegex = /:([a-zA-Z0-9_]+):/g;
+      const usedEmojis = new Set<string>();
+      let match;
+      while ((match = shortcodeRegex.exec(content)) !== null) {
+        const shortcode = match[1];
+        if (emojiMap.has(shortcode) && !usedEmojis.has(shortcode)) {
+          usedEmojis.add(shortcode);
+          tags.push(['emoji', shortcode, emojiMap.get(shortcode)!]);
+        }
+      }
+    }
     
     return {
       id: 'preview',
@@ -343,7 +375,7 @@ export function ComposeBox({
       tags,
       sig: '',
     };
-  }, [user, content]);
+  }, [user, content, customEmojis]);
 
   const insertEmoji = useCallback((emoji: string) => {
     const textarea = textareaRef.current;
@@ -671,6 +703,21 @@ export function ComposeBox({
         tags.push(['L', 'content-warning']);
         if (cwText) {
           tags.push(['l', cwText, 'content-warning']);
+        }
+      }
+
+      // NIP-30: Add emoji tags for custom emojis referenced in content
+      if (customEmojis.length > 0) {
+        const emojiMap = new Map(customEmojis.map((e) => [e.shortcode, e.url]));
+        const shortcodeRegex = /:([a-zA-Z0-9_]+):/g;
+        const usedEmojis = new Set<string>();
+        let emojiMatch;
+        while ((emojiMatch = shortcodeRegex.exec(finalContent)) !== null) {
+          const shortcode = emojiMatch[1];
+          if (emojiMap.has(shortcode) && !usedEmojis.has(shortcode)) {
+            usedEmojis.add(shortcode);
+            tags.push(['emoji', shortcode, emojiMap.get(shortcode)!]);
+          }
         }
       }
 
@@ -1105,9 +1152,16 @@ export function ComposeBox({
                     sideOffset={8}
                     className="w-auto p-0 border-border"
                   >
-                    <EmojiPicker onSelect={(emoji) => {
-                      insertEmoji(emoji);
-                    }} />
+                    <EmojiPicker
+                      customEmojis={customEmojis}
+                      onSelect={(selection) => {
+                        if (selection.type === 'native') {
+                          insertEmoji(selection.emoji);
+                        } else {
+                          insertEmoji(`:${selection.shortcode}:`);
+                        }
+                      }}
+                    />
                   </PopoverContent>
                 </Popover>
 
