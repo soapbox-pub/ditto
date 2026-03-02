@@ -762,6 +762,15 @@ export function ProfilePage() {
   }, [supplementary?.following]);
 
   const isOwnProfile = user?.pubkey === pubkey;
+
+  // Does the profile owner follow the current user?
+  // Wall posts are only visible to people the profile owner follows,
+  // so we hide the compose box if the profile owner doesn't follow us.
+  const profileFollowsMe = useMemo(() => {
+    if (!user?.pubkey || !wallFollowList) return false;
+    if (isOwnProfile) return true;
+    return wallFollowList.includes(user.pubkey);
+  }, [user?.pubkey, wallFollowList, isOwnProfile]);
   const { togglePin } = usePinnedNotes(isOwnProfile ? pubkey : undefined);
 
   // Profile theme: always query (so we can show the indicator), but only apply when enabled
@@ -1147,7 +1156,7 @@ export function ProfilePage() {
   useLayoutOptions(pubkey ? {
     rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} />,
     showFAB: true,
-    onFabClick: activeTab === 'wall' ? openWallCompose : undefined,
+    onFabClick: activeTab === 'wall' && profileFollowsMe ? openWallCompose : undefined,
   } : {});
 
   if (!pubkey) {
@@ -1534,8 +1543,8 @@ export function ProfilePage() {
         {/* Wall tab content */}
         {activeTab === 'wall' && (
           <div>
-            {/* Inline compose box for wall comments */}
-            {wallReplyTarget && (
+            {/* Inline compose box for wall comments (only shown if the profile owner follows you) */}
+            {wallReplyTarget && profileFollowsMe && (
               <ComposeBox
                 compact
                 replyTo={wallReplyTarget}
@@ -1544,7 +1553,7 @@ export function ProfilePage() {
             )}
 
             {/* Wall compose modal (for FAB) */}
-            {wallReplyTarget && (
+            {wallReplyTarget && profileFollowsMe && (
               <ReplyComposeModal
                 event={wallReplyTarget}
                 open={wallComposeOpen}
@@ -1596,7 +1605,13 @@ export function ProfilePage() {
               <div className="py-12 text-center text-muted-foreground text-sm">
                 <MessageSquare className="size-12 mx-auto mb-4 opacity-30" />
                 <p className="text-lg font-medium mb-2">No wall posts yet</p>
-                <p>Be the first to write on {displayName}'s wall!</p>
+                {profileFollowsMe ? (
+                  <p>Be the first to write on {displayName}'s wall!</p>
+                ) : user ? (
+                  <p>{displayName} must follow you before you can post on their wall.</p>
+                ) : (
+                  <p>Log in to write on {displayName}'s wall.</p>
+                )}
               </div>
             )}
           </div>
