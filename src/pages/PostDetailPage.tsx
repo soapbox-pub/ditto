@@ -34,6 +34,7 @@ import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { FileMetadataContent } from '@/components/FileMetadataContent';
 import { ThemeContent } from '@/components/ThemeContent';
 import { VoiceMessagePlayer } from '@/components/VoiceMessagePlayer';
+import { CalendarEventDetailPage } from '@/components/CalendarEventDetailPage';
 import { LiveStreamPage } from '@/components/LiveStreamPage';
 import { MusicDetailContent } from '@/components/MusicDetailContent';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
@@ -50,6 +51,8 @@ const LIVE_STREAM_KIND = 30311;
 
 /** Music kinds that get a rich detail view. */
 const MUSIC_KINDS = new Set([36787, 34139]);
+/** NIP-52 Calendar Events. */
+const CALENDAR_EVENT_KINDS = new Set([31922, 31923]);
 import { useReplies } from '@/hooks/useReplies';
 import { useComments } from '@/hooks/useComments';
 import { CommentContext } from '@/components/CommentContext';
@@ -270,6 +273,11 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
         <MusicDetailContent event={resolvedEvent} />
       </MutedContentGuard>
     );
+  }
+
+  // Calendar events (NIP-52) get a dedicated detail page with RSVP
+  if (CALENDAR_EVENT_KINDS.has(resolvedEvent.kind)) {
+    return <CalendarEventDetailPage event={resolvedEvent} />;
   }
 
   return (
