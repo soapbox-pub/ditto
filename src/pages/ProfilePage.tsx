@@ -48,6 +48,7 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
 import { useTheme } from '@/hooks/useTheme';
+import { useUserStatus } from '@/hooks/useUserStatus';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
@@ -674,6 +675,7 @@ export function ProfilePage() {
   // Kind 0 — resolved from the author cache (seeded by the feed query above).
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const profileStatus = useUserStatus(pubkey);
 
   // Refetch the author's profile whenever we navigate to this profile page.
   useEffect(() => {
@@ -1439,6 +1441,19 @@ export function ProfilePage() {
               </h2>
               {metadata?.nip05 && (
                 <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
+              )}
+
+              {/* NIP-38 user status */}
+              {profileStatus.status && (
+                <p className="text-sm text-muted-foreground italic mt-1">
+                  {profileStatus.url ? (
+                    <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                      {profileStatus.status}
+                    </a>
+                  ) : (
+                    profileStatus.status
+                  )}
+                </p>
               )}
 
               {/* Following count + Streak indicator */}

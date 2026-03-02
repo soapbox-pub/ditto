@@ -52,6 +52,7 @@ import { getContentWarning } from '@/lib/contentWarning';
 import { ThemeContent } from '@/components/ThemeContent';
 import { VoiceMessagePlayer } from '@/components/VoiceMessagePlayer';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useUserStatus } from '@/hooks/useUserStatus';
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
 import { extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
 
@@ -159,6 +160,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
+  const authorStatus = useUserStatus(event.pubkey);
 
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
@@ -378,6 +380,14 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
         </ProfileHoverCard>
         {metadata?.bot && (
           <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
+        )}
+        {authorStatus.status && (
+          <>
+            <span className="text-muted-foreground/50 shrink-0">·</span>
+            <span className="text-xs text-muted-foreground/70 italic truncate max-w-[120px]" title={authorStatus.status}>
+              {authorStatus.status}
+            </span>
+          </>
         )}
       </div>
       <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
