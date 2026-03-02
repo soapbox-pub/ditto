@@ -41,7 +41,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
-import { ComposeBox } from '@/components/ComposeBox';
+import { CommentsSheet } from '@/components/CommentsSheet';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { canZap } from '@/lib/canZap';
@@ -273,7 +273,7 @@ function CommentSkeleton() {
 
 // ─── VineHeartButton ─────────────────────────────────────────────────────────
 
-export function VineHeartButton({ event, label }: { event: NostrEvent; label?: string }) {
+export function VineHeartButton({ event, label, noBackground }: { event: NostrEvent; label?: string; noBackground?: boolean }) {
   const { user } = useCurrentUser();
   const userReaction = useUserReaction(event.id);
   const { mutate: publishEvent } = useNostrPublish();
@@ -289,7 +289,8 @@ export function VineHeartButton({ event, label }: { event: NostrEvent; label?: s
     <VineActionButton label={label}>
       <button
         className={cn(
-          'size-11 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm bg-black/20 hover:bg-white/10',
+          'size-11 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm',
+          !noBackground && 'bg-black/20 hover:bg-white/10',
           hasReacted ? 'text-pink-500' : 'text-white hover:text-pink-400',
         )}
         onClick={handleClick}
@@ -598,11 +599,7 @@ export function VinesFeedPage() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleCommentClick = useCallback(() => {
-    if (window.innerWidth >= 1280) {
-      setReplyOpen(true);
-    } else {
-      setCommentsOpen(true);
-    }
+    setCommentsOpen(true);
   }, []);
 
   useSeoMeta({
@@ -765,36 +762,12 @@ export function VinesFeedPage() {
         ))}
       </div>
 
-      {/* ── Mobile comments panel — full overlay, xl:hidden ─────────── */}
-      {commentsOpen && (
-        <div className="xl:hidden fixed inset-x-0 top-12 bottom-0 z-30 flex flex-col bg-background/80 backdrop-blur-md overflow-hidden">
-          {/* Compose with back button baked in above it */}
-          {activeVine && (
-            <div className="border-b border-border shrink-0">
-              <div className="flex items-center gap-1 px-4 pt-2">
-                <button
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => setCommentsOpen(false)}
-                >
-                  <ChevronLeft className="size-3.5" />
-                  Back
-                </button>
-              </div>
-              <ComposeBox replyTo={activeVine} compact placeholder="Add a comment…" />
-            </div>
-          )}
-          <VinesCommentsContent activeVine={activeVine} />
-        </div>
-      )}
-
-      {/* ── Reply modal ──────────────────────────────────────────────── */}
-      {activeVine && (
-        <ReplyComposeModal
-          event={activeVine}
-          open={replyOpen}
-          onOpenChange={setReplyOpen}
-        />
-      )}
+      {/* ── Comments sheet ───────────────────────────────────────────── */}
+      <CommentsSheet
+        event={activeVine}
+        open={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+      />
     </div>
   );
 }

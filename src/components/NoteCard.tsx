@@ -541,7 +541,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
     return (
       <article
         className={cn(
-          'px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
+          'px-4 py-3 rounded-lg hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
           className,
         )}
         onClick={handleCardClick}
@@ -622,7 +622,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   return (
     <article
         className={cn(
-          'px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
+          'px-4 py-3 rounded-lg hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
+          (isReply || isComment) && 'border-b border-border',
           className,
         )}
         onClick={handleCardClick}
