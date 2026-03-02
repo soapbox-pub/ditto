@@ -197,6 +197,27 @@ export const COUNTRIES: Record<string, { name: string; flag: string }> = {
   ZW: { name: 'Zimbabwe', flag: '🇿🇼' },
 };
 
+/** Pre-sorted array of country entries for searching. */
+const COUNTRY_LIST = Object.entries(COUNTRIES)
+  .map(([code, { name, flag }]) => ({ code, name, flag }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+export type CountryEntry = typeof COUNTRY_LIST[number];
+
+/** Search countries by name or code. Returns up to `limit` matches (default 5). */
+export function searchCountries(query: string, limit = 5): CountryEntry[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const results: CountryEntry[] = [];
+  for (const entry of COUNTRY_LIST) {
+    if (entry.name.toLowerCase().includes(q) || entry.code.toLowerCase() === q) {
+      results.push(entry);
+      if (results.length >= limit) break;
+    }
+  }
+  return results;
+}
+
 /** Get country info from an ISO 3166 code (country or subdivision). */
 export function getCountryInfo(code: string): { name: string; flag: string; subdivision?: string } | null {
   const upper = code.toUpperCase();
