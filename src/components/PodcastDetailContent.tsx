@@ -107,7 +107,7 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
         <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')} className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors">
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-xl font-bold truncate">Episode</h1>
+        <h1 className="text-xl font-bold truncate">Episode Details</h1>
       </div>
 
       {/* Hero: artwork + info side by side */}
@@ -315,7 +315,7 @@ function TrailerDetail({ event }: { event: NostrEvent }) {
         <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')} className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors">
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-xl font-bold truncate">Trailer</h1>
+        <h1 className="text-xl font-bold truncate">Trailer Details</h1>
       </div>
 
       {/* Hero */}
