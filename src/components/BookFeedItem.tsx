@@ -20,7 +20,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useOpenPost } from '@/hooks/useOpenPost';
-import { useBookDetails } from '@/hooks/useBookDetails';
+import { useBookSummary } from '@/hooks/useBookSummary';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { timeAgo } from '@/lib/timeAgo';
 import { canZap } from '@/lib/canZap';
@@ -378,7 +378,7 @@ function SpoilerGuard({ warning, children }: { warning: string; children: React.
 
 /** Compact inline book card that shows cover, title, author, and year. */
 function InlineBookCard({ isbn }: { isbn: string }) {
-  const { data: book, isLoading } = useBookDetails(isbn);
+  const { data: book, isLoading } = useBookSummary(isbn);
 
   if (isLoading) {
     return (
