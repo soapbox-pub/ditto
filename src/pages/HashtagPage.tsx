@@ -52,7 +52,7 @@ export function HashtagPage() {
 
   return (
       <main className="">
-        <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-4 px-4 mt-4 mb-5 bg-background/80 backdrop-blur-md z-10')}>
+        <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-4 px-4 pt-4 pb-5 bg-background/80 backdrop-blur-md z-10')}>
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>

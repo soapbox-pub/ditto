@@ -60,7 +60,7 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
         hideCompose
         emptyMessage={emptyMessage ?? `No ${title.toLowerCase()} yet. Check back soon!`}
         header={
-          <div className="flex items-center gap-4 px-4 mt-4 mb-5">
+          <div className="flex items-center gap-4 px-4 pt-4 pb-5">
             <Link to={backTo} className={`p-2 -ml-2 rounded-full hover:bg-secondary transition-colors ${alwaysShowBack ? '' : 'sidebar:hidden'}`}>
               <ArrowLeft className="size-5" />
             </Link>
