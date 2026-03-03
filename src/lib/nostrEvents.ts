@@ -17,8 +17,14 @@ export function isReplyEvent(event: NostrEvent): boolean {
 /**
  * Extracts the parent (replied-to) event ID from an event's tags following NIP-10 conventions.
  * Supports both the preferred marked-tag scheme and the deprecated positional scheme.
+ * For kind 7 reactions, uses NIP-25 semantics: the last `e` tag is the reacted-to event.
  */
 export function getParentEventId(event: NostrEvent): string | undefined {
+  // NIP-25: for kind 7 reactions, the target event is always the last e-tag
+  if (event.kind === 7) {
+    return event.tags.findLast(([name]) => name === 'e')?.[1];
+  }
+
   // Exclude "mention" e-tags — they are inline quotes, not reply/root references
   const eTags = event.tags.filter(([name, , , marker]) => name === 'e' && marker !== 'mention');
   if (eTags.length === 0) return undefined;
