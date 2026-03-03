@@ -199,6 +199,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
               src={playUrl}
               poster={imageUrl}
               className="w-full"
+              title={title}
             />
           ) : (
             <div className="aspect-video xl:rounded-2xl bg-muted flex items-center justify-center border-y xl:border border-border">

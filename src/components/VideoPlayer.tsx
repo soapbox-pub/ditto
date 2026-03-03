@@ -15,6 +15,10 @@ interface VideoPlayerProps {
   dim?: string;
   /** NIP-94 `blurhash` tag value. Shown as a placeholder before the video poster/frame loads. */
   blurhash?: string;
+  /** Video title shown in OS media controls. */
+  title?: string;
+  /** Artist / author name shown in OS media controls. */
+  artist?: string;
 }
 
 /** Parses a NIP-94 `dim` string like "1280x720" into `{ width, height }`. */
@@ -176,7 +180,7 @@ function useHls(videoRef: React.RefObject<HTMLVideoElement | null>, src: string)
   return { isHls };
 }
 
-export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash }: VideoPlayerProps) {
+export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash, title, artist }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -202,6 +206,57 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
     containerRef,
     isPlaying,
   });
+
+  // Media Session API — registers OS lock-screen / notification controls
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    if (!hasStarted) return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    const artwork: MediaImage[] = (generatedPoster || poster)
+      ? [{ src: (generatedPoster || poster)!, sizes: '512x512', type: 'image/jpeg' }]
+      : [];
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: title || 'Video',
+      artist: artist || '',
+      artwork,
+    });
+
+    navigator.mediaSession.setActionHandler('play', () => video.play().catch(() => {}));
+    navigator.mediaSession.setActionHandler('pause', () => video.pause());
+    navigator.mediaSession.setActionHandler('seekto', (details) => {
+      if (details.seekTime != null) video.currentTime = details.seekTime;
+    });
+    navigator.mediaSession.setActionHandler('previoustrack', null);
+    navigator.mediaSession.setActionHandler('nexttrack', null);
+
+    return () => {
+      if (!('mediaSession' in navigator)) return;
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.setActionHandler('play', null);
+      navigator.mediaSession.setActionHandler('pause', null);
+      navigator.mediaSession.setActionHandler('seekto', null);
+    };
+  }, [hasStarted, title, artist, poster, generatedPoster]);
+
+  // Keep OS playback state in sync
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !hasStarted) return;
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+  }, [isPlaying, hasStarted]);
+
+  // Keep OS position/scrubber in sync
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !hasStarted || duration <= 0) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration,
+        playbackRate: videoRef.current?.playbackRate ?? 1,
+        position: Math.min(currentTime, duration),
+      });
+    } catch { /* setPositionState may throw on some browsers */ }
+  }, [currentTime, duration, hasStarted]);
 
   const togglePlay = (e: React.MouseEvent) => {
     e.stopPropagation();

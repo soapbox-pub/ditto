@@ -159,6 +159,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
   }, [isPlaying]);
 
+  // Keep OS scrubber position in sync
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    if (!currentTrack || duration <= 0) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration,
+        playbackRate: audioRef.current?.playbackRate ?? 1,
+        position: Math.min(currentTime, duration),
+      });
+    } catch { /* setPositionState may throw on some browsers */ }
+  }, [currentTime, duration, currentTrack]);
+
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
     const audio = audioRef.current;
