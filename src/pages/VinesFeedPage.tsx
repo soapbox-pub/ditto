@@ -5,6 +5,7 @@ import {
   useCallback,
   useMemo,
 } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import {
@@ -24,7 +25,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useStreamKind } from '@/hooks/useStreamKind';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useEventStats } from '@/hooks/useTrending';
+import { useEventStats, type EventStats } from '@/hooks/useTrending';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -128,12 +129,42 @@ export function VineHeartButton({ event, label, noBackground }: { event: NostrEv
   const { user } = useCurrentUser();
   const userReaction = useUserReaction(event.id);
   const { mutate: publishEvent } = useNostrPublish();
+  const queryClient = useQueryClient();
   const hasReacted = !!userReaction;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user || hasReacted) return;
-    publishEvent({ kind: 7, content: '+', tags: [['e', event.id], ['p', event.pubkey], ['k', String(event.kind)]] });
+
+    // Optimistically update stats cache
+    const prevStats = queryClient.getQueryData<EventStats>(['event-stats', event.id]);
+    if (prevStats) {
+      queryClient.setQueryData<EventStats>(['event-stats', event.id], {
+        ...prevStats,
+        reactions: prevStats.reactions + 1,
+      });
+    }
+    // Optimistically mark user as having reacted
+    queryClient.setQueryData(['user-reaction', event.id], { content: '👍' });
+
+    publishEvent(
+      { kind: 7, content: '+', tags: [['e', event.id], ['p', event.pubkey], ['k', String(event.kind)]] },
+      {
+        onSuccess: () => {
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
+            queryClient.invalidateQueries({ queryKey: ['event-interactions', event.id] });
+          }, 3000);
+        },
+        onError: () => {
+          // Revert optimistic updates
+          if (prevStats) {
+            queryClient.setQueryData<EventStats>(['event-stats', event.id], prevStats);
+          }
+          queryClient.removeQueries({ queryKey: ['user-reaction', event.id] });
+        },
+      },
+    );
   };
 
   return (

@@ -58,6 +58,11 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
     // Kind 16 generic reposts require a 'k' tag with the original event's kind
     if (repostKind === 16) {
       tags.push(['k', String(event.kind)]);
+      // Addressable events (30000–39999) should include an 'a' tag per NIP-18
+      if (event.kind >= 30000 && event.kind < 40000) {
+        const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
+        tags.push(['a', `${event.kind}:${event.pubkey}:${dTag}`]);
+      }
     }
 
     publishEvent(
