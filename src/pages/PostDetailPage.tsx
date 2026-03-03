@@ -566,6 +566,7 @@ function VideoDetailContent({ event }: { event: NostrEvent }) {
           poster={imeta.thumbnail}
           dim={imeta.dim}
           blurhash={imeta.blurhash}
+          title={title ?? undefined}
         />
       )}
       {title && (
@@ -602,7 +603,7 @@ function VineDetailContent({ event }: { event: NostrEvent }) {
         <p className="text-[15px] leading-relaxed break-words mb-2">{vineTitle}</p>
       )}
       {imeta.url && (
-        <VideoPlayer src={imeta.url} poster={imeta.thumbnail} />
+        <VideoPlayer src={imeta.url} poster={imeta.thumbnail} title={vineTitle ?? undefined} />
       )}
       {hashtags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-2">
@@ -1100,7 +1101,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <NoteContent event={event} className="text-[15px] leading-relaxed" />
               </div>
               {videos.map((url, i) => (
-                <VideoPlayer key={`v-${i}`} src={url} poster={imetaMap.get(url)?.thumbnail} dim={imetaMap.get(url)?.dim} blurhash={imetaMap.get(url)?.blurhash} />
+                <VideoPlayer key={`v-${i}`} src={url} poster={imetaMap.get(url)?.thumbnail} dim={imetaMap.get(url)?.dim} blurhash={imetaMap.get(url)?.blurhash} artist={displayName} />
               ))}
               {audios.map((url, i) => (
                 <AudioVisualizer

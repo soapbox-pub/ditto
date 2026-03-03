@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 export function MusicTrackContent({ event }: { event: NostrEvent }) {
   const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
+  const author = useAuthor(event.pubkey);
 
   if (!parsed) return null;
 
@@ -33,7 +34,9 @@ export function MusicTrackContent({ event }: { event: NostrEvent }) {
     } else if (isNowPlaying) {
       player.resume();
     } else {
-      player.playTrack(toAudioTrack(event, parsed));
+      const track = toAudioTrack(event, parsed);
+      track.artwork ??= author.data?.metadata?.picture;
+      player.playTrack(track);
     }
   };
 
@@ -143,6 +146,7 @@ export function PodcastEpisodeContent({ event }: { event: NostrEvent }) {
     } else {
       const track = episodeToAudioTrack(event, parsed);
       track.artist = displayName;
+      track.artwork ??= author.data?.metadata?.picture;
       player.playTrack(track);
     }
   };
@@ -213,6 +217,7 @@ export function PodcastTrailerContent({ event }: { event: NostrEvent }) {
     } else {
       const track = trailerToAudioTrack(event, parsed);
       track.artist = displayName;
+      track.artwork ??= author.data?.metadata?.picture;
       player.playTrack(track);
     }
   };

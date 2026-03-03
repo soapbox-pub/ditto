@@ -123,7 +123,7 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
   if (mime.startsWith('video/')) {
     return (
       <div className="mt-3">
-        <VideoPlayer src={url} poster={thumb} dim={dim} blurhash={blurhash} />
+        <VideoPlayer src={url} poster={thumb} dim={dim} blurhash={blurhash} title={altText} />
         {description && !compact && <DescriptionCard text={description} />}
       </div>
     );
