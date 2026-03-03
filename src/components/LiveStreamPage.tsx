@@ -175,7 +175,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
 
   return (
     <>
-      <main className="xl:max-sidebar:flex max-sidebar:flex-col max-sidebar:h-[calc(100dvh-6.5rem)] max-sidebar:max-h-[calc(100dvh-6.5rem)] max-sidebar:overflow-hidden">
+      <main className="xl:max-sidebar:flex max-sidebar:flex max-sidebar:flex-col max-sidebar:h-[calc(100dvh-6.5rem)] max-sidebar:max-h-[calc(100dvh-6.5rem)] max-sidebar:overflow-hidden">
         {/* Header */}
         <div className="shrink-0 sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-4 bg-background/80 backdrop-blur-md">
           <button
@@ -193,7 +193,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
         </div>
 
         {/* Video Player */}
-        <div className="px-4 shrink-0">
+        <div className="xl:px-4 shrink-0">
           {playUrl ? (
             <LiveStreamPlayer
               src={playUrl}
@@ -201,7 +201,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
               className="w-full"
             />
           ) : (
-            <div className="aspect-video rounded-2xl bg-muted flex items-center justify-center border border-border">
+            <div className="aspect-video xl:rounded-2xl bg-muted flex items-center justify-center border-y xl:border border-border">
               <div className="text-center space-y-2">
                 <Radio className="size-8 text-muted-foreground/40 mx-auto" />
                 <p className="text-sm text-muted-foreground">
@@ -268,7 +268,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
         </div>
 
         {/* Mobile chat — fills remaining viewport, scrollbox sits above bottom nav */}
-        <div className="xl:hidden mt-4 border-t border-border flex-1 min-h-0">
+        <div className="xl:hidden mt-4 border-t border-border flex-1 min-h-0 overflow-hidden">
           <LiveStreamChat aTag={aTag} className="h-full" />
         </div>
 
