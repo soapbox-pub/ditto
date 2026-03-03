@@ -18,6 +18,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { ProfileSettings } from "./pages/ProfileSettings";
 import { ThemeSettingsPage } from "./pages/ThemeSettingsPage";
 import { ContentSettingsPage } from "./pages/ContentSettingsPage";
+import { ContentPage } from "./pages/ContentPage";
 import { WalletSettingsPage } from "./pages/WalletSettingsPage";
 import { NotificationSettings } from "./pages/NotificationSettings";
 import { AdvancedSettingsPage } from "./pages/AdvancedSettingsPage";
@@ -78,7 +79,8 @@ export function AppRouter() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/profile" element={<ProfileSettings />} />
           <Route path="/settings/theme" element={<ThemeSettingsPage />} />
-          <Route path="/settings/content" element={<ContentSettingsPage />} />
+          <Route path="/settings/feed" element={<ContentSettingsPage />} />
+          <Route path="/settings/content" element={<ContentPage />} />
           <Route path="/settings/theme/edit" element={<ThemeBuilderPage />} />
           <Route path="/settings/wallet" element={<WalletSettingsPage />} />
           <Route path="/settings/notifications" element={<NotificationSettings />} />
