@@ -12,9 +12,6 @@ export function ContentSettings() {
   const [notesOpen, setNotesOpen] = useState(true);
   const [otherStuffOpen, setOtherStuffOpen] = useState(true);
   const [feedTabsOpen, setFeedTabsOpen] = useState(false);
-  const [themePrefsOpen, setThemePrefsOpen] = useState(false);
-  const [mutesOpen, setMutesOpen] = useState(false);
-  const [sensitiveOpen, setSensitiveOpen] = useState(false);
 
   return (
     <div>
@@ -129,90 +126,6 @@ export function ContentSettings() {
         </Collapsible>
       </div>
 
-      {/* Theme Preferences Section */}
-      <div>
-        <Collapsible open={themePrefsOpen} onOpenChange={setThemePrefsOpen}>
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-            >
-              <span className="text-base font-semibold">Theme Preferences</span>
-              {themePrefsOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="px-3 py-4">
-              <ThemePreferencesSection />
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
-
-      {/* Muted Content Section */}
-      <div>
-        <Collapsible open={mutesOpen} onOpenChange={setMutesOpen}>
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-            >
-              <span className="text-base font-semibold">Muted Content</span>
-              {mutesOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="pb-4">
-              {/* Intro section for Muted Content */}
-              <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-                <IntroImage src="/mute-intro.png" />
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold">Content Control</h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Hide posts from specific users, hashtags, words, or entire threads. All mutes are encrypted and private.
-                  </p>
-                </div>
-              </div>
-              <MuteSettingsInternals />
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
-
-      {/* Sensitive Content Section */}
-      <div>
-        <Collapsible open={sensitiveOpen} onOpenChange={setSensitiveOpen}>
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-            >
-              <span className="text-base font-semibold">Sensitive Content</span>
-              {sensitiveOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="pb-4">
-              <SensitiveContentSection />
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
     </div>
   );
 }
@@ -665,7 +578,7 @@ const CW_POLICY_OPTIONS: { value: ContentWarningPolicy; label: string; descripti
   },
 ];
 
-function SensitiveContentSection() {
+export function SensitiveContentSection() {
   const { config, updateConfig } = useAppContext();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
@@ -755,7 +668,7 @@ const MUTE_TYPE_CONFIG = {
   },
 };
 
-function MuteSettingsInternals() {
+export function MuteSettingsInternals() {
   const { muteItems, isLoading, addMute, removeMute } = useMuteList();
   const { toast } = useToast();
   const [newMuteType, setNewMuteType] = useState<MuteListItem['type']>('pubkey');
@@ -956,7 +869,7 @@ function MuteTypeSection({
   );
 }
 
-function ThemePreferencesSection() {
+export function ThemePreferencesSection() {
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();

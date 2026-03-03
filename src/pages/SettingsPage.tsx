@@ -34,10 +34,17 @@ const settingsSections: SettingsSection[] = [
     path: '/settings/theme',
   },
   {
-    id: 'content',
-    label: 'Content',
+    id: 'feed',
+    label: 'Feed',
     description: 'Manage your feed and content preferences',
     illustration: '/community-intro.png',
+    path: '/settings/feed',
+  },
+  {
+    id: 'content',
+    label: 'Content',
+    description: 'Muted users, hashtags, and sensitive content settings',
+    illustration: '/mute-intro.png',
     path: '/settings/content',
   },
   {

@@ -8,7 +8,7 @@ export function ContentSettingsPage() {
   const { config } = useAppContext();
 
   useSeoMeta({
-    title: `Content | Settings | ${config.appName}`,
+    title: `Feed | Settings | ${config.appName}`,
     description: 'Manage your feed and content preferences',
   });
 
@@ -21,7 +21,7 @@ export function ContentSettingsPage() {
             <ArrowLeft className="size-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold">Content</h1>
+            <h1 className="text-xl font-bold">Feed</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Manage your feed and content preferences
             </p>
