@@ -56,6 +56,18 @@ const MUSIC_KINDS = new Set([36787, 34139]);
 const PODCAST_KINDS = new Set([30054, 30055]);
 /** NIP-52 Calendar Events. */
 const CALENDAR_EVENT_KINDS = new Set([31922, 31923]);
+
+/** Map a kind number to a human-readable shell title for the loading state. */
+function shellTitleForKind(kind?: number): string {
+  if (!kind) return 'Loading...';
+  if (MUSIC_KINDS.has(kind)) return 'Track Details';
+  if (PODCAST_KINDS.has(kind)) return 'Episode Details';
+  if (CALENDAR_EVENT_KINDS.has(kind)) return 'Event Details';
+  if (FOLLOW_PACK_KINDS.has(kind)) return 'Follow Pack';
+  if (kind === LIVE_STREAM_KIND) return 'Live Stream';
+  return 'Post Details';
+}
+
 import { useReplies } from '@/hooks/useReplies';
 import { useComments } from '@/hooks/useComments';
 import { CommentContext } from '@/components/CommentContext';
@@ -194,15 +206,16 @@ export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPagePr
     title: (event || retryEvent) ? `Post Details - ${config.appName}` : `Loading... - ${config.appName}`,
   });
 
+  const resolvedEvent = event || retryEvent;
+  const detailTitle = shellTitleForKind(resolvedEvent?.kind);
+
   if (isLoading) {
     return (
-      <PostDetailShell>
+      <PostDetailShell title="Loading...">
         <PostDetailSkeleton />
       </PostDetailShell>
     );
   }
-
-  const resolvedEvent = event || retryEvent;
 
   if (isError || !resolvedEvent) {
     return (
@@ -216,7 +229,7 @@ export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPagePr
   }
 
   return (
-    <PostDetailShell>
+    <PostDetailShell title={detailTitle}>
       <MutedContentGuard event={resolvedEvent}>
         <PostDetailContent event={resolvedEvent} />
       </MutedContentGuard>
@@ -232,15 +245,18 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
 
   const resolvedEvent = event || retryEvent;
 
+  // We know the kind from the addr before the event loads — use it for the shell title
+  const loadingTitle = shellTitleForKind(addr.kind);
+
   useSeoMeta({
     title: resolvedEvent
-      ? `${resolvedEvent.tags.find(([n]) => n === 'title')?.[1] || resolvedEvent.tags.find(([n]) => n === 'name')?.[1] || 'Post Details'} - ${config.appName}`
-      : `Loading... - ${config.appName}`,
+      ? `${resolvedEvent.tags.find(([n]) => n === 'title')?.[1] || resolvedEvent.tags.find(([n]) => n === 'name')?.[1] || loadingTitle} - ${config.appName}`
+      : `${loadingTitle} - ${config.appName}`,
   });
 
   if (isLoading) {
     return (
-      <PostDetailShell>
+      <PostDetailShell title={loadingTitle}>
         <PostDetailSkeleton />
       </PostDetailShell>
     );
@@ -248,7 +264,7 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
 
   if (isError || !resolvedEvent) {
     return (
-      <PostDetailShell>
+      <PostDetailShell title={loadingTitle}>
         <EventNotFound
           context={{ type: 'addr', addr, relays }}
           onEventFound={setRetryEvent}
@@ -305,12 +321,11 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   );
 }
 
-export function PostDetailShell({ children }: { children: React.ReactNode }) {
+export function PostDetailShell({ children, title = 'Post Details' }: { children: React.ReactNode; title?: string }) {
   const navigate = useNavigate();
 
   return (
     <main className="">
-      {/* Header — matches Ditto: ← Post Details */}
       <div className="flex items-center gap-4 px-4 pt-4 pb-5">
         <button
           onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
@@ -319,7 +334,7 @@ export function PostDetailShell({ children }: { children: React.ReactNode }) {
         >
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-xl font-bold">Post Details</h1>
+        <h1 className="text-xl font-bold">{title}</h1>
       </div>
 
       {children}

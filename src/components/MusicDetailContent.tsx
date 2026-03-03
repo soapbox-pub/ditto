@@ -105,7 +105,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
         <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')} className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-lg font-bold truncate">Track</h1>
+        <h1 className="text-xl font-bold truncate">Track Details</h1>
       </div>
 
       {/* Hero: artwork + info side by side */}
@@ -300,7 +300,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
         <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')} className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-lg font-bold truncate">Playlist</h1>
+        <h1 className="text-xl font-bold truncate">Playlist Details</h1>
       </div>
 
       {/* Hero */}
