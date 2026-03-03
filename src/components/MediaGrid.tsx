@@ -4,7 +4,7 @@
  * into one array so the Lightbox strip swipe just advances through them in order.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Images, Play } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -278,6 +278,33 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
 
   const activeEntry = flatIndex !== null ? flat[flatIndex] : null;
 
+  // When the user swipes past the last item, flatIndex stays at flat.length - 1.
+  // waitingForMore tracks that we're parked on the loading slot.
+  const waitingForMore = useRef(false);
+
+  // When flat grows while waiting, advance flatIndex to the newly arrived item.
+  useEffect(() => {
+    if (!waitingForMore.current) return;
+    if (flatIndex === null) return;
+    if (flatIndex < flat.length - 1) {
+      // New items arrived — advance
+      waitingForMore.current = false;
+      setFlatIndex(flatIndex + 1);
+    }
+  }, [flat.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When fetch finishes with no new items, spring back.
+  const lightboxSpringBackRef = useRef<(() => void) | null>(null);
+  const prevFetching = useRef(false);
+  useEffect(() => {
+    const wasFetching = prevFetching.current;
+    prevFetching.current = !!isFetchingNextPage;
+    if (wasFetching && !isFetchingNextPage && waitingForMore.current) {
+      waitingForMore.current = false;
+      lightboxSpringBackRef.current?.();
+    }
+  }, [isFetchingNextPage]);
+
   if (items.length === 0) return null;
 
   return (
@@ -300,16 +327,17 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
           currentIndex={flatIndex}
           hasMore={hasNextPage}
           isFetchingMore={isFetchingNextPage}
-          onClose={() => { setFlatIndex(null); onInitialOpenConsumed?.(); }}
+          springBackRef={lightboxSpringBackRef}
+          onClose={() => { setFlatIndex(null); onInitialOpenConsumed?.(); waitingForMore.current = false; }}
           onNext={() => setFlatIndex((i) => {
             if (i === null) return null;
             if (i >= flat.length - 1) {
-              // At the end — trigger fetch but don't advance yet
+              // At the last item — trigger fetch and park on loading slot
+              waitingForMore.current = true;
               onNearEnd?.();
               return i;
             }
             const next = i + 1;
-            // Pre-fetch when one away from the end
             if (next >= flat.length - 1) onNearEnd?.();
             return next;
           })}

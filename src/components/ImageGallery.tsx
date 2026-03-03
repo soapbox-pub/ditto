@@ -315,9 +315,11 @@ export interface LightboxProps {
   hasMore?: boolean;
   /** When true, the loading slot shows a spinner instead of being blank. */
   isFetchingMore?: boolean;
+  /** Assign a spring-back function here — call it to animate back to center (e.g. fetch failed). */
+  springBackRef?: React.MutableRefObject<(() => void) | null>;
 }
 
-export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaTypes, mediaMeta, topBarLeft, showDownload = true, maxDotIndicators = 10, bottomBar, hasMore = false, isFetchingMore = false }: LightboxProps) {
+export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaTypes, mediaMeta, topBarLeft, showDownload = true, maxDotIndicators = 10, bottomBar, hasMore = false, isFetchingMore = false, springBackRef }: LightboxProps) {
   // Track loaded state per URL so navigating to an already-loaded neighbour
   // doesn't show the spinner again.
   const [loadedUrls, setLoadedUrls] = useState<Set<string>>(new Set());
@@ -362,9 +364,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   const containerRef = useRef<HTMLDivElement>(null);
   // dragOffsetPx is mutated directly on the DOM (no React state) for 60fps feel
   const dragOffsetRef = useRef(0);
-  // Always-current ref so setTimeout callbacks can read the latest currentIndex
-  const currentIndexRef = useRef(currentIndex);
-  useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
+
   const dragX = useRef<number | null>(null);
   const dragY = useRef<number | null>(null);
   const axis = useRef<'h' | 'v' | null>(null);
@@ -393,6 +393,18 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     dragOffsetRef.current = 0;
     snapAll(0);
   }, [currentIndex, snapAll]);
+
+  // Expose a spring-back function so the parent can animate back to center
+  // (e.g. after a failed page fetch while parked on the loading slot).
+  useEffect(() => {
+    if (!springBackRef) return;
+    springBackRef.current = () => {
+      slotRefs.current.forEach((_, idx) =>
+        setSlotTransform(idx, 0, `transform ${DURATION}ms ${EASING}`)
+      );
+    };
+    return () => { if (springBackRef) springBackRef.current = null; };
+  }, [springBackRef, setSlotTransform]);
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (animating.current) return;
@@ -450,21 +462,11 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
       const targetOffset = goingNext ? -window.innerWidth : window.innerWidth;
       const transition = `transform ${DURATION}ms ${EASING}`;
       slotRefs.current.forEach((_, idx) => setSlotTransform(idx, targetOffset, transition));
-      const indexBeforeNav = currentIndex;
       setTimeout(() => {
         animating.current = false;
         dragOffsetRef.current = 0;
         if (goingNext) onNext();
         else onPrev();
-        // If currentIndex didn't change (e.g. at last image with hasMore but fetch not done),
-        // spring all slots back to center so the UI doesn't stay stuck off-screen.
-        requestAnimationFrame(() => {
-          if (currentIndexRef.current === indexBeforeNav) {
-            slotRefs.current.forEach((_, idx) =>
-              setSlotTransform(idx, 0, `transform ${DURATION}ms ${EASING}`)
-            );
-          }
-        });
       }, DURATION);
     } else {
       // Not committed — spring back
