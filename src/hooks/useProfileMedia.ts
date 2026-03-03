@@ -33,7 +33,7 @@ export function useProfileMedia(pubkey: string | undefined, enabled = true) {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
 
       const filter: Record<string, unknown> = {
-        kinds: [1, 20, 21, 22, 34236],
+        kinds: [1, 20, 21, 22, 34236, 36787, 34139, 30054, 30055],
         authors: [pubkey],
         search: 'media:true',
         limit: PAGE_SIZE,

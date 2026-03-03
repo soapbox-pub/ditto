@@ -4,6 +4,10 @@ import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
+import { VideoPlayer } from '@/components/VideoPlayer';
+import { AudioVisualizer } from '@/components/AudioVisualizer';
+import { useAuthor } from '@/hooks/useAuthor';
+import { genUserName } from '@/lib/genUserName';
 
 /** Minimal imeta fields needed for pre-load sizing. */
 interface ImetaDimensions {
@@ -276,12 +280,26 @@ function GridImage({
   );
 }
 
+export interface LightboxMediaMeta {
+  mime?: string;
+  dim?: string;
+  blurhash?: string;
+  avatarUrl?: string;
+  avatarFallback?: string;
+  /** Nostr pubkey — used by audio slot to resolve author avatar via useAuthor. */
+  pubkey?: string;
+}
+
 export interface LightboxProps {
   images: string[];
   currentIndex: number;
   onClose: () => void;
   onNext: () => void;
   onPrev: () => void;
+  /** Per-slot media types — 'image' | 'video' | 'audio'. Defaults to all 'image'. */
+  mediaTypes?: ('image' | 'video' | 'audio')[];
+  /** Per-slot NIP-94 metadata (mime, dim, blurhash). */
+  mediaMeta?: LightboxMediaMeta[];
   /** Custom content rendered on the left side of the top bar (replaces default counter). */
   topBarLeft?: React.ReactNode;
   /** Whether to show the download button (default true). */
@@ -295,7 +313,7 @@ export interface LightboxProps {
   bottomBar?: React.ReactNode;
 }
 
-export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBarLeft, showDownload = true, maxDotIndicators = 10, bottomBar }: LightboxProps) {
+export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaTypes, mediaMeta, topBarLeft, showDownload = true, maxDotIndicators = 10, bottomBar }: LightboxProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const currentUrl = images[currentIndex];
   const hasMultiple = images.length > 1;
@@ -425,7 +443,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
 
   return (
     <div
-      className="fixed inset-0 z-[100] animate-in fade-in duration-200 overflow-hidden"
+      className="fixed inset-0 z-[100] animate-in fade-in duration-200"
       onClick={handleBackdropClick}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -466,25 +484,51 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
         </button>
       )}
 
-      {/* Image strip — 3 slots × 100vw, centred on slot 1 (-100vw) */}
+      {/* Media strip */}
       <div
         ref={stripRef}
         className="absolute inset-y-0 flex will-change-transform"
         style={{ width: '300vw', left: 0, transform: 'translateX(-100vw)' }}
       >
         <div className="w-screen h-full flex items-center justify-center shrink-0">
-          {canGoPrev && <LightboxImage url={images[currentIndex - 1]} isLoaded={true} onLoad={() => {}} />}
+          {canGoPrev && (
+            <LightboxSlot
+              url={images[currentIndex - 1]}
+              type={mediaTypes?.[currentIndex - 1] ?? 'image'}
+              meta={mediaMeta?.[currentIndex - 1]}
+              isActive={false}
+              isLoaded={true}
+              onLoad={() => {}}
+            />
+          )}
         </div>
         <div className="w-screen h-full flex items-center justify-center shrink-0 relative">
-          {!isLoaded && (
+          {!isLoaded && (mediaTypes?.[currentIndex] ?? 'image') === 'image' && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
             </div>
           )}
-          <LightboxImage key={currentUrl} url={currentUrl} isLoaded={isLoaded} onLoad={() => setIsLoaded(true)} />
+          <LightboxSlot
+            key={currentUrl}
+            url={currentUrl}
+            type={mediaTypes?.[currentIndex] ?? 'image'}
+            meta={mediaMeta?.[currentIndex]}
+            isActive={true}
+            isLoaded={isLoaded}
+            onLoad={() => setIsLoaded(true)}
+          />
         </div>
         <div className="w-screen h-full flex items-center justify-center shrink-0">
-          {canGoNext && <LightboxImage url={images[currentIndex + 1]} isLoaded={true} onLoad={() => {}} />}
+          {canGoNext && (
+            <LightboxSlot
+              url={images[currentIndex + 1]}
+              type={mediaTypes?.[currentIndex + 1] ?? 'image'}
+              meta={mediaMeta?.[currentIndex + 1]}
+              isActive={false}
+              isLoaded={true}
+              onLoad={() => {}}
+            />
+          )}
         </div>
       </div>
 
@@ -524,4 +568,51 @@ function LightboxImage({ url, isLoaded, onLoad }: { url: string; isLoaded: boole
       draggable={false}
     />
   );
+}
+
+/** Renders the correct player for a given media type inside a strip slot. */
+function LightboxSlot({
+  url,
+  type,
+  meta,
+  isLoaded,
+  onLoad,
+}: {
+  url: string;
+  type: 'image' | 'video' | 'audio';
+  meta?: LightboxMediaMeta;
+  isActive: boolean;
+  isLoaded: boolean;
+  onLoad: () => void;
+}) {
+  const author = useAuthor(type === 'audio' ? meta?.pubkey : undefined);
+  const authorMeta = author.data?.metadata;
+  const fallback = meta?.pubkey ? genUserName(meta.pubkey) : '?';
+
+  if (type === 'video') {
+    return (
+      <div className="w-full flex items-center justify-center px-4" onClick={(e) => e.stopPropagation()}>
+        <VideoPlayer
+          src={url}
+          dim={meta?.dim}
+          blurhash={meta?.blurhash}
+          className="w-full max-w-lg"
+        />
+      </div>
+    );
+  }
+  if (type === 'audio') {
+    return (
+      <div className="w-full flex items-center justify-center px-4" onClick={(e) => e.stopPropagation()}>
+        <AudioVisualizer
+          src={url}
+          mime={meta?.mime}
+          avatarUrl={authorMeta?.picture}
+          avatarFallback={fallback[0]?.toUpperCase()}
+          className="w-full max-w-lg"
+        />
+      </div>
+    );
+  }
+  return <LightboxImage url={url} isLoaded={isLoaded} onLoad={onLoad} />;
 }

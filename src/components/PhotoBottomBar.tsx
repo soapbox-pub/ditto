@@ -1,8 +1,7 @@
 /**
  * PhotoBottomBar — author info + reaction strip rendered at the bottom of
- * the media Lightbox. Sits flush with the device's safe-area edge; no extra
- * clearance is needed because the Lightbox is a fixed full-screen overlay
- * that covers the bottom navigation bar entirely.
+ * the media Lightbox. Uses CommentsSheet for all event kinds; CommentsSheet
+ * adapts its query, label, and placeholder based on event.kind.
  */
 
 import { useState } from 'react';
@@ -33,14 +32,9 @@ function formatSats(sats: number): string {
 
 interface PhotoBottomBarProps {
   event: NostrEvent;
-  onCommentClick: () => void;
-  /** The event currently open in CommentsSheet (managed by the parent). */
-  commentsEvent?: NostrEvent | null;
-  /** Called when CommentsSheet wants to close. */
-  onCommentsClose?: () => void;
 }
 
-export function PhotoBottomBar({ event, onCommentClick, commentsEvent, onCommentsClose }: PhotoBottomBarProps) {
+export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -48,13 +42,14 @@ export function PhotoBottomBar({ event, onCommentClick, commentsEvent, onComment
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { data: stats } = useEventStats(event.id);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const canZapAuthor = user && canZap(metadata);
 
   return (
     <>
       {/* Action strip — mirrors top bar: px-4 py-3 + safe-area */}
       <div className="relative safe-area-bottom">
-        {/* Gradient scrim: tall enough to fade nicely over the image above the bar */}
+        {/* Gradient scrim */}
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
 
         <div className="relative flex items-center gap-1 px-4 py-3 max-w-xl mx-auto">
@@ -75,7 +70,7 @@ export function PhotoBottomBar({ event, onCommentClick, commentsEvent, onComment
             </Link>
           </ProfileHoverCard>
 
-          {/* Actions — p-2.5 on each button matches the top bar button padding */}
+          {/* Actions */}
           <div className="flex items-center ml-auto shrink-0">
             <ReactionButton
               eventId={event.id}
@@ -88,7 +83,7 @@ export function PhotoBottomBar({ event, onCommentClick, commentsEvent, onComment
 
             <button
               className="flex items-center gap-1 p-2.5 text-white hover:text-blue-400 transition-colors"
-              onClick={onCommentClick}
+              onClick={() => setCommentsOpen(true)}
             >
               <MessageCircle className="size-5" />
               {!!stats?.replies && <span className="text-sm tabular-nums drop-shadow">{stats.replies}</span>}
@@ -126,11 +121,10 @@ export function PhotoBottomBar({ event, onCommentClick, commentsEvent, onComment
 
       <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
 
-      {/* CommentsSheet is rendered here so it sits inside the fixed overlay stacking context */}
       <CommentsSheet
-        event={commentsEvent ?? undefined}
-        open={!!commentsEvent}
-        onClose={onCommentsClose ?? (() => {})}
+        event={event}
+        open={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
       />
     </>
   );

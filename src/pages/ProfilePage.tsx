@@ -622,6 +622,7 @@ export function ProfilePage() {
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
+  const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [followingModalOpen, setFollowingModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -1156,8 +1157,13 @@ export function ProfilePage() {
 
   const openWallCompose = useCallback(() => setWallComposeOpen(true), []);
 
+  const handleSidebarMediaClick = useCallback((url: string) => {
+    setActiveTab('media');
+    setSidebarMediaUrl(url);
+  }, []);
+
   useLayoutOptions(pubkey ? {
-    rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} />,
+    rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} onMediaClick={handleSidebarMediaClick} />,
     showFAB: !(activeTab === 'wall' && !profileFollowsMe),
     onFabClick: activeTab === 'wall' ? openWallCompose : undefined,
   } : {});
@@ -1651,7 +1657,11 @@ export function ProfilePage() {
               <MediaGridSkeleton count={15} />
             ) : mediaEvents.length > 0 ? (
               <>
-                <MediaGrid events={mediaEvents} />
+                <MediaGrid
+                  events={mediaEvents}
+                  initialOpenUrl={sidebarMediaUrl ?? undefined}
+                  onInitialOpenConsumed={() => setSidebarMediaUrl(null)}
+                />
                 {hasNextMediaPage && (
                   <div ref={scrollRef} className="flex justify-center py-6">
                     {isFetchingNextMediaPage && (
