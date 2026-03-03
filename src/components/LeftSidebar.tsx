@@ -351,7 +351,7 @@ export function LeftSidebar() {
                         {sidebarUserThemes.data.map((ut) => {
                           const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme.colors) === JSON.stringify(ut.colors);
                           return (
-                            <DropdownMenuItem key={ut.identifier} onClick={() => applyCustomTheme({ colors: ut.colors, font: ut.font })} className="flex items-center justify-between cursor-pointer">
+                            <DropdownMenuItem key={ut.identifier} onClick={() => applyCustomTheme({ colors: ut.colors, font: ut.font, background: ut.background ?? customTheme?.background })} className="flex items-center justify-between cursor-pointer">
                               <div className="flex items-center gap-2 min-w-0"><Palette className="size-3.5 text-primary shrink-0" /><span className="truncate">{ut.title}</span></div>
                               {isActive && <Check className="size-4 text-primary shrink-0" />}
                             </DropdownMenuItem>
