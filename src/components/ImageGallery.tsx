@@ -314,14 +314,18 @@ export interface LightboxProps {
 }
 
 export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaTypes, mediaMeta, topBarLeft, showDownload = true, maxDotIndicators = 10, bottomBar }: LightboxProps) {
-  const [isLoaded, setIsLoaded] = useState(false);
+  // Track loaded state per URL so navigating to an already-loaded neighbour
+  // doesn't show the spinner again.
+  const [loadedUrls, setLoadedUrls] = useState<Set<string>>(new Set());
+  const markLoaded = useCallback((url: string) => {
+    setLoadedUrls((prev) => { const next = new Set(prev); next.add(url); return next; });
+  }, []);
+
   const currentUrl = images[currentIndex];
+  const isLoaded = loadedUrls.has(currentUrl);
   const hasMultiple = images.length > 1;
   const canGoNext = currentIndex < images.length - 1;
   const canGoPrev = currentIndex > 0;
-
-  // Reset load state when image changes
-  useEffect(() => { setIsLoaded(false); }, [currentIndex]);
 
   // Lock body scroll
   useEffect(() => {
@@ -545,7 +549,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
                 meta={mediaMeta?.[i]}
                 isActive={isCurrent}
                 isLoaded={isCurrent ? isLoaded : true}
-                onLoad={isCurrent ? () => setIsLoaded(true) : () => {}}
+                onLoad={() => markLoaded(url)}
               />
             </div>
           );
