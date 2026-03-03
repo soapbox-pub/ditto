@@ -175,7 +175,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
 
   return (
     <>
-      <main className="xl:max-sidebar:flex max-sidebar:flex max-sidebar:flex-col max-sidebar:h-[calc(100dvh-6.5rem)] max-sidebar:max-h-[calc(100dvh-6.5rem)] max-sidebar:overflow-hidden">
+      <main className="xl:max-sidebar:flex max-sidebar:flex max-sidebar:flex-col max-sidebar:livestream-height max-sidebar:overflow-hidden">
         {/* Header */}
         <div className="shrink-0 sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-4 bg-background/80 backdrop-blur-md">
           <button
