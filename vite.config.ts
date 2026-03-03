@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -94,6 +95,16 @@ function mergePublicDir(externalDir: string): Plugin {
 const dittoConfig = loadDittoConfig();
 const publicDir = process.env.PUBLIC_DIR;
 
+/** Git-based version string for Sentry releases. */
+function getVersion(): string {
+  try {
+    return execSync("git describe --tags --always --dirty", { encoding: "utf-8" }).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
   server: {
@@ -106,6 +117,7 @@ export default defineConfig(() => ({
   ],
   define: {
     __DITTO_CONFIG__: JSON.stringify(dittoConfig ?? null),
+    'import.meta.env.VERSION': JSON.stringify(getVersion()),
   },
   test: {
     globals: true,
