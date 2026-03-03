@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Check, SeparatorHorizontal, Search, ChevronDown, ChevronUp } from 'lucide-react';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -19,9 +19,10 @@ interface SidebarMoreMenuProps {
   onOpenChange: (open: boolean) => void;
 }
 
-function useScrollCarets(deps: unknown[]) {
+function useScrollCarets(centerOnOpen = false) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const roRef = useRef<ResizeObserver | null>(null);
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
 
@@ -32,8 +33,20 @@ function useScrollCarets(deps: unknown[]) {
     setCanScrollDown(el.scrollTop + el.clientHeight < el.scrollHeight - 1);
   }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { const el = scrollRef.current; if (!el) return; const ro = new ResizeObserver(update); ro.observe(el); update(); return () => ro.disconnect(); }, deps);
+  const refCallback = useCallback((el: HTMLDivElement | null) => {
+    // Disconnect previous observer if any
+    roRef.current?.disconnect();
+    roRef.current = null;
+    (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+    if (!el) return;
+    if (centerOnOpen) {
+      el.scrollTop = (el.scrollHeight - el.clientHeight) / 2;
+    }
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    roRef.current = ro;
+    update();
+  }, [centerOnOpen, update]);
 
   const stopScroll = useCallback(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
@@ -55,7 +68,7 @@ function useScrollCarets(deps: unknown[]) {
   // clean up interval on unmount
   useEffect(() => stopScroll, [stopScroll]);
 
-  return { scrollRef, canScrollUp, canScrollDown, onScroll: update, startScroll, stopScroll };
+  return { scrollRef, refCallback, canScrollUp, canScrollDown, onScroll: update, startScroll, stopScroll };
 }
 
 function ScrollCaret({ direction, onMouseEnter, onMouseLeave }: { direction: 'up' | 'down'; onMouseEnter: () => void; onMouseLeave: () => void }) {
@@ -97,8 +110,8 @@ export function SidebarMoreMenu({
   const filtered = hiddenItems.filter((item) => item.label.toLowerCase().includes(query.toLowerCase()));
   const addFiltered = hiddenItems.filter((item) => item.label.toLowerCase().includes(addQuery.toLowerCase()));
 
-  const main = useScrollCarets([open, filtered]);
-  const add = useScrollCarets([addMenuOpen, addFiltered]);
+  const main = useScrollCarets(true);
+  const add = useScrollCarets();
 
   if (editing) {
     return (
@@ -117,7 +130,7 @@ export function SidebarMoreMenu({
             </div>
             <div className="h-px bg-border mb-1 shrink-0" />
             {add.canScrollUp && <ScrollCaret direction="up" onMouseEnter={() => add.startScroll('up')} onMouseLeave={add.stopScroll} />}
-            <div ref={add.scrollRef} className="overflow-y-auto flex-1 min-h-0" onScroll={add.onScroll}>
+            <div ref={add.refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={add.onScroll}>
               {addFiltered.map((item) => <ItemRow key={item.id} item={item} onAdd={onAdd} onClose={() => setAddMenuOpen(false)} />)}
               {addFiltered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center">No results</p>}
             </div>
@@ -151,7 +164,7 @@ export function SidebarMoreMenu({
         </div>
         <div className="h-px bg-border mb-1 shrink-0" />
         {main.canScrollUp && <ScrollCaret direction="up" onMouseEnter={() => main.startScroll('up')} onMouseLeave={main.stopScroll} />}
-        <div ref={main.scrollRef} className="overflow-y-auto flex-1 min-h-0" onScroll={main.onScroll}>
+        <div ref={main.refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={main.onScroll}>
           {filtered.map((item) => (
             <div key={item.id} className="flex items-center">
               <Link to={itemPath(item.id)} onClick={() => { onOpenChange(false); onNavigate?.(); }} className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors">
