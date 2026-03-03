@@ -201,7 +201,7 @@ function NotificationWrapper({ isNew, children }: { isNew: boolean; children: Re
  * Uses the pre-fetched event from the notification item, falling back to useEvent.
  */
 function ReferencedNoteCard({ item }: { item: NotificationItem }) {
-  const referencedEventId = item.event.tags.find(([name]) => name === 'e')?.[1];
+  const referencedEventId = item.event.tags.findLast(([name]) => name === 'e')?.[1];
   // Fall back to useEvent if the batch fetch didn't find it
   const { data: fetchedEvent } = useEvent(
     item.referencedEvent ? undefined : referencedEventId,
