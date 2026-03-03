@@ -27,6 +27,7 @@ import { usePostComment } from '@/hooks/usePostComment';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
+import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
 import { extractWebxdcMeta } from '@/lib/webxdcMeta';
 import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
@@ -854,6 +855,12 @@ export function ComposeBox({
       setUploadedFileGroups(new Map());
       setWebxdcUuids(new Map());
       setWebxdcMetas(new Map());
+      // Optimistically bump the reply count on the parent event
+      if (replyTo && !(replyTo instanceof URL)) {
+        queryClient.setQueryData<EventStats>(['event-stats', replyTo.id], (prev) =>
+          prev ? { ...prev, replies: prev.replies + 1 } : prev,
+        );
+      }
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
         if (replyTo instanceof URL) {
