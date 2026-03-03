@@ -770,7 +770,7 @@ function NoteMedia({
     <>
       {/* Videos — each rendered with play/pause overlay */}
       {videos.map((url, i) => (
-        <NoteVideoPlayer key={`v-${i}`} url={url} poster={imetaMap.get(url)?.thumbnail} dim={imetaMap.get(url)?.dim} blurhash={imetaMap.get(url)?.blurhash} />
+        <NoteVideoPlayer key={`v-${i}`} url={url} poster={imetaMap.get(url)?.thumbnail} dim={imetaMap.get(url)?.dim} blurhash={imetaMap.get(url)?.blurhash} artist={displayName} />
       ))}
 
       {/* Audio — rendered as visualizer with avatar */}
@@ -796,8 +796,8 @@ function NoteMedia({
 }
 
 /** Inline video player for kind 1 notes. */
-function NoteVideoPlayer({ url, poster, dim, blurhash }: { url: string; poster?: string; dim?: string; blurhash?: string }) {
-  return <VideoPlayer src={url} poster={poster} dim={dim} blurhash={blurhash} />;
+function NoteVideoPlayer({ url, poster, dim, blurhash, artist }: { url: string; poster?: string; dim?: string; blurhash?: string; artist?: string }) {
+  return <VideoPlayer src={url} poster={poster} dim={dim} blurhash={blurhash} artist={artist} />;
 }
 
 // ── NIP-68 Photo content (kind 20) ────────────────────────────────────────────
@@ -902,7 +902,7 @@ function VideoContent({ event }: { event: NostrEvent }) {
     <div className="mt-2 space-y-2">
       {title && <p className="font-semibold text-[15px]">{title}</p>}
       <div className={cn('relative rounded-xl overflow-hidden bg-muted', isShort ? 'max-w-[280px]' : '')}>
-        <VideoPlayer src={url} poster={thumbnail} />
+        <VideoPlayer src={url} poster={thumbnail} title={title ?? undefined} />
         {formattedDuration && (
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">
             {formattedDuration}
@@ -1053,7 +1053,7 @@ function StreamContent({ event }: { event: NostrEvent }) {
         {isLive ? (
           // Inline live player — clicks on the player are intercepted so they don't navigate away
           <div className="relative" onClick={(e) => e.stopPropagation()}>
-            <LiveStreamPlayer src={streamingUrl} poster={imageUrl} />
+            <LiveStreamPlayer src={streamingUrl} poster={imageUrl} title={title} />
             {/* Status + viewer overlay on top of the player */}
             <div className="absolute top-2 left-2 z-10 flex items-center gap-2 pointer-events-none">
               <Badge variant="outline" className={cn('text-[10px]', statusConfig.className)}>
