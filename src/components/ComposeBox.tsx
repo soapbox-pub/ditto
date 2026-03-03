@@ -20,7 +20,7 @@ import { MentionAutocomplete } from '@/components/MentionAutocomplete';
 import { EmojiShortcodeAutocomplete } from '@/components/EmojiShortcodeAutocomplete';
 
 import { NoteContent } from '@/components/NoteContent';
-import { AudioVisualizer } from '@/components/AudioVisualizer';
+import { NoteMedia } from '@/components/NoteMedia';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { usePostComment } from '@/hooks/usePostComment';
@@ -31,6 +31,7 @@ import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
 import { extractWebxdcMeta } from '@/lib/webxdcMeta';
 import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
+import { parseImetaMap } from '@/lib/imeta';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { formatTime } from '@/lib/formatTime';
@@ -328,10 +329,13 @@ export function ComposeBox({
     return false;
   }, [content, customEmojis]);
 
-  // Check if content has any previewable content (link previews, images, videos, audio, mentions, or custom emojis)
+  // Detect webxdc attachments for preview mode
+  const hasWebxdc = useMemo(() => webxdcUuids.size > 0, [webxdcUuids]);
+
+  // Check if content has any previewable content (link previews, images, videos, audio, webxdc, mentions, or custom emojis)
   const hasPreviewableContent = useMemo(() => {
-    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || previewAudios.length > 0 || hasMentions || hasCustomEmojis;
-  }, [visibleEmbeds, hasPreviewImages, previewVideos, previewAudios, hasMentions, hasCustomEmojis]);
+    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || previewAudios.length > 0 || hasWebxdc || hasMentions || hasCustomEmojis;
+  }, [visibleEmbeds, hasPreviewImages, previewVideos, previewAudios, hasWebxdc, hasMentions, hasCustomEmojis]);
 
   // Notify parent of previewable content changes
   useEffect(() => {
@@ -366,6 +370,44 @@ export function ComposeBox({
         }
       }
     }
+
+    // NIP-92: Build imeta tags for uploaded media so preview can render them
+    const mediaUrlMatches = content.matchAll(new RegExp(IMETA_MEDIA_URL_REGEX.source, 'gi'));
+    const processedUrls = new Set<string>();
+    for (const m of mediaUrlMatches) {
+      const url = m[0];
+      if (processedUrls.has(url)) continue;
+      processedUrls.add(url);
+      const ext = m[1].toLowerCase();
+      const isWebxdc = ext === 'xdc';
+      const fileTags = uploadedFileGroups.get(url);
+      if (fileTags) {
+        const imetaFields = fileTags.map(tag => `${tag[0]} ${tag[1]}`);
+        if (isWebxdc) {
+          const filtered = imetaFields.filter(f => !f.startsWith('m '));
+          filtered.push('m application/x-webxdc');
+          const uuid = webxdcUuids.get(url);
+          if (uuid) filtered.push(`webxdc ${uuid}`);
+          const meta = webxdcMetas.get(url);
+          if (meta?.name) filtered.push(`summary ${meta.name}`);
+          if (meta?.iconUrl) filtered.push(`image ${meta.iconUrl}`);
+          tags.push(['imeta', ...filtered]);
+        } else {
+          tags.push(['imeta', ...imetaFields]);
+        }
+      } else {
+        const mimeType = mimeFromExt(ext);
+        const imetaTag = ['imeta', `url ${url}`, `m ${mimeType}`];
+        if (isWebxdc) {
+          const uuid = webxdcUuids.get(url);
+          if (uuid) imetaTag.push(`webxdc ${uuid}`);
+          const meta = webxdcMetas.get(url);
+          if (meta?.name) imetaTag.push(`summary ${meta.name}`);
+          if (meta?.iconUrl) imetaTag.push(`image ${meta.iconUrl}`);
+        }
+        tags.push(imetaTag);
+      }
+    }
     
     return {
       id: 'preview',
@@ -376,7 +418,7 @@ export function ComposeBox({
       tags,
       sig: '',
     };
-  }, [user, content, customEmojis]);
+  }, [user, content, customEmojis, uploadedFileGroups, webxdcUuids, webxdcMetas]);
 
   const insertEmoji = useCallback((emoji: string) => {
     const textarea = textareaRef.current;
@@ -975,33 +1017,31 @@ export function ComposeBox({
           </div>
         ) : (
           /* Preview mode - Show how post will look */
-          mockEvent && (
-            <div className="pt-2.5 pb-2 min-h-[100px]">
-              <div className="text-lg opacity-85">
-                <NoteContent event={mockEvent} className="text-foreground" />
-              </div>
-              {/* Render videos */}
-              {previewVideos.map((url, i) => (
-                <div key={i} className="mt-3 rounded-2xl overflow-hidden border border-border">
-                  <video
-                    src={url}
-                    controls
-                    className="w-full h-auto max-h-[500px] bg-muted"
-                  />
+          mockEvent && (() => {
+            const imetaMap = parseImetaMap(mockEvent.tags);
+            const videos = extractVideoUrls(mockEvent.content);
+            const imetaAudios = Array.from(imetaMap.values())
+              .filter((e) => e.mime?.startsWith('audio/'))
+              .map((e) => e.url);
+            const audios = imetaAudios.length > 0 ? imetaAudios : extractAudioUrls(mockEvent.content);
+            const webxdcApps = Array.from(imetaMap.values()).filter(
+              (entry) => entry.mime === 'application/x-webxdc' || entry.mime === 'application/vnd.webxdc+zip',
+            );
+            return (
+              <div className="pt-2.5 pb-2 min-h-[100px]">
+                <div className="text-lg opacity-85">
+                  <NoteContent event={mockEvent} className="text-foreground" />
                 </div>
-              ))}
-
-              {/* Render audio as visualizer */}
-              {previewAudios.map((url, i) => (
-                <AudioVisualizer
-                  key={`audio-${i}`}
-                  src={url}
-                  avatarUrl={metadata?.picture}
-                  avatarFallback={(metadata?.name ?? metadata?.display_name ?? '?')[0]?.toUpperCase() ?? '?'}
+                <NoteMedia
+                  videos={videos}
+                  audios={audios}
+                  imetaMap={imetaMap}
+                  webxdcApps={webxdcApps}
+                  event={mockEvent}
                 />
-              ))}
-            </div>
-          )
+              </div>
+            );
+          })()
         )}
 
         {/* Content warning input */}
