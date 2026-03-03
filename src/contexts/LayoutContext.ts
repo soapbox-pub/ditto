@@ -26,11 +26,22 @@ const EMPTY: LayoutOptions = {};
  * A mutable store that holds the current layout options.
  * Pages call `setOptions` to update, and MainLayout subscribes via useSyncExternalStore.
  */
+/** Snapshot returned by the layout store, combining page options with dynamic state. */
+export type LayoutSnapshot = LayoutOptions & { fabHidden: boolean };
+
+const EMPTY_SNAPSHOT: LayoutSnapshot = { fabHidden: false };
+
 export class LayoutStore {
   private options: LayoutOptions = EMPTY;
+  private _fabHidden = false;
+  private _snapshot: LayoutSnapshot = EMPTY_SNAPSHOT;
   private listeners = new Set<Listener>();
 
-  getSnapshot = (): LayoutOptions => this.options;
+  private buildSnapshot(): void {
+    this._snapshot = { ...this.options, fabHidden: this._fabHidden };
+  }
+
+  getSnapshot = (): LayoutSnapshot => this._snapshot;
 
   subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener);
@@ -40,12 +51,22 @@ export class LayoutStore {
   setOptions = (next: LayoutOptions): void => {
     if (this.options === next) return;
     this.options = next;
+    this.buildSnapshot();
+    this.listeners.forEach((l) => l());
+  };
+
+  setFabHidden = (hidden: boolean): void => {
+    if (this._fabHidden === hidden) return;
+    this._fabHidden = hidden;
+    this.buildSnapshot();
     this.listeners.forEach((l) => l());
   };
 
   reset = (): void => {
-    if (this.options === EMPTY) return;
+    if (this.options === EMPTY && !this._fabHidden) return;
     this.options = EMPTY;
+    this._fabHidden = false;
+    this._snapshot = EMPTY_SNAPSHOT;
     this.listeners.forEach((l) => l());
   };
 }
@@ -101,7 +122,13 @@ export function useLayoutOptions(options: LayoutOptions): void {
 }
 
 /** Hook for MainLayout to read the current layout options reactively. */
-export function useLayoutSnapshot(): LayoutOptions {
+export function useLayoutSnapshot(): LayoutSnapshot {
   const store = useLayoutStore();
   return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+}
+
+/** Hook for components to signal that the FAB should be hidden (e.g., ComposeBox is visible). */
+export function useSetFabHidden(): (hidden: boolean) => void {
+  const store = useLayoutStore();
+  return store.setFabHidden;
 }
