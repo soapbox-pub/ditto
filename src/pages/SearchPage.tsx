@@ -274,65 +274,65 @@ export function SearchPage() {
 
                     <Separator />
 
-                    {/* Platform */}
-                     <div className="space-y-2">
-                       <span className="font-medium text-sm">Show posts from</span>
-                       <RadioGroup
-                         value={platform}
-                         onValueChange={(v) => setPlatform(v as typeof platform)}
-                         className="space-y-1.5"
-                       >
-                         {[
-                           { value: 'nostr', label: 'Nostr' },
-                           { value: 'activitypub', label: 'Mastodon' },
-                           { value: 'atproto', label: 'Bluesky' },
-                         ].map(({ value, label }) => (
-                           <div key={value} className="flex items-center space-x-2">
-                             <RadioGroupItem value={value} id={`platform-${value}`} />
-                             <Label htmlFor={`platform-${value}`} className="font-normal cursor-pointer text-sm">
-                               {label}
-                             </Label>
-                           </div>
-                         ))}
-                       </RadioGroup>
-                     </div>
-
-                     <Separator />
-
                      {/* Event kind */}
-                     <div className="space-y-2">
-                       <div className="flex items-center gap-1.5">
-                         <Hash className="size-3.5 text-muted-foreground" />
-                         <span className="font-medium text-sm">Event kind</span>
-                       </div>
-                       <Select value={kindFilter} onValueChange={(v) => { setKindFilter(v); if (v !== 'custom') setCustomKindText(''); }}>
-                         <SelectTrigger className="w-full bg-secondary/50">
-                           <SelectValue placeholder="All kinds" />
-                         </SelectTrigger>
-                         <SelectContent>
-                           <SelectItem value="all">All kinds</SelectItem>
-                           {kindOptions.map((opt) => (
-                             <SelectItem key={opt.value} value={opt.value}>
-                               <span className="flex items-center gap-2">
-                                 {opt.icon && <opt.icon className="size-3.5 shrink-0 text-muted-foreground" />}
-                                 {opt.label}
-                               </span>
-                             </SelectItem>
-                           ))}
-                           <SelectItem value="custom">Custom kind…</SelectItem>
-                         </SelectContent>
-                       </Select>
-                       {kindFilter === 'custom' && (
-                         <Input
-                           type="text"
-                           inputMode="numeric"
-                           placeholder="e.g. 1, 30023"
-                           value={customKindText}
-                           onChange={(e) => setCustomKindText(e.target.value)}
-                           className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-sm"
-                         />
-                       )}
-                     </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5">
+                          <Hash className="size-3.5 text-muted-foreground" />
+                          <span className="font-medium text-sm">Event kind</span>
+                        </div>
+                        <Select value={kindFilter} onValueChange={(v) => { setKindFilter(v); if (v !== 'custom') setCustomKindText(''); }}>
+                          <SelectTrigger className="w-full bg-secondary/50">
+                            <SelectValue placeholder="All kinds" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All kinds</SelectItem>
+                            {kindOptions.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                <span className="flex items-center gap-2">
+                                  {opt.icon && <opt.icon className="size-3.5 shrink-0 text-muted-foreground" />}
+                                  {opt.label}
+                                </span>
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="custom">Custom kind…</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {kindFilter === 'custom' && (
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="e.g. 1, 30023"
+                            value={customKindText}
+                            onChange={(e) => setCustomKindText(e.target.value)}
+                            className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-sm"
+                          />
+                        )}
+                      </div>
+
+                      <Separator />
+
+                     {/* Platform */}
+                      <div className="space-y-2">
+                        <span className="font-medium text-sm">Show posts from</span>
+                        <RadioGroup
+                          value={platform}
+                          onValueChange={(v) => setPlatform(v as typeof platform)}
+                          className="space-y-1.5"
+                        >
+                          {[
+                            { value: 'nostr', label: 'Nostr' },
+                            { value: 'activitypub', label: 'Mastodon' },
+                            { value: 'atproto', label: 'Bluesky' },
+                          ].map(({ value, label }) => (
+                            <div key={value} className="flex items-center space-x-2">
+                              <RadioGroupItem value={value} id={`platform-${value}`} />
+                              <Label htmlFor={`platform-${value}`} className="font-normal cursor-pointer text-sm">
+                                {label}
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      </div>
                    </PopoverContent>
                 </Popover>
               </div>
