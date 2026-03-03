@@ -280,6 +280,9 @@ function GridImage({
   );
 }
 
+/** Sentinel URL — pass as an image entry to render a loading spinner slot in the lightbox. */
+export const LOADING_SENTINEL = '__lightbox_loading__';
+
 export interface LightboxMediaMeta {
   mime?: string;
   dim?: string;
@@ -311,15 +314,9 @@ export interface LightboxProps {
    * Use this to add author info, reactions, captions, etc.
    */
   bottomBar?: React.ReactNode;
-  /** When true, the lightbox stays swipeable past the last image (shows a loading slot). */
-  hasMore?: boolean;
-  /** When true, the loading slot shows a spinner instead of being blank. */
-  isFetchingMore?: boolean;
-  /** Assign a spring-back function here — call it to animate back to center (e.g. fetch failed). */
-  springBackRef?: React.MutableRefObject<(() => void) | null>;
 }
 
-export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaTypes, mediaMeta, topBarLeft, showDownload = true, maxDotIndicators = 10, bottomBar, hasMore = false, isFetchingMore = false, springBackRef }: LightboxProps) {
+export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaTypes, mediaMeta, topBarLeft, showDownload = true, maxDotIndicators = 10, bottomBar }: LightboxProps) {
   // Track loaded state per URL so navigating to an already-loaded neighbour
   // doesn't show the spinner again.
   const [loadedUrls, setLoadedUrls] = useState<Set<string>>(new Set());
@@ -330,8 +327,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   const currentUrl = images[currentIndex];
   const isLoaded = loadedUrls.has(currentUrl);
   const hasMultiple = images.length > 1;
-  const atLastImage = currentIndex >= images.length - 1;
-  const canGoNext = !atLastImage || hasMore;
+  const canGoNext = currentIndex < images.length - 1;
   const canGoPrev = currentIndex > 0;
 
   // Lock body scroll
@@ -394,17 +390,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     snapAll(0);
   }, [currentIndex, snapAll]);
 
-  // Expose a spring-back function so the parent can animate back to center
-  // (e.g. after a failed page fetch while parked on the loading slot).
-  useEffect(() => {
-    if (!springBackRef) return;
-    springBackRef.current = () => {
-      slotRefs.current.forEach((_, idx) =>
-        setSlotTransform(idx, 0, `transform ${DURATION}ms ${EASING}`)
-      );
-    };
-    return () => { if (springBackRef) springBackRef.current = null; };
-  }, [springBackRef, setSlotTransform]);
+
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (animating.current) return;
@@ -575,22 +561,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
           );
         })}
 
-        {/* Loading slot — shown one screen to the right of the last image when more pages exist */}
-        {hasMore && atLastImage && (
-          <div
-            key="__loading__"
-            ref={(el) => {
-              if (el) slotRefs.current.set(images.length, el);
-              else slotRefs.current.delete(images.length);
-            }}
-            className="absolute inset-0 flex items-center justify-center will-change-transform"
-            style={{ transform: `translateX(${window.innerWidth}px)` }}
-          >
-            {isFetchingMore && (
-              <div className="size-10 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
-            )}
-          </div>
-        )}
+
       </div>
 
       {/* Dot indicators */}
@@ -658,6 +629,10 @@ function LightboxSlot({
   const author = useAuthor(type === 'audio' ? meta?.pubkey : undefined);
   const authorMeta = author.data?.metadata;
   const fallback = meta?.pubkey ? genUserName(meta.pubkey) : '?';
+
+  if (url === LOADING_SENTINEL) {
+    return <div className="size-10 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />;
+  }
 
   if (type === 'video') {
     return (

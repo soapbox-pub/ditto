@@ -4,13 +4,13 @@
  * into one array so the Lightbox strip swipe just advances through them in order.
  */
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Images, Play } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Lightbox } from '@/components/ImageGallery';
+import { Lightbox, LOADING_SENTINEL } from '@/components/ImageGallery';
 import { PhotoBottomBar } from '@/components/PhotoBottomBar';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -278,32 +278,43 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
 
   const activeEntry = flatIndex !== null ? flat[flatIndex] : null;
 
-  // When the user swipes past the last item, flatIndex stays at flat.length - 1.
-  // waitingForMore tracks that we're parked on the loading slot.
-  const waitingForMore = useRef(false);
+  // Append a loading sentinel when there are more pages so the lightbox
+  // stays swipeable past the last real item.
+  const images = useMemo(() => {
+    const urls = flat.map((e) => e.url);
+    if (hasNextPage) urls.push(LOADING_SENTINEL);
+    return urls;
+  }, [flat, hasNextPage]);
 
-  // When flat grows while waiting, advance flatIndex to the newly arrived item.
+  const mediaTypes = useMemo(() => flat.map((e) => e.type as 'image' | 'video' | 'audio'), [flat]);
+  const mediaMeta = useMemo(() => flat.map((e) => ({ mime: e.mime, dim: e.dim, blurhash: e.blurhash, pubkey: e.pubkey })), [flat]);
+
+  // When flat grows (new page loaded) while parked on the sentinel, auto-advance.
+  const waitingForMore = useRef(false);
+  const prevFlatLength = useRef(flat.length);
   useEffect(() => {
-    if (!waitingForMore.current) return;
-    if (flatIndex === null) return;
-    if (flatIndex < flat.length - 1) {
-      // New items arrived — advance
+    const prev = prevFlatLength.current;
+    prevFlatLength.current = flat.length;
+    if (waitingForMore.current && flat.length > prev && flatIndex !== null) {
       waitingForMore.current = false;
       setFlatIndex(flatIndex + 1);
     }
   }, [flat.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When fetch finishes with no new items, spring back.
-  const lightboxSpringBackRef = useRef<(() => void) | null>(null);
-  const prevFetching = useRef(false);
-  useEffect(() => {
-    const wasFetching = prevFetching.current;
-    prevFetching.current = !!isFetchingNextPage;
-    if (wasFetching && !isFetchingNextPage && waitingForMore.current) {
-      waitingForMore.current = false;
-      lightboxSpringBackRef.current?.();
-    }
-  }, [isFetchingNextPage]);
+  const handleNext = useCallback(() => {
+    setFlatIndex((i) => {
+      if (i === null) return null;
+      if (i >= flat.length - 1) {
+        // At or past the last real item — trigger fetch and park on sentinel
+        waitingForMore.current = true;
+        onNearEnd?.();
+        return i; // stay; sentinel is already in images array
+      }
+      const next = i + 1;
+      if (next >= flat.length - 1) onNearEnd?.();
+      return next;
+    });
+  }, [flat.length, onNearEnd]);
 
   if (items.length === 0) return null;
 
@@ -321,26 +332,12 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
 
       {flatIndex !== null && (
         <Lightbox
-          images={flat.map((e) => e.url)}
-          mediaTypes={flat.map((e) => e.type)}
-          mediaMeta={flat.map((e) => ({ mime: e.mime, dim: e.dim, blurhash: e.blurhash, pubkey: e.pubkey }))}
+          images={images}
+          mediaTypes={mediaTypes}
+          mediaMeta={mediaMeta}
           currentIndex={flatIndex}
-          hasMore={hasNextPage}
-          isFetchingMore={isFetchingNextPage}
-          springBackRef={lightboxSpringBackRef}
           onClose={() => { setFlatIndex(null); onInitialOpenConsumed?.(); waitingForMore.current = false; }}
-          onNext={() => setFlatIndex((i) => {
-            if (i === null) return null;
-            if (i >= flat.length - 1) {
-              // At the last item — trigger fetch and park on loading slot
-              waitingForMore.current = true;
-              onNearEnd?.();
-              return i;
-            }
-            const next = i + 1;
-            if (next >= flat.length - 1) onNearEnd?.();
-            return next;
-          })}
+          onNext={handleNext}
           onPrev={() => setFlatIndex((i) => (i !== null ? Math.max(i - 1, 0) : null))}
           topBarLeft={
             activeEntry && activeEntry.countInEvent > 1 ? (
@@ -349,9 +346,7 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
               </span>
             ) : <span />
           }
-          bottomBar={
-            activeEntry ? <PhotoBottomBar event={activeEntry.event} /> : undefined
-          }
+          bottomBar={activeEntry ? <PhotoBottomBar event={activeEntry.event} /> : undefined}
         />
       )}
     </>
