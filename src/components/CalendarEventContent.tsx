@@ -5,6 +5,7 @@ import { CalendarDays, MapPin, Clock, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NoteContent } from '@/components/NoteContent';
 import { Badge } from '@/components/ui/badge';
+import { RSVPAvatars } from '@/components/RSVPAvatars';
 
 interface CalendarEventContentProps {
   event: NostrEvent;
@@ -150,82 +151,161 @@ export function CalendarEventContent({ event, compact, className }: CalendarEven
   const hasContent = event.content.trim().length > 0;
   const summary = useMemo(() => getTag(event.tags, 'summary'), [event.tags]);
 
+  const participantPubkeys = useMemo(
+    () => participants.map(([, pubkey]) => pubkey).filter(Boolean),
+    [participants],
+  );
+
   return (
     <div className={cn('mt-2 rounded-xl border border-border overflow-hidden', className)}>
-      {/* Cover image or gradient header */}
-      {image ? (
-        <div className="aspect-video rounded-lg overflow-hidden">
-          <img
-            src={image}
-            alt={title ?? 'Calendar event'}
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
-        </div>
+      {compact ? (
+        /* ── Compact feed card matching reference design ── */
+        <>
+          {/* Cover image with capped height, or gradient placeholder */}
+          {image ? (
+            <div className="relative h-[180px] overflow-hidden">
+              <img
+                src={image}
+                alt={title ?? 'Calendar event'}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+              {/* Participant avatars overlaid on the image */}
+              {participantPubkeys.length > 0 && (
+                <div className="absolute bottom-2 left-3">
+                  <RSVPAvatars pubkeys={participantPubkeys} maxVisible={4} size="md" />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[100px]">
+              <CalendarDays className="h-10 w-10 text-primary/30" />
+              {participantPubkeys.length > 0 && (
+                <div className="absolute bottom-2 left-3">
+                  <RSVPAvatars pubkeys={participantPubkeys} maxVisible={4} size="md" />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Event details below image */}
+          <div className="p-3 space-y-2">
+            {/* Title */}
+            {title && (
+              <h3 className="text-base font-bold leading-snug line-clamp-2">{title}</h3>
+            )}
+
+            {/* Date/time */}
+            {dateDisplay && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                <span>{dateDisplay}</span>
+              </div>
+            )}
+
+            {/* Description snippet — hard-capped to ~2 lines */}
+            {(summary || hasContent) && (
+              <div className="text-sm text-muted-foreground max-h-[2.8em] overflow-hidden relative">
+                {summary && !hasContent ? (
+                  <p className="line-clamp-2">{summary}</p>
+                ) : (
+                  <NoteContent event={event} className="text-sm" hideEmbedImages />
+                )}
+              </div>
+            )}
+
+            {/* Location pill */}
+            {location && (
+              <div className="flex items-center gap-2.5 rounded-lg bg-secondary/50 px-3 py-2">
+                <MapPin className="h-4 w-4 shrink-0 text-red-500" />
+                <span className="text-sm truncate">{location}</span>
+              </div>
+            )}
+
+            {/* Hashtags */}
+            {hashtags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {hashtags.slice(0, 4).map((tag) => (
+                  <Badge key={tag} variant="secondary" className="text-[11px] px-2 py-0.5">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       ) : (
-        <div className="flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent py-8">
-          <CalendarDays className="h-10 w-10 text-primary/30" />
-        </div>
+        /* ── Full detail layout (detail page, expanded view) ── */
+        <>
+          {/* Cover image or gradient header */}
+          {image ? (
+            <div className="aspect-video rounded-lg overflow-hidden">
+              <img
+                src={image}
+                alt={title ?? 'Calendar event'}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent py-8">
+              <CalendarDays className="h-10 w-10 text-primary/30" />
+            </div>
+          )}
+
+          {/* Event details */}
+          <div className="space-y-2 p-3">
+            {title && (
+              <h3 className="text-[15px] font-semibold leading-snug">{title}</h3>
+            )}
+
+            {dateDisplay && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                <span>{dateDisplay}</span>
+              </div>
+            )}
+
+            {location && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span>{location}</span>
+              </div>
+            )}
+
+            {participants.length > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Users className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {participants.length} {participants.length === 1 ? 'participant' : 'participants'}
+                </span>
+              </div>
+            )}
+
+            {summary && !hasContent && (
+              <p className="text-sm text-muted-foreground">
+                {summary}
+              </p>
+            )}
+
+            {hasContent && (
+              <div>
+                <NoteContent event={event} className="text-sm" hideEmbedImages={!!image} />
+              </div>
+            )}
+
+            {hashtags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {hashtags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="text-[11px] px-2 py-0">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
-
-      {/* Event details */}
-      <div className="space-y-2 p-3">
-        {/* Title */}
-        {title && (
-          <h3 className="text-[15px] font-semibold leading-snug">{title}</h3>
-        )}
-
-        {/* Date/time */}
-        {dateDisplay && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="h-3.5 w-3.5 shrink-0" />
-            <span>{dateDisplay}</span>
-          </div>
-        )}
-
-        {/* Location */}
-        {location && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <MapPin className="h-3.5 w-3.5 shrink-0" />
-            <span>{location}</span>
-          </div>
-        )}
-
-        {/* Participants count */}
-        {participants.length > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Users className="h-3.5 w-3.5 shrink-0" />
-            <span>
-              {participants.length} {participants.length === 1 ? 'participant' : 'participants'}
-            </span>
-          </div>
-        )}
-
-        {/* Summary (brief description from tag) */}
-        {summary && !hasContent && (
-          <p className={cn('text-sm text-muted-foreground', compact && 'line-clamp-2')}>
-            {summary}
-          </p>
-        )}
-
-        {/* Description (event.content) via NoteContent */}
-        {hasContent && (
-          <div className={cn(compact && 'line-clamp-2')}>
-            <NoteContent event={event} className="text-sm" hideEmbedImages={!!image} />
-          </div>
-        )}
-
-        {/* Hashtags */}
-        {hashtags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {hashtags.map((tag) => (
-              <Badge key={tag} variant="secondary" className="text-[11px] px-2 py-0">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
