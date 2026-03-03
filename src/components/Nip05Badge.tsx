@@ -4,6 +4,7 @@ import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { formatNip05Display, getNip05Domain, getNip05User } from '@/lib/nip05';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CheckCircle2 } from 'lucide-react';
 
 interface Nip05BadgeProps {
   nip05: string;
@@ -66,6 +67,7 @@ export function Nip05Badge({ nip05, pubkey, className, iconSize = 16 }: Nip05Bad
 
   return (
     <span className={cn('inline-flex items-center min-w-0', className)}>
+      <CheckCircle2 className="size-3.5 text-primary shrink-0 mr-1 mt-[0.2rem]" />
       {isDefaultUser ? (
         <Link
           to={`/feed/${domain}`}

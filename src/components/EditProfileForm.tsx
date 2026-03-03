@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, Upload, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { NSchema as n } from '@nostrify/nostrify';
+import type { NostrMetadata } from '@nostrify/nostrify';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import {
@@ -29,6 +30,7 @@ import {
 } from '@/components/ui/collapsible';
 import { z } from 'zod';
 import { IntroImage } from '@/components/IntroImage';
+import { ImageCropDialog } from '@/components/ImageCropDialog';
 
 // Extended form schema that includes custom fields
 const formSchema = n.metadata().extend({
@@ -40,7 +42,12 @@ const formSchema = n.metadata().extend({
 
 type ExtendedMetadata = z.infer<typeof formSchema>;
 
-export const EditProfileForm: React.FC = () => {
+interface EditProfileFormProps {
+  /** Called whenever form values change — used by the live preview */
+  onValuesChange?: (values: Partial<NostrMetadata>) => void;
+}
+
+export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange }) => {
   const queryClient = useQueryClient();
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -48,6 +55,15 @@ export const EditProfileForm: React.FC = () => {
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
+
+  // Crop dialog state
+  const [cropState, setCropState] = useState<{
+    open: boolean;
+    imageSrc: string;
+    aspect: number;
+    field: 'picture' | 'banner';
+    title: string;
+  } | null>(null);
 
   // Parse existing fields from raw event content
   const parseFields = (): Array<{ label: string; value: string }> => {
@@ -101,12 +117,52 @@ export const EditProfileForm: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metadata, event]);
 
-  // Handle file uploads for profile picture and banner
-  const uploadPicture = async (file: File, field: 'picture' | 'banner') => {
+  // Propagate live preview changes
+  const notifyChange = useCallback(() => {
+    if (!onValuesChange) return;
+    const v = form.getValues();
+    onValuesChange({
+      name: v.name,
+      display_name: v.display_name,
+      about: v.about,
+      picture: v.picture,
+      banner: v.banner,
+      website: v.website,
+      nip05: v.nip05,
+      bot: v.bot,
+    });
+  }, [form, onValuesChange]);
+
+  // Watch all fields and propagate
+  useEffect(() => {
+    const sub = form.watch(() => notifyChange());
+    return () => sub.unsubscribe();
+  }, [form, notifyChange]);
+
+  // Open crop dialog when user picks a file
+  const openCropDialog = (file: File, field: 'picture' | 'banner') => {
+    const objectUrl = URL.createObjectURL(file);
+    setCropState({
+      open: true,
+      imageSrc: objectUrl,
+      aspect: field === 'picture' ? 1 : 3,
+      field,
+      title: field === 'picture' ? 'Crop Profile Picture' : 'Crop Banner Image',
+    });
+  };
+
+  // Handle cropped blob — upload it
+  const handleCropConfirm = async (blob: Blob) => {
+    if (!cropState) return;
+    const { field, imageSrc } = cropState;
+    setCropState(null);
+    URL.revokeObjectURL(imageSrc);
+
+    const file = new File([blob], `${field}.jpg`, { type: 'image/jpeg' });
     try {
-      // The first tuple in the array contains the URL
-      const [[_, url]] = await uploadFile(file);
+      const [[, url]] = await uploadFile(file);
       form.setValue(field, url);
+      notifyChange();
       toast({
         title: 'Success',
         description: `${field === 'picture' ? 'Profile picture' : 'Banner'} uploaded successfully`,
@@ -118,6 +174,13 @@ export const EditProfileForm: React.FC = () => {
         description: `Failed to upload ${field === 'picture' ? 'profile picture' : 'banner'}. Please try again.`,
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleCropCancel = () => {
+    if (cropState) {
+      URL.revokeObjectURL(cropState.imageSrc);
+      setCropState(null);
     }
   };
 
@@ -190,6 +253,18 @@ export const EditProfileForm: React.FC = () => {
         </div>
       </div>
 
+      {/* Crop dialog */}
+      {cropState && (
+        <ImageCropDialog
+          open={cropState.open}
+          imageSrc={cropState.imageSrc}
+          aspect={cropState.aspect}
+          title={cropState.title}
+          onCancel={handleCropCancel}
+          onCrop={handleCropConfirm}
+        />
+      )}
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 px-3">
           <div className="border-b border-border pb-5">
@@ -219,10 +294,10 @@ export const EditProfileForm: React.FC = () => {
                 <FormItem>
                   <FormLabel className="text-xs font-medium">Bio</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Tell others about yourself" 
-                      className="resize-none min-h-20" 
-                      {...field} 
+                    <Textarea
+                      placeholder="Tell others about yourself"
+                      className="resize-none min-h-20"
+                      {...field}
                     />
                   </FormControl>
                   <FormDescription className="text-xs">
@@ -246,7 +321,7 @@ export const EditProfileForm: React.FC = () => {
                     placeholder="https://example.com/profile.jpg"
                     description="Upload an image or provide a URL"
                     previewType="square"
-                    onUpload={(file) => uploadPicture(file, 'picture')}
+                    onPickFile={(file) => openCropDialog(file, 'picture')}
                   />
                 )}
               />
@@ -261,7 +336,7 @@ export const EditProfileForm: React.FC = () => {
                     placeholder="https://example.com/banner.jpg"
                     description="Wide banner image for your profile"
                     previewType="wide"
-                    onUpload={(file) => uploadPicture(file, 'banner')}
+                    onPickFile={(file) => openCropDialog(file, 'banner')}
                   />
                 )}
               />
@@ -385,9 +460,9 @@ export const EditProfileForm: React.FC = () => {
           <div className="border-b border-border pb-5">
             <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
               <CollapsibleTrigger asChild>
-                <Button 
+                <Button
                   type="button"
-                  variant="ghost" 
+                  variant="ghost"
                   className="w-full justify-between p-0 h-auto hover:bg-transparent"
                 >
                   <span className="text-xs font-medium text-muted-foreground">Advanced Settings</span>
@@ -424,10 +499,10 @@ export const EditProfileForm: React.FC = () => {
             </Collapsible>
           </div>
 
-          <div className="pt-2">
-            <Button 
-              type="submit" 
-              className="w-full md:w-auto" 
+          <div className="pt-2 pb-4">
+            <Button
+              type="submit"
+              className="w-full md:w-auto"
               disabled={isPending || isUploading}
             >
               {(isPending || isUploading) && (
@@ -454,7 +529,7 @@ interface ImageUploadFieldProps {
   placeholder: string;
   description: string;
   previewType: 'square' | 'wide';
-  onUpload: (file: File) => void;
+  onPickFile: (file: File) => void;
 }
 
 const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
@@ -463,7 +538,7 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   placeholder,
   description,
   previewType,
-  onUpload,
+  onPickFile,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -482,15 +557,17 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
           />
         </FormControl>
         <div className="flex items-center gap-2">
-          <input 
-            type="file" 
+          <input
+            type="file"
             ref={fileInputRef}
             accept="image/*"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) {
-                onUpload(file);
+                onPickFile(file);
+                // Reset input so re-selecting same file triggers onChange
+                e.target.value = '';
               }
             }}
           />
@@ -502,13 +579,13 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
             className="h-8 text-xs"
           >
             <Upload className="h-3 w-3 mr-1.5" />
-            Upload
+            Upload &amp; Crop
           </Button>
           {field.value && (
             <div className={`h-8 ${previewType === 'square' ? 'w-8' : 'w-20'} rounded overflow-hidden border`}>
-              <img 
-                src={field.value} 
-                alt={`${label} preview`} 
+              <img
+                src={field.value}
+                alt={`${label} preview`}
                 className="h-full w-full object-cover"
               />
             </div>

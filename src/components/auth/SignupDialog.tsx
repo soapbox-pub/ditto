@@ -2,16 +2,18 @@
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, Upload, Eye, EyeOff } from 'lucide-react';
+import { Download, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from '@/hooks/useToast';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
+import { ProfileCard } from '@/components/ProfileCard';
+import { ImageCropDialog } from '@/components/ImageCropDialog';
+import type { NostrMetadata } from '@nostrify/nostrify';
 
 interface SignupDialogProps {
   isOpen: boolean;
@@ -22,15 +24,18 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
   const [step, setStep] = useState<'generate' | 'download' | 'profile'>('generate');
   const [nsec, setNsec] = useState('');
   const [showKey, setShowKey] = useState(false);
-  const [profileData, setProfileData] = useState({
+  const [profileData, setProfileData] = useState<Partial<NostrMetadata>>({
     name: '',
     about: '',
-    picture: ''
+    picture: '',
+    banner: '',
   });
+  const [cropState, setCropState] = useState<{ imageSrc: string; aspect: number; field: 'picture' | 'banner' } | null>(null);
+  const pickInputRef = useRef<HTMLInputElement>(null);
+  const pendingField = useRef<'picture' | 'banner'>('picture');
   const login = useLoginActions();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
-  const avatarFileInputRef = useRef<HTMLInputElement>(null);
 
   // Generate a proper nsec key using nostr-tools
   const generateKey = () => {
@@ -78,61 +83,44 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePickImage = (field: 'picture' | 'banner') => {
+    pendingField.current = field;
+    pickInputRef.current?.click();
+  };
+
+  const handleFileChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Reset file input
     e.target.value = '';
+    const field = pendingField.current;
+    setCropState({ imageSrc: URL.createObjectURL(file), aspect: field === 'picture' ? 1 : 3, field });
+  };
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please select an image file for your avatar.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Avatar image must be smaller than 5MB.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+  const handleCropConfirm = async (blob: Blob) => {
+    if (!cropState) return;
+    const { field, imageSrc } = cropState;
+    URL.revokeObjectURL(imageSrc);
+    setCropState(null);
     try {
-      const tags = await uploadFile(file);
-      // Get the URL from the first tag
-      const url = tags[0]?.[1];
-      if (url) {
-        setProfileData(prev => ({ ...prev, picture: url }));
-      }
+      const file = new File([blob], `${field}.jpg`, { type: 'image/jpeg' });
+      const [[, url]] = await uploadFile(file);
+      setProfileData(prev => ({ ...prev, [field]: url }));
     } catch {
-      toast({
-        title: 'Upload failed',
-        description: 'Failed to upload avatar. Please try again.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Upload failed', description: 'Please try again.', variant: 'destructive' });
     }
+  };
+
+  const handleCropCancel = () => {
+    if (cropState) URL.revokeObjectURL(cropState.imageSrc);
+    setCropState(null);
   };
 
   const finishSignup = async (skipProfile = false) => {
     try {
-      // Publish profile if user provided information
       if (!skipProfile && (profileData.name || profileData.about || profileData.picture)) {
-        const metadata: Record<string, string> = {};
-        if (profileData.name) metadata.name = profileData.name;
-        if (profileData.about) metadata.about = profileData.about;
-        if (profileData.picture) metadata.picture = profileData.picture;
-
         await publishEvent({
           kind: 0,
-          content: JSON.stringify(metadata),
+          content: JSON.stringify(profileData),
         });
       }
     } catch {
@@ -239,115 +227,39 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
 
           {/* Profile Step */}
           {step === 'profile' && (
-            <div className='text-center space-y-4'>
-              {/* Publishing status indicator */}
-              {isPublishing && (
-                <div className='p-4 rounded-lg bg-muted border'>
-                  <div className='flex items-center justify-center gap-3'>
-                    <div className='w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin' />
-                    <span className='text-sm font-medium'>
-                      Publishing your profile...
-                    </span>
-                  </div>
+            <div className='space-y-4'>
+              <input ref={pickInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChosen} />
+              {cropState && (
+                <ImageCropDialog
+                  open
+                  imageSrc={cropState.imageSrc}
+                  aspect={cropState.aspect}
+                  title={cropState.field === 'picture' ? 'Crop Profile Picture' : 'Crop Banner'}
+                  onCancel={handleCropCancel}
+                  onCrop={handleCropConfirm}
+                />
+              )}
+
+              <div className={isPublishing ? 'opacity-50 pointer-events-none' : ''}>
+                <ProfileCard
+                  metadata={profileData}
+                  onChange={(patch) => setProfileData(prev => ({ ...prev, ...patch }))}
+                  onPickImage={handlePickImage}
+                />
+              </div>
+
+              {isUploading && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" /> Uploading image…
                 </div>
               )}
 
-              {/* Profile form */}
-              <div className={`space-y-4 text-left ${isPublishing ? 'opacity-50 pointer-events-none' : ''}`}>
-                <div className='space-y-2'>
-                  <label htmlFor='profile-name' className='text-sm font-medium'>
-                    Display Name
-                  </label>
-                  <Input
-                    id='profile-name'
-                    value={profileData.name}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder='Your name'
-                    disabled={isPublishing}
-                  />
-                </div>
-
-                <div className='space-y-2'>
-                  <label htmlFor='profile-about' className='text-sm font-medium'>
-                    Bio
-                  </label>
-                  <Textarea
-                    id='profile-about'
-                    value={profileData.about}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, about: e.target.value }))}
-                    placeholder='Tell others about yourself...'
-                    className='resize-none'
-                    rows={3}
-                    disabled={isPublishing}
-                  />
-                </div>
-
-                <div className='space-y-2'>
-                  <label htmlFor='profile-picture' className='text-sm font-medium'>
-                    Avatar
-                  </label>
-                  <div className='flex gap-2'>
-                    <Input
-                      id='profile-picture'
-                      value={profileData.picture}
-                      onChange={(e) => setProfileData(prev => ({ ...prev, picture: e.target.value }))}
-                      placeholder='https://example.com/your-avatar.jpg'
-                      className='flex-1'
-                      disabled={isPublishing}
-                    />
-                    <input
-                      type='file'
-                      accept='image/*'
-                      className='hidden'
-                      ref={avatarFileInputRef}
-                      onChange={handleAvatarUpload}
-                    />
-                    <Button
-                      type='button'
-                      variant='outline'
-                      size='icon'
-                      onClick={() => avatarFileInputRef.current?.click()}
-                      disabled={isUploading || isPublishing}
-                      title='Upload avatar image'
-                    >
-                      {isUploading ? (
-                        <div className='w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin' />
-                      ) : (
-                        <Upload className='w-4 h-4' />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action buttons */}
-              <div className='space-y-3'>
-                <Button
-                  className='w-full'
-                  onClick={() => finishSignup(false)}
-                  disabled={isPublishing || isUploading}
-                >
-                  {isPublishing ? (
-                    <>
-                      <div className='w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin' />
-                      Creating Profile...
-                    </>
-                  ) : (
-                    'Create profile'
-                  )}
+              <div className='space-y-2'>
+                <Button className='w-full' onClick={() => finishSignup(false)} disabled={isPublishing || isUploading}>
+                  {isPublishing ? <><Loader2 className="size-4 mr-2 animate-spin" /> Creating Profile…</> : 'Create profile'}
                 </Button>
-
-                <Button
-                  variant='outline'
-                  className='w-full'
-                  onClick={() => finishSignup(true)}
-                  disabled={isPublishing || isUploading}
-                >
-                  {isPublishing ? (
-                    'Setting up account...'
-                  ) : (
-                    'Skip for now'
-                  )}
+                <Button variant='outline' className='w-full' onClick={() => finishSignup(true)} disabled={isPublishing || isUploading}>
+                  Skip for now
                 </Button>
               </div>
             </div>

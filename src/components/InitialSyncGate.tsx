@@ -3,6 +3,8 @@ import { IntroImage } from '@/components/IntroImage';
 import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
+import { ProfileCard } from '@/components/ProfileCard';
+import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { DittoLogo } from '@/components/DittoLogo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -600,84 +602,70 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
-  const avatarFileInputRef = useRef<HTMLInputElement>(null);
-  const bannerFileInputRef = useRef<HTMLInputElement>(null);
-  const [moreOpen, setMoreOpen] = useState(false);
+  const pickInputRef = useRef<HTMLInputElement>(null);
+  const pendingField = useRef<'picture' | 'banner'>('picture');
 
-  const [profileData, setProfileData] = useState({
+  const [profileData, setProfileData] = useState<Partial<NostrMetadata>>({
     name: '', about: '', picture: '', banner: '', website: '',
-    fields: [] as Array<{ label: string; value: string }>,
   });
+  const [extraFields, setExtraFields] = useState<Array<{ label: string; value: string }>>([]);
+  const [cropState, setCropState] = useState<{ imageSrc: string; aspect: number; field: 'picture' | 'banner' } | null>(null);
 
-  const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>, field: 'picture' | 'banner') => {
+  const handlePickImage = useCallback((field: 'picture' | 'banner') => {
+    pendingField.current = field;
+    pickInputRef.current?.click();
+  }, []);
+
+  const handleFileChosen = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
+    const field = pendingField.current;
+    setCropState({ imageSrc: URL.createObjectURL(file), aspect: field === 'picture' ? 1 : 3, field });
+  }, []);
 
-    if (!file.type.startsWith('image/')) {
-      toast({ title: 'Invalid file type', description: 'Please select an image file.', variant: 'destructive' });
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: 'File too large', description: 'Image must be smaller than 5MB.', variant: 'destructive' });
-      return;
-    }
-
+  const handleCropConfirm = useCallback(async (blob: Blob) => {
+    if (!cropState) return;
+    const { field, imageSrc } = cropState;
+    URL.revokeObjectURL(imageSrc);
+    setCropState(null);
     try {
-      const tags = await uploadFile(file);
-      const url = tags[0]?.[1];
-      if (url) setProfileData((prev) => ({ ...prev, [field]: url }));
+      const file = new File([blob], `${field}.jpg`, { type: 'image/jpeg' });
+      const [[, url]] = await uploadFile(file);
+      setProfileData((prev) => ({ ...prev, [field]: url }));
     } catch {
-      toast({ title: 'Upload failed', description: 'Failed to upload image.', variant: 'destructive' });
+      toast({ title: 'Upload failed', description: 'Please try again.', variant: 'destructive' });
     }
-  }, [uploadFile]);
+  }, [cropState, uploadFile]);
+
+  const handleCropCancel = useCallback(() => {
+    if (cropState) URL.revokeObjectURL(cropState.imageSrc);
+    setCropState(null);
+  }, [cropState]);
 
   const handlePublishProfile = useCallback(async () => {
     if (!user) return;
-
-    const metadata: Record<string, unknown> = {};
-    if (profileData.name) metadata.name = profileData.name;
-    if (profileData.about) metadata.about = profileData.about;
-    if (profileData.picture) metadata.picture = profileData.picture;
-    if (profileData.banner) metadata.banner = profileData.banner;
-    if (profileData.website) metadata.website = profileData.website;
-    const validFields = profileData.fields.filter((f) => f.label.trim() && f.value.trim());
-    if (validFields.length > 0) metadata.fields = validFields.map((f) => [f.label, f.value]);
-
-    if (Object.keys(metadata).length > 0) {
+    const hasData = Object.values(profileData).some((v) => v) || extraFields.length > 0;
+    if (hasData) {
       try {
-        await publishEvent({ kind: 0, content: JSON.stringify(metadata) });
-        // Update local caches so the profile is visible immediately
+        const data: Record<string, unknown> = { ...profileData };
+        const validFields = extraFields.filter((f) => f.label.trim() && f.value.trim());
+        if (validFields.length > 0) data.fields = validFields.map((f) => [f.label, f.value]);
+        await publishEvent({ kind: 0, content: JSON.stringify(data) });
         queryClient.invalidateQueries({ queryKey: ['logins'] });
         queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
       } catch {
         toast({ title: 'Profile failed', description: 'Your account was created but profile setup failed. You can update it later.', variant: 'destructive' });
       }
     }
-
     onNext();
-  }, [user, profileData, publishEvent, queryClient, onNext]);
-
-  const addField = useCallback(() => {
-    setProfileData((prev) => ({ ...prev, fields: [...prev.fields, { label: '', value: '' }] }));
-  }, []);
-
-  const removeField = useCallback((index: number) => {
-    setProfileData((prev) => ({ ...prev, fields: prev.fields.filter((_, i) => i !== index) }));
-  }, []);
-
-  const updateField = useCallback((index: number, key: 'label' | 'value', val: string) => {
-    setProfileData((prev) => ({
-      ...prev,
-      fields: prev.fields.map((f, i) => i === index ? { ...f, [key]: val } : f),
-    }));
-  }, []);
+  }, [user, profileData, extraFields, publishEvent, queryClient, onNext]);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
       <div className="flex items-center gap-4">
         <IntroImage src="/profile-intro.png" />
-        <div className="space-y-2">
+        <div className="space-y-1">
           <h2 className="text-xl font-semibold tracking-tight">Set up your profile</h2>
           <p className="text-sm text-muted-foreground">
             Tell people a bit about yourself. You can always change this later.
@@ -685,215 +673,41 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
         </div>
       </div>
 
-      <div className={cn('space-y-4', isPublishing && 'opacity-50 pointer-events-none')}>
-        <div className="space-y-1.5">
-          <label htmlFor="onboard-name" className="text-sm font-medium">Display Name</label>
-          <Input
-            id="onboard-name"
-            value={profileData.name}
-            onChange={(e) => setProfileData((prev) => ({ ...prev, name: e.target.value }))}
-            placeholder="Your name"
-            disabled={isPublishing}
-          />
-        </div>
+      <input ref={pickInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChosen} />
+      {cropState && (
+        <ImageCropDialog
+          open
+          imageSrc={cropState.imageSrc}
+          aspect={cropState.aspect}
+          title={cropState.field === 'picture' ? 'Crop Profile Picture' : 'Crop Banner'}
+          onCancel={handleCropCancel}
+          onCrop={handleCropConfirm}
+        />
+      )}
 
-        <div className="space-y-1.5">
-          <label htmlFor="onboard-about" className="text-sm font-medium">Bio</label>
-          <Textarea
-            id="onboard-about"
-            value={profileData.about}
-            onChange={(e) => setProfileData((prev) => ({ ...prev, about: e.target.value }))}
-            placeholder="Tell others about yourself..."
-            className="resize-none"
-            rows={3}
-            disabled={isPublishing}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label htmlFor="onboard-avatar" className="text-sm font-medium">Avatar</label>
-          <div className="flex gap-2">
-            <Input
-              id="onboard-avatar"
-              value={profileData.picture}
-              onChange={(e) => setProfileData((prev) => ({ ...prev, picture: e.target.value }))}
-              placeholder="https://example.com/avatar.jpg"
-              className="flex-1"
-              disabled={isPublishing}
-            />
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              ref={avatarFileInputRef}
-              onChange={(e) => handleImageUpload(e, 'picture')}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => avatarFileInputRef.current?.click()}
-              disabled={isUploading || isPublishing}
-            >
-              {isUploading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4" />
-              )}
-            </Button>
-          </div>
-        </div>
-
-        {/* More details */}
-        <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
-          <CollapsibleTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mx-auto"
-            >
-              More details
-              {moreOpen ? (
-                <ChevronUp className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronDown className="w-3.5 h-3.5" />
-              )}
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-4 pt-4 animate-in fade-in slide-in-from-top-2 duration-200">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Add a banner image, website, and custom profile fields. These help others learn more about you and are visible on your profile page.
-            </p>
-
-            <div className="space-y-1.5">
-              <label htmlFor="onboard-banner" className="text-sm font-medium">Banner</label>
-              <div className="flex gap-2">
-                <Input
-                  id="onboard-banner"
-                  value={profileData.banner}
-                  onChange={(e) => setProfileData((prev) => ({ ...prev, banner: e.target.value }))}
-                  placeholder="https://example.com/banner.jpg"
-                  className="flex-1"
-                  disabled={isPublishing}
-                />
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  ref={bannerFileInputRef}
-                  onChange={(e) => handleImageUpload(e, 'banner')}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => bannerFileInputRef.current?.click()}
-                  disabled={isUploading || isPublishing}
-                >
-                  {isUploading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Upload className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
-              {profileData.banner && (
-                <div className="h-20 w-full rounded-lg overflow-hidden border">
-                  <img src={profileData.banner} alt="Banner preview" className="h-full w-full object-cover" />
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="onboard-website" className="text-sm font-medium">Website</label>
-              <Input
-                id="onboard-website"
-                value={profileData.website}
-                onChange={(e) => setProfileData((prev) => ({ ...prev, website: e.target.value }))}
-                placeholder="https://yourwebsite.com"
-                disabled={isPublishing}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Profile Fields</label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addField}
-                  className="h-7 text-xs gap-1"
-                  disabled={isPublishing}
-                >
-                  <Plus className="h-3 w-3" />
-                  Add
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Custom label/value pairs like social links, Bitcoin address, or anything else.
-              </p>
-              {profileData.fields.length > 0 && (
-                <div className="space-y-2 pt-1">
-                  {profileData.fields.map((field, index) => (
-                    <div key={index} className="grid grid-cols-[1fr,2fr,auto] gap-2 items-center">
-                      <Input
-                        value={field.label}
-                        onChange={(e) => updateField(index, 'label', e.target.value)}
-                        placeholder="Label"
-                        className="h-8 text-sm"
-                        disabled={isPublishing}
-                      />
-                      <Input
-                        value={field.value}
-                        onChange={(e) => updateField(index, 'value', e.target.value)}
-                        placeholder="Value or URL"
-                        className="h-8 text-sm"
-                        disabled={isPublishing}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeField(index)}
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        disabled={isPublishing}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+      <div className={cn(isPublishing && 'opacity-50 pointer-events-none')}>
+        <ProfileCard
+          metadata={profileData}
+          onChange={(patch) => setProfileData((prev) => ({ ...prev, ...patch }))}
+          onPickImage={handlePickImage}
+          showNip05={false}
+          extraFields={extraFields}
+          onExtraFieldsChange={setExtraFields}
+        />
       </div>
 
+      {isUploading && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" /> Uploading image…
+        </div>
+      )}
+
       <div className="flex gap-3">
-        <Button
-          variant="ghost"
-          onClick={onNext}
-          className="flex-1 rounded-full h-11"
-          disabled={isPublishing}
-        >
+        <Button variant="ghost" onClick={onNext} className="flex-1 rounded-full h-11" disabled={isPublishing}>
           Skip
         </Button>
-        <Button
-          onClick={handlePublishProfile}
-          className="flex-1 rounded-full h-11 gap-1.5"
-          disabled={isPublishing || isUploading}
-        >
-          {isPublishing ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              Continue
-              <ChevronRight className="w-4 h-4" />
-            </>
-          )}
+        <Button onClick={handlePublishProfile} className="flex-1 rounded-full h-11 gap-1.5" disabled={isPublishing || isUploading}>
+          {isPublishing ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <>Continue <ChevronRight className="w-4 h-4" /></>}
         </Button>
       </div>
     </div>
