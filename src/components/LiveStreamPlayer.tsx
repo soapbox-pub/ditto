@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import type Hls from 'hls.js';
 import { Play, Pause, Volume1, Volume2, VolumeX, Expand, Minimize } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usePlayerControls } from '@/hooks/usePlayerControls';
 
 interface LiveStreamPlayerProps {
   src: string;
@@ -17,18 +18,18 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
-  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
-
-  const prevVolumeRef = useRef(0.8);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
-  const [volume, setVolume] = useState(0.8);
-  const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+
+  const { showControls, revealControls, scheduleHide, isMuted, volume, toggleMute, handleVolumeChange } = usePlayerControls({
+    mediaRef: videoRef,
+    containerRef,
+    isPlaying,
+  });
 
   // Set up HLS — dynamically imports hls.js (1.3MB) only when needed
   useEffect(() => {
@@ -99,51 +100,6 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
     };
   }, [src]);
 
-  // Pause video when scrolled out of view
-  useEffect(() => {
-    const video = videoRef.current;
-    const container = containerRef.current;
-    if (!video || !container) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting && !video.paused) {
-          video.pause();
-        }
-      },
-      { threshold: 0.25 },
-    );
-
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
-
-  // Track playback & buffering state
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const onWaiting = () => setIsBuffering(true);
-    const onPlaying = () => { setIsBuffering(false); setIsPlaying(true); };
-    const onCanPlay = () => setIsBuffering(false);
-    const onPause = () => setIsPlaying(false);
-    const onPlay = () => setIsPlaying(true);
-
-    video.addEventListener('waiting', onWaiting);
-    video.addEventListener('playing', onPlaying);
-    video.addEventListener('canplay', onCanPlay);
-    video.addEventListener('pause', onPause);
-    video.addEventListener('play', onPlay);
-
-    return () => {
-      video.removeEventListener('waiting', onWaiting);
-      video.removeEventListener('playing', onPlaying);
-      video.removeEventListener('canplay', onCanPlay);
-      video.removeEventListener('pause', onPause);
-      video.removeEventListener('play', onPlay);
-    };
-  }, []);
-
   // Track fullscreen changes
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -187,30 +143,7 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
     navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
   }, [isPlaying]);
 
-  const scheduleHide = useCallback(() => {
-    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    if (!autoplayBlocked) {
-      hideTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
-    }
-  }, [autoplayBlocked]);
-
-  const revealControls = useCallback(() => {
-    setShowControls(true);
-    scheduleHide();
-  }, [scheduleHide]);
-
-  useEffect(() => {
-    if (!autoplayBlocked) {
-      scheduleHide();
-    } else {
-      setShowControls(true);
-    }
-    return () => {
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    };
-  }, [scheduleHide, autoplayBlocked]);
-
-  const togglePlay = (e: React.MouseEvent) => {
+  const togglePlay = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     const video = videoRef.current;
     if (!video) return;
@@ -219,38 +152,24 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
     } else {
       video.pause();
     }
-  };
+  }, []);
 
-  const toggleMute = (e: React.MouseEvent) => {
+  const handleVideoClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.muted || video.volume === 0) {
-      const restored = prevVolumeRef.current > 0 ? prevVolumeRef.current : 0.5;
-      video.muted = false;
-      video.volume = restored;
-      setIsMuted(false);
-      setVolume(restored);
-    } else {
-      prevVolumeRef.current = video.volume;
-      video.muted = true;
-      setIsMuted(true);
+    if (autoplayBlocked) {
+      const video = videoRef.current;
+      if (!video) return;
+      video.play().then(() => {
+        setAutoplayBlocked(false);
+        setIsBuffering(false);
+      }).catch(() => {});
+      return;
     }
-  };
+    togglePlay(e);
+    revealControls();
+  }, [autoplayBlocked, togglePlay, revealControls]);
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.stopPropagation();
-    const video = videoRef.current;
-    if (!video) return;
-    const val = parseFloat(e.target.value);
-    video.volume = val;
-    video.muted = val === 0;
-    if (val > 0) prevVolumeRef.current = val;
-    setVolume(val);
-    setIsMuted(val === 0);
-  };
-
-  const toggleFullscreen = (e: React.MouseEvent) => {
+  const toggleFullscreen = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     const container = containerRef.current;
     if (!container) return;
@@ -259,18 +178,7 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
     } else {
       container.requestFullscreen();
     }
-  };
-
-  const handleManualPlay = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.play().then(() => {
-      setAutoplayBlocked(false);
-      setIsBuffering(false);
-    }).catch(() => {
-      // Still blocked - unlikely after user gesture
-    });
-  };
+  }, []);
 
   if (hasError) {
     return (
@@ -291,7 +199,8 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
         className,
       )}
       onMouseMove={revealControls}
-      onMouseLeave={() => { if (!autoplayBlocked) scheduleHide(); }}
+      onMouseLeave={() => { if (isPlaying) scheduleHide(); }}
+      onClick={(e) => e.stopPropagation()}
     >
       <video
         ref={videoRef}
@@ -300,21 +209,20 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
         playsInline
         autoPlay
         muted
-        onClick={(e) => {
-          if (autoplayBlocked) {
-            handleManualPlay();
-          } else {
-            togglePlay(e);
-            revealControls();
-          }
-        }}
+        {...({ 'webkit-playsinline': 'true' } as React.HTMLAttributes<HTMLVideoElement>)}
+        onClick={handleVideoClick}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onWaiting={() => setIsBuffering(true)}
+        onPlaying={() => setIsBuffering(false)}
+        onCanPlay={() => setIsBuffering(false)}
       />
 
       {/* Autoplay blocked — big centered play button */}
       {autoplayBlocked && (
         <div
           className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer"
-          onClick={handleManualPlay}
+          onClick={handleVideoClick}
         >
           <div className="size-16 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm transition-transform hover:scale-110">
             <Play className="size-8 text-white ml-1" fill="white" />
@@ -332,7 +240,7 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
       {/* Bottom control bar */}
       <div
         className={cn(
-          'absolute bottom-0 left-0 right-0 transition-opacity duration-300',
+          'absolute bottom-0 left-0 right-0 transition-opacity duration-200',
           'bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-10 pb-3 px-4',
           showControls && !autoplayBlocked ? 'opacity-100' : 'opacity-0 pointer-events-none',
         )}
@@ -355,11 +263,11 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
 
           <div className="flex-1" />
 
-          {/* Volume toggle + slider */}
-          <div className="flex items-center gap-1.5 group/volume">
+          {/* Volume: icon toggles mute, slider sets level — identical to VideoPlayer */}
+          <div className="flex items-center gap-1.5 group/vol">
             <button
               onClick={toggleMute}
-              className="text-white hover:text-white/80 transition-colors p-1"
+              className="text-white hover:text-white/80 transition-colors shrink-0"
               aria-label={isMuted ? 'Unmute' : 'Mute'}
             >
               {isMuted || volume === 0
@@ -370,14 +278,17 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
             </button>
             <input
               type="range"
-              min="0"
-              max="1"
-              step="0.02"
+              min={0}
+              max={1}
+              step={0.02}
               value={isMuted ? 0 : volume}
               onChange={handleVolumeChange}
               onClick={(e) => e.stopPropagation()}
-              className="w-0 group-hover/volume:w-16 transition-all duration-200 accent-white h-1 cursor-pointer opacity-0 group-hover/volume:opacity-100"
               aria-label="Volume"
+              className={cn(
+                'w-0 opacity-0 group-hover/vol:w-16 group-hover/vol:opacity-100',
+                'transition-all duration-200 cursor-pointer accent-white h-1',
+              )}
             />
           </div>
 
