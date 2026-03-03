@@ -21,8 +21,13 @@ function looksLikeNip05(value: string): boolean {
     const atIndex = cleaned.indexOf('@');
     return atIndex > 0 && atIndex < cleaned.length - 1 && cleaned.slice(atIndex + 1).includes('.');
   }
-  // bare domain — contains a dot but isn't a NIP-19 identifier
-  if (cleaned.includes('.') && !NIP19_PREFIXES.some((p) => cleaned.startsWith(p))) {
+  // bare domain — must look like "something.tld" with non-empty parts on both sides of the dot
+  const dotIndex = cleaned.indexOf('.');
+  if (
+    dotIndex > 0 &&
+    dotIndex < cleaned.length - 1 &&
+    !NIP19_PREFIXES.some((p) => cleaned.startsWith(p))
+  ) {
     return true;
   }
   return false;
