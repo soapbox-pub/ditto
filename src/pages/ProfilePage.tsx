@@ -1205,7 +1205,7 @@ export function ProfilePage() {
   }
 
   return (
-    <main className="bg-background">
+    <main>
       <PullToRefresh onRefresh={handleRefresh}>
         {/* Banner */}
           <div className="h-36 md:h-48 bg-secondary relative">
@@ -1530,7 +1530,7 @@ export function ProfilePage() {
         </div>
 
         {/* Tabs */}
-        <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border bg-background/80 backdrop-blur-md z-10')}>
+        <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border backdrop-blur-md z-10')}>
           <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
           <TabButton label="Posts & replies" active={activeTab === 'replies'} onClick={() => setActiveTab('replies')} />
           <TabButton label="Media" active={activeTab === 'media'} onClick={() => { setActiveTab('media'); setSidebarMediaUrl(null); }} />
