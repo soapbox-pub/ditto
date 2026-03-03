@@ -48,7 +48,7 @@ export function MinimizedAudioBar() {
     // Clamp stored position in case viewport or bottom offset changed
     return clampToViewport(stored.x, stored.y, 300, 64);
   });
-  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
 
   // Drag state
   const dragging = useRef(false);
@@ -186,30 +186,13 @@ export function MinimizedAudioBar() {
             <Maximize2 className="size-3.5" />
           </button>
 
-          {showCloseConfirm ? (
-            <div className="flex items-center gap-1 ml-1">
-              <button
-                onClick={() => { player.stop(); setShowCloseConfirm(false); }}
-                className="text-[10px] px-2 py-1 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Stop
-              </button>
-              <button
-                onClick={() => setShowCloseConfirm(false)}
-                className="text-[10px] px-2 py-1 rounded-full bg-secondary hover:bg-secondary/80"
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowCloseConfirm(true)}
-              className="p-1.5 rounded-full hover:bg-secondary transition-colors"
-              aria-label="Close"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
+          <button
+            onClick={() => player.stop()}
+            className="p-1.5 rounded-full hover:bg-secondary transition-colors"
+            aria-label="Close"
+          >
+            <X className="size-3.5" />
+          </button>
         </div>
       </div>
 
