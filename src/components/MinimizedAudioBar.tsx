@@ -116,7 +116,7 @@ export function MinimizedAudioBar() {
   return (
     <div
       ref={barRef}
-      className="fixed z-30 select-none touch-none"
+      className="fixed z-30 select-none touch-none sidebar:block hidden"
       style={{ left: pos.x, top: pos.y }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

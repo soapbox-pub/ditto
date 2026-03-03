@@ -7,9 +7,13 @@ interface LiveStreamPlayerProps {
   src: string;
   poster?: string;
   className?: string;
+  /** Stream title shown in OS media controls. */
+  title?: string;
+  /** Artist / channel name shown in OS media controls. */
+  artist?: string;
 }
 
-export function LiveStreamPlayer({ src, poster, className }: LiveStreamPlayerProps) {
+export function LiveStreamPlayer({ src, poster, className, title, artist }: LiveStreamPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -146,6 +150,40 @@ export function LiveStreamPlayer({ src, poster, className }: LiveStreamPlayerPro
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, []);
+
+  // Media Session API — registers OS lock-screen / notification controls for the live stream
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    const artwork: MediaImage[] = poster ? [{ src: poster, sizes: '512x512', type: 'image/jpeg' }] : [];
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: title || 'Live Stream',
+      artist: artist || '',
+      artwork,
+    });
+
+    navigator.mediaSession.setActionHandler('play', () => video.play().catch(() => {}));
+    navigator.mediaSession.setActionHandler('pause', () => video.pause());
+    // No seekto/previoustrack/nexttrack for a live stream
+    navigator.mediaSession.setActionHandler('seekto', null);
+    navigator.mediaSession.setActionHandler('previoustrack', null);
+    navigator.mediaSession.setActionHandler('nexttrack', null);
+
+    return () => {
+      if (!('mediaSession' in navigator)) return;
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.setActionHandler('play', null);
+      navigator.mediaSession.setActionHandler('pause', null);
+    };
+  }, [title, artist, poster]);
+
+  // Keep OS playback state in sync
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+  }, [isPlaying]);
 
   const scheduleHide = useCallback(() => {
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
