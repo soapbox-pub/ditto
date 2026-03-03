@@ -16,7 +16,6 @@ import { GeocacheContent } from '@/components/GeocacheContent';
 import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent, ColorMomentEyeButton } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
-import { AppSubmissionCard } from '@/components/AppSubmissionCard';
 import { ArticleContent } from '@/components/ArticleContent';
 import { type ImetaEntry, parseImetaMap } from '@/lib/imeta';
 import { CustomNipCard } from '@/components/CustomNipCard';
@@ -203,8 +202,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isPatch = event.kind === 1617;
   const isPullRequest = event.kind === 1618;
   const isCustomNip = event.kind === 30817;
-  const isAppSubmission = event.kind === 31733;
-  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isAppSubmission;
+  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip;
   const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isCalendarEvent && !isEmojiPack && !isReaction && !isPhoto && !isVideo && !isAudioKind && !isDevKind;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
@@ -345,8 +343,6 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           <PullRequestCard event={event} />
         ) : isCustomNip ? (
           <CustomNipCard event={event} />
-        ) : isAppSubmission ? (
-          <AppSubmissionCard event={event} />
         ) : (
           <TruncatedNoteContent event={event} videos={videos} audios={audios} imetaMap={imetaMap} webxdcApps={webxdcApps} />
         )}

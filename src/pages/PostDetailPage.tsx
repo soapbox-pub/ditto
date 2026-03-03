@@ -39,6 +39,10 @@ import { LiveStreamPage } from '@/components/LiveStreamPage';
 import { MusicDetailContent } from '@/components/MusicDetailContent';
 import { PodcastDetailContent } from '@/components/PodcastDetailContent';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
+import { GitRepoCard } from '@/components/GitRepoCard';
+import { PatchCard } from '@/components/PatchCard';
+import { PullRequestCard } from '@/components/PullRequestCard';
+import { CustomNipCard } from '@/components/CustomNipCard';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { extractAudioUrls } from '@/lib/mediaUrls';
 import { type ImetaEntry, parseImetaMap } from '@/lib/imeta';
@@ -57,6 +61,8 @@ const MUSIC_KINDS = new Set([36787, 34139]);
 const PODCAST_KINDS = new Set([30054, 30055]);
 /** NIP-52 Calendar Events. */
 const CALENDAR_EVENT_KINDS = new Set([31922, 31923]);
+/** NIP-34 development kinds. */
+const DEV_KINDS = new Set([30617, 1617, 1618, 30817]);
 
 /** Map a kind number to a human-readable shell title for the loading state. */
 function shellTitleForKind(kind?: number): string {
@@ -66,6 +72,10 @@ function shellTitleForKind(kind?: number): string {
   if (CALENDAR_EVENT_KINDS.has(kind)) return 'Event Details';
   if (FOLLOW_PACK_KINDS.has(kind)) return 'Follow Pack';
   if (kind === LIVE_STREAM_KIND) return 'Live Stream';
+  if (kind === 30617) return 'Repository';
+  if (kind === 1617) return 'Patch';
+  if (kind === 1618) return 'Pull Request';
+  if (kind === 30817) return 'Custom NIP';
   return 'Post Details';
 }
 
@@ -272,7 +282,7 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   }
 
   return (
-    <PostDetailShell>
+    <PostDetailShell title={loadingTitle}>
       <MutedContentGuard event={resolvedEvent}>
         <PostDetailContent event={resolvedEvent} />
       </MutedContentGuard>
@@ -639,7 +649,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const isReaction = event.kind === 7;
     const isVideo = event.kind === 21 || event.kind === 22;
     const isCommunity = event.kind === 34550;
-    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isEmojiPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme && !isVoiceMessage && !isReaction && !isVideo && !isCommunity;
+    const isGitRepo = event.kind === 30617;
+    const isPatch = event.kind === 1617;
+    const isPullRequest = event.kind === 1618;
+    const isCustomNip = event.kind === 30817;
+    const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip;
+    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isEmojiPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme && !isVoiceMessage && !isReaction && !isVideo && !isCommunity && !isDevKind;
 
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
@@ -1071,6 +1086,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <VoiceMessagePlayer event={event} />
           ) : isCommunity ? (
             <CommunityContent event={event} />
+          ) : isGitRepo ? (
+            <div className="mt-3"><GitRepoCard event={event} /></div>
+          ) : isPatch ? (
+            <div className="mt-3"><PatchCard event={event} preview={false} /></div>
+          ) : isPullRequest ? (
+            <div className="mt-3"><PullRequestCard event={event} preview={false} /></div>
+          ) : isCustomNip ? (
+            <div className="mt-3"><CustomNipCard event={event} preview={false} /></div>
           ) : isVine || isPoll || isGeocache || isFoundLog || isColor || isFollowPack || isEmojiPack ? (
             <>
               {isVine && <VineDetailContent event={event} />}
