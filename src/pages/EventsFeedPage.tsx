@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CalendarDays, Loader2 } from 'lucide-react';
+import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { useSeoMeta } from '@unhead/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -151,19 +152,14 @@ export function EventsFeedPage() {
             )}
           </div>
         ) : (
-          <div className="py-16 px-8 text-center space-y-3">
-            <CalendarDays className="size-10 text-muted-foreground/40 mx-auto" />
-            <p className="text-muted-foreground">
-              {activeTab === 'follows'
-                ? 'No events from people you follow yet. Try the Global tab.'
-                : 'No calendar events found. Check your relay connections or try again later.'}
-            </p>
-            {activeTab === 'follows' && (
-              <button className="text-sm text-primary hover:underline" onClick={() => setActiveTab('global')}>
-                Switch to Global
-              </button>
-            )}
-          </div>
+          <FeedEmptyState
+            message={
+              activeTab === 'follows'
+                ? 'No events from people you follow yet.'
+                : 'No calendar events found. Check your relay connections or try again later.'
+            }
+            onSwitchToGlobal={activeTab === 'follows' ? () => setActiveTab('global') : undefined}
+          />
         )}
       </PullToRefresh>
     </main>

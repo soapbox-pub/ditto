@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ComposeBox } from '@/components/ComposeBox';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -234,11 +235,20 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
             )}
           </div>
         ) : (
-          <div className="py-16 px-8 text-center">
-            <p className="text-muted-foreground text-lg">
-              {emptyMessage ?? 'No posts yet. Follow some people or switch to the Global tab to discover content.'}
-            </p>
-          </div>
+          <FeedEmptyState
+            message={
+              emptyMessage ?? (
+                activeTab === 'follows'
+                  ? 'No posts yet. Follow some people to see their content here.'
+                  : 'No posts found. Check your relay connections or come back soon.'
+              )
+            }
+            onSwitchToGlobal={
+              activeTab === 'follows' && showGlobalFeed
+                ? () => setActiveTab('global')
+                : undefined
+            }
+          />
         )}
       </PullToRefresh>
 

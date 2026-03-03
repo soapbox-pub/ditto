@@ -8,10 +8,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Camera } from 'lucide-react';
+import { ArrowLeft, Camera, Loader2 } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import { useInView } from 'react-intersection-observer';
-import { Loader2 } from 'lucide-react';
+import { FeedEmptyState } from '@/components/FeedEmptyState';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -133,15 +133,14 @@ export function PhotosFeedPage() {
       {showSkeleton ? (
         <MediaGridSkeleton count={15} />
       ) : photoEvents.length === 0 ? (
-        <div className="py-16 px-8 text-center">
-          <Camera className="size-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-muted-foreground">
-            No photos yet.
-            {activeTab === 'follows'
-              ? ' Follow some photographers or switch to Global.'
-              : ' Check your relay connections or come back soon.'}
-          </p>
-        </div>
+        <FeedEmptyState
+          message={
+            activeTab === 'follows'
+              ? 'No photos yet. Follow some photographers to see their photos here.'
+              : 'No photos found. Check your relay connections or come back soon.'
+          }
+          onSwitchToGlobal={activeTab === 'follows' ? () => setActiveTab('global') : undefined}
+        />
       ) : (
         <>
           <MediaGrid
