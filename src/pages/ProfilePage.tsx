@@ -45,6 +45,7 @@ import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { ReportDialog } from '@/components/ReportDialog';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
@@ -120,6 +121,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const close = () => onOpenChange(false);
 
@@ -156,11 +158,12 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   };
 
   const handleReport = () => {
-    toast({ title: 'Report is not yet implemented' });
     close();
+    setTimeout(() => setReportOpen(true), 150);
   };
 
   return (
+  <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
         <DialogTitle className="sr-only">Profile options</DialogTitle>
@@ -233,6 +236,9 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
         </div>
       </DialogContent>
     </Dialog>
+
+    <ReportDialog pubkey={pubkey} open={reportOpen} onOpenChange={setReportOpen} />
+  </>
   );
 }
 

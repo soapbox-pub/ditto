@@ -36,6 +36,8 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { NoteContent } from '@/components/NoteContent';
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
+import { ReportDialog } from '@/components/ReportDialog';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -76,12 +78,60 @@ function MenuItem({ icon, label, onClick, destructive }: MenuItemProps) {
   );
 }
 
-export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
-  if (!open) return null;
-  return <NoteMoreMenuContent event={event} open={open} onOpenChange={onOpenChange} />;
+/** Encode the NIP-19 identifier for an event — naddr for addressable events, nevent otherwise. */
+function encodeEventNip19(event: NostrEvent): string {
+  if (event.kind >= 30000 && event.kind < 40000) {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1];
+    if (dTag) {
+      return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+    }
+  }
+  return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
 
-function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
+export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
+  // These states live here (not in NoteMoreMenuContent) so they persist after the menu closes
+  const [reportOpen, setReportOpen] = useState(false);
+  const [mentionComposeOpen, setMentionComposeOpen] = useState(false);
+
+  const mentionContent = `nostr:${nip19.npubEncode(event.pubkey)} `;
+
+  return (
+    <>
+      {open && (
+        <NoteMoreMenuContent
+          event={event}
+          open={open}
+          onOpenChange={onOpenChange}
+          onReport={() => {
+            onOpenChange(false);
+            setTimeout(() => setReportOpen(true), 150);
+          }}
+          onMention={() => {
+            onOpenChange(false);
+            setTimeout(() => setMentionComposeOpen(true), 150);
+          }}
+        />
+      )}
+
+      <ReportDialog event={event} open={reportOpen} onOpenChange={setReportOpen} />
+
+      <ReplyComposeModal
+        open={mentionComposeOpen}
+        onOpenChange={setMentionComposeOpen}
+        initialContent={mentionContent}
+        title="New post"
+      />
+    </>
+  );
+}
+
+interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
+  onReport: () => void;
+  onMention: () => void;
+}
+
+function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention }: NoteMoreMenuContentProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const { isBookmarked, toggleBookmark } = useBookmarks();
@@ -97,24 +147,24 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey });
+  const nip19Id = encodeEventNip19(event);
 
   const close = () => onOpenChange(false);
 
   const handleViewPostDetails = () => {
-    navigate(`/${neventId}`);
+    navigate(`/${nip19Id}`);
     close();
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/${neventId}`;
+    const url = `${window.location.origin}/${nip19Id}`;
     navigator.clipboard.writeText(url);
     toast({ title: 'Link copied to clipboard' });
     close();
   };
 
   const handleViewOnNjump = () => {
-    window.open(`https://njump.me/${neventId}`, '_blank', 'noopener,noreferrer');
+    window.open(`https://njump.me/${nip19Id}`, '_blank', 'noopener,noreferrer');
     close();
   };
 
@@ -136,7 +186,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
   };
 
   const handleCopyEventId = () => {
-    navigator.clipboard.writeText(event.id);
+    navigator.clipboard.writeText(nip19Id);
     toast({ title: 'Event ID copied to clipboard' });
     close();
   };
@@ -148,7 +198,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
   };
 
   const handleMuteConversation = () => {
-    // Mute the root event of the thread, or this event if it's the root
     const rootTag = event.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
     const threadId = rootTag?.[1] ?? event.id;
     addMute.mutate(
@@ -165,11 +214,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
     close();
   };
 
-  const handleMention = () => {
-    toast({ title: 'Mention is not yet implemented' });
-    close();
-  };
-
   const handleMuteUser = () => {
     const muteItem = { type: 'pubkey' as const, value: event.pubkey };
     const mutation = userMuted ? removeMute : addMute;
@@ -181,11 +225,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
         toast({ title: userMuted ? 'Failed to unmute user' : 'Failed to mute user', variant: 'destructive' });
       },
     });
-    close();
-  };
-
-  const handleReport = () => {
-    toast({ title: 'Report is not yet implemented' });
     close();
   };
 
@@ -299,7 +338,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
             <MenuItem
               icon={<AtSign className="size-5" />}
               label={`Mention @${displayName}`}
-              onClick={handleMention}
+              onClick={onMention}
             />
           )}
         </div>
@@ -317,7 +356,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
               <MenuItem
                 icon={<Flag className="size-5" />}
                 label={`Report @${displayName}`}
-                onClick={handleReport}
+                onClick={onReport}
                 destructive
               />
             </div>
