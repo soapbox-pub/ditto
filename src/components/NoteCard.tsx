@@ -22,7 +22,6 @@ import { CustomNipCard } from '@/components/CustomNipCard';
 import { GitRepoCard } from '@/components/GitRepoCard';
 import { PatchCard } from '@/components/PatchCard';
 import { PullRequestCard } from '@/components/PullRequestCard';
-import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { EmojiPackContent } from '@/components/EmojiPackContent';
 import { FileMetadataContent } from '@/components/FileMetadataContent';
