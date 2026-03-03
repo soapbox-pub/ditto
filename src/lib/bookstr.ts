@@ -25,8 +25,13 @@ export function isBookEvent(event: NostrEvent): boolean {
     return true;
   }
 
-  // Check for ISBN references
+  // Check for ISBN references (lowercase i tag — kind 1 posts)
   if (event.tags.some(([name, value]) => name === 'i' && value?.startsWith('isbn:'))) {
+    return true;
+  }
+
+  // Check for ISBN references (uppercase I tag — kind 1111 NIP-22 comments on books)
+  if (event.tags.some(([name, value]) => name === 'I' && value?.startsWith('isbn:'))) {
     return true;
   }
 
@@ -44,7 +49,15 @@ export function extractISBNFromEvent(event: NostrEvent): string | null {
     }
   }
 
-  // For other events, check i tags
+  // For kind 1111 comments, check uppercase I tag (NIP-22 root reference)
+  if (event.kind === 1111) {
+    const iTag = event.tags.find(
+      ([name, value]) => name === 'I' && value?.startsWith('isbn:'),
+    )?.[1];
+    if (iTag) return iTag.replace('isbn:', '');
+  }
+
+  // For other events, check lowercase i tags
   const iTag = event.tags.find(
     ([name, value]) => name === 'i' && value?.startsWith('isbn:'),
   )?.[1];
