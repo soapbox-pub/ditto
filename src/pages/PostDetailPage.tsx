@@ -37,6 +37,7 @@ import { VoiceMessagePlayer } from '@/components/VoiceMessagePlayer';
 import { CalendarEventDetailPage } from '@/components/CalendarEventDetailPage';
 import { LiveStreamPage } from '@/components/LiveStreamPage';
 import { MusicDetailContent } from '@/components/MusicDetailContent';
+import { PodcastDetailContent } from '@/components/PodcastDetailContent';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { extractAudioUrls } from '@/lib/mediaUrls';
@@ -51,6 +52,8 @@ const LIVE_STREAM_KIND = 30311;
 
 /** Music kinds that get a rich detail view. */
 const MUSIC_KINDS = new Set([36787, 34139]);
+/** Podcast kinds that get a rich detail view. */
+const PODCAST_KINDS = new Set([30054, 30055]);
 /** NIP-52 Calendar Events. */
 const CALENDAR_EVENT_KINDS = new Set([31922, 31923]);
 import { useReplies } from '@/hooks/useReplies';
@@ -275,6 +278,15 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
     return (
       <MutedContentGuard event={resolvedEvent}>
         <MusicDetailContent event={resolvedEvent} />
+      </MutedContentGuard>
+    );
+  }
+
+  // Podcast episodes and trailers get a rich detail view
+  if (PODCAST_KINDS.has(resolvedEvent.kind)) {
+    return (
+      <MutedContentGuard event={resolvedEvent}>
+        <PodcastDetailContent event={resolvedEvent} />
       </MutedContentGuard>
     );
   }
