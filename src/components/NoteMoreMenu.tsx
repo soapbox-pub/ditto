@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { nip19 } from 'nostr-tools';
+import { useNavigate } from 'react-router-dom';
 
 import {
   Bookmark,
@@ -13,6 +14,7 @@ import {
   FileJson,
   FileDigit,
   Trash2,
+  SquareArrowOutUpRight,
 } from 'lucide-react';
 import {
   Dialog,
@@ -80,6 +82,7 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
 }
 
 function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
+  const navigate = useNavigate();
   const { user } = useCurrentUser();
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const bookmarked = isBookmarked(event.id);
@@ -97,6 +100,11 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey });
 
   const close = () => onOpenChange(false);
+
+  const handleViewPostDetails = () => {
+    navigate(`/${neventId}`);
+    close();
+  };
 
   const handleCopyLink = () => {
     const url = `${window.location.origin}/${neventId}`;
@@ -230,6 +238,11 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
         <Separator />
 
         <div className="py-1">
+          <MenuItem
+            icon={<SquareArrowOutUpRight className="size-5" />}
+            label="View post details"
+            onClick={handleViewPostDetails}
+          />
           <MenuItem
             icon={<ClipboardCopy className="size-5" />}
             label="Copy Link to Post"
