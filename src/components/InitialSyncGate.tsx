@@ -194,7 +194,7 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // ---------------------------------------------------------------------------
 
 /** Extra-kind IDs shown in the onboarding content picker, in display order. */
-const ONBOARDING_CONTENT_IDS = ['events', 'vines', 'colors', 'decks', 'treasures', 'webxdc'];
+const ONBOARDING_CONTENT_IDS = ['vines', 'colors', 'decks', 'treasures', 'webxdc'];
 
 /** Onboarding content kinds derived from EXTRA_KINDS — no separate data to maintain. */
 const CONTENT_KINDS = ONBOARDING_CONTENT_IDS.flatMap((id) => {
