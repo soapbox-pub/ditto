@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, MessageCircle, MoreHorizontal, Star, Zap, AlertTriangle } from 'lucide-react';
+import { BookOpen, MessageCircle, MessageSquare, MoreHorizontal, Star, Zap, AlertTriangle } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -33,6 +33,9 @@ interface BookFeedItemProps {
   className?: string;
 }
 
+/** Max height in px before truncation kicks in. */
+const MAX_HEIGHT = 300;
+
 /** Formats a sats amount into a compact human-readable string. */
 function formatSats(sats: number): string {
   if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
@@ -57,18 +60,27 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
-  const encodedId = useMemo(() => encodeEventId(event), [event]);
   const { data: stats } = useEventStats(event.id);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 
   const canZapAuthor = user && canZap(metadata);
 
-  const { onClick: openPost, onAuxClick: auxOpenPost } = useOpenPost(`/${encodedId}`);
-
   const isbn = useMemo(() => extractISBNFromEvent(event), [event]);
   const isReview = event.kind === BOOKSTR_KINDS.BOOK_REVIEW;
+  const isComment = event.kind === 1111;
   const review = useMemo(() => isReview ? parseBookReview(event) : null, [event, isReview]);
+
+  // For kind 1111 comments on books, navigate to the book page rather than the event detail.
+  // For all other events, navigate to the event detail page.
+  const postPath = useMemo(() => {
+    if (isComment && isbn) {
+      return `/i/isbn:${isbn}`;
+    }
+    return `/${encodeEventId(event)}`;
+  }, [event, isComment, isbn]);
+
+  const { onClick: openPost, onAuxClick: auxOpenPost } = useOpenPost(postPath);
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -157,7 +169,13 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
                     reviewed
                   </Badge>
                 )}
-                {!isReview && isbn && (
+                {isComment && (
+                  <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0 shrink-0 bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">
+                    <MessageSquare className="size-3" />
+                    commented
+                  </Badge>
+                )}
+                {!isReview && !isComment && isbn && (
                   <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0 shrink-0 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
                     <BookOpen className="size-3" />
                     posted
@@ -192,17 +210,15 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
             </div>
           )}
 
-          {/* Content with spoiler guard */}
+          {/* Content with spoiler guard and truncation */}
           {isReview && review?.contentWarning ? (
             <SpoilerGuard warning={review.contentWarning}>
-              <ReviewContent event={event} content={review.content} />
+              <TruncatedContent event={event} content={review.content} />
             </SpoilerGuard>
           ) : isReview && review ? (
-            <ReviewContent event={event} content={review.content} />
+            <TruncatedContent event={event} content={review.content} />
           ) : (
-            <div className="mt-2 whitespace-pre-wrap break-words">
-              <NoteContent event={event} className="text-[15px]" />
-            </div>
+            <TruncatedContent event={event} />
           )}
 
           {/* Book card */}
@@ -268,17 +284,60 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
   );
 }
 
-/** Renders review text content. */
-function ReviewContent({ event, content }: { event: NostrEvent; content: string }) {
-  if (!content) {
+/** Truncated content block with "Read more" fade and button. */
+function TruncatedContent({ event, content }: { event: NostrEvent; content?: string }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const measure = useCallback(() => {
+    const el = contentRef.current;
+    if (el) setOverflows(el.scrollHeight > MAX_HEIGHT);
+  }, []);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  // Re-measure after images load
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const imgs = el.querySelectorAll('img');
+    if (imgs.length === 0) return;
+    imgs.forEach((img) => img.addEventListener('load', measure, { once: true }));
+    return () => imgs.forEach((img) => img.removeEventListener('load', measure));
+  }, [measure]);
+
+  // For reviews with no written text, show a placeholder
+  if (content !== undefined && !content) {
     return (
       <p className="mt-2 text-sm text-muted-foreground italic">Rating only, no written review</p>
     );
   }
 
   return (
-    <div className="mt-2 whitespace-pre-wrap break-words">
-      <NoteContent event={event} className="text-[15px]" />
+    <div className="mt-2 break-words overflow-hidden">
+      <div
+        ref={contentRef}
+        style={!expanded && overflows ? { maxHeight: MAX_HEIGHT, overflow: 'hidden' } : undefined}
+        className="relative"
+      >
+        <NoteContent event={event} className="text-[15px] leading-relaxed" />
+        {!expanded && overflows && (
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+        )}
+      </div>
+      {overflows && (
+        <button
+          className="mt-1 text-sm text-primary hover:underline"
+          onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+        >
+          {expanded ? 'Show less' : 'Read more'}
+        </button>
+      )}
     </div>
   );
 }

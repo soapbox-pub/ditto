@@ -1,23 +1,49 @@
-import { useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
 import { BookMarked, Loader2 } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 
-import { Card, CardContent } from '@/components/ui/card';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { FeedEmptyState } from '@/components/FeedEmptyState';
+import { KindInfoButton } from '@/components/KindInfoButton';
 import { BookFeedItem, BookFeedItemSkeleton } from '@/components/BookFeedItem';
 import { useBookFeed } from '@/hooks/useBookFeed';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
+import { cn } from '@/lib/utils';
+import type { ExtraKindDef } from '@/lib/extraKinds';
+
+type FeedTab = 'follows' | 'global';
+
+const booksDef: ExtraKindDef = {
+  kind: 31985,
+  id: 'books',
+  label: 'Books',
+  description: 'Book reviews and discussions',
+  addressable: true,
+  section: 'social',
+  blurb: 'Discover book reviews, ratings, and discussions from the Nostr community. Track your reading and share your thoughts using the Bookstr protocol.',
+  sites: [{ url: 'https://bookstr.xyz/', name: 'Bookstr' }],
+};
 
 export function BooksPage() {
   const { config } = useAppContext();
+  const { user } = useCurrentUser();
   const queryClient = useQueryClient();
+
+  const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
+
+  useEffect(() => {
+    if (user) setActiveTab('follows');
+  }, [user]);
 
   useSeoMeta({
     title: `Books | ${config.appName}`,
     description: 'Book reviews, ratings, and discussions from the Nostr community',
   });
+
+  const feedQuery = useBookFeed(activeTab);
 
   const {
     data: rawData,
@@ -26,7 +52,7 @@ export function BooksPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useBookFeed();
+  } = feedQuery;
 
   // Auto-fetch page 2 for smoother scrolling
   useEffect(() => {
@@ -42,8 +68,8 @@ export function BooksPage() {
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['book-feed'] });
-  }, [queryClient]);
+    await queryClient.invalidateQueries({ queryKey: ['book-feed', activeTab] });
+  }, [queryClient, activeTab]);
 
   // Flatten and deduplicate across pages
   const events = useMemo(() => {
@@ -63,15 +89,21 @@ export function BooksPage() {
   return (
     <main className="pb-16 sidebar:pb-0">
       {/* Page header */}
-      <div className="px-4 py-3.5 sidebar:py-5">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4 px-4 py-3.5 sidebar:py-5">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <BookMarked className="size-5" />
           <h1 className="font-bold text-xl">Books</h1>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          Reviews, ratings, and discussions about books
-        </p>
+        <KindInfoButton kindDef={booksDef} icon={<BookMarked className="size-10" />} />
       </div>
+
+      {/* Follows / Global tabs */}
+      {user && (
+        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
+          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+        </div>
+      )}
 
       <PullToRefresh onRefresh={handleRefresh}>
         {showSkeleton ? (
@@ -97,20 +129,33 @@ export function BooksPage() {
             )}
           </div>
         ) : (
-          <div className="px-4">
-            <Card className="border-dashed">
-              <CardContent className="py-12 px-8 text-center">
-                <div className="max-w-sm mx-auto space-y-4">
-                  <BookMarked className="size-12 mx-auto text-muted-foreground/40" />
-                  <p className="text-muted-foreground">
-                    No book posts or reviews found yet. Book-related posts tagged with #bookstr or referencing ISBNs will appear here.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <FeedEmptyState
+            message={
+              activeTab === 'follows'
+                ? 'No book posts from people you follow yet.'
+                : 'No book posts or reviews found. Book-related posts tagged with #bookstr or referencing ISBNs will appear here.'
+            }
+            onSwitchToGlobal={activeTab === 'follows' ? () => setActiveTab('global') : undefined}
+          />
         )}
       </PullToRefresh>
     </main>
+  );
+}
+
+function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
+        active ? 'text-foreground' : 'text-muted-foreground',
+      )}
+    >
+      {label}
+      {active && (
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
+      )}
+    </button>
   );
 }

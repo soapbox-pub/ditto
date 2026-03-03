@@ -1,44 +1,52 @@
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { useCurrentUser } from './useCurrentUser';
+import { useFollowList } from './useFollowActions';
 import { BOOKSTR_KINDS, isBookEvent } from '@/lib/bookstr';
 
 const PAGE_SIZE = 20;
 
-/** Hook to fetch a global feed of book-related Nostr events with infinite scroll. */
-export function useBookFeed() {
+/** Hook to fetch a feed of book-related Nostr events with infinite scroll and follows/global tabs. */
+export function useBookFeed(tab: 'follows' | 'global' = 'global') {
   const { nostr } = useNostr();
+  const { user } = useCurrentUser();
+  const { data: followData } = useFollowList();
+  const followList = followData?.pubkeys;
+
+  // For follows tab, wait until follow list is loaded
+  const followsReady = tab !== 'follows' || (!!user && followList !== undefined);
 
   return useInfiniteQuery({
-    queryKey: ['book-feed'],
+    queryKey: ['book-feed', tab, user?.pubkey ?? '', followList?.length ?? 0],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(5000);
-
       const baseUntil = pageParam as number | undefined;
 
-      // Query multiple filters in one request for efficiency:
+      // For follows tab, build the authors list
+      let authors: string[] | undefined;
+      if (tab === 'follows' && user && followList) {
+        authors = followList.length > 0 ? [...followList, user.pubkey] : [user.pubkey];
+      }
+
+      // Build filters — query multiple filters in one request for efficiency
+      const filters: NostrFilter[] = [];
+      const shared: Partial<NostrFilter> = {
+        limit: PAGE_SIZE,
+        ...(baseUntil ? { until: baseUntil } : {}),
+        ...(authors ? { authors } : {}),
+      };
+
       // 1. Book reviews (kind 31985)
+      filters.push({ kinds: [BOOKSTR_KINDS.BOOK_REVIEW], ...shared });
       // 2. Kind 1 posts tagged with #bookstr
+      filters.push({ kinds: [1], '#t': ['bookstr'], ...shared });
       // 3. Kind 1 posts with ISBN references (#k: isbn)
-      const events = await nostr.query([
-        {
-          kinds: [BOOKSTR_KINDS.BOOK_REVIEW],
-          limit: PAGE_SIZE,
-          ...(baseUntil ? { until: baseUntil } : {}),
-        },
-        {
-          kinds: [1],
-          '#t': ['bookstr'],
-          limit: PAGE_SIZE,
-          ...(baseUntil ? { until: baseUntil } : {}),
-        },
-        {
-          kinds: [1],
-          '#k': ['isbn'],
-          limit: PAGE_SIZE,
-          ...(baseUntil ? { until: baseUntil } : {}),
-        },
-      ], { signal });
+      filters.push({ kinds: [1], '#k': ['isbn'], ...shared });
+      // 4. Kind 1111 comments on books (#K: isbn)
+      filters.push({ kinds: [1111], '#K': ['isbn'], ...shared });
+
+      const events = await nostr.query(filters, { signal });
 
       // Filter for book-related events, deduplicate, and sort
       const seen = new Set<string>();
@@ -56,10 +64,10 @@ export function useBookFeed() {
     },
     getNextPageParam: (lastPage: NostrEvent[]) => {
       if (lastPage.length === 0) return undefined;
-      // Use the oldest event's timestamp minus 1 as the cursor
       return lastPage[lastPage.length - 1].created_at - 1;
     },
     initialPageParam: undefined as number | undefined,
+    enabled: followsReady,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }

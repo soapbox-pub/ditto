@@ -1,21 +1,31 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Globe, Heart, MessageSquare, Repeat2 } from 'lucide-react';
+import { ArrowLeft, Globe, Heart, MessageSquare, Repeat2, Star, AlertTriangle } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ThreadedReplyList } from '@/components/ThreadedReplyList';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { QuickReactMenu } from '@/components/QuickReactMenu';
+import { BookReviewFormDialog } from '@/components/BookReviewForm';
+import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import {
   UrlContentHeader,
   BookContentHeader,
   CountryContentHeader,
 } from '@/components/ExternalContentHeader';
 import { parseExternalUri, headerLabel, seoTitle, type ExternalContent } from '@/lib/externalContent';
+import { ratingToStars } from '@/lib/bookstr';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useComments } from '@/hooks/useComments';
+import { useBookReviews } from '@/hooks/useBookReviews';
+import { useAuthor } from '@/hooks/useAuthor';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -23,10 +33,15 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
+import { getDisplayName } from '@/lib/getDisplayName';
+import { timeAgo } from '@/lib/timeAgo';
+import { cn } from '@/lib/utils';
 import {
   useExternalUserReaction,
   useExternalReactionCount,
 } from '@/hooks/useExternalReactions';
+import type { NostrEvent } from '@nostrify/nostrify';
+import type { BookReview } from '@/lib/bookstr';
 import NotFound from './NotFound';
 
 // ---------------------------------------------------------------------------
@@ -185,6 +200,18 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
         <Repeat2 className="size-5" />
       </button>
 
+      {/* Write Review button — only for ISBN content */}
+      {content.type === 'isbn' && user && (
+        <BookReviewFormDialog isbn={content.value.replace('isbn:', '')}>
+          <button
+            className="flex items-center gap-1.5 p-2 rounded-full transition-colors text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
+            title="Write a review"
+          >
+            <Star className="size-5" />
+          </button>
+        </BookReviewFormDialog>
+      )}
+
       {shareOpen && (
         <ReplyComposeModal
           open={shareOpen}
@@ -294,44 +321,259 @@ export function ExternalContentPage() {
       {/* React / share action bar */}
       <ExternalActionBar content={content} />
 
-      {/* Inline compose box */}
-      <ComposeBox compact replyTo={commentRoot} />
-
       {/* Comment compose dialog (opened via FAB) */}
       <ReplyComposeModal event={commentRoot} open={composeOpen} onOpenChange={setComposeOpen} />
 
-      {/* Threaded comments list */}
-      <div>
-        {commentsLoading ? (
-          <div className="divide-y divide-border">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="px-4 py-3">
-                <div className="flex gap-3">
-                  <Skeleton className="size-10 rounded-full shrink-0" />
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-4 w-20" />
-                      <Skeleton className="h-3 w-28" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-3/4" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+      {/* ISBN pages get a tabbed interface with Comments + Reviews */}
+      {content.type === 'isbn' ? (
+        <BookContentTabs
+          isbn={content.value.replace('isbn:', '')}
+          commentRoot={commentRoot}
+          orderedReplies={orderedReplies}
+          commentsLoading={commentsLoading}
+        />
+      ) : (
+        <>
+          {/* Inline compose box */}
+          <ComposeBox compact replyTo={commentRoot} />
+
+          {/* Threaded comments list */}
+          <div>
+            {commentsLoading ? (
+              <CommentsSkeleton />
+            ) : orderedReplies.length > 0 ? (
+              <ThreadedReplyList replies={orderedReplies} />
+            ) : (
+              <CommentsEmptyState />
+            )}
           </div>
-        ) : orderedReplies.length > 0 ? (
-          <ThreadedReplyList replies={orderedReplies} />
-        ) : (
-          <div className="py-12 text-center text-muted-foreground text-sm">
-            <MessageSquare className="size-12 mx-auto mb-4 opacity-30" />
-            <p className="text-lg font-medium mb-2">No comments yet</p>
-            <p>Be the first to share your thoughts about this!</p>
+         </>
+      )}
+    </main>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+function CommentsSkeleton() {
+  return (
+    <div className="divide-y divide-border">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="px-4 py-3">
+          <div className="flex gap-3">
+            <Skeleton className="size-10 rounded-full shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-3 w-28" />
+              </div>
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CommentsEmptyState() {
+  return (
+    <div className="py-12 text-center text-muted-foreground text-sm">
+      <MessageSquare className="size-12 mx-auto mb-4 opacity-30" />
+      <p className="text-lg font-medium mb-2">No comments yet</p>
+      <p>Be the first to share your thoughts about this!</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Book Content Tabs (Comments + Reviews)
+// ---------------------------------------------------------------------------
+
+interface BookContentTabsProps {
+  isbn: string;
+  commentRoot: URL;
+  orderedReplies: Array<{ reply: NostrEvent; firstSubReply?: NostrEvent }>;
+  commentsLoading: boolean;
+}
+
+function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading }: BookContentTabsProps) {
+  const { user } = useCurrentUser();
+  const { data: reviews = [], isLoading: reviewsLoading } = useBookReviews(isbn);
+
+  return (
+    <Tabs defaultValue="comments" className="w-full">
+      <TabsList className="w-full rounded-none border-b border-border bg-transparent h-auto p-0">
+        <TabsTrigger
+          value="comments"
+          className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3 text-sm font-medium"
+        >
+          <MessageSquare className="size-4 mr-2" />
+          Comments{orderedReplies.length > 0 ? ` (${orderedReplies.length})` : ''}
+        </TabsTrigger>
+        <TabsTrigger
+          value="reviews"
+          className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3 text-sm font-medium"
+        >
+          <Star className="size-4 mr-2" />
+          Reviews{reviews.length > 0 ? ` (${reviews.length})` : ''}
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="comments" className="mt-0">
+        {/* Inline compose box */}
+        <ComposeBox compact replyTo={commentRoot} />
+
+        {/* Threaded comments list */}
+        <div>
+          {commentsLoading ? (
+            <CommentsSkeleton />
+          ) : orderedReplies.length > 0 ? (
+            <ThreadedReplyList replies={orderedReplies} />
+          ) : (
+            <CommentsEmptyState />
+          )}
+        </div>
+      </TabsContent>
+
+      <TabsContent value="reviews" className="mt-0">
+        {/* Write review CTA */}
+        {user && (
+          <div className="px-4 py-3 border-b border-border">
+            <BookReviewFormDialog isbn={isbn}>
+              <Button variant="outline" className="w-full">
+                <Star className="size-4 mr-2" />
+                Write a Review
+              </Button>
+            </BookReviewFormDialog>
           </div>
         )}
+
+        {/* Reviews list */}
+        {reviewsLoading ? (
+          <CommentsSkeleton />
+        ) : reviews.length > 0 ? (
+          <div className="divide-y divide-border">
+            {reviews.map(({ event, review }) => (
+              <BookReviewCard key={event.id} event={event} review={review} />
+            ))}
+          </div>
+        ) : (
+          <div className="py-12 text-center text-muted-foreground text-sm">
+            <Star className="size-12 mx-auto mb-4 opacity-30" />
+            <p className="text-lg font-medium mb-2">No reviews yet</p>
+            <p>Be the first to review this book!</p>
+          </div>
+        )}
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Book Review Card (shown in Reviews tab)
+// ---------------------------------------------------------------------------
+
+function BookReviewCard({ event, review }: { event: NostrEvent; review: BookReview }) {
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = getDisplayName(metadata, event.pubkey);
+  const profileUrl = useProfileUrl(event.pubkey, metadata);
+  const [showSpoiler, setShowSpoiler] = useState(false);
+
+  const starCount = review.rating !== undefined ? ratingToStars(review.rating) : 0;
+  const hasSpoiler = !!review.contentWarning;
+
+  return (
+    <div className="px-4 py-3">
+      <div className="flex gap-3">
+        {/* Avatar */}
+        {author.isLoading ? (
+          <Skeleton className="size-10 rounded-full shrink-0" />
+        ) : (
+          <ProfileHoverCard pubkey={event.pubkey} asChild>
+            <Link to={profileUrl} className="shrink-0">
+              <Avatar className="size-10">
+                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                  {displayName[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          </ProfileHoverCard>
+        )}
+
+        <div className="min-w-0 flex-1">
+          {/* Author and time */}
+          <div className="flex items-start justify-between">
+            <div>
+              <ProfileHoverCard pubkey={event.pubkey} asChild>
+                <Link to={profileUrl} className="font-semibold text-sm hover:underline">
+                  {displayName}
+                </Link>
+              </ProfileHoverCard>
+              <p className="text-xs text-muted-foreground">{timeAgo(event.created_at)}</p>
+            </div>
+
+            {/* Star rating */}
+            {review.rating !== undefined && (
+              <div className="flex items-center gap-1 shrink-0">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className={cn(
+                      'size-3.5',
+                      i < starCount
+                        ? 'fill-amber-400 text-amber-400'
+                        : 'text-muted-foreground/30',
+                    )}
+                  />
+                ))}
+                <span className="text-xs text-muted-foreground ml-1">
+                  {(review.rating * 5).toFixed(1)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Content with spoiler guard */}
+          {hasSpoiler && !showSpoiler ? (
+            <div className="mt-2 py-3 text-center space-y-2">
+              <div className="flex items-center justify-center gap-2 text-orange-600">
+                <AlertTriangle className="size-4" />
+                <span className="text-sm font-medium">Spoiler Warning</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{review.contentWarning}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSpoiler(true)}
+              >
+                Show Review
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-2">
+              {hasSpoiler && (
+                <Badge variant="outline" className="text-orange-600 border-orange-200 dark:border-orange-800 mb-2">
+                  <AlertTriangle className="size-3 mr-1" />
+                  Contains Spoilers
+                </Badge>
+              )}
+              {review.content ? (
+                <p className="text-sm whitespace-pre-wrap break-words">{review.content}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Rating only, no written review</p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
