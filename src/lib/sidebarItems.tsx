@@ -72,7 +72,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'decks', label: 'Magic Decks', path: '/decks', icon: CardsIcon },
   { id: 'treasures', label: 'Treasures', path: '/treasures', icon: ChestIcon },
   { id: 'emoji-packs', label: 'Emoji Packs', path: '/emoji-packs', icon: SmilePlus },
-  { id: 'development', label: 'Development', path: '/dev', icon: Code },
+  { id: 'development', label: 'Development', path: '/development', icon: Code },
   { id: 'world', label: 'World', path: '/world', icon: Earth },
 ];
 
