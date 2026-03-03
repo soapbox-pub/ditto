@@ -152,12 +152,6 @@ export function VineHeartButton({ event, label, noBackground }: { event: NostrEv
     publishEvent(
       { kind: 7, content: '+', tags: [['e', event.id], ['p', event.pubkey], ['k', String(event.kind)]] },
       {
-        onSuccess: () => {
-          setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
-            queryClient.invalidateQueries({ queryKey: ['event-interactions', event.id] });
-          }, 3000);
-        },
         onError: () => {
           // Revert optimistic updates
           if (prevStats) {
@@ -216,12 +210,6 @@ export function VineRepostButton({ event, label }: { event: NostrEvent; label?: 
       deleteEvent(
         { eventId: repostEventId, eventKind: repostKind },
         {
-          onSuccess: () => {
-            setTimeout(() => {
-              queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
-              queryClient.invalidateQueries({ queryKey: ['user-repost', event.id] });
-            }, 3000);
-          },
           onError: () => {
             if (prevStats) queryClient.setQueryData<EventStats>(['event-stats', event.id], prevStats);
             queryClient.setQueryData(['user-repost', event.id], prevRepostStatus);
@@ -250,13 +238,6 @@ export function VineRepostButton({ event, label }: { event: NostrEvent; label?: 
       publishEvent(
         { kind: repostKind, content: '', tags },
         {
-          onSuccess: () => {
-            setTimeout(() => {
-              queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
-              queryClient.invalidateQueries({ queryKey: ['event-interactions', event.id] });
-              queryClient.invalidateQueries({ queryKey: ['user-repost', event.id] });
-            }, 3000);
-          },
           onError: () => {
             if (prevStats) queryClient.setQueryData<EventStats>(['event-stats', event.id], prevStats);
             queryClient.setQueryData(['user-repost', event.id], null);
