@@ -8,7 +8,7 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { LinkEmbed } from '@/components/LinkEmbed';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
-import { Lightbox } from '@/components/ImageGallery';
+import { Lightbox, ImageGallery } from '@/components/ImageGallery';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { EmojifiedText, CustomEmojiImg } from '@/components/CustomEmoji';
 import { buildEmojiMap } from '@/lib/customEmoji';
@@ -167,6 +167,7 @@ function linkifyFlags(nodes: ReactNode[]): ReactNode[] {
 type ContentToken =
   | { type: 'text'; value: string }
   | { type: 'image-embed'; url: string }
+  | { type: 'image-gallery'; urls: string[] }
   | { type: 'link-embed'; url: string }
   | { type: 'inline-link'; url: string }
   | { type: 'mention'; pubkey: string }
@@ -413,10 +414,58 @@ export function NoteContent({
   // Build emoji map for NIP-30 custom emoji rendering
   const emojiMap = useMemo(() => buildEmojiMap(event.tags), [event.tags]);
 
+  // Parse imeta tags for dim/blurhash to pass to ImageGallery
+  const imetaMap = useMemo(() => {
+    const map = new Map<string, { dim?: string; blurhash?: string }>();
+    for (const tag of event.tags) {
+      if (tag[0] !== 'imeta') continue;
+      const parts: Record<string, string> = {};
+      for (let i = 1; i < tag.length; i++) {
+        const p = tag[i];
+        const sp = p.indexOf(' ');
+        if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
+      }
+      if (parts.url) map.set(parts.url, { dim: parts.dim, blurhash: parts.blurhash });
+    }
+    return map;
+  }, [event.tags]);
+
+  // Group consecutive image-embed tokens (≥2) into image-gallery tokens
+  const groupedTokens = useMemo(() => {
+    const result: ContentToken[] = [];
+    let i = 0;
+    while (i < tokens.length) {
+      const token = tokens[i];
+      if (token.type === 'image-embed') {
+        // Collect this and any immediately following image-embed tokens
+        const run: string[] = [token.url];
+        let j = i + 1;
+        while (j < tokens.length && tokens[j].type === 'image-embed') {
+          run.push((tokens[j] as { type: 'image-embed'; url: string }).url);
+          j++;
+        }
+        if (run.length >= 2) {
+          result.push({ type: 'image-gallery', urls: run });
+        } else {
+          result.push(token);
+        }
+        i = j;
+      } else {
+        result.push(token);
+        i++;
+      }
+    }
+    return result;
+  }, [tokens]);
+
   // Collect all inline image URLs (in order) for the shared lightbox
   const allImages = useMemo(
-    () => tokens.filter((t): t is { type: 'image-embed'; url: string } => t.type === 'image-embed').map((t) => t.url),
-    [tokens],
+    () => groupedTokens.flatMap((t) => {
+      if (t.type === 'image-embed') return [t.url];
+      if (t.type === 'image-gallery') return t.urls;
+      return [];
+    }),
+    [groupedTokens],
   );
 
   // Shared lightbox state for inline images
@@ -426,21 +475,26 @@ export function NoteContent({
   const goPrev = useCallback(() => setLightboxIndex((p) => (p !== null ? (p - 1 + allImages.length) % allImages.length : null)), [allImages.length]);
 
   // Check if content is only emojis — unicode and/or NIP-30 custom emojis (single text token)
-  const isEmojiOnly = tokens.length === 1 && tokens[0].type === 'text' && isOnlyEmojisOrCustom(tokens[0].value, emojiMap);
+  const isEmojiOnly = groupedTokens.length === 1 && groupedTokens[0].type === 'text' && isOnlyEmojisOrCustom(groupedTokens[0].value, emojiMap);
 
-  // Build a map from token index → image list index so duplicate URLs get correct positions
+  // Build a map from grouped token index → starting image list index for lightbox positioning
   const tokenImageIndex = useMemo(() => {
     const map = new Map<number, number>();
     let imgCount = 0;
-    tokens.forEach((t, i) => {
-      if (t.type === 'image-embed') map.set(i, imgCount++);
+    groupedTokens.forEach((t, i) => {
+      if (t.type === 'image-embed') {
+        map.set(i, imgCount++);
+      } else if (t.type === 'image-gallery') {
+        map.set(i, imgCount);
+        imgCount += t.urls.length;
+      }
     });
     return map;
-  }, [tokens]);
+  }, [groupedTokens]);
 
   return (
     <div className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && 'text-5xl leading-tight')}>
-      {tokens.map((token, i) => {
+      {groupedTokens.map((token, i) => {
         switch (token.type) {
           case 'text':
             return <span key={i}>{linkifyFlags(emojify(token.value, emojiMap, isEmojiOnly ? 'inline h-12 w-12 align-text-bottom' : undefined))}</span>;
@@ -456,6 +510,30 @@ export function NoteContent({
                 key={i}
                 url={token.url}
                 onClick={(e) => { e.stopPropagation(); setLightboxIndex(imgIndex); }}
+              />
+            );
+          }
+          case 'image-gallery': {
+            if (disableEmbeds) {
+              return <span key={i}>{token.urls.map(() => '\n').join('')}</span>;
+            }
+            const galleryStartIndex = tokenImageIndex.get(i) ?? 0;
+            const galleryLightboxIndex =
+              lightboxIndex !== null &&
+              lightboxIndex >= galleryStartIndex &&
+              lightboxIndex < galleryStartIndex + token.urls.length
+                ? lightboxIndex - galleryStartIndex
+                : null;
+            return (
+              <ImageGallery
+                key={i}
+                images={token.urls}
+                maxVisible={4}
+                maxGridHeight="480px"
+                imetaMap={imetaMap}
+                lightboxIndex={galleryLightboxIndex}
+                onLightboxOpen={(idx) => { setLightboxIndex(galleryStartIndex + idx); }}
+                onLightboxClose={closeLightbox}
               />
             );
           }
@@ -534,8 +612,13 @@ export function NoteContent({
         }
       })}
 
-      {/* Shared lightbox for all inline images in this post */}
-      {lightboxIndex !== null && (
+      {/* Shared lightbox for standalone inline images (not gallery groups) */}
+      {lightboxIndex !== null && !groupedTokens.some(
+        (t, i) =>
+          t.type === 'image-gallery' &&
+          lightboxIndex >= (tokenImageIndex.get(i) ?? 0) &&
+          lightboxIndex < (tokenImageIndex.get(i) ?? 0) + t.urls.length,
+      ) && (
         <Lightbox
           images={allImages}
           currentIndex={lightboxIndex}
