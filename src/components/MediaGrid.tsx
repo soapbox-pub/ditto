@@ -234,7 +234,7 @@ interface MediaGridProps {
   isFetchingNextPage?: boolean;
 }
 
-export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed, onNearEnd, hasNextPage, isFetchingNextPage }: MediaGridProps) {
+export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed, onNearEnd, hasNextPage }: MediaGridProps) {
   const items = useMemo(
     () => events.map(eventToMediaItem).filter((x): x is MediaItem => x !== null),
     [events],

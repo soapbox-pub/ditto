@@ -626,7 +626,7 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
     panX.current = 0;
     panY.current = 0;
     applyTransform();
-  }, [url]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [url]);
 
   function applyTransform(animated = false) {
     const el = wrapRef.current;
