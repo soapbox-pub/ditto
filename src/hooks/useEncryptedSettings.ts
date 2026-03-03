@@ -60,6 +60,8 @@ export interface EncryptedSettings {
   faviconUrl?: string;
   /** Custom link preview URI template (only synced when non-empty) */
   linkPreviewUrl?: string;
+  /** Sentry DSN for error reporting (empty string = disabled) */
+  sentryDsn?: string;
 }
 
 /**

@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { getSentryInstance } from '@/lib/sentry';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -9,9 +10,9 @@ interface ErrorBoundaryState {
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
+  /** Whether to report errors to Sentry. Defaults to true. */
+  reportToSentry?: boolean;
 }
-
-
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
@@ -37,6 +38,24 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       error,
       errorInfo,
     });
+
+    // Report to Sentry if enabled
+    if (this.props.reportToSentry !== false) {
+      const Sentry = getSentryInstance();
+      if (Sentry) {
+        Sentry.captureException(error, {
+          level: 'fatal',
+          contexts: {
+            react: {
+              componentStack: errorInfo.componentStack ?? undefined,
+            },
+          },
+          tags: {
+            errorBoundary: 'true',
+          },
+        });
+      }
+    }
   }
 
   handleReset = () => {

@@ -161,6 +161,10 @@ export interface AppConfig {
   corsProxy: string;
   /** How to handle NIP-36 content-warning events (blur, hide, or show). Default: "blur". */
   contentWarningPolicy: ContentWarningPolicy;
+  /** Sentry DSN for error reporting (empty string = disabled). */
+  sentryDsn: string;
+  /** Whether the user has enabled Sentry error reporting. */
+  sentryEnabled: boolean;
 }
 
 export interface AppContextType {

@@ -90,6 +90,8 @@ export function TestApp({ children }: TestAppProps) {
     corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
     magicMouse: false,
     contentWarningPolicy: 'blur',
+    sentryDsn: '',
+    sentryEnabled: false,
   };
 
   return (

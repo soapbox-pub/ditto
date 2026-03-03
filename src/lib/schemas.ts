@@ -205,6 +205,8 @@ export const AppConfigSchema = z.object({
   linkPreviewUrl: z.string(),
   corsProxy: z.string(),
   contentWarningPolicy: ContentWarningPolicySchema,
+  sentryDsn: z.string(),
+  sentryEnabled: z.boolean(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────
@@ -272,4 +274,5 @@ export const EncryptedSettingsSchema = z.looseObject({
   corsProxy: z.string().optional(),
   faviconUrl: z.string().optional(),
   linkPreviewUrl: z.string().optional(),
+  sentryDsn: z.string().optional(),
 });

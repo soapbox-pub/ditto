@@ -14,6 +14,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { NostrLoginProvider } from '@nostrify/react/login';
 import { AppProvider } from '@/components/AppProvider';
+import { SentryProvider } from '@/components/SentryProvider';
 import { NWCProvider } from '@/contexts/NWCContext';
 import { AppConfig } from '@/contexts/AppContext';
 import AppRouter from './AppRouter';
@@ -104,6 +105,8 @@ const hardcodedConfig: AppConfig = {
   linkPreviewUrl: 'https://fetch.ditto.pub/link/{url}',
   corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
   contentWarningPolicy: 'blur',
+  sentryDsn: import.meta.env.VITE_SENTRY_DSN || '',
+  sentryEnabled: true,
 };
 
 /**
@@ -131,22 +134,24 @@ export function App() {
   return (
     <UnheadProvider head={head}>
       <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
-        <QueryClientProvider client={queryClient}>
-          <NostrLoginProvider storageKey='nostr:login'>
-            <NostrProvider>
-              <NostrSync />
-              <NativeNotifications />
-              <NWCProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <InitialSyncGate>
-                    <AppRouter />
-                  </InitialSyncGate>
-                </TooltipProvider>
-              </NWCProvider>
-            </NostrProvider>
-          </NostrLoginProvider>
-        </QueryClientProvider>
+        <SentryProvider>
+          <QueryClientProvider client={queryClient}>
+            <NostrLoginProvider storageKey='nostr:login'>
+              <NostrProvider>
+                <NostrSync />
+                <NativeNotifications />
+                <NWCProvider>
+                  <TooltipProvider>
+                    <Toaster />
+                    <InitialSyncGate>
+                      <AppRouter />
+                    </InitialSyncGate>
+                  </TooltipProvider>
+                </NWCProvider>
+              </NostrProvider>
+            </NostrLoginProvider>
+          </QueryClientProvider>
+        </SentryProvider>
       </AppProvider>
     </UnheadProvider>
   );
