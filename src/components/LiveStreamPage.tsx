@@ -179,7 +179,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
         {/* Header */}
         <div className="shrink-0 sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-4 bg-background/80 backdrop-blur-md">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
             className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
             aria-label="Go back"
           >
