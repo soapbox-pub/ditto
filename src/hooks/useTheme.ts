@@ -73,13 +73,10 @@ export function useTheme() {
     // Re-enable transitions after the browser has painted the new theme
     requestAnimationFrame(() => noTransition.remove());
 
-    // Update local immediately — also clear any background from customTheme
+    // Update local immediately — preserve customTheme (including background) so it can be restored
     updateConfig((currentConfig) => ({
       ...currentConfig,
       theme,
-      customTheme: currentConfig.customTheme
-        ? { ...currentConfig.customTheme, background: undefined }
-        : undefined,
     }));
     syncToEncrypted({ theme });
   }, [config.themes, config.customTheme?.colors, updateConfig, syncToEncrypted]);
