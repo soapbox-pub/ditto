@@ -1533,7 +1533,7 @@ export function ProfilePage() {
         <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border bg-background/80 backdrop-blur-md z-10')}>
           <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
           <TabButton label="Posts & replies" active={activeTab === 'replies'} onClick={() => setActiveTab('replies')} />
-          <TabButton label="Media" active={activeTab === 'media'} onClick={() => setActiveTab('media')} />
+          <TabButton label="Media" active={activeTab === 'media'} onClick={() => { setActiveTab('media'); setSidebarMediaUrl(null); }} />
           <TabButton label="Likes" active={activeTab === 'likes'} onClick={() => setActiveTab('likes')} />
           <TabButton label="Wall" active={activeTab === 'wall'} onClick={() => setActiveTab('wall')} />
         </div>
