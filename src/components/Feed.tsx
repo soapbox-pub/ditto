@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
 import { ComposeBox } from '@/components/ComposeBox';
@@ -16,7 +16,6 @@ import { useInfiniteSortedPosts } from '@/hooks/useTrending';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { useSetFabHidden } from '@/contexts/LayoutContext';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 
@@ -40,24 +39,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
-  const setFabHidden = useSetFabHidden();
-
-  // Hide FAB while the ComposeBox is visible in the viewport
-  const composeRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = composeRef.current;
-    if (!el || hideCompose) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setFabHidden(entry.isIntersecting),
-      { threshold: 0 },
-    );
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-      setFabHidden(false); // restore FAB when Feed unmounts
-    };
-  }, [hideCompose, setFabHidden]);
-
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
     const stored = localStorage.getItem('ditto:showGlobalFeed');
@@ -179,7 +160,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
 
   return (
     <main className="flex-1 min-w-0">
-      {!hideCompose && <div ref={composeRef}><ComposeBox compact /></div>}
+      {!hideCompose && <ComposeBox compact />}
 
       {header}
 
