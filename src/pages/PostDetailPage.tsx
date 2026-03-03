@@ -911,7 +911,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   };
 
   const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
-  const hasStats = !!(repostTotal || stats?.reactions || stats?.zapCount);
+  const hasStats = !!(stats?.reposts || stats?.quotes || stats?.reactions || stats?.zapCount);
 
   return (
     <div>
@@ -1121,25 +1121,36 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         {/* Stats row: "2 Reposts 1 👍" left, "Feb 16, 2026, 6:44 PM" right — Ditto style */}
         {hasStats && (
           <div className="flex items-center gap-x-3 py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground">
-            {repostTotal ? (
+            {stats?.reposts ? (
               <button
                 onClick={() => openInteractions('reposts')}
                 className="hover:underline transition-colors"
               >
-                <span className="font-bold text-foreground">{repostTotal}</span>{' '}
-                Repost{repostTotal !== 1 ? 's' : ''}
+                <span className="font-bold text-foreground">{stats.reposts}</span>{' '}
+                Repost{stats.reposts !== 1 ? 's' : ''}
+              </button>
+            ) : null}
+            {stats?.quotes ? (
+              <button
+                onClick={() => openInteractions('quotes')}
+                className="hover:underline transition-colors"
+              >
+                <span className="font-bold text-foreground">{stats.quotes}</span>{' '}
+                Quote{stats.quotes !== 1 ? 's' : ''}
               </button>
             ) : null}
             {stats?.reactions ? (
               <button
                 onClick={() => openInteractions('reactions')}
-                className="hover:underline transition-colors"
+                className="inline-flex items-center gap-1 hover:[&>span:first-child]:underline transition-colors"
               >
-                <span className="font-bold text-foreground">{stats.reactions}</span>{' '}
+                <span className="font-bold text-foreground">{stats.reactions}</span>
                 {topEmojis.length > 0
-                  ? topEmojis.map((emoji, i) => (
-                      <RenderResolvedEmoji key={i} emoji={emoji} className="inline-block h-5 w-5 align-text-bottom" />
-                    ))
+                  ? <span className="inline-flex items-center">
+                      {topEmojis.map((emoji, i) => (
+                        <RenderResolvedEmoji key={i} emoji={emoji} className="h-4 w-4 leading-none" />
+                      ))}
+                    </span>
                   : `Like${stats.reactions !== 1 ? 's' : ''}`}
               </button>
             ) : null}
@@ -1155,7 +1166,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <span className="ml-auto shrink-0 flex items-center gap-1.5">
               {clientTag?.[1] && (
                 <>
-                  <span>{clientTag?.[1]}</span>
+                  <span>{clientTag[1]}</span>
                   <span>·</span>
                 </>
               )}

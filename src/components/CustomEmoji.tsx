@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { isCustomEmoji, getCustomEmojiUrl, buildEmojiMap, type ResolvedEmoji } from '@/lib/customEmoji';
+import { cn } from '@/lib/utils';
 
 interface CustomEmojiImgProps {
   /** The shortcode name (without colons). */
@@ -64,9 +65,9 @@ export function ReactionEmoji({ content, tags, className }: ReactionEmojiProps) 
  */
 export function RenderResolvedEmoji({ emoji, className }: { emoji: ResolvedEmoji; className?: string }) {
   if (emoji.url && emoji.name) {
-    return <CustomEmojiImg name={emoji.name} url={emoji.url} className={className ?? 'inline h-[1.2em] w-[1.2em] align-text-bottom'} />;
+    return <CustomEmojiImg name={emoji.name} url={emoji.url} className={className ?? 'inline h-[1.2em] w-[1.2em] align-middle'} />;
   }
-  return <span className={className}>{emoji.content}</span>;
+  return <span className={cn('inline-block leading-none', className)}>{emoji.content}</span>;
 }
 
 /** Regex matching `:shortcode:` patterns in text. */

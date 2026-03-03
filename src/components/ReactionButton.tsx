@@ -1,12 +1,16 @@
 import { useState, useRef, useCallback } from 'react';
 import { Heart } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { QuickReactMenu } from '@/components/QuickReactMenu';
 import { RenderResolvedEmoji } from '@/components/CustomEmoji';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserReaction } from '@/hooks/useUserReaction';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { cn } from '@/lib/utils';
+import type { EventStats } from '@/hooks/useTrending';
 
 interface ReactionButtonProps {
   /** The event ID being reacted to. */
@@ -32,6 +36,9 @@ export function ReactionButton({
   filledHeart = false,
 }: ReactionButtonProps) {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
+  const { mutate: publishEvent } = useNostrPublish();
+  const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const justClosedRef = useRef(false);
@@ -40,8 +47,59 @@ export function ReactionButton({
 
   const hasReacted = !!userReaction;
 
+  const handleUnreact = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) return;
+
+    // Find the user's kind 7 event ID to delete
+    const events = await nostr.query([{
+      kinds: [7],
+      authors: [user.pubkey],
+      '#e': [eventId],
+      limit: 1,
+    }]);
+
+    if (events.length === 0) return;
+
+    const reactionEventId = events[0].id;
+
+    // Snapshot for rollback
+    const prevReaction = queryClient.getQueryData(['user-reaction', eventId]);
+    const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
+
+    // Optimistic update: clear reaction and decrement count
+    queryClient.setQueryData(['user-reaction', eventId], null);
+    if (prevStats) {
+      queryClient.setQueryData<EventStats>(['event-stats', eventId], {
+        ...prevStats,
+        reactions: Math.max(0, prevStats.reactions - 1),
+      });
+    }
+
+    publishEvent(
+      { kind: 5, content: '', tags: [['e', reactionEventId], ['k', '7']] },
+      {
+        onSuccess: () => {
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
+            queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
+            queryClient.invalidateQueries({ queryKey: ['user-reaction', eventId] });
+          }, 3000);
+        },
+        onError: () => {
+          // Rollback
+          queryClient.setQueryData(['user-reaction', eventId], prevReaction);
+          if (prevStats) {
+            queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
+          }
+        },
+      },
+    );
+  }, [user, nostr, eventId, publishEvent, queryClient]);
+
   const handleMouseEnter = useCallback(() => {
     if (!user) return;
+    if (hasReacted) return;
     if (justClosedRef.current) return;
     // Clear any pending close timeout
     if (closeTimeoutRef.current) {
@@ -49,7 +107,7 @@ export function ReactionButton({
       closeTimeoutRef.current = null;
     }
     setMenuOpen(true);
-  }, [user]);
+  }, [user, hasReacted]);
 
   const handleMouseLeave = useCallback(() => {
     // Don't auto-close when the full emoji picker is open
@@ -78,6 +136,10 @@ export function ReactionButton({
           onClick={(e) => {
             e.stopPropagation();
             if (!user) return;
+            if (hasReacted) {
+              handleUnreact(e);
+              return;
+            }
             if (justClosedRef.current) return;
             setMenuOpen((prev) => !prev);
           }}
@@ -87,9 +149,7 @@ export function ReactionButton({
           {filledHeart ? (
             <Heart className="size-6" fill={hasReacted ? 'currentColor' : 'none'} />
           ) : hasReacted && userReaction ? (
-            <span className="size-5 flex items-center justify-center leading-none">
-              <RenderResolvedEmoji emoji={userReaction} className="inline-block h-5 w-5" />
-            </span>
+            <RenderResolvedEmoji emoji={userReaction} className="size-5 leading-none translate-y-px" />
           ) : (
             <Heart className="size-5" />
           )}
