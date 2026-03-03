@@ -144,7 +144,10 @@ export function PhotosFeedPage() {
         </div>
       ) : (
         <>
-          <MediaGrid events={photoEvents} />
+          <MediaGrid
+            events={photoEvents}
+            onNearEnd={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
+          />
           <div ref={scrollRef} className="py-4">
             {isFetchingNextPage && (
               <div className="flex justify-center">
