@@ -64,7 +64,7 @@ function PageSkeleton() {
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
-  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, noBottomSpacer = false, wrapperClassName } = useLayoutSnapshot();
+  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, noBottomSpacer = false, wrapperClassName, fabHidden } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { config } = useAppContext();
 
@@ -92,8 +92,11 @@ function MainLayoutInner() {
           <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l border-r border-border bg-background/85")}>
             <Outlet />
             {showFAB && (
-              <div className="sticky bottom-fab sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
-                <div className="pointer-events-auto">
+              <div className={cn(
+                'sticky bottom-fab sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6 transition-all duration-300',
+                fabHidden ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0',
+              )}>
+                <div className={cn('pointer-events-auto', fabHidden && 'pointer-events-none')}>
                   <FloatingComposeButton kind={fabKind} href={fabHref} onFabClick={onFabClick} />
                 </div>
               </div>
