@@ -9,7 +9,7 @@ export function ContentSettingsPage() {
 
   useSeoMeta({
     title: `Feed | Settings | ${config.appName}`,
-    description: 'Manage your feed and content preferences',
+    description: 'Choose what types of posts appear in your feed',
   });
 
   return (
@@ -23,7 +23,7 @@ export function ContentSettingsPage() {
           <div>
             <h1 className="text-xl font-bold">Feed</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Manage your feed and content preferences
+              Choose what types of posts appear in your feed
             </p>
           </div>
         </div>
