@@ -286,7 +286,7 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
               onClick={(e) => e.stopPropagation()}
               aria-label="Volume"
               className={cn(
-                'w-0 opacity-0 group-hover/vol:w-16 group-hover/vol:opacity-100',
+                'w-0 opacity-0 group-hover/vol:w-16 group-hover/vol:opacity-100 group-focus-within/vol:w-16 group-focus-within/vol:opacity-100',
                 'transition-all duration-200 cursor-pointer accent-white h-1',
               )}
             />
