@@ -24,6 +24,8 @@ interface ProfileRightSidebarProps {
   mediaEvents?: NostrEvent[];
   /** Whether the media events are still loading. */
   mediaLoading?: boolean;
+  /** Called when a media tile is clicked. If provided, tiles don't navigate. */
+  onMediaClick?: (url: string) => void;
 }
 
 interface MediaItem {
@@ -306,7 +308,7 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
   );
 }
 
-export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp }: ProfileRightSidebarProps) {
+export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp, onMediaClick }: ProfileRightSidebarProps) {
   const { config } = useAppContext();
   const media = useMemo(
     () => extractMedia(mediaEvents ?? [], config.contentWarningPolicy),
@@ -330,20 +332,39 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
             {media.map((item, i) => {
               // CW + blur: show a blurred placeholder instead of loading media
               if (item.hasContentWarning && config.contentWarningPolicy === 'blur') {
-                return (
-                  <Link
-                    key={i}
-                    to={eventLink(item)}
-                    className="aspect-square rounded-lg overflow-hidden block relative"
-                  >
+                const cwInner = (
+                  <>
                     <div className="w-full h-full bg-muted/60 blur-lg" />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <ShieldAlert className="size-5 text-muted-foreground" />
                     </div>
+                  </>
+                );
+                if (onMediaClick) {
+                  return (
+                    <button key={i} className="aspect-square rounded-lg overflow-hidden block relative w-full" onClick={() => onMediaClick(item.url)}>
+                      {cwInner}
+                    </button>
+                  );
+                }
+                return (
+                  <Link key={i} to={eventLink(item)} className="aspect-square rounded-lg overflow-hidden block relative">
+                    {cwInner}
                   </Link>
                 );
               }
 
+              if (onMediaClick) {
+                return (
+                  <button
+                    key={i}
+                    className="aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity block relative w-full"
+                    onClick={() => onMediaClick(item.url)}
+                  >
+                    <MediaTile item={item} />
+                  </button>
+                );
+              }
               return (
                 <Link
                   key={i}

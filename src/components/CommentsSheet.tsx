@@ -39,7 +39,9 @@ export function useEventComments(event: NostrEvent | undefined) {
       const filter =
         event.kind >= 30000 && event.kind < 40000 && aTag
           ? { kinds: [1111, 1244], '#A': [aTag], limit: 80 }
-          : { kinds: [1, 1111], '#e': [event.id], limit: 80 };
+          : event.kind === 1
+          ? { kinds: [1], '#e': [event.id], limit: 80 }
+          : { kinds: [1111], '#e': [event.id], limit: 80 };
       const events = await nostr.query([filter], { signal: abort });
       const seen = new Set<string>();
       return events
@@ -128,19 +130,19 @@ export function CommentsSheet({ event, open, onClose }: CommentsModalProps) {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-in fade-in-0 duration-200"
+        className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm animate-in fade-in-0 duration-200"
         onClick={(e) => { e.stopPropagation(); onClose(); }}
       />
 
       {/* Modal — centered, rounded */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 pointer-events-none">
         <div
           className="pointer-events-auto w-full max-w-lg max-h-[80vh] flex flex-col bg-background/90 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in-0 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 shrink-0">
-            <h3 className="font-semibold text-sm">Comments</h3>
+            <h3 className="font-semibold text-sm">{event?.kind === 1 ? 'Replies' : 'Comments'}</h3>
             <button
               className="p-1.5 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
               onClick={onClose}
@@ -152,7 +154,7 @@ export function CommentsSheet({ event, open, onClose }: CommentsModalProps) {
           {/* Compose — top */}
           {event && (
             <div className="shrink-0 -mb-px overflow-hidden">
-              <ComposeBox replyTo={event} compact placeholder="Add a comment…" />
+              <ComposeBox replyTo={event} compact placeholder={event?.kind === 1 ? 'Add a reply…' : 'Add a comment…'} />
             </div>
           )}
 

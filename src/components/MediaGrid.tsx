@@ -1,32 +1,53 @@
 /**
  * MediaGrid — generic 3-column square-thumbnail grid for Nostr media events.
- *
- * All images across all events are flattened into a single array so the
- * Lightbox swipe just moves through them in order with no special-casing.
+ * Supports images, video, and audio. All media across all events is flattened
+ * into one array so the Lightbox strip swipe just advances through them in order.
  */
 
 import { useState, useMemo } from 'react';
-import { Images } from 'lucide-react';
+import { Images, Play } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Lightbox } from '@/components/ImageGallery';
 import { PhotoBottomBar } from '@/components/PhotoBottomBar';
+import { useAuthor } from '@/hooks/useAuthor';
+import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
+
+// ── Media type detection ──────────────────────────────────────────────────────
+
+export type MediaType = 'image' | 'video' | 'audio';
+
+function detectType(url: string, mime?: string): MediaType {
+  if (mime) {
+    if (mime.startsWith('video/')) return 'video';
+    if (mime.startsWith('audio/')) return 'audio';
+    if (mime.startsWith('image/')) return 'image';
+  }
+  if (/\.(mp4|webm|mov|m3u8)(\?.*)?$/i.test(url)) return 'video';
+  if (/\.(mp3|ogg|flac|wav|aac|opus)(\?.*)?$/i.test(url)) return 'audio';
+  return 'image';
+}
 
 // ── Media extraction ──────────────────────────────────────────────────────────
 
 export interface MediaItem {
   url: string;
+  type: MediaType;
   blurhash?: string;
+  dim?: string;
   alt?: string;
+  mime?: string;
   allUrls: string[];
+  allTypes: MediaType[];
   event: NostrEvent;
   hasMultiple: boolean;
 }
 
-function parseImeta(tags: string[][]): { url: string; blurhash?: string; alt?: string }[] {
-  const results: { url: string; blurhash?: string; alt?: string }[] = [];
+function parseImeta(tags: string[][]): { url: string; blurhash?: string; dim?: string; alt?: string; mime?: string }[] {
+  const results: { url: string; blurhash?: string; dim?: string; alt?: string; mime?: string }[] = [];
   for (const tag of tags) {
     if (tag[0] !== 'imeta') continue;
     const parts: Record<string, string> = {};
@@ -34,45 +55,84 @@ function parseImeta(tags: string[][]): { url: string; blurhash?: string; alt?: s
       const sp = tag[i].indexOf(' ');
       if (sp !== -1) parts[tag[i].slice(0, sp)] = tag[i].slice(sp + 1);
     }
-    if (parts.url) results.push({ url: parts.url, blurhash: parts.blurhash, alt: parts.alt });
+    if (parts.url) results.push({ url: parts.url, blurhash: parts.blurhash, dim: parts.dim, alt: parts.alt, mime: parts.m });
   }
   return results;
 }
 
-function extractImageUrls(content: string): string[] {
-  return content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi) ?? [];
+function extractMediaUrls(content: string): string[] {
+  return content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|flac|wav|aac|opus)(\?[^\s]*)?/gi) ?? [];
 }
 
 export function eventToMediaItem(event: NostrEvent): MediaItem | null {
   const imeta = parseImeta(event.tags);
   if (imeta.length > 0) {
+    const first = imeta[0];
+    const firstType = detectType(first.url, first.mime);
     return {
-      url: imeta[0].url,
-      blurhash: imeta[0].blurhash,
-      alt: imeta[0].alt,
+      url: first.url,
+      type: firstType,
+      blurhash: first.blurhash,
+      dim: first.dim,
+      alt: first.alt,
+      mime: first.mime,
       allUrls: imeta.map((e) => e.url),
+      allTypes: imeta.map((e) => detectType(e.url, e.mime)),
       event,
       hasMultiple: imeta.length > 1,
     };
   }
   if (event.kind === 1) {
-    const urls = extractImageUrls(event.content);
+    const urls = extractMediaUrls(event.content);
     if (urls.length > 0) {
-      return { url: urls[0], allUrls: urls, event, hasMultiple: urls.length > 1 };
+      const types = urls.map((u) => detectType(u));
+      return {
+        url: urls[0],
+        type: types[0],
+        allUrls: urls,
+        allTypes: types,
+        event,
+        hasMultiple: urls.length > 1,
+      };
     }
   }
   return null;
 }
 
-// ── Flat entry — one per image URL across all events ─────────────────────────
+// ── Flat entry — one per media URL across all events ─────────────────────────
 
 interface FlatEntry {
   url: string;
+  type: MediaType;
+  mime?: string;
+  dim?: string;
+  blurhash?: string;
+  pubkey: string;
   event: NostrEvent;
-  /** 0-based index of this image within its event */
   indexInEvent: number;
-  /** total images in this event */
   countInEvent: number;
+}
+
+// ── Audio thumbnail — idle visualizer with author avatar ──────────────────────
+
+function AudioThumb({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const name = metadata?.name ?? genUserName(pubkey);
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 via-background/40 to-primary/5">
+      {/* Idle sine-wave rings */}
+      <div className="absolute inset-0 flex items-center justify-center opacity-20">
+        <div className="size-24 rounded-full border border-primary animate-ping" style={{ animationDuration: '3s' }} />
+        <div className="absolute size-16 rounded-full border border-primary animate-ping" style={{ animationDuration: '2.3s', animationDelay: '0.5s' }} />
+      </div>
+      <Avatar className="size-12 relative ring-2 ring-primary/40">
+        <AvatarImage src={metadata?.picture} alt={name} />
+        <AvatarFallback className="text-base">{name[0]?.toUpperCase()}</AvatarFallback>
+      </Avatar>
+    </div>
+  );
 }
 
 // ── Grid thumbnail ────────────────────────────────────────────────────────────
@@ -98,20 +158,45 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
           style={{ width: '100%', height: '100%' }}
         />
       )}
-      {!item.blurhash && !loaded && (
+      {!item.blurhash && !loaded && item.type !== 'audio' && (
         <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
       )}
-      <img
-        src={item.url}
-        alt={item.alt ?? ''}
-        className={cn(
-          'absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-[1.04]',
-          loaded ? 'opacity-100' : 'opacity-0',
-        )}
-        loading="lazy"
-        onLoad={() => setLoaded(true)}
-      />
-      {item.hasMultiple && (
+
+      {item.type === 'video' && (
+        <video
+          src={item.url}
+          className={cn('absolute inset-0 w-full h-full object-cover transition-opacity duration-300 group-hover:scale-[1.04]', loaded ? 'opacity-100' : 'opacity-0')}
+          muted
+          autoPlay
+          loop
+          playsInline
+          preload="metadata"
+          onLoadedData={() => setLoaded(true)}
+        />
+      )}
+      {item.type === 'image' && (
+        <img
+          src={item.url}
+          alt={item.alt ?? ''}
+          className={cn('absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-[1.04]', loaded ? 'opacity-100' : 'opacity-0')}
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+        />
+      )}
+      {item.type === 'audio' && (
+        <AudioThumb pubkey={item.event.pubkey} />
+      )}
+
+      {/* Play badge for video */}
+      {item.type === 'video' && (
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="bg-black/50 rounded-full p-2">
+            <Play className="size-5 text-white fill-white" />
+          </div>
+        </div>
+      )}
+
+      {item.hasMultiple && item.type === 'image' && (
         <div className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded p-0.5">
           <Images className="size-3.5" />
         </div>
@@ -138,20 +223,26 @@ export function MediaGridSkeleton({ count = 15 }: { count?: number }) {
 interface MediaGridProps {
   events: NostrEvent[];
   className?: string;
+  /** If set, the lightbox opens at this URL on mount (used by sidebar click). */
+  initialOpenUrl?: string;
+  onInitialOpenConsumed?: () => void;
 }
 
-export function MediaGrid({ events, className }: MediaGridProps) {
+export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed }: MediaGridProps) {
   const items = useMemo(
     () => events.map(eventToMediaItem).filter((x): x is MediaItem => x !== null),
     [events],
   );
 
-  // Flat list of every image URL in order, each paired with its source event.
-  // This is what the Lightbox receives — swipe just advances the flat index.
   const flat = useMemo<FlatEntry[]>(
     () => items.flatMap((item) =>
       item.allUrls.map((url, indexInEvent) => ({
         url,
+        type: item.allTypes[indexInEvent] ?? item.type,
+        mime: item.mime,
+        dim: item.dim,
+        blurhash: item.blurhash,
+        pubkey: item.event.pubkey,
         event: item.event,
         indexInEvent,
         countInEvent: item.allUrls.length,
@@ -160,7 +251,6 @@ export function MediaGrid({ events, className }: MediaGridProps) {
     [items],
   );
 
-  // Map from item index → flat index of its first image, for grid tap.
   const itemStartIndex = useMemo(() => {
     const starts: number[] = [];
     let cursor = 0;
@@ -171,8 +261,14 @@ export function MediaGrid({ events, className }: MediaGridProps) {
     return starts;
   }, [items]);
 
-  const [flatIndex, setFlatIndex] = useState<number | null>(null);
-  const [commentsEvent, setCommentsEvent] = useState<NostrEvent | null>(null);
+  // Open at initialOpenUrl if provided
+  const initialIndex = useMemo(() => {
+    if (!initialOpenUrl) return null;
+    const idx = flat.findIndex((e) => e.url === initialOpenUrl);
+    return idx >= 0 ? idx : null;
+  }, [flat, initialOpenUrl]);
+
+  const [flatIndex, setFlatIndex] = useState<number | null>(initialIndex);
 
   const activeEntry = flatIndex !== null ? flat[flatIndex] : null;
 
@@ -193,6 +289,8 @@ export function MediaGrid({ events, className }: MediaGridProps) {
       {flatIndex !== null && activeEntry && (
         <Lightbox
           images={flat.map((e) => e.url)}
+          mediaTypes={flat.map((e) => e.type)}
+          mediaMeta={flat.map((e) => ({ mime: e.mime, dim: e.dim, blurhash: e.blurhash, pubkey: e.pubkey }))}
           currentIndex={flatIndex}
           onClose={() => setFlatIndex(null)}
           onNext={() => setFlatIndex((i) => (i !== null ? Math.min(i + 1, flat.length - 1) : null))}
@@ -205,12 +303,7 @@ export function MediaGrid({ events, className }: MediaGridProps) {
             ) : <span />
           }
           bottomBar={
-            <PhotoBottomBar
-              event={activeEntry.event}
-              onCommentClick={() => setCommentsEvent(activeEntry.event)}
-              commentsEvent={commentsEvent}
-              onCommentsClose={() => setCommentsEvent(null)}
-            />
+            <PhotoBottomBar event={activeEntry.event} />
           }
         />
       )}
