@@ -3,7 +3,7 @@
  * comments/replies on any Nostr event.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
@@ -117,10 +117,13 @@ interface CommentsModalProps {
 }
 
 export function CommentsSheet({ event, open, onClose }: CommentsModalProps) {
-  // Always pass the current event (not gated on `open`) so the query key
-  // updates immediately when the event changes — prevents stale replies
-  // from a previous image flashing before the new query resolves.
-  const { data: rawComments = [], isLoading } = useEventComments(event);
+  const { data: rawComments = [], isLoading, isFetching } = useEventComments(event);
+
+  // Track which event id the current data belongs to. When the event changes,
+  // treat it as loading until React Query returns fresh data for the new id.
+  const dataEventId = useRef<string | undefined>(undefined);
+  const isStale = event?.id !== dataEventId.current && isFetching;
+  if (!isFetching) dataEventId.current = event?.id;
 
   const comments = useMemo(() => {
     const seen = new Set<string>();
@@ -163,7 +166,7 @@ export function CommentsSheet({ event, open, onClose }: CommentsModalProps) {
 
           {/* Comment list */}
           <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-border/50">
-            {isLoading ? (
+            {isLoading || isStale ? (
               <div className="py-2">
                 {Array.from({ length: 5 }).map((_, i) => <CommentSkeleton key={i} />)}
               </div>
