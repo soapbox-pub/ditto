@@ -19,8 +19,12 @@ export function useUserReaction(eventId: string | undefined): ResolvedEmoji | nu
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
 
-  // Check optimistic cache first
-  const optimistic = queryClient.getQueryData<ResolvedEmoji>(['user-reaction', eventId ?? '']);
+  // Check optimistic cache first.
+  // The cache may hold a ResolvedEmoji (reacted), null (confirmed no reaction), or
+  // undefined (not yet fetched). We use `undefined` as "unknown" and `null` as
+  // "optimistically cleared" so the query doesn't re-fetch after an un-react.
+  const cached = queryClient.getQueryData<ResolvedEmoji | null>(['user-reaction', eventId ?? '']);
+  const hasCachedValue = cached !== undefined;
 
   const { data } = useQuery({
     queryKey: ['user-reaction', eventId ?? ''],
@@ -44,12 +48,12 @@ export function useUserReaction(eventId: string | undefined): ResolvedEmoji | nu
 
       return resolveReactionEmoji(events[0]);
     },
-    enabled: !!eventId && !!user && !optimistic,
+    enabled: !!eventId && !!user && !hasCachedValue,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
 
-  // Prefer optimistic value, then query result
-  if (optimistic) return optimistic;
+  // Prefer cached value (including explicit null = no reaction), then query result
+  if (hasCachedValue) return cached;
   return data;
 }

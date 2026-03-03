@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Quote, Heart, Zap, X, ChevronRight } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
@@ -42,9 +42,12 @@ export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'r
   const [activeTab, setActiveTab] = useState<InteractionTab>(initialTab);
   const { data, isLoading } = useEventInteractions(open ? eventId : undefined);
 
-  // Reset tab to initialTab when modal opens with a different tab
+  // Sync active tab whenever initialTab changes (e.g. clicking a different stat while modal is already open)
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
   const handleOpenChange = (value: boolean) => {
-    if (value) setActiveTab(initialTab);
     onOpenChange(value);
   };
 
