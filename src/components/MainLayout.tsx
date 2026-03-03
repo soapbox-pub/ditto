@@ -88,23 +88,27 @@ function MainLayoutInner() {
 
         {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
         <Suspense fallback={<PageSkeleton />}>
-          {/* Wrap the center column in a relative container for the FAB */}
           <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l border-r border-border bg-background/85")}>
             <Outlet />
-            {showFAB && (
-              <div className={cn(
-                'sticky bottom-fab sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6 transition-all duration-300',
-                fabHidden ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0',
-              )}>
-                <div className={cn('pointer-events-auto', fabHidden && 'pointer-events-none')}>
-                  <FloatingComposeButton kind={fabKind} href={fabHref} onFabClick={onFabClick} />
-                </div>
-              </div>
-            )}
           </div>
           {rightSidebar ?? <RightSidebar />}
         </Suspense>
       </div>
+
+      {/* FAB — fixed above the mobile nav bar, centered on the content column */}
+      {showFAB && (
+        <div className={cn(
+          'fixed bottom-fab sidebar:bottom-6 inset-x-0 z-30 pointer-events-none flex justify-center transition-all duration-300',
+          fabHidden ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0',
+        )}>
+          {/* Constrain to center column width so it aligns with content */}
+          <div className="w-full max-w-[600px] flex justify-end pr-6 pointer-events-none">
+            <div className={cn('pointer-events-auto', fabHidden && 'pointer-events-none')}>
+              <FloatingComposeButton kind={fabKind} href={fabHref} onFabClick={onFabClick} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile bottom nav - only on small screens */}
       <MobileBottomNav />
