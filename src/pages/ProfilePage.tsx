@@ -1661,6 +1661,7 @@ export function ProfilePage() {
                   events={mediaEvents}
                   initialOpenUrl={sidebarMediaUrl ?? undefined}
                   onInitialOpenConsumed={() => setSidebarMediaUrl(null)}
+                  onNearEnd={() => { if (hasNextMediaPage && !isFetchingNextMediaPage) fetchNextMediaPage(); }}
                 />
                 {hasNextMediaPage && (
                   <div ref={scrollRef} className="flex justify-center py-6">
