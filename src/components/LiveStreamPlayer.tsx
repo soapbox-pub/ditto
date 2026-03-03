@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import type Hls from 'hls.js';
-import { Play, Pause, Volume2, VolumeX, Expand, Minimize } from 'lucide-react';
+import { Play, Pause, Volume1, Volume2, VolumeX, Expand, Minimize } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LiveStreamPlayerProps {
@@ -18,6 +18,8 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const prevVolumeRef = useRef(0.8);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
@@ -223,8 +225,17 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
     e.stopPropagation();
     const video = videoRef.current;
     if (!video) return;
-    video.muted = !video.muted;
-    setIsMuted(video.muted);
+    if (video.muted || video.volume === 0) {
+      const restored = prevVolumeRef.current > 0 ? prevVolumeRef.current : 0.5;
+      video.muted = false;
+      video.volume = restored;
+      setIsMuted(false);
+      setVolume(restored);
+    } else {
+      prevVolumeRef.current = video.volume;
+      video.muted = true;
+      setIsMuted(true);
+    }
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,14 +244,10 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
     if (!video) return;
     const val = parseFloat(e.target.value);
     video.volume = val;
+    video.muted = val === 0;
+    if (val > 0) prevVolumeRef.current = val;
     setVolume(val);
-    if (val === 0) {
-      video.muted = true;
-      setIsMuted(true);
-    } else if (video.muted) {
-      video.muted = false;
-      setIsMuted(false);
-    }
+    setIsMuted(val === 0);
   };
 
   const toggleFullscreen = (e: React.MouseEvent) => {
@@ -355,17 +362,21 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
               className="text-white hover:text-white/80 transition-colors p-1"
               aria-label={isMuted ? 'Unmute' : 'Mute'}
             >
-              {isMuted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
+              {isMuted || volume === 0
+                ? <VolumeX className="size-5" />
+                : volume < 0.5
+                  ? <Volume1 className="size-5" />
+                  : <Volume2 className="size-5" />}
             </button>
             <input
               type="range"
               min="0"
               max="1"
-              step="0.05"
+              step="0.02"
               value={isMuted ? 0 : volume}
               onChange={handleVolumeChange}
               onClick={(e) => e.stopPropagation()}
-              className="w-0 group-hover/volume:w-20 transition-all duration-200 accent-white h-1 cursor-pointer opacity-0 group-hover/volume:opacity-100"
+              className="w-0 group-hover/volume:w-16 transition-all duration-200 accent-white h-1 cursor-pointer opacity-0 group-hover/volume:opacity-100"
               aria-label="Volume"
             />
           </div>
