@@ -8,7 +8,6 @@ import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { DittoLogo } from '@/components/DittoLogo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type ContentWarningPolicy } from '@/contexts/AppContext';
@@ -37,17 +36,7 @@ import {
   Loader2,
   Heart,
   Download,
-  Upload,
-  ChevronDown,
-  ChevronUp,
-  Plus,
-  Trash2,
 } from 'lucide-react';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
