@@ -19,7 +19,7 @@ function PageSkeleton() {
       {/* Main column skeleton */}
       <main className="flex-1 min-w-0 min-h-screen">
         {/* Header skeleton */}
-        <div className="flex items-center gap-4 px-4 mt-4 mb-5">
+        <div className="flex items-center gap-4 px-4 pt-4 pb-5">
           <Skeleton className="h-6 w-32" />
         </div>
         {/* Content skeletons */}

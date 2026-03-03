@@ -271,7 +271,7 @@ export function ExternalContentPage() {
   return (
     <main className="">
       {/* Non-sticky transparent header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-5">
+      <div className="flex items-center gap-4 px-4 pt-4 pb-5">
         <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
           <ArrowLeft className="size-5" />
         </Link>
