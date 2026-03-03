@@ -177,7 +177,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
     <>
       <main className="xl:max-sidebar:flex max-sidebar:flex max-sidebar:flex-col max-sidebar:livestream-height max-sidebar:overflow-hidden">
         {/* Header */}
-        <div className="shrink-0 sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-4 bg-background/80 backdrop-blur-md">
+        <div className="shrink-0 sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-2 mb-2 sidebar:mt-4 sidebar:mb-4 bg-background/80 backdrop-blur-md">
           <button
             onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
             className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
@@ -213,7 +213,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
         </div>
 
         {/* Stream compact info — always visible */}
-        <div className="px-4 mt-4 space-y-3 shrink-0">
+        <div className="px-4 mt-2 sidebar:mt-4 space-y-2 sidebar:space-y-3 shrink-0">
           {/* Title row with zap button on the right */}
           <div className="flex items-start gap-3">
             <div className="flex-1 min-w-0 space-y-2">
@@ -268,7 +268,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
         </div>
 
         {/* Mobile chat — fills remaining viewport, scrollbox sits above bottom nav */}
-        <div className="xl:hidden mt-4 border-t border-border flex-1 min-h-0 overflow-hidden">
+        <div className="xl:hidden mt-2 border-t border-border flex-1 min-h-0 overflow-hidden">
           <LiveStreamChat aTag={aTag} className="h-full" />
         </div>
 
