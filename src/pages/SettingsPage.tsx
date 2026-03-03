@@ -36,7 +36,7 @@ const settingsSections: SettingsSection[] = [
   {
     id: 'feed',
     label: 'Feed',
-    description: 'Manage your feed and content preferences',
+    description: 'Choose what types of posts appear in your feed',
     illustration: '/community-intro.png',
     path: '/settings/feed',
   },
