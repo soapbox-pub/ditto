@@ -165,9 +165,15 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
       }).catch(() => {});
       return;
     }
+    // On the first tap, just reveal controls without toggling play/pause.
+    // A second tap while controls are visible toggles play/pause.
+    if (!showControls) {
+      revealControls();
+      return;
+    }
     togglePlay(e);
     revealControls();
-  }, [autoplayBlocked, togglePlay, revealControls]);
+  }, [autoplayBlocked, showControls, togglePlay, revealControls]);
 
   const toggleFullscreen = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
