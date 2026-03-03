@@ -286,6 +286,10 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
   const [hasStarted, setHasStarted] = useState(false);
   const [isAttemptingPlay, setIsAttemptingPlay] = useState(isActive);
   const [isMuted, setIsMuted] = useState(globalMuted);
+  // true once the browser has decoded enough to render the first frame
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  // true when the video is stalling / rebuffering mid-playback
+  const [isBuffering, setIsBuffering] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -294,6 +298,14 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
   const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
 
   const { src, onError: onBlossomError } = useBlossomFallback(imeta.url ?? '');
+
+  // Reset ready/buffering state when the active vine changes (new src loaded)
+  useEffect(() => {
+    setIsVideoReady(false);
+    setIsBuffering(false);
+    setHasStarted(false);
+    setIsPlaying(false);
+  }, [src]);
 
   // Auto-play / auto-pause based on active state
   useEffect(() => {
@@ -312,6 +324,7 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
       video.pause();
       video.currentTime = 0;
       setIsAttemptingPlay(false);
+      setIsBuffering(false);
     }
   }, [isActive, imeta.url]);
 
@@ -344,20 +357,38 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
           <video
             ref={videoRef}
             src={src}
-            poster={imeta.thumbnail}
             className="absolute inset-0 w-full h-full object-cover"
             loop
             playsInline
             muted={isMuted}
             preload={isActive ? 'auto' : isNearActive ? 'metadata' : 'none'}
-            onPlay={() => { setIsPlaying(true); setHasStarted(true); setIsAttemptingPlay(false); }}
+            onCanPlay={() => setIsVideoReady(true)}
+            onPlay={() => { setIsPlaying(true); setHasStarted(true); setIsAttemptingPlay(false); setIsBuffering(false); }}
             onPause={() => { setIsPlaying(false); setIsAttemptingPlay(false); }}
+            onWaiting={() => { if (hasStarted) setIsBuffering(true); }}
+            onStalled={() => { if (hasStarted) setIsBuffering(true); }}
+            onPlaying={() => setIsBuffering(false)}
             onError={onBlossomError}
             onClick={togglePlay}
           />
 
-          {/* Big play overlay before first play — hidden while autoplay is attempting */}
-          {!hasStarted && !isAttemptingPlay && (
+          {/* Thumbnail — shown until the first frame is decoded and ready */}
+          {!isVideoReady && imeta.thumbnail && (
+            <img
+              src={imeta.thumbnail}
+              alt=""
+              aria-hidden
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            />
+          )}
+
+          {/* Solid bg fallback when there's no thumbnail and video isn't ready */}
+          {!isVideoReady && !imeta.thumbnail && (
+            <div className="absolute inset-0 bg-neutral-900 pointer-events-none" />
+          )}
+
+          {/* Big play overlay before first play — only shown once video is ready and autoplay isn't attempting */}
+          {isVideoReady && !hasStarted && !isAttemptingPlay && (
             <div
               className="absolute inset-0 flex items-center justify-center cursor-pointer"
               onClick={togglePlay}
@@ -369,13 +400,31 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
           )}
 
           {/* Tap-to-pause overlay (after first play, while paused) */}
-          {hasStarted && !isPlaying && (
+          {hasStarted && !isPlaying && !isBuffering && (
             <div
               className="absolute inset-0 flex items-center justify-center cursor-pointer"
               onClick={togglePlay}
             >
               <div className="size-16 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-sm border border-white/20 animate-in zoom-in-50 duration-150">
                 <Play className="size-8 text-white ml-1" fill="white" />
+              </div>
+            </div>
+          )}
+
+          {/* Buffering spinner — shown when rebuffering mid-playback */}
+          {isBuffering && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="size-14 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center">
+                <svg
+                  className="size-7 text-white animate-spin"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
               </div>
             </div>
           )}
@@ -386,112 +435,122 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
         </div>
       )}
 
-      {/* ── Gradient overlays ────────────────────────────────────────── */}
-      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
-      <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
+      {/* ── Gradient overlays — only rendered once video UI is visible ── */}
+      {isVideoReady && (
+        <>
+          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
+        </>
+      )}
 
-      {/* ── Mute toggle (top-right) ───────────────────────────────────── */}
-      <button
-        className="absolute top-4 right-4 z-10 size-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
-        onClick={toggleMute}
-        aria-label={isMuted ? 'Unmute' : 'Mute'}
-      >
-        {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
-      </button>
+      {/* ── Mute toggle (top-right) — only shown once video is ready ──── */}
+      {isVideoReady && (
+        <button
+          className="absolute top-4 right-4 z-10 size-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+          onClick={toggleMute}
+          aria-label={isMuted ? 'Unmute' : 'Mute'}
+        >
+          {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+        </button>
+      )}
 
-      {/* ── Right action sidebar ──────────────────────────────────────── */}
-      <div className="absolute right-3 bottom-24 z-10 flex flex-col items-center gap-5">
-        {/* Author avatar */}
-        <ProfileHoverCard pubkey={event.pubkey} asChild>
-          <Link
-            to={profileUrl}
-            onClick={(e) => e.stopPropagation()}
-            className="block"
-          >
-            {author.isLoading ? (
-              <Skeleton className="size-11 rounded-full" />
-            ) : (
-              <Avatar className="size-11 border-2 border-white shadow-lg">
-                <AvatarImage src={metadata?.picture} alt={displayName} />
-                <AvatarFallback className="bg-primary/80 text-white text-sm font-bold">
-                  {displayName[0]?.toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            )}
-          </Link>
-        </ProfileHoverCard>
+      {/* ── Right action sidebar — only shown once video is ready ─────── */}
+      {isVideoReady && (
+        <div className="absolute right-3 bottom-24 z-10 flex flex-col items-center gap-5">
+          {/* Author avatar */}
+          <ProfileHoverCard pubkey={event.pubkey} asChild>
+            <Link
+              to={profileUrl}
+              onClick={(e) => e.stopPropagation()}
+              className="block"
+            >
+              {author.isLoading ? (
+                <Skeleton className="size-11 rounded-full" />
+              ) : (
+                <Avatar className="size-11 border-2 border-white shadow-lg">
+                  <AvatarImage src={metadata?.picture} alt={displayName} />
+                  <AvatarFallback className="bg-primary/80 text-white text-sm font-bold">
+                    {displayName[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+            </Link>
+          </ProfileHoverCard>
 
-        {/* React */}
-        <VineHeartButton event={event} label={stats?.reactions ? String(stats.reactions) : undefined} />
+          {/* React */}
+          <VineHeartButton event={event} label={stats?.reactions ? String(stats.reactions) : undefined} />
 
-        {/* Reply */}
-        <VineActionButton
-          icon={<MessageCircle className="size-6" />}
-          label={stats?.replies ? String(stats.replies) : undefined}
-          onClick={(e) => { e.stopPropagation(); onCommentClick(); }}
-          className="text-white hover:text-blue-400"
-        />
+          {/* Reply */}
+          <VineActionButton
+            icon={<MessageCircle className="size-6" />}
+            label={stats?.replies ? String(stats.replies) : undefined}
+            onClick={(e) => { e.stopPropagation(); onCommentClick(); }}
+            className="text-white hover:text-blue-400"
+          />
 
-        {/* Repost */}
-        <VineRepostButton
-          event={event}
-          label={(stats?.reposts || stats?.quotes) ? String((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) : undefined}
-        />
+          {/* Repost */}
+          <VineRepostButton
+            event={event}
+            label={(stats?.reposts || stats?.quotes) ? String((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) : undefined}
+          />
 
-        {/* Zap */}
-        {canZapAuthor && (
-          <ZapDialog target={event}>
-            <VineActionButton
-              icon={<Zap className="size-6" />}
-              label={stats?.zapAmount ? formatSats(stats.zapAmount) : undefined}
-              className="text-white hover:text-amber-400"
-            />
-          </ZapDialog>
-        )}
+          {/* Zap */}
+          {canZapAuthor && (
+            <ZapDialog target={event}>
+              <VineActionButton
+                icon={<Zap className="size-6" />}
+                label={stats?.zapAmount ? formatSats(stats.zapAmount) : undefined}
+                className="text-white hover:text-amber-400"
+              />
+            </ZapDialog>
+          )}
 
-        {/* More */}
-        <VineActionButton
-          icon={<MoreHorizontal className="size-6" />}
-          onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
-          className="text-white/80 hover:text-white"
-        />
-      </div>
+          {/* More */}
+          <VineActionButton
+            icon={<MoreHorizontal className="size-6" />}
+            onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
+            className="text-white/80 hover:text-white"
+          />
+        </div>
+      )}
 
-      {/* ── Bottom info strip ────────────────────────────────────────── */}
-      <div className="absolute bottom-6 left-4 right-20 z-10 space-y-1.5">
-        <ProfileHoverCard pubkey={event.pubkey} asChild>
-          <Link
-            to={profileUrl}
-            className="block"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <span className="font-bold text-white text-[15px] leading-tight drop-shadow hover:underline">
-              {displayName}
-            </span>
-          </Link>
-        </ProfileHoverCard>
+      {/* ── Bottom info strip — only shown once video is ready ────────── */}
+      {isVideoReady && (
+        <div className="absolute bottom-6 left-4 right-20 z-10 space-y-1.5">
+          <ProfileHoverCard pubkey={event.pubkey} asChild>
+            <Link
+              to={profileUrl}
+              className="block"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="font-bold text-white text-[15px] leading-tight drop-shadow hover:underline">
+                {displayName}
+              </span>
+            </Link>
+          </ProfileHoverCard>
 
-        {title && (
-          <p className="text-white/90 text-sm leading-snug line-clamp-2 drop-shadow">
-            {title}
-          </p>
-        )}
+          {title && (
+            <p className="text-white/90 text-sm leading-snug line-clamp-2 drop-shadow">
+              {title}
+            </p>
+          )}
 
-        {hashtags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {hashtags.slice(0, 4).map((tag) => (
-              <Link
-                key={tag}
-                to={`/t/${encodeURIComponent(tag)}`}
-                className="text-xs text-white/70 hover:text-white transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                #{tag}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
+          {hashtags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {hashtags.slice(0, 4).map((tag) => (
+                <Link
+                  key={tag}
+                  to={`/t/${encodeURIComponent(tag)}`}
+                  className="text-xs text-white/70 hover:text-white transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  #{tag}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Modals ───────────────────────────────────────────────────── */}
       <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
