@@ -16,8 +16,8 @@ import {
   MoreHorizontal,
   Play,
   Heart,
-
 } from 'lucide-react';
+import { FeedEmptyState } from '@/components/FeedEmptyState';
 
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
@@ -726,22 +726,14 @@ export function VinesFeedPage() {
       <div className="flex-1 min-w-0 flex flex-col">
         <VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-3 px-8">
-            <p className="text-lg font-semibold">No vines yet</p>
-            <p className="text-muted-foreground text-sm">
-              {tab === 'follows'
-                ? 'None of the people you follow have posted vines. Try Global.'
-                : 'Short-form videos will appear here. Check back soon!'}
-            </p>
-            {tab === 'follows' && (
-              <button
-                className="text-sm text-primary hover:underline"
-                onClick={() => setTab('global')}
-              >
-                Switch to Global
-              </button>
-            )}
-          </div>
+          <FeedEmptyState
+            message={
+              tab === 'follows'
+                ? 'None of the people you follow have posted vines yet.'
+                : 'No vines found. Check your relay connections or come back soon.'
+            }
+            onSwitchToGlobal={tab === 'follows' ? () => setTab('global') : undefined}
+          />
         </div>
       </div>
     );

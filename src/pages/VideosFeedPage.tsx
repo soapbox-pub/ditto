@@ -16,6 +16,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Film, Radio, Play, Eye } from 'lucide-react';
+import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Blurhash } from 'react-blurhash';
@@ -676,12 +677,14 @@ export function VideosFeedPage() {
           </div>
         </div>
       ) : videoEvents.length === 0 ? (
-        <div className="py-16 px-8 text-center">
-
-          <p className="text-muted-foreground">
-            No videos yet.{feedTab === 'follows' ? ' Follow some creators or switch to Global.' : ' Check your relay connections or come back soon.'}
-          </p>
-        </div>
+        <FeedEmptyState
+          message={
+            feedTab === 'follows'
+              ? 'No videos yet. Follow some creators to see their videos here.'
+              : 'No videos found. Check your relay connections or come back soon.'
+          }
+          onSwitchToGlobal={feedTab === 'follows' ? () => setFeedTab('global') : undefined}
+        />
       ) : (
         <div className="pt-3 pb-8">
           {/* Normal videos — 2-column grid */}
