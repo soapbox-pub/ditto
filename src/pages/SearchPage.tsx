@@ -6,9 +6,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -223,30 +221,30 @@ export function SearchPage() {
                     <Separator />
 
                     {/* Media type */}
-                    <div className="space-y-2">
-                      <span className="font-medium text-sm">Media type</span>
-                      <RadioGroup
-                        value={mediaType}
-                        onValueChange={(v) => setMediaType(v as typeof mediaType)}
-                        className="space-y-1.5"
-                      >
-                        {[
-                          { value: 'all', label: 'All media' },
-                          { value: 'images', label: 'Images', icon: Image },
-                          { value: 'videos', label: 'Videos', icon: Video },
-                           { value: 'vines', label: 'Shorts & Vines', icon: Film },
-                          { value: 'none', label: 'No media' },
-                        ].map(({ value, label, icon: Icon }) => (
-                          <div key={value} className="flex items-center space-x-2">
-                            <RadioGroupItem value={value} id={`media-${value}`} />
-                            <Label htmlFor={`media-${value}`} className="font-normal cursor-pointer flex items-center gap-1.5 text-sm">
-                              {Icon && <Icon className="size-3.5 text-muted-foreground" />}
-                              {label}
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
-                    </div>
+                     <div className="space-y-2">
+                       <span className="font-medium text-sm">Media type</span>
+                       <Select value={mediaType} onValueChange={(v) => setMediaType(v as typeof mediaType)}>
+                         <SelectTrigger className="w-full bg-secondary/50">
+                           <SelectValue />
+                         </SelectTrigger>
+                         <SelectContent>
+                           {[
+                             { value: 'all', label: 'All media' },
+                             { value: 'images', label: 'Images', icon: Image },
+                             { value: 'videos', label: 'Videos', icon: Video },
+                             { value: 'vines', label: 'Shorts & Vines', icon: Film },
+                             { value: 'none', label: 'No media' },
+                           ].map(({ value, label, icon: Icon }) => (
+                             <SelectItem key={value} value={value}>
+                               <span className="flex items-center gap-2">
+                                 {Icon && <Icon className="size-3.5 shrink-0 text-muted-foreground" />}
+                                 {label}
+                               </span>
+                             </SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
+                     </div>
 
                     <Separator />
 
@@ -314,24 +312,16 @@ export function SearchPage() {
                      {/* Platform */}
                       <div className="space-y-2">
                         <span className="font-medium text-sm">Show posts from</span>
-                        <RadioGroup
-                          value={platform}
-                          onValueChange={(v) => setPlatform(v as typeof platform)}
-                          className="space-y-1.5"
-                        >
-                          {[
-                            { value: 'nostr', label: 'Nostr' },
-                            { value: 'activitypub', label: 'Mastodon' },
-                            { value: 'atproto', label: 'Bluesky' },
-                          ].map(({ value, label }) => (
-                            <div key={value} className="flex items-center space-x-2">
-                              <RadioGroupItem value={value} id={`platform-${value}`} />
-                              <Label htmlFor={`platform-${value}`} className="font-normal cursor-pointer text-sm">
-                                {label}
-                              </Label>
-                            </div>
-                          ))}
-                        </RadioGroup>
+                        <Select value={platform} onValueChange={(v) => setPlatform(v as typeof platform)}>
+                          <SelectTrigger className="w-full bg-secondary/50">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="nostr">Nostr</SelectItem>
+                            <SelectItem value="activitypub">Mastodon</SelectItem>
+                            <SelectItem value="atproto">Bluesky</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                    </PopoverContent>
                 </Popover>
