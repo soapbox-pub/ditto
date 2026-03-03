@@ -1,14 +1,18 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { BookMarked, Loader2 } from 'lucide-react';
+import { BookMarked, Loader2, Search, X } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { BookFeedItem, BookFeedItemSkeleton } from '@/components/BookFeedItem';
 import { useBookFeed } from '@/hooks/useBookFeed';
+import { useBookSearch, type BookSearchResult } from '@/hooks/useBookSearch';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { cn } from '@/lib/utils';
@@ -97,6 +101,9 @@ export function BooksPage() {
         <KindInfoButton kindDef={booksDef} icon={<BookMarked className="size-10" />} />
       </div>
 
+      {/* Book search bar */}
+      <BookSearchBar />
+
       {/* Follows / Global tabs */}
       {user && (
         <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
@@ -142,6 +149,182 @@ export function BooksPage() {
     </main>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Book Search Bar
+// ---------------------------------------------------------------------------
+
+function BookSearchBar() {
+  const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const { data: results, isFetching } = useBookSearch(debouncedQuery);
+
+  // 300ms debounce
+  const handleChange = useCallback((value: string) => {
+    setQuery(value);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedQuery(value.trim());
+    }, 300);
+  }, []);
+
+  // Cleanup debounce timer
+  useEffect(() => {
+    return () => clearTimeout(debounceRef.current);
+  }, []);
+
+  // Open dropdown when we have results and input is focused
+  useEffect(() => {
+    if (debouncedQuery.length >= 2 && results && results.length > 0) {
+      setDropdownOpen(true);
+    } else if (debouncedQuery.length >= 2 && results && results.length === 0 && !isFetching) {
+      setDropdownOpen(true); // show "no results"
+    }
+  }, [debouncedQuery, results, isFetching]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = useCallback((isbn: string) => {
+    setQuery('');
+    setDebouncedQuery('');
+    setDropdownOpen(false);
+    inputRef.current?.blur();
+    navigate(`/i/isbn:${isbn}`);
+  }, [navigate]);
+
+  const handleClear = useCallback(() => {
+    setQuery('');
+    setDebouncedQuery('');
+    setDropdownOpen(false);
+    inputRef.current?.focus();
+  }, []);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setDropdownOpen(false);
+      inputRef.current?.blur();
+    }
+    if (e.key === 'Enter' && results && results.length > 0) {
+      e.preventDefault();
+      handleSelect(results[0].isbn);
+    }
+  }, [results, handleSelect]);
+
+  return (
+    <div ref={containerRef} className="relative px-4 pb-3">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+        <Input
+          ref={inputRef}
+          type="text"
+          placeholder="Search books by title, author..."
+          value={query}
+          onChange={(e) => handleChange(e.target.value)}
+          onFocus={() => {
+            if (debouncedQuery.length >= 2) setDropdownOpen(true);
+          }}
+          onKeyDown={handleKeyDown}
+          className="pl-9 pr-9 h-9 text-sm"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Search results dropdown */}
+      {dropdownOpen && debouncedQuery.length >= 2 && (
+        <div className="absolute left-4 right-4 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+          {isFetching && (!results || results.length === 0) ? (
+            <div className="divide-y divide-border">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+                  <Skeleton className="w-8 h-11 rounded shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <Skeleton className="h-3.5 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : results && results.length > 0 ? (
+            <div className="divide-y divide-border max-h-80 overflow-y-auto">
+              {results.map((book) => (
+                <BookSearchResultItem
+                  key={book.isbn}
+                  book={book}
+                  onSelect={handleSelect}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              No books found for &ldquo;{debouncedQuery}&rdquo;
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BookSearchResultItem({ book, onSelect }: { book: BookSearchResult; onSelect: (isbn: string) => void }) {
+  return (
+    <button
+      type="button"
+      className="flex items-center gap-3 px-3 py-2.5 w-full text-left hover:bg-secondary/60 transition-colors"
+      onClick={() => onSelect(book.isbn)}
+    >
+      {book.coverUrl ? (
+        <img
+          src={book.coverUrl}
+          alt=""
+          className="w-8 h-11 rounded object-cover shrink-0"
+          loading="lazy"
+          onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+        />
+      ) : (
+        <div className="w-8 h-11 rounded bg-secondary flex items-center justify-center shrink-0">
+          <BookMarked className="size-3.5 text-muted-foreground/40" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{book.title}</p>
+        {book.authors.length > 0 && (
+          <p className="text-xs text-muted-foreground truncate">{book.authors.join(', ')}</p>
+        )}
+        {book.firstPublishYear && (
+          <p className="text-xs text-muted-foreground/60">{book.firstPublishYear}</p>
+        )}
+      </div>
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tab Button
+// ---------------------------------------------------------------------------
 
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
