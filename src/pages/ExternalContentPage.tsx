@@ -299,7 +299,7 @@ export function ExternalContentPage() {
     <main className="">
       {/* Non-sticky transparent header */}
       <div className="flex items-center gap-4 px-4 pt-4 pb-5">
-        <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+        <Link to={content.type === 'isbn' ? '/books' : '/'} className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
           <ArrowLeft className="size-5" />
         </Link>
         <h1 className="text-xl font-bold truncate">{headerLabel(content)}</h1>
