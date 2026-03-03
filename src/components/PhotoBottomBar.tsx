@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageCircle, Zap, MoreHorizontal } from 'lucide-react';
+import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ReactionButton } from '@/components/ReactionButton';
@@ -44,6 +45,10 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const canZapAuthor = user && canZap(metadata);
+  const isKind1 = event.kind === 1;
+  const eventUrl = isKind1
+    ? `/${nip19.neventEncode({ id: event.id, author: event.pubkey })}`
+    : null;
 
   return (
     <>
@@ -81,13 +86,23 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
               className="text-white hover:text-pink-400 hover:bg-white/10 p-2.5 [&_svg]:size-5"
             />
 
-            <button
-              className="flex items-center gap-1 p-2.5 text-white hover:text-blue-400 transition-colors"
-              onClick={() => setCommentsOpen(true)}
-            >
-              <MessageCircle className="size-5" />
-              {!!stats?.replies && <span className="text-sm tabular-nums drop-shadow">{stats.replies}</span>}
-            </button>
+            {isKind1 ? (
+              <Link
+                to={eventUrl!}
+                className="flex items-center gap-1 p-2.5 text-white hover:text-blue-400 transition-colors"
+              >
+                <MessageCircle className="size-5" />
+                {!!stats?.replies && <span className="text-sm tabular-nums drop-shadow">{stats.replies}</span>}
+              </Link>
+            ) : (
+              <button
+                className="flex items-center gap-1 p-2.5 text-white hover:text-blue-400 transition-colors"
+                onClick={() => setCommentsOpen(true)}
+              >
+                <MessageCircle className="size-5" />
+                {!!stats?.replies && <span className="text-sm tabular-nums drop-shadow">{stats.replies}</span>}
+              </button>
+            )}
 
             <RepostMenu event={event}>
               {(isReposted: boolean) => (
@@ -121,11 +136,13 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
 
       <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
 
-      <CommentsSheet key={event.id}
-        event={event}
-        open={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
-      />
+      {!isKind1 && (
+        <CommentsSheet
+          event={event}
+          open={commentsOpen}
+          onClose={() => setCommentsOpen(false)}
+        />
+      )}
     </>
   );
 }

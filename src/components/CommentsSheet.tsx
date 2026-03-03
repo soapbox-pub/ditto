@@ -117,12 +117,15 @@ interface CommentsModalProps {
 }
 
 export function CommentsSheet({ event, open, onClose }: CommentsModalProps) {
-  const { data: rawComments = [], isLoading } = useEventComments(event);
+  const { data: rawComments = [], isLoading, dataUpdatedAt } = useEventComments(event);
 
+  // Only show comments once the query has actually fetched for this event.
+  // `dataUpdatedAt === 0` means the query has never resolved — show nothing.
   const comments = useMemo(() => {
+    if (dataUpdatedAt === 0) return [];
     const seen = new Set<string>();
     return rawComments.filter((e) => seen.has(e.id) ? false : (seen.add(e.id), true));
-  }, [rawComments]);
+  }, [rawComments, dataUpdatedAt]);
 
   if (!open) return null;
 
