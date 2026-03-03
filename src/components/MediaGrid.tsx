@@ -228,9 +228,13 @@ interface MediaGridProps {
   onInitialOpenConsumed?: () => void;
   /** Called when the lightbox reaches the last item — use to trigger pagination. */
   onNearEnd?: () => void;
+  /** Whether there are more pages to load — keeps the lightbox swipeable past the last item. */
+  hasNextPage?: boolean;
+  /** Whether a next page is currently being fetched — shown as a spinner slot. */
+  isFetchingNextPage?: boolean;
 }
 
-export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed, onNearEnd }: MediaGridProps) {
+export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed, onNearEnd, hasNextPage, isFetchingNextPage }: MediaGridProps) {
   const items = useMemo(
     () => events.map(eventToMediaItem).filter((x): x is MediaItem => x !== null),
     [events],
@@ -288,29 +292,37 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
         ))}
       </div>
 
-      {flatIndex !== null && activeEntry && (
+      {flatIndex !== null && (
         <Lightbox
           images={flat.map((e) => e.url)}
           mediaTypes={flat.map((e) => e.type)}
           mediaMeta={flat.map((e) => ({ mime: e.mime, dim: e.dim, blurhash: e.blurhash, pubkey: e.pubkey }))}
           currentIndex={flatIndex}
+          hasMore={hasNextPage}
+          isFetchingMore={isFetchingNextPage}
           onClose={() => { setFlatIndex(null); onInitialOpenConsumed?.(); }}
           onNext={() => setFlatIndex((i) => {
             if (i === null) return null;
-            const next = Math.min(i + 1, flat.length - 1);
-            if (next === flat.length - 1) onNearEnd?.();
+            if (i >= flat.length - 1) {
+              // At the end — trigger fetch but don't advance yet
+              onNearEnd?.();
+              return i;
+            }
+            const next = i + 1;
+            // Pre-fetch when one away from the end
+            if (next >= flat.length - 1) onNearEnd?.();
             return next;
           })}
           onPrev={() => setFlatIndex((i) => (i !== null ? Math.max(i - 1, 0) : null))}
           topBarLeft={
-            activeEntry.countInEvent > 1 ? (
+            activeEntry && activeEntry.countInEvent > 1 ? (
               <span className="text-white/80 text-sm font-medium tabular-nums">
                 {activeEntry.indexInEvent + 1} / {activeEntry.countInEvent}
               </span>
             ) : <span />
           }
           bottomBar={
-            <PhotoBottomBar event={activeEntry.event} />
+            activeEntry ? <PhotoBottomBar event={activeEntry.event} /> : undefined
           }
         />
       )}
