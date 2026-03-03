@@ -32,8 +32,10 @@ import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUserReaction } from '@/hooks/useUserReaction';
-import { RepostMenu } from '@/components/RepostMenu';
 import { RepostIcon } from '@/components/icons/RepostIcon';
+import { useRepostStatus } from '@/hooks/useRepostStatus';
+import { useDeleteEvent } from '@/hooks/useDeleteEvent';
+import { getRepostKind } from '@/lib/feedUtils';
 import { ZapDialog } from '@/components/ZapDialog';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -178,6 +180,102 @@ export function VineHeartButton({ event, label, noBackground }: { event: NostrEv
         onClick={handleClick}
       >
         <Heart className="size-6" fill={hasReacted ? 'currentColor' : 'none'} />
+      </button>
+    </VineActionButton>
+  );
+}
+
+// ─── VineRepostButton ────────────────────────────────────────────────────────
+
+export function VineRepostButton({ event, label }: { event: NostrEvent; label?: string }) {
+  const { user } = useCurrentUser();
+  const { mutate: publishEvent } = useNostrPublish();
+  const { mutate: deleteEvent } = useDeleteEvent();
+  const queryClient = useQueryClient();
+  const repostEventId = useRepostStatus(event.id);
+  const isReposted = !!repostEventId;
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) return;
+
+    const repostKind = getRepostKind(event.kind);
+    const prevStats = queryClient.getQueryData<EventStats>(['event-stats', event.id]);
+
+    if (isReposted && repostEventId) {
+      // Undo repost
+      if (prevStats) {
+        queryClient.setQueryData<EventStats>(['event-stats', event.id], {
+          ...prevStats,
+          reposts: Math.max(0, prevStats.reposts - 1),
+        });
+      }
+      const prevRepostStatus = queryClient.getQueryData(['user-repost', event.id]);
+      queryClient.setQueryData(['user-repost', event.id], null);
+
+      deleteEvent(
+        { eventId: repostEventId, eventKind: repostKind },
+        {
+          onSuccess: () => {
+            setTimeout(() => {
+              queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
+              queryClient.invalidateQueries({ queryKey: ['user-repost', event.id] });
+            }, 3000);
+          },
+          onError: () => {
+            if (prevStats) queryClient.setQueryData<EventStats>(['event-stats', event.id], prevStats);
+            queryClient.setQueryData(['user-repost', event.id], prevRepostStatus);
+          },
+        },
+      );
+    } else {
+      // Repost
+      if (prevStats) {
+        queryClient.setQueryData<EventStats>(['event-stats', event.id], {
+          ...prevStats,
+          reposts: prevStats.reposts + 1,
+        });
+      }
+      queryClient.setQueryData(['user-repost', event.id], 'optimistic');
+
+      const tags: string[][] = [['e', event.id], ['p', event.pubkey]];
+      if (repostKind === 16) {
+        tags.push(['k', String(event.kind)]);
+        if (event.kind >= 30000 && event.kind < 40000) {
+          const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
+          tags.push(['a', `${event.kind}:${event.pubkey}:${dTag}`]);
+        }
+      }
+
+      publishEvent(
+        { kind: repostKind, content: '', tags },
+        {
+          onSuccess: () => {
+            setTimeout(() => {
+              queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
+              queryClient.invalidateQueries({ queryKey: ['event-interactions', event.id] });
+              queryClient.invalidateQueries({ queryKey: ['user-repost', event.id] });
+            }, 3000);
+          },
+          onError: () => {
+            if (prevStats) queryClient.setQueryData<EventStats>(['event-stats', event.id], prevStats);
+            queryClient.setQueryData(['user-repost', event.id], null);
+          },
+        },
+      );
+    }
+  };
+
+  return (
+    <VineActionButton label={label}>
+      <button
+        className={cn(
+          'size-11 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm bg-black/20 hover:bg-white/10',
+          isReposted ? 'text-accent' : 'text-white hover:text-accent',
+        )}
+        onClick={handleClick}
+      >
+        <RepostIcon className="size-6" />
       </button>
     </VineActionButton>
   );
@@ -354,15 +452,10 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
         />
 
         {/* Repost */}
-        <RepostMenu event={event}>
-          {(isReposted: boolean) => (
-            <VineActionButton
-              icon={<RepostIcon className="size-6" />}
-              label={(stats?.reposts || stats?.quotes) ? String((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) : undefined}
-              className={isReposted ? 'text-accent' : 'text-white hover:text-accent'}
-            />
-          )}
-        </RepostMenu>
+        <VineRepostButton
+          event={event}
+          label={(stats?.reposts || stats?.quotes) ? String((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) : undefined}
+        />
 
         {/* Zap */}
         {canZapAuthor && (
