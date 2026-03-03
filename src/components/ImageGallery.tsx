@@ -311,9 +311,13 @@ export interface LightboxProps {
    * Use this to add author info, reactions, captions, etc.
    */
   bottomBar?: React.ReactNode;
+  /** When true, the lightbox stays swipeable past the last image (shows a loading slot). */
+  hasMore?: boolean;
+  /** When true, the loading slot shows a spinner instead of being blank. */
+  isFetchingMore?: boolean;
 }
 
-export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaTypes, mediaMeta, topBarLeft, showDownload = true, maxDotIndicators = 10, bottomBar }: LightboxProps) {
+export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaTypes, mediaMeta, topBarLeft, showDownload = true, maxDotIndicators = 10, bottomBar, hasMore = false, isFetchingMore = false }: LightboxProps) {
   // Track loaded state per URL so navigating to an already-loaded neighbour
   // doesn't show the spinner again.
   const [loadedUrls, setLoadedUrls] = useState<Set<string>>(new Set());
@@ -324,7 +328,8 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   const currentUrl = images[currentIndex];
   const isLoaded = loadedUrls.has(currentUrl);
   const hasMultiple = images.length > 1;
-  const canGoNext = currentIndex < images.length - 1;
+  const atLastImage = currentIndex >= images.length - 1;
+  const canGoNext = !atLastImage || hasMore;
   const canGoPrev = currentIndex > 0;
 
   // Lock body scroll
@@ -357,6 +362,9 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   const containerRef = useRef<HTMLDivElement>(null);
   // dragOffsetPx is mutated directly on the DOM (no React state) for 60fps feel
   const dragOffsetRef = useRef(0);
+  // Always-current ref so setTimeout callbacks can read the latest currentIndex
+  const currentIndexRef = useRef(currentIndex);
+  useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
   const dragX = useRef<number | null>(null);
   const dragY = useRef<number | null>(null);
   const axis = useRef<'h' | 'v' | null>(null);
@@ -442,11 +450,21 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
       const targetOffset = goingNext ? -window.innerWidth : window.innerWidth;
       const transition = `transform ${DURATION}ms ${EASING}`;
       slotRefs.current.forEach((_, idx) => setSlotTransform(idx, targetOffset, transition));
+      const indexBeforeNav = currentIndex;
       setTimeout(() => {
         animating.current = false;
         dragOffsetRef.current = 0;
         if (goingNext) onNext();
         else onPrev();
+        // If currentIndex didn't change (e.g. at last image with hasMore but fetch not done),
+        // spring all slots back to center so the UI doesn't stay stuck off-screen.
+        requestAnimationFrame(() => {
+          if (currentIndexRef.current === indexBeforeNav) {
+            slotRefs.current.forEach((_, idx) =>
+              setSlotTransform(idx, 0, `transform ${DURATION}ms ${EASING}`)
+            );
+          }
+        });
       }, DURATION);
     } else {
       // Not committed — spring back
@@ -554,6 +572,23 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
             </div>
           );
         })}
+
+        {/* Loading slot — shown one screen to the right of the last image when more pages exist */}
+        {hasMore && atLastImage && (
+          <div
+            key="__loading__"
+            ref={(el) => {
+              if (el) slotRefs.current.set(images.length, el);
+              else slotRefs.current.delete(images.length);
+            }}
+            className="absolute inset-0 flex items-center justify-center will-change-transform"
+            style={{ transform: `translateX(${window.innerWidth}px)` }}
+          >
+            {isFetchingMore && (
+              <div className="size-10 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Dot indicators */}

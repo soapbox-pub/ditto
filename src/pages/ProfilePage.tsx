@@ -1661,6 +1661,8 @@ export function ProfilePage() {
                   events={mediaEvents}
                   initialOpenUrl={sidebarMediaUrl ?? undefined}
                   onInitialOpenConsumed={() => setSidebarMediaUrl(null)}
+                  hasNextPage={hasNextMediaPage}
+                  isFetchingNextPage={isFetchingNextMediaPage}
                   onNearEnd={() => { if (hasNextMediaPage && !isFetchingNextMediaPage) fetchNextMediaPage(); }}
                 />
                 {hasNextMediaPage && (
