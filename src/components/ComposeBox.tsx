@@ -860,9 +860,11 @@ export function ComposeBox({
           queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
         } else {
           queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
-          // Also invalidate NIP-22 comments cache for non-kind-1 events
+          // Invalidate the event-comments cache used by CommentsSheet
           if (replyTo.kind !== 1) {
-            queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
+            const dTag = replyTo.tags.find(([n]) => n === 'd')?.[1] ?? '';
+            const aTag = `${replyTo.kind}:${replyTo.pubkey}:${dTag}`;
+            queryClient.invalidateQueries({ queryKey: ['event-comments', aTag] });
           }
         }
       }
