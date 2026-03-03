@@ -226,9 +226,11 @@ interface MediaGridProps {
   /** If set, the lightbox opens at this URL on mount (used by sidebar click). */
   initialOpenUrl?: string;
   onInitialOpenConsumed?: () => void;
+  /** Called when the lightbox reaches the last item — use to trigger pagination. */
+  onNearEnd?: () => void;
 }
 
-export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed }: MediaGridProps) {
+export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed, onNearEnd }: MediaGridProps) {
   const items = useMemo(
     () => events.map(eventToMediaItem).filter((x): x is MediaItem => x !== null),
     [events],
@@ -293,7 +295,12 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
           mediaMeta={flat.map((e) => ({ mime: e.mime, dim: e.dim, blurhash: e.blurhash, pubkey: e.pubkey }))}
           currentIndex={flatIndex}
           onClose={() => { setFlatIndex(null); onInitialOpenConsumed?.(); }}
-          onNext={() => setFlatIndex((i) => (i !== null ? Math.min(i + 1, flat.length - 1) : null))}
+          onNext={() => setFlatIndex((i) => {
+            if (i === null) return null;
+            const next = Math.min(i + 1, flat.length - 1);
+            if (next === flat.length - 1) onNearEnd?.();
+            return next;
+          })}
           onPrev={() => setFlatIndex((i) => (i !== null ? Math.max(i - 1, 0) : null))}
           topBarLeft={
             activeEntry.countInEvent > 1 ? (
