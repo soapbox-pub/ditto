@@ -106,8 +106,8 @@ export function useBookDetails(isbn: string | null) {
     queryKey: ['book-details', isbn],
     queryFn: ({ signal }) => fetchBookDetails(isbn!, signal),
     enabled: !!isbn,
-    staleTime: 1000 * 60 * 30, // 30 minutes
-    gcTime: 1000 * 60 * 60, // 1 hour
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+    gcTime: 1000 * 60 * 60 * 48, // 48 hours
     retry: 1,
   });
 }

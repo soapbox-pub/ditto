@@ -13,6 +13,7 @@ import { KindInfoButton } from '@/components/KindInfoButton';
 import { BookFeedItem, BookFeedItemSkeleton } from '@/components/BookFeedItem';
 import { useBookFeed } from '@/hooks/useBookFeed';
 import { useBookSearch, type BookSearchResult } from '@/hooks/useBookSearch';
+import { usePrefetchBookSummaries } from '@/hooks/useBookSummary';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { cn } from '@/lib/utils';
@@ -87,6 +88,9 @@ export function BooksPage() {
         return true;
       });
   }, [rawData?.pages]);
+
+  // Batch-prefetch book metadata for all visible ISBNs (4 concurrent requests)
+  usePrefetchBookSummaries(events);
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
