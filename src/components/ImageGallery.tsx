@@ -341,52 +341,60 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     return () => document.removeEventListener('keydown', handler);
   }, [onClose, onNext, onPrev, canGoNext, canGoPrev]);
 
-  // ── Strip swipe ───────────────────────────────────────────────────────────────
-  // 3-slot strip: [prev][current][next], each 100vw wide.
-  // Strip starts translated to -100vw (showing the middle slot).
-  // During drag we mutate transform directly; on release we animate to the
-  // adjacent slot then call onNext/onPrev, which shifts currentIndex and the
-  // useEffect below immediately resets the strip to -100vw without animation
-  // so the new neighbours are in place for the next swipe.
+  // ── Per-image absolute positioning ────────────────────────────────────────────
+  // Each image is rendered at a stable key (its URL) and positioned absolutely
+  // at translateX((index - currentIndex) * 100vw + dragOffsetPx).
+  // Because each slot keeps its key across navigation, the <img> element is
+  // never destroyed — the browser's decoded image stays in memory, eliminating
+  // the reload-on-swipe problem.
+  //
+  // Only images within 1 step of currentIndex are rendered to cap DOM size.
+
   const containerRef = useRef<HTMLDivElement>(null);
-  const stripRef = useRef<HTMLDivElement>(null);
+  // dragOffsetPx is mutated directly on the DOM (no React state) for 60fps feel
+  const dragOffsetRef = useRef(0);
   const dragX = useRef<number | null>(null);
   const dragY = useRef<number | null>(null);
   const axis = useRef<'h' | 'v' | null>(null);
-  const swipeCommitted = useRef(false); // true while strip is mid-swipe-commit animation
+  const animating = useRef(false);
   const EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+  const DURATION = 280;
 
-  const setStrip = (pct: number, animated: boolean) => {
-    const el = stripRef.current;
+  // Refs to each rendered slot keyed by image index
+  const slotRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  const setSlotTransform = useCallback((idx: number, offsetPx: number, transition: string) => {
+    const el = slotRefs.current.get(idx);
     if (!el) return;
-    el.style.transition = animated ? `transform 0.28s ${EASING}` : 'none';
-    el.style.transform = `translateX(calc(-100vw + ${pct}%))`;
-  };
-
-  // After currentIndex changes, reset strip to centre.
-  // If driven by a swipe commit the strip is at ±200vw — we need to snap it
-  // back to -100vw, but we must do it in the *next* frame after React has
-  // painted the new neighbours into slots, otherwise the jump is visible.
-  useEffect(() => {
-    if (swipeCommitted.current) {
-      swipeCommitted.current = false;
-      requestAnimationFrame(() => setStrip(0, false));
-    } else {
-      setStrip(0, false);
-    }
+    const base = (idx - currentIndex) * window.innerWidth;
+    el.style.transition = transition;
+    el.style.transform = `translateX(${base + offsetPx}px)`;
   }, [currentIndex]);
 
+  // Apply current positions to all rendered slots without animation
+  const snapAll = useCallback((offsetPx = 0) => {
+    slotRefs.current.forEach((_, idx) => setSlotTransform(idx, offsetPx, 'none'));
+  }, [setSlotTransform]);
+
+  // When currentIndex changes (keyboard/button nav), snap all slots into position instantly
+  useEffect(() => {
+    dragOffsetRef.current = 0;
+    snapAll(0);
+  }, [currentIndex, snapAll]);
+
   const onTouchStart = (e: React.TouchEvent) => {
+    if (animating.current) return;
     dragX.current = e.touches[0].clientX;
     dragY.current = e.touches[0].clientY;
     axis.current = null;
-    setStrip(0, false);
+    // Kill any in-flight transition
+    slotRefs.current.forEach((_, idx) => setSlotTransform(idx, dragOffsetRef.current, 'none'));
   };
 
   // Registered via addEventListener with { passive: false } to allow preventDefault
   const onTouchMoveRef = useRef((_e: TouchEvent) => {});
   onTouchMoveRef.current = (e: TouchEvent) => {
-    if (dragX.current === null || dragY.current === null) return;
+    if (dragX.current === null || dragY.current === null || animating.current) return;
     const dx = e.touches[0].clientX - dragX.current;
     const dy = e.touches[0].clientY - dragY.current;
     if (!axis.current) {
@@ -396,11 +404,10 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     if (axis.current !== 'h') return;
     e.preventDefault();
     const atEdge = (dx > 0 && !canGoPrev) || (dx < 0 && !canGoNext);
-    const pct = (atEdge ? dx * 0.2 : dx) / window.innerWidth * 100;
-    setStrip(pct, false);
+    dragOffsetRef.current = atEdge ? dx * 0.2 : dx;
+    slotRefs.current.forEach((_, idx) => setSlotTransform(idx, dragOffsetRef.current, 'none'));
   };
 
-  // Register touchmove as non-passive so preventDefault works
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -412,30 +419,37 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   const onTouchEnd = (e: React.TouchEvent) => {
     if (dragX.current === null || axis.current !== 'h') {
       dragX.current = null; axis.current = null;
-      setStrip(0, true);
+      // Spring back
+      slotRefs.current.forEach((_, idx) =>
+        setSlotTransform(idx, 0, `transform ${DURATION}ms ${EASING}`)
+      );
+      dragOffsetRef.current = 0;
       return;
     }
     const dx = e.changedTouches[0].clientX - dragX.current;
     dragX.current = null; axis.current = null;
 
-    if (dx < -window.innerWidth * 0.2 && canGoNext) {
-      const el = stripRef.current;
-      if (el) {
-        swipeCommitted.current = true;
-        el.style.transition = `transform 0.28s ${EASING}`;
-        el.style.transform = 'translateX(-200vw)';
-        el.addEventListener('transitionend', () => onNext(), { once: true });
-      } else { onNext(); }
-    } else if (dx > window.innerWidth * 0.2 && canGoPrev) {
-      const el = stripRef.current;
-      if (el) {
-        swipeCommitted.current = true;
-        el.style.transition = `transform 0.28s ${EASING}`;
-        el.style.transform = 'translateX(0vw)';
-        el.addEventListener('transitionend', () => onPrev(), { once: true });
-      } else { onPrev(); }
+    const committed = Math.abs(dx) > window.innerWidth * 0.2;
+    const goingNext = dx < 0 && canGoNext && committed;
+    const goingPrev = dx > 0 && canGoPrev && committed;
+
+    if (goingNext || goingPrev) {
+      animating.current = true;
+      const targetOffset = goingNext ? -window.innerWidth : window.innerWidth;
+      const transition = `transform ${DURATION}ms ${EASING}`;
+      slotRefs.current.forEach((_, idx) => setSlotTransform(idx, targetOffset, transition));
+      setTimeout(() => {
+        animating.current = false;
+        dragOffsetRef.current = 0;
+        if (goingNext) onNext();
+        else onPrev();
+      }, DURATION);
     } else {
-      setStrip(0, true);
+      // Not committed — spring back
+      slotRefs.current.forEach((_, idx) =>
+        setSlotTransform(idx, 0, `transform ${DURATION}ms ${EASING}`)
+      );
+      dragOffsetRef.current = 0;
     }
   };
 
@@ -452,6 +466,11 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     a.href = currentUrl; a.target = '_blank'; a.rel = 'noopener noreferrer';
     a.click();
   };
+
+  // Only render the current image and its immediate neighbours
+  const visibleIndices = [currentIndex - 1, currentIndex, currentIndex + 1].filter(
+    (i) => i >= 0 && i < images.length,
+  );
 
   return (
     <div
@@ -496,52 +515,41 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
         </button>
       )}
 
-      {/* Media strip */}
-      <div
-        ref={stripRef}
-        className="absolute inset-y-0 flex will-change-transform"
-        style={{ width: '300vw', left: 0, transform: 'translateX(-100vw)' }}
-      >
-        <div className={cn('w-screen h-full flex items-center justify-center shrink-0 px-4 pt-14 sm:px-12', bottomBar ? 'pb-24' : 'pb-6')}>
-          {canGoPrev && (
-            <LightboxSlot
-              url={images[currentIndex - 1]}
-              type={mediaTypes?.[currentIndex - 1] ?? 'image'}
-              meta={mediaMeta?.[currentIndex - 1]}
-              isActive={false}
-              isLoaded={true}
-              onLoad={() => {}}
-            />
-          )}
-        </div>
-        <div className={cn('w-screen h-full flex items-center justify-center shrink-0 px-4 pt-14 sm:px-12 relative', bottomBar ? 'pb-24' : 'pb-6')}>
-          {!isLoaded && (mediaTypes?.[currentIndex] ?? 'image') === 'image' && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+      {/* Per-image slots — each absolutely positioned by index offset */}
+      <div className="absolute inset-0 overflow-hidden">
+        {visibleIndices.map((i) => {
+          const url = images[i];
+          const isCurrent = i === currentIndex;
+          const initialX = (i - currentIndex) * window.innerWidth;
+          return (
+            <div
+              key={url}
+              ref={(el) => {
+                if (el) slotRefs.current.set(i, el);
+                else slotRefs.current.delete(i);
+              }}
+              className={cn(
+                'absolute inset-0 flex items-center justify-center will-change-transform',
+                bottomBar ? 'pb-24 pt-14 px-4 sm:px-12' : 'py-6 pt-14 px-4 sm:px-12',
+              )}
+              style={{ transform: `translateX(${initialX}px)` }}
+            >
+              {isCurrent && !isLoaded && (mediaTypes?.[i] ?? 'image') === 'image' && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+                </div>
+              )}
+              <LightboxSlot
+                url={url}
+                type={mediaTypes?.[i] ?? 'image'}
+                meta={mediaMeta?.[i]}
+                isActive={isCurrent}
+                isLoaded={isCurrent ? isLoaded : true}
+                onLoad={isCurrent ? () => setIsLoaded(true) : () => {}}
+              />
             </div>
-          )}
-          <LightboxSlot
-            key={currentUrl}
-            url={currentUrl}
-            type={mediaTypes?.[currentIndex] ?? 'image'}
-            meta={mediaMeta?.[currentIndex]}
-            isActive={true}
-            isLoaded={isLoaded}
-            onLoad={() => setIsLoaded(true)}
-          />
-        </div>
-        <div className={cn('w-screen h-full flex items-center justify-center shrink-0 px-4 pt-14 sm:px-12', bottomBar ? 'pb-24' : 'pb-6')}>
-          {canGoNext && (
-            <LightboxSlot
-              url={images[currentIndex + 1]}
-              type={mediaTypes?.[currentIndex + 1] ?? 'image'}
-              meta={mediaMeta?.[currentIndex + 1]}
-              isActive={false}
-              isLoaded={true}
-              onLoad={() => {}}
-            />
-          )}
-        </div>
+          );
+        })}
       </div>
 
       {/* Dot indicators */}

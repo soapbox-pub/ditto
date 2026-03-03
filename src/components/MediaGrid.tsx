@@ -228,7 +228,7 @@ interface MediaGridProps {
   onInitialOpenConsumed?: () => void;
 }
 
-export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed: _onInitialOpenConsumed }: MediaGridProps) {
+export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed }: MediaGridProps) {
   const items = useMemo(
     () => events.map(eventToMediaItem).filter((x): x is MediaItem => x !== null),
     [events],
@@ -292,7 +292,7 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
           mediaTypes={flat.map((e) => e.type)}
           mediaMeta={flat.map((e) => ({ mime: e.mime, dim: e.dim, blurhash: e.blurhash, pubkey: e.pubkey }))}
           currentIndex={flatIndex}
-          onClose={() => setFlatIndex(null)}
+          onClose={() => { setFlatIndex(null); onInitialOpenConsumed?.(); }}
           onNext={() => setFlatIndex((i) => (i !== null ? Math.min(i + 1, flat.length - 1) : null))}
           onPrev={() => setFlatIndex((i) => (i !== null ? Math.max(i - 1, 0) : null))}
           topBarLeft={
