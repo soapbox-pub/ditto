@@ -14,7 +14,7 @@ import {
   FileJson,
   FileDigit,
   Trash2,
-  SquareArrowOutUpRight,
+  StickyNote,
 } from 'lucide-react';
 import {
   Dialog,
@@ -239,7 +239,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
 
         <div className="py-1">
           <MenuItem
-            icon={<SquareArrowOutUpRight className="size-5" />}
+            icon={<StickyNote className="size-5" />}
             label="View post details"
             onClick={handleViewPostDetails}
           />
