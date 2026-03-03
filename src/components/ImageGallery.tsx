@@ -394,6 +394,8 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (animating.current) return;
+    // Pinch gesture — don't start a swipe
+    if (e.touches.length >= 2) { dragX.current = null; dragY.current = null; return; }
     dragX.current = e.touches[0].clientX;
     dragY.current = e.touches[0].clientY;
     axis.current = null;
@@ -556,6 +558,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
                 isActive={isCurrent}
                 isLoaded={isCurrent ? isLoaded : true}
                 onLoad={() => markLoaded(url)}
+                onSwipeBlocked={() => { dragX.current = null; axis.current = null; }}
               />
             </div>
           );
@@ -583,31 +586,232 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   );
 }
 
-/** Lightbox image with Blossom server fallback. */
-function LightboxImage({ url, isLoaded, onLoad }: { url: string; isLoaded: boolean; onLoad: () => void }) {
+const MIN_SCALE = 1;
+const MAX_SCALE = 8;
+
+/** Lightbox image with pinch/wheel zoom and pan support. */
+function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
+  url: string;
+  isLoaded: boolean;
+  onLoad: () => void;
+  /** Called when a horizontal swipe is intercepted by pan (image is zoomed). */
+  onSwipeBlocked?: () => void;
+}) {
   const { src, onError } = useBlossomFallback(url);
   const imgRef = useRef<HTMLImageElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  // Zoom/pan state — mutated directly on DOM for 60fps
+  const scale = useRef(1);
+  const panX = useRef(0);
+  const panY = useRef(0);
+
+  // Pinch tracking
+  const pinchStart = useRef<{ dist: number; midX: number; midY: number; scale: number; panX: number; panY: number } | null>(null);
+  // Pan tracking (single finger when zoomed)
+  const panStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  // Double-tap
+  const lastTap = useRef(0);
+  // Mouse drag when zoomed
+  const mouseDrag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
   // If the image is already cached, onLoad may not fire — check on mount.
   useEffect(() => {
-    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
-      onLoad();
-    }
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) onLoad();
   }, [src, onLoad]);
 
+  // Reset zoom when url changes
+  useEffect(() => {
+    scale.current = 1;
+    panX.current = 0;
+    panY.current = 0;
+    applyTransform();
+  }, [url]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function applyTransform(animated = false) {
+    const el = wrapRef.current;
+    if (!el) return;
+    el.style.transition = animated ? 'transform 0.25s ease' : 'none';
+    el.style.transform = `translate(${panX.current}px, ${panY.current}px) scale(${scale.current})`;
+  }
+
+  function clampPan(s = scale.current) {
+    const el = imgRef.current;
+    const wrap = wrapRef.current;
+    if (!el || !wrap) return;
+    const iw = el.offsetWidth * s;
+    const ih = el.offsetHeight * s;
+    const cw = wrap.parentElement?.offsetWidth ?? window.innerWidth;
+    const ch = wrap.parentElement?.offsetHeight ?? window.innerHeight;
+    const maxX = Math.max(0, (iw - cw) / 2);
+    const maxY = Math.max(0, (ih - ch) / 2);
+    panX.current = Math.max(-maxX, Math.min(maxX, panX.current));
+    panY.current = Math.max(-maxY, Math.min(maxY, panY.current));
+  }
+
+  function dist(t: React.TouchList | TouchList) {
+    const dx = t[1].clientX - t[0].clientX;
+    const dy = t[1].clientY - t[0].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      // Pinch start
+      pinchStart.current = {
+        dist: dist(e.touches),
+        midX: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        midY: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+        scale: scale.current,
+        panX: panX.current,
+        panY: panY.current,
+      };
+      panStart.current = null;
+    } else if (e.touches.length === 1) {
+      if (scale.current > 1) {
+        // Single finger pan when zoomed
+        panStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, panX: panX.current, panY: panY.current };
+      }
+      // Double-tap to zoom
+      const now = Date.now();
+      if (now - lastTap.current < 300) {
+        e.preventDefault();
+        if (scale.current > 1) {
+          scale.current = 1; panX.current = 0; panY.current = 0;
+        } else {
+          scale.current = 2.5;
+          // Zoom toward tap point
+          const rect = wrapRef.current?.getBoundingClientRect();
+          if (rect) {
+            const cx = e.touches[0].clientX - rect.left - rect.width / 2;
+            const cy = e.touches[0].clientY - rect.top - rect.height / 2;
+            panX.current = -cx * (scale.current - 1) / scale.current;
+            panY.current = -cy * (scale.current - 1) / scale.current;
+            clampPan();
+          }
+        }
+        applyTransform(true);
+      }
+      lastTap.current = now;
+    }
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (e.touches.length === 2 && pinchStart.current) {
+      e.preventDefault();
+      const p = pinchStart.current;
+      const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, p.scale * dist(e.touches) / p.dist));
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      scale.current = newScale;
+      panX.current = p.panX + (midX - p.midX);
+      panY.current = p.panY + (midY - p.midY);
+      clampPan(newScale);
+      applyTransform();
+    } else if (e.touches.length === 1 && panStart.current && scale.current > 1) {
+      e.preventDefault();
+      const p = panStart.current;
+      panX.current = p.panX + (e.touches[0].clientX - p.x);
+      panY.current = p.panY + (e.touches[0].clientY - p.y);
+      clampPan();
+      applyTransform();
+      onSwipeBlocked?.();
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length < 2) pinchStart.current = null;
+    if (e.touches.length === 0) {
+      panStart.current = null;
+      // Snap back to min scale if under-pinched
+      if (scale.current < MIN_SCALE) {
+        scale.current = MIN_SCALE; panX.current = 0; panY.current = 0;
+        applyTransform(true);
+      } else {
+        clampPan();
+        applyTransform(true);
+      }
+    }
+  };
+
+  // Wheel: ctrl+wheel = zoom, plain wheel = pan when zoomed
+  const handleWheel = (e: WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      scale.current = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.current * factor));
+      if (scale.current === MIN_SCALE) { panX.current = 0; panY.current = 0; }
+      else clampPan();
+      applyTransform();
+    } else if (scale.current > 1) {
+      e.preventDefault();
+      panX.current -= e.deltaX;
+      panY.current -= e.deltaY;
+      clampPan();
+      applyTransform();
+    }
+  };
+
+  // Mouse drag when zoomed
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (scale.current <= 1) return;
+    e.preventDefault();
+    mouseDrag.current = { x: e.clientX, y: e.clientY, panX: panX.current, panY: panY.current };
+  };
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!mouseDrag.current) return;
+    panX.current = mouseDrag.current.panX + (e.clientX - mouseDrag.current.x);
+    panY.current = mouseDrag.current.panY + (e.clientY - mouseDrag.current.y);
+    clampPan();
+    applyTransform();
+  };
+  const handleMouseUp = () => {
+    if (!mouseDrag.current) return;
+    mouseDrag.current = null;
+    clampPan();
+    applyTransform(true);
+  };
+
+  // Register non-passive touch/wheel listeners
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const tm = (e: TouchEvent) => handleTouchMove(e);
+    const wh = (e: WheelEvent) => handleWheel(e);
+    el.addEventListener('touchmove', tm, { passive: false });
+    el.addEventListener('wheel', wh, { passive: false });
+    return () => { el.removeEventListener('touchmove', tm); el.removeEventListener('wheel', wh); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <img
-      ref={imgRef}
-      src={src}
-      alt=""
-      className={cn(
-        'max-w-full max-h-full object-contain select-none transition-opacity duration-300',
-        isLoaded ? 'opacity-100' : 'opacity-0',
-      )}
-      onLoad={onLoad}
-      onError={onError}
-      draggable={false}
-    />
+    <div
+      ref={containerRef}
+      className="w-full h-full flex items-center justify-center overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      style={{ cursor: scale.current > 1 ? 'grab' : 'default' }}
+    >
+      <div ref={wrapRef} style={{ transformOrigin: 'center center', willChange: 'transform' }}>
+        <img
+          ref={imgRef}
+          src={src}
+          alt=""
+          className={cn(
+            'max-w-full max-h-full object-contain select-none transition-opacity duration-300',
+            isLoaded ? 'opacity-100' : 'opacity-0',
+          )}
+          style={{ display: 'block', maxHeight: '100dvh' }}
+          onLoad={onLoad}
+          onError={onError}
+          draggable={false}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -618,6 +822,7 @@ function LightboxSlot({
   meta,
   isLoaded,
   onLoad,
+  onSwipeBlocked,
 }: {
   url: string;
   type: 'image' | 'video' | 'audio';
@@ -625,6 +830,7 @@ function LightboxSlot({
   isActive: boolean;
   isLoaded: boolean;
   onLoad: () => void;
+  onSwipeBlocked?: () => void;
 }) {
   const author = useAuthor(type === 'audio' ? meta?.pubkey : undefined);
   const authorMeta = author.data?.metadata;
@@ -659,5 +865,5 @@ function LightboxSlot({
       </div>
     );
   }
-  return <LightboxImage url={url} isLoaded={isLoaded} onLoad={onLoad} />;
+  return <LightboxImage url={url} isLoaded={isLoaded} onLoad={onLoad} onSwipeBlocked={onSwipeBlocked} />;
 }
