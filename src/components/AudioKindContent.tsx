@@ -5,7 +5,7 @@
  */
 
 import { useMemo } from 'react';
-import { Play, Pause, Music, ListMusic, Podcast } from 'lucide-react';
+import { Play, Pause, Music, ListMusic, Podcast, Clock } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
 import { parseMusicTrack, parseMusicPlaylist, toAudioTrack } from '@/lib/musicHelpers';
@@ -14,6 +14,35 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { formatTime } from '@/lib/formatTime';
 import { cn } from '@/lib/utils';
+
+/** Shared play/pause button used across all audio cards. */
+function PlayButton({ isPlaying, isActive, onClick, size = 'lg' }: {
+  isPlaying: boolean;
+  isActive: boolean;
+  onClick: (e: React.MouseEvent) => void;
+  size?: 'sm' | 'lg';
+}) {
+  const sizeCls = size === 'lg' ? 'size-12' : 'size-10';
+  const iconCls = size === 'lg' ? 'size-5' : 'size-4';
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'shrink-0 rounded-full flex items-center justify-center transition-colors',
+        sizeCls,
+        isActive && isPlaying
+          ? 'bg-primary text-primary-foreground'
+          : 'bg-primary/15 text-primary hover:bg-primary/25',
+      )}
+      aria-label={isActive && isPlaying ? 'Pause' : 'Play'}
+    >
+      {isActive && isPlaying
+        ? <Pause className={iconCls} fill="currentColor" />
+        : <Play className={cn(iconCls, 'ml-0.5')} fill="currentColor" />}
+    </button>
+  );
+}
 
 // ── Music Track (kind 36787) ─────────────────────────────────────────────────
 
@@ -43,44 +72,40 @@ export function MusicTrackContent({ event }: { event: NostrEvent }) {
   return (
     <div
       className={cn(
-        'mt-3 rounded-2xl border p-3 flex items-center gap-3',
-        isNowPlaying ? 'border-primary bg-primary/5' : 'border-border bg-muted/30',
+        'mt-3 rounded-2xl border overflow-hidden',
+        isNowPlaying ? 'border-primary bg-primary/5' : 'border-border',
       )}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Artwork */}
-      <div className="shrink-0 size-14 rounded-xl overflow-hidden bg-muted relative">
-        {parsed.artwork ? (
+      {/* Cover artwork */}
+      {parsed.artwork ? (
+        <div className="relative aspect-square max-h-[280px] w-full overflow-hidden">
           <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" loading="lazy" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-primary/10">
-            <Music className="size-5 text-primary/40" />
+          {/* Play overlay centered on artwork */}
+          <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/10 transition-colors">
+            <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
+          </div>
+        </div>
+      ) : (
+        <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[140px]">
+          <Music className="size-10 text-primary/20" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
+          </div>
+        </div>
+      )}
+
+      {/* Track info */}
+      <div className="p-3.5 space-y-1.5">
+        <p className="text-[15px] font-semibold leading-snug truncate">{parsed.title}</p>
+        {parsed.artist && <p className="text-sm text-muted-foreground truncate">{parsed.artist}</p>}
+        {dur && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Clock className="size-3 shrink-0" />
+            <span>{dur}</span>
           </div>
         )}
       </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0 space-y-0.5">
-        <p className="text-sm font-semibold truncate">{parsed.title}</p>
-        {parsed.artist && <p className="text-xs text-muted-foreground truncate">{parsed.artist}</p>}
-        {dur && <p className="text-xs text-muted-foreground">{dur}</p>}
-      </div>
-
-      {/* Play button */}
-      <button
-        onClick={handlePlay}
-        className={cn(
-          'shrink-0 size-10 rounded-full flex items-center justify-center transition-colors',
-          isNowPlaying && player.isPlaying
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-primary/15 text-primary hover:bg-primary/25',
-        )}
-        aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
-      >
-        {isNowPlaying && player.isPlaying
-          ? <Pause className="size-4" fill="currentColor" />
-          : <Play className="size-4 ml-0.5" fill="currentColor" />}
-      </button>
     </div>
   );
 }
@@ -96,28 +121,29 @@ export function MusicPlaylistContent({ event }: { event: NostrEvent }) {
 
   return (
     <div
-      className="mt-3 rounded-2xl border border-border bg-muted/30 p-3 flex items-center gap-3"
+      className="mt-3 rounded-2xl border border-border overflow-hidden"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Artwork */}
-      <div className="shrink-0 size-14 rounded-xl overflow-hidden bg-muted">
-        {parsed.artwork ? (
+      {/* Cover artwork */}
+      {parsed.artwork ? (
+        <div className="aspect-video max-h-[200px] w-full overflow-hidden">
           <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" loading="lazy" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-primary/10">
-            <ListMusic className="size-5 text-primary/40" />
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[100px]">
+          <ListMusic className="size-10 text-primary/20" />
+        </div>
+      )}
 
-      {/* Info */}
-      <div className="flex-1 min-w-0 space-y-0.5">
-        <p className="text-sm font-semibold truncate">{parsed.title}</p>
-        {parsed.description && <p className="text-xs text-muted-foreground line-clamp-1">{parsed.description}</p>}
+      {/* Playlist info */}
+      <div className="p-3.5 space-y-1.5">
+        <p className="text-[15px] font-semibold leading-snug truncate">{parsed.title}</p>
+        {parsed.description && <p className="text-sm text-muted-foreground line-clamp-2">{parsed.description}</p>}
         {trackCount > 0 && (
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <ListMusic className="size-3" />{trackCount} track{trackCount !== 1 ? 's' : ''}
-          </p>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <ListMusic className="size-3 shrink-0" />
+            <span>{trackCount} track{trackCount !== 1 ? 's' : ''}</span>
+          </div>
         )}
       </div>
     </div>
@@ -154,44 +180,41 @@ export function PodcastEpisodeContent({ event }: { event: NostrEvent }) {
   return (
     <div
       className={cn(
-        'mt-3 rounded-2xl border p-3 flex items-center gap-3',
-        isNowPlaying ? 'border-primary bg-primary/5' : 'border-border bg-muted/30',
+        'mt-3 rounded-2xl border overflow-hidden',
+        isNowPlaying ? 'border-primary bg-primary/5' : 'border-border',
       )}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Artwork */}
-      <div className="shrink-0 size-14 rounded-xl overflow-hidden bg-muted relative">
-        {parsed.artwork ? (
+      {/* Cover artwork */}
+      {parsed.artwork ? (
+        <div className="relative aspect-square max-h-[280px] w-full overflow-hidden">
           <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" loading="lazy" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-primary/10">
-            <Podcast className="size-5 text-primary/40" />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/10 transition-colors">
+            <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
+          </div>
+        </div>
+      ) : (
+        <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[140px]">
+          <Podcast className="size-10 text-primary/20" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
+          </div>
+        </div>
+      )}
+
+      {/* Episode info */}
+      <div className="p-3.5 space-y-1.5">
+        <p className="text-[15px] font-semibold leading-snug line-clamp-2">{parsed.title}</p>
+        {parsed.description && (
+          <p className="text-sm text-muted-foreground line-clamp-2">{parsed.description}</p>
+        )}
+        {dur && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Clock className="size-3 shrink-0" />
+            <span>{dur}</span>
           </div>
         )}
       </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0 space-y-0.5">
-        <p className="text-sm font-semibold truncate">{parsed.title}</p>
-        {parsed.description && <p className="text-xs text-muted-foreground line-clamp-2">{parsed.description}</p>}
-        {dur && <p className="text-xs text-muted-foreground">{dur}</p>}
-      </div>
-
-      {/* Play button */}
-      <button
-        onClick={handlePlay}
-        className={cn(
-          'shrink-0 size-10 rounded-full flex items-center justify-center transition-colors',
-          isNowPlaying && player.isPlaying
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-primary/15 text-primary hover:bg-primary/25',
-        )}
-        aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
-      >
-        {isNowPlaying && player.isPlaying
-          ? <Pause className="size-4" fill="currentColor" />
-          : <Play className="size-4 ml-0.5" fill="currentColor" />}
-      </button>
     </div>
   );
 }
@@ -225,34 +248,24 @@ export function PodcastTrailerContent({ event }: { event: NostrEvent }) {
   return (
     <div
       className={cn(
-        'mt-3 rounded-2xl border p-3 flex items-center gap-3',
-        isNowPlaying ? 'border-primary bg-primary/5' : 'border-border bg-muted/30',
+        'mt-3 rounded-2xl border overflow-hidden',
+        isNowPlaying ? 'border-primary bg-primary/5' : 'border-border',
       )}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="shrink-0 size-10 rounded-lg bg-primary/10 flex items-center justify-center">
-        <Podcast className="size-4 text-primary/40" />
+      {/* Compact header with icon */}
+      <div className="flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[100px] relative">
+        <Podcast className="size-8 text-primary/20" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
+        </div>
       </div>
 
-      <div className="flex-1 min-w-0 space-y-0.5">
-        <p className="text-sm font-semibold truncate">{parsed.title}</p>
+      {/* Trailer info */}
+      <div className="p-3.5 space-y-1">
+        <p className="text-[15px] font-semibold leading-snug truncate">{parsed.title}</p>
         <p className="text-xs text-muted-foreground">Trailer</p>
       </div>
-
-      <button
-        onClick={handlePlay}
-        className={cn(
-          'shrink-0 size-10 rounded-full flex items-center justify-center transition-colors',
-          isNowPlaying && player.isPlaying
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-primary/15 text-primary hover:bg-primary/25',
-        )}
-        aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
-      >
-        {isNowPlaying && player.isPlaying
-          ? <Pause className="size-4" fill="currentColor" />
-          : <Play className="size-4 ml-0.5" fill="currentColor" />}
-      </button>
     </div>
   );
 }
