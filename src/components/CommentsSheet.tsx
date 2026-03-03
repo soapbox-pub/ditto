@@ -169,7 +169,9 @@ export function CommentsSheet({ event, open, onClose }: CommentsModalProps) {
               </div>
             ) : comments.length === 0 ? (
               <div className="flex items-center justify-center h-32">
-                <p className="text-sm text-muted-foreground">No comments yet. Be the first!</p>
+                <p className="text-sm text-muted-foreground">
+                {event?.kind === 1 ? 'No replies yet. Be the first!' : 'No comments yet. Be the first!'}
+              </p>
               </div>
             ) : (
               comments.map((reply) => <CommentRow key={reply.id} event={reply} />)
