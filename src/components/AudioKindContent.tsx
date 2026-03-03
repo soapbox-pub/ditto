@@ -75,19 +75,17 @@ export function MusicTrackContent({ event }: { event: NostrEvent }) {
         'mt-3 rounded-2xl border overflow-hidden',
         isNowPlaying ? 'border-primary bg-primary/5' : 'border-border',
       )}
-      onClick={(e) => e.stopPropagation()}
     >
-      {/* Cover artwork */}
+      {/* Cover artwork — clicking anywhere here plays/pauses */}
       {parsed.artwork ? (
-        <div className="relative aspect-square max-h-[280px] w-full overflow-hidden">
+        <div className="relative aspect-square max-h-[280px] w-full overflow-hidden cursor-pointer" onClick={handlePlay}>
           <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" loading="lazy" />
-          {/* Play overlay centered on artwork */}
           <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/10 transition-colors">
             <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
           </div>
         </div>
       ) : (
-        <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[140px]">
+        <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[140px] cursor-pointer" onClick={handlePlay}>
           <Music className="size-10 text-primary/20" />
           <div className="absolute inset-0 flex items-center justify-center">
             <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
@@ -95,8 +93,8 @@ export function MusicTrackContent({ event }: { event: NostrEvent }) {
         </div>
       )}
 
-      {/* Track info */}
-      <div className="p-3.5 space-y-1.5">
+      {/* Track info — clicks bubble up to NoteCard for navigation */}
+      <div className="p-3.5 space-y-1.5 cursor-pointer">
         <p className="text-[15px] font-semibold leading-snug truncate">{parsed.title}</p>
         {parsed.artist && <p className="text-sm text-muted-foreground truncate">{parsed.artist}</p>}
         {dur && (
@@ -120,11 +118,8 @@ export function MusicPlaylistContent({ event }: { event: NostrEvent }) {
   const trackCount = parsed.trackRefs.length;
 
   return (
-    <div
-      className="mt-3 rounded-2xl border border-border overflow-hidden"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* Cover artwork */}
+    <div className="mt-3 rounded-2xl border border-border overflow-hidden cursor-pointer">
+      {/* Cover artwork — clicks bubble up to NoteCard for navigation */}
       {parsed.artwork ? (
         <div className="aspect-video max-h-[200px] w-full overflow-hidden">
           <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" loading="lazy" />
@@ -135,7 +130,7 @@ export function MusicPlaylistContent({ event }: { event: NostrEvent }) {
         </div>
       )}
 
-      {/* Playlist info */}
+      {/* Playlist info — clicks bubble up to NoteCard for navigation */}
       <div className="p-3.5 space-y-1.5">
         <p className="text-[15px] font-semibold leading-snug truncate">{parsed.title}</p>
         {parsed.description && <p className="text-sm text-muted-foreground line-clamp-2">{parsed.description}</p>}
@@ -183,18 +178,17 @@ export function PodcastEpisodeContent({ event }: { event: NostrEvent }) {
         'mt-3 rounded-2xl border overflow-hidden',
         isNowPlaying ? 'border-primary bg-primary/5' : 'border-border',
       )}
-      onClick={(e) => e.stopPropagation()}
     >
-      {/* Cover artwork */}
+      {/* Cover artwork — clicking anywhere here plays/pauses */}
       {parsed.artwork ? (
-        <div className="relative aspect-square max-h-[280px] w-full overflow-hidden">
+        <div className="relative aspect-square max-h-[280px] w-full overflow-hidden cursor-pointer" onClick={handlePlay}>
           <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" loading="lazy" />
           <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/10 transition-colors">
             <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
           </div>
         </div>
       ) : (
-        <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[140px]">
+        <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[140px] cursor-pointer" onClick={handlePlay}>
           <Podcast className="size-10 text-primary/20" />
           <div className="absolute inset-0 flex items-center justify-center">
             <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
@@ -202,8 +196,8 @@ export function PodcastEpisodeContent({ event }: { event: NostrEvent }) {
         </div>
       )}
 
-      {/* Episode info */}
-      <div className="p-3.5 space-y-1.5">
+      {/* Episode info — clicks bubble up to NoteCard for navigation */}
+      <div className="p-3.5 space-y-1.5 cursor-pointer">
         <p className="text-[15px] font-semibold leading-snug line-clamp-2">{parsed.title}</p>
         {parsed.description && (
           <p className="text-sm text-muted-foreground line-clamp-2">{parsed.description}</p>
@@ -251,18 +245,17 @@ export function PodcastTrailerContent({ event }: { event: NostrEvent }) {
         'mt-3 rounded-2xl border overflow-hidden',
         isNowPlaying ? 'border-primary bg-primary/5' : 'border-border',
       )}
-      onClick={(e) => e.stopPropagation()}
     >
-      {/* Compact header with icon */}
-      <div className="flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[100px] relative">
+      {/* Compact header — clicking anywhere here plays/pauses */}
+      <div className="flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[100px] relative cursor-pointer" onClick={handlePlay}>
         <Podcast className="size-8 text-primary/20" />
         <div className="absolute inset-0 flex items-center justify-center">
           <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
         </div>
       </div>
 
-      {/* Trailer info */}
-      <div className="p-3.5 space-y-1">
+      {/* Trailer info — clicks bubble up to NoteCard for navigation */}
+      <div className="p-3.5 space-y-1 cursor-pointer">
         <p className="text-[15px] font-semibold leading-snug truncate">{parsed.title}</p>
         <p className="text-xs text-muted-foreground">Trailer</p>
       </div>
