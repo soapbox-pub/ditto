@@ -41,6 +41,7 @@ import { PodcastDetailContent } from '@/components/PodcastDetailContent';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { extractAudioUrls } from '@/lib/mediaUrls';
+import { type ImetaEntry, parseImetaMap } from '@/lib/imeta';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAppContext } from '@/hooks/useAppContext';
 
@@ -116,49 +117,7 @@ function extractVideos(content: string): string[] {
   return content.match(urlRegex) || [];
 }
 
-/** Parsed imeta entry. */
-interface ImetaEntry {
-  url: string;
-  thumbnail?: string;
-  mime?: string;
-  /** Summary text (used as webxdc app name for webxdc attachments). */
-  summary?: string;
-  /** Webxdc session UUID — present when the attachment is a stateful webxdc app. */
-  webxdc?: string;
-  /** Pixel dimensions from NIP-94 `dim` tag, e.g. "1280x720". */
-  dim?: string;
-  /** Blurhash placeholder from NIP-94 `blurhash` tag. */
-  blurhash?: string;
-}
 
-/** Parse all imeta tags into a map keyed by URL. */
-function parseImetaMap(tags: string[][]): Map<string, ImetaEntry> {
-  const map = new Map<string, ImetaEntry>();
-  for (const tag of tags) {
-    if (tag[0] !== 'imeta') continue;
-    const entry: Record<string, string> = {};
-    for (let i = 1; i < tag.length; i++) {
-      const part = tag[i];
-      const spaceIdx = part.indexOf(' ');
-      if (spaceIdx === -1) continue;
-      const key = part.slice(0, spaceIdx);
-      const value = part.slice(spaceIdx + 1);
-      entry[key] = value;
-    }
-    if (entry.url) {
-      map.set(entry.url, {
-        url: entry.url,
-        thumbnail: entry.image,
-        mime: entry.m,
-        summary: entry.summary,
-        webxdc: entry.webxdc,
-        dim: entry.dim,
-        blurhash: entry.blurhash,
-      });
-    }
-  }
-  return map;
-}
 
 /** Get the first value for a tag name. */
 function getTag(tags: string[][], name: string): string | undefined {

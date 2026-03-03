@@ -8,7 +8,7 @@ import { NoteContent } from '@/components/NoteContent';
 import { isSingleImagePost } from '@/lib/noteContent';
 import { ImageGallery } from '@/components/ImageGallery';
 import { VideoPlayer } from '@/components/VideoPlayer';
-import { AudioVisualizer } from '@/components/AudioVisualizer';
+import { NoteMedia } from '@/components/NoteMedia';
 import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { PollContent } from '@/components/PollContent';
@@ -17,7 +17,7 @@ import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent, ColorMomentEyeButton } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { ArticleContent } from '@/components/ArticleContent';
-import { WebxdcEmbed } from '@/components/WebxdcEmbed';
+import { type ImetaEntry, parseImetaMap } from '@/lib/imeta';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { EmojiPackContent } from '@/components/EmojiPackContent';
 import { FileMetadataContent } from '@/components/FileMetadataContent';
@@ -84,49 +84,7 @@ function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
 }
 
-/** Parsed imeta entry with url and optional thumbnail. */
-interface ImetaEntry {
-  url: string;
-  thumbnail?: string;
-  mime?: string;
-  /** Summary text (used as webxdc app name for webxdc attachments). */
-  summary?: string;
-  /** Webxdc session UUID — present when the attachment is a stateful webxdc app. */
-  webxdc?: string;
-  /** Pixel dimensions from NIP-94 `dim` tag, e.g. "1280x720". */
-  dim?: string;
-  /** Blurhash placeholder from NIP-94 `blurhash` tag. */
-  blurhash?: string;
-}
 
-/** Parse all imeta tags into a map keyed by URL. Works for any event kind. */
-function parseImetaMap(tags: string[][]): Map<string, ImetaEntry> {
-  const map = new Map<string, ImetaEntry>();
-  for (const tag of tags) {
-    if (tag[0] !== 'imeta') continue;
-    const entry: Record<string, string> = {};
-    for (let i = 1; i < tag.length; i++) {
-      const part = tag[i];
-      const spaceIdx = part.indexOf(' ');
-      if (spaceIdx === -1) continue;
-      const key = part.slice(0, spaceIdx);
-      const value = part.slice(spaceIdx + 1);
-      entry[key] = value;
-    }
-    if (entry.url) {
-      map.set(entry.url, {
-        url: entry.url,
-        thumbnail: entry.image,
-        mime: entry.m,
-        summary: entry.summary,
-        webxdc: entry.webxdc,
-        dim: entry.dim,
-        blurhash: entry.blurhash,
-      });
-    }
-  }
-  return map;
-}
 
 /** Parse single imeta tag into structured object (legacy, for kind 34236 vines). */
 function parseImeta(tags: string[][]): { url?: string; thumbnail?: string } {
@@ -744,60 +702,6 @@ function TruncatedNoteContent({ event, videos, audios = [], imetaMap, webxdcApps
       )}
     </div>
   );
-}
-
-/** Media content for kind 1 text notes — renders videos, audio, and webxdc apps. */
-function NoteMedia({
-  videos,
-  audios = [],
-  imetaMap,
-  webxdcApps = [],
-  event,
-}: {
-  videos: string[];
-  audios?: string[];
-  imetaMap: Map<string, ImetaEntry>;
-  webxdcApps?: ImetaEntry[];
-  event: NostrEvent;
-}) {
-  const author = useAuthor(event.pubkey);
-  const metadata = author.data?.metadata;
-  const displayName = getDisplayName(metadata, event.pubkey) ?? genUserName(event.pubkey);
-
-  if (videos.length === 0 && audios.length === 0 && webxdcApps.length === 0) return null;
-
-  return (
-    <>
-      {/* Videos — each rendered with play/pause overlay */}
-      {videos.map((url, i) => (
-        <NoteVideoPlayer key={`v-${i}`} url={url} poster={imetaMap.get(url)?.thumbnail} dim={imetaMap.get(url)?.dim} blurhash={imetaMap.get(url)?.blurhash} artist={displayName} />
-      ))}
-
-      {/* Audio — rendered as visualizer with avatar */}
-      {audios.map((url, i) => {
-        const mime = imetaMap.get(url)?.mime;
-        return (
-          <AudioVisualizer
-            key={`a-${i}`}
-            src={url}
-            mime={mime}
-            avatarUrl={metadata?.picture}
-            avatarFallback={displayName[0]?.toUpperCase() ?? '?'}
-          />
-        );
-      })}
-
-      {/* Webxdc apps */}
-      {webxdcApps.map((app) => (
-        <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} name={app.summary} icon={app.thumbnail} />
-      ))}
-    </>
-  );
-}
-
-/** Inline video player for kind 1 notes. */
-function NoteVideoPlayer({ url, poster, dim, blurhash, artist }: { url: string; poster?: string; dim?: string; blurhash?: string; artist?: string }) {
-  return <VideoPlayer src={url} poster={poster} dim={dim} blurhash={blurhash} artist={artist} />;
 }
 
 // ── NIP-68 Photo content (kind 20) ────────────────────────────────────────────
