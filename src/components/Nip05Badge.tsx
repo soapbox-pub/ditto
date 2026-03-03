@@ -13,6 +13,8 @@ interface Nip05BadgeProps {
   className?: string;
   /** Size of the favicon in pixels (default: 16) */
   iconSize?: number;
+  /** Show a checkmark before the identifier. Default: false. */
+  showCheck?: boolean;
 }
 
 /**
@@ -47,7 +49,7 @@ export function VerifiedNip05Text({
   );
 }
 
-export function Nip05Badge({ nip05, pubkey, className, iconSize = 16 }: Nip05BadgeProps) {
+export function Nip05Badge({ nip05, pubkey, className, iconSize = 16, showCheck = false }: Nip05BadgeProps) {
   const { data: verified, isPending } = useNip05Verify(nip05, pubkey);
 
   if (isPending) {
@@ -67,7 +69,7 @@ export function Nip05Badge({ nip05, pubkey, className, iconSize = 16 }: Nip05Bad
 
   return (
     <span className={cn('inline-flex items-center min-w-0', className)}>
-      <CheckCircle2 className="size-3.5 text-primary shrink-0 mr-1 mt-[0.2rem]" />
+      {showCheck && <CheckCircle2 className="size-3.5 text-primary shrink-0 mr-1 mt-[0.2rem]" />}
       {isDefaultUser ? (
         <Link
           to={`/feed/${domain}`}

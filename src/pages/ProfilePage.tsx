@@ -1478,7 +1478,7 @@ export function ProfilePage() {
                 ) : displayName}
               </h2>
               {metadata?.nip05 && (
-                <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
+                <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" showCheck />
               )}
 
               {/* Following count + Streak indicator */}
