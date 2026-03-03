@@ -35,15 +35,25 @@ function useScrollCarets(deps: unknown[]) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { const el = scrollRef.current; if (!el) return; const ro = new ResizeObserver(update); ro.observe(el); update(); return () => ro.disconnect(); }, deps);
 
-  const startScroll = useCallback((direction: 'up' | 'down') => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => { scrollRef.current?.scrollBy({ top: direction === 'up' ? -8 : 8 }); update(); }, 16);
-  }, [update]);
-
   const stopScroll = useCallback(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
-    update();
-  }, [update]);
+  }, []);
+
+  const startScroll = useCallback((direction: 'up' | 'down') => {
+    stopScroll();
+    intervalRef.current = setInterval(() => {
+      const el = scrollRef.current;
+      if (!el) return stopScroll();
+      el.scrollBy({ top: direction === 'up' ? -8 : 8 });
+      update();
+      // stop automatically when the limit is reached
+      const atLimit = direction === 'up' ? el.scrollTop <= 0 : el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+      if (atLimit) stopScroll();
+    }, 16);
+  }, [update, stopScroll]);
+
+  // clean up interval on unmount
+  useEffect(() => stopScroll, [stopScroll]);
 
   return { scrollRef, canScrollUp, canScrollDown, onScroll: update, startScroll, stopScroll };
 }
