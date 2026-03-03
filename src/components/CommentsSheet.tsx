@@ -117,7 +117,10 @@ interface CommentsModalProps {
 }
 
 export function CommentsSheet({ event, open, onClose }: CommentsModalProps) {
-  const { data: rawComments = [], isLoading } = useEventComments(open ? event : undefined);
+  // Always pass the current event (not gated on `open`) so the query key
+  // updates immediately when the event changes — prevents stale replies
+  // from a previous image flashing before the new query resolves.
+  const { data: rawComments = [], isLoading } = useEventComments(event);
 
   const comments = useMemo(() => {
     const seen = new Set<string>();
