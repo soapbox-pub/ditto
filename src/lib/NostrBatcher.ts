@@ -654,7 +654,7 @@ export class NostrBatcher {
       );
       const reactionMap = new Map<string, NostrEvent>();
       for (const event of events) {
-        const eTag = event.tags.find(([name]) => name === 'e')?.[1];
+        const eTag = event.tags.findLast(([name]) => name === 'e')?.[1];
         if (!eTag) continue;
         const existing = reactionMap.get(eTag);
         if (!existing || event.created_at > existing.created_at) {

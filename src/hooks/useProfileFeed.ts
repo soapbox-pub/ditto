@@ -208,7 +208,7 @@ export function useProfileLikes(pubkey: string | undefined, active: boolean) {
       // Extract the liked event IDs, preserving order
       const likedIds: string[] = [];
       for (const r of sortedReactions) {
-        const id = r.tags.find(([n]) => n === 'e')?.[1];
+        const id = r.tags.findLast(([n]) => n === 'e')?.[1];
         if (id && !likedIds.includes(id)) {
           likedIds.push(id);
         }

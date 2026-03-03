@@ -45,7 +45,7 @@ export interface NotificationData {
 
 /** Get the referenced event ID from an event's tags. */
 function getReferencedEventId(event: NostrEvent): string | undefined {
-  const eTag = event.tags.find(([name]) => name === 'e');
+  const eTag = event.tags.findLast(([name]) => name === 'e');
   return eTag?.[1];
 }
 
