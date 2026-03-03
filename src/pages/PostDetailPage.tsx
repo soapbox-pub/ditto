@@ -61,9 +61,6 @@ const MUSIC_KINDS = new Set([36787, 34139]);
 const PODCAST_KINDS = new Set([30054, 30055]);
 /** NIP-52 Calendar Events. */
 const CALENDAR_EVENT_KINDS = new Set([31922, 31923]);
-/** NIP-34 development kinds. */
-const DEV_KINDS = new Set([30617, 1617, 1618, 30817]);
-
 /** Map a kind number to a human-readable shell title for the loading state. */
 function shellTitleForKind(kind?: number): string {
   if (!kind) return 'Loading...';
