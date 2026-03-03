@@ -52,7 +52,7 @@ export function headerLabel(content: ExternalContent): string {
       }
     }
     case 'isbn':
-      return 'Book';
+      return 'Books';
     case 'iso3166':
       return getCountryInfo(content.code)?.name ?? 'Country';
     default:
