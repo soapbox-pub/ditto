@@ -43,6 +43,8 @@ export class LayoutStore {
 
   getSnapshot = (): LayoutSnapshot => this._snapshot;
 
+  getOptions = (): LayoutOptions => this.options;
+
   subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -114,7 +116,7 @@ export function useLayoutOptions(options: LayoutOptions): void {
   // clobber the incoming page's options (causing the FAB to disappear).
   useEffect(() => {
     return () => {
-      if (store.getSnapshot() === prev.current) {
+      if (store.getOptions() === prev.current) {
         store.reset();
       }
     };
