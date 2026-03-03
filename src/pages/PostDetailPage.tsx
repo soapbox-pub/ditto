@@ -301,7 +301,7 @@ export function PostDetailShell({ children }: { children: React.ReactNode }) {
       {/* Header — matches Ditto: ← Post Details */}
       <div className="flex items-center gap-4 px-4 pt-4 pb-5">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
           className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
           aria-label="Go back"
         >

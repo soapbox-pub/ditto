@@ -94,7 +94,7 @@ export function DomainFeedPage() {
       <main className="">
         <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-3 px-4 py-4 border-b border-border bg-background/80 backdrop-blur-md z-10')}>
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
             className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
             aria-label="Go back"
           >
