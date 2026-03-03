@@ -32,11 +32,11 @@ export function SidebarThemeDropdown({ userPubkey, onNavigate, className }: Side
     .map(([id, p]) => ({ id, label: p.label, emoji: p.emoji }));
 
   const activePreset = theme === 'custom' && customTheme
-    ? Object.entries(themePresets).find(([, p]) => JSON.stringify(p.colors) === JSON.stringify(customTheme))
+    ? Object.entries(themePresets).find(([, p]) => JSON.stringify(p.colors) === JSON.stringify(customTheme.colors))
     : undefined;
 
   const activeUserTheme = theme === 'custom' && customTheme && !activePreset
-    ? userThemes.data?.find(t => JSON.stringify(t.colors) === JSON.stringify(customTheme))
+    ? userThemes.data?.find(t => JSON.stringify(t.colors) === JSON.stringify(customTheme.colors))
     : undefined;
 
   const currentLabel = (() => {
@@ -101,7 +101,7 @@ export function SidebarThemeDropdown({ userPubkey, onNavigate, className }: Side
           </>
         )}
         {customTheme && !activePreset && !activeUserTheme && (
-          <DropdownMenuItem onClick={() => { onNavigate?.(); navigate('/settings/theme/edit'); }} className="flex items-center justify-between cursor-pointer">
+          <DropdownMenuItem onClick={() => { setTheme('custom'); }} className="flex items-center justify-between cursor-pointer">
             <div className="flex items-center gap-2"><Palette className="size-4" /><span>Custom</span></div>
             {theme === 'custom' && <Check className="size-4 text-primary" />}
           </DropdownMenuItem>

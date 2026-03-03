@@ -360,7 +360,7 @@ export function LeftSidebar() {
                       </>
                     )}
                     {customTheme && !activePreset && !activeUserTheme && (
-                      <DropdownMenuItem onClick={() => { setAccountPopoverOpen(false); navigate('/settings/theme/edit'); }} className="flex items-center justify-between cursor-pointer">
+                      <DropdownMenuItem onClick={() => { setTheme('custom'); }} className="flex items-center justify-between cursor-pointer">
                         <div className="flex items-center gap-2"><Palette className="size-4" /><span>Custom</span></div>
                         {theme === 'custom' && <Check className="size-4 text-primary" />}
                       </DropdownMenuItem>
