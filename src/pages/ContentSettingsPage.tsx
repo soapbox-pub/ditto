@@ -2,6 +2,7 @@ import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ContentSettings } from '@/components/ContentSettings';
+import { IntroImage } from '@/components/IntroImage';
 import { useAppContext } from '@/hooks/useAppContext';
 
 export function ContentSettingsPage() {
@@ -9,7 +10,7 @@ export function ContentSettingsPage() {
 
   useSeoMeta({
     title: `Feed | Settings | ${config.appName}`,
-    description: 'Manage your feed and content preferences',
+    description: 'Choose what appears in your feed and how it is organized',
   });
 
   return (
@@ -23,9 +24,20 @@ export function ContentSettingsPage() {
           <div>
             <h1 className="text-xl font-bold">Feed</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Manage your feed and content preferences
+              Choose what appears in your feed and how it is organized
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Lead image */}
+      <div className="flex items-center gap-4 px-7 py-5">
+        <IntroImage src="/feed-intro.png" size="w-28" />
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold">What You See</h2>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            Nostr is full of all kinds of content. Pick what shows up, manage feed tabs, and tune your follows feed exactly how you like it.
+          </p>
         </div>
       </div>
 
