@@ -121,7 +121,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
 
       <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
 
-      <CommentsSheet
+      <CommentsSheet key={event.id}
         event={event}
         open={commentsOpen}
         onClose={() => setCommentsOpen(false)}
