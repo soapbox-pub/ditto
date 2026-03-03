@@ -15,6 +15,11 @@ interface StreamPostsOptions {
   language?: string;
   /** Protocol strings to pass as protocol: search terms. Defaults to ['nostr']. */
   protocols?: string[];
+  /**
+   * When set, overrides the automatic kind selection entirely.
+   * The search will only query these specific kind numbers.
+   */
+  kindsOverride?: number[];
 }
 
 /** Check if an event has imeta tags with image MIME types. */
@@ -95,13 +100,16 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const [isLoading, setIsLoading] = useState(true);
 
   // These mediaTypes query dedicated event kinds rather than filtering kind 1
-  const isDedicatedKindQuery = options.mediaType === 'vines' || options.mediaType === 'images' || options.mediaType === 'videos';
+  const isDedicatedKindQuery = !options.kindsOverride && (options.mediaType === 'vines' || options.mediaType === 'images' || options.mediaType === 'videos');
 
   const enabledKinds = getEnabledFeedKinds(feedSettings);
   const kindsKey = [...enabledKinds].sort().join(',');
 
   // Stable key for protocols so it can be a useEffect dependency
   const protocolsKey = [...(options.protocols ?? ['nostr'])].sort().join(',');
+
+  // Stable key for kindsOverride
+  const kindsOverrideKey = options.kindsOverride ? [...options.kindsOverride].sort().join(',') : '';
 
   useEffect(() => {
     const ac = new AbortController();
@@ -132,9 +140,11 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       setAllEvents(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
     }
 
-    // Build the kinds list based on mediaType
+    // Build the kinds list based on mediaType (or override entirely)
     let kinds: number[];
-    if (options.mediaType === 'vines') {
+    if (options.kindsOverride && options.kindsOverride.length > 0) {
+      kinds = [...options.kindsOverride];
+    } else if (options.mediaType === 'vines') {
       kinds = [22, 34236];           // shorts + vines
     } else if (options.mediaType === 'videos') {
       kinds = [21, 22, ...enabledKinds.filter((k) => !isRepostKind(k))];
@@ -237,8 +247,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols is stabilized via protocolsKey
-  }, [nostr, query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols is stabilized via protocolsKey; kindsOverride is stabilized via kindsOverrideKey
+  }, [nostr, query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey]);
 
   // Apply client-side filters (including mute filtering) without restarting the stream
   const posts = useMemo(() => {

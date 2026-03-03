@@ -1,6 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
 import { useAppContext } from '@/hooks/useAppContext';
-import { SlidersHorizontal, Search as SearchIcon, Image, Video, Film, Languages, UserRoundCheck } from 'lucide-react';
+import { SlidersHorizontal, Search as SearchIcon, Image, Video, Film, Languages, UserRoundCheck, Hash } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
@@ -23,6 +23,8 @@ import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
+import { EXTRA_KINDS } from '@/lib/extraKinds';
+import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
 
 type TabType = 'posts' | 'accounts';
@@ -102,11 +104,65 @@ export function SearchPage() {
   const [mediaType, setMediaType] = useState<'all' | 'images' | 'videos' | 'vines' | 'none'>('all');
   const [language, setLanguage] = useState('global');
   const [platform, setPlatform] = useState<'nostr' | 'activitypub' | 'atproto'>('nostr');
+  // Kind filter: 'all' = no override, 'custom' = user types a number, otherwise a kind number string
+  const [kindFilter, setKindFilter] = useState<string>('all');
+  const [customKindText, setCustomKindText] = useState('');
 
   const protocols = [platform];
 
+  // Build a flat list of (kind, label, icon) options from EXTRA_KINDS for the dropdown
+  const kindOptions = useMemo(() => {
+    type KindOption = {
+      value: string;
+      label: string;
+      description: string;
+      parentId: string;
+      icon: React.ComponentType<{ className?: string }> | undefined;
+    };
+    const options: KindOption[] = [];
+    for (const def of EXTRA_KINDS) {
+      if (def.subKinds) {
+        for (const sub of def.subKinds) {
+          options.push({
+            value: String(sub.kind),
+            label: `${sub.label} (${sub.kind})`,
+            description: sub.description,
+            parentId: def.id,
+            icon: CONTENT_KIND_ICONS[def.id],
+          });
+        }
+      } else {
+        options.push({
+          value: String(def.kind),
+          label: `${def.label} (${def.kind})`,
+          description: def.description,
+          parentId: def.id,
+          icon: CONTENT_KIND_ICONS[def.id],
+        });
+      }
+    }
+    // Deduplicate by value (kind number) keeping first occurrence
+    const seen = new Set<string>();
+    return options.filter((o) => {
+      if (seen.has(o.value)) return false;
+      seen.add(o.value);
+      return true;
+    });
+  }, []);
+
+  // Resolve kindsOverride from the current kind filter state
+  const kindsOverride = useMemo<number[] | undefined>(() => {
+    if (kindFilter === 'all') return undefined;
+    if (kindFilter === 'custom') {
+      const parsed = customKindText.trim().split(/[\s,]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0);
+      return parsed.length > 0 ? parsed : undefined;
+    }
+    const n = Number(kindFilter);
+    return Number.isInteger(n) && n > 0 ? [n] : undefined;
+  }, [kindFilter, customKindText]);
+
   // Hooks
-  const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, { includeReplies, mediaType, language, protocols });
+  const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, { includeReplies, mediaType, language, protocols, kindsOverride });
   const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
 
   return (
@@ -142,11 +198,11 @@ export function SearchPage() {
                      <button
                        className={cn(
                           'shrink-0 h-10 w-10 rounded-lg border bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors',
-                          filtersOpen
-                            ? 'border-2 border-primary bg-secondary text-primary'
-                            : (includeReplies !== true || mediaType !== 'all' || language !== 'global' || platform !== 'nostr')
-                              ? 'border-primary text-primary'
-                              : 'border-border',
+                           filtersOpen
+                             ? 'border-2 border-primary bg-secondary text-primary'
+                             : (includeReplies !== true || mediaType !== 'all' || language !== 'global' || platform !== 'nostr' || kindFilter !== 'all')
+                               ? 'border-primary text-primary'
+                               : 'border-border',
                        )}
                        style={{ outline: 'none' }}
                        aria-label="Search filters"
@@ -219,28 +275,65 @@ export function SearchPage() {
                     <Separator />
 
                     {/* Platform */}
-                    <div className="space-y-2">
-                      <span className="font-medium text-sm">Show posts from</span>
-                      <RadioGroup
-                        value={platform}
-                        onValueChange={(v) => setPlatform(v as typeof platform)}
-                        className="space-y-1.5"
-                      >
-                        {[
-                          { value: 'nostr', label: 'Nostr' },
-                          { value: 'activitypub', label: 'Mastodon' },
-                          { value: 'atproto', label: 'Bluesky' },
-                        ].map(({ value, label }) => (
-                          <div key={value} className="flex items-center space-x-2">
-                            <RadioGroupItem value={value} id={`platform-${value}`} />
-                            <Label htmlFor={`platform-${value}`} className="font-normal cursor-pointer text-sm">
-                              {label}
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
-                    </div>
-                  </PopoverContent>
+                     <div className="space-y-2">
+                       <span className="font-medium text-sm">Show posts from</span>
+                       <RadioGroup
+                         value={platform}
+                         onValueChange={(v) => setPlatform(v as typeof platform)}
+                         className="space-y-1.5"
+                       >
+                         {[
+                           { value: 'nostr', label: 'Nostr' },
+                           { value: 'activitypub', label: 'Mastodon' },
+                           { value: 'atproto', label: 'Bluesky' },
+                         ].map(({ value, label }) => (
+                           <div key={value} className="flex items-center space-x-2">
+                             <RadioGroupItem value={value} id={`platform-${value}`} />
+                             <Label htmlFor={`platform-${value}`} className="font-normal cursor-pointer text-sm">
+                               {label}
+                             </Label>
+                           </div>
+                         ))}
+                       </RadioGroup>
+                     </div>
+
+                     <Separator />
+
+                     {/* Event kind */}
+                     <div className="space-y-2">
+                       <div className="flex items-center gap-1.5">
+                         <Hash className="size-3.5 text-muted-foreground" />
+                         <span className="font-medium text-sm">Event kind</span>
+                       </div>
+                       <Select value={kindFilter} onValueChange={(v) => { setKindFilter(v); if (v !== 'custom') setCustomKindText(''); }}>
+                         <SelectTrigger className="w-full bg-secondary/50">
+                           <SelectValue placeholder="All kinds" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="all">All kinds</SelectItem>
+                           {kindOptions.map((opt) => (
+                             <SelectItem key={opt.value} value={opt.value}>
+                               <span className="flex items-center gap-2">
+                                 {opt.icon && <opt.icon className="size-3.5 shrink-0 text-muted-foreground" />}
+                                 {opt.label}
+                               </span>
+                             </SelectItem>
+                           ))}
+                           <SelectItem value="custom">Custom kind…</SelectItem>
+                         </SelectContent>
+                       </Select>
+                       {kindFilter === 'custom' && (
+                         <Input
+                           type="text"
+                           inputMode="numeric"
+                           placeholder="e.g. 1, 30023"
+                           value={customKindText}
+                           onChange={(e) => setCustomKindText(e.target.value)}
+                           className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-sm"
+                         />
+                       )}
+                     </div>
+                   </PopoverContent>
                 </Popover>
               </div>
             </div>
