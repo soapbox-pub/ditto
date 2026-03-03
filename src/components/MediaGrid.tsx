@@ -276,6 +276,14 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
 
   const [flatIndex, setFlatIndex] = useState<number | null>(initialIndex);
 
+  // Sync flatIndex when initialOpenUrl changes while the component is already mounted
+  // (e.g., sidebar click while media tab is already the active tab).
+  useEffect(() => {
+    if (initialIndex !== null) {
+      setFlatIndex(initialIndex);
+    }
+  }, [initialIndex]);
+
   const activeEntry = flatIndex !== null ? flat[flatIndex] : null;
 
   // Append a loading sentinel when there are more pages so the lightbox
