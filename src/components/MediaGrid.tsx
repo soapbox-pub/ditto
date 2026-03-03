@@ -228,7 +228,7 @@ interface MediaGridProps {
   onInitialOpenConsumed?: () => void;
 }
 
-export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed }: MediaGridProps) {
+export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed: _onInitialOpenConsumed }: MediaGridProps) {
   const items = useMemo(
     () => events.map(eventToMediaItem).filter((x): x is MediaItem => x !== null),
     [events],

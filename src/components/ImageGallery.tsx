@@ -348,6 +348,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   // adjacent slot then call onNext/onPrev, which shifts currentIndex and the
   // useEffect below immediately resets the strip to -100vw without animation
   // so the new neighbours are in place for the next swipe.
+  const containerRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   const dragX = useRef<number | null>(null);
   const dragY = useRef<number | null>(null);
@@ -382,7 +383,9 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     setStrip(0, false);
   };
 
-  const onTouchMove = (e: React.TouchEvent) => {
+  // Registered via addEventListener with { passive: false } to allow preventDefault
+  const onTouchMoveRef = useRef((_e: TouchEvent) => {});
+  onTouchMoveRef.current = (e: TouchEvent) => {
     if (dragX.current === null || dragY.current === null) return;
     const dx = e.touches[0].clientX - dragX.current;
     const dy = e.touches[0].clientY - dragY.current;
@@ -396,6 +399,15 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     const pct = (atEdge ? dx * 0.2 : dx) / window.innerWidth * 100;
     setStrip(pct, false);
   };
+
+  // Register touchmove as non-passive so preventDefault works
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: TouchEvent) => onTouchMoveRef.current(e);
+    el.addEventListener('touchmove', handler, { passive: false });
+    return () => el.removeEventListener('touchmove', handler);
+  }, []);
 
   const onTouchEnd = (e: React.TouchEvent) => {
     if (dragX.current === null || axis.current !== 'h') {
@@ -443,10 +455,10 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
 
   return (
     <div
+      ref={containerRef}
       className="fixed inset-0 z-[100] animate-in fade-in duration-200"
       onClick={handleBackdropClick}
       onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
       {/* Backdrop */}
@@ -490,7 +502,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
         className="absolute inset-y-0 flex will-change-transform"
         style={{ width: '300vw', left: 0, transform: 'translateX(-100vw)' }}
       >
-        <div className="w-screen h-full flex items-center justify-center shrink-0">
+        <div className={cn('w-screen h-full flex items-center justify-center shrink-0 px-4 pt-14 sm:px-12', bottomBar ? 'pb-24' : 'pb-6')}>
           {canGoPrev && (
             <LightboxSlot
               url={images[currentIndex - 1]}
@@ -502,7 +514,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
             />
           )}
         </div>
-        <div className="w-screen h-full flex items-center justify-center shrink-0 relative">
+        <div className={cn('w-screen h-full flex items-center justify-center shrink-0 px-4 pt-14 sm:px-12 relative', bottomBar ? 'pb-24' : 'pb-6')}>
           {!isLoaded && (mediaTypes?.[currentIndex] ?? 'image') === 'image' && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
@@ -518,7 +530,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
             onLoad={() => setIsLoaded(true)}
           />
         </div>
-        <div className="w-screen h-full flex items-center justify-center shrink-0">
+        <div className={cn('w-screen h-full flex items-center justify-center shrink-0 px-4 pt-14 sm:px-12', bottomBar ? 'pb-24' : 'pb-6')}>
           {canGoNext && (
             <LightboxSlot
               url={images[currentIndex + 1]}
@@ -554,13 +566,22 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
 /** Lightbox image with Blossom server fallback. */
 function LightboxImage({ url, isLoaded, onLoad }: { url: string; isLoaded: boolean; onLoad: () => void }) {
   const { src, onError } = useBlossomFallback(url);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // If the image is already cached, onLoad may not fire — check on mount.
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      onLoad();
+    }
+  }, [src, onLoad]);
 
   return (
     <img
+      ref={imgRef}
       src={src}
       alt=""
       className={cn(
-        'w-full h-full object-contain select-none transition-opacity duration-300',
+        'max-w-full max-h-full object-contain select-none transition-opacity duration-300',
         isLoaded ? 'opacity-100' : 'opacity-0',
       )}
       onLoad={onLoad}
