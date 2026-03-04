@@ -226,14 +226,14 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
     const pTags = event.tags.filter(([name, , , marker]) => name === 'p' && marker !== 'mention');
     
     if (pTags.length > 0) {
-      // Remove duplicates and return pubkeys
-      return [...new Set(pTags.map(([, pubkey]) => pubkey))];
+      // Remove duplicates and filter out undefined/empty pubkeys
+      return [...new Set(pTags.map(([, pubkey]) => pubkey).filter(Boolean))] as string[];
     }
     
     // Fallback: if all p tags are mentions, use all p tags anyway
     const allPTags = event.tags.filter(([name]) => name === 'p');
     if (allPTags.length > 0) {
-      return [...new Set(allPTags.map(([, pubkey]) => pubkey))];
+      return [...new Set(allPTags.map(([, pubkey]) => pubkey).filter(Boolean))] as string[];
     }
 
     // Self-reply fallback: when replying to own post, no p tags are added (the

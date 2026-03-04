@@ -21,8 +21,10 @@ interface ReplyContextProps {
  * Used consistently across NoteCard and notification views.
  */
 export function ReplyContext({ pubkeys, parentEventId, className }: ReplyContextProps) {
+  // Filter out any undefined/empty pubkeys defensively
+  const validPubkeys = pubkeys.filter(Boolean);
   // Show max 2 authors for cleaner UI
-  const displayPubkeys = pubkeys.slice(0, 2);
+  const displayPubkeys = validPubkeys.slice(0, 2);
 
   const replyingToLabel = parentEventId ? (
     <HoverCard openDelay={300} closeDelay={150}>
@@ -52,9 +54,9 @@ export function ReplyContext({ pubkeys, parentEventId, className }: ReplyContext
           {index < displayPubkeys.length - 1 && <span className="shrink-0">and</span>}
         </span>
       ))}
-      {pubkeys.length > 2 && (
+      {validPubkeys.length > 2 && (
         <span className="text-muted-foreground shrink-0">
-          and {pubkeys.length - 2} other{pubkeys.length - 2 !== 1 ? 's' : ''}
+          and {validPubkeys.length - 2} other{validPubkeys.length - 2 !== 1 ? 's' : ''}
         </span>
       )}
     </div>
