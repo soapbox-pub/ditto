@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
+
 import { cn } from '@/lib/utils';
 
 import type { ThemeConfig } from '@/themes';
@@ -472,10 +472,7 @@ export function AIChatPage() {
 
           {/* Loading indicator */}
           {(isStreaming || apiLoading) && messages[messages.length - 1]?.role === 'user' && (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-48" />
-              <Skeleton className="h-4 w-32" />
-            </div>
+            <DorkThinking />
           )}
 
           {/* Error display */}
@@ -517,6 +514,28 @@ export function AIChatPage() {
 }
 
 // ─── Sub-Components ───
+
+const DORK_ANIMATION = [
+  '<[o_o]>',
+  '>[-_-]<',
+  '<[0_0]>',
+  '>[-_-]<',
+];
+
+function DorkThinking() {
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFrame((f) => (f + 1) % DORK_ANIMATION.length);
+    }, 400);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <pre className="text-sm font-mono text-muted-foreground leading-none">{DORK_ANIMATION[frame]}</pre>
+  );
+}
 
 const DORK_GREETINGS = [
   "Hi, I'm Dork! What would you like me to do?",
