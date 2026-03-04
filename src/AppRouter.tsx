@@ -42,6 +42,7 @@ import { WorldPage } from "./pages/WorldPage";
 import { MusicFeedPage } from "./pages/MusicFeedPage";
 import { PodcastsFeedPage } from "./pages/PodcastsFeedPage";
 import { BooksPage } from "./pages/BooksPage";
+import { BlobbiPage } from "./pages/BlobbiPage";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -106,6 +107,7 @@ export function AppRouter() {
           <Route path="/themes" element={<ThemesPage />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
           <Route path="/ai-chat" element={<AIChatPage />} />
+          <Route path="/blobbi" element={<BlobbiPage />} />
           <Route path="/world" element={<WorldPage />} />
           <Route path="/books" element={<BooksPage />} />
           <Route path="/i/*" element={<ExternalContentPage />} />
