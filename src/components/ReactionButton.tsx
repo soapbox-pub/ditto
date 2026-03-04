@@ -11,6 +11,13 @@ import { useUserReaction } from '@/hooks/useUserReaction';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { cn } from '@/lib/utils';
 import type { EventStats } from '@/hooks/useTrending';
+import type { ResolvedEmoji } from '@/lib/customEmoji';
+
+/** The default emoji used for a quick tap/click reaction. */
+const DEFAULT_REACTION = '💜';
+
+/** Long-press threshold in ms to open the emoji picker on touch devices. */
+const LONG_PRESS_MS = 400;
 
 interface ReactionButtonProps {
   /** The event ID being reacted to. */
@@ -43,9 +50,60 @@ export function ReactionButton({
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const justClosedRef = useRef(false);
   const pickerExpandedRef = useRef(false);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressFiredRef = useRef(false);
   const userReaction = useUserReaction(eventId);
 
   const hasReacted = !!userReaction;
+
+  /** Publish a default 💜 reaction on tap/click. */
+  const handleQuickReact = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    if (!user) return;
+
+    const emoji = DEFAULT_REACTION;
+    const resolvedEmoji: ResolvedEmoji = { content: emoji };
+
+    // Optimistic update
+    const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
+    if (prevStats) {
+      queryClient.setQueryData<EventStats>(['event-stats', eventId], {
+        ...prevStats,
+        reactions: prevStats.reactions + 1,
+        reactionEmojis: prevStats.reactionEmojis.some((e) => e.content === emoji)
+          ? prevStats.reactionEmojis
+          : [...prevStats.reactionEmojis, resolvedEmoji],
+      });
+    }
+    queryClient.setQueryData<ResolvedEmoji>(['user-reaction', eventId], resolvedEmoji);
+
+    publishEvent(
+      {
+        kind: 7,
+        content: emoji,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['e', eventId],
+          ['p', eventPubkey],
+          ['k', String(eventKind)],
+        ],
+      },
+      {
+        onSuccess: () => {
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
+            queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
+          }, 3000);
+        },
+        onError: () => {
+          if (prevStats) {
+            queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
+          }
+          queryClient.removeQueries({ queryKey: ['user-reaction', eventId] });
+        },
+      },
+    );
+  }, [user, eventId, eventPubkey, eventKind, publishEvent, queryClient]);
 
   const handleUnreact = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -97,25 +155,47 @@ export function ReactionButton({
     );
   }, [user, nostr, eventId, publishEvent, queryClient]);
 
+  // --- Hover handlers (desktop): show popover ---
   const handleMouseEnter = useCallback(() => {
     if (!user) return;
-    if (hasReacted) return;
     if (justClosedRef.current) return;
-    // Clear any pending close timeout
     if (closeTimeoutRef.current) {
       clearTimeout(closeTimeoutRef.current);
       closeTimeoutRef.current = null;
     }
     setMenuOpen(true);
-  }, [user, hasReacted]);
+  }, [user]);
 
   const handleMouseLeave = useCallback(() => {
-    // Don't auto-close when the full emoji picker is open
     if (pickerExpandedRef.current) return;
-    // Delay closing to allow user to move to the menu
     closeTimeoutRef.current = setTimeout(() => {
       setMenuOpen(false);
     }, 150);
+  }, []);
+
+  // --- Long-press handlers (touch): show popover ---
+  const handleTouchStart = useCallback(() => {
+    if (!user) return;
+    longPressFiredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      setMenuOpen(true);
+    }, LONG_PRESS_MS);
+  }, [user]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback(() => {
+    // Cancel long press if user moves finger
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
   }, []);
 
   return (
@@ -136,15 +216,22 @@ export function ReactionButton({
           onClick={(e) => {
             e.stopPropagation();
             if (!user) return;
+            // If long-press opened the popover, don't also fire a click
+            if (longPressFiredRef.current) {
+              longPressFiredRef.current = false;
+              return;
+            }
             if (hasReacted) {
               handleUnreact(e);
               return;
             }
-            if (justClosedRef.current) return;
-            setMenuOpen((prev) => !prev);
+            handleQuickReact(e);
           }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchMove={handleTouchMove}
         >
           {filledHeart ? (
             <Heart className="size-6" fill={hasReacted ? 'currentColor' : 'none'} />

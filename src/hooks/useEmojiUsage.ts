@@ -6,8 +6,8 @@ interface EmojiUsage {
   [emoji: string]: number;
 }
 
-// Default emojis: heart, thumbs up, thumbs down, laughing, surprised, sad
-const DEFAULT_EMOJIS = ['❤️', '👍', '👎', '😂', '😮', '😢'];
+// Default quick-react emojis
+const DEFAULT_EMOJIS = ['🚀', '🔥', '💪', '🤙', '😂', '💀'];
 
 /**
  * Hook to track and retrieve user's most-used emojis
