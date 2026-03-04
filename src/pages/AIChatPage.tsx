@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
@@ -523,11 +523,27 @@ export function AIChatPage() {
 
 // ─── Sub-Components ───
 
+const DORK_GREETINGS = [
+  "Hi, I'm Dork! What would you like me to do?",
+  "Dork here! What do you need?",
+  "Hey, it's Dork! What do you want to do?",
+];
+
 function EmptyState() {
+  const greeting = useMemo(() => DORK_GREETINGS[Math.floor(Math.random() * DORK_GREETINGS.length)], []);
+
   return (
-    <div className="flex flex-col items-center justify-center py-24 gap-6 text-center select-none">
-      <pre className="text-2xl font-mono text-muted-foreground/80 leading-none tracking-tight">{'<[o_o]>'}</pre>
-      <h2 className="text-lg font-medium tracking-wide text-foreground/90">Dork AI</h2>
+    <div className="flex flex-col items-center justify-center py-20 gap-8 text-center select-none animate-in fade-in duration-500">
+      <div className="relative">
+        <div className="absolute -inset-6 rounded-full bg-primary/[0.06] blur-2xl" />
+        <div className="relative size-24 rounded-2xl bg-gradient-to-b from-primary/15 to-primary/5 border border-primary/10 flex items-center justify-center shadow-sm">
+          <pre className="text-2xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">Dork AI</h2>
+        <p className="text-sm text-muted-foreground">{greeting}</p>
+      </div>
     </div>
   );
 }
