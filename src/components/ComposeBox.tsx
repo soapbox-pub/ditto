@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square } from 'lucide-react';
+import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -175,7 +175,7 @@ export function ComposeBox({
   const [cwEnabled, setCwEnabled] = useState(false);
   const [cwText, setCwText] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerTab, setPickerTab] = useState<'emoji' | 'gif'>('emoji');
+  const [pickerTab, setPickerTab] = useState<'emoji' | 'gif' | 'stickers'>('emoji');
   const [internalPreviewMode, setInternalPreviewMode] = useState(false);
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const [_uploadedFileTags, setUploadedFileTags] = useState<string[][]>([]);
@@ -1202,56 +1202,103 @@ export function ComposeBox({
                       className="w-auto p-0 border-border"
                     >
                       {/* Tab bar */}
-                     <div className="flex border-b border-border">
-                       <button
-                         type="button"
-                         onClick={() => setPickerTab('emoji')}
-                         className={cn(
-                           'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
-                           pickerTab === 'emoji'
-                             ? 'text-primary border-b-2 border-primary -mb-px'
-                             : 'text-muted-foreground hover:text-foreground',
-                         )}
-                       >
-                         <Smile className="size-3.5" />
-                         Emoji
-                       </button>
-                       <button
-                         type="button"
-                         onClick={() => setPickerTab('gif')}
-                         className={cn(
-                           'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
-                           pickerTab === 'gif'
-                             ? 'text-primary border-b-2 border-primary -mb-px'
-                             : 'text-muted-foreground hover:text-foreground',
-                         )}
-                       >
-                         <svg width="14" height="14" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                           <rect x="1" y="1" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                           <text x="9" y="9" textAnchor="middle" dominantBaseline="central" fontSize="7" fontWeight="700" fontFamily="system-ui,sans-serif" fill="currentColor" letterSpacing="0.5">GIF</text>
-                         </svg>
-                         GIF
-                       </button>
-                     </div>
-                     {/* Picker content */}
-                     {pickerTab === 'emoji' ? (
-                       <EmojiPicker
-                         customEmojis={customEmojis}
-                         onSelect={(selection) => {
-                           if (selection.type === 'native') {
-                             insertEmoji(selection.emoji);
-                           } else {
-                             insertEmoji(`:${selection.shortcode}:`);
-                           }
-                         }}
-                       />
-                     ) : (
-                       <GifPicker onSelect={(gif) => {
-                         setContent((prev) => (prev ? prev + '\n' + gif.url : gif.url));
-                         setPickerOpen(false);
-                         expand();
-                       }} />
-                     )}
+                      <div className="flex border-b border-border">
+                        <button
+                          type="button"
+                          onClick={() => setPickerTab('emoji')}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
+                            pickerTab === 'emoji'
+                              ? 'text-primary border-b-2 border-primary -mb-px'
+                              : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          <Smile className="size-3.5" />
+                          Emoji
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPickerTab('gif')}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
+                            pickerTab === 'gif'
+                              ? 'text-primary border-b-2 border-primary -mb-px'
+                              : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <rect x="1" y="1" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                            <text x="9" y="9" textAnchor="middle" dominantBaseline="central" fontSize="7" fontWeight="700" fontFamily="system-ui,sans-serif" fill="currentColor" letterSpacing="0.5">GIF</text>
+                          </svg>
+                          GIF
+                        </button>
+                        {customEmojis.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setPickerTab('stickers')}
+                            className={cn(
+                              'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
+                              pickerTab === 'stickers'
+                                ? 'text-primary border-b-2 border-primary -mb-px'
+                                : 'text-muted-foreground hover:text-foreground',
+                            )}
+                          >
+                            <Sticker className="size-3.5" />
+                            Stickers
+                          </button>
+                        )}
+                      </div>
+                      {/* Picker content */}
+                      {pickerTab === 'emoji' ? (
+                        <EmojiPicker
+                          customEmojis={customEmojis}
+                          onSelect={(selection) => {
+                            if (selection.type === 'native') {
+                              insertEmoji(selection.emoji);
+                            } else {
+                              insertEmoji(`:${selection.shortcode}:`);
+                            }
+                          }}
+                        />
+                      ) : pickerTab === 'stickers' ? (
+                        <div className="w-[312px] h-[420px] overflow-y-auto p-2">
+                          {customEmojis.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+                              <Sticker className="size-8 opacity-40" />
+                              <p className="text-sm">No sticker packs yet</p>
+                              <p className="text-xs">Add emoji packs to your profile to use stickers</p>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-4 gap-1.5">
+                              {customEmojis.map((emoji) => (
+                                <button
+                                  key={emoji.shortcode}
+                                  type="button"
+                                  title={emoji.shortcode}
+                                  onClick={() => {
+                                    setContent((prev) => (prev ? prev + '\n' + emoji.url : emoji.url));
+                                    setPickerOpen(false);
+                                    expand();
+                                  }}
+                                  className="aspect-square rounded-lg overflow-hidden hover:bg-muted transition-colors p-1 group"
+                                >
+                                  <img
+                                    src={emoji.url}
+                                    alt={emoji.shortcode}
+                                    className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-150"
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <GifPicker onSelect={(gif) => {
+                          setContent((prev) => (prev ? prev + '\n' + gif.url : gif.url));
+                          setPickerOpen(false);
+                          expand();
+                        }} />
+                      )}
                    </PopoverContent>
                  </Popover>
 
