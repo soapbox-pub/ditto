@@ -110,7 +110,7 @@ export function NostrSync() {
     // onboarding questionnaire owns theme state until it saves settings.
     if (!encryptedSettings) {
       if (accountSwitched.current) {
-        // Only reset theme for real account switches, not fresh signups.
+        // Only reset theme/sidebar for real account switches, not fresh signups.
         // During signup, isSyncDone returns false and the onboarding
         // questionnaire owns theme state until it saves settings.
         if (isSyncDone(user.pubkey)) {
@@ -125,6 +125,12 @@ export function NostrSync() {
               updates.customTheme = undefined;
               changed = true;
             }
+            // Reset sidebar order to the app default so the previous
+            // user's sidebar layout doesn't bleed into the new account.
+            if ((current.sidebarOrder ?? []).length > 0) {
+              updates.sidebarOrder = [];
+              changed = true;
+            }
             return changed ? updates : current;
           });
         }
@@ -137,13 +143,15 @@ export function NostrSync() {
     const remoteSync = encryptedSettings.lastSync || 0;
 
     // On first load, seed the ref with the current remote timestamp so that
-    // we don't re-apply settings that were already applied by useInitialSync.
-    // This prevents stale relay events from overwriting local changes after a
-    // page reload (where lastWriteTs module variable resets to 0).
+    // subsequent effect firings (e.g. after window focus) don't re-apply the
+    // same snapshot. We still apply this snapshot below so that settings
+    // restored from the query cache (seeded by useInitialSync) take effect
+    // immediately on page reload without waiting for the 5-second delay.
     if (!seededTimestamp) {
       lastSyncedTimestamp.current = remoteSync;
       setSeededTimestamp(true);
-      return;
+      // Fall through — apply the settings this time so that sidebarOrder
+      // and other fields are always applied on the first load.
     }
 
     // Don't overwrite local config if we just saved settings (short-circuit for

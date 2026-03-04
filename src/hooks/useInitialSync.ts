@@ -163,6 +163,9 @@ export function useInitialSync() {
               if (parsed.contentWarningPolicy) {
                 updates.contentWarningPolicy = parsed.contentWarningPolicy;
               }
+              if (parsed.sidebarOrder && parsed.sidebarOrder.length > 0) {
+                updates.sidebarOrder = parsed.sidebarOrder;
+              }
 
               return updates;
             });
