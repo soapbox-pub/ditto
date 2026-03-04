@@ -13,7 +13,7 @@ import { LoginArea } from '@/components/auth/LoginArea';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -554,20 +554,7 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
   const isUser = message.role === 'user';
 
   return (
-    <div className={cn('flex items-start gap-3', isUser && 'flex-row-reverse')}>
-      {/* Avatar */}
-      <Avatar className="size-8 shrink-0 mt-0.5">
-        <AvatarFallback className={cn(
-          'text-xs font-medium',
-          isUser
-            ? 'bg-foreground text-background'
-            : 'bg-primary/10 text-primary',
-        )}>
-          {isUser ? 'You' : <Bot className="size-4" />}
-        </AvatarFallback>
-      </Avatar>
-
-      {/* Content */}
+    <div className={cn('flex items-start', isUser && 'justify-end')}>
       <div className={cn('flex flex-col gap-1 max-w-[85%] min-w-0', isUser && 'items-end')}>
         <div
           className={cn(
