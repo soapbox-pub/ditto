@@ -36,13 +36,16 @@ export function useEventComments(event: NostrEvent | undefined) {
     queryFn: async ({ signal }) => {
       if (!event) return [];
       const abort = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-      const filter =
+      const filters =
         event.kind >= 30000 && event.kind < 40000 && aTag
-          ? { kinds: [1111, 1244], '#A': [aTag], limit: 80 }
+          ? [{ kinds: [1111, 1244], '#A': [aTag], limit: 80 }]
           : event.kind === 1
-          ? { kinds: [1], '#e': [event.id], limit: 80 }
-          : { kinds: [1111], '#e': [event.id], limit: 80 };
-      const events = await nostr.query([filter], { signal: abort });
+          ? [
+              { kinds: [1, 1111], '#e': [event.id], limit: 80 },
+              { kinds: [1111], '#E': [event.id], limit: 80 },
+            ]
+          : [{ kinds: [1111], '#e': [event.id], limit: 80 }];
+      const events = await nostr.query(filters, { signal: abort });
       const seen = new Set<string>();
       return events
         .filter((e) => { if (seen.has(e.id)) return false; seen.add(e.id); return true; })
