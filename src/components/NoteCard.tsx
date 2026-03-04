@@ -170,7 +170,6 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isPoll = event.kind === 1068;
   const isGeocache = event.kind === 37516;
   const isFoundLog = event.kind === 7516;
-  const isTreasure = isGeocache || isFoundLog;
   const isColor = event.kind === 3367;
   const isFollowPack = event.kind === 39089 || event.kind === 30000;
   const isArticle = event.kind === 30023;
