@@ -472,14 +472,9 @@ export function AIChatPage() {
 
           {/* Loading indicator */}
           {(isStreaming || apiLoading) && messages[messages.length - 1]?.role === 'user' && (
-            <div className="flex items-start gap-3">
-              <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <Bot className="size-4 text-primary" />
-              </div>
-              <div className="space-y-2 pt-1">
-                <Skeleton className="h-4 w-48" />
-                <Skeleton className="h-4 w-32" />
-              </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-4 w-32" />
             </div>
           )}
 
