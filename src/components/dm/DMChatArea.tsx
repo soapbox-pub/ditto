@@ -14,7 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ArrowLeft, Send, Loader2, AlertTriangle, Key, ShieldCheck, ImagePlay, Smile } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, AlertTriangle, Key, ShieldCheck, Smile } from 'lucide-react';
+import { GifIcon } from '@/components/icons/GifIcon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { NoteContent } from '@/components/NoteContent';
@@ -442,7 +443,7 @@ export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
                         : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
                     )}
                   >
-                    <ImagePlay className="size-[16px]" />
+                    <GifIcon className="size-[16px]" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Paperclip, Smile, AlertTriangle, X, Loader2, ImagePlay, Mic, Square } from 'lucide-react';
+import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square } from 'lucide-react';
+import { GifIcon } from '@/components/icons/GifIcon';
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -1228,7 +1229,7 @@ export function ComposeBox({
                               : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
                           )}
                         >
-                          <ImagePlay className="size-[18px]" />
+                          <GifIcon className="size-[18px]" />
                         </button>
                       </PopoverTrigger>
                     </TooltipTrigger>
