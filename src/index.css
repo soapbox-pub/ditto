@@ -40,6 +40,23 @@
     bottom: env(safe-area-inset-bottom, 0px);
   }
   
+  /* Re-enable a thin native scrollbar (overrides the global hide) */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    display: block;
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
+  }
+
   /* FAB bottom offset: clears the mobile bottom nav + safe area inset */
   .bottom-fab {
     bottom: calc(5rem + env(safe-area-inset-bottom, 0px));

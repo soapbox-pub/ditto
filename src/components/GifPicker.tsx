@@ -1,7 +1,6 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
 import { Search, X, ImageOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGifSearch, type GifResult } from '@/hooks/useGifSearch';
 import { cn } from '@/lib/utils';
@@ -104,6 +103,7 @@ function GifGrid({ results, onSelect }: { results: GifResult[]; onSelect: (gif: 
 export function GifPicker({ onSelect }: GifPickerProps) {
   const { query, setQuery, clearQuery, results, isLoading, isError, isSearching } = useGifSearch();
   const inputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-focus the search input on mount
   useEffect(() => {
@@ -111,6 +111,24 @@ export function GifPicker({ onSelect }: GifPickerProps) {
       inputRef.current?.focus();
     }, 100);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Radix portals can block wheel events from reaching scrollable children.
+  // Attach a native (non-passive) wheel listener that stops propagation so
+  // the scroll div handles the event itself instead of Radix swallowing it.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      const atTop = scrollTop === 0 && e.deltaY < 0;
+      const atBottom = scrollTop + clientHeight >= scrollHeight && e.deltaY > 0;
+      if (!atTop && !atBottom) {
+        e.stopPropagation();
+      }
+    };
+    el.addEventListener('wheel', handleWheel, { passive: true });
+    return () => el.removeEventListener('wheel', handleWheel);
   }, []);
 
   const handleSelect = useCallback((gif: GifResult) => {
@@ -150,7 +168,7 @@ export function GifPicker({ onSelect }: GifPickerProps) {
       </div>
 
       {/* Results area */}
-      <ScrollArea className="flex-1">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 scrollbar-thin">
         {isLoading ? (
           <div className="px-2 pb-2">
             <div className="flex gap-2">
@@ -181,7 +199,7 @@ export function GifPicker({ onSelect }: GifPickerProps) {
         ) : (
           <GifGrid results={results} onSelect={handleSelect} />
         )}
-      </ScrollArea>
+      </div>
 
       {/* Tenor attribution */}
       <div className="px-3 py-1.5 border-t border-border/50 flex items-center justify-end gap-1.5">
