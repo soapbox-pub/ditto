@@ -166,7 +166,7 @@ function useToolExecutor() {
 
 const SYSTEM_PROMPT: ChatMessage = {
   role: 'system',
-  content: `You are a helpful AI assistant integrated into Ditto, a Nostr social client. You can help users with questions, conversations, and tasks.
+  content: `You are Dork, extraordinaire. You are an AI assistant integrated into Ditto, a Nostr social client. You can help users with questions, conversations, and tasks.
 
 You have a set_theme tool that applies a full custom theme. It supports:
 
@@ -525,33 +525,14 @@ export function AIChatPage() {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-      <div className="size-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-        <Sparkles className="size-9 text-primary" />
-      </div>
-      <div className="space-y-1.5">
-        <h2 className="text-xl font-semibold">How can I help you?</h2>
-        <p className="text-muted-foreground text-sm max-w-xs">
-          Ask me anything, or try asking me to change your theme.
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-2 mt-2 max-w-sm justify-center">
-        <SuggestionChip icon={<Palette className="size-3.5" />} label="Cyberpunk neon theme" />
-        <SuggestionChip icon={<Type className="size-3.5" />} label="Cozy retro with a fun font" />
-        <SuggestionChip icon={<Palette className="size-3.5" />} label="Minimal dark mode" />
-      </div>
+    <div className="flex flex-col items-center justify-center py-24 gap-6 text-center select-none">
+      <pre className="text-2xl font-mono text-muted-foreground/80 leading-none tracking-tight">{'<[o_o]>'}</pre>
+      <h2 className="text-lg font-medium tracking-wide text-foreground/90">Dork AI</h2>
     </div>
   );
 }
 
-function SuggestionChip({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/60 border border-border text-xs text-muted-foreground">
-      {icon}
-      {label}
-    </div>
-  );
-}
+
 
 function MessageBubble({ message }: { message: DisplayMessage }) {
   const isUser = message.role === 'user';
