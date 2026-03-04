@@ -294,10 +294,49 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full gap-4 px-6">
-              <div className={`w-full text-center space-y-4 ${hasBgImage ? 'bg-background rounded-xl p-6' : 'p-6'}`}>
-                <p className="text-muted-foreground text-sm">Log in to access all features</p>
-                <LoginArea className="w-full flex flex-col" />
+            <div className={`flex flex-col h-full ${hasBgImage ? 'py-2 px-2 gap-1' : ''}`}>
+              {/* Login prompt */}
+              <div
+                className={`flex items-center gap-3 px-4 border-b border-border ${hasBgImage ? 'bg-background rounded-xl' : ''}`}
+                style={{ minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
+              >
+                <LoginArea className="w-full flex" />
+              </div>
+
+              {/* Nav items — scrollable */}
+              <nav className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-1">
+                <div className={hasBgImage ? 'bg-background rounded-xl p-0.5' : 'contents'}>
+                  <SidebarNavList
+                    items={visibleItems}
+                    editing={false}
+                    onRemove={removeFromSidebar}
+                    onReorder={updateSidebarOrder}
+                    isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl)}
+                    getOnClick={() => handleClose}
+                    getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
+                    getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
+                    linkClassName="text-base"
+                  />
+                  <SidebarMoreMenu
+                    editing={false}
+                    hiddenItems={visibleHiddenItems}
+                    onDoneEditing={() => setEditing(false)}
+                    onStartEditing={() => setEditing(true)}
+                    onAdd={addToSidebar}
+                    onAddDivider={addDividerToSidebar}
+                    onNavigate={handleClose}
+                    open={moreMenuOpen}
+                    onOpenChange={setMoreMenuOpen}
+                  />
+                </div>
+              </nav>
+
+              {/* Theme */}
+              <div
+                className={`flex items-center ${hasBgImage ? 'bg-background rounded-xl' : 'border-t border-border'}`}
+                style={{ minHeight: '3.5rem', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+              >
+                <SidebarThemeDropdown onNavigate={handleClose} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 rounded-full transition-colors" />
               </div>
             </div>
           )}
