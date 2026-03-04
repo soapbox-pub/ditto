@@ -9,6 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EmojiPicker } from '@/components/EmojiPicker';
@@ -1202,15 +1203,15 @@ export function ComposeBox({
                       className="w-auto p-0 border-border"
                     >
                       {/* Tab bar */}
-                      <div className="flex border-b border-border">
+                      <div className="flex">
                         <button
                           type="button"
                           onClick={() => setPickerTab('emoji')}
                           className={cn(
-                            'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
+                            'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors border-b-2',
                             pickerTab === 'emoji'
-                              ? 'text-primary border-b-2 border-primary -mb-px'
-                              : 'text-muted-foreground hover:text-foreground',
+                              ? 'text-primary border-primary'
+                              : 'text-muted-foreground hover:text-foreground border-border',
                           )}
                         >
                           <Smile className="size-3.5" />
@@ -1220,10 +1221,10 @@ export function ComposeBox({
                           type="button"
                           onClick={() => setPickerTab('gif')}
                           className={cn(
-                            'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
+                            'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors border-b-2',
                             pickerTab === 'gif'
-                              ? 'text-primary border-b-2 border-primary -mb-px'
-                              : 'text-muted-foreground hover:text-foreground',
+                              ? 'text-primary border-primary'
+                              : 'text-muted-foreground hover:text-foreground border-border',
                           )}
                         >
                           <svg width="14" height="14" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -1237,10 +1238,10 @@ export function ComposeBox({
                             type="button"
                             onClick={() => setPickerTab('stickers')}
                             className={cn(
-                              'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
+                              'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors border-b-2',
                               pickerTab === 'stickers'
-                                ? 'text-primary border-b-2 border-primary -mb-px'
-                                : 'text-muted-foreground hover:text-foreground',
+                                ? 'text-primary border-primary'
+                                : 'text-muted-foreground hover:text-foreground border-border',
                             )}
                           >
                             <Sticker className="size-3.5" />
@@ -1261,7 +1262,7 @@ export function ComposeBox({
                           }}
                         />
                       ) : pickerTab === 'stickers' ? (
-                        <div className="w-[312px] h-[420px] overflow-y-auto p-2">
+                        <div className="w-[316px] h-[435px]">
                           {customEmojis.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
                               <Sticker className="size-8 opacity-40" />
@@ -1269,27 +1270,29 @@ export function ComposeBox({
                               <p className="text-xs">Add emoji packs to your profile to use stickers</p>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-4 gap-1.5">
-                              {customEmojis.map((emoji) => (
-                                <button
-                                  key={emoji.shortcode}
-                                  type="button"
-                                  title={emoji.shortcode}
-                                  onClick={() => {
-                                    setContent((prev) => (prev ? prev + '\n' + emoji.url : emoji.url));
-                                    setPickerOpen(false);
-                                    expand();
-                                  }}
-                                  className="aspect-square rounded-lg overflow-hidden hover:bg-muted transition-colors p-1 group"
-                                >
-                                  <img
-                                    src={emoji.url}
-                                    alt={emoji.shortcode}
-                                    className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-150"
-                                  />
-                                </button>
-                              ))}
-                            </div>
+                            <ScrollArea className="h-full">
+                              <div className="grid grid-cols-4 gap-1.5 p-2">
+                                {customEmojis.map((emoji) => (
+                                  <button
+                                    key={emoji.shortcode}
+                                    type="button"
+                                    title={emoji.shortcode}
+                                    onClick={() => {
+                                      setContent((prev) => (prev ? prev + '\n' + emoji.url : emoji.url));
+                                      setPickerOpen(false);
+                                      expand();
+                                    }}
+                                    className="aspect-square rounded-lg overflow-hidden hover:bg-muted transition-colors p-1 group"
+                                  >
+                                    <img
+                                      src={emoji.url}
+                                      alt={emoji.shortcode}
+                                      className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-150"
+                                    />
+                                  </button>
+                                ))}
+                              </div>
+                            </ScrollArea>
                           )}
                         </div>
                       ) : (
