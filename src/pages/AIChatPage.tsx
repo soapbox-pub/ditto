@@ -528,7 +528,7 @@ function DorkThinking() {
   useEffect(() => {
     const interval = setInterval(() => {
       setFrame((f) => (f + 1) % DORK_ANIMATION.length);
-    }, 400);
+    }, 100);
     return () => clearInterval(interval);
   }, []);
 
