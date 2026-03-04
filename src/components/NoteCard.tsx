@@ -586,35 +586,23 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
         onClick={handleCardClick}
         onAuxClick={handleAuxClick}
       >
-      {/* Repost header */}
-      {repostedBy && (
-        <RepostHeader pubkey={repostedBy} />
-      )}
-
-      {/* Treasure header — "<chest> <name> hid/found a treasure" */}
-      {isTreasure && (
-        <TreasureHeader pubkey={event.pubkey} variant={isGeocache ? 'hid' : 'found'} />
-      )}
-
-      {/* Deck header — "<cards> <name> shared a deck" */}
-      {isMagicDeck && !repostedBy && (
-        <DeckHeader pubkey={event.pubkey} />
-      )}
-
-      {/* Stream header — "<radio> <name> is streaming / streamed" */}
-      {isStream && (
-        <StreamHeader pubkey={event.pubkey} isLive={getTag(event.tags, 'status') === 'live'} />
-      )}
-
-      {/* Theme header — "<palette> <name> shared/updated a theme" */}
-      {isTheme && !repostedBy && (
-        <ThemeHeader pubkey={event.pubkey} variant={isThemeDefinition ? 'shared' : 'updated'} />
-      )}
-
-      {/* Emoji pack header — "<smile> <name> shared an emoji pack" */}
-      {isEmojiPack && !repostedBy && (
-        <EmojiPackHeader pubkey={event.pubkey} />
-      )}
+      {/* Action header — repost takes priority, otherwise derived from event kind */}
+      {repostedBy ? (
+        <EventActionHeader pubkey={repostedBy} icon={RepostIcon} iconClassName="text-accent" action="reposted" />
+      ) : KIND_HEADER_MAP[event.kind] && (() => {
+        const cfg = KIND_HEADER_MAP[event.kind];
+        const isLive = event.kind === 30311 && getTag(event.tags, 'status') === 'live';
+        return (
+          <EventActionHeader
+            pubkey={event.pubkey}
+            icon={cfg.icon}
+            iconClassName={event.kind === 30311 ? (isLive ? 'text-primary' : 'text-muted-foreground') : cfg.iconClassName}
+            action={typeof cfg.action === 'function' ? cfg.action(event.tags) : cfg.action}
+            noun={cfg.noun}
+            nounRoute={cfg.nounRoute}
+          />
+        );
+      })()}
 
       {/* Header: avatar + name/handle stacked */}
       <div className="flex items-center gap-3">
@@ -1036,35 +1024,47 @@ function StreamContent({ event }: { event: NostrEvent }) {
   );
 }
 
-function RepostHeader({ pubkey }: { pubkey: string }) {
-  const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || genUserName(pubkey);
-  const url = useProfileUrl(pubkey, author.data?.metadata);
-
-  return (
-    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
-      <div className="w-11 shrink-0 flex justify-end">
-        <RepostIcon className="size-4 text-accent translate-y-px" />
-      </div>
-      <div className="flex items-center min-w-0">
-        {author.isLoading ? (
-          <Skeleton className="h-3 w-20 inline-block" />
-        ) : (
-          <Link
-            to={url}
-            className="font-medium hover:underline mr-1 truncate"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
-          </Link>
-        )}
-        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>reposted</span>
-      </div>
-    </div>
-  );
+interface EventActionHeaderProps {
+  /** Pubkey of the person performing the action. */
+  pubkey: string;
+  /** Lucide icon component shown to the left of the author name. */
+  icon: React.ComponentType<{ className?: string }>;
+  /** Optional className for the icon (defaults to text-primary). */
+  iconClassName?: string;
+  /** Verb phrase shown after the author name, e.g. "hid a" or "is streaming". */
+  action: string;
+  /** Optional noun shown after the verb, linked to a page route, e.g. "treasure" → /treasures. */
+  noun?: string;
+  /** Route to link the noun to, e.g. "/treasures". */
+  nounRoute?: string;
 }
 
-function StreamHeader({ pubkey, isLive }: { pubkey: string; isLive: boolean }) {
+/** Static config for deriving the action header from an event's kind and tags. */
+interface KindHeaderConfig {
+  icon: React.ComponentType<{ className?: string }>;
+  iconClassName?: string;
+  /** Static action string, or a function that computes it from the event's tags. */
+  action: string | ((tags: string[][]) => string);
+  noun?: string;
+  nounRoute?: string;
+}
+
+const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
+  37516: { icon: ChestIcon, action: 'hid a',   noun: 'treasure', nounRoute: '/treasures' },
+  7516:  { icon: ChestIcon, action: 'found a',  noun: 'treasure', nounRoute: '/treasures' },
+  37381: { icon: CardsIcon, action: 'shared a', noun: 'deck',     nounRoute: '/decks'     },
+  36767: { icon: Palette,   action: 'shared a', noun: 'theme',    nounRoute: '/themes'    },
+  16767: { icon: Palette,   action: 'updated their', noun: 'theme', nounRoute: '/themes'  },
+  30030: { icon: SmilePlus, action: 'shared an', noun: 'emoji pack', nounRoute: '/emoji-packs' },
+  30311: {
+    icon: Radio,
+    iconClassName: undefined, // computed dynamically below
+    action: (tags) => tags.find(([n]) => n === 'status')?.[1] === 'live' ? 'is streaming' : 'streamed',
+  },
+};
+
+/** Generic action header: icon · [author name] [action] [linked noun] */
+function EventActionHeader({ pubkey, icon: Icon, iconClassName, action, noun, nounRoute }: EventActionHeaderProps) {
   const author = useAuthor(pubkey);
   const name = author.data?.metadata?.name || genUserName(pubkey);
   const url = useProfileUrl(pubkey, author.data?.metadata);
@@ -1072,7 +1072,7 @@ function StreamHeader({ pubkey, isLive }: { pubkey: string; isLive: boolean }) {
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
       <div className="w-11 shrink-0 flex justify-end">
-        <Radio className={cn("size-4 translate-y-px", isLive ? "text-primary" : "text-muted-foreground")} />
+        <Icon className={cn('size-4 translate-y-px', iconClassName ?? 'text-primary')} />
       </div>
       <div className="flex items-center min-w-0">
         {author.isLoading ? (
@@ -1086,125 +1086,22 @@ function StreamHeader({ pubkey, isLive }: { pubkey: string; isLive: boolean }) {
             {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
           </Link>
         )}
-        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
-          {isLive ? 'is streaming' : 'streamed'}
+        <span className={cn('shrink-0', author.isLoading && 'ml-1')}>
+          {action}
+          {noun && nounRoute && (
+            <>
+              {' '}
+              <Link
+                to={nounRoute}
+                className="hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {noun}
+              </Link>
+            </>
+          )}
+          {noun && !nounRoute && <>{' '}{noun}</>}
         </span>
-      </div>
-    </div>
-  );
-}
-
-function DeckHeader({ pubkey }: { pubkey: string }) {
-  const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || genUserName(pubkey);
-  const url = useProfileUrl(pubkey, author.data?.metadata);
-
-  return (
-    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
-      <div className="w-11 shrink-0 flex justify-end">
-        <CardsIcon className="size-4 text-primary translate-y-px" />
-      </div>
-      <div className="flex items-center min-w-0">
-        {author.isLoading ? (
-          <Skeleton className="h-3 w-20 inline-block" />
-        ) : (
-          <Link
-            to={url}
-            className="font-medium hover:underline mr-1 truncate"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
-          </Link>
-        )}
-        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>shared a deck</span>
-      </div>
-    </div>
-  );
-}
-
-function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 'found' }) {
-  const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || genUserName(pubkey);
-  const url = useProfileUrl(pubkey, author.data?.metadata);
-
-  return (
-    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
-      <div className="w-11 shrink-0 flex justify-end">
-        <ChestIcon className="size-4 text-primary translate-y-px" />
-      </div>
-      <div className="flex items-center min-w-0">
-        {author.isLoading ? (
-          <Skeleton className="h-3 w-20 inline-block" />
-        ) : (
-          <Link
-            to={url}
-            className="font-medium hover:underline mr-1 truncate"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
-          </Link>
-        )}
-        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
-          {variant === 'hid' ? 'hid a treasure' : 'found a treasure'}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function ThemeHeader({ pubkey, variant }: { pubkey: string; variant: 'shared' | 'updated' }) {
-  const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || genUserName(pubkey);
-  const url = useProfileUrl(pubkey, author.data?.metadata);
-
-  return (
-    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
-      <div className="w-11 shrink-0 flex justify-end">
-        <Palette className="size-4 text-primary translate-y-px" />
-      </div>
-      <div className="flex items-center min-w-0">
-        {author.isLoading ? (
-          <Skeleton className="h-3 w-20 inline-block" />
-        ) : (
-          <Link
-            to={url}
-            className="font-medium hover:underline mr-1 truncate"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
-          </Link>
-        )}
-        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
-          {variant === 'shared' ? 'shared a theme' : 'updated their theme'}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function EmojiPackHeader({ pubkey }: { pubkey: string }) {
-  const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || genUserName(pubkey);
-  const url = useProfileUrl(pubkey, author.data?.metadata);
-
-  return (
-    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
-      <div className="w-11 shrink-0 flex justify-end">
-        <SmilePlus className="size-4 text-primary translate-y-px" />
-      </div>
-      <div className="flex items-center min-w-0">
-        {author.isLoading ? (
-          <Skeleton className="h-3 w-20 inline-block" />
-        ) : (
-          <Link
-            to={url}
-            className="font-medium hover:underline mr-1 truncate"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
-          </Link>
-        )}
-        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>shared an emoji pack</span>
       </div>
     </div>
   );
