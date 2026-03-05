@@ -707,51 +707,57 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
   // Find the active item across all sections
   const allItems = [...builtinItems, ...presetItems, ...userThemeItems];
   const activeItem = allItems.find((item) => item.isActive);
+  const activeKey = activeItem?.key;
+
+  // Filter the active item out of My Themes and Presets so it only appears once
+  const filteredUserThemeItems = userThemeItems.filter((item) => item.key !== activeKey);
+  const filteredPresetItems = [...builtinItems, ...presetItems].filter((item) => item.key !== activeKey);
 
   const gridClass = 'grid grid-cols-2 sidebar:grid-cols-3 gap-3';
 
   return (
     <div className="space-y-6">
-      {/* ── Active Theme ── */}
-      {activeItem && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-            Active Theme
-          </h3>
-          <div className="max-w-[160px]">
-            <ThemeButton
-              isActive={activeItem.isActive}
-              label={activeItem.label}
-              truncate={activeItem.truncate}
-              onClick={activeItem.onSelect}
-              onEdit={activeItem.onEdit}
-            >
-              {activeItem.preview}
-            </ThemeButton>
-          </div>
-        </div>
-      )}
-
-      {/* ── My Themes ── */}
-      {userThemeItems.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-            My Themes
-          </h3>
-          <div className={gridClass}>
-            {userThemeItems.map((item) => (
+      {/* ── Active Theme + My Themes (shared grid) ── */}
+      {(activeItem || filteredUserThemeItems.length > 0) && (
+        <div className={gridClass}>
+          {/* Active Theme */}
+          {activeItem && (
+            <>
+              <h3 className="col-span-full text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                Active Theme
+              </h3>
               <ThemeButton
-                key={item.key}
-                isActive={item.isActive}
-                label={item.label}
-                truncate={item.truncate}
-                onClick={item.onSelect}
-                onEdit={item.onEdit}
+                isActive={activeItem.isActive}
+                label={activeItem.label}
+                truncate={activeItem.truncate}
+                onClick={activeItem.onSelect}
+                onEdit={activeItem.onEdit}
               >
-                {item.preview}
+                {activeItem.preview}
               </ThemeButton>
-            ))}
-          </div>
+            </>
+          )}
+
+          {/* My Themes */}
+          {filteredUserThemeItems.length > 0 && (
+            <>
+              <h3 className="col-span-full text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 mt-2">
+                My Themes
+              </h3>
+              {filteredUserThemeItems.map((item) => (
+                <ThemeButton
+                  key={item.key}
+                  isActive={item.isActive}
+                  label={item.label}
+                  truncate={item.truncate}
+                  onClick={item.onSelect}
+                  onEdit={item.onEdit}
+                >
+                  {item.preview}
+                </ThemeButton>
+              ))}
+            </>
+          )}
         </div>
       )}
 
@@ -761,7 +767,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
           Presets
         </h3>
         <div className={gridClass}>
-          {[...builtinItems, ...presetItems].map((item) => (
+          {filteredPresetItems.map((item) => (
             <ThemeButton
               key={item.key}
               isActive={item.isActive}
