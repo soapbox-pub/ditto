@@ -91,6 +91,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       banner: '',
       website: '',
       nip05: '',
+      lud16: '',
       bot: false,
       fields: [],
     },
@@ -110,6 +111,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
         banner: metadata.banner || '',
         website: metadata.website || '',
         nip05: metadata.nip05 || '',
+        lud16: metadata.lud16 || '',
         bot: metadata.bot || false,
         fields: existingFields,
       });
@@ -129,6 +131,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       banner: v.banner,
       website: v.website,
       nip05: v.nip05,
+      lud16: v.lud16,
       bot: v.bot,
     });
   }, [form, onValuesChange]);
@@ -373,6 +376,23 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                     </FormControl>
                     <FormDescription className="text-xs">
                       Your verified Nostr identifier
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="lud16"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-medium">Lightning Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="you@walletofsatoshi.com" {...field} className="h-9" />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Your lightning address for receiving zaps
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
