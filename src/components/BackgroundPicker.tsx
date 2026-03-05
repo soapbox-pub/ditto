@@ -10,15 +10,26 @@ import type { ThemeBackground } from '@/themes';
 
 /**
  * Background image picker for theme customization.
- * Uploads via Blossom and stores the URL in ThemeConfig.background.
+ *
+ * Supports two modes:
+ * - **Uncontrolled** (default): reads/writes via `useTheme().applyCustomTheme()`
+ * - **Controlled**: pass `value` and `onChange` props to manage state externally
  */
-export function BackgroundPicker() {
+export function BackgroundPicker({ value, onChange }: {
+  /** Controlled value — overrides useTheme() when provided. */
+  value?: ThemeBackground | undefined;
+  /** Controlled onChange — called instead of applyCustomTheme() when provided. */
+  onChange?: (bg: ThemeBackground | undefined) => void;
+} = {}) {
   const { theme, customTheme, applyCustomTheme } = useTheme();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
+  const controlled = onChange !== undefined;
 
-  const currentBg: ThemeBackground | undefined = theme === 'custom' ? customTheme?.background : undefined;
+  const currentBg: ThemeBackground | undefined = controlled
+    ? value
+    : (theme === 'custom' ? customTheme?.background : undefined);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -37,12 +48,6 @@ export function BackgroundPicker() {
       // Read dimensions from the image
       const dimensions = await getImageDimensions(file);
 
-      const currentColors = customTheme?.colors ?? {
-        background: '228 20% 10%',
-        text: '210 40% 98%',
-        primary: '258 70% 60%',
-      };
-
       const bg: ThemeBackground = {
         url,
         mode: 'cover',
@@ -50,11 +55,20 @@ export function BackgroundPicker() {
         dimensions,
       };
 
-      applyCustomTheme({
-        ...customTheme,
-        colors: currentColors,
-        background: bg,
-      });
+      if (controlled) {
+        onChange(bg);
+      } else {
+        const currentColors = customTheme?.colors ?? {
+          background: '228 20% 10%',
+          text: '210 40% 98%',
+          primary: '258 70% 60%',
+        };
+        applyCustomTheme({
+          ...customTheme,
+          colors: currentColors,
+          background: bg,
+        });
+      }
     } catch (error) {
       console.error('Failed to upload background:', error);
       toast({ title: 'Upload failed', description: 'Could not upload the image.', variant: 'destructive' });
@@ -62,6 +76,10 @@ export function BackgroundPicker() {
   };
 
   const handleRemove = () => {
+    if (controlled) {
+      onChange(undefined);
+      return;
+    }
     if (!customTheme) return;
     applyCustomTheme({
       ...customTheme,
@@ -70,6 +88,11 @@ export function BackgroundPicker() {
   };
 
   const handleModeChange = (mode: 'cover' | 'tile') => {
+    if (controlled) {
+      if (!value) return;
+      onChange({ ...value, mode });
+      return;
+    }
     if (!customTheme?.background) return;
     applyCustomTheme({
       ...customTheme,

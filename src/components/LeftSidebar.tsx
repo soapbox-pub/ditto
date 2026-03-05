@@ -323,7 +323,7 @@ export function LeftSidebar() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors">
-                      <div className="flex items-center gap-3"><Palette className="size-4 text-muted-foreground" /><span>Vibe</span></div>
+                      <div className="flex items-center gap-3"><Palette className="size-4 text-muted-foreground" /><span>Theme</span></div>
                       <div className="flex items-center gap-2 text-muted-foreground">{currentThemeIcon}<span className="text-xs">{currentThemeLabel}</span><ChevronDown className="size-4" /></div>
                     </button>
                   </DropdownMenuTrigger>
@@ -366,7 +366,7 @@ export function LeftSidebar() {
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => { setAccountPopoverOpen(false); navigate('/settings/theme'); }} className="cursor-pointer text-muted-foreground">More...</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setAccountPopoverOpen(false); navigate('/themes'); }} className="cursor-pointer text-muted-foreground">More...</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

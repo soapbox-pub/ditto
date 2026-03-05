@@ -1,5 +1,5 @@
 import {
-  Bell, Search, TrendingUp, User, Bookmark, Settings, SwatchBook, Palette,
+  Bell, Search, TrendingUp, User, Bookmark, Settings, Palette,
   Clapperboard, BarChart3, PartyPopper, BookOpen, BookMarked, Sparkles, Blocks,
   MessageSquare, Repeat2, MessageSquareMore, Mic, Smile, Bot, SmilePlus, Camera, Film, Earth, Calendar,
   Music, Podcast,
@@ -52,7 +52,6 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'bookmarks', label: 'Bookmarks', path: '/bookmarks', icon: Bookmark, requiresAuth: true },
   { id: 'profile', label: 'Profile', path: '/profile', icon: User, requiresAuth: true },
   { id: 'settings', label: 'Settings', path: '/settings', icon: Settings },
-  { id: 'theme', label: 'Vibe', path: '/settings/theme', icon: SwatchBook },
   { id: 'ai-chat', label: 'AI Chat', path: '/ai-chat', icon: Bot, requiresAuth: true },
   // Content types
   { id: 'events', label: 'Events', path: '/events', icon: Calendar },
@@ -123,8 +122,7 @@ export function itemPath(id: string, profilePath?: string): string {
 /** Check if a sidebar item is active given the current location. */
 export function isItemActive(id: string, pathname: string, _search: string, profilePath?: string): boolean {
   if (id === 'profile') return !!profilePath && pathname === profilePath;
-  // Settings matches /settings/* but not /settings/theme (theme has its own item).
-  if (id === 'settings') return pathname.startsWith('/settings') && pathname !== '/settings/theme';
+  if (id === 'settings') return pathname.startsWith('/settings');
 
   const item = SIDEBAR_ITEM_MAP.get(id);
   if (!item) return pathname === `/${id}`;
