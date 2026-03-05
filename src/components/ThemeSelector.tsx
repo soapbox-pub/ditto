@@ -819,29 +819,29 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
           {/* Action buttons */}
           {user && (
             <div className="space-y-3 pt-2">
-              <DialogFooter className="flex-row justify-between gap-2">
-                {editingTheme ? (
+              <div className="flex flex-col gap-2">
+                {editingTheme && (
                   <Button
                     variant="secondary"
                     size="sm"
+                    className="w-full"
                     onClick={handleUpdateTheme}
                     disabled={isPublishing}
                   >
                     <Palette className="size-3.5 mr-1.5" />
                     {isPublishing ? 'Updating...' : `Update "${editingTheme.title}"`}
                   </Button>
-                ) : (
-                  <div />
                 )}
                 <Button
                   variant="outline"
                   size="sm"
+                  className="w-full"
                   onClick={handlePublishNew}
                 >
                   <Palette className="size-3.5 mr-1.5" />
                   Publish New Theme
                 </Button>
-              </DialogFooter>
+              </div>
 
               {/* Advanced section with delete */}
               {editingTheme && (
