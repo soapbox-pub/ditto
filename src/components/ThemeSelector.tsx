@@ -766,7 +766,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
 
       {/* ── Builder Dialog ── */}
       <Dialog open={builderOpen ?? false} onOpenChange={(open) => onBuilderOpenChange?.(open)}>
-        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-lg">
           <DialogHeader>
             <DialogTitle>{editingTheme ? 'Edit Theme' : 'New Theme'}</DialogTitle>
             <DialogDescription>
@@ -817,7 +817,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
 
           {/* Action buttons */}
           {user && (
-            <DialogFooter className="flex-row gap-2 sm:justify-between">
+            <DialogFooter className="flex-row flex-wrap gap-2 sm:justify-between">
               <div className="flex gap-2">
                 {editingTheme && (
                   <Button
@@ -827,7 +827,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                     disabled={isPublishing}
                   >
                     <Palette className="size-3.5 mr-1.5" />
-                    {isPublishing ? 'Updating...' : 'Update Theme'}
+                    {isPublishing ? 'Updating...' : 'Update'}
                   </Button>
                 )}
                 <Button
@@ -836,7 +836,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                   onClick={handlePublishNew}
                 >
                   <Palette className="size-3.5 mr-1.5" />
-                  Publish Theme
+                  Publish
                 </Button>
               </div>
               {editingTheme && (
