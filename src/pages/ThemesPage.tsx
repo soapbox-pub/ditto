@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Sparkles, ArrowLeft } from 'lucide-react';
+import { Loader2, Sparkles, ArrowLeft, Pencil } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -10,17 +10,15 @@ import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { ThemeSelector } from '@/components/ThemeSelector';
-import { KindInfoButton } from '@/components/KindInfoButton';
 import { useThemeFeed } from '@/hooks/useThemeFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
-import { getExtraKindDef } from '@/lib/extraKinds';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { cn } from '@/lib/utils';
 
 type ThemesTab = 'my-themes' | 'follows' | 'global';
-
-const themesDef = getExtraKindDef('themes')!;
 
 export function ThemesPage() {
   const { config } = useAppContext();
@@ -29,9 +27,24 @@ export function ThemesPage() {
 
   const [activeTab, setActiveTab] = useState<ThemesTab>('my-themes');
 
+  // Builder dialog state
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [builderMode, setBuilderMode] = useState<'new' | 'edit'>('new');
+
   useSeoMeta({
     title: `Themes | ${config.appName}`,
     description: 'Browse, create, and share custom UI themes',
+  });
+
+  // FAB opens builder in "new" mode (only on My Themes tab)
+  const handleFabClick = useCallback(() => {
+    setBuilderMode('new');
+    setBuilderOpen(true);
+  }, []);
+
+  useLayoutOptions({
+    showFAB: activeTab === 'my-themes',
+    onFabClick: handleFabClick,
   });
 
   // Feed queries for follows/global tabs
@@ -96,7 +109,17 @@ export function ThemesPage() {
           <Sparkles className="size-5" />
           <h1 className="text-xl font-bold">Themes</h1>
         </div>
-        <KindInfoButton kindDef={themesDef} icon={<Sparkles className="size-10" />} />
+        {user && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setBuilderMode('edit'); setBuilderOpen(true); }}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Pencil className="size-4 mr-1.5" />
+            Edit
+          </Button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -109,7 +132,11 @@ export function ThemesPage() {
       {/* Tab content */}
       {activeTab === 'my-themes' ? (
         <div className="p-4 space-y-6">
-          <ThemeSelector />
+          <ThemeSelector
+            builderOpen={builderOpen}
+            onBuilderOpenChange={setBuilderOpen}
+            builderMode={builderMode}
+          />
         </div>
       ) : (
         <PullToRefresh onRefresh={handleRefresh}>

@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
-import { Check, Palette, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Check, Palette, Pencil, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -125,6 +125,7 @@ function ThemeButton({
   scroll = false,
   carousel = false,
   onClick,
+  onEdit,
   children,
 }: {
   isActive: boolean;
@@ -133,6 +134,7 @@ function ThemeButton({
   scroll?: boolean;
   carousel?: boolean;
   onClick: () => void;
+  onEdit?: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -146,6 +148,17 @@ function ThemeButton({
       onClick={onClick}
     >
       {children}
+      {onEdit && (
+        <div
+          role="button"
+          tabIndex={0}
+          className="absolute top-2 right-2 size-6 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background hover:border-primary/40"
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onEdit(); } }}
+        >
+          <Pencil className="size-3 text-muted-foreground" />
+        </div>
+      )}
       <p className={cn(
         'mt-1.5 text-xs font-medium text-center transition-colors',
         isActive ? 'text-foreground' : 'text-muted-foreground',
@@ -166,6 +179,7 @@ export function ThemeGrid({
   onSelect,
   editingTheme,
   onEditingThemeChange,
+  onEditTheme,
   columns = 'responsive',
 }: {
   /** Called after any theme is selected. */
@@ -174,6 +188,8 @@ export function ThemeGrid({
   editingTheme?: ThemeDefinition | null;
   /** Callback to update editing theme state in the parent. */
   onEditingThemeChange?: (def: ThemeDefinition | null) => void;
+  /** Called when the user clicks the edit icon on a user theme card. */
+  onEditTheme?: (def: ThemeDefinition) => void;
   /**
    * Layout mode:
    * - 'responsive': 2-col grid on mobile, 3-col at sidebar breakpoint (900px)
@@ -240,6 +256,7 @@ export function ThemeGrid({
     label: string;
     truncate: boolean;
     onSelect: () => void;
+    onEdit?: () => void;
     preview: React.ReactNode;
     isActive: boolean;
   };
@@ -305,6 +322,7 @@ export function ThemeGrid({
         label: def.title,
         truncate: true,
         onSelect: () => handleSelectUserTheme(def),
+        onEdit: onEditTheme ? () => onEditTheme(def) : undefined,
         isActive,
         preview: <ThemePreviewCard colors={def.colors} isActive={isActive} backgroundUrl={def.background?.url} />,
       });
@@ -369,6 +387,7 @@ export function ThemeGrid({
                     label={item.label}
                     truncate={item.truncate}
                     onClick={item.onSelect}
+                    onEdit={item.onEdit}
                     carousel
                   >
                     {item.preview}
@@ -418,6 +437,7 @@ export function ThemeGrid({
               label={item.label}
               truncate={item.truncate}
               onClick={item.onSelect}
+              onEdit={item.onEdit}
             >
               {item.preview}
             </ThemeButton>
@@ -441,6 +461,7 @@ export function ThemeGrid({
           label={item.label}
           truncate={item.truncate}
           onClick={item.onSelect}
+          onEdit={item.onEdit}
         >
           {item.preview}
         </ThemeButton>
@@ -449,7 +470,16 @@ export function ThemeGrid({
   );
 }
 
-export function ThemeSelector() {
+interface ThemeSelectorProps {
+  /** Controls the builder dialog from the parent (e.g., FAB or header button). */
+  builderOpen?: boolean;
+  /** Callback when the builder dialog open state changes. */
+  onBuilderOpenChange?: (open: boolean) => void;
+  /** Whether the builder should open in 'new' or 'edit' mode. */
+  builderMode?: 'new' | 'edit';
+}
+
+export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }: ThemeSelectorProps = {}) {
   const { theme, customTheme, themes, autoShareTheme, applyCustomTheme, setAutoShareTheme } = useTheme();
   const { user } = useCurrentUser();
   const { publishTheme, isPending: isPublishing } = usePublishTheme();
@@ -462,6 +492,13 @@ export function ThemeSelector() {
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [publishTitle, setPublishTitle] = useState('');
   const [publishDescription, setPublishDescription] = useState('');
+
+  // Clear editingTheme when builder opens in 'new' mode
+  useEffect(() => {
+    if (builderOpen && builderMode === 'new') {
+      setEditingTheme(null);
+    }
+  }, [builderOpen, builderMode]);
 
   /** The effective colors for the current theme (used in the color editor) */
   const effectiveColors = getEffectiveColors(theme, customTheme, themes);
@@ -534,6 +571,13 @@ export function ThemeSelector() {
     }
   }, [publishTitle, publishDescription, customTheme, effectiveColors, publishTheme, toast]);
 
+  /** Handle clicking the edit icon on a user theme card */
+  const handleEditTheme = useCallback((def: ThemeDefinition) => {
+    setEditingTheme(def);
+    applyCustomTheme({ colors: def.colors, font: def.font, background: def.background, title: def.title });
+    onBuilderOpenChange?.(true);
+  }, [applyCustomTheme, onBuilderOpenChange]);
+
   return (
     <div className="space-y-5">
       {/* ── Themes grid ── */}
@@ -544,88 +588,87 @@ export function ThemeSelector() {
         <ThemeGrid
           editingTheme={editingTheme}
           onEditingThemeChange={setEditingTheme}
+          onEditTheme={handleEditTheme}
         />
       </div>
 
-      {/* ── Customize card ── */}
-      <div className="space-y-4 rounded-xl border border-border bg-card p-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-            Custom
-          </h3>
-          {editingTheme && (
-            <button
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setEditingTheme(null)}
-            >
-              Editing "{editingTheme.title}"
-            </button>
-          )}
-        </div>
+      {/* ── Builder Dialog ── */}
+      <Dialog open={builderOpen ?? false} onOpenChange={(open) => onBuilderOpenChange?.(open)}>
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingTheme ? 'Edit Theme' : 'New Theme'}</DialogTitle>
+            <DialogDescription>
+              {editingTheme
+                ? `Editing "${editingTheme.title}"`
+                : 'Customize colors, font, and background for your theme'}
+            </DialogDescription>
+          </DialogHeader>
 
-        {/* Colors */}
-        <div className="flex items-start justify-center gap-6 sidebar:justify-start sidebar:gap-8">
-          {CORE_KEYS.map((key) => (
-            <ColorPicker
-              key={key}
-              label={COLOR_LABELS[key]}
-              value={hslStringToHex(effectiveColors[key])}
-              onChange={(hex) => handleColorChange(key, hex)}
-            />
-          ))}
-        </div>
+          <div className="space-y-4 py-2">
+            {/* Colors */}
+            <div className="flex items-start justify-center gap-6">
+              {CORE_KEYS.map((key) => (
+                <ColorPicker
+                  key={key}
+                  label={COLOR_LABELS[key]}
+                  value={hslStringToHex(effectiveColors[key])}
+                  onChange={(hex) => handleColorChange(key, hex)}
+                />
+              ))}
+            </div>
 
-        {/* Font */}
-        <FontPicker />
+            {/* Font */}
+            <FontPicker />
 
-        {/* Background */}
-        <BackgroundPicker />
+            {/* Background */}
+            <BackgroundPicker />
 
-        {/* Publish / Update buttons */}
-        {user && (
-          <div className="flex gap-2 pt-1">
-            {editingTheme && (
+            {/* Auto-share toggle */}
+            {user && (
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="auto-share-theme-dialog" className="flex flex-col gap-1 cursor-pointer">
+                    <span className="text-sm font-medium">Share theme on your profile</span>
+                    <span className="text-xs text-muted-foreground font-normal">
+                      Automatically publish theme changes to your profile
+                    </span>
+                  </Label>
+                  <Switch
+                    id="auto-share-theme-dialog"
+                    checked={autoShareTheme}
+                    onCheckedChange={setAutoShareTheme}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          {user && (
+            <DialogFooter className="flex-row gap-2 sm:justify-start">
+              {editingTheme && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleUpdateTheme}
+                  disabled={isPublishing}
+                >
+                  <Palette className="size-3.5 mr-1.5" />
+                  {isPublishing ? 'Updating...' : 'Update Theme'}
+                </Button>
+              )}
               <Button
-                variant="secondary"
+                variant="outline"
                 size="sm"
-                onClick={handleUpdateTheme}
-                disabled={isPublishing}
+                onClick={handlePublishNew}
               >
                 <Palette className="size-3.5 mr-1.5" />
-                {isPublishing ? 'Updating...' : 'Update Theme'}
+                Publish Theme
               </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePublishNew}
-            >
-              <Palette className="size-3.5 mr-1.5" />
-              Publish Theme
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* ── Auto-share toggle ── */}
-      {user && (
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="auto-share-theme" className="flex flex-col gap-1 cursor-pointer">
-              <span className="text-sm font-medium">Share theme on your profile</span>
-              <span className="text-xs text-muted-foreground font-normal">
-                Automatically publish theme changes to your profile
-              </span>
-            </Label>
-            <Switch
-              id="auto-share-theme"
-              checked={autoShareTheme}
-              onCheckedChange={setAutoShareTheme}
-            />
-          </div>
-        </div>
-      )}
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Publish Dialog ── */}
       <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
