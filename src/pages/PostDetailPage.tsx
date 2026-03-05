@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Zap, MoreHorizontal, Radio, Loader2, AlertCircle, Copy, Check, ChevronRight } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Zap, MoreHorizontal, Radio, Loader2, AlertCircle, Copy, Check, ChevronRight, Star } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
@@ -58,6 +58,9 @@ const PODCAST_KINDS = new Set([30054, 30055]);
 /** NIP-52 Calendar Events. */
 const CALENDAR_EVENT_KINDS = new Set([31922, 31923]);
 
+/** Kind 31985 = Bookstr book reviews. */
+const BOOK_REVIEW_KIND = 31985;
+
 /** Map a kind number to a human-readable shell title for the loading state. */
 function shellTitleForKind(kind?: number): string {
   if (!kind) return 'Loading...';
@@ -66,6 +69,7 @@ function shellTitleForKind(kind?: number): string {
   if (CALENDAR_EVENT_KINDS.has(kind)) return 'Event Details';
   if (FOLLOW_PACK_KINDS.has(kind)) return 'Follow Pack';
   if (kind === LIVE_STREAM_KIND) return 'Live Stream';
+  if (kind === BOOK_REVIEW_KIND) return 'Book Review';
   return 'Post Details';
 }
 
@@ -82,6 +86,7 @@ import { type ResolvedEmoji, isCustomEmoji } from '@/lib/customEmoji';
 import { getDisplayName } from '@/lib/getDisplayName';
 
 import { canZap } from '@/lib/canZap';
+import { cn } from '@/lib/utils';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -91,6 +96,7 @@ import { ExternalContentPreview, ProfilePreview, CommunityPreview } from '@/comp
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
 import { EmojiPackContent } from '@/components/EmojiPackContent';
 import { CommunityContent } from '@/components/CommunityContent';
+import { extractISBNFromEvent } from '@/lib/bookstr';
 
 
 interface PostDetailPageProps {
@@ -608,6 +614,36 @@ function VineDetailContent({ event }: { event: NostrEvent }) {
   );
 }
 
+/** Displays star rating for a book review (kind 31985) on the detail page. */
+function BookReviewRating({ event }: { event: NostrEvent }) {
+  const ratingTag = event.tags.find(([name]) => name === 'rating')?.[1];
+  if (!ratingTag) return null;
+
+  const fraction = parseFloat(ratingTag);
+  if (isNaN(fraction) || fraction < 0 || fraction > 1) return null;
+
+  const starCount = Math.round(fraction * 5);
+
+  return (
+    <div className="flex items-center gap-1.5 mt-3">
+      {[...Array(5)].map((_, i) => (
+        <Star
+          key={i}
+          className={cn(
+            'size-5',
+            i < starCount
+              ? 'fill-amber-400 text-amber-400'
+              : 'text-muted-foreground/30',
+          )}
+        />
+      ))}
+      <span className="text-sm text-muted-foreground ml-1">
+        {(fraction * 5).toFixed(1)}
+      </span>
+    </div>
+  );
+}
+
 function PostDetailContent({ event }: { event: NostrEvent }) {
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
@@ -827,6 +863,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     return event.tags.find(([n]) => n === 'I')?.[1];
   }, [event, isComment]);
 
+  // For book reviews (kind 31985) and kind 1 posts that tag a book, extract the ISBN
+  // so we can show the book context above the post content.
+  const bookIsbn = useMemo(() => {
+    if (isComment) return undefined; // comments already handled via externalIdentifier
+    return extractISBNFromEvent(event);
+  }, [event, isComment]);
+
   // For kind 1111 comments on a profile (kind 0), extract the pubkey for the profile preview
   const profileRootPubkey = useMemo(() => {
     if (!isComment) return undefined;
@@ -911,6 +954,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       )}
       {communityRootAddr && (
         <CommunityPreview addr={communityRootAddr} />
+      )}
+
+      {/* Book context for reviews (kind 31985) and posts that tag a book */}
+      {bookIsbn && (
+        <ExternalContentPreview identifier={`isbn:${bookIsbn}`} />
       )}
 
       {/* Ancestor thread chain if this is a reply */}
@@ -1054,6 +1102,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
         {/* Comment context for kind 1111 */}
         {event.kind === 1111 && <CommentContext event={event} />}
+
+        {/* Star rating for book reviews (kind 31985) */}
+        {event.kind === BOOK_REVIEW_KIND && <BookReviewRating event={event} />}
 
         {/* Post content — kind-based dispatch, guarded by NIP-36 content-warning */}
         <ContentWarningGuard event={event}>
