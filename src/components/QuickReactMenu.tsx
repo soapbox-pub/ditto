@@ -27,8 +27,9 @@ interface QuickReactMenuProps {
   /**
    * Optional custom handler called when an emoji is selected.
    * When provided, this replaces the default kind 7 publish behavior.
+   * The optional second argument is an emoji tag `['emoji', shortcode, url]` for custom emojis.
    */
-  onReact?: (emoji: string) => void;
+  onReact?: (emoji: string, emojiTag?: string[]) => void;
   /** Optional extra class names. */
   className?: string;
 }
@@ -91,7 +92,7 @@ export function QuickReactMenu({
 
     // If a custom handler is provided, delegate to it
     if (onReact) {
-      onReact(emoji);
+      onReact(emoji, emojiTag);
       return;
     }
 

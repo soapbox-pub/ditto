@@ -85,7 +85,7 @@ export function ProfileSettings() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '', about: '', picture: '', banner: '',
-      website: '', nip05: '', bot: false, fields: [],
+      website: '', nip05: '', lud16: '', bot: false, fields: [],
     },
   });
 
@@ -101,6 +101,7 @@ export function ProfileSettings() {
         banner: metadata.banner ?? '',
         website: metadata.website ?? '',
         nip05: metadata.nip05 ?? '',
+        lud16: metadata.lud16 ?? '',
         bot: metadata.bot ?? false,
         fields: parseFields(),
       });
@@ -117,6 +118,7 @@ export function ProfileSettings() {
     banner: watched.banner,
     website: watched.website,
     nip05: watched.nip05,
+    lud16: watched.lud16,
     bot: watched.bot,
   };
 
@@ -279,6 +281,21 @@ export function ProfileSettings() {
                       <span>Website</span>
                     </div>
                     <Input placeholder="https://yourwebsite.com" {...field} className="h-9" />
+                    <div className="size-9" />
+                  </div>
+                )}
+              />
+
+              {/* Lightning address */}
+              <FormField
+                control={form.control}
+                name="lud16"
+                render={({ field }) => (
+                  <div className="grid grid-cols-[1fr,2fr,auto] gap-2 items-center">
+                    <div className="flex items-center h-9 px-3 text-sm text-muted-foreground">
+                      <span>Lightning</span>
+                    </div>
+                    <Input placeholder="you@walletofsatoshi.com" {...field} className="h-9" />
                     <div className="size-9" />
                   </div>
                 )}

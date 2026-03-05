@@ -16,7 +16,6 @@ import { SearchPage } from "./pages/SearchPage";
 import { TrendsPage } from "./pages/TrendsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ProfileSettings } from "./pages/ProfileSettings";
-import { ThemeSettingsPage } from "./pages/ThemeSettingsPage";
 import { ContentSettingsPage } from "./pages/ContentSettingsPage";
 import { ContentPage } from "./pages/ContentPage";
 import { WalletSettingsPage } from "./pages/WalletSettingsPage";
@@ -35,7 +34,6 @@ import { EventsFeedPage } from "./pages/EventsFeedPage";
 import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
 import { ThemesPage } from "./pages/ThemesPage";
-import { ThemeBuilderPage } from "./pages/ThemeBuilderPage";
 import { ExternalContentPage } from "./pages/ExternalContentPage";
 import { AIChatPage } from "./pages/AIChatPage";
 import { WorldPage } from "./pages/WorldPage";
@@ -79,10 +77,8 @@ export function AppRouter() {
           <Route path="/feed/:domain" element={<DomainFeedPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/profile" element={<ProfileSettings />} />
-          <Route path="/settings/theme" element={<ThemeSettingsPage />} />
           <Route path="/settings/feed" element={<ContentSettingsPage />} />
           <Route path="/settings/content" element={<ContentPage />} />
-          <Route path="/settings/theme/edit" element={<ThemeBuilderPage />} />
           <Route path="/settings/wallet" element={<WalletSettingsPage />} />
           <Route path="/settings/notifications" element={<NotificationSettings />} />
           <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
@@ -103,7 +99,7 @@ export function AppRouter() {
           <Route path="/webxdc" element={<WebxdcFeedPage />} />
           <Route path="/articles" element={<KindFeedPage kind={articlesDef.kind} title={articlesDef.label} icon={sidebarItemIcon('articles', 'size-5')} />} />
           <Route path="/decks" element={<KindFeedPage kind={decksDef.kind} title={decksDef.label} icon={sidebarItemIcon('decks', 'size-5')} />} />
-          <Route path="/emoji-packs" element={<KindFeedPage kind={emojiPacksDef.kind} title={emojiPacksDef.label} icon={sidebarItemIcon('emoji-packs', 'size-5')} />} />
+          <Route path="/emojis" element={<KindFeedPage kind={emojiPacksDef.kind} title={emojiPacksDef.label} icon={sidebarItemIcon('emoji-packs', 'size-5')} />} />
           <Route path="/themes" element={<ThemesPage />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
           <Route path="/ai-chat" element={<AIChatPage />} />

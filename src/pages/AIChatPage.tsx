@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
@@ -13,9 +13,9 @@ import { LoginArea } from '@/components/auth/LoginArea';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
+
 import { cn } from '@/lib/utils';
 
 import type { ThemeConfig } from '@/themes';
@@ -166,7 +166,7 @@ function useToolExecutor() {
 
 const SYSTEM_PROMPT: ChatMessage = {
   role: 'system',
-  content: `You are a helpful AI assistant integrated into Ditto, a Nostr social client. You can help users with questions, conversations, and tasks.
+  content: `You are Dork, extraordinaire. You are an AI assistant integrated into Ditto, a Nostr social client. You can help users with questions, conversations, and tasks.
 
 You have a set_theme tool that applies a full custom theme. It supports:
 
@@ -472,15 +472,7 @@ export function AIChatPage() {
 
           {/* Loading indicator */}
           {(isStreaming || apiLoading) && messages[messages.length - 1]?.role === 'user' && (
-            <div className="flex items-start gap-3">
-              <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <Bot className="size-4 text-primary" />
-              </div>
-              <div className="space-y-2 pt-1">
-                <Skeleton className="h-4 w-48" />
-                <Skeleton className="h-4 w-32" />
-              </div>
-            </div>
+            <DorkThinking />
           )}
 
           {/* Error display */}
@@ -523,54 +515,60 @@ export function AIChatPage() {
 
 // ─── Sub-Components ───
 
-function EmptyState() {
+const DORK_ANIMATION = [
+  '<[o_o]>',
+  '>[-_-]<',
+  '<[0_0]>',
+  '>[-_-]<',
+];
+
+function DorkThinking() {
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFrame((f) => (f + 1) % DORK_ANIMATION.length);
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-      <div className="size-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-        <Sparkles className="size-9 text-primary" />
+    <pre className="text-sm font-mono text-muted-foreground leading-none">{DORK_ANIMATION[frame]}</pre>
+  );
+}
+
+const DORK_GREETINGS = [
+  "Hi, I'm Dork! What would you like me to do?",
+  "Dork here! What do you need?",
+  "Hey, it's Dork! What do you want to do?",
+];
+
+function EmptyState() {
+  const greeting = useMemo(() => DORK_GREETINGS[Math.floor(Math.random() * DORK_GREETINGS.length)], []);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-20 gap-8 text-center select-none animate-in fade-in duration-500">
+      <div className="relative">
+        <div className="absolute -inset-6 rounded-full bg-primary/[0.06] blur-2xl" />
+        <div className="relative size-24 rounded-2xl bg-gradient-to-b from-primary/15 to-primary/5 border border-primary/10 flex items-center justify-center shadow-sm">
+          <pre className="text-2xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
+        </div>
       </div>
-      <div className="space-y-1.5">
-        <h2 className="text-xl font-semibold">How can I help you?</h2>
-        <p className="text-muted-foreground text-sm max-w-xs">
-          Ask me anything, or try asking me to change your theme.
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-2 mt-2 max-w-sm justify-center">
-        <SuggestionChip icon={<Palette className="size-3.5" />} label="Cyberpunk neon theme" />
-        <SuggestionChip icon={<Type className="size-3.5" />} label="Cozy retro with a fun font" />
-        <SuggestionChip icon={<Palette className="size-3.5" />} label="Minimal dark mode" />
+      <div className="space-y-2">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">Dork AI</h2>
+        <p className="text-sm text-muted-foreground">{greeting}</p>
       </div>
     </div>
   );
 }
 
-function SuggestionChip({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/60 border border-border text-xs text-muted-foreground">
-      {icon}
-      {label}
-    </div>
-  );
-}
+
 
 function MessageBubble({ message }: { message: DisplayMessage }) {
   const isUser = message.role === 'user';
 
   return (
-    <div className={cn('flex items-start gap-3', isUser && 'flex-row-reverse')}>
-      {/* Avatar */}
-      <Avatar className="size-8 shrink-0 mt-0.5">
-        <AvatarFallback className={cn(
-          'text-xs font-medium',
-          isUser
-            ? 'bg-foreground text-background'
-            : 'bg-primary/10 text-primary',
-        )}>
-          {isUser ? 'You' : <Bot className="size-4" />}
-        </AvatarFallback>
-      </Avatar>
-
-      {/* Content */}
+    <div className={cn('flex items-start', isUser && 'justify-end')}>
       <div className={cn('flex flex-col gap-1 max-w-[85%] min-w-0', isUser && 'items-end')}>
         <div
           className={cn(

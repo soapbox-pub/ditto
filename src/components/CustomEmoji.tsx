@@ -71,7 +71,7 @@ export function RenderResolvedEmoji({ emoji, className }: { emoji: ResolvedEmoji
 }
 
 /** Regex matching `:shortcode:` patterns in text. */
-const SHORTCODE_REGEX = /:([a-zA-Z0-9_]+):/g;
+const SHORTCODE_REGEX = /:([a-zA-Z0-9_-]+):/g;
 
 /** Replaces `:shortcode:` patterns in text with inline custom emoji images. */
 function emojify(
