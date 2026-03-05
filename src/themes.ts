@@ -295,23 +295,6 @@ export const themePresets: Record<string, ThemePreset> = {
 
   // ─── Themes inspired by MySpace Windows93 ──────────────────────────
 
-  gothic: {
-    label: 'Gothic',
-    emoji: '🥀',
-    featured: true,
-    colors: {
-      background: '0 60% 8%',
-      text: '0 0% 90%',
-      primary: '0 100% 45%',
-    },
-    font: { family: 'Cinzel' },
-    background: {
-      url: 'https://images.unsplash.com/photo-1518882570535-be5e3f4d8e76?w=1920&q=80',
-      mode: 'cover',
-      mimeType: 'image/jpeg',
-    },
-  },
-
   cottage: {
     label: 'Cottage',
     emoji: '🌿',
@@ -323,23 +306,7 @@ export const themePresets: Record<string, ThemePreset> = {
     },
     font: { family: 'Lora' },
     background: {
-      url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80',
-      mode: 'cover',
-      mimeType: 'image/jpeg',
-    },
-  },
-
-  candyheart: {
-    label: 'Candy Heart',
-    emoji: '🍭',
-    colors: {
-      background: '340 80% 92%',
-      text: '280 30% 20%',
-      primary: '330 85% 55%',
-    },
-    font: { family: 'Comfortaa' },
-    background: {
-      url: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=1920&q=80',
+      url: 'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?w=1920&q=80',
       mode: 'cover',
       mimeType: 'image/jpeg',
     },
@@ -362,9 +329,10 @@ export const themePresets: Record<string, ThemePreset> = {
     },
   },
 
-  hologram: {
-    label: 'Hologram',
+  sky: {
+    label: 'Sky',
     emoji: '☁️',
+    featured: true,
     colors: {
       background: '200 60% 88%',
       text: '220 30% 15%',
@@ -378,24 +346,8 @@ export const themePresets: Record<string, ThemePreset> = {
     },
   },
 
-  floret: {
-    label: 'Floret',
-    emoji: '🌼',
-    colors: {
-      background: '10 70% 90%',
-      text: '0 0% 100%',
-      primary: '160 60% 70%',
-    },
-    font: { family: 'Quicksand' },
-    background: {
-      url: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=1920&q=80',
-      mode: 'cover',
-      mimeType: 'image/jpeg',
-    },
-  },
-
-  win95: {
-    label: 'Win 95',
+  motherboard: {
+    label: 'Motherboard',
     emoji: '🪟',
     featured: true,
     colors: {
@@ -422,6 +374,74 @@ export const themePresets: Record<string, ThemePreset> = {
     font: { family: 'Comic Neue' },
     background: {
       url: 'https://images.unsplash.com/photo-1550684376-efcbd6e3f031?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  galaxy: {
+    label: 'Galaxy',
+    emoji: '🌌',
+    featured: true,
+    colors: {
+      background: '260 40% 8%',
+      text: '220 30% 95%',
+      primary: '270 80% 65%',
+    },
+    font: { family: 'DM Sans' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  ocean: {
+    label: 'Ocean',
+    emoji: '🌊',
+    featured: true,
+    colors: {
+      background: '195 50% 12%',
+      text: '185 30% 92%',
+      primary: '175 70% 50%',
+    },
+    font: { family: 'Nunito' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  forest: {
+    label: 'Forest',
+    emoji: '🌲',
+    featured: true,
+    colors: {
+      background: '150 30% 10%',
+      text: '120 20% 90%',
+      primary: '150 60% 45%',
+    },
+    font: { family: 'Merriweather' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  clearsky: {
+    label: 'Clear Sky Vibes',
+    emoji: '✨',
+    featured: true,
+    colors: {
+      background: '228 37% 8%',
+      text: '185 100% 72%',
+      primary: '300 100% 60%',
+    },
+    font: { family: 'Comfortaa' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1920&q=80',
       mode: 'cover',
       mimeType: 'image/jpeg',
     },

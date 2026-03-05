@@ -171,28 +171,12 @@ export const bundledFonts: BundledFont[] = [
     cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/press-start-2p@latest/latin-400-normal.woff2',
   },
   {
-    family: 'Cinzel',
-    cssFamily: 'Cinzel Variable',
-    category: 'serif',
-    variable: true,
-    load: () => import('@fontsource-variable/cinzel').then(() => {}),
-    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/cinzel:vf@latest/latin-wght-normal.woff2',
-  },
-  {
     family: 'Nunito',
     cssFamily: 'Nunito Variable',
     category: 'sans',
     variable: true,
     load: () => import('@fontsource-variable/nunito').then(() => {}),
     cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/nunito:vf@latest/latin-wght-normal.woff2',
-  },
-  {
-    family: 'Quicksand',
-    cssFamily: 'Quicksand Variable',
-    category: 'sans',
-    variable: true,
-    load: () => import('@fontsource-variable/quicksand').then(() => {}),
-    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/quicksand:vf@latest/latin-wght-normal.woff2',
   },
   {
     family: 'Courier Prime',
