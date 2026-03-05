@@ -196,7 +196,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
                 label="Edit theme"
                 onClick={() => {
                   close();
-                  navigate('/settings/theme');
+                  navigate('/themes');
                 }}
               />
             </div>
