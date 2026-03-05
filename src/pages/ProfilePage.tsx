@@ -683,14 +683,20 @@ export function ProfilePage() {
   // doesn't block the profile header or feed from rendering.
   const { data: supplementary } = useProfileSupplementary(pubkey);
 
-  // Parse profile fields from the raw kind 0 event content, prepending website if present
+  // Parse profile fields from the raw kind 0 event content, prepending website and lightning address if present
   const fields = useMemo(() => {
     const parsed = metadataEvent?.content ? parseProfileFields(metadataEvent.content) : [];
+    const prepended: typeof parsed = [];
     if (metadata?.website) {
-      return [{ label: 'Website', value: metadata.website }, ...parsed];
+      prepended.push({ label: 'Website', value: metadata.website });
     }
-    return parsed;
-  }, [metadataEvent?.content, metadata?.website]);
+    if (metadata?.lud16) {
+      prepended.push({ label: 'Lightning', value: metadata.lud16 });
+    } else if (metadata?.lud06) {
+      prepended.push({ label: 'Lightning', value: metadata.lud06 });
+    }
+    return [...prepended, ...parsed];
+  }, [metadataEvent?.content, metadata?.website, metadata?.lud16, metadata?.lud06]);
 
   useSeoMeta({
     title: `${displayName} | ${config.appName}`,
@@ -1501,6 +1507,12 @@ export function ProfilePage() {
               </h2>
               {metadata?.nip05 && (
                 <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" showCheck />
+              )}
+              {(metadata?.lud16 || metadata?.lud06) && (
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
+                  <Zap className="size-3.5 text-amber-500 shrink-0" />
+                  <span className="truncate">{metadata.lud16 || metadata.lud06}</span>
+                </div>
               )}
 
               {/* Following count + Streak indicator */}
