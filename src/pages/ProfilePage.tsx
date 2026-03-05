@@ -189,23 +189,6 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
           />
         </div>
 
-        {isOwnProfile && (
-          <>
-            <Separator />
-
-            <div className="py-1">
-              <MenuRow
-                icon={<Palette className="size-5" />}
-                label="Edit theme"
-                onClick={() => {
-                  close();
-                  navigate('/themes');
-                }}
-              />
-            </div>
-          </>
-        )}
-
         {!isOwnProfile && (
           <>
             <Separator />
