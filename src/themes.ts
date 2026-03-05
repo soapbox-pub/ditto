@@ -292,6 +292,100 @@ export const themePresets: Record<string, ThemePreset> = {
       mimeType: 'image/png',
     },
   },
+
+  // ─── Themes inspired by MySpace Windows93 ──────────────────────────
+
+  gothic: {
+    label: 'Gothic',
+    emoji: '🥀',
+    featured: true,
+    colors: {
+      background: '0 60% 8%',
+      text: '0 0% 90%',
+      primary: '0 100% 45%',
+    },
+    font: { family: 'Cinzel' },
+  },
+
+  cottage: {
+    label: 'Cottage',
+    emoji: '🌿',
+    featured: true,
+    colors: {
+      background: '100 25% 92%',
+      text: '100 20% 12%',
+      primary: '43 80% 55%',
+    },
+    font: { family: 'Lora' },
+  },
+
+  candyheart: {
+    label: 'Candy Heart',
+    emoji: '🍭',
+    colors: {
+      background: '340 80% 92%',
+      text: '280 30% 20%',
+      primary: '330 85% 55%',
+    },
+    font: { family: 'Comfortaa' },
+  },
+
+  midnight: {
+    label: 'Midnight',
+    emoji: '🌃',
+    featured: true,
+    colors: {
+      background: '0 0% 9%',
+      text: '0 0% 95%',
+      primary: '190 100% 50%',
+    },
+    font: { family: 'Inter' },
+  },
+
+  hologram: {
+    label: 'Hologram',
+    emoji: '☁️',
+    colors: {
+      background: '200 60% 88%',
+      text: '220 30% 15%',
+      primary: '280 55% 65%',
+    },
+    font: { family: 'Nunito' },
+  },
+
+  floret: {
+    label: 'Floret',
+    emoji: '🌼',
+    colors: {
+      background: '10 70% 90%',
+      text: '0 0% 100%',
+      primary: '160 60% 70%',
+    },
+    font: { family: 'Quicksand' },
+  },
+
+  win95: {
+    label: 'Win 95',
+    emoji: '🪟',
+    featured: true,
+    colors: {
+      background: '0 0% 75%',
+      text: '0 0% 5%',
+      primary: '240 100% 30%',
+    },
+    font: { family: 'Courier Prime' },
+  },
+
+  plush: {
+    label: 'Plush',
+    emoji: '🧸',
+    colors: {
+      background: '265 55% 72%',
+      text: '55 100% 50%',
+      primary: '210 90% 55%',
+    },
+    font: { family: 'Comic Neue' },
+  },
 };
 
 /** Converts a camelCase key to a CSS custom property name, e.g. primaryForeground → --primary-foreground */
