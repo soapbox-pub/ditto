@@ -14,7 +14,8 @@ import { timeAgo } from '@/lib/timeAgo';
 import { NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 const XL_BREAKPOINT = 1280;
 
@@ -95,6 +96,16 @@ export function RightSidebar() {
   const { data: rawHotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isXl);
   const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(isXl);
   const { muteItems } = useMuteList();
+  const [dismissedAccounts, setDismissedAccounts] = useLocalStorage<string[]>('dismissed-new-accounts', []);
+
+  const dismissAccount = useCallback((pubkey: string) => {
+    setDismissedAccounts((prev) => [...prev, pubkey]);
+  }, [setDismissedAccounts]);
+
+  const filteredAccounts = useMemo(() => {
+    if (!latestAccounts || dismissedAccounts.length === 0) return latestAccounts;
+    return latestAccounts.filter((e) => !dismissedAccounts.includes(e.pubkey));
+  }, [latestAccounts, dismissedAccounts]);
 
   const trendingTags = trendingTagsResult?.tags;
   const labelCreatedAt = trendingTagsResult?.labelCreatedAt ?? 0;
@@ -209,8 +220,8 @@ export function RightSidebar() {
           </div>
         ) : (
           <div className="space-y-2">
-            {latestAccounts?.map((event) => (
-              <LatestAccountCard key={event.id} event={event} />
+            {filteredAccounts?.map((event) => (
+              <LatestAccountCard key={event.id} event={event} onDismiss={dismissAccount} />
             ))}
           </div>
         )}
@@ -269,7 +280,7 @@ function HotPostCard({ event }: { event: NostrEvent }) {
   );
 }
 
-function LatestAccountCard({ event }: { event: NostrEvent }) {
+function LatestAccountCard({ event, onDismiss }: { event: NostrEvent; onDismiss: (pubkey: string) => void }) {
   let metadata: { name?: string; nip05?: string; picture?: string } = {};
   try {
     metadata = n.json().pipe(n.metadata()).parse(event.content);
@@ -300,7 +311,11 @@ function LatestAccountCard({ event }: { event: NostrEvent }) {
         )}
       </div>
 
-      <button className="p-1 rounded-full text-muted-foreground hover:bg-secondary transition-colors opacity-0 group-hover:opacity-100">
+      <button
+        onClick={() => onDismiss(event.pubkey)}
+        className="p-1 rounded-full text-muted-foreground hover:bg-secondary transition-colors opacity-0 group-hover:opacity-100"
+        aria-label={`Dismiss ${displayName}`}
+      >
         <X className="size-4" />
       </button>
     </div>
