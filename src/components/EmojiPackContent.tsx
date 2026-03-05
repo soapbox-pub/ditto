@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from 'react';
-import { Plus, Check, Loader2, ExternalLink } from 'lucide-react';
+import { Plus, Check, Loader2 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -213,15 +213,6 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
             {isAdded ? 'Added' : 'Add to Collection'}
           </Button>
         )}
-        <a
-          href="https://emojiverse.shakespeare.wtf"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-        >
-          <ExternalLink className="size-3" />
-          EmojiVerse
-        </a>
       </div>
     </div>
   );

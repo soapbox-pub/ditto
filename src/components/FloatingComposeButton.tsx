@@ -17,9 +17,11 @@ interface FloatingComposeButtonProps {
   href?: string;
   /** If set, overrides the default FAB click behavior. */
   onFabClick?: () => void;
+  /** If set, overrides the default Plus icon. */
+  icon?: React.ReactNode;
 }
 
-export function FloatingComposeButton({ kind = 1, href, onFabClick }: FloatingComposeButtonProps) {
+export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: FloatingComposeButtonProps) {
   const { user } = useCurrentUser();
   const navigate = useNavigate();
   const [composeOpen, setComposeOpen] = useState(false);
@@ -47,7 +49,7 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick }: FloatingCo
         onClick={handleClick}
         className="size-14 rounded-full shadow-lg bg-accent hover:bg-accent/90 text-accent-foreground transition-transform hover:scale-105 active:scale-95"
       >
-        <Plus strokeWidth={4} />
+        {icon ?? <Plus strokeWidth={4} />}
       </Button>
 
       {/* Kind 1: Compose modal */}

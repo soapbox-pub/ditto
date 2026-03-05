@@ -1054,7 +1054,7 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   37381: { icon: CardsIcon, action: 'shared a', noun: 'deck',     nounRoute: '/decks'     },
   36767: { icon: Palette,   action: 'shared a', noun: 'theme',    nounRoute: '/themes'    },
   16767: { icon: Palette,   action: 'updated their', noun: 'theme', nounRoute: '/themes'  },
-  30030: { icon: SmilePlus, action: 'shared an', noun: 'emoji pack', nounRoute: '/emoji-packs' },
+  30030: { icon: SmilePlus, action: 'shared an', noun: 'emoji pack', nounRoute: '/emojis' },
   30311: {
     icon: Radio,
     iconClassName: undefined, // computed dynamically below

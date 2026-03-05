@@ -313,16 +313,18 @@ function VideoSkeleton() {
 
 function useLiveStreams(tab: FeedTab) {
   const { nostr } = useNostr();
+  const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const followedPubkeys = followData?.pubkeys ?? [];
 
   return useQuery<NostrEvent[]>({
-    queryKey: ['live-streams', tab, followedPubkeys.join(',')],
+    queryKey: ['live-streams', tab, user?.pubkey, followedPubkeys.join(',')],
     queryFn: async ({ signal }) => {
-      if (tab === 'follows' && followedPubkeys.length === 0) return [];
+      if (tab === 'follows' && followedPubkeys.length === 0 && !user) return [];
       const base: Record<string, unknown> = { kinds: [30311], '#status': ['live'], limit: 10 };
       if (tab === 'follows') {
-        base.authors = followedPubkeys;
+        const authors = user ? [...followedPubkeys, user.pubkey] : followedPubkeys;
+        base.authors = authors;
       }
       const events = await nostr.query(
         [base as { kinds: number[]; limit: number }],

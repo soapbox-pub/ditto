@@ -323,7 +323,7 @@ export function ComposeBox({
   const hasCustomEmojis = useMemo(() => {
     if (customEmojis.length === 0 || !content) return false;
     const emojiSet = new Set(customEmojis.map((e) => e.shortcode));
-    const matches = content.matchAll(/:([a-zA-Z0-9_]+):/g);
+    const matches = content.matchAll(/:([a-zA-Z0-9_-]+):/g);
     for (const match of matches) {
       if (emojiSet.has(match[1])) return true;
     }
@@ -360,7 +360,7 @@ export function ComposeBox({
     // NIP-30: Add emoji tags for custom emojis referenced in content
     if (customEmojis.length > 0) {
       const emojiMap = new Map(customEmojis.map((e) => [e.shortcode, e.url]));
-      const shortcodeRegex = /:([a-zA-Z0-9_]+):/g;
+      const shortcodeRegex = /:([a-zA-Z0-9_-]+):/g;
       const usedEmojis = new Set<string>();
       let match;
       while ((match = shortcodeRegex.exec(content)) !== null) {
@@ -753,7 +753,7 @@ export function ComposeBox({
       // NIP-30: Add emoji tags for custom emojis referenced in content
       if (customEmojis.length > 0) {
         const emojiMap = new Map(customEmojis.map((e) => [e.shortcode, e.url]));
-        const shortcodeRegex = /:([a-zA-Z0-9_]+):/g;
+        const shortcodeRegex = /:([a-zA-Z0-9_-]+):/g;
         const usedEmojis = new Set<string>();
         let emojiMatch;
         while ((emojiMatch = shortcodeRegex.exec(finalContent)) !== null) {
