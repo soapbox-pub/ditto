@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Check, Palette, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { Check, Palette, Trash2, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
 /** Extracts HSL color string from a theme token value like "258 70% 55%" */
@@ -817,9 +818,9 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
 
           {/* Action buttons */}
           {user && (
-            <DialogFooter className="flex-row flex-wrap gap-2 sm:justify-between">
-              <div className="flex gap-2">
-                {editingTheme && (
+            <div className="space-y-3 pt-2">
+              <DialogFooter className="flex-row justify-between gap-2">
+                {editingTheme ? (
                   <Button
                     variant="secondary"
                     size="sm"
@@ -827,8 +828,10 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                     disabled={isPublishing}
                   >
                     <Palette className="size-3.5 mr-1.5" />
-                    {isPublishing ? 'Updating...' : 'Update'}
+                    {isPublishing ? 'Updating...' : `Update "${editingTheme.title}"`}
                   </Button>
+                ) : (
+                  <div />
                 )}
                 <Button
                   variant="outline"
@@ -836,22 +839,34 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                   onClick={handlePublishNew}
                 >
                   <Palette className="size-3.5 mr-1.5" />
-                  Publish
+                  Publish New Theme
                 </Button>
-              </div>
+              </DialogFooter>
+
+              {/* Advanced section with delete */}
               {editingTheme && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDeleteTheme}
-                  disabled={isPublishing}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="size-3.5 mr-1.5" />
-                  Delete
-                </Button>
+                <Collapsible>
+                  <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group">
+                    <ChevronDown className="size-3.5 transition-transform group-data-[state=open]:rotate-180" />
+                    Advanced
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="pt-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleDeleteTheme}
+                        disabled={isPublishing}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="size-3.5 mr-1.5" />
+                        Delete Theme
+                      </Button>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
-            </DialogFooter>
+            </div>
           )}
         </DialogContent>
       </Dialog>
