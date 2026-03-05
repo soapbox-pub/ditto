@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Check, Palette, Trash2, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { Check, Palette, Plus, Trash2, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -695,11 +695,11 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
   return (
     <div className="space-y-6">
       {/* ── My Themes ── */}
-      {userThemeItems.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-            My Themes
-          </h3>
+      <div className="space-y-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+          My Themes
+        </h3>
+        {userThemeItems.length > 0 ? (
           <div className={gridClass}>
             {userThemeItems.map((item) => (
               <ThemeButton
@@ -713,8 +713,20 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               </ThemeButton>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <button
+            onClick={() => onBuilderOpenChange?.(true)}
+            className="w-full rounded-xl border-2 border-dashed border-border hover:border-primary/40 p-6 flex flex-col items-center gap-3 text-center transition-colors group"
+          >
+            <div className="size-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+              <Plus className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Create and share your first custom theme
+            </p>
+          </button>
+        )}
+      </div>
 
       {/* ── Presets ── */}
       <div className="space-y-2">
