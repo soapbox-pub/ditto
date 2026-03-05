@@ -379,11 +379,10 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedKey: 'feedIncludeEmojiPacks',
     label: 'Emoji Packs',
     description: 'Custom emoji collections (NIP-30)',
-    route: 'emoji-packs',
+    route: 'emojis',
     addressable: true,
     section: 'social',
     blurb: 'Custom emoji packs for reactions, posts, and profiles. Browse, collect, and use custom emojis from the Nostr community.',
-    sites: [{ url: 'https://emojiverse.shakespeare.wtf', name: 'EmojiVerse' }],
   },
   {
     kind: 37516,
