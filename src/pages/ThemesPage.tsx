@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Sparkles, ArrowLeft } from 'lucide-react';
+import { Loader2, Sparkles, ArrowLeft, Pencil } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -42,6 +42,7 @@ export function ThemesPage() {
   useLayoutOptions({
     showFAB: activeTab === 'my-themes',
     onFabClick: handleFabClick,
+    fabIcon: <Pencil strokeWidth={3} />,
   });
 
   // Feed queries for follows/global tabs
