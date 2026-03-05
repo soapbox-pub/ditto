@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Check, Palette, Pencil, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { Check, Palette, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -125,7 +125,6 @@ function ThemeButton({
   scroll = false,
   carousel = false,
   onClick,
-  onEdit,
   children,
 }: {
   isActive: boolean;
@@ -134,7 +133,6 @@ function ThemeButton({
   scroll?: boolean;
   carousel?: boolean;
   onClick: () => void;
-  onEdit?: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -148,17 +146,6 @@ function ThemeButton({
       onClick={onClick}
     >
       {children}
-      {onEdit && (
-        <div
-          role="button"
-          tabIndex={0}
-          className="absolute top-2 right-2 size-6 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background hover:border-primary/40"
-          onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onEdit(); } }}
-        >
-          <Pencil className="size-3 text-muted-foreground" />
-        </div>
-      )}
       <p className={cn(
         'mt-1.5 text-xs font-medium text-center transition-colors',
         isActive ? 'text-foreground' : 'text-muted-foreground',
@@ -179,7 +166,6 @@ export function ThemeGrid({
   onSelect,
   editingTheme,
   onEditingThemeChange,
-  onEditTheme,
   columns = 'responsive',
 }: {
   /** Called after any theme is selected. */
@@ -188,8 +174,6 @@ export function ThemeGrid({
   editingTheme?: ThemeDefinition | null;
   /** Callback to update editing theme state in the parent. */
   onEditingThemeChange?: (def: ThemeDefinition | null) => void;
-  /** Called when the user clicks the edit icon on a user theme card. */
-  onEditTheme?: (def: ThemeDefinition) => void;
   /**
    * Layout mode:
    * - 'responsive': 2-col grid on mobile, 3-col at sidebar breakpoint (900px)
@@ -256,7 +240,6 @@ export function ThemeGrid({
     label: string;
     truncate: boolean;
     onSelect: () => void;
-    onEdit?: () => void;
     preview: React.ReactNode;
     isActive: boolean;
   };
@@ -322,7 +305,6 @@ export function ThemeGrid({
         label: def.title,
         truncate: true,
         onSelect: () => handleSelectUserTheme(def),
-        onEdit: onEditTheme ? () => onEditTheme(def) : undefined,
         isActive,
         preview: <ThemePreviewCard colors={def.colors} isActive={isActive} backgroundUrl={def.background?.url} />,
       });
@@ -387,7 +369,6 @@ export function ThemeGrid({
                     label={item.label}
                     truncate={item.truncate}
                     onClick={item.onSelect}
-                    onEdit={item.onEdit}
                     carousel
                   >
                     {item.preview}
@@ -437,7 +418,6 @@ export function ThemeGrid({
               label={item.label}
               truncate={item.truncate}
               onClick={item.onSelect}
-              onEdit={item.onEdit}
             >
               {item.preview}
             </ThemeButton>
@@ -461,7 +441,6 @@ export function ThemeGrid({
           label={item.label}
           truncate={item.truncate}
           onClick={item.onSelect}
-          onEdit={item.onEdit}
         >
           {item.preview}
         </ThemeButton>
@@ -482,7 +461,7 @@ interface ThemeSelectorProps {
 export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }: ThemeSelectorProps = {}) {
   const { theme, customTheme, themes, autoShareTheme, setTheme, applyCustomTheme, setAutoShareTheme } = useTheme();
   const { user } = useCurrentUser();
-  const { publishTheme, isPending: isPublishing } = usePublishTheme();
+  const { publishTheme, deleteTheme, isPending: isPublishing } = usePublishTheme();
   const { toast } = useToast();
 
   // Editor mode: which user theme is being edited
@@ -571,12 +550,20 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
     }
   }, [publishTitle, publishDescription, customTheme, effectiveColors, publishTheme, toast]);
 
-  /** Handle clicking the edit icon on a user theme card */
-  const handleEditTheme = useCallback((def: ThemeDefinition) => {
-    setEditingTheme(def);
-    applyCustomTheme({ colors: def.colors, font: def.font, background: def.background, title: def.title });
-    onBuilderOpenChange?.(true);
-  }, [applyCustomTheme, onBuilderOpenChange]);
+  /** Delete the currently-editing theme */
+  const handleDeleteTheme = useCallback(async () => {
+    if (!editingTheme) return;
+    try {
+      await deleteTheme(editingTheme);
+      toast({ title: 'Theme deleted', description: `"${editingTheme.title}" has been removed.` });
+      setEditingTheme(null);
+      setTheme('system');
+      onBuilderOpenChange?.(false);
+    } catch (error) {
+      console.error('Failed to delete theme:', error);
+      toast({ title: 'Delete failed', description: 'Could not delete your theme.', variant: 'destructive' });
+    }
+  }, [editingTheme, deleteTheme, toast, setTheme, onBuilderOpenChange]);
 
   // ── Build sectioned item lists ──
   const userThemes = useUserThemes(user?.pubkey);
@@ -624,7 +611,6 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
     label: string;
     truncate: boolean;
     onSelect: () => void;
-    onEdit?: () => void;
     preview: React.ReactNode;
     isActive: boolean;
   };
@@ -694,7 +680,6 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
         label: def.title,
         truncate: true,
         onSelect: () => handleSelectUserTheme(def),
-        onEdit: () => handleEditTheme(def),
         isActive,
         preview: <ThemePreviewCard colors={def.colors} isActive={isActive} backgroundUrl={def.background?.url} />,
       };
@@ -731,7 +716,6 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                 label={activeItem.label}
                 truncate={activeItem.truncate}
                 onClick={activeItem.onSelect}
-                onEdit={activeItem.onEdit}
               >
                 {activeItem.preview}
               </ThemeButton>
@@ -751,7 +735,6 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                   label={item.label}
                   truncate={item.truncate}
                   onClick={item.onSelect}
-                  onEdit={item.onEdit}
                 >
                   {item.preview}
                 </ThemeButton>
@@ -834,26 +817,40 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
 
           {/* Action buttons */}
           {user && (
-            <DialogFooter className="flex-row gap-2 sm:justify-start">
-              {editingTheme && (
+            <DialogFooter className="flex-row gap-2 sm:justify-between">
+              <div className="flex gap-2">
+                {editingTheme && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleUpdateTheme}
+                    disabled={isPublishing}
+                  >
+                    <Palette className="size-3.5 mr-1.5" />
+                    {isPublishing ? 'Updating...' : 'Update Theme'}
+                  </Button>
+                )}
                 <Button
-                  variant="secondary"
+                  variant="outline"
                   size="sm"
-                  onClick={handleUpdateTheme}
-                  disabled={isPublishing}
+                  onClick={handlePublishNew}
                 >
                   <Palette className="size-3.5 mr-1.5" />
-                  {isPublishing ? 'Updating...' : 'Update Theme'}
+                  Publish Theme
+                </Button>
+              </div>
+              {editingTheme && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDeleteTheme}
+                  disabled={isPublishing}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="size-3.5 mr-1.5" />
+                  Delete
                 </Button>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePublishNew}
-              >
-                <Palette className="size-3.5 mr-1.5" />
-                Publish Theme
-              </Button>
             </DialogFooter>
           )}
         </DialogContent>
