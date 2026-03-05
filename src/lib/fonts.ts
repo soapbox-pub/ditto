@@ -170,6 +170,52 @@ export const bundledFonts: BundledFont[] = [
     load: () => import('@fontsource/press-start-2p/400.css').then(() => {}),
     cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/press-start-2p@latest/latin-400-normal.woff2',
   },
+  {
+    family: 'Cinzel',
+    cssFamily: 'Cinzel Variable',
+    category: 'serif',
+    variable: true,
+    load: () => import('@fontsource-variable/cinzel').then(() => {}),
+    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/cinzel:vf@latest/latin-wght-normal.woff2',
+  },
+  {
+    family: 'Nunito',
+    cssFamily: 'Nunito Variable',
+    category: 'sans',
+    variable: true,
+    load: () => import('@fontsource-variable/nunito').then(() => {}),
+    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/nunito:vf@latest/latin-wght-normal.woff2',
+  },
+  {
+    family: 'Quicksand',
+    cssFamily: 'Quicksand Variable',
+    category: 'sans',
+    variable: true,
+    load: () => import('@fontsource-variable/quicksand').then(() => {}),
+    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/quicksand:vf@latest/latin-wght-normal.woff2',
+  },
+  {
+    family: 'Courier Prime',
+    cssFamily: 'Courier Prime',
+    category: 'mono',
+    variable: false,
+    load: async () => {
+      await import('@fontsource/courier-prime/400.css');
+      await import('@fontsource/courier-prime/700.css');
+    },
+    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/courier-prime@latest/latin-400-normal.woff2',
+  },
+  {
+    family: 'Comic Neue',
+    cssFamily: 'Comic Neue',
+    category: 'handwriting',
+    variable: false,
+    load: async () => {
+      await import('@fontsource/comic-neue/400.css');
+      await import('@fontsource/comic-neue/700.css');
+    },
+    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/comic-neue@latest/latin-400-normal.woff2',
+  },
 ];
 
 /** Map from lowercase family name to BundledFont for quick lookup. */

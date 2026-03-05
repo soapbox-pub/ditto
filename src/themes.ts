@@ -305,6 +305,11 @@ export const themePresets: Record<string, ThemePreset> = {
       primary: '0 100% 45%',
     },
     font: { family: 'Cinzel' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1518882570535-be5e3f4d8e76?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
   },
 
   cottage: {
@@ -317,6 +322,11 @@ export const themePresets: Record<string, ThemePreset> = {
       primary: '43 80% 55%',
     },
     font: { family: 'Lora' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
   },
 
   candyheart: {
@@ -328,6 +338,11 @@ export const themePresets: Record<string, ThemePreset> = {
       primary: '330 85% 55%',
     },
     font: { family: 'Comfortaa' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
   },
 
   midnight: {
@@ -340,6 +355,11 @@ export const themePresets: Record<string, ThemePreset> = {
       primary: '190 100% 50%',
     },
     font: { family: 'Inter' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
   },
 
   hologram: {
@@ -351,6 +371,11 @@ export const themePresets: Record<string, ThemePreset> = {
       primary: '280 55% 65%',
     },
     font: { family: 'Nunito' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1517483000871-1dbf64a6e1c6?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
   },
 
   floret: {
@@ -362,6 +387,11 @@ export const themePresets: Record<string, ThemePreset> = {
       primary: '160 60% 70%',
     },
     font: { family: 'Quicksand' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
   },
 
   win95: {
@@ -374,6 +404,11 @@ export const themePresets: Record<string, ThemePreset> = {
       primary: '240 100% 30%',
     },
     font: { family: 'Courier Prime' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
   },
 
   plush: {
@@ -385,6 +420,11 @@ export const themePresets: Record<string, ThemePreset> = {
       primary: '210 90% 55%',
     },
     font: { family: 'Comic Neue' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1550684376-efcbd6e3f031?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
   },
 };
 
