@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, Sparkles } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, Sparkles, RefreshCw } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -21,9 +21,12 @@ import {
   KIND_BLOBBONAUT_PROFILE,
   buildBlobbonautTags,
   buildEggTags,
+  buildMigrationTags,
   generatePetId10,
   getCanonicalBlobbiD,
   updateBlobbiTags,
+  updateBlobbonautTags,
+  migratePetInHas,
   type BlobbiCompanion,
 } from '@/lib/blobbi';
 
@@ -72,7 +75,9 @@ function BlobbiContent() {
   
   const {
     profile,
+    effectiveCompanionD,
     isLoading: profileLoading,
+    isFetching: profileFetching,
     invalidate: invalidateProfile,
     updateProfileEvent,
   } = useBlobbonautProfile();
@@ -80,13 +85,65 @@ function BlobbiContent() {
   const {
     companion,
     isLoading: companionLoading,
+    isFetching: companionFetching,
+    needsMigration,
     invalidate: invalidateCompanion,
     updateCompanionEvent,
   } = useBlobbiCompanion({
-    companionD: profile?.currentCompanion,
+    companionD: effectiveCompanionD,
   });
   
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  
+  // ─── Helper: Migrate Legacy Pet ───
+  const migrateLegacyPet = useCallback(async (): Promise<{ canonicalD: string; event: import('@nostrify/nostrify').NostrEvent } | null> => {
+    if (!user?.pubkey || !companion || !needsMigration || !profile) {
+      return null;
+    }
+    
+    try {
+      const newPetId = generatePetId10();
+      const migrationTags = buildMigrationTags(companion.event, newPetId, user.pubkey);
+      const canonicalD = getCanonicalBlobbiD(user.pubkey, newPetId);
+      
+      // Publish the canonical Blobbi state
+      const canonicalEvent = await publishEvent({
+        kind: KIND_BLOBBI_STATE,
+        content: companion.event.content || `${companion.name} is a ${companion.stage} Blobbi.`,
+        tags: migrationTags,
+      });
+      
+      // Update profile: replace legacy d with canonical d in has[], set current_companion
+      const updatedHas = migratePetInHas(profile.has, companion.d, canonicalD);
+      const profileTags = updateBlobbonautTags(profile.allTags, {
+        current_companion: canonicalD,
+        has: updatedHas,
+      });
+      
+      const profileEvent = await publishEvent({
+        kind: KIND_BLOBBONAUT_PROFILE,
+        content: '',
+        tags: profileTags,
+      });
+      
+      updateProfileEvent(profileEvent);
+      
+      toast({
+        title: 'Pet migrated!',
+        description: `${companion.name} has been upgraded to the new format.`,
+      });
+      
+      return { canonicalD, event: canonicalEvent };
+    } catch (error) {
+      console.error('Failed to migrate legacy pet:', error);
+      toast({
+        title: 'Migration failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+      return null;
+    }
+  }, [user?.pubkey, companion, needsMigration, profile, publishEvent, updateProfileEvent]);
   
   // ─── Initialize Blobbonaut Profile ───
   const handleInitializeProfile = useCallback(async () => {
@@ -135,13 +192,13 @@ function BlobbiContent() {
       
       updateCompanionEvent(event);
       
-      // Update profile with current_companion and has tag
+      // Update profile with current_companion and has tag (with deduplication)
       const newD = getCanonicalBlobbiD(user.pubkey, petId);
-      const profileTags = [
-        ...profile.allTags.filter(([name]) => name !== 'current_companion'),
-        ['current_companion', newD],
-        ['has', newD],
-      ];
+      const updatedHas = [...profile.has, newD];
+      const profileTags = updateBlobbonautTags(profile.allTags, {
+        current_companion: newD,
+        has: updatedHas,
+      });
       
       const profileEvent = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
@@ -166,7 +223,7 @@ function BlobbiContent() {
     }
   }, [user?.pubkey, profile, publishEvent, updateCompanionEvent, updateProfileEvent, invalidateProfile, invalidateCompanion]);
   
-  // ─── Rest Action ───
+  // ─── Rest Action (with automatic legacy migration) ───
   const handleRest = useCallback(async () => {
     if (!user?.pubkey || !companion) return;
     
@@ -175,27 +232,53 @@ function BlobbiContent() {
     
     setActionInProgress('rest');
     try {
-      const now = Math.floor(Date.now() / 1000).toString();
-      const newTags = updateBlobbiTags(companion.allTags, {
-        state: newState,
-        last_interaction: now,
-        last_decay_at: now,
-      });
+      // If this is a legacy pet, migrate it first
+      if (needsMigration) {
+        const migrationResult = await migrateLegacyPet();
+        if (migrationResult) {
+          // Update the migrated event with the new state
+          const now = Math.floor(Date.now() / 1000).toString();
+          const newTags = updateBlobbiTags(migrationResult.event.tags, {
+            state: newState,
+            last_interaction: now,
+            last_decay_at: now,
+          });
+          
+          const event = await publishEvent({
+            kind: KIND_BLOBBI_STATE,
+            content: migrationResult.event.content,
+            tags: newTags,
+          });
+          
+          updateCompanionEvent(event);
+          invalidateCompanion();
+          invalidateProfile();
+        }
+      } else {
+        // Normal flow for canonical pets
+        const now = Math.floor(Date.now() / 1000).toString();
+        const newTags = updateBlobbiTags(companion.allTags, {
+          state: newState,
+          last_interaction: now,
+          last_decay_at: now,
+        });
+        
+        const event = await publishEvent({
+          kind: KIND_BLOBBI_STATE,
+          content: companion.event.content,
+          tags: newTags,
+        });
+        
+        updateCompanionEvent(event);
+        invalidateCompanion();
+      }
       
-      const event = await publishEvent({
-        kind: KIND_BLOBBI_STATE,
-        content: companion.event.content,
-        tags: newTags,
-      });
-      
-      updateCompanionEvent(event);
       toast({
         title: isCurrentlySleeping ? 'Woke up!' : 'Resting...',
         description: isCurrentlySleeping
           ? 'Your Blobbi is now awake and active!'
           : 'Your Blobbi is taking a rest.',
       });
-      invalidateCompanion();
     } catch (error) {
       console.error('Failed to update state:', error);
       toast({
@@ -206,9 +289,9 @@ function BlobbiContent() {
     } finally {
       setActionInProgress(null);
     }
-  }, [user?.pubkey, companion, publishEvent, updateCompanionEvent, invalidateCompanion]);
+  }, [user?.pubkey, companion, needsMigration, migrateLegacyPet, publishEvent, updateCompanionEvent, invalidateCompanion, invalidateProfile]);
   
-  // ─── Toggle Visibility ───
+  // ─── Toggle Visibility (with automatic legacy migration) ───
   const handleToggleVisibility = useCallback(async () => {
     if (!user?.pubkey || !companion) return;
     
@@ -216,26 +299,51 @@ function BlobbiContent() {
     
     setActionInProgress('visibility');
     try {
-      const now = Math.floor(Date.now() / 1000).toString();
-      const newTags = updateBlobbiTags(companion.allTags, {
-        visible_to_others: newVisibility.toString(),
-        last_interaction: now,
-      });
+      // If this is a legacy pet, migrate it first
+      if (needsMigration) {
+        const migrationResult = await migrateLegacyPet();
+        if (migrationResult) {
+          // Update the migrated event with new visibility
+          const now = Math.floor(Date.now() / 1000).toString();
+          const newTags = updateBlobbiTags(migrationResult.event.tags, {
+            visible_to_others: newVisibility.toString(),
+            last_interaction: now,
+          });
+          
+          const event = await publishEvent({
+            kind: KIND_BLOBBI_STATE,
+            content: migrationResult.event.content,
+            tags: newTags,
+          });
+          
+          updateCompanionEvent(event);
+          invalidateCompanion();
+          invalidateProfile();
+        }
+      } else {
+        // Normal flow for canonical pets
+        const now = Math.floor(Date.now() / 1000).toString();
+        const newTags = updateBlobbiTags(companion.allTags, {
+          visible_to_others: newVisibility.toString(),
+          last_interaction: now,
+        });
+        
+        const event = await publishEvent({
+          kind: KIND_BLOBBI_STATE,
+          content: companion.event.content,
+          tags: newTags,
+        });
+        
+        updateCompanionEvent(event);
+        invalidateCompanion();
+      }
       
-      const event = await publishEvent({
-        kind: KIND_BLOBBI_STATE,
-        content: companion.event.content,
-        tags: newTags,
-      });
-      
-      updateCompanionEvent(event);
       toast({
         title: newVisibility ? 'Now visible!' : 'Now hidden',
         description: newVisibility
           ? 'Others can see your Blobbi.'
           : 'Your Blobbi is now private.',
       });
-      invalidateCompanion();
     } catch (error) {
       console.error('Failed to toggle visibility:', error);
       toast({
@@ -246,14 +354,17 @@ function BlobbiContent() {
     } finally {
       setActionInProgress(null);
     }
-  }, [user?.pubkey, companion, publishEvent, updateCompanionEvent, invalidateCompanion]);
+  }, [user?.pubkey, companion, needsMigration, migrateLegacyPet, publishEvent, updateCompanionEvent, invalidateCompanion, invalidateProfile]);
   
-  // ─── Loading State ───
+  // ─── Determine UI State ───
+  // Priority: Wait for queries to settle before showing "create" states
+  
+  // Still loading profile? Show loading
   if (profileLoading) {
     return <LoadingState />;
   }
   
-  // ─── No Profile State ───
+  // Case D: No profile exists → show "Initialize Blobbonaut"
   if (!profile) {
     return (
       <main className="flex flex-col items-center justify-center p-6 gap-6 min-h-[60vh]">
@@ -285,8 +396,9 @@ function BlobbiContent() {
     );
   }
   
-  // ─── No Companion State ───
-  if (!profile.currentCompanion || (!companion && !companionLoading)) {
+  // Profile exists, but no effectiveCompanionD (no current_companion and empty has[])
+  // Case C: Profile exists but no pets → show "Create Egg"
+  if (!effectiveCompanionD) {
     return (
       <main className="flex flex-col items-center justify-center p-6 gap-6 min-h-[60vh]">
         <div className="flex flex-col items-center gap-4 text-center max-w-sm">
@@ -320,12 +432,56 @@ function BlobbiContent() {
     );
   }
   
-  // ─── Loading Companion State ───
+  // We have effectiveCompanionD, wait for companion to load
   if (companionLoading && !companion) {
     return <LoadingState />;
   }
   
-  // ─── Main Display ───
+  // effectiveCompanionD exists but companion query returned null
+  // This could mean the pet doesn't exist on relays yet, or the event is invalid
+  // Show a helpful state instead of "Create Egg"
+  if (!companion) {
+    return (
+      <main className="flex flex-col items-center justify-center p-6 gap-6 min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+          <div className="size-24 rounded-3xl bg-gradient-to-br from-muted/30 via-muted/20 to-muted/10 flex items-center justify-center">
+            <RefreshCw className={cn(
+              "size-12 text-muted-foreground",
+              companionFetching && "animate-spin"
+            )} />
+          </div>
+          <h1 className="text-2xl font-bold">Loading your Blobbi...</h1>
+          <p className="text-muted-foreground">
+            {companionFetching 
+              ? 'Fetching your pet data from relays...'
+              : 'Your pet data could not be found. You can create a new egg.'}
+          </p>
+          {!companionFetching && (
+            <Button
+              onClick={handleCreateEgg}
+              disabled={isPublishing || actionInProgress !== null}
+              size="lg"
+              className="mt-2"
+            >
+              {actionInProgress === 'create-egg' ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Egg className="size-4 mr-2" />
+                  Create New Egg
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+      </main>
+    );
+  }
+  
+  // Case A: Profile exists and companion exists → Render the Blobbi
   return (
     <main className="container max-w-2xl mx-auto p-4 pb-20 space-y-6">
       {/* Header */}
@@ -339,31 +495,45 @@ function BlobbiContent() {
             <p className="text-sm text-muted-foreground">Your virtual companion</p>
           </div>
         </div>
-        <Badge variant={companion?.state === 'sleeping' ? 'secondary' : 'default'}>
-          {companion?.state === 'sleeping' ? (
-            <>
-              <Moon className="size-3 mr-1" />
-              Sleeping
-            </>
-          ) : (
-            <>
-              <Sun className="size-3 mr-1" />
-              Active
-            </>
+        <div className="flex items-center gap-2">
+          {(profileFetching || companionFetching) && (
+            <RefreshCw className="size-4 text-muted-foreground animate-spin" />
           )}
-        </Badge>
+          <Badge variant={companion.state === 'sleeping' ? 'secondary' : 'default'}>
+            {companion.state === 'sleeping' ? (
+              <>
+                <Moon className="size-3 mr-1" />
+                Sleeping
+              </>
+            ) : (
+              <>
+                <Sun className="size-3 mr-1" />
+                Active
+              </>
+            )}
+          </Badge>
+        </div>
       </div>
       
-      {/* Companion Display */}
-      {companion && (
-        <BlobbiDisplay
-          companion={companion}
-          onRest={handleRest}
-          onToggleVisibility={handleToggleVisibility}
-          actionInProgress={actionInProgress}
-          isPublishing={isPublishing}
-        />
+      {/* Legacy Migration Notice */}
+      {needsMigration && (
+        <Card className="border-amber-500/50 bg-amber-500/5">
+          <CardContent className="p-4">
+            <p className="text-sm text-amber-600 dark:text-amber-400">
+              This pet uses an older format. It will be automatically upgraded on your next interaction.
+            </p>
+          </CardContent>
+        </Card>
       )}
+      
+      {/* Companion Display */}
+      <BlobbiDisplay
+        companion={companion}
+        onRest={handleRest}
+        onToggleVisibility={handleToggleVisibility}
+        actionInProgress={actionInProgress}
+        isPublishing={isPublishing}
+      />
     </main>
   );
 }

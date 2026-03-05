@@ -12,6 +12,7 @@ import {
   isValidBlobbonautEvent,
   parseBlobbonautEvent,
   type BlobbiBootCache,
+  type BlobbonautProfile,
 } from '@/lib/blobbi';
 
 /**
@@ -20,6 +21,7 @@ import {
  * Features:
  * - localStorage boot cache for instant UI on page load
  * - Fetches from relays with legacy d-tag support for migration
+ * - Prevents duplicate fetches and query loops
  * - Provides the parsed profile or null if none exists
  */
 export function useBlobbonautProfile() {
@@ -35,16 +37,31 @@ export function useBlobbonautProfile() {
   
   // Track if we've already applied the boot cache to prevent duplicate work
   const bootCacheApplied = useRef(false);
+  // Track last fetched pubkey to prevent refetching on re-renders
+  const lastFetchedPubkey = useRef<string | null>(null);
   
   // Get the cached profile immediately on mount (before async query)
-  const cachedProfile = useMemo(() => {
-    if (bootCache?.profile && user?.pubkey) {
-      // Verify the cached profile belongs to the current user
-      if (bootCache.profile.event.pubkey === user.pubkey) {
-        return bootCache.profile;
-      }
+  // Validate that the cache belongs to the current user
+  const cachedProfile = useMemo((): BlobbonautProfile | null => {
+    if (!bootCache || !user?.pubkey) {
+      return null;
     }
-    return null;
+    
+    // Validate cache ownership
+    if (bootCache.pubkey !== user.pubkey) {
+      return null;
+    }
+    
+    if (!bootCache.profile) {
+      return null;
+    }
+    
+    // Verify the cached profile event belongs to the current user
+    if (bootCache.profile.event.pubkey !== user.pubkey) {
+      return null;
+    }
+    
+    return bootCache.profile;
   }, [bootCache, user?.pubkey]);
   
   // Main query to fetch the profile from relays
@@ -73,24 +90,33 @@ export function useBlobbonautProfile() {
       if (validEvents.length === 0) return null;
       
       const latestEvent = validEvents[0];
+      lastFetchedPubkey.current = user.pubkey;
       return parseBlobbonautEvent(latestEvent) ?? null;
     },
     enabled: !!user?.pubkey,
-    staleTime: 30000, // 30 seconds
+    staleTime: 30_000, // 30 seconds - don't refetch if data is fresh
+    gcTime: 5 * 60 * 1000, // 5 minutes garbage collection
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches
+    refetchOnReconnect: true, // Refetch when connection is restored
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     // Use cached profile as initial data for instant UI
     initialData: cachedProfile ?? undefined,
     placeholderData: cachedProfile ?? undefined,
   });
   
-  // Update boot cache when we get fresh data
+  // Update boot cache when we get fresh data from relays
   useEffect(() => {
     if (query.data && !query.isPlaceholderData && user?.pubkey) {
-      // Only update cache if data is fresh (not placeholder)
-      setBootCache(prev => ({
-        profile: query.data,
-        companion: prev?.companion ?? null,
-        cachedAt: Date.now(),
-      }));
+      // Verify the data belongs to the current user before caching
+      if (query.data.event.pubkey === user.pubkey) {
+        setBootCache(prev => ({
+          pubkey: user.pubkey,
+          profile: query.data,
+          companion: prev?.pubkey === user.pubkey ? prev.companion : null,
+          cachedAt: Date.now(),
+        }));
+      }
     }
   }, [query.data, query.isPlaceholderData, user?.pubkey, setBootCache]);
   
@@ -101,9 +127,18 @@ export function useBlobbonautProfile() {
     }
   }, [cachedProfile]);
   
+  // Reset tracking when user changes
+  useEffect(() => {
+    if (user?.pubkey !== lastFetchedPubkey.current) {
+      bootCacheApplied.current = false;
+    }
+  }, [user?.pubkey]);
+  
   // Helper to invalidate and refetch after publishing
   const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['blobbonaut-profile', user?.pubkey] });
+    if (user?.pubkey) {
+      queryClient.invalidateQueries({ queryKey: ['blobbonaut-profile', user.pubkey] });
+    }
   }, [queryClient, user?.pubkey]);
   
   // Update the profile event in the query cache (optimistic update)
@@ -113,17 +148,42 @@ export function useBlobbonautProfile() {
       queryClient.setQueryData(['blobbonaut-profile', user.pubkey], parsed);
       // Also update boot cache
       setBootCache(prev => ({
+        pubkey: user.pubkey,
         profile: parsed,
-        companion: prev?.companion ?? null,
+        companion: prev?.pubkey === user.pubkey ? prev.companion : null,
         cachedAt: Date.now(),
       }));
     }
   }, [queryClient, user?.pubkey, setBootCache]);
   
+  // Determine the effective companion d-tag (current_companion or first from has[])
+  const effectiveCompanionD = useMemo(() => {
+    const profile = query.data;
+    if (!profile) return undefined;
+    
+    // First try current_companion
+    if (profile.currentCompanion) {
+      return profile.currentCompanion;
+    }
+    
+    // Fall back to first pet in has[] array
+    if (profile.has.length > 0) {
+      return profile.has[0];
+    }
+    
+    return undefined;
+  }, [query.data]);
+  
   return {
     profile: query.data ?? null,
+    /** The d-tag of the companion to display (current_companion or first from has[]) */
+    effectiveCompanionD,
+    /** True only when we have no cached data AND query is loading */
     isLoading: query.isLoading && !cachedProfile,
+    /** True when actively fetching (may have cached data displayed) */
     isFetching: query.isFetching,
+    /** True when displaying cached data while fetching fresh data */
+    isStale: query.isStale,
     error: query.error,
     invalidate,
     updateProfileEvent,
