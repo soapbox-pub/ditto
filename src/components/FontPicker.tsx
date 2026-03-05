@@ -46,21 +46,34 @@ function usePreloadFonts(open: boolean) {
 
 /**
  * Font picker component for selecting a single custom font.
- * Integrates with the theme system via useTheme().applyCustomTheme().
+ *
+ * Supports two modes:
+ * - **Uncontrolled** (default): reads/writes via `useTheme().applyCustomTheme()`
+ * - **Controlled**: pass `value` and `onChange` props to manage state externally
  */
-export function FontPicker() {
+export function FontPicker({ value, onChange }: {
+  /** Controlled value — overrides useTheme() when provided. */
+  value?: ThemeFont | undefined;
+  /** Controlled onChange — called instead of applyCustomTheme() when provided. */
+  onChange?: (font: ThemeFont | undefined) => void;
+} = {}) {
   const { theme, customTheme, applyCustomTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const controlled = onChange !== undefined;
 
   usePreloadFonts(open);
 
-  const currentFont: ThemeFont | undefined = theme === 'custom' ? customTheme?.font : undefined;
+  const currentFont: ThemeFont | undefined = controlled
+    ? value
+    : (theme === 'custom' ? customTheme?.font : undefined);
 
   const handleSelect = (family: string) => {
     if (currentFont?.family === family) {
       // Deselect
       handleReset();
+    } else if (controlled) {
+      onChange({ family });
     } else {
       const currentColors = customTheme?.colors ?? {
         background: '228 20% 10%',
@@ -78,6 +91,10 @@ export function FontPicker() {
   };
 
   const handleReset = () => {
+    if (controlled) {
+      onChange(undefined);
+      return;
+    }
     if (!customTheme) return;
     applyCustomTheme({
       ...customTheme,

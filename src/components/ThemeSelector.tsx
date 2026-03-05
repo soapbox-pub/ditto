@@ -1,6 +1,5 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
-import { Check, Palette, ArrowRight, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Check, Palette, Plus, Trash2, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -19,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
 /** Extracts HSL color string from a theme token value like "258 70% 55%" */
@@ -450,10 +450,19 @@ export function ThemeGrid({
   );
 }
 
-export function ThemeSelector() {
-  const { theme, customTheme, themes, autoShareTheme, applyCustomTheme, setAutoShareTheme } = useTheme();
+interface ThemeSelectorProps {
+  /** Controls the builder dialog from the parent (e.g., FAB or header button). */
+  builderOpen?: boolean;
+  /** Callback when the builder dialog open state changes. */
+  onBuilderOpenChange?: (open: boolean) => void;
+  /** Whether the builder should open in 'new' or 'edit' mode. */
+  builderMode?: 'new' | 'edit';
+}
+
+export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }: ThemeSelectorProps = {}) {
+  const { theme, customTheme, themes, autoShareTheme, setTheme, applyCustomTheme, setAutoShareTheme } = useTheme();
   const { user } = useCurrentUser();
-  const { publishTheme, isPending: isPublishing } = usePublishTheme();
+  const { publishTheme, deleteTheme, isPending: isPublishing } = usePublishTheme();
   const { toast } = useToast();
 
   // Editor mode: which user theme is being edited
@@ -463,6 +472,13 @@ export function ThemeSelector() {
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [publishTitle, setPublishTitle] = useState('');
   const [publishDescription, setPublishDescription] = useState('');
+
+  // Clear editingTheme when builder opens in 'new' mode
+  useEffect(() => {
+    if (builderOpen && builderMode === 'new') {
+      setEditingTheme(null);
+    }
+  }, [builderOpen, builderMode]);
 
   /** The effective colors for the current theme (used in the color editor) */
   const effectiveColors = getEffectiveColors(theme, customTheme, themes);
@@ -535,107 +551,308 @@ export function ThemeSelector() {
     }
   }, [publishTitle, publishDescription, customTheme, effectiveColors, publishTheme, toast]);
 
+  /** Delete the currently-editing theme */
+  const handleDeleteTheme = useCallback(async () => {
+    if (!editingTheme) return;
+    try {
+      await deleteTheme(editingTheme);
+      toast({ title: 'Theme deleted', description: `"${editingTheme.title}" has been removed.` });
+      setEditingTheme(null);
+      setTheme('system');
+      onBuilderOpenChange?.(false);
+    } catch (error) {
+      console.error('Failed to delete theme:', error);
+      toast({ title: 'Delete failed', description: 'Could not delete your theme.', variant: 'destructive' });
+    }
+  }, [editingTheme, deleteTheme, toast, setTheme, onBuilderOpenChange]);
+
+  // ── Build sectioned item lists ──
+  const userThemes = useUserThemes(user?.pubkey);
+
+  const builtinOptions: { id: Theme; label: string }[] = [
+    { id: 'system', label: 'System' },
+    { id: 'light', label: 'Light' },
+    { id: 'dark', label: 'Dark' },
+  ];
+
+  const presetOptions = Object.entries(themePresets).map(([id, preset]) => ({
+    id,
+    label: preset.label,
+    colors: preset.colors,
+    font: preset.font,
+    background: preset.background,
+  }));
+
+  const isPresetActive = (presetColors: CoreThemeColors): boolean => {
+    if (theme !== 'custom' || !customTheme) return false;
+    return JSON.stringify(customTheme.colors) === JSON.stringify(presetColors);
+  };
+
+  const isUserThemeActive = (def: ThemeDefinition): boolean => {
+    return editingTheme?.identifier === def.identifier && theme === 'custom';
+  };
+
+  const handleSelectBuiltin = useCallback((id: Theme) => {
+    setEditingTheme(null);
+    setTheme(id);
+  }, [setTheme]);
+
+  const handleSelectPreset = useCallback((preset: { colors: CoreThemeColors; font?: ThemeConfig['font']; background?: ThemeConfig['background'] }) => {
+    setEditingTheme(null);
+    applyCustomTheme({ colors: preset.colors, font: preset.font, background: preset.background });
+  }, [applyCustomTheme]);
+
+  const handleSelectUserTheme = useCallback((def: ThemeDefinition) => {
+    setEditingTheme(def);
+    applyCustomTheme({ colors: def.colors, font: def.font, background: def.background, title: def.title });
+  }, [applyCustomTheme]);
+
+  type SectionItem = {
+    key: string;
+    label: string;
+    truncate: boolean;
+    onSelect: () => void;
+    preview: React.ReactNode;
+    isActive: boolean;
+  };
+
+  // Build items by category
+  const buildBuiltinItems = (): SectionItem[] => {
+    const items: SectionItem[] = [];
+    for (const option of builtinOptions) {
+      if (option.id === 'system') {
+        const isActive = theme === 'system';
+        const lightTokens = coreToTokens(resolveThemeConfig('light', themes).colors);
+        const darkTokens = coreToTokens(resolveThemeConfig('dark', themes).colors);
+        items.push({
+          key: 'system',
+          label: option.label,
+          truncate: false,
+          onSelect: () => handleSelectBuiltin('system'),
+          isActive,
+          preview: (
+            <div className="aspect-[4/3] rounded-lg overflow-hidden relative">
+              <SystemHalf tokens={lightTokens} side="left" />
+              <SystemHalf tokens={darkTokens} side="right" />
+              {isActive && (
+                <div className="absolute top-1 left-1 size-4 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: hsl(lightTokens.primary) }}
+                >
+                  <Check className="size-2.5" style={{ color: hsl(lightTokens.primaryForeground) }} />
+                </div>
+              )}
+            </div>
+          ),
+        });
+      } else {
+        const colors = resolveThemeConfig(option.id as 'light' | 'dark', themes).colors;
+        const isActive = theme === option.id;
+        items.push({
+          key: option.id,
+          label: option.label,
+          truncate: false,
+          onSelect: () => handleSelectBuiltin(option.id),
+          isActive,
+          preview: <ThemePreviewCard colors={colors} isActive={isActive} />,
+        });
+      }
+    }
+    return items;
+  };
+
+  const buildPresetItems = (): SectionItem[] =>
+    presetOptions.map((preset) => {
+      const isActive = isPresetActive(preset.colors);
+      return {
+        key: preset.id,
+        label: preset.label,
+        truncate: false,
+        onSelect: () => handleSelectPreset(preset),
+        isActive,
+        preview: <ThemePreviewCard colors={preset.colors} isActive={isActive} backgroundUrl={preset.background?.url} />,
+      };
+    });
+
+  const buildUserThemeItems = (): SectionItem[] =>
+    (userThemes.data ?? []).map((def) => {
+      const isActive = isUserThemeActive(def);
+      return {
+        key: `user:${def.identifier}`,
+        label: def.title,
+        truncate: true,
+        onSelect: () => handleSelectUserTheme(def),
+        isActive,
+        preview: <ThemePreviewCard colors={def.colors} isActive={isActive} backgroundUrl={def.background?.url} />,
+      };
+    });
+
+  const builtinItems = buildBuiltinItems();
+  const presetItems = buildPresetItems();
+  const userThemeItems = buildUserThemeItems();
+
+  const gridClass = 'grid grid-cols-2 sidebar:grid-cols-3 gap-3';
+
   return (
-    <div className="space-y-5">
-      {/* ── Themes grid ── */}
+    <div className="space-y-6">
+      {/* ── My Themes ── */}
       <div className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          Themes
+          My Themes
         </h3>
-        <ThemeGrid
-          editingTheme={editingTheme}
-          onEditingThemeChange={setEditingTheme}
-        />
-      </div>
-
-      {/* ── Customize card ── */}
-      <div className="space-y-4 rounded-xl border border-border bg-card p-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-            Custom
-          </h3>
-          {editingTheme && (
-            <button
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setEditingTheme(null)}
-            >
-              Editing "{editingTheme.title}"
-            </button>
-          )}
-        </div>
-
-        {/* Colors */}
-        <div className="flex items-start justify-center gap-6 sidebar:justify-start sidebar:gap-8">
-          {CORE_KEYS.map((key) => (
-            <ColorPicker
-              key={key}
-              label={COLOR_LABELS[key]}
-              value={hslStringToHex(effectiveColors[key])}
-              onChange={(hex) => handleColorChange(key, hex)}
-            />
-          ))}
-        </div>
-
-        {/* Font */}
-        <FontPicker />
-
-        {/* Background */}
-        <BackgroundPicker />
-
-        {/* Publish / Update buttons */}
-        {user && (
-          <div className="flex gap-2 pt-1">
-            {editingTheme && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleUpdateTheme}
-                disabled={isPublishing}
+        {userThemeItems.length > 0 ? (
+          <div className={gridClass}>
+            {userThemeItems.map((item) => (
+              <ThemeButton
+                key={item.key}
+                isActive={item.isActive}
+                label={item.label}
+                truncate={item.truncate}
+                onClick={item.onSelect}
               >
-                <Palette className="size-3.5 mr-1.5" />
-                {isPublishing ? 'Updating...' : 'Update Theme'}
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePublishNew}
-            >
-              <Palette className="size-3.5 mr-1.5" />
-              Publish Theme
-            </Button>
+                {item.preview}
+              </ThemeButton>
+            ))}
           </div>
+        ) : (
+          <button
+            onClick={() => onBuilderOpenChange?.(true)}
+            className="w-full rounded-xl border-2 border-dashed border-border hover:border-primary/40 p-6 flex flex-col items-center gap-3 text-center transition-colors group"
+          >
+            <div className="size-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+              <Plus className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Create and share your first custom theme
+            </p>
+          </button>
         )}
       </div>
 
-      {/* ── Auto-share toggle ── */}
-      {user && (
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="auto-share-theme" className="flex flex-col gap-1 cursor-pointer">
-              <span className="text-sm font-medium">Share theme on your profile</span>
-              <span className="text-xs text-muted-foreground font-normal">
-                Automatically publish theme changes to your profile
-              </span>
-            </Label>
-            <Switch
-              id="auto-share-theme"
-              checked={autoShareTheme}
-              onCheckedChange={setAutoShareTheme}
-            />
-          </div>
+      {/* ── Presets ── */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+          Presets
+        </h3>
+        <div className={gridClass}>
+          {[...builtinItems, ...presetItems].map((item) => (
+            <ThemeButton
+              key={item.key}
+              isActive={item.isActive}
+              label={item.label}
+              truncate={item.truncate}
+              onClick={item.onSelect}
+            >
+              {item.preview}
+            </ThemeButton>
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* ── Browse themes link ── */}
-      <Link
-        to="/themes"
-        className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
-      >
-        Browse themes
-        <ArrowRight className="size-3.5" />
-      </Link>
+      {/* ── Builder Dialog ── */}
+      <Dialog open={builderOpen ?? false} onOpenChange={(open) => onBuilderOpenChange?.(open)}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-lg">
+          <DialogHeader>
+            <DialogTitle>{editingTheme ? 'Edit Theme' : 'New Theme'}</DialogTitle>
+            <DialogDescription>
+              {editingTheme
+                ? `Editing "${editingTheme.title}"`
+                : 'Customize colors, font, and background for your theme'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Colors */}
+            <div className="flex items-start justify-center gap-6">
+              {CORE_KEYS.map((key) => (
+                <ColorPicker
+                  key={key}
+                  label={COLOR_LABELS[key]}
+                  value={hslStringToHex(effectiveColors[key])}
+                  onChange={(hex) => handleColorChange(key, hex)}
+                />
+              ))}
+            </div>
+
+            {/* Font */}
+            <FontPicker />
+
+            {/* Background */}
+            <BackgroundPicker />
+
+            {/* Auto-share toggle */}
+            {user && (
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="auto-share-theme-dialog" className="flex flex-col gap-1 cursor-pointer">
+                    <span className="text-sm font-medium">Share theme on your profile</span>
+                    <span className="text-xs text-muted-foreground font-normal">
+                      Automatically publish theme changes to your profile
+                    </span>
+                  </Label>
+                  <Switch
+                    id="auto-share-theme-dialog"
+                    checked={autoShareTheme}
+                    onCheckedChange={setAutoShareTheme}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          {user && (
+            <div className="space-y-3 pt-2">
+              <div className="flex flex-col gap-2">
+                {editingTheme && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full"
+                    onClick={handleUpdateTheme}
+                    disabled={isPublishing}
+                  >
+                    <Palette className="size-3.5 mr-1.5" />
+                    {isPublishing ? 'Updating...' : `Update "${editingTheme.title}"`}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={handlePublishNew}
+                >
+                  <Palette className="size-3.5 mr-1.5" />
+                  Publish New Theme
+                </Button>
+              </div>
+
+              {/* Advanced section with delete */}
+              {editingTheme && (
+                <Collapsible>
+                  <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group">
+                    <ChevronDown className="size-3.5 transition-transform group-data-[state=open]:rotate-180" />
+                    Advanced
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="pt-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleDeleteTheme}
+                        disabled={isPublishing}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="size-3.5 mr-1.5" />
+                        Delete Theme
+                      </Button>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Publish Dialog ── */}
       <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>

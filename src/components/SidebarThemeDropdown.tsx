@@ -107,7 +107,7 @@ export function SidebarThemeDropdown({ userPubkey, onNavigate, className }: Side
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => { onNavigate?.(); navigate('/settings/theme'); }} className="cursor-pointer text-muted-foreground">
+        <DropdownMenuItem onClick={() => { onNavigate?.(); navigate('/themes'); }} className="cursor-pointer text-muted-foreground">
           More...
         </DropdownMenuItem>
       </DropdownMenuContent>
