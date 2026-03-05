@@ -634,7 +634,10 @@ export function SensitiveContentSection() {
 // Mute settings internals (without the intro/image)
 import { Trash2, Plus, UserX, Hash, MessageSquareOff } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useMuteList, type MuteListItem } from '@/hooks/useMuteList';
+import { useAuthor } from '@/hooks/useAuthor';
+import { genUserName } from '@/lib/genUserName';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const MUTE_TYPE_CONFIG = {
@@ -817,6 +820,34 @@ export function MuteSettingsInternals() {
   );
 }
 
+/** Renders a muted user's avatar and display name instead of a raw hex pubkey. */
+function MutedUserProfile({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name ?? genUserName(pubkey);
+
+  if (author.isLoading) {
+    return (
+      <div className="flex items-center gap-2.5 min-w-0">
+        <Skeleton className="size-7 rounded-full shrink-0" />
+        <Skeleton className="h-3.5 w-24" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2.5 min-w-0">
+      <Avatar className="size-7 shrink-0">
+        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+          {displayName[0]?.toUpperCase() ?? '?'}
+        </AvatarFallback>
+      </Avatar>
+      <span className="text-sm truncate">{displayName}</span>
+    </div>
+  );
+}
+
 function MuteTypeSection({
   type: _type,
   config,
@@ -849,9 +880,13 @@ function MuteTypeSection({
             className="flex items-center justify-between py-2.5 px-3 pl-12 hover:bg-muted/20 transition-colors"
           >
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <code className="text-xs truncate font-mono bg-muted px-2 py-1 rounded">
-                {item.value}
-              </code>
+              {item.type === 'pubkey' ? (
+                <MutedUserProfile pubkey={item.value} />
+              ) : (
+                <code className="text-xs truncate font-mono bg-muted px-2 py-1 rounded">
+                  {item.value}
+                </code>
+              )}
             </div>
             <Button
               variant="ghost"
