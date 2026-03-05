@@ -5,11 +5,11 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Trash2, Eye, EyeOff, RefreshCw, MessageSquare } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -54,9 +54,12 @@ import { useUserStatus } from '@/hooks/useUserStatus';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig } from '@/themes';
+import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
 import { loadAndApplyFont } from '@/lib/fontLoader';
-import { hslStringToHex } from '@/lib/colorUtils';
+import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
+import { ColorPicker } from '@/components/ui/color-picker';
+import { FontPicker } from '@/components/FontPicker';
+import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -801,6 +804,23 @@ export function ProfilePage() {
   const { setActiveTheme, clearActiveTheme, isPending: isPublishingTheme } = usePublishTheme();
   const [shareThemeOpen, setShareThemeOpen] = useState(false);
   const [removeThemeOpen, setRemoveThemeOpen] = useState(false);
+  const [editProfileThemeOpen, setEditProfileThemeOpen] = useState(false);
+  const [localProfileColors, setLocalProfileColors] = useState<CoreThemeColors>({
+    background: '228 20% 10%',
+    text: '210 40% 98%',
+    primary: '258 70% 60%',
+  });
+  const [localProfileFont, setLocalProfileFont] = useState<ThemeFont | undefined>();
+  const [localProfileBg, setLocalProfileBg] = useState<ThemeBackground | undefined>();
+
+  // Initialize local state from profile theme when dialog opens
+  useEffect(() => {
+    if (editProfileThemeOpen && profileTheme) {
+      setLocalProfileColors(profileTheme.colors);
+      setLocalProfileFont(profileTheme.font);
+      setLocalProfileBg(profileTheme.background);
+    }
+  }, [editProfileThemeOpen, profileTheme]);
   const [dismissedThemeSnapshot, setDismissedThemeSnapshot] = useLocalStorage<string | null>('ditto:dismissed-share-theme-snapshot', null);
 
   // Temporarily apply the visited user's theme globally while on their profile
@@ -1353,6 +1373,13 @@ export function ProfilePage() {
                     Update Profile Theme
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    onClick={() => setEditProfileThemeOpen(true)}
+                    className="cursor-pointer"
+                  >
+                    <Pencil className="size-4 mr-2" />
+                    Edit Profile Theme
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => setRemoveThemeOpen(true)}
                     className="cursor-pointer text-destructive focus:text-destructive"
                   >
@@ -1374,6 +1401,13 @@ export function ProfilePage() {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" side="bottom" className="w-52">
+                  <DropdownMenuItem
+                    onClick={() => setEditProfileThemeOpen(true)}
+                    className="cursor-pointer"
+                  >
+                    <Pencil className="size-4 mr-2" />
+                    Edit Profile Theme
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setRemoveThemeOpen(true)}
                     className="cursor-pointer text-destructive focus:text-destructive"
@@ -1894,6 +1928,75 @@ export function ProfilePage() {
                 Keep it
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit profile theme dialog — independent from app theme */}
+        <Dialog open={editProfileThemeOpen} onOpenChange={setEditProfileThemeOpen}>
+          <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Profile Theme</DialogTitle>
+              <DialogDescription>
+                Customize the theme visitors see on your profile
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* Colors */}
+              <div className="flex items-start justify-center gap-6">
+                {(['primary', 'text', 'background'] as const).map((key) => (
+                  <ColorPicker
+                    key={key}
+                    label={key.charAt(0).toUpperCase() + key.slice(1)}
+                    value={hslStringToHex(localProfileColors[key])}
+                    onChange={(hex) => {
+                      setLocalProfileColors((prev) => ({
+                        ...prev,
+                        [key]: hexToHslString(hex),
+                      }));
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Font */}
+              <FontPicker
+                value={localProfileFont}
+                onChange={setLocalProfileFont}
+              />
+
+              {/* Background */}
+              <BackgroundPicker
+                value={localProfileBg}
+                onChange={setLocalProfileBg}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                className="w-full"
+                onClick={async () => {
+                  try {
+                    await setActiveTheme({
+                      themeConfig: {
+                        colors: localProfileColors,
+                        font: localProfileFont,
+                        background: localProfileBg,
+                      },
+                    });
+                    setEditProfileThemeOpen(false);
+                  } catch {
+                    // Error is handled by the publish hook
+                  }
+                }}
+                disabled={isPublishingTheme}
+              >
+                {isPublishingTheme ? (
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                ) : null}
+                Save Profile Theme
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </PullToRefresh>
