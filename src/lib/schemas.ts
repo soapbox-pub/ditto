@@ -186,6 +186,7 @@ export const FeedSettingsSchema = z.looseObject({
 export const AppConfigSchema = z.object({
   appName: z.string().optional(),
   appId: z.string().optional(),
+  homePage: z.string().optional(),
   client: z.string().optional(),
   magicMouse: z.boolean().optional(),
   theme: ThemeSchemaCompat,
@@ -263,6 +264,7 @@ export const EncryptedSettingsSchema = z.looseObject({
   notificationsCursor: z.number().optional(),
   lastSync: z.number().optional(),
   sidebarOrder: z.array(z.string()).optional(),
+  homePage: z.string().optional(),
   showGlobalFeed: z.boolean().optional(),
   showCommunityFeed: z.boolean().optional(),
   communityData: z.object({

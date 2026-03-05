@@ -19,6 +19,7 @@ import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getSidebarItem, isItemActive } from '@/lib/sidebarItems';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStatus } from '@/hooks/useUserStatus';
 import { usePublishStatus } from '@/hooks/usePublishStatus';
@@ -39,6 +40,8 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const { logout } = useLoginActions();
   const { otherUsers, setLogin } = useLoggedInAccounts();
   const { orderedItems, hiddenItems, addToSidebar, addDividerToSidebar, removeFromSidebar, updateSidebarOrder } = useFeedSettings();
+  const { config } = useAppContext();
+  const homePage = config.homePage;
   const hasUnread = useHasUnreadNotifications();
   const [editing, setEditing] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -69,25 +72,20 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
   const hasBgImage = Object.keys(bgStyle).length > 0;
 
-  /** Items already covered by the mobile bottom nav — hide from the drawer. */
-  const BOTTOM_NAV_ITEMS = new Set(['feed', 'notifications', 'search']);
-
   const visibleItems = useMemo(() => {
-    const items = orderedItems.filter((id) => !BOTTOM_NAV_ITEMS.has(id));
-    const filtered = user ? items : items.filter((id) => !getSidebarItem(id)?.requiresAuth);
+    const filtered = user ? orderedItems : orderedItems.filter((id) => !getSidebarItem(id)?.requiresAuth);
     // Remove dividers that have no real items above them (at the top or right after another divider).
     return filtered.filter((id, i) => {
       if (id !== 'divider') return true;
       const prevNonDivider = filtered.slice(0, i).some((prev) => prev !== 'divider');
       return prevNonDivider;
     });
-  }, [orderedItems, user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [orderedItems, user]);
 
   const visibleHiddenItems = useMemo(() => {
-    const items = hiddenItems.filter((item) => !BOTTOM_NAV_ITEMS.has(item.id));
-    if (user) return items;
-    return items.filter((item) => !getSidebarItem(item.id)?.requiresAuth);
-  }, [hiddenItems, user]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (user) return hiddenItems;
+    return hiddenItems.filter((item) => !getSidebarItem(item.id)?.requiresAuth);
+  }, [hiddenItems, user]);
 
   const handleClose = () => { onOpenChange(false); setMoreMenuOpen(false); };
   const handleLogout = async () => { await logout(); handleClose(); navigate('/'); };
@@ -265,11 +263,12 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     editing={editing}
                     onRemove={removeFromSidebar}
                     onReorder={updateSidebarOrder}
-                    isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl)}
+                    isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl, homePage)}
                     getOnClick={() => handleClose}
                     getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
                     getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
                     linkClassName="text-base"
+                    homePage={homePage}
                   />
                   <SidebarMoreMenu
                     editing={editing}
@@ -281,6 +280,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     onNavigate={handleClose}
                     open={moreMenuOpen}
                     onOpenChange={setMoreMenuOpen}
+                    homePage={homePage}
                   />
                 </div>
               </nav>
@@ -311,11 +311,12 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     editing={false}
                     onRemove={removeFromSidebar}
                     onReorder={updateSidebarOrder}
-                    isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl)}
+                    isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl, homePage)}
                     getOnClick={() => handleClose}
                     getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
                     getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
                     linkClassName="text-base"
+                    homePage={homePage}
                   />
                   <SidebarMoreMenu
                     editing={false}
@@ -327,6 +328,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     onNavigate={handleClose}
                     open={moreMenuOpen}
                     onOpenChange={setMoreMenuOpen}
+                    homePage={homePage}
                   />
                 </div>
               </nav>

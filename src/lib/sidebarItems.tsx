@@ -26,7 +26,7 @@ export interface SidebarItemDef {
   id: string;
   /** Display label. */
   label: string;
-  /** Navigation path (e.g. '/', '/notifications', '/vines'). */
+  /** Navigation path (e.g. '/feed', '/notifications', '/vines'). */
   path: string;
   /** Icon component. */
   icon: IconComponent;
@@ -45,7 +45,7 @@ export interface SidebarItemDef {
  */
 export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   // System pages
-  { id: 'feed', label: 'Feed', path: '/', icon: PlanetIcon },
+  { id: 'feed', label: 'Feed', path: '/feed', icon: PlanetIcon },
   { id: 'notifications', label: 'Notifications', path: '/notifications', icon: Bell, requiresAuth: true },
   { id: 'search', label: 'Search', path: '/search', icon: Search },
   { id: 'trends', label: 'Trends', path: '/trends', icon: TrendingUp },
@@ -70,7 +70,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'colors', label: 'Color Moments', path: '/colors', icon: Palette },
   { id: 'decks', label: 'Magic Decks', path: '/decks', icon: CardsIcon },
   { id: 'treasures', label: 'Treasures', path: '/treasures', icon: ChestIcon },
-  { id: 'emoji-packs', label: 'Emojis', path: '/emojis', icon: SmilePlus },
+  { id: 'emojis', label: 'Emojis', path: '/emojis', icon: SmilePlus },
   { id: 'world', label: 'World', path: '/world', icon: Earth },
 ];
 
@@ -114,17 +114,22 @@ export function itemLabel(id: string): string {
 }
 
 /** Lookup navigation path for a sidebar item ID. */
-export function itemPath(id: string, profilePath?: string): string {
+export function itemPath(id: string, profilePath?: string, homePage?: string): string {
   if (id === 'profile' && profilePath) return profilePath;
+  if (homePage && id === homePage) return '/';
   return SIDEBAR_ITEM_MAP.get(id)?.path ?? `/${id}`;
 }
 
 /** Check if a sidebar item is active given the current location. */
-export function isItemActive(id: string, pathname: string, _search: string, profilePath?: string): boolean {
+export function isItemActive(id: string, pathname: string, _search: string, profilePath?: string, homePage?: string): boolean {
   if (id === 'profile') return !!profilePath && pathname === profilePath;
   if (id === 'settings') return pathname.startsWith('/settings');
 
-  const item = SIDEBAR_ITEM_MAP.get(id);
-  if (!item) return pathname === `/${id}`;
-  return pathname === item.path;
+  const itemDef = SIDEBAR_ITEM_MAP.get(id);
+  const itemPathname = itemDef?.path ?? `/${id}`;
+
+  // Homepage item is active at both "/" and its own path
+  if (homePage && id === homePage) return pathname === '/' || pathname === itemPathname;
+
+  return pathname === itemPathname;
 }

@@ -10,6 +10,7 @@ import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import { HomePage } from "./pages/HomePage";
 import { NIP19Page } from "./pages/NIP19Page";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { SearchPage } from "./pages/SearchPage";
@@ -47,7 +48,7 @@ const colorsDef = getExtraKindDef('colors')!;
 const packsDef = getExtraKindDef('packs')!;
 const articlesDef = getExtraKindDef('articles')!;
 const decksDef = getExtraKindDef('decks')!;
-const emojiPacksDef = getExtraKindDef('emoji-packs')!;
+const emojisDef = getExtraKindDef('emojis')!;
 
 /** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
 function ProfileRedirect() {
@@ -67,7 +68,8 @@ export function AppRouter() {
       <Routes>
         {/* All routes share the persistent MainLayout (sidebar + nav) */}
         <Route element={<MainLayout />}>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/feed" element={<Index />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/trends" element={<TrendsPage />} />
@@ -98,7 +100,7 @@ export function AppRouter() {
           <Route path="/webxdc" element={<WebxdcFeedPage />} />
           <Route path="/articles" element={<KindFeedPage kind={articlesDef.kind} title={articlesDef.label} icon={sidebarItemIcon('articles', 'size-5')} />} />
           <Route path="/decks" element={<KindFeedPage kind={decksDef.kind} title={decksDef.label} icon={sidebarItemIcon('decks', 'size-5')} />} />
-          <Route path="/emojis" element={<KindFeedPage kind={emojiPacksDef.kind} title={emojiPacksDef.label} icon={sidebarItemIcon('emoji-packs', 'size-5')} />} />
+          <Route path="/emojis" element={<KindFeedPage kind={emojisDef.kind} title={emojisDef.label} icon={sidebarItemIcon('emojis', 'size-5')} />} />
           <Route path="/themes" element={<ThemesPage />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
           <Route path="/ai-chat" element={<AIChatPage />} />

@@ -41,6 +41,7 @@ const queryClient = new QueryClient({
 const hardcodedConfig: AppConfig = {
   appName: 'Ditto',
   appId: 'ditto',
+  homePage: 'feed',
   magicMouse: false,
   theme: "system",
   autoShareTheme: true,

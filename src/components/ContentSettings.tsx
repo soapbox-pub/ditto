@@ -23,6 +23,9 @@ export function ContentSettings() {
         </p>
       </div>
 
+      {/* Homepage Section */}
+      <HomePageSetting />
+
       {/* Feed Tabs Section */}
       <div>
         <Collapsible open={feedTabsOpen} onOpenChange={setFeedTabsOpen}>
@@ -950,6 +953,57 @@ export function ThemePreferencesSection() {
         checked={showOnProfiles}
         onCheckedChange={handleProfileThemeToggle}
       />
+    </div>
+  );
+}
+
+// Homepage setting section
+import { Home } from 'lucide-react';
+import { SIDEBAR_ITEMS } from '@/lib/sidebarItems';
+
+function HomePageSetting() {
+  const { config, updateConfig } = useAppContext();
+  const { user } = useCurrentUser();
+  const { updateSettings } = useEncryptedSettings();
+  const { toast } = useToast();
+
+  const handleHomePageChange = async (value: string) => {
+    updateConfig((c) => ({ ...c, homePage: value }));
+    if (user) {
+      await updateSettings.mutateAsync({ homePage: value });
+    }
+    const item = SIDEBAR_ITEMS.find((s) => s.id === value);
+    toast({ title: `Homepage set to ${item?.label ?? value}` });
+  };
+
+  return (
+    <div className="px-3 pb-4">
+      <div className="flex items-center justify-between py-3.5">
+        <div className="min-w-0 flex-1">
+          <Label className="text-sm font-medium flex items-center gap-2">
+            <Home className="size-4" />
+            Homepage
+          </Label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Choose which page to display when you open the app
+          </p>
+        </div>
+        <Select value={config.homePage} onValueChange={handleHomePageChange}>
+          <SelectTrigger className="w-[160px] shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SIDEBAR_ITEMS.map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                <span className="flex items-center gap-2">
+                  {item.label}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="h-px bg-border" />
     </div>
   );
 }

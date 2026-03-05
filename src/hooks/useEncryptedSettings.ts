@@ -43,6 +43,8 @@ export interface EncryptedSettings {
   lastSync?: number;
   /** Ordered list of sidebar item IDs (built-in + extra-kind) */
   sidebarOrder?: string[];
+  /** Sidebar item ID to display on the homepage ("/") */
+  homePage?: string;
   /** Whether the Global feed tab is shown */
   showGlobalFeed?: boolean;
   /** Whether the Community feed tab is shown */

@@ -1,18 +1,26 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Bell, Search } from 'lucide-react';
 import { PlanetIcon } from '@/components/icons/PlanetIcon';
 import { cn } from '@/lib/utils';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppContext } from '@/hooks/useAppContext';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
+import { getSidebarItem } from '@/lib/sidebarItems';
 
 export function MobileBottomNav() {
   const location = useLocation();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
+  const homePage = config.homePage;
   const hasUnread = useHasUnreadNotifications();
 
   const [searchOpen, setSearchOpen] = useState(false);
+
+  const homeItem = useMemo(() => getSidebarItem(homePage), [homePage]);
+  const HomeIcon = homeItem?.icon ?? PlanetIcon;
+  const homeLabel = homeItem?.label ?? 'Feed';
 
   const handleHomeClick = useCallback((e: React.MouseEvent) => {
     setSearchOpen(false);
@@ -31,6 +39,10 @@ export function MobileBottomNav() {
     setSearchOpen((v) => !v);
   }, []);
 
+  // Don't show notifications/search in bottom nav if they are the homepage
+  const showNotifications = homePage !== 'notifications';
+  const showSearch = homePage !== 'search';
+
   return (
     <>
       <MobileSearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
@@ -46,11 +58,11 @@ export function MobileBottomNav() {
               location.pathname === '/' ? 'text-primary' : 'text-muted-foreground',
             )}
           >
-            <PlanetIcon className="size-5" />
-            <span className="text-[10px] font-medium">Feed</span>
+            <HomeIcon className="size-5" />
+            <span className="text-[10px] font-medium">{homeLabel}</span>
           </Link>
 
-          {user && (
+          {user && showNotifications && (
             <Link
               to="/notifications"
               onClick={handleNotificationsClick}
@@ -69,16 +81,18 @@ export function MobileBottomNav() {
             </Link>
           )}
 
-          <button
-            onClick={handleSearchClick}
-            className={cn(
-              'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-              searchOpen ? 'text-primary' : 'text-muted-foreground',
-            )}
-          >
-            <Search className="size-5" />
-            <span className="text-[10px] font-medium">Search</span>
-          </button>
+          {showSearch && (
+            <button
+              onClick={handleSearchClick}
+              className={cn(
+                'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+                searchOpen ? 'text-primary' : 'text-muted-foreground',
+              )}
+            >
+              <Search className="size-5" />
+              <span className="text-[10px] font-medium">Search</span>
+            </button>
+          )}
 
         </div>
       </nav>

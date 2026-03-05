@@ -374,7 +374,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   {
     kind: 30030,
-    id: 'emoji-packs',
+    id: 'emojis',
     showKey: 'showEmojiPacks',
     feedKey: 'feedIncludeEmojiPacks',
     label: 'Emoji Packs',
