@@ -480,7 +480,7 @@ interface ThemeSelectorProps {
 }
 
 export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }: ThemeSelectorProps = {}) {
-  const { theme, customTheme, themes, autoShareTheme, applyCustomTheme, setAutoShareTheme } = useTheme();
+  const { theme, customTheme, themes, autoShareTheme, setTheme, applyCustomTheme, setAutoShareTheme } = useTheme();
   const { user } = useCurrentUser();
   const { publishTheme, isPending: isPublishing } = usePublishTheme();
   const { toast } = useToast();
@@ -578,18 +578,201 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
     onBuilderOpenChange?.(true);
   }, [applyCustomTheme, onBuilderOpenChange]);
 
+  // ── Build sectioned item lists ──
+  const userThemes = useUserThemes(user?.pubkey);
+
+  const builtinOptions: { id: Theme; label: string }[] = [
+    { id: 'system', label: 'System' },
+    { id: 'light', label: 'Light' },
+    { id: 'dark', label: 'Dark' },
+  ];
+
+  const presetOptions = Object.entries(themePresets).map(([id, preset]) => ({
+    id,
+    label: preset.label,
+    colors: preset.colors,
+    font: preset.font,
+    background: preset.background,
+  }));
+
+  const isPresetActive = (presetColors: CoreThemeColors): boolean => {
+    if (theme !== 'custom' || !customTheme) return false;
+    return JSON.stringify(customTheme.colors) === JSON.stringify(presetColors);
+  };
+
+  const isUserThemeActive = (def: ThemeDefinition): boolean => {
+    return editingTheme?.identifier === def.identifier && theme === 'custom';
+  };
+
+  const handleSelectBuiltin = useCallback((id: Theme) => {
+    setEditingTheme(null);
+    setTheme(id);
+  }, [setTheme]);
+
+  const handleSelectPreset = useCallback((preset: { colors: CoreThemeColors; font?: ThemeConfig['font']; background?: ThemeConfig['background'] }) => {
+    setEditingTheme(null);
+    applyCustomTheme({ colors: preset.colors, font: preset.font, background: preset.background });
+  }, [applyCustomTheme]);
+
+  const handleSelectUserTheme = useCallback((def: ThemeDefinition) => {
+    setEditingTheme(def);
+    applyCustomTheme({ colors: def.colors, font: def.font, background: def.background, title: def.title });
+  }, [applyCustomTheme]);
+
+  type SectionItem = {
+    key: string;
+    label: string;
+    truncate: boolean;
+    onSelect: () => void;
+    onEdit?: () => void;
+    preview: React.ReactNode;
+    isActive: boolean;
+  };
+
+  // Build items by category
+  const buildBuiltinItems = (): SectionItem[] => {
+    const items: SectionItem[] = [];
+    for (const option of builtinOptions) {
+      if (option.id === 'system') {
+        const isActive = theme === 'system';
+        const lightTokens = coreToTokens(resolveThemeConfig('light', themes).colors);
+        const darkTokens = coreToTokens(resolveThemeConfig('dark', themes).colors);
+        items.push({
+          key: 'system',
+          label: option.label,
+          truncate: false,
+          onSelect: () => handleSelectBuiltin('system'),
+          isActive,
+          preview: (
+            <div className="aspect-[4/3] rounded-lg overflow-hidden relative">
+              <SystemHalf tokens={lightTokens} side="left" />
+              <SystemHalf tokens={darkTokens} side="right" />
+              {isActive && (
+                <div className="absolute top-1 left-1 size-4 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: hsl(lightTokens.primary) }}
+                >
+                  <Check className="size-2.5" style={{ color: hsl(lightTokens.primaryForeground) }} />
+                </div>
+              )}
+            </div>
+          ),
+        });
+      } else {
+        const colors = resolveThemeConfig(option.id as 'light' | 'dark', themes).colors;
+        const isActive = theme === option.id;
+        items.push({
+          key: option.id,
+          label: option.label,
+          truncate: false,
+          onSelect: () => handleSelectBuiltin(option.id),
+          isActive,
+          preview: <ThemePreviewCard colors={colors} isActive={isActive} />,
+        });
+      }
+    }
+    return items;
+  };
+
+  const buildPresetItems = (): SectionItem[] =>
+    presetOptions.map((preset) => {
+      const isActive = isPresetActive(preset.colors);
+      return {
+        key: preset.id,
+        label: preset.label,
+        truncate: false,
+        onSelect: () => handleSelectPreset(preset),
+        isActive,
+        preview: <ThemePreviewCard colors={preset.colors} isActive={isActive} backgroundUrl={preset.background?.url} />,
+      };
+    });
+
+  const buildUserThemeItems = (): SectionItem[] =>
+    (userThemes.data ?? []).map((def) => {
+      const isActive = isUserThemeActive(def);
+      return {
+        key: `user:${def.identifier}`,
+        label: def.title,
+        truncate: true,
+        onSelect: () => handleSelectUserTheme(def),
+        onEdit: () => handleEditTheme(def),
+        isActive,
+        preview: <ThemePreviewCard colors={def.colors} isActive={isActive} backgroundUrl={def.background?.url} />,
+      };
+    });
+
+  const builtinItems = buildBuiltinItems();
+  const presetItems = buildPresetItems();
+  const userThemeItems = buildUserThemeItems();
+
+  // Find the active item across all sections
+  const allItems = [...builtinItems, ...presetItems, ...userThemeItems];
+  const activeItem = allItems.find((item) => item.isActive);
+
+  const gridClass = 'grid grid-cols-2 sidebar:grid-cols-3 gap-3';
+
   return (
-    <div className="space-y-5">
-      {/* ── Themes grid ── */}
+    <div className="space-y-6">
+      {/* ── Active Theme ── */}
+      {activeItem && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Active Theme
+          </h3>
+          <div className="max-w-[160px]">
+            <ThemeButton
+              isActive={activeItem.isActive}
+              label={activeItem.label}
+              truncate={activeItem.truncate}
+              onClick={activeItem.onSelect}
+              onEdit={activeItem.onEdit}
+            >
+              {activeItem.preview}
+            </ThemeButton>
+          </div>
+        </div>
+      )}
+
+      {/* ── My Themes ── */}
+      {userThemeItems.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+            My Themes
+          </h3>
+          <div className={gridClass}>
+            {userThemeItems.map((item) => (
+              <ThemeButton
+                key={item.key}
+                isActive={item.isActive}
+                label={item.label}
+                truncate={item.truncate}
+                onClick={item.onSelect}
+                onEdit={item.onEdit}
+              >
+                {item.preview}
+              </ThemeButton>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Presets ── */}
       <div className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          Themes
+          Presets
         </h3>
-        <ThemeGrid
-          editingTheme={editingTheme}
-          onEditingThemeChange={setEditingTheme}
-          onEditTheme={handleEditTheme}
-        />
+        <div className={gridClass}>
+          {[...builtinItems, ...presetItems].map((item) => (
+            <ThemeButton
+              key={item.key}
+              isActive={item.isActive}
+              label={item.label}
+              truncate={item.truncate}
+              onClick={item.onSelect}
+            >
+              {item.preview}
+            </ThemeButton>
+          ))}
+        </div>
       </div>
 
       {/* ── Builder Dialog ── */}

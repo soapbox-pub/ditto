@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Sparkles, ArrowLeft, Pencil } from 'lucide-react';
+import { Loader2, Sparkles, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -10,7 +10,6 @@ import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
 import { ThemeSelector } from '@/components/ThemeSelector';
 import { useThemeFeed } from '@/hooks/useThemeFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -29,7 +28,6 @@ export function ThemesPage() {
 
   // Builder dialog state
   const [builderOpen, setBuilderOpen] = useState(false);
-  const [builderMode, setBuilderMode] = useState<'new' | 'edit'>('new');
 
   useSeoMeta({
     title: `Themes | ${config.appName}`,
@@ -38,7 +36,6 @@ export function ThemesPage() {
 
   // FAB opens builder in "new" mode (only on My Themes tab)
   const handleFabClick = useCallback(() => {
-    setBuilderMode('new');
     setBuilderOpen(true);
   }, []);
 
@@ -109,17 +106,6 @@ export function ThemesPage() {
           <Sparkles className="size-5" />
           <h1 className="text-xl font-bold">Themes</h1>
         </div>
-        {user && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { setBuilderMode('edit'); setBuilderOpen(true); }}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Pencil className="size-4 mr-1.5" />
-            Edit
-          </Button>
-        )}
       </div>
 
       {/* Tabs */}
@@ -135,7 +121,6 @@ export function ThemesPage() {
           <ThemeSelector
             builderOpen={builderOpen}
             onBuilderOpenChange={setBuilderOpen}
-            builderMode={builderMode}
           />
         </div>
       ) : (
