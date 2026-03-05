@@ -17,6 +17,8 @@ interface SidebarMoreMenuProps {
   onNavigate?: () => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Sidebar item ID configured as the homepage. */
+  homePage?: string;
 }
 
 function useScrollCarets(centerOnOpen = false) {
@@ -101,7 +103,7 @@ function ItemRow({ item, onAdd, onClose }: { item: HiddenSidebarItem; onAdd: (id
 }
 
 export function SidebarMoreMenu({
-  editing, hiddenItems, onDoneEditing, onStartEditing, onAdd, onAddDivider, onNavigate, open, onOpenChange,
+  editing, hiddenItems, onDoneEditing, onStartEditing, onAdd, onAddDivider, onNavigate, open, onOpenChange, homePage,
 }: SidebarMoreMenuProps) {
   const [query, setQuery] = useState('');
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -167,7 +169,7 @@ export function SidebarMoreMenu({
         <div ref={main.refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={main.onScroll}>
           {filtered.map((item) => (
             <div key={item.id} className="flex items-center">
-              <Link to={itemPath(item.id)} onClick={() => { onOpenChange(false); onNavigate?.(); }} className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors">
+              <Link to={itemPath(item.id, undefined, homePage)} onClick={() => { onOpenChange(false); onNavigate?.(); }} className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors">
                 {sidebarItemIcon(item.id, 'size-5 shrink-0')}
                 <span className="truncate">{item.label}</span>
               </Link>

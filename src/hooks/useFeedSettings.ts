@@ -12,6 +12,11 @@ const DEFAULT_SIDEBAR_ORDER = SIDEBAR_ITEMS
   .filter((s) => ['feed', 'notifications', 'search', 'trends', 'bookmarks', 'profile', 'settings', 'theme'].includes(s.id))
   .map((s) => s.id);
 
+/** Map of legacy sidebar item IDs to their current replacements. */
+const SIDEBAR_ID_MIGRATIONS: Record<string, string> = {
+  'emoji-packs': 'emojis',
+};
+
 /**
  * Compute the ordered list of visible sidebar items.
  *
@@ -29,12 +34,15 @@ function computeOrderedItems(
   const ordered: string[] = [];
   const seen = new Set<string>();
 
-  for (const item of sidebarOrder) {
+  for (let item of sidebarOrder) {
     // Dividers are allowed multiple times — don't deduplicate them
     if (item === SIDEBAR_DIVIDER_ID) {
       ordered.push(item);
       continue;
     }
+
+    // Migrate legacy IDs
+    item = SIDEBAR_ID_MIGRATIONS[item] ?? item;
 
     if (seen.has(item)) continue;
     seen.add(item);
