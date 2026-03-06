@@ -49,6 +49,14 @@ const settingsSections: SettingsSection[] = [
     requiresAuth: true,
   },
   {
+    id: 'lists',
+    label: 'Lists',
+    description: 'Organize people into follow sets for custom feeds',
+    illustration: '/lists-intro.png',
+    path: '/settings/lists',
+    requiresAuth: true,
+  },
+  {
     id: 'notifications',
     label: 'Notifications',
     description: 'Configure push notification preferences',
