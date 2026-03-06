@@ -870,12 +870,7 @@ export function ProfilePage() {
   }, [profileTabsQuery.data, profileTabsQuery.isFetched]);
 
   const enterTabEditMode = () => {
-    // Start edit with current view tabs, filling in any missing core tabs at the end
-    const existingLabels = new Set(viewTabs.map((t) => t.label));
-    const missingCore = CORE_TAB_LABELS
-      .filter((l) => !existingLabels.has(l))
-      .map((label) => ({ label, isCore: true }));
-    setLocalTabs([...viewTabs, ...missingCore]);
+    setLocalTabs(viewTabs);
     setTabEditMode(true);
   };
 
@@ -1945,7 +1940,7 @@ export function ProfilePage() {
                       className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
                       aria-label="Add tab"
                     >
-                      <Plus className="size-4" />
+                      <Plus className="size-4" strokeWidth={4} />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
@@ -1959,15 +1954,15 @@ export function ProfilePage() {
                           onClick={present ? undefined : () => setLocalTabs((prev) => [...prev, { label: name, isCore: true }])}
                         >
                           {present
-                            ? <Check className="size-3.5 mr-2 opacity-60" />
-                            : <Plus className="size-3.5 mr-2" />}
+                            ? <Check className="size-3.5 mr-2 opacity-60" strokeWidth={4} />
+                            : <Plus className="size-3.5 mr-2" strokeWidth={4} />}
                           {name}
                         </DropdownMenuItem>
                       );
                     })}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleOpenAddCustomTab}>
-                      <Plus className="size-3.5 mr-2" />
+                      <Plus className="size-3.5 mr-2" strokeWidth={4} />
                       Add custom tab
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -1984,7 +1979,7 @@ export function ProfilePage() {
                 {isPublishingTabs
                   ? <Loader2 className="size-4 animate-spin" />
                   : tabEditMode
-                    ? <Check className="size-4 text-primary" />
+                    ? <Check className="size-4 text-primary" strokeWidth={4} />
                     : <Pencil className="size-3.5" />}
               </button>
             </div>
