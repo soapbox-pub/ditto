@@ -869,6 +869,20 @@ export function ProfilePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileTabsQuery.data, profileTabsQuery.isFetched]);
 
+  // Derive the ID of the first visible tab (used as default selection).
+  const firstTabId = useMemo(() => {
+    if (viewTabs.length === 0) return 'posts';
+    const first = viewTabs[0];
+    return CORE_TAB_IDS[first.label] ?? first.label;
+  }, [viewTabs]);
+
+  // When profile tabs finish loading, focus the leftmost tab.
+  useEffect(() => {
+    if (profileTabsQuery.isFetched) {
+      setActiveTab(firstTabId);
+    }
+  }, [profileTabsQuery.isFetched, firstTabId]);
+
   const enterTabEditMode = () => {
     setLocalTabs(viewTabs);
     setTabEditMode(true);
@@ -900,10 +914,10 @@ export function ProfilePage() {
       t.tab ?? { label: t.label, filters: DEFAULT_FILTERS },
     );
     await publishProfileTabs(allTabs);
-    const remainingLabels = localTabs.map((t) => t.label.toLowerCase());
-    const coreMatch = ['posts', 'replies', 'media', 'likes', 'wall'];
-    if (!remainingLabels.includes(activeTab.toLowerCase()) && !coreMatch.includes(activeTab)) {
-      setActiveTab('posts');
+    // If the active tab was removed, fall back to the first remaining tab
+    const remainingIds = localTabs.map((t) => CORE_TAB_IDS[t.label] ?? t.label);
+    if (!remainingIds.includes(activeTab)) {
+      setActiveTab(remainingIds[0] ?? 'posts');
     }
     setTabEditMode(false);
   };
@@ -935,10 +949,10 @@ export function ProfilePage() {
   useEffect(() => {
     const isCoreTab = ['posts', 'replies', 'media', 'likes', 'wall'].includes(activeTab);
     if (!isCoreTab && !profileSavedFeeds.find((t) => t.label === activeTab)) {
-      setActiveTab('posts');
+      setActiveTab(firstTabId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileSavedFeeds]);
+  }, [profileSavedFeeds, firstTabId]);
 
   // Whether the profile has any visible tabs.
   const hasTabs = viewTabs.length > 0;
