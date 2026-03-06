@@ -13,7 +13,8 @@ import { useAddrEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { genUserName } from '@/lib/genUserName';
-import { getCountryInfo } from '@/lib/countries';
+import { getCountryInfo, getWikipediaTitle } from '@/lib/countries';
+import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
 import { parseExternalUri, formatIsbn } from '@/lib/externalContent';
 
 // ---------------------------------------------------------------------------
@@ -137,6 +138,8 @@ export function BookContentHeader({ isbn }: { isbn: string }) {
 
 export function CountryContentHeader({ code }: { code: string }) {
   const info = getCountryInfo(code);
+  const wikiTitle = getWikipediaTitle(code);
+  const { data: wiki, isLoading: wikiLoading } = useWikipediaSummary(wikiTitle);
 
   if (!info) {
     return (
@@ -149,6 +152,20 @@ export function CountryContentHeader({ code }: { code: string }) {
 
   return (
     <div className="rounded-2xl border border-border overflow-hidden">
+      {/* Thumbnail banner */}
+      {wiki?.thumbnail && (
+        <div className="relative w-full h-40 sm:h-52 overflow-hidden bg-secondary">
+          <img
+            src={wiki.originalImage?.source ?? wiki.thumbnail.source}
+            alt={info.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+        </div>
+      )}
+
+      {/* Flag + name */}
       <div className="p-6 sm:p-8">
         <div className="flex items-center gap-4">
           <span className="text-6xl sm:text-7xl leading-none" role="img" aria-label={`Flag of ${info.name}`}>
@@ -163,8 +180,38 @@ export function CountryContentHeader({ code }: { code: string }) {
                 Subdivision: {info.subdivision}
               </p>
             )}
+            {wiki?.description && !info.subdivision && (
+              <p className="text-sm text-muted-foreground capitalize">
+                {wiki.description}
+              </p>
+            )}
           </div>
         </div>
+
+        {/* Wikipedia extract */}
+        {wikiLoading ? (
+          <div className="mt-5 space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        ) : wiki?.extract ? (
+          <div className="mt-5 space-y-3">
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {wiki.extract}
+            </p>
+            <a
+              href={wiki.articleUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Globe className="size-3.5" />
+              <span>Read more on Wikipedia</span>
+              <ExternalLink className="size-3" />
+            </a>
+          </div>
+        ) : null}
       </div>
     </div>
   );
