@@ -327,6 +327,11 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       showPodcasts: false,
       feedIncludePodcastEpisodes: false,
       feedIncludePodcastTrailers: false,
+      showBadges: false,
+      showBadgeDefinitions: true,
+      showProfileBadges: true,
+      feedIncludeBadgeDefinitions: false,
+      feedIncludeProfileBadges: false,
       followsFeedShowReplies: true,
     };
 

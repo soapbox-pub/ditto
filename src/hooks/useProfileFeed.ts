@@ -17,7 +17,7 @@ interface ProfileFeedPage {
 
 const PAGE_SIZE = 15;
 
-export type ProfileTab = 'posts' | 'replies' | 'media' | 'likes' | 'wall';
+export type ProfileTab = 'posts' | 'replies' | 'media' | 'likes' | 'wall' | 'badges';
 
 /** Kinds that are inherently media (video/image) content. */
 const MEDIA_KINDS = new Set([34236]); // vines
