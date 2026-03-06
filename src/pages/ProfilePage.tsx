@@ -78,7 +78,7 @@ import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontPicker } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
-import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
+import { cn, STICKY_HEADER_CLASS, parseKindFilter } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -2442,15 +2442,10 @@ export function ProfilePage() {
 function ProfileSavedFeedContent({ feed }: { feed: CustomProfileTab }) {
   const { filters } = feed;
 
-  const kindsOverride = useMemo<number[] | undefined>(() => {
-    if (filters.kindFilter === 'all') return undefined;
-    if (filters.kindFilter === 'custom') {
-      const parsed = filters.customKindText.trim().split(/[\s,]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0);
-      return parsed.length > 0 ? parsed : undefined;
-    }
-    const n = Number(filters.kindFilter);
-    return Number.isInteger(n) && n > 0 ? [n] : undefined;
-  }, [filters.kindFilter, filters.customKindText]);
+  const kindsOverride = useMemo<number[] | undefined>(
+    () => parseKindFilter(filters.kindFilter, filters.customKindText),
+    [filters.kindFilter, filters.customKindText],
+  );
 
   const protocols = useMemo(() => [filters.platform], [filters.platform]);
 
