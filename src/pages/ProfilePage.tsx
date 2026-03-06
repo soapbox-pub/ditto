@@ -55,6 +55,8 @@ import { useUserStatus } from '@/hooks/useUserStatus';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { useSavedFeeds } from '@/hooks/useSavedFeeds';
+import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
 import { loadAndApplyFont } from '@/lib/fontLoader';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
@@ -336,13 +338,13 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
     <button
       onClick={onClick}
       className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
+        'shrink-0 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 whitespace-nowrap',
         active ? 'text-foreground' : 'text-muted-foreground',
       )}
     >
       {label}
       {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 max-w-16 h-1 bg-primary rounded-full" />
       )}
     </button>
   );
@@ -617,7 +619,7 @@ export function ProfilePage() {
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
+  const [activeTab, setActiveTab] = useState<ProfileTab | string>('posts');
   const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [followingModalOpen, setFollowingModalOpen] = useState(false);
@@ -658,6 +660,27 @@ export function ProfilePage() {
     }
     return user?.pubkey;
   }, [npub, user, isNip05Param, nip05Pubkey]);
+
+  // Saved feed tabs scoped to this profile (destination=profile, authorPubkey matches)
+  const { savedFeeds } = useSavedFeeds();
+  const profileSavedFeeds = useMemo(
+    () => savedFeeds.filter(
+      (f) => f.destination === 'profile' && pubkey && f.filters.authorPubkeys.some((ap) => {
+        if (ap === pubkey) return true;
+        try { const d = nip19.decode(ap); return d.type === 'npub' && d.data === pubkey; } catch { return false; }
+      }),
+    ),
+    [savedFeeds, pubkey],
+  );
+
+  // Drop active tab if its saved feed was deleted
+  useEffect(() => {
+    const isCoreTab = ['posts', 'replies', 'media', 'likes', 'wall'].includes(activeTab);
+    if (!isCoreTab && !profileSavedFeeds.find((f) => f.id === activeTab)) {
+      setActiveTab('posts');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileSavedFeeds]);
 
   // Infinite-scroll profile feed (posts/replies/media).
   // The first page piggybacks kind 0, seeding the author cache so the
@@ -1149,7 +1172,8 @@ export function ProfilePage() {
     [mediaEvents]
   );
 
-  const currentItems = activeTab === 'wall' ? [] : activeTab === 'likes' ? likedFeedItems : activeTab === 'media' ? mediaFeedItems : filterByTab(feedItems, activeTab);
+  const isCoreProfileTab = activeTab === 'posts' || activeTab === 'replies' || activeTab === 'media' || activeTab === 'likes' || activeTab === 'wall';
+  const currentItems = activeTab === 'wall' ? [] : activeTab === 'likes' ? likedFeedItems : activeTab === 'media' ? mediaFeedItems : filterByTab(feedItems, isCoreProfileTab ? (activeTab as ProfileTab) : 'posts');
   const currentLoading = activeTab === 'wall' ? wallPending : activeTab === 'likes' ? likesPending : activeTab === 'media' ? mediaPending : feedPending;
   const hasMore = activeTab === 'wall' ? hasNextWallPage : activeTab === 'likes' ? hasNextLikesPage : activeTab === 'media' ? hasNextMediaPage : hasNextFeedPage;
   const isFetchingMore = activeTab === 'wall' ? isFetchingNextWallPage : activeTab === 'likes' ? isFetchingNextLikesPage : activeTab === 'media' ? isFetchingNextMediaPage : isFetchingNextFeedPage;
@@ -1569,12 +1593,15 @@ export function ProfilePage() {
         </div>
 
         {/* Tabs */}
-        <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border backdrop-blur-md z-10')}>
+        <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border backdrop-blur-md z-10 overflow-x-auto scrollbar-none')}>
           <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
           <TabButton label="Posts & replies" active={activeTab === 'replies'} onClick={() => setActiveTab('replies')} />
           <TabButton label="Media" active={activeTab === 'media'} onClick={() => { setActiveTab('media'); setSidebarMediaUrl(null); }} />
           <TabButton label="Likes" active={activeTab === 'likes'} onClick={() => setActiveTab('likes')} />
           <TabButton label="Wall" active={activeTab === 'wall'} onClick={() => setActiveTab('wall')} />
+          {profileSavedFeeds.map((feed) => (
+            <TabButton key={feed.id} label={feed.label} active={activeTab === feed.id} onClick={() => setActiveTab(feed.id)} />
+          ))}
         </div>
 
         {/* Pinned posts (only on Posts tab) */}
@@ -1718,8 +1745,13 @@ export function ProfilePage() {
           </div>
         )}
 
+        {/* Custom saved-feed tab content */}
+        {!isCoreProfileTab && profileSavedFeeds.find((f) => f.id === activeTab) && (
+          <ProfileSavedFeedContent feed={profileSavedFeeds.find((f) => f.id === activeTab)!} />
+        )}
+
         {/* Tab content (posts / replies / likes) */}
-        {activeTab !== 'wall' && activeTab !== 'media' && (
+        {isCoreProfileTab && activeTab !== 'wall' && activeTab !== 'media' && (
         <div>
           {currentLoading ? (
             <div className="space-y-0">
@@ -2003,4 +2035,68 @@ export function ProfilePage() {
   );
 }
 
+// ─── Profile Saved Feed Tab ───────────────────────────────────────────────────
+
+import type { SavedFeed } from '@/contexts/AppContext';
+
+function ProfileSavedFeedContent({ feed }: { feed: SavedFeed }) {
+  const { filters } = feed;
+
+  const kindsOverride = useMemo<number[] | undefined>(() => {
+    if (filters.kindFilter === 'all') return undefined;
+    if (filters.kindFilter === 'custom') {
+      const parsed = filters.customKindText.trim().split(/[\s,]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0);
+      return parsed.length > 0 ? parsed : undefined;
+    }
+    const n = Number(filters.kindFilter);
+    return Number.isInteger(n) && n > 0 ? [n] : undefined;
+  }, [filters.kindFilter, filters.customKindText]);
+
+  const protocols = useMemo(() => [filters.platform], [filters.platform]);
+
+  const { posts, isLoading } = useStreamPosts(filters.query, {
+    includeReplies: true,
+    mediaType: filters.mediaType,
+    language: filters.language,
+    protocols,
+    kindsOverride,
+    authorPubkeys: filters.authorPubkeys.length > 0 ? filters.authorPubkeys : undefined,
+    sort: filters.sort,
+  });
+
+  if (isLoading && posts.length === 0) {
+    return (
+      <div className="space-y-0">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="px-4 py-3 border-b border-border">
+            <div className="flex gap-3">
+              <Skeleton className="size-11 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <div className="py-12 text-center text-muted-foreground text-sm">
+        No posts found for "{feed.label}".
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {posts.map((event) => (
+        <NoteCard key={event.id} event={event} />
+      ))}
+    </div>
+  );
+}
 
