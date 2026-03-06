@@ -34,7 +34,7 @@ import { useFollowList } from '@/hooks/useFollowActions';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
-import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
+import { cn, STICKY_HEADER_CLASS, parseKindFilter } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
 
 
@@ -214,15 +214,10 @@ export function SearchPage() {
   const kindOptions = useMemo(() => buildKindOptions(), []);
 
   // Resolve kindsOverride from the current kind filter state
-  const kindsOverride = useMemo<number[] | undefined>(() => {
-    if (kindFilter === 'all') return undefined;
-    if (kindFilter === 'custom') {
-      const parsed = customKindText.trim().split(/[\s,]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0);
-      return parsed.length > 0 ? parsed : undefined;
-    }
-    const n = Number(kindFilter);
-    return Number.isInteger(n) && n > 0 ? [n] : undefined;
-  }, [kindFilter, customKindText]);
+  const kindsOverride = useMemo<number[] | undefined>(
+    () => parseKindFilter(kindFilter, customKindText),
+    [kindFilter, customKindText],
+  );
 
   // Detect kind + media type conflict: a specific kind is selected AND a media type is set
   const hasKindMediaConflict = kindsOverride !== undefined && mediaType !== 'all';
@@ -277,8 +272,14 @@ export function SearchPage() {
     if (platform !== 'nostr') labels.push({ activitypub: 'Mastodon', atproto: 'Bluesky' }[platform] ?? platform);
     if (sort !== 'recent') labels.push(sort === 'hot' ? 'Hot' : 'Trending');
     if (kindFilter !== 'all' && kindFilter !== 'custom') {
-      const opt = kindOptions.find(o => o.value === kindFilter);
-      if (opt) labels.push(opt.label);
+      const kindValues = kindFilter.split(',').filter(Boolean);
+      if (kindValues.length === 1) {
+        const opt = kindOptions.find(o => o.value === kindValues[0]);
+        if (opt) labels.push(opt.label);
+        else labels.push(`Kind ${kindValues[0]}`);
+      } else if (kindValues.length > 1) {
+        labels.push(`${kindValues.length} kinds`);
+      }
     } else if (kindFilter === 'custom' && customKindText) {
       labels.push(`Kind: ${customKindText}`);
     }

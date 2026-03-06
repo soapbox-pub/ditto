@@ -18,7 +18,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { cn } from '@/lib/utils';
+import { cn, parseKindFilter } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { SavedFeed } from '@/contexts/AppContext';
 
@@ -286,15 +286,10 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   const { filters } = feed;
   const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
 
-  const kindsOverride = useMemo<number[] | undefined>(() => {
-    if (filters.kindFilter === 'all') return undefined;
-    if (filters.kindFilter === 'custom') {
-      const parsed = filters.customKindText.trim().split(/[\s,]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0);
-      return parsed.length > 0 ? parsed : undefined;
-    }
-    const n = Number(filters.kindFilter);
-    return Number.isInteger(n) && n > 0 ? [n] : undefined;
-  }, [filters.kindFilter, filters.customKindText]);
+  const kindsOverride = useMemo<number[] | undefined>(
+    () => parseKindFilter(filters.kindFilter, filters.customKindText),
+    [filters.kindFilter, filters.customKindText],
+  );
 
   const protocols = useMemo(() => [filters.platform], [filters.platform]);
 
