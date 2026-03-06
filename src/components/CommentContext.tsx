@@ -340,11 +340,9 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
     const code = identifier.slice('iso3166:'.length);
     const info = getCountryInfo(code);
     if (info) {
-      // For subdivisions (e.g. US-TX), show "🇺🇸 United States (TX)"
-      const subdivisionSuffix = info.subdivision
-        ? ` (${info.subdivision.split('-')[1] ?? info.subdivision})`
-        : '';
-      displayText = `${info.flag} ${info.name}${subdivisionSuffix}`;
+      displayText = info.subdivisionName
+        ? `${info.flag} ${info.subdivisionName}`
+        : `${info.flag} ${info.name}`;
     } else {
       displayText = identifier;
     }
