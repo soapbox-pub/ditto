@@ -245,6 +245,26 @@ export const ContentFilterSchema = z.object({
   updatedAt: z.number(),
 });
 
+// ─── SavedFeed Schema ────────────────────────────────────────────────
+
+export const SavedFeedFiltersSchema = z.object({
+  query: z.string(),
+  mediaType: z.enum(['all', 'images', 'videos', 'vines', 'none']),
+  language: z.string(),
+  platform: z.enum(['nostr', 'activitypub', 'atproto']),
+  kindFilter: z.string(),
+  customKindText: z.string(),
+  authorPubkey: z.string(),
+});
+
+export const SavedFeedSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  filters: SavedFeedFiltersSchema,
+  destination: z.enum(['feed', 'profile']).default('feed'),
+  createdAt: z.number(),
+});
+
 // ─── EncryptedSettings Schema ────────────────────────────────────────
 
 /**
@@ -277,4 +297,5 @@ export const EncryptedSettingsSchema = z.looseObject({
   faviconUrl: z.string().optional(),
   linkPreviewUrl: z.string().optional(),
   sentryDsn: z.string().optional(),
+  savedFeeds: z.array(SavedFeedSchema).optional(),
 });

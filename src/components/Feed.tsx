@@ -15,11 +15,15 @@ import { useFeed } from '@/hooks/useFeed';
 import { useInfiniteSortedPosts } from '@/hooks/useTrending';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMuteList } from '@/hooks/useMuteList';
+import { useSavedFeeds } from '@/hooks/useSavedFeeds';
+import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
+import type { SavedFeed } from '@/contexts/AppContext';
 
-type FeedTab = 'follows' | 'global' | 'communities';
+type CoreFeedTab = 'follows' | 'global' | 'communities';
+type FeedTab = CoreFeedTab | string; // string = saved feed id
 
 interface FeedProps {
   /** Override the kinds list instead of using feed settings. */
@@ -39,6 +43,8 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
+  const { savedFeeds } = useSavedFeeds();
+
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
     const stored = localStorage.getItem('ditto:showGlobalFeed');
@@ -74,12 +80,31 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
     }
   }, [user]);
 
+  // Is the active tab a saved feed?
+  const activeSavedFeed = useMemo(
+    () => savedFeeds.find((f) => f.id === activeTab) ?? null,
+    [savedFeeds, activeTab],
+  );
+
+  // If a saved feed tab is deleted while active, fall back to follows/global
+  useEffect(() => {
+    if (activeTab !== 'follows' && activeTab !== 'global' && activeTab !== 'communities') {
+      if (!savedFeeds.find((f) => f.id === activeTab)) {
+        setActiveTab(user ? 'follows' : 'global');
+      }
+    }
+  }, [savedFeeds, activeTab, user]);
+
   // When logged out (and not on a kind-specific page), show the "hot" sorted
   // feed instead of the noisy global feed so new visitors see quality content.
   const useTopFeedForLoggedOut = !user && !kinds;
 
-  // Standard feed query (used when logged in, or on kind-specific pages)
-  const feedQuery = useFeed(activeTab, (kinds || tagFilters) ? { kinds, tagFilters } : undefined);
+  // Standard feed query (used when logged in, or on kind-specific pages, or core tabs)
+  const isCoreFeedTab = activeTab === 'follows' || activeTab === 'global' || activeTab === 'communities';
+  const feedQuery = useFeed(
+    isCoreFeedTab ? (activeTab as CoreFeedTab) : 'global',
+    (kinds || tagFilters) ? { kinds, tagFilters } : undefined,
+  );
 
   // "Hot" sorted feed query (used when logged out on the home page)
   const topQuery = useInfiniteSortedPosts('hot', useTopFeedForLoggedOut);
@@ -124,15 +149,11 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Flatten, deduplicate, and filter muted content.
-  // The two query types have different page shapes:
-  //   - useFeed returns { items: FeedItem[] }
-  //   - useInfiniteSortedPosts returns NostrEvent[]
   const feedItems = useMemo(() => {
     if (!rawData?.pages) return [];
     const seen = new Set<string>();
 
     if (useTopFeedForLoggedOut) {
-      // Pages are NostrEvent[]
       return (rawData.pages as unknown as import('@nostrify/nostrify').NostrEvent[][])
         .flat()
         .filter((event) => {
@@ -144,7 +165,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
         .map((event): FeedItem => ({ event, sortTimestamp: event.created_at }));
     }
 
-    // Pages are { items: FeedItem[] }
     return (rawData.pages as unknown as { items: FeedItem[] }[])
       .flatMap((page) => page.items)
       .filter((item) => {
@@ -158,6 +178,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
+  // Saved feed tabs are only shown on the main home feed (no kinds/tagFilters override)
+  const showSavedFeedTabs = user && !kinds && !tagFilters;
+
   return (
     <main className="flex-1 min-w-0">
       {!hideCompose && <ComposeBox compact />}
@@ -166,7 +189,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
 
       {/* Tabs (logged in) or CTA (logged out, main feed only) */}
       {user ? (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none">
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
           {showCommunityFeed && (
             <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => setActiveTab('communities')} />
@@ -174,6 +197,14 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
           {showGlobalFeed && (
             <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
           )}
+          {showSavedFeedTabs && savedFeeds.map((feed) => (
+            <TabButton
+              key={feed.id}
+              label={feed.label}
+              active={activeTab === feed.id}
+              onClick={() => setActiveTab(feed.id)}
+            />
+          ))}
         </div>
       ) : !kinds && (
         <div className="border-b border-border sticky top-mobile-bar sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3">
@@ -188,50 +219,54 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
         </div>
       )}
 
-      {/* Feed content */}
-      <PullToRefresh onRefresh={handleRefresh}>
-        {showSkeleton ? (
-          <div className="divide-y divide-border">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <NoteCardSkeleton key={i} />
-            ))}
-          </div>
-        ) : feedItems.length > 0 ? (
-          <div>
-            {feedItems.map((item: FeedItem) => (
-              <NoteCard
-                key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
-                event={item.event}
-                repostedBy={item.repostedBy}
-              />
-            ))}
-            {hasNextPage && (
-              <div ref={scrollRef} className="py-4">
-                {isFetchingNextPage && (
-                  <div className="flex justify-center">
-                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <FeedEmptyState
-            message={
-              emptyMessage ?? (
-                activeTab === 'follows'
-                  ? 'No posts yet. Follow some people to see their content here.'
-                  : 'No posts found. Check your relay connections or come back soon.'
-              )
-            }
-            onSwitchToGlobal={
-              activeTab === 'follows' && showGlobalFeed
-                ? () => setActiveTab('global')
-                : undefined
-            }
-          />
-        )}
-      </PullToRefresh>
+      {/* Feed content — saved feed tab gets its own stream */}
+      {activeSavedFeed ? (
+        <SavedFeedContent feed={activeSavedFeed} />
+      ) : (
+        <PullToRefresh onRefresh={handleRefresh}>
+          {showSkeleton ? (
+            <div className="divide-y divide-border">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <NoteCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : feedItems.length > 0 ? (
+            <div>
+              {feedItems.map((item: FeedItem) => (
+                <NoteCard
+                  key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+                  event={item.event}
+                  repostedBy={item.repostedBy}
+                />
+              ))}
+              {hasNextPage && (
+                <div ref={scrollRef} className="py-4">
+                  {isFetchingNextPage && (
+                    <div className="flex justify-center">
+                      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <FeedEmptyState
+              message={
+                emptyMessage ?? (
+                  activeTab === 'follows'
+                    ? 'No posts yet. Follow some people to see their content here.'
+                    : 'No posts found. Check your relay connections or come back soon.'
+                )
+              }
+              onSwitchToGlobal={
+                activeTab === 'follows' && showGlobalFeed
+                  ? () => setActiveTab('global')
+                  : undefined
+              }
+            />
+          )}
+        </PullToRefresh>
+      )}
 
       {/* Login/Signup dialogs (only needed on main feed) */}
       {!kinds && (
@@ -246,18 +281,76 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   );
 }
 
+/** Renders a saved search feed using useStreamPosts (live streaming). */
+function SavedFeedContent({ feed }: { feed: SavedFeed }) {
+  const { filters } = feed;
+  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
+
+  const kindsOverride = useMemo<number[] | undefined>(() => {
+    if (filters.kindFilter === 'all') return undefined;
+    if (filters.kindFilter === 'custom') {
+      const parsed = filters.customKindText.trim().split(/[\s,]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0);
+      return parsed.length > 0 ? parsed : undefined;
+    }
+    const n = Number(filters.kindFilter);
+    return Number.isInteger(n) && n > 0 ? [n] : undefined;
+  }, [filters.kindFilter, filters.customKindText]);
+
+  const protocols = useMemo(() => [filters.platform], [filters.platform]);
+
+  const { posts, isLoading } = useStreamPosts(filters.query, {
+    includeReplies: true,
+    mediaType: filters.mediaType,
+    language: filters.language,
+    protocols,
+    kindsOverride,
+    authorPubkey: filters.authorPubkey || undefined,
+  });
+
+  // Simple scroll-based load more isn't available with useStreamPosts (it's a stream),
+  // but we still wire the ref for future pagination support
+  useEffect(() => {
+    // intentionally empty — useStreamPosts handles its own streaming
+  }, [inView]);
+
+  if (isLoading && posts.length === 0) {
+    return (
+      <div className="divide-y divide-border">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <NoteCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <FeedEmptyState message={`No posts found for "${feed.label}". The search may return results as new content arrives.`} />
+    );
+  }
+
+  return (
+    <div>
+      {posts.map((event) => (
+        <NoteCard key={event.id} event={event} />
+      ))}
+      <div ref={scrollRef} className="py-2" />
+    </div>
+  );
+}
+
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
+        'shrink-0 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 whitespace-nowrap',
         active ? 'text-foreground' : 'text-muted-foreground',
       )}
     >
       {label}
       {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 max-w-16 h-1 bg-primary rounded-full" />
       )}
     </button>
   );

@@ -124,6 +124,29 @@ export interface FeedSettings {
   followsFeedShowReplies: boolean;
 }
 
+/** Filters captured when a search is saved as a feed tab. */
+export interface SavedFeedFilters {
+  /** NIP-50 search query */
+  query: string;
+  mediaType: 'all' | 'images' | 'videos' | 'vines' | 'none';
+  language: string;
+  platform: 'nostr' | 'activitypub' | 'atproto';
+  kindFilter: string;
+  customKindText: string;
+  /** Author pubkey (npub or hex) */
+  authorPubkey: string;
+}
+
+/** A named feed tab saved from the search page. */
+export interface SavedFeed {
+  id: string;
+  label: string;
+  filters: SavedFeedFilters;
+  /** Where this tab appears: home feed tabs or the current user's profile tabs. */
+  destination: 'feed' | 'profile';
+  createdAt: number;
+}
+
 export interface AppConfig {
   /** Application display name used in page titles, UI text, and branding. Default: "Ditto". */
   appName: string;
