@@ -13,6 +13,9 @@ import {
   RotateCcw,
   X,
   Info,
+  BookmarkPlus,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -31,6 +34,8 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
+import { useSavedFeeds } from '@/hooks/useSavedFeeds';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -302,6 +307,48 @@ export function SearchPage() {
   }, [includeReplies, mediaType, language, platform, kindFilter, customKindText, authorQuery, kindOptions]);
 
   // Hooks
+  const { user } = useCurrentUser();
+  const { savedFeeds, addSavedFeed, isPending: isSavingFeed } = useSavedFeeds();
+  const [savePopoverOpen, setSavePopoverOpen] = useState(false);
+  const [saveFeedLabel, setSaveFeedLabel] = useState('');
+  const [savedJustNow, setSavedJustNow] = useState(false);
+
+  // A query with an explicit author set is already user-specific — only valid for feed, not profile.
+  const isAuthorSpecific = !!authorQuery;
+
+  // Build the filters object for matching / saving
+  const currentFilters = { query: searchQuery.trim(), mediaType, language, platform, kindFilter, customKindText, authorPubkey: authorQuery };
+  const alreadySaved = savedFeeds.some(
+    (f) =>
+      f.filters.query === currentFilters.query &&
+      f.filters.mediaType === currentFilters.mediaType &&
+      f.filters.language === currentFilters.language &&
+      f.filters.platform === currentFilters.platform &&
+      f.filters.kindFilter === currentFilters.kindFilter &&
+      f.filters.authorPubkey === currentFilters.authorPubkey,
+  );
+
+  const handleSave = async (destination: 'feed' | 'profile') => {
+    if (!saveFeedLabel.trim() || isSavingFeed) return;
+    // Profile tabs auto-lock to the current user's pubkey
+    const authorPubkey = destination === 'profile' && user
+      ? (authorQuery || user.pubkey)
+      : authorQuery;
+    await addSavedFeed(saveFeedLabel, {
+      query: searchQuery.trim(),
+      mediaType,
+      language,
+      platform,
+      kindFilter,
+      customKindText,
+      authorPubkey,
+    }, destination);
+    setSavePopoverOpen(false);
+    setSaveFeedLabel('');
+    setSavedJustNow(true);
+    setTimeout(() => setSavedJustNow(false), 2000);
+  };
+
   const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, {
     includeReplies,
     mediaType,
@@ -339,8 +386,76 @@ export function SearchPage() {
                 <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               </div>
 
-              {/* Filter popover */}
-              <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+                {/* Add to feed button */}
+                {user && searchQuery.trim() && (
+                  <Popover open={savePopoverOpen} onOpenChange={(o) => { setSavePopoverOpen(o); if (o && !saveFeedLabel) setSaveFeedLabel(searchQuery.trim()); }}>
+                    <PopoverTrigger asChild>
+                      <button
+                        className={cn(
+                          'shrink-0 h-10 w-10 rounded-lg border flex items-center justify-center transition-colors',
+                          alreadySaved || savedJustNow
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground',
+                        )}
+                        style={{ outline: 'none' }}
+                        aria-label="Add to feed"
+                      >
+                        {savedJustNow ? <Check className="size-4" /> : <BookmarkPlus className="size-4" />}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-72 p-4 space-y-4">
+                      <p className="font-semibold text-sm">Add to…</p>
+
+                      {alreadySaved ? (
+                        <p className="text-sm text-muted-foreground">This search is already saved.</p>
+                      ) : (
+                        <>
+                          <Input
+                            placeholder="Tab name…"
+                            value={saveFeedLabel}
+                            onChange={(e) => setSaveFeedLabel(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSave('feed'); }}
+                            className="bg-secondary/50 border-border focus-visible:ring-1 text-sm"
+                            autoFocus
+                          />
+
+                          <div className={cn('grid gap-2', isAuthorSpecific ? 'grid-cols-1' : 'grid-cols-2')}>
+                            {/* Home feed */}
+                            <button
+                              onClick={() => handleSave('feed')}
+                              disabled={!saveFeedLabel.trim() || isSavingFeed}
+                              className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary hover:border-primary/50 disabled:opacity-50 disabled:pointer-events-none transition-colors p-3 text-left"
+                            >
+                              {isSavingFeed
+                                ? <Loader2 className="size-4 animate-spin text-primary" />
+                                : <BookmarkPlus className="size-4 text-primary" />}
+                              <span className="text-xs font-medium">Home feed</span>
+                              <span className="text-[10px] text-muted-foreground text-center leading-tight">Tab on your home page</span>
+                            </button>
+
+                            {/* Profile tab — only for generic (non-author-specific) searches */}
+                            {!isAuthorSpecific && (
+                              <button
+                                onClick={() => handleSave('profile')}
+                                disabled={!saveFeedLabel.trim() || isSavingFeed}
+                                className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary hover:border-primary/50 disabled:opacity-50 disabled:pointer-events-none transition-colors p-3 text-left"
+                              >
+                                {isSavingFeed
+                                  ? <Loader2 className="size-4 animate-spin text-primary" />
+                                  : <User className="size-4 text-primary" />}
+                                <span className="text-xs font-medium">Profile tab</span>
+                                <span className="text-[10px] text-muted-foreground text-center leading-tight">Your posts matching this search</span>
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                )}
+
+                {/* Filter popover */}
+                <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
                 <PopoverTrigger asChild>
                   <button
                     className={cn(
