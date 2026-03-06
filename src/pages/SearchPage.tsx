@@ -18,9 +18,10 @@ import {
   Check,
   Loader2,
   ChevronDown,
+  ChevronUp,
   Hash,
 } from 'lucide-react';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -1066,6 +1067,65 @@ type KindOption = {
   icon: React.ComponentType<{ className?: string }> | undefined;
 };
 
+/** Reusable scroll-caret logic — same pattern as SidebarMoreMenu. */
+function useScrollCarets() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const roRef = useRef<ResizeObserver | null>(null);
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+
+  const update = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollUp(el.scrollTop > 0);
+    setCanScrollDown(el.scrollTop + el.clientHeight < el.scrollHeight - 1);
+  }, []);
+
+  const refCallback = useCallback((el: HTMLDivElement | null) => {
+    roRef.current?.disconnect();
+    roRef.current = null;
+    (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+    if (!el) return;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    roRef.current = ro;
+    update();
+  }, [update]);
+
+  const stopScroll = useCallback(() => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+  }, []);
+
+  const startScroll = useCallback((direction: 'up' | 'down') => {
+    stopScroll();
+    intervalRef.current = setInterval(() => {
+      const el = scrollRef.current;
+      if (!el) return stopScroll();
+      el.scrollBy({ top: direction === 'up' ? -8 : 8 });
+      update();
+      const atLimit = direction === 'up' ? el.scrollTop <= 0 : el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+      if (atLimit) stopScroll();
+    }, 16);
+  }, [update, stopScroll]);
+
+  useEffect(() => stopScroll, [stopScroll]);
+
+  return { refCallback, canScrollUp, canScrollDown, onScroll: update, startScroll, stopScroll };
+}
+
+function KindScrollCaret({ direction, onMouseEnter, onMouseLeave }: { direction: 'up' | 'down'; onMouseEnter: () => void; onMouseLeave: () => void }) {
+  return (
+    <button
+      className="flex cursor-default items-center justify-center py-0.5 w-full shrink-0 text-muted-foreground hover:text-foreground"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {direction === 'up' ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+    </button>
+  );
+}
+
 function KindPicker({
   value,
   options,
@@ -1077,6 +1137,7 @@ function KindPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const { refCallback, canScrollUp, canScrollDown, onScroll, startScroll, stopScroll } = useScrollCarets();
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -1089,7 +1150,7 @@ function KindPicker({
     );
   }, [options, search]);
 
-  const selected = value === 'all' ? null : value === 'custom' ? null : options.find((o) => o.value === value);
+  const selected = value === 'all' || value === 'custom' ? null : options.find((o) => o.value === value);
   const SelectedIcon = selected?.icon;
 
   const handleSelect = (v: string) => {
@@ -1112,7 +1173,7 @@ function KindPicker({
             ? <SelectedIcon className="size-3.5 shrink-0 text-muted-foreground" />
             : <Hash className="size-3.5 shrink-0 text-muted-foreground" />}
           <span className="flex-1 truncate">
-            {value === 'all' ? 'All' : value === 'custom' ? 'Custom…' : selected?.label ?? value}
+            {value === 'all' ? 'All' : value === 'custom' ? 'Custom…' : (selected?.label ?? value)}
           </span>
           <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
         </button>
@@ -1120,11 +1181,11 @@ function KindPicker({
       <PopoverContent
         align="start"
         side="bottom"
-        className="w-56 p-0 overflow-hidden"
-        style={{ maxHeight: '280px' }}
+        className="w-56 p-0 flex flex-col overflow-hidden"
+        style={{ maxHeight: 'min(280px, var(--radix-popover-content-available-height, 280px))' }}
       >
         {/* Search input */}
-        <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-border">
+        <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-border shrink-0">
           <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
           <input
             className="flex-1 text-xs bg-transparent outline-none placeholder:text-muted-foreground"
@@ -1140,18 +1201,18 @@ function KindPicker({
           )}
         </div>
 
-        {/* Scrollable list */}
-        <div className="overflow-y-auto" style={{ maxHeight: '216px' }}>
-          {/* All option */}
+        {/* Scroll carets + list */}
+        {canScrollUp && (
+          <KindScrollCaret direction="up" onMouseEnter={() => startScroll('up')} onMouseLeave={stopScroll} />
+        )}
+        <div
+          ref={refCallback}
+          className="overflow-y-auto flex-1 min-h-0"
+          onScroll={onScroll}
+        >
           {!search && (
-            <KindPickerItem
-              icon={null}
-              label="All kinds"
-              active={value === 'all'}
-              onClick={() => handleSelect('all')}
-            />
+            <KindPickerItem icon={null} label="All kinds" active={value === 'all'} onClick={() => handleSelect('all')} />
           )}
-
           {filtered.map((opt) => (
             <KindPickerItem
               key={opt.value}
@@ -1161,21 +1222,16 @@ function KindPicker({
               onClick={() => handleSelect(opt.value)}
             />
           ))}
-
-          {/* Custom option */}
           {(!search || 'custom'.includes(search.toLowerCase())) && (
-            <KindPickerItem
-              icon={Hash}
-              label="Custom kind…"
-              active={value === 'custom'}
-              onClick={() => handleSelect('custom')}
-            />
+            <KindPickerItem icon={Hash} label="Custom kind…" active={value === 'custom'} onClick={() => handleSelect('custom')} />
           )}
-
           {filtered.length === 0 && search && (
             <p className="text-xs text-muted-foreground text-center py-4">No kinds match</p>
           )}
         </div>
+        {canScrollDown && (
+          <KindScrollCaret direction="down" onMouseEnter={() => startScroll('down')} onMouseLeave={stopScroll} />
+        )}
       </PopoverContent>
     </Popover>
   );
