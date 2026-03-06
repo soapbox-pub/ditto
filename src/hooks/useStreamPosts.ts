@@ -2,12 +2,14 @@ import { useNostr } from '@nostrify/react';
 import { useState, useEffect, useMemo } from 'react';
 import { useFeedSettings } from './useFeedSettings';
 import { useMuteList } from './useMuteList';
+import { useContentFilters } from './useContentFilters';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAY } from '@/lib/appRelays';
+import { nip19 } from 'nostr-tools';
 
 interface StreamPostsOptions {
   includeReplies: boolean;
@@ -20,6 +22,13 @@ interface StreamPostsOptions {
    * The search will only query these specific kind numbers.
    */
   kindsOverride?: number[];
+  /**
+   * When set, limits results to events authored by these pubkeys.
+   * Each entry accepts raw hex or npub-encoded pubkeys.
+   */
+  authorPubkeys?: string[];
+  /** NIP-50 sort preference. 'recent' = default (no sort: term). */
+  sort?: 'recent' | 'hot' | 'trending';
 }
 
 /** Check if an event has imeta tags with image MIME types. */
@@ -41,11 +50,38 @@ function hasVideoImeta(event: NostrEvent): boolean {
  * Initial query uses relay-level filters (NIP-50 search), but streaming
  * events need client-side filtering since relays don't support streaming search.
  */
-function filterEvent(event: NostrEvent, options: StreamPostsOptions, searchQuery: string): boolean {
+function filterEvent(
+  event: NostrEvent,
+  options: StreamPostsOptions,
+  searchQuery: string,
+): boolean {
   const now = Math.floor(Date.now() / 1000);
   if (event.created_at > now) return false;
 
-  // Non-text events (extra kinds) pass through without filtering
+  // Protocol filter — streaming events carry a 'proxy' tag for bridged protocols.
+  // A missing proxy tag = native Nostr. Filter based on selected protocol.
+  const protocols = options.protocols ?? ['nostr'];
+  if (!protocols.includes('nostr') || protocols.length > 1) {
+    const proxyTag = event.tags.find(([name]) => name === 'proxy');
+    if (protocols.includes('nostr') && !protocols.some(p => p !== 'nostr')) {
+      // nostr only: reject events with a proxy tag
+      if (proxyTag) return false;
+    } else {
+      // bridged protocol selected: only keep events that have a matching proxy tag
+      // and optionally native nostr events if 'nostr' is also in protocols
+      const hasProxy = !!proxyTag;
+      const isNative = !hasProxy;
+      if (isNative && !protocols.includes('nostr')) return false;
+      if (hasProxy) {
+        // proxy tag format: ['proxy', '<uri>', '<protocol>']
+        const proxyProtocol = proxyTag?.[2]?.toLowerCase();
+        const wantedBridged = protocols.filter(p => p !== 'nostr');
+        if (!wantedBridged.some(p => proxyProtocol?.includes(p))) return false;
+      }
+    }
+  }
+
+  // Non-text events (extra kinds) pass through without further content filtering
   // Kind 1111 (NIP-22 comments) are treated like kind 1 for filtering purposes
   if (event.kind !== 1 && event.kind !== 1111) return true;
 
@@ -66,22 +102,23 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions, searchQuery
     const hasImages = hasImageImeta(event);
     const hasVideos = hasVideoImeta(event);
     switch (options.mediaType) {
-      case 'images': 
+      case 'images':
         if (!hasImages || hasVideos) return false;
         break;
-      case 'videos': 
+      case 'videos':
         if (!hasVideos) return false;
         break;
-      case 'vines': 
-        return false; // kind 1 posts aren't vines
-      case 'none': 
+      case 'vines':
+        // Vines are kinds 22/34236; kind 1 posts aren't vines — filter them out
+        // (streaming for vines uses kind 22/34236 in streamFilter, so kind 1 events
+        // that slip through from cache should be rejected)
+        if (event.kind === 1 || event.kind === 1111) return false;
+        break;
+      case 'none':
         if (hasImages || hasVideos) return false;
         break;
     }
   }
-
-  // Note: Language filtering is only done at relay-level (NIP-50 language:)
-  // We can't reliably detect language client-side for streaming events
 
   return true;
 }
@@ -96,8 +133,27 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
   const { muteItems } = useMuteList();
+  const { shouldFilterEvent } = useContentFilters();
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Resolve authorPubkeys: accept hex or npub-encoded entries
+  const resolvedAuthorPubkeys = useMemo(() => {
+    if (!options.authorPubkeys || options.authorPubkeys.length === 0) return undefined;
+    const resolved: string[] = [];
+    for (const raw of options.authorPubkeys) {
+      const t = raw.trim();
+      if (/^[0-9a-f]{64}$/i.test(t)) {
+        resolved.push(t);
+      } else {
+        try {
+          const decoded = nip19.decode(t);
+          if (decoded.type === 'npub') resolved.push(decoded.data);
+        } catch { /* ignore */ }
+      }
+    }
+    return resolved.length > 0 ? resolved : undefined;
+  }, [options.authorPubkeys]);
 
   // These mediaTypes query dedicated event kinds rather than filtering kind 1
   const isDedicatedKindQuery = !options.kindsOverride && (options.mediaType === 'vines' || options.mediaType === 'images' || options.mediaType === 'videos');
@@ -110,6 +166,9 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
   // Stable key for kindsOverride
   const kindsOverrideKey = options.kindsOverride ? [...options.kindsOverride].sort().join(',') : '';
+
+  // Stable key for authorPubkeys (follows list)
+  const authorPubkeysKey = options.authorPubkeys ? [...options.authorPubkeys].sort().join(',') : '';
 
   useEffect(() => {
     const ac = new AbortController();
@@ -197,6 +256,19 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       initialFilter.search = searchParts.join(' ');
     }
 
+    // Author filter — scopes both the initial batch and streaming subscription.
+    if (resolvedAuthorPubkeys && resolvedAuthorPubkeys.length > 0) {
+      initialFilter.authors = resolvedAuthorPubkeys;
+      streamFilter.authors = resolvedAuthorPubkeys;
+    }
+
+    // Sort preference (NIP-50 extension)
+    if (options.sort === 'hot') {
+      searchParts.push('sort:hot');
+    } else if (options.sort === 'trending') {
+      searchParts.push('sort:trending');
+    }
+
     // 1. Fetch initial batch with search filters (uses pool, reuses existing connections)
     (async () => {
       try {
@@ -247,17 +319,21 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols is stabilized via protocolsKey; kindsOverride is stabilized via kindsOverrideKey
-  }, [nostr, query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols is stabilized via protocolsKey; kindsOverride is stabilized via kindsOverrideKey; authorPubkeys is stabilized via authorPubkeysKey
+  }, [nostr, query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey, authorPubkeysKey, options.sort]);
 
-  // Apply client-side filters (including mute filtering) without restarting the stream
+  // Apply client-side filters (including mute filtering and content filters) without restarting the stream
   const posts = useMemo(() => {
+    const authorSet = resolvedAuthorPubkeys ? new Set(resolvedAuthorPubkeys) : undefined;
     return allEvents.filter((event) => {
       if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+      if (shouldFilterEvent(event)) return false;
+      // Client-side author filter for streaming events (relay filter handles initial batch)
+      if (authorSet && !authorSet.has(event.pubkey)) return false;
       return filterEvent(event, options, query);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
-  }, [allEvents, options.includeReplies, options.mediaType, protocolsKey, query, muteItems]);
+  }, [allEvents, options.includeReplies, options.mediaType, protocolsKey, query, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey]);
 
   return { posts, isLoading };
 }
