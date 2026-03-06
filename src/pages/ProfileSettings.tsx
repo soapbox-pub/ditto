@@ -264,7 +264,7 @@ export function ProfileSettings() {
           {/* Profile fields — collapsible */}
           <Collapsible open={fieldsOpen} onOpenChange={setFieldsOpen}>
             <CollapsibleTrigger asChild>
-              <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent">
+              <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
                 <span className="text-sm font-medium">Profile Fields</span>
                 <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
               </Button>
@@ -355,7 +355,7 @@ export function ProfileSettings() {
           {/* Advanced */}
           <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
             <CollapsibleTrigger asChild>
-              <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent">
+              <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
                 <span className="text-sm font-medium">Advanced</span>
                 <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
               </Button>
