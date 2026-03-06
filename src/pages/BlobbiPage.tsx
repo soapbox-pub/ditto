@@ -1,12 +1,13 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, Sparkles, RefreshCw } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, Sparkles, RefreshCw, ArrowLeftRight, Check } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbisCollection } from '@/hooks/useBlobbisCollection';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { isLegacyBlobbiD } from '@/lib/blobbi';
 import { toast } from '@/hooks/useToast';
 
@@ -15,7 +16,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+
+/**
+ * Get the localStorage key for the selected Blobbi.
+ * User-scoped: blobbi:selected:d:<pubkey>
+ */
+function getSelectedBlobbiKey(pubkey: string): string {
+  return `blobbi:selected:d:${pubkey}`;
+}
 
 import {
   KIND_BLOBBI_STATE,
@@ -82,38 +92,74 @@ function BlobbiContent() {
     updateProfileEvent,
   } = useBlobbonautProfile();
   
-  // Build the list of all d-tags to fetch:
-  // unique(profile.has[] + currentCompanion if present)
+  // STEP 1: Build dList from profile.has[] + currentCompanion
   const dList = useMemo(() => {
     if (!profile) return undefined;
     
+    // Build unique list: profile.has[] + currentCompanion (if not already in list)
     const allDs = new Set<string>(profile.has);
-    if (profile.currentCompanion) {
+    if (profile.currentCompanion && !allDs.has(profile.currentCompanion)) {
       allDs.add(profile.currentCompanion);
     }
     
     const result = Array.from(allDs);
-    console.log('[BlobbiContent] dList for collection query:', result);
+    
+    // Debug log as specified
+    console.log('[Blobbi] dList:', result);
+    
     return result.length > 0 ? result : undefined;
   }, [profile]);
   
-  // Fetch ALL Blobbi pets for this user
+  // STEP 2 & 3: Fetch ALL Blobbi pets (with chunking in the hook)
   const {
     companionsByD,
+    companions,
     isLoading: collectionLoading,
     isFetching: collectionFetching,
     invalidate: invalidateCollection,
     updateCompanionEvent,
   } = useBlobbisCollection(dList);
   
-  // Determine the selected companion:
-  // Priority: currentCompanion > first in has[] > undefined
+  // STEP 5: localStorage for UI selection (user-scoped key)
+  const localStorageKey = user?.pubkey ? getSelectedBlobbiKey(user.pubkey) : 'blobbi:selected:d:none';
+  const [storedSelectedD, setStoredSelectedD] = useLocalStorage<string | null>(localStorageKey, null);
+  
+  // State for showing the Blobbi selector modal
+  const [showSelector, setShowSelector] = useState(false);
+  
+  // STEP 6: Selection Priority
+  // 1) localStorage selection (if valid and exists in collection)
+  // 2) first item from profile.has that exists in companionsByD
+  // 3) undefined (show selector)
   const selectedD = useMemo(() => {
     if (!profile) return undefined;
-    if (profile.currentCompanion) return profile.currentCompanion;
-    if (profile.has.length > 0) return profile.has[0];
+    
+    // Priority 1: localStorage selection (if it exists in loaded collection)
+    if (storedSelectedD && companionsByD[storedSelectedD]) {
+      console.log('[Blobbi] Using localStorage selection:', storedSelectedD);
+      return storedSelectedD;
+    }
+    
+    // Priority 2: First item from profile.has that exists in companionsByD
+    for (const d of profile.has) {
+      if (companionsByD[d]) {
+        console.log('[Blobbi] Using first valid from profile.has:', d);
+        return d;
+      }
+    }
+    
+    // Priority 3: No valid selection
+    console.log('[Blobbi] No valid selection found');
     return undefined;
-  }, [profile]);
+  }, [profile, storedSelectedD, companionsByD]);
+  
+  // Auto-save selection to localStorage when it changes
+  useEffect(() => {
+    if (selectedD && selectedD !== storedSelectedD) {
+      console.log('[Blobbi] Auto-saving selection to localStorage:', selectedD);
+      setStoredSelectedD(selectedD);
+    }
+  }, [selectedD, storedSelectedD, setStoredSelectedD]);
   
   // Get the selected companion from the collection
   const companion = selectedD ? companionsByD[selectedD] ?? null : null;
@@ -126,10 +172,14 @@ function BlobbiContent() {
   const companionFetching = collectionFetching;
   const invalidateCompanion = invalidateCollection;
   
-  // For compatibility with existing code, use selectedD as effectiveCompanionD
-  const effectiveCompanionD = selectedD;
-  
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  
+  // Handler for selecting a Blobbi from the selector
+  const handleSelectBlobbi = useCallback((d: string) => {
+    console.log('[Blobbi] User selected:', d);
+    setStoredSelectedD(d);
+    setShowSelector(false);
+  }, [setStoredSelectedD]);
   
   // ─── Helper: Migrate Legacy Pet ───
   const migrateLegacyPet = useCallback(async (): Promise<{ canonicalD: string; event: import('@nostrify/nostrify').NostrEvent } | null> => {
@@ -432,9 +482,9 @@ function BlobbiContent() {
     );
   }
   
-  // Profile exists, but no effectiveCompanionD (no current_companion and empty has[])
+  // Profile exists, but dList is empty (no pets in profile.has and no currentCompanion)
   // Case C: Profile exists but no pets → show "Create Egg"
-  if (!effectiveCompanionD) {
+  if (!dList || dList.length === 0) {
     return (
       <main className="flex flex-col items-center justify-center p-6 gap-6 min-h-[60vh]">
         <div className="flex flex-col items-center gap-4 text-center max-w-sm">
@@ -468,15 +518,29 @@ function BlobbiContent() {
     );
   }
   
-  // We have effectiveCompanionD, wait for companion to load
-  if (companionLoading && !companion) {
+  // We have dList, wait for collection to load
+  if (companionLoading) {
     return <LoadingState />;
   }
   
-  // effectiveCompanionD exists but companion query returned null
-  // This could mean the pet doesn't exist on relays yet, or the event is invalid
-  // Show a helpful state instead of "Create Egg"
-  if (!companion) {
+  // STEP 7: No valid selection but we have pets → show Blobbi Selector
+  // This happens when:
+  // - localStorage selection doesn't exist in companionsByD
+  // - No item from profile.has exists in companionsByD
+  // - But we have loaded companions available
+  if (!selectedD && companions.length > 0) {
+    return (
+      <BlobbiSelectorPage
+        companions={companions}
+        onSelect={handleSelectBlobbi}
+        isLoading={companionFetching}
+      />
+    );
+  }
+  
+  // dList has items but collection is empty after loading
+  // This could mean the pets don't exist on relays yet
+  if (!selectedD || companions.length === 0) {
     return (
       <main className="flex flex-col items-center justify-center p-6 gap-6 min-h-[60vh]">
         <div className="flex flex-col items-center gap-4 text-center max-w-sm">
@@ -517,6 +581,17 @@ function BlobbiContent() {
     );
   }
   
+  // Selected companion not found in collection (shouldn't happen, but safety check)
+  if (!companion) {
+    return (
+      <BlobbiSelectorPage
+        companions={companions}
+        onSelect={handleSelectBlobbi}
+        isLoading={companionFetching}
+      />
+    );
+  }
+  
   // Case A: Profile exists and companion exists → Render the Blobbi
   return (
     <main className="container max-w-2xl mx-auto p-4 pb-20 space-y-6">
@@ -535,6 +610,34 @@ function BlobbiContent() {
           {(profileFetching || companionFetching) && (
             <RefreshCw className="size-4 text-muted-foreground animate-spin" />
           )}
+          
+          {/* STEP 8: Switch Blobbi Button */}
+          {companions.length > 1 && (
+            <Dialog open={showSelector} onOpenChange={setShowSelector}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1">
+                  <ArrowLeftRight className="size-3" />
+                  Switch
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Switch Blobbi</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-3 pt-2">
+                  {companions.map((c) => (
+                    <BlobbiSelectorCard
+                      key={c.d}
+                      companion={c}
+                      onSelect={() => handleSelectBlobbi(c.d)}
+                      isSelected={c.d === selectedD}
+                    />
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+          
           <Badge variant={companion.state === 'sleeping' ? 'secondary' : 'default'}>
             {companion.state === 'sleeping' ? (
               <>
@@ -746,6 +849,130 @@ function InfoItem({ label, value }: { label: string; value: string }) {
       <p className="text-muted-foreground text-xs">{label}</p>
       <p className="font-medium">{value}</p>
     </div>
+  );
+}
+
+// ─── Blobbi Selector Page ─────────────────────────────────────────────────────
+
+interface BlobbiSelectorPageProps {
+  companions: BlobbiCompanion[];
+  onSelect: (d: string) => void;
+  isLoading?: boolean;
+}
+
+function BlobbiSelectorPage({ companions, onSelect, isLoading }: BlobbiSelectorPageProps) {
+  return (
+    <main className="container max-w-2xl mx-auto p-4 pb-20 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Egg className="size-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">Choose Your Blobbi</h1>
+            <p className="text-sm text-muted-foreground">Select a companion to care for</p>
+          </div>
+        </div>
+        {isLoading && (
+          <RefreshCw className="size-4 text-muted-foreground animate-spin" />
+        )}
+      </div>
+      
+      {/* Blobbi List */}
+      <div className="grid gap-4">
+        {companions.map((companion) => (
+          <BlobbiSelectorCard
+            key={companion.d}
+            companion={companion}
+            onSelect={() => onSelect(companion.d)}
+          />
+        ))}
+      </div>
+    </main>
+  );
+}
+
+// ─── Blobbi Selector Card ─────────────────────────────────────────────────────
+
+interface BlobbiSelectorCardProps {
+  companion: BlobbiCompanion;
+  onSelect: () => void;
+  isSelected?: boolean;
+}
+
+function BlobbiSelectorCard({ companion, onSelect, isSelected }: BlobbiSelectorCardProps) {
+  const isSleeping = companion.state === 'sleeping';
+  
+  return (
+    <Card 
+      className={cn(
+        'cursor-pointer transition-all hover:border-primary/50 hover:shadow-md',
+        isSelected && 'border-primary ring-2 ring-primary/20'
+      )}
+      onClick={onSelect}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center gap-4">
+          {/* Blobbi Visual */}
+          <div
+            className={cn(
+              'size-16 rounded-full flex items-center justify-center shrink-0',
+              'bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100',
+              'dark:from-amber-900/30 dark:via-orange-900/20 dark:to-yellow-900/30',
+              'border-2 border-amber-200 dark:border-amber-800',
+              isSleeping && 'opacity-70'
+            )}
+          >
+            <Egg className={cn(
+              'size-8 text-amber-500',
+              !isSleeping && 'animate-pulse'
+            )} />
+          </div>
+          
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold truncate">{companion.name}</h3>
+              {isSelected && (
+                <Check className="size-4 text-primary shrink-0" />
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground capitalize">
+              {companion.stage} Blobbi
+            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant={isSleeping ? 'secondary' : 'default'} className="text-xs">
+                {isSleeping ? (
+                  <>
+                    <Moon className="size-3 mr-1" />
+                    Sleeping
+                  </>
+                ) : (
+                  <>
+                    <Sun className="size-3 mr-1" />
+                    Active
+                  </>
+                )}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                {companion.visibleToOthers ? (
+                  <>
+                    <Eye className="size-3 mr-1" />
+                    Visible
+                  </>
+                ) : (
+                  <>
+                    <EyeOff className="size-3 mr-1" />
+                    Hidden
+                  </>
+                )}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
