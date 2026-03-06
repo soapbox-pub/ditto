@@ -446,6 +446,74 @@ export const themePresets: Record<string, ThemePreset> = {
       mimeType: 'image/jpeg',
     },
   },
+
+  silenttorii: {
+    label: 'Silent Torii',
+    emoji: '⛩️',
+    featured: true,
+    colors: {
+      primary: '3 62% 50%',
+      text: '0 0% 100%',
+      background: '0 7% 22%',
+    },
+    font: { family: 'DM Sans' },
+    background: {
+      url: 'https://blossom.ditto.pub/7a609544b62918264b6cfd1f05ae38f9ed9a7922465a4ecc2edbb1a769f887d0.jpeg',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  quiethorizon: {
+    label: 'Quiet Horizon',
+    emoji: '🌅',
+    featured: true,
+    colors: {
+      primary: '170 15% 39%',
+      text: '0 0% 100%',
+      background: '0 7% 22%',
+    },
+    font: { family: 'Lora' },
+    background: {
+      url: 'https://blossom.ditto.pub/3fc3800e0551340c000a0ac75496e642f6dbd5bddf17c5ba7f4c4ebfc8bae55f.jpeg',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  wherepathsmeet: {
+    label: 'Where Paths Meet',
+    emoji: '🌉',
+    featured: true,
+    colors: {
+      primary: '180 11% 78%',
+      text: '120 3% 81%',
+      background: '180 19% 15%',
+    },
+    font: { family: 'DM Sans' },
+    background: {
+      url: 'https://blossom.ditto.pub/a9f38f1bda2d7d984167f3b1197d3d2c7280a650ad609d24f97e35795f7cfd17.jpeg',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  once: {
+    label: 'Once',
+    emoji: '🎲',
+    featured: true,
+    colors: {
+      primary: '217 94% 72%',
+      text: '120 3% 81%',
+      background: '210 17% 7%',
+    },
+    font: { family: 'Outfit' },
+    background: {
+      url: 'https://picsum.photos/1920/1080',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
 };
 
 /** Converts a camelCase key to a CSS custom property name, e.g. primaryForeground → --primary-foreground */
