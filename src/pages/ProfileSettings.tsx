@@ -62,7 +62,8 @@ const WALLET_TICKERS = [
 
 /** Infer the field type from stored label/value when loading from existing data. */
 function inferFieldType(label: string, value: string): 'text' | 'wallet' | 'media' {
-  if (WALLET_TICKERS.includes(label.toUpperCase() as typeof WALLET_TICKERS[number])) return 'wallet';
+  const ticker = label.replace(/^\$/, '').toUpperCase();
+  if (WALLET_TICKERS.includes(ticker as typeof WALLET_TICKERS[number])) return 'wallet';
   // Known media file extensions
   if (/^https?:\/\/.+\.(jpe?g|png|gif|webp|svg|avif|mp4|webm|mov|mp3|ogg|wav|flac)(\?.*)?$/i.test(value)) return 'media';
   // Blossom-style URLs: path is a long hex hash (SHA-256), optionally with an extension
@@ -238,7 +239,12 @@ export function ProfileSettings() {
       if (Array.isArray(parsed.fields)) {
         return parsed.fields
           .filter((f: unknown) => Array.isArray(f) && f.length >= 2)
-          .map((f: string[]) => ({ label: f[0], value: f[1], type: inferFieldType(f[0], f[1]) }));
+          .map((f: string[]) => {
+            const type = inferFieldType(f[0], f[1]);
+            // Normalize wallet labels so the Select value matches a ticker (e.g. "$BTC" → "BTC")
+            const label = type === 'wallet' ? f[0].replace(/^\$/, '').toUpperCase() : f[0];
+            return { label, value: f[1], type };
+          });
       }
     } catch { /* ignore */ }
     return [];
