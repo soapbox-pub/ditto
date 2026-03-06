@@ -940,6 +940,9 @@ export function ProfilePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileSavedFeeds]);
 
+  // Whether the profile has any visible tabs.
+  const hasTabs = viewTabs.length > 0;
+
   // Infinite-scroll profile feed (posts/replies/media).
   // The first page piggybacks kind 0, seeding the author cache so the
   // profile header renders from the same relay round-trip as the feed.
@@ -949,7 +952,7 @@ export function ProfilePage() {
     fetchNextPage: fetchNextFeedPage,
     hasNextPage: hasNextFeedPage,
     isFetchingNextPage: isFetchingNextFeedPage,
-  } = useProfileFeed(pubkey);
+  } = useProfileFeed(pubkey, hasTabs);
 
   // Kind 0 — resolved from the author cache (seeded by the feed query above).
   const author = useAuthor(pubkey);
@@ -986,7 +989,7 @@ export function ProfilePage() {
     fetchNextPage: fetchNextMediaPage,
     hasNextPage: hasNextMediaPage,
     isFetchingNextPage: isFetchingNextMediaPage,
-  } = useProfileMedia(pubkey);
+  } = useProfileMedia(pubkey, hasTabs);
 
   // Infinite-scroll likes
   const {
@@ -995,7 +998,7 @@ export function ProfilePage() {
     fetchNextPage: fetchNextLikesPage,
     hasNextPage: hasNextLikesPage,
     isFetchingNextPage: isFetchingNextLikesPage,
-  } = useProfileLikesInfinite(pubkey, activeTab === 'likes');
+  } = useProfileLikesInfinite(pubkey, hasTabs && activeTab === 'likes');
 
   // Wall comments (NIP-22 kind 1111 on user's kind 0, filtered by their follow list)
   const wallFollowList = useMemo(() => supplementary?.following, [supplementary?.following]);
@@ -1005,7 +1008,7 @@ export function ProfilePage() {
     fetchNextPage: fetchNextWallPage,
     hasNextPage: hasNextWallPage,
     isFetchingNextPage: isFetchingNextWallPage,
-  } = useWallComments(pubkey, wallFollowList);
+  } = useWallComments(pubkey, hasTabs ? wallFollowList : undefined);
 
   // Synthetic kind 0 event for the ComposeBox replyTo (NIP-22 comments on the profile)
   const wallReplyTarget = useMemo((): NostrEvent | undefined => {
@@ -1999,7 +2002,7 @@ export function ProfilePage() {
         )}
 
         {/* Pinned posts (only on Posts tab) */}
-        {activeTab === 'posts' && pinnedIds.length > 0 && (
+        {hasTabs && activeTab === 'posts' && pinnedIds.length > 0 && (
           <div>
             {pinnedEventsLoading ? (
               pinnedIds.map((id) => (
@@ -2032,7 +2035,7 @@ export function ProfilePage() {
         )}
 
         {/* Wall tab content */}
-        {activeTab === 'wall' && (
+        {hasTabs && activeTab === 'wall' && (
           <div>
             {/* Inline compose box for wall comments (only shown if the profile owner follows you) */}
             {wallReplyTarget && profileFollowsMe && (
@@ -2111,7 +2114,7 @@ export function ProfilePage() {
         )}
 
         {/* Media tab — 3-column grid with lightbox */}
-        {activeTab === 'media' && (
+        {hasTabs && activeTab === 'media' && (
           <div>
             {mediaPending ? (
               <MediaGridSkeleton count={15} />
@@ -2140,12 +2143,12 @@ export function ProfilePage() {
         )}
 
         {/* Custom saved-feed tab content */}
-        {!isCoreProfileTab && profileSavedFeeds.find((t) => t.label === activeTab) && (
+        {hasTabs && !isCoreProfileTab && profileSavedFeeds.find((t) => t.label === activeTab) && (
           <ProfileSavedFeedContent feed={profileSavedFeeds.find((t) => t.label === activeTab)!} />
         )}
 
         {/* Tab content (posts / replies / likes) */}
-        {isCoreProfileTab && activeTab !== 'wall' && activeTab !== 'media' && (
+        {hasTabs && isCoreProfileTab && activeTab !== 'wall' && activeTab !== 'media' && (
         <div>
           {currentLoading ? (
             <div className="space-y-0">
