@@ -6,6 +6,7 @@
 |-------|----------------------|-------------------------------------------------------|
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
+| 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
 
 ---
 
@@ -154,3 +155,59 @@ Format: `["bg", "url <url>", "mode <mode>", "m <mime-type>", ...]`
 - At most one `bg` tag is allowed per event.
 - Clients MAY choose not to render video backgrounds for performance or bandwidth reasons.
 - Unknown keys SHOULD be ignored for forward compatibility.
+
+---
+
+## Kind 16769: Profile Tabs
+
+### Summary
+
+Replaceable event kind for publishing a user's custom profile page tabs. Exactly one event per user (no `d` tag). Each tab is a saved search feed scoped to the author's pubkey.
+
+Visitors who load a profile fetch this event to display the custom tabs alongside the standard Posts / Media / Likes / Wall tabs.
+
+### Event Structure
+
+```json
+{
+  "kind": 16769,
+  "content": "",
+  "tags": [
+    ["tab", "<label>", "<filtersJSON>"],
+    ["tab", "<label>", "<filtersJSON>"],
+    ["alt", "Custom profile tabs"]
+  ]
+}
+```
+
+### Tags
+
+| Tag     | Values               | Description                                              |
+|---------|----------------------|----------------------------------------------------------|
+| `tab`   | `label, filtersJSON` | One tag per custom tab. Order defines display order.     |
+| `alt`   | `"Custom profile tabs"` | NIP-31 human-readable fallback. Required.             |
+
+### Tab Filters JSON
+
+The third value of each `tab` tag is a JSON-encoded object matching the `SavedFeedFilters` schema:
+
+```json
+{
+  "query": "bitcoin",
+  "mediaType": "all",
+  "language": "global",
+  "platform": "nostr",
+  "kindFilter": "all",
+  "customKindText": "",
+  "authorScope": "people",
+  "authorPubkeys": ["<hex-pubkey>"],
+  "sort": "recent"
+}
+```
+
+### Behavior
+
+- To **add or update** tabs: publish a new kind 16769 event with all current `tab` tags.
+- To **clear** all tabs: publish a kind 16769 event with no `tab` tags (only `alt`).
+- Clients MUST filter by `authors: [pubkey]` when querying to prevent spoofing.
+- The `authorPubkeys` field inside filters SHOULD always include the profile owner's pubkey so tabs show the owner's own posts.

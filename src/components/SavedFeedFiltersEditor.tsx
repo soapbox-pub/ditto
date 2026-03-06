@@ -291,6 +291,10 @@ interface SavedFeedFiltersEditorProps {
   onChange: (patch: Partial<SavedFeedFilters>) => void;
   /** When true, the query input is shown at the top (default: true) */
   showQuery?: boolean;
+  /** Hide the From / author scope section (e.g. profile tabs where author is implicit) */
+  hideFrom?: boolean;
+  /** Hide the Sort section */
+  hideSort?: boolean;
   /** Optional: pre-built kind options (pass to avoid rebuilding) */
   kindOptions?: KindOption[];
 }
@@ -299,6 +303,8 @@ export function SavedFeedFiltersEditor({
   value,
   onChange,
   showQuery = true,
+  hideFrom = false,
+  hideSort = false,
   kindOptions: kindOptionsProp,
 }: SavedFeedFiltersEditorProps) {
   const kindOptions = useMemo(() => kindOptionsProp ?? buildKindOptions(), [kindOptionsProp]);
@@ -340,72 +346,78 @@ export function SavedFeedFiltersEditor({
       )}
 
       {/* Author scope */}
-      <div className="space-y-1.5">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">From</span>
-        <div className="flex rounded-lg border border-border overflow-hidden">
-          {([
-            ['anyone', 'Anyone', Globe],
-            ['follows', 'Follows', Users],
-            ['people', 'People', UserSearch],
-          ] as const).map(([scope, label, Icon]) => (
-            <button
-              key={scope}
-              onClick={() => setAuthorScope(scope)}
-              className={cn(
-                'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
-                authorScope === scope
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
-              )}
-            >
-              <Icon className="size-3.5 shrink-0" />
-              {label}
-            </button>
-          ))}
-        </div>
-        {authorScope === 'people' && (
+      {!hideFrom && (
+        <>
           <div className="space-y-1.5">
-            {authorPubkeys.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {authorPubkeys.map((pk) => (
-                  <AuthorChip key={pk} pubkey={pk} onRemove={() => removeAuthor(pk)} />
-                ))}
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">From</span>
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              {([
+                ['anyone', 'Anyone', Globe],
+                ['follows', 'Follows', Users],
+                ['people', 'People', UserSearch],
+              ] as const).map(([scope, label, Icon]) => (
+                <button
+                  key={scope}
+                  onClick={() => setAuthorScope(scope)}
+                  className={cn(
+                    'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
+                    authorScope === scope
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
+                  )}
+                >
+                  <Icon className="size-3.5 shrink-0" />
+                  {label}
+                </button>
+              ))}
+            </div>
+            {authorScope === 'people' && (
+              <div className="space-y-1.5">
+                {authorPubkeys.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {authorPubkeys.map((pk) => (
+                      <AuthorChip key={pk} pubkey={pk} onRemove={() => removeAuthor(pk)} />
+                    ))}
+                  </div>
+                )}
+                <AuthorFilterDropdown onCommit={addAuthor} />
               </div>
             )}
-            <AuthorFilterDropdown onCommit={addAuthor} />
           </div>
-        )}
-      </div>
-
-      <Separator />
+          <Separator />
+        </>
+      )}
 
       {/* Sort */}
-      <div className="space-y-1.5">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sort</span>
-        <div className="flex rounded-lg border border-border overflow-hidden">
-          {([
-            ['recent', 'Recent', Clock],
-            ['hot', 'Hot', Flame],
-            ['trending', 'Trending', TrendingUp],
-          ] as const).map(([s, label, Icon]) => (
-            <button
-              key={s}
-              onClick={() => onChange({ sort: s })}
-              className={cn(
-                'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
-                sort === s
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
-              )}
-            >
-              <Icon className="size-3.5 shrink-0" />
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <Separator />
+      {!hideSort && (
+        <>
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sort</span>
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              {([
+                ['recent', 'Recent', Clock],
+                ['hot', 'Hot', Flame],
+                ['trending', 'Trending', TrendingUp],
+              ] as const).map(([s, label, Icon]) => (
+                <button
+                  key={s}
+                  onClick={() => onChange({ sort: s })}
+                  className={cn(
+                    'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
+                    sort === s
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
+                  )}
+                >
+                  <Icon className="size-3.5 shrink-0" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Separator />
+        </>
+      )}
 
       {/* Media + Platform */}
       <div className="grid grid-cols-2 gap-2">
