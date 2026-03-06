@@ -5,49 +5,38 @@ import {
   Search as SearchIcon,
   UserRoundCheck,
   User,
-  Users,
-  Globe,
-  UserSearch,
-  Clock,
-  Flame,
-  TrendingUp,
   RotateCcw,
-  X,
-  Info,
   BookmarkPlus,
   Check,
   Loader2,
-  ChevronDown,
-  ChevronUp,
-  Hash,
 } from 'lucide-react';
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmojifiedText } from '@/components/CustomEmoji';
-import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
-import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
+import { SavedFeedFiltersEditor, buildKindOptions } from '@/components/SavedFeedFiltersEditor';
+import { useSearchProfiles } from '@/hooks/useSearchProfiles';
+import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
-import { useAuthor } from '@/hooks/useAuthor';
+
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
-import { EXTRA_KINDS } from '@/lib/extraKinds';
-import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
+
 
 
 type TabType = 'posts' | 'accounts';
@@ -172,30 +161,7 @@ export function SearchPage() {
     }, { replace: true });
   }, [setSearchParams]);
 
-  /** Add a resolved pubkey to the author list. */
-  const addAuthor = useCallback((pubkey: string, _label: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set('authorScope', 'people');
-      // Avoid duplicates
-      if (!next.getAll('author').includes(pubkey)) {
-        next.append('author', pubkey);
-      }
-      return next;
-    }, { replace: true });
-  }, [setSearchParams]);
 
-  /** Remove a single author from the list by pubkey. */
-  const removeAuthor = useCallback((pubkey: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      const remaining = next.getAll('author').filter(a => a !== pubkey);
-      next.delete('author');
-      remaining.forEach(a => next.append('author', a));
-      if (remaining.length === 0) next.delete('authorScope');
-      return next;
-    }, { replace: true });
-  }, [setSearchParams]);
 
   // Update tab in URL
   const setActiveTab = useCallback((tab: TabType) => {
@@ -245,45 +211,7 @@ export function SearchPage() {
 
   const protocols = useMemo(() => [platform], [platform]);
 
-  // Build a flat list of (kind, label, icon) options from EXTRA_KINDS for the dropdown
-  const kindOptions = useMemo(() => {
-    type KindOption = {
-      value: string;
-      label: string;
-      description: string;
-      parentId: string;
-      icon: React.ComponentType<{ className?: string }> | undefined;
-    };
-    const options: KindOption[] = [];
-    for (const def of EXTRA_KINDS) {
-      if (def.subKinds) {
-        for (const sub of def.subKinds) {
-          options.push({
-            value: String(sub.kind),
-            label: `${sub.label} (${sub.kind})`,
-            description: sub.description,
-            parentId: def.id,
-            icon: CONTENT_KIND_ICONS[def.id],
-          });
-        }
-      } else {
-        options.push({
-          value: String(def.kind),
-          label: `${def.label} (${def.kind})`,
-          description: def.description,
-          parentId: def.id,
-          icon: CONTENT_KIND_ICONS[def.id],
-        });
-      }
-    }
-    // Deduplicate by value (kind number) keeping first occurrence
-    const seen = new Set<string>();
-    return options.filter((o) => {
-      if (seen.has(o.value)) return false;
-      seen.add(o.value);
-      return true;
-    });
-  }, []);
+  const kindOptions = useMemo(() => buildKindOptions(), []);
 
   // Resolve kindsOverride from the current kind filter state
   const kindsOverride = useMemo<number[] | undefined>(() => {
@@ -524,8 +452,6 @@ export function SearchPage() {
                   </button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-80 p-3 space-y-3">
-
-                  {/* Header */}
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-sm">Filters</span>
                     {hasActiveFilters && (
@@ -539,151 +465,34 @@ export function SearchPage() {
                     )}
                   </div>
 
-                  {/* Author scope — 3-segment toggle */}
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">From</span>
-                    <div className="flex rounded-lg border border-border overflow-hidden">
-                      {([
-                        ['anyone', 'Anyone', Globe],
-                        ['follows', 'Follows', Users],
-                        ['people', 'People', UserSearch],
-                      ] as const).map(([scope, label, Icon]) => (
-                        <button
-                          key={scope}
-                          onClick={() => setAuthorScope(scope)}
-                          className={cn(
-                            'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
-                            authorScope === scope
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
-                          )}
-                        >
-                          <Icon className="size-3.5 shrink-0" />
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                    {authorScope === 'people' && (
-                      <div className="space-y-1.5">
-                        {/* Chips for each selected author */}
-                        {authorPubkeys.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {authorPubkeys.map((pk) => (
-                              <AuthorChip key={pk} pubkey={pk} onRemove={() => removeAuthor(pk)} />
-                            ))}
-                          </div>
-                        )}
-                        <AuthorFilterDropdown onCommit={addAuthor} />
-                      </div>
-                    )}
-                  </div>
+                  <SavedFeedFiltersEditor
+                    showQuery={false}
+                    value={{ query: searchQuery.trim(), mediaType, language, platform, kindFilter, customKindText, authorScope, authorPubkeys, sort }}
+                    onChange={(patch) => {
+                      if ('authorScope' in patch && patch.authorScope !== undefined) setAuthorScope(patch.authorScope);
+                      if ('authorPubkeys' in patch && patch.authorPubkeys !== undefined) {
+                        // Sync array to URL repeated params
+                        setSearchParams((prev) => {
+                          const next = new URLSearchParams(prev);
+                          next.delete('author');
+                          (patch.authorPubkeys ?? []).forEach((pk) => next.append('author', pk));
+                          if ((patch.authorPubkeys ?? []).length === 0) next.delete('authorScope');
+                          return next;
+                        }, { replace: true });
+                      }
+                      if ('sort' in patch && patch.sort !== undefined) setSort(patch.sort);
+                      if ('mediaType' in patch && patch.mediaType !== undefined) setMediaType(patch.mediaType);
+                      if ('platform' in patch && patch.platform !== undefined) setPlatform(patch.platform);
+                      if ('language' in patch && patch.language !== undefined) setLanguage(patch.language);
+                      if ('kindFilter' in patch && patch.kindFilter !== undefined) setKindFilter(patch.kindFilter);
+                      if ('customKindText' in patch && patch.customKindText !== undefined) setCustomKindText(patch.customKindText);
+                    }}
+                    kindOptions={kindOptions}
+                  />
 
+                  {/* Include replies toggle — lives outside SavedFeedFilters schema */}
                   <Separator />
-
-                  {/* Media type + Replies row */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Media</span>
-                      <Select value={mediaType} onValueChange={setMediaType}>
-                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All</SelectItem>
-                          <SelectItem value="images">Images</SelectItem>
-                          <SelectItem value="videos">Videos</SelectItem>
-                          <SelectItem value="vines">Shorts</SelectItem>
-                          <SelectItem value="none">No media</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Platform</span>
-                      <Select value={platform} onValueChange={setPlatform}>
-                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="nostr">Nostr</SelectItem>
-                          <SelectItem value="activitypub">Mastodon</SelectItem>
-                          <SelectItem value="atproto">Bluesky</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Language + Kind row */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Language</span>
-                      <Select value={language} onValueChange={setLanguage}>
-                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="global">Global</SelectItem>
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="es">Spanish</SelectItem>
-                          <SelectItem value="fr">French</SelectItem>
-                          <SelectItem value="de">German</SelectItem>
-                          <SelectItem value="ja">Japanese</SelectItem>
-                          <SelectItem value="zh">Chinese</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kind</span>
-                      <KindPicker value={kindFilter} options={kindOptions} onChange={setKindFilter} />
-                    </div>
-                  </div>
-
-                  {kindFilter === 'custom' && (
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="e.g. 1, 30023"
-                      value={customKindText}
-                      onChange={(e) => setCustomKindText(e.target.value)}
-                      className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-xs h-8"
-                    />
-                  )}
-                  {hasKindMediaConflict && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
-                      <Info className="size-3.5 shrink-0 mt-0.5" />
-                      Media + Kind filters may conflict. Kind takes precedence.
-                    </p>
-                  )}
-
-                  {/* Sort + Replies row */}
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="space-y-1.5 flex-1">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sort</span>
-                      <div className="flex rounded-lg border border-border overflow-hidden">
-                        {([
-                          ['recent', 'Recent', Clock],
-                          ['hot', 'Hot', Flame],
-                          ['trending', 'Trending', TrendingUp],
-                        ] as const).map(([s, label, Icon]) => (
-                          <button
-                            key={s}
-                            onClick={() => setSort(s)}
-                            className={cn(
-                              'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
-                              sort === s
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
-                            )}
-                          >
-                            <Icon className="size-3.5 shrink-0" />
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Include replies toggle */}
-                  <div className="flex items-center justify-between pt-0.5">
+                  <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground">Include replies</span>
                     <Switch checked={includeReplies} onCheckedChange={setIncludeReplies} className="scale-90" />
                   </div>
@@ -1011,28 +820,6 @@ function AccountSkeleton() {
  *  - The user manually types a full npub1… / hex pubkey / NIP-05 and presses Enter or blurs
  */
 /** Small removable chip showing a single selected author. */
-function AuthorChip({ pubkey, onRemove }: { pubkey: string; onRemove: () => void }) {
-  const hexPubkey = useMemo(() => {
-    if (/^[0-9a-f]{64}$/i.test(pubkey)) return pubkey;
-    try { const d = nip19.decode(pubkey); return d.type === 'npub' ? d.data : pubkey; } catch { return pubkey; }
-  }, [pubkey]);
-  const author = useAuthor(hexPubkey);
-  const name = author.data?.metadata?.display_name || author.data?.metadata?.name || pubkey.slice(0, 10) + '…';
-  const picture = author.data?.metadata?.picture;
-  return (
-    <span className="inline-flex items-center gap-1.5 pl-1.5 pr-1 py-0.5 rounded-full bg-secondary border border-border text-xs max-w-[160px]">
-      {picture ? (
-        <img src={picture} alt="" className="size-4 rounded-full shrink-0 object-cover" />
-      ) : (
-        <User className="size-3 shrink-0 text-muted-foreground" />
-      )}
-      <span className="truncate">{name}</span>
-      <button onClick={onRemove} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors" aria-label="Remove">
-        <X className="size-3" />
-      </button>
-    </span>
-  );
-}
 
 function SaveDestinationRow({
   icon, label, description, onClick, disabled, loading,
@@ -1059,228 +846,4 @@ function SaveDestinationRow({
   );
 }
 
-type KindOption = {
-  value: string;
-  label: string;
-  description: string;
-  parentId: string;
-  icon: React.ComponentType<{ className?: string }> | undefined;
-};
 
-/** Reusable scroll-caret logic — same pattern as SidebarMoreMenu. */
-function useScrollCarets() {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const roRef = useRef<ResizeObserver | null>(null);
-  const [canScrollUp, setCanScrollUp] = useState(false);
-  const [canScrollDown, setCanScrollDown] = useState(false);
-
-  const update = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanScrollUp(el.scrollTop > 0);
-    setCanScrollDown(el.scrollTop + el.clientHeight < el.scrollHeight - 1);
-  }, []);
-
-  const refCallback = useCallback((el: HTMLDivElement | null) => {
-    roRef.current?.disconnect();
-    roRef.current = null;
-    (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-    if (!el) return;
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    roRef.current = ro;
-    update();
-  }, [update]);
-
-  const stopScroll = useCallback(() => {
-    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
-  }, []);
-
-  const startScroll = useCallback((direction: 'up' | 'down') => {
-    stopScroll();
-    intervalRef.current = setInterval(() => {
-      const el = scrollRef.current;
-      if (!el) return stopScroll();
-      el.scrollBy({ top: direction === 'up' ? -8 : 8 });
-      update();
-      const atLimit = direction === 'up' ? el.scrollTop <= 0 : el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
-      if (atLimit) stopScroll();
-    }, 16);
-  }, [update, stopScroll]);
-
-  useEffect(() => stopScroll, [stopScroll]);
-
-  return { refCallback, canScrollUp, canScrollDown, onScroll: update, startScroll, stopScroll };
-}
-
-function KindScrollCaret({ direction, onMouseEnter, onMouseLeave }: { direction: 'up' | 'down'; onMouseEnter: () => void; onMouseLeave: () => void }) {
-  return (
-    <button
-      className="flex cursor-default items-center justify-center py-0.5 w-full shrink-0 text-muted-foreground hover:text-foreground"
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-    >
-      {direction === 'up' ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-    </button>
-  );
-}
-
-function KindPicker({
-  value,
-  options,
-  onChange,
-}: {
-  value: string;
-  options: KindOption[];
-  onChange: (v: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const { refCallback, canScrollUp, canScrollDown, onScroll, startScroll, stopScroll } = useScrollCarets();
-
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    if (!q) return options;
-    return options.filter(
-      (o) =>
-        o.label.toLowerCase().includes(q) ||
-        o.description.toLowerCase().includes(q) ||
-        o.value.includes(q),
-    );
-  }, [options, search]);
-
-  const selected = value === 'all' || value === 'custom' ? null : options.find((o) => o.value === value);
-  const SelectedIcon = selected?.icon;
-
-  const handleSelect = (v: string) => {
-    onChange(v);
-    setOpen(false);
-    setSearch('');
-  };
-
-  return (
-    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(''); }}>
-      <PopoverTrigger asChild>
-        <button
-          className={cn(
-            'w-full h-8 px-2.5 rounded-md border bg-secondary/50 text-xs flex items-center gap-1.5 text-left transition-colors',
-            'hover:bg-secondary border-border',
-            open && 'border-ring ring-1 ring-ring',
-          )}
-        >
-          {SelectedIcon
-            ? <SelectedIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            : <Hash className="size-3.5 shrink-0 text-muted-foreground" />}
-          <span className="flex-1 truncate">
-            {value === 'all' ? 'All' : value === 'custom' ? 'Custom…' : (selected?.label ?? value)}
-          </span>
-          <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        side="bottom"
-        className="w-56 p-0 flex flex-col overflow-hidden"
-        style={{ maxHeight: 'min(280px, var(--radix-popover-content-available-height, 280px))' }}
-      >
-        {/* Search input */}
-        <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-border shrink-0">
-          <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-          <input
-            className="flex-1 text-xs bg-transparent outline-none placeholder:text-muted-foreground"
-            placeholder="Search kinds…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            autoFocus
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="text-muted-foreground hover:text-foreground">
-              <X className="size-3" />
-            </button>
-          )}
-        </div>
-
-        {/* Scroll carets + list */}
-        {canScrollUp && (
-          <KindScrollCaret direction="up" onMouseEnter={() => startScroll('up')} onMouseLeave={stopScroll} />
-        )}
-        <div
-          ref={refCallback}
-          className="overflow-y-auto flex-1 min-h-0"
-          onScroll={onScroll}
-        >
-          {!search && (
-            <KindPickerItem icon={null} label="All kinds" active={value === 'all'} onClick={() => handleSelect('all')} />
-          )}
-          {filtered.map((opt) => (
-            <KindPickerItem
-              key={opt.value}
-              icon={opt.icon ?? null}
-              label={opt.label}
-              active={value === opt.value}
-              onClick={() => handleSelect(opt.value)}
-            />
-          ))}
-          {(!search || 'custom'.includes(search.toLowerCase())) && (
-            <KindPickerItem icon={Hash} label="Custom kind…" active={value === 'custom'} onClick={() => handleSelect('custom')} />
-          )}
-          {filtered.length === 0 && search && (
-            <p className="text-xs text-muted-foreground text-center py-4">No kinds match</p>
-          )}
-        </div>
-        {canScrollDown && (
-          <KindScrollCaret direction="down" onMouseEnter={() => startScroll('down')} onMouseLeave={stopScroll} />
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function KindPickerItem({
-  icon: Icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: React.ComponentType<{ className?: string }> | null;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'w-full flex items-center gap-2 px-2.5 py-1.5 text-xs transition-colors text-left',
-        active
-          ? 'bg-primary/10 text-primary'
-          : 'hover:bg-secondary/60 text-foreground',
-      )}
-    >
-      {Icon
-        ? <Icon className="size-3.5 shrink-0 text-muted-foreground" />
-        : <span className="size-3.5 shrink-0" />}
-      <span className="truncate">{label}</span>
-      {active && <Check className="size-3 shrink-0 ml-auto text-primary" />}
-    </button>
-  );
-}
-
-function AuthorFilterDropdown({ onCommit }: { onCommit: (pubkey: string, label: string) => void }) {
-  const handleSelect = useCallback((profile: SearchProfile) => {
-    const npub = nip19.npubEncode(profile.pubkey);
-    const label = profile.metadata.display_name || profile.metadata.name || npub.slice(0, 16) + '…';
-    onCommit(npub, label);
-  }, [onCommit]);
-
-  return (
-    <ProfileSearchDropdown
-      placeholder="Search by name or npub…"
-      onSelect={handleSelect}
-      hideCountry
-      inputClassName="rounded-lg bg-secondary/50 border border-border focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 text-sm h-9"
-      className="w-full"
-    />
-  );
-}

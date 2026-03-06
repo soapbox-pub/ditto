@@ -53,7 +53,7 @@ export function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
  * Infinite-scroll hook for profile posts/replies/media.
  * Fetches paginated events for a given pubkey and tab.
  */
-export function useProfileFeed(pubkey: string | undefined) {
+export function useProfileFeed(pubkey: string | undefined, enabled = true) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { feedSettings } = useFeedSettings();
@@ -159,7 +159,7 @@ export function useProfileFeed(pubkey: string | undefined) {
       return lastPage.oldestQueryTimestamp - 1;
     },
     initialPageParam: undefined as number | undefined,
-    enabled: !!pubkey,
+    enabled: !!pubkey && enabled,
     staleTime: 30 * 1000,
   });
 }
