@@ -133,8 +133,17 @@ export interface SavedFeedFilters {
   platform: 'nostr' | 'activitypub' | 'atproto';
   kindFilter: string;
   customKindText: string;
-  /** Author pubkey (npub or hex) */
-  authorPubkey: string;
+  /**
+   * Who to show posts from:
+   * - 'anyone'   — no author restriction (global)
+   * - 'follows'  — only people the current user follows
+   * - 'people'   — one or more specific authors (see authorPubkeys)
+   */
+  authorScope: 'anyone' | 'follows' | 'people';
+  /** Author pubkeys (npub or hex). Only used when authorScope === 'people'. */
+  authorPubkeys: string[];
+  /** NIP-50 sort preference. 'recent' = default chronological. */
+  sort: 'recent' | 'hot' | 'trending';
 }
 
 /** A named feed tab saved from the search page. */
