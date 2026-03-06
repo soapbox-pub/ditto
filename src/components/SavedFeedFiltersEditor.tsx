@@ -19,15 +19,20 @@ import {
 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
+import { useFollowPacks } from '@/hooks/useFollowPacks';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
 import type { SearchProfile } from '@/hooks/useSearchProfiles';
+import type { UserList } from '@/hooks/useUserLists';
+import type { FollowPack } from '@/hooks/useFollowPacks';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -241,6 +246,296 @@ export function KindPicker({ value, options, onChange }: {
   );
 }
 
+// ─── MultiKindPicker ─────────────────────────────────────────────────────────
+
+export function MultiKindPicker({ selectedKinds, options, onChange }: {
+  selectedKinds: string[];
+  options: KindOption[];
+  onChange: (kinds: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const { refCallback, canScrollUp, canScrollDown, onScroll, startScroll, stopScroll } = useScrollCarets();
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return options;
+    return options.filter(
+      (o) => o.label.toLowerCase().includes(q) || o.description.toLowerCase().includes(q) || o.value.includes(q),
+    );
+  }, [options, search]);
+
+  const isAllKinds = selectedKinds.length === 0;
+
+  const toggleKind = (value: string) => {
+    if (selectedKinds.includes(value)) {
+      onChange(selectedKinds.filter((k) => k !== value));
+    } else {
+      onChange([...selectedKinds, value]);
+    }
+  };
+
+  const selectAll = () => {
+    onChange([]);
+    setOpen(false);
+    setSearch('');
+  };
+
+  const triggerLabel = useMemo(() => {
+    if (isAllKinds) return 'All kinds';
+    if (selectedKinds.length === 1) {
+      const opt = options.find((o) => o.value === selectedKinds[0]);
+      return opt?.label ?? `Kind ${selectedKinds[0]}`;
+    }
+    return `${selectedKinds.length} kinds selected`;
+  }, [isAllKinds, selectedKinds, options]);
+
+  return (
+    <div className="space-y-2">
+      <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(''); }}>
+        <PopoverTrigger asChild>
+          <button
+            className={cn(
+              'w-full h-9 px-3 rounded-lg border bg-secondary/50 text-sm flex items-center gap-2 text-left transition-colors hover:bg-secondary border-border',
+              open && 'border-ring ring-1 ring-ring',
+            )}
+          >
+            <Hash className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="flex-1 truncate">{triggerLabel}</span>
+            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          side="bottom"
+          className="w-64 p-0 flex flex-col overflow-hidden"
+          style={{ maxHeight: 'min(320px, var(--radix-popover-content-available-height, 320px))' }}
+        >
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">
+            <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            <input
+              className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+              placeholder="Search kinds..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              autoFocus
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="text-muted-foreground hover:text-foreground">
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+
+          {canScrollUp && (
+            <KindScrollCaret direction="up" onMouseEnter={() => startScroll('up')} onMouseLeave={stopScroll} />
+          )}
+
+          <div ref={refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={onScroll}>
+            {!search && (
+              <button
+                onClick={selectAll}
+                className={cn(
+                  'w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left',
+                  isAllKinds ? 'bg-primary/10 text-primary' : 'hover:bg-secondary/60 text-foreground',
+                )}
+              >
+                <span className="size-4 shrink-0" />
+                <span className="flex-1 truncate">All kinds</span>
+                {isAllKinds && <Check className="size-3.5 shrink-0 ml-auto text-primary" />}
+              </button>
+            )}
+
+            {filtered.map((opt) => {
+              const isSelected = selectedKinds.includes(opt.value);
+              const Icon = opt.icon;
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => toggleKind(opt.value)}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left',
+                    isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-secondary/60 text-foreground',
+                  )}
+                >
+                  <div className={cn(
+                    'size-4 shrink-0 rounded border flex items-center justify-center transition-colors',
+                    isSelected ? 'bg-primary border-primary' : 'border-border bg-background',
+                  )}>
+                    {isSelected && <Check className="size-3 text-primary-foreground" />}
+                  </div>
+                  {Icon
+                    ? <Icon className="size-4 shrink-0 text-muted-foreground" />
+                    : <span className="size-4 shrink-0" />}
+                  <span className="flex-1 truncate">{opt.label}</span>
+                </button>
+              );
+            })}
+
+            {filtered.length === 0 && search && (
+              <p className="text-sm text-muted-foreground text-center py-6">No kinds match</p>
+            )}
+          </div>
+
+          {canScrollDown && (
+            <KindScrollCaret direction="down" onMouseEnter={() => startScroll('down')} onMouseLeave={stopScroll} />
+          )}
+
+          {selectedKinds.length > 0 && (
+            <div className="flex items-center justify-between px-3 py-2 border-t border-border shrink-0">
+              <span className="text-xs text-muted-foreground">{selectedKinds.length} selected</span>
+              <button
+                onClick={() => { setOpen(false); setSearch(''); }}
+                className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+
+      {selectedKinds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedKinds.map((kindValue) => {
+            const opt = options.find((o) => o.value === kindValue);
+            const Icon = opt?.icon;
+            const label = opt ? opt.label : `Kind ${kindValue}`;
+            return (
+              <span
+                key={kindValue}
+                className="inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 rounded-full bg-secondary border border-border text-xs max-w-[180px]"
+              >
+                {Icon && <Icon className="size-3 shrink-0 text-muted-foreground" />}
+                <span className="truncate">{label}</span>
+                <button
+                  onClick={() => toggleKind(kindValue)}
+                  className="shrink-0 size-4 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary-foreground/10 transition-colors"
+                  aria-label={`Remove ${label}`}
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ScopeToggle ─────────────────────────────────────────────────────────────
+
+export interface ScopeOption<T extends string> {
+  value: T;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+/** Generic segmented toggle for choosing an author scope. */
+export function ScopeToggle<T extends string>({
+  value,
+  options,
+  onChange,
+  size = 'sm',
+}: {
+  value: T;
+  options: ScopeOption<T>[];
+  onChange: (scope: T) => void;
+  /** 'sm' = xs text + py-1.5 (feed modal), 'md' = sm text + py-2 (profile modal) */
+  size?: 'sm' | 'md';
+}) {
+  return (
+    <div className="flex rounded-lg border border-border overflow-hidden">
+      {options.map(({ value: scope, label, icon: Icon }) => (
+        <button
+          key={scope}
+          onClick={() => onChange(scope)}
+          className={cn(
+            'flex-1 flex items-center justify-center font-medium transition-colors',
+            size === 'sm' ? 'py-1.5 gap-1 text-xs' : 'py-2 gap-1.5 text-sm',
+            value === scope
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
+          )}
+        >
+          <Icon className="size-3.5 shrink-0" />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── ListPackPicker ───────────────────────────────────────────────────────────
+
+interface ListPackPickerProps {
+  lists: UserList[];
+  followPacks: FollowPack[];
+  value: string;
+  onSelectPubkeys: (pubkeys: string[]) => void;
+  className?: string;
+}
+
+/**
+ * A <Select> that lets the user pick a Follow Set or Follow Pack to populate
+ * author pubkeys. Used in FeedEditModal, SavedFeedFiltersEditor, and SearchPage.
+ */
+export function ListPackPicker({ lists, followPacks, value, onSelectPubkeys, className }: ListPackPickerProps) {
+  const hasAny = lists.length > 0 || followPacks.length > 0;
+  if (!hasAny) return null;
+
+  return (
+    <Select
+      value={value}
+      onValueChange={(v) => {
+        let pubkeys: string[] = [];
+        if (v.startsWith('set:')) {
+          pubkeys = lists.find((l) => l.id === v.slice(4))?.pubkeys ?? [];
+        } else if (v.startsWith('pack:')) {
+          pubkeys = followPacks.find((p) => p.id === v.slice(5))?.pubkeys ?? [];
+        }
+        if (pubkeys.length > 0) onSelectPubkeys(pubkeys);
+      }}
+    >
+      <SelectTrigger className={cn('w-full bg-secondary/50 h-8 text-xs', className)}>
+        <SelectValue placeholder="Or choose a list..." />
+      </SelectTrigger>
+      <SelectContent>
+        {lists.length > 0 && (
+          <SelectGroup>
+            {followPacks.length > 0 && <SelectLabel>Follow Sets</SelectLabel>}
+            {lists.map((l) => (
+              <SelectItem key={`set:${l.id}`} value={`set:${l.id}`}>
+                {l.title} ({l.pubkeys.length})
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        )}
+        {followPacks.length > 0 && (
+          <SelectGroup>
+            {lists.length > 0 && <SelectLabel>Follow Packs</SelectLabel>}
+            {followPacks.map((p) => (
+              <SelectItem key={`pack:${p.id}`} value={`pack:${p.id}`}>
+                {p.title} ({p.pubkeys.length})
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        )}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// ─── parseSelectedKinds ───────────────────────────────────────────────────────
+
+/** Parse a TabFilter's kinds array into an array of string kind values. */
+export function parseSelectedKinds(filter: TabFilter): string[] {
+  const kinds = filter.kinds;
+  if (!Array.isArray(kinds) || kinds.length === 0) return [];
+  return kinds.map(String);
+}
+
 // ─── AuthorChip ───────────────────────────────────────────────────────────────
 
 export function AuthorChip({ pubkey, onRemove }: { pubkey: string; onRemove: () => void }) {
@@ -322,15 +617,26 @@ export function SavedFeedFiltersEditor({
   kindOptions: kindOptionsProp,
 }: SavedFeedFiltersEditorProps) {
   const kindOptions = useMemo(() => kindOptionsProp ?? buildKindOptions(), [kindOptionsProp]);
+  const { lists } = useUserLists();
+  const { data: followPacks = [] } = useFollowPacks();
+
+  const listPickerValue = useMatchedListId(
+    Array.isArray(value.authors) ? (value.authors as string[]) : [],
+  );
 
   const search = typeof value.search === 'string' ? value.search : '';
   const authorPubkeys = Array.isArray(value.authors) ? (value.authors as string[]) : [];
-  const authorScope = getAuthorScope(value);
+  // Local scope state so clicking "People" immediately shows the panel,
+  // even before any authors have been added. Initialised from the filter value.
+  const [authorScope, setAuthorScopeState] = useState<'anyone' | 'people'>(
+    () => getAuthorScope(value),
+  );
   const kindFilter = kindsToKindFilter(value);
   const [customKindText, setCustomKindText] = useState('');
 
   const addAuthor = useCallback((pubkey: string, _label: string) => {
     const next = authorPubkeys.includes(pubkey) ? authorPubkeys : [...authorPubkeys, pubkey];
+    setAuthorScopeState('people');
     onChange({ ...value, authors: next });
   }, [authorPubkeys, onChange, value]);
 
@@ -346,11 +652,12 @@ export function SavedFeedFiltersEditor({
   }, [authorPubkeys, onChange, value]);
 
   const setAuthorScope = useCallback((scope: 'anyone' | 'people') => {
-    const updated = { ...value };
+    setAuthorScopeState(scope);
     if (scope === 'anyone') {
+      const updated = { ...value };
       delete updated.authors;
+      onChange(updated);
     }
-    onChange(updated);
   }, [onChange, value]);
 
   const handleKindChange = useCallback((v: string) => {
@@ -359,10 +666,8 @@ export function SavedFeedFiltersEditor({
       delete updated.kinds;
       setCustomKindText('');
     } else if (v === 'custom') {
-      // Keep existing kinds until user types
       setCustomKindText(Array.isArray(value.kinds) ? (value.kinds as number[]).join(', ') : '');
     } else {
-      // Single kind selected
       updated.kinds = [parseInt(v, 10)];
       setCustomKindText('');
     }
@@ -440,6 +745,20 @@ export function SavedFeedFiltersEditor({
                   </div>
                 )}
                 <AuthorFilterDropdown onCommit={addAuthor} />
+                <ListPackPicker
+                  lists={lists}
+                  followPacks={followPacks}
+                  value={listPickerValue}
+                  onSelectPubkeys={(pubkeys) => {
+                    const updated = { ...value };
+                    if (pubkeys.length > 0) {
+                      updated.authors = pubkeys;
+                    } else {
+                      delete updated.authors;
+                    }
+                    onChange(updated);
+                  }}
+                />
               </div>
             )}
           </div>

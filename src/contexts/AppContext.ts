@@ -146,8 +146,6 @@ export interface SavedFeed {
   label: string;
   filter: TabFilter;
   vars: TabVarDef[];
-  /** Where this tab appears: home feed tabs or the current user's profile tabs. */
-  destination: 'feed' | 'profile';
   createdAt: number;
 }
 
@@ -194,6 +192,8 @@ export interface AppConfig {
   sentryDsn: string;
   /** Whether the user has enabled Sentry error reporting. */
   sentryEnabled: boolean;
+  /** Saved home feed tabs. Cached locally so they appear instantly on load. */
+  savedFeeds: SavedFeed[];
 }
 
 export interface AppContextType {

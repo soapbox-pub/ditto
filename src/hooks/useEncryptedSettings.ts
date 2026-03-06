@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NostrFilter } from '@nostrify/nostrify';
@@ -11,11 +11,10 @@ import type { ContentFilter } from './useContentFilters';
 import { EncryptedSettingsSchema } from '@/lib/schemas';
 
 /**
- * Timestamp of last local write. NostrSync should skip applying
- * encrypted settings for a short window after a local write to
- * avoid overwriting the value we just set.
+ * Timestamp (ms) of last local encrypted-settings write this session.
+ * NostrSync uses this to avoid overwriting a local edit with a stale relay event.
  */
-let lastWriteTs = 0;
+let lastWriteTs: number = 0;
 
 /**
  * Complete encrypted app settings stored in NIP-78
@@ -78,15 +77,7 @@ export function useEncryptedSettings() {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
 
-  // Delay loading encrypted settings by 5 seconds to avoid competing with feed load
-  const [queryEnabled, setQueryEnabled] = useState(false);
-  
-  useEffect(() => {
-    if (user) {
-      const timer = setTimeout(() => setQueryEnabled(true), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [user]);
+
 
   // Query the encrypted settings event
   const query = useQuery({
@@ -106,7 +97,7 @@ export function useEncryptedSettings() {
 
       return events[0];
     },
-    enabled: queryEnabled && !!user,
+    enabled: !!user,
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnMount: false,
@@ -132,8 +123,8 @@ export function useEncryptedSettings() {
         const result = EncryptedSettingsSchema.safeParse(json);
         if (!result.success) {
           console.warn('Encrypted settings failed validation, using partial data:', result.error.issues);
-          // Fall back to an empty object so invalid fields (e.g. theme as object) are dropped
-          return {} as EncryptedSettings;
+          // Return whatever fields are valid rather than wiping everything
+          return (json ?? {}) as EncryptedSettings;
         }
         return result.data as EncryptedSettings;
       } catch (error) {
@@ -141,7 +132,7 @@ export function useEncryptedSettings() {
         return null;
       }
     },
-    enabled: queryEnabled && !!query.data && !!user,
+    enabled: !!query.data && !!user,
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnMount: false,
@@ -188,7 +179,7 @@ export function useEncryptedSettings() {
 
       const signedEvent = await user.signer.signEvent(unsignedEvent);
 
-      // Mark that we just wrote, so NostrSync doesn't fight us
+      // Mark that we just wrote, so NostrSync doesn't fight us.
       lastWriteTs = Date.now();
 
       // Publish in background

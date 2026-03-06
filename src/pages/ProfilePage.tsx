@@ -5,7 +5,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -48,6 +48,7 @@ import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReportDialog } from '@/components/ReportDialog';
+import { AddToListDialog } from '@/components/AddToListDialog';
 import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
@@ -144,6 +145,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
   const [reportOpen, setReportOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
 
   const close = () => onOpenChange(false);
 
@@ -184,6 +186,11 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     setTimeout(() => setReportOpen(true), 150);
   };
 
+  const handleAddToList = () => {
+    close();
+    setTimeout(() => setAddToListOpen(true), 150);
+  };
+
   return (
   <>
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -205,6 +212,11 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             icon={<ExternalLink className="size-5" />}
             label="View on njump.me"
             onClick={handleViewOnNjump}
+          />
+          <MenuRow
+            icon={<ListPlus className="size-5" />}
+            label="Add to list"
+            onClick={handleAddToList}
           />
         </div>
 
@@ -243,6 +255,13 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     </Dialog>
 
     <ReportDialog pubkey={pubkey} open={reportOpen} onOpenChange={setReportOpen} />
+
+    <AddToListDialog
+      pubkey={pubkey}
+      displayName={displayName}
+      open={addToListOpen}
+      onOpenChange={setAddToListOpen}
+    />
   </>
   );
 }
@@ -1873,8 +1892,16 @@ export function ProfilePage() {
 
         {/* Tabs */}
         <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border backdrop-blur-md z-10 overflow-x-auto scrollbar-none')}>
+          {/* Skeleton while kind 16769 is loading */}
+          {!profileTabsQuery.isFetched && (
+            <div className="flex gap-1 px-2 py-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-8 w-16 rounded" />
+              ))}
+            </div>
+          )}
           {/* All tabs in view mode — ordered by kind 16769, fallback to defaults */}
-          {!tabEditMode && viewTabs.map((tab) => {
+          {!tabEditMode && profileTabsQuery.isFetched && viewTabs.map((tab) => {
             const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
             return (
               <TabButton

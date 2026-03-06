@@ -2,7 +2,7 @@ import {
   Bell, Search, TrendingUp, User, Bookmark, Settings, Palette,
   Clapperboard, BarChart3, PartyPopper, BookOpen, BookMarked, Sparkles, Blocks,
   MessageSquare, Repeat2, MessageSquareMore, Mic, Smile, Bot, SmilePlus, Camera, Film, Earth, Calendar,
-  Music, Podcast,
+  Music, Podcast, List,
 } from 'lucide-react';
 import { PlanetIcon } from '@/components/icons/PlanetIcon';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -50,6 +50,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'search', label: 'Search', path: '/search', icon: Search },
   { id: 'trends', label: 'Trends', path: '/trends', icon: TrendingUp },
   { id: 'bookmarks', label: 'Bookmarks', path: '/bookmarks', icon: Bookmark, requiresAuth: true },
+  { id: 'lists', label: 'Lists', path: '/lists', icon: List, requiresAuth: true },
   { id: 'profile', label: 'Profile', path: '/profile', icon: User, requiresAuth: true },
   { id: 'settings', label: 'Settings', path: '/settings', icon: Settings },
   { id: 'ai-chat', label: 'AI Chat', path: '/ai-chat', icon: Bot, requiresAuth: true },
