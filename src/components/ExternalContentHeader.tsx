@@ -208,19 +208,6 @@ export function CountryContentHeader({ code }: { code: string }) {
 
   return (
     <div className="rounded-2xl border border-border overflow-hidden">
-      {/* Thumbnail banner */}
-      {wiki?.thumbnail && (
-        <div className="relative w-full h-40 sm:h-52 overflow-hidden bg-secondary">
-          <img
-            src={wiki.originalImage?.source ?? wiki.thumbnail.source}
-            alt={info.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-        </div>
-      )}
-
       {/* Flag + name */}
       <div className="p-6 sm:p-8">
         <div className="flex items-center gap-4">
