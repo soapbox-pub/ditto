@@ -295,21 +295,68 @@ export function isValidBlobbonautEvent(event: NostrEvent): boolean {
 // ─── Event Parsing ────────────────────────────────────────────────────────────
 
 /**
+ * Derive a display name from a legacy d-tag.
+ * Legacy format: blobbi-{name} (e.g., "blobbi-puck" → "Puck")
+ * 
+ * @param d - The d-tag value
+ * @returns The derived name with first letter capitalized, or "Unnamed Blobbi" if not derivable
+ */
+export function deriveNameFromLegacyD(d: string): string {
+  if (d.startsWith('blobbi-')) {
+    const derivedName = d.replace('blobbi-', '');
+    if (derivedName && derivedName.length > 0) {
+      // Capitalize first letter
+      return derivedName.charAt(0).toUpperCase() + derivedName.slice(1);
+    }
+  }
+  return 'Unnamed Blobbi';
+}
+
+/**
  * Parse a Kind 31124 Blobbi Current State event into a structured object.
  * Returns undefined if the event is invalid.
+ * 
+ * Name resolution priority:
+ * 1. Use `name` tag if present
+ * 2. Derive from legacy d-tag format (blobbi-{name})
+ * 3. Fall back to "Unnamed Blobbi"
  */
 export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined {
   if (!isValidBlobbiEvent(event)) return undefined;
   
   const tags = event.tags;
   const d = getTagValue(tags, 'd')!;
+  const nameTag = getTagValue(tags, 'name');
+  const stage = getTagValue(tags, 'stage') as BlobbiStage;
+  const state = getTagValue(tags, 'state') as BlobbiState;
+  
+  // STEP 2: Legacy name handling
+  // Priority: name tag > derive from d-tag > "Unnamed Blobbi"
+  let name: string;
+  if (nameTag) {
+    name = nameTag;
+  } else {
+    name = deriveNameFromLegacyD(d);
+    if (name === 'Unnamed Blobbi') {
+      console.warn('[Blobbi Parser] No name tag and cannot derive from d-tag:', d);
+    }
+  }
+  
+  // STEP 1: Debug logs
+  console.log('[Blobbi Parser]', {
+    d,
+    name,
+    nameTag,
+    stage,
+    state,
+  });
   
   return {
     event,
     d,
-    name: getTagValue(tags, 'name') ?? 'Blobbi',
-    stage: getTagValue(tags, 'stage') as BlobbiStage,
-    state: getTagValue(tags, 'state') as BlobbiState,
+    name,
+    stage,
+    state,
     seed: getTagValue(tags, 'seed'),
     lastInteraction: parseNumericTag(tags, 'last_interaction')!,
     lastDecayAt: parseNumericTag(tags, 'last_decay_at'),

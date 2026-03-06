@@ -164,6 +164,18 @@ function BlobbiContent() {
   // Get the selected companion from the collection
   const companion = selectedD ? companionsByD[selectedD] ?? null : null;
   
+  // STEP 7: Debug log to confirm which Blobbi is rendered
+  useEffect(() => {
+    if (companion) {
+      console.log('[Blobbi UI]', {
+        selectedD,
+        name: companion.name,
+        stage: companion.stage,
+        state: companion.state,
+      });
+    }
+  }, [selectedD, companion]);
+  
   // Determine if the selected companion needs migration
   const needsMigration = selectedD ? isLegacyBlobbiD(selectedD) : false;
   
