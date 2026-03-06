@@ -12,6 +12,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getContentWarning } from '@/lib/contentWarning';
+import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
 
 interface ProfileField {
   label: string;
@@ -285,9 +286,19 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
     );
   }
 
-  // Regular field: label + linked value with favicon
+  // Audio file: render mini player
   const isUrl = field.value.startsWith('http://') || field.value.startsWith('https://');
 
+  if (isUrl && isAudioUrl(field.value)) {
+    return (
+      <div>
+        <div className="font-semibold text-sm mb-1.5">{field.label}</div>
+        <MiniAudioPlayer src={field.value} />
+      </div>
+    );
+  }
+
+  // Regular field: label + linked value with favicon
   return (
     <div>
       <div className="font-semibold text-sm">{field.label}</div>

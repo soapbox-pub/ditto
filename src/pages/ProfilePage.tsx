@@ -46,6 +46,7 @@ import { canZap } from '@/lib/canZap';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReportDialog } from '@/components/ReportDialog';
+import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
@@ -460,6 +461,10 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
         </div>
       </div>
     );
+  }
+
+  if (isUrl && isAudioUrl(field.value)) {
+    return <MiniAudioPlayer src={field.value} label={field.label || undefined} />;
   }
 
   if (isUrl) {
