@@ -451,7 +451,7 @@ export function ProfileSettings() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl mx-auto px-4 space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl mx-auto px-4 pb-10 space-y-6">
 
           {/* Intro */}
           <div className="flex items-center gap-4 px-3 pt-2 pb-2">
