@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, ExternalLink, Globe, MapPin, User, Users } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -136,6 +136,62 @@ export function BookContentHeader({ isbn }: { isbn: string }) {
   );
 }
 
+const WIKI_MAX_HEIGHT = 100; // px — extract taller than this gets truncated
+
+function WikipediaExtract({ extract, articleUrl }: { extract: string; articleUrl: string }) {
+  const contentRef = useRef<HTMLParagraphElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const measure = useCallback(() => {
+    const el = contentRef.current;
+    if (el) setOverflows(el.scrollHeight > WIKI_MAX_HEIGHT);
+  }, []);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  return (
+    <div className="mt-5 space-y-2">
+      <div className="relative">
+        <p
+          ref={contentRef}
+          style={!expanded && overflows ? { maxHeight: WIKI_MAX_HEIGHT, overflow: 'hidden' } : undefined}
+          className="text-sm leading-relaxed text-muted-foreground"
+        >
+          {extract}
+        </p>
+        {!expanded && overflows && (
+          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+        )}
+      </div>
+      <div className="flex items-center gap-3">
+        {overflows && (
+          <button
+            className="text-sm text-primary hover:underline"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? 'Show less' : 'Read more'}
+          </button>
+        )}
+        <a
+          href={articleUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Globe className="size-3.5" />
+          <span>Wikipedia</span>
+          <ExternalLink className="size-3" />
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export function CountryContentHeader({ code }: { code: string }) {
   const info = getCountryInfo(code);
   const wikiTitle = getWikipediaTitle(code);
@@ -196,21 +252,7 @@ export function CountryContentHeader({ code }: { code: string }) {
             <Skeleton className="h-4 w-3/4" />
           </div>
         ) : wiki?.extract ? (
-          <div className="mt-5 space-y-3">
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {wiki.extract}
-            </p>
-            <a
-              href={wiki.articleUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Globe className="size-3.5" />
-              <span>Read more on Wikipedia</span>
-              <ExternalLink className="size-3" />
-            </a>
-          </div>
+          <WikipediaExtract extract={wiki.extract} articleUrl={wiki.articleUrl} />
         ) : null}
       </div>
     </div>
