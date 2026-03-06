@@ -254,7 +254,9 @@ export const SavedFeedFiltersSchema = z.object({
   platform: z.enum(['nostr', 'activitypub', 'atproto']),
   kindFilter: z.string(),
   customKindText: z.string(),
-  authorPubkey: z.string(),
+  authorScope: z.enum(['anyone', 'follows', 'people']).default('anyone'),
+  authorPubkeys: z.array(z.string()).default([]),
+  sort: z.enum(['recent', 'hot', 'trending']).default('recent'),
 });
 
 export const SavedFeedSchema = z.object({

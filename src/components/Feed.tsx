@@ -304,7 +304,8 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
     language: filters.language,
     protocols,
     kindsOverride,
-    authorPubkey: filters.authorPubkey || undefined,
+    authorPubkeys: filters.authorPubkeys.length > 0 ? filters.authorPubkeys : undefined,
+    sort: filters.sort,
   });
 
   // Simple scroll-based load more isn't available with useStreamPosts (it's a stream),

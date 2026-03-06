@@ -3,13 +3,14 @@ import { useAppContext } from '@/hooks/useAppContext';
 import {
   SlidersHorizontal,
   Search as SearchIcon,
-  Image,
-  Video,
-  Film,
-  Languages,
   UserRoundCheck,
-  Hash,
   User,
+  Users,
+  Globe,
+  UserSearch,
+  Clock,
+  Flame,
+  TrendingUp,
   RotateCcw,
   X,
   Info,
@@ -22,7 +23,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -55,6 +55,12 @@ function parseTab(value: string | null): TabType {
   return VALID_TABS.includes(value as TabType) ? (value as TabType) : 'posts';
 }
 
+const VALID_AUTHOR_SCOPES = ['anyone', 'follows', 'people'] as const;
+type AuthorScope = typeof VALID_AUTHOR_SCOPES[number];
+
+const VALID_SORTS = ['recent', 'hot', 'trending'] as const;
+type SortPref = typeof VALID_SORTS[number];
+
 const DEFAULT_FILTERS = {
   includeReplies: true,
   mediaType: 'all' as const,
@@ -62,7 +68,8 @@ const DEFAULT_FILTERS = {
   platform: 'nostr' as const,
   kindFilter: 'all',
   customKindText: '',
-  authorQuery: '',
+  authorScope: 'anyone' as AuthorScope,
+  sort: 'recent' as SortPref,
 };
 
 /** Parse a boolean from a URL param, returning defaultVal if absent/invalid. */
@@ -88,8 +95,6 @@ export function SearchPage() {
   // Local input state for the search field (avoids trimming while typing)
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
   const [filtersOpen, setFiltersOpen] = useState(false);
-  // Display label for selected author (name/npub shown in chip); separate from URL param
-  const [authorDisplayLabel, setAuthorDisplayLabel] = useState<string>('');
 
   // ── Filter state — all derived from URL params ──────────────────────────
   const includeReplies = parseBoolParam(searchParams.get('replies'), DEFAULT_FILTERS.includeReplies);
@@ -104,7 +109,16 @@ export function SearchPage() {
   const platform: PlatformType = (VALID_PLATFORMS as readonly string[]).includes(rawPlatform) ? (rawPlatform as PlatformType) : DEFAULT_FILTERS.platform;
   const kindFilter = searchParams.get('kind') ?? DEFAULT_FILTERS.kindFilter;
   const customKindText = searchParams.get('customKind') ?? DEFAULT_FILTERS.customKindText;
-  const authorQuery = searchParams.get('author') ?? DEFAULT_FILTERS.authorQuery;
+  const rawAuthorScope = searchParams.get('authorScope') ?? DEFAULT_FILTERS.authorScope;
+  const authorScope: AuthorScope = (VALID_AUTHOR_SCOPES as readonly string[]).includes(rawAuthorScope)
+    ? (rawAuthorScope as AuthorScope)
+    : DEFAULT_FILTERS.authorScope;
+  // Multiple authors stored as repeated ?author= params
+  const authorPubkeys = useMemo(() => searchParams.getAll('author'), [searchParams]);
+  const rawSort = searchParams.get('sort') ?? DEFAULT_FILTERS.sort;
+  const sort: SortPref = (VALID_SORTS as readonly string[]).includes(rawSort)
+    ? (rawSort as SortPref)
+    : DEFAULT_FILTERS.sort;
   // ────────────────────────────────────────────────────────────────────────
 
   // Helper to update a single URL param
@@ -124,6 +138,7 @@ export function SearchPage() {
   const setMediaType = useCallback((v: string) => setParam('media', v, DEFAULT_FILTERS.mediaType), [setParam]);
   const setLanguage = useCallback((v: string) => setParam('lang', v, DEFAULT_FILTERS.language), [setParam]);
   const setPlatform = useCallback((v: string) => setParam('platform', v, DEFAULT_FILTERS.platform), [setParam]);
+  const setSort = useCallback((v: string) => setParam('sort', v, DEFAULT_FILTERS.sort), [setParam]);
   const setKindFilter = useCallback((v: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -138,17 +153,46 @@ export function SearchPage() {
   }, [setSearchParams]);
   const setCustomKindText = useCallback((v: string) => setParam('customKind', v, DEFAULT_FILTERS.customKindText), [setParam]);
 
-  /** Commit a resolved pubkey (hex or npub) to the URL author param. */
-  const commitAuthor = useCallback((pubkey: string, label: string) => {
-    setAuthorDisplayLabel(label);
-    setParam('author', pubkey, DEFAULT_FILTERS.authorQuery);
-  }, [setParam]);
+  const setAuthorScope = useCallback((scope: AuthorScope) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (scope === DEFAULT_FILTERS.authorScope) {
+        next.delete('authorScope');
+      } else {
+        next.set('authorScope', scope);
+      }
+      // Clear specific authors when switching away from 'people'
+      if (scope !== 'people') {
+        next.delete('author');
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
-  /** Clear the author filter from URL and display. */
-  const clearAuthor = useCallback(() => {
-    setAuthorDisplayLabel('');
-    setParam('author', '', DEFAULT_FILTERS.authorQuery);
-  }, [setParam]);
+  /** Add a resolved pubkey to the author list. */
+  const addAuthor = useCallback((pubkey: string, _label: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('authorScope', 'people');
+      // Avoid duplicates
+      if (!next.getAll('author').includes(pubkey)) {
+        next.append('author', pubkey);
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  /** Remove a single author from the list by pubkey. */
+  const removeAuthor = useCallback((pubkey: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      const remaining = next.getAll('author').filter(a => a !== pubkey);
+      next.delete('author');
+      remaining.forEach(a => next.append('author', a));
+      if (remaining.length === 0) next.delete('authorScope');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   // Update tab in URL
   const setActiveTab = useCallback((tab: TabType) => {
@@ -255,10 +299,10 @@ export function SearchPage() {
   // Determine if any filter differs from the default
   const hasActiveFilters = !includeReplies || mediaType !== DEFAULT_FILTERS.mediaType ||
     language !== DEFAULT_FILTERS.language || platform !== DEFAULT_FILTERS.platform ||
-    kindFilter !== DEFAULT_FILTERS.kindFilter || authorQuery !== DEFAULT_FILTERS.authorQuery;
+    kindFilter !== DEFAULT_FILTERS.kindFilter || authorScope !== DEFAULT_FILTERS.authorScope ||
+    sort !== DEFAULT_FILTERS.sort || authorPubkeys.length > 0;
 
   const resetFilters = useCallback(() => {
-    setAuthorDisplayLabel('');
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('replies');
@@ -267,7 +311,9 @@ export function SearchPage() {
       next.delete('platform');
       next.delete('kind');
       next.delete('customKind');
+      next.delete('authorScope');
       next.delete('author');
+      next.delete('sort');
       return next;
     }, { replace: true });
   }, [setSearchParams]);
@@ -286,8 +332,10 @@ export function SearchPage() {
       else if (mediaType === 'videos') parts.push('video:true');
       else if (mediaType === 'none') parts.push('media:false');
     }
+    if (sort === 'hot') parts.push('sort:hot');
+    else if (sort === 'trending') parts.push('sort:trending');
     return parts.join(' ');
-  }, [searchQuery, language, mediaType, protocols, kindsOverride, hasKindMediaConflict]);
+  }, [searchQuery, language, mediaType, protocols, kindsOverride, hasKindMediaConflict, sort]);
 
   // Active filter labels for the summary / empty state hints
   const activeFilterLabels = useMemo(() => {
@@ -296,28 +344,36 @@ export function SearchPage() {
     if (mediaType !== 'all') labels.push({ images: 'Images', videos: 'Videos', vines: 'Shorts & Vines', none: 'No media' }[mediaType] ?? mediaType);
     if (language !== 'global') labels.push(language.toUpperCase());
     if (platform !== 'nostr') labels.push({ activitypub: 'Mastodon', atproto: 'Bluesky' }[platform] ?? platform);
+    if (sort !== 'recent') labels.push(sort === 'hot' ? 'Hot' : 'Trending');
     if (kindFilter !== 'all' && kindFilter !== 'custom') {
       const opt = kindOptions.find(o => o.value === kindFilter);
       if (opt) labels.push(opt.label);
     } else if (kindFilter === 'custom' && customKindText) {
       labels.push(`Kind: ${customKindText}`);
     }
-    if (authorQuery) labels.push(`Author: ${authorQuery.slice(0, 12)}…`);
+    if (authorScope === 'follows') labels.push('My follows');
+    if (authorScope === 'people' && authorPubkeys.length > 0) labels.push(`${authorPubkeys.length} author${authorPubkeys.length > 1 ? 's' : ''}`);
     return labels;
-  }, [includeReplies, mediaType, language, platform, kindFilter, customKindText, authorQuery, kindOptions]);
+  }, [includeReplies, mediaType, language, platform, sort, kindFilter, customKindText, authorScope, authorPubkeys, kindOptions]);
 
   // Hooks
   const { user } = useCurrentUser();
+  const { data: followData } = useFollowList();
+  const followPubkeys = useMemo(() => followData?.pubkeys ?? [], [followData?.pubkeys]);
   const { savedFeeds, addSavedFeed, isPending: isSavingFeed } = useSavedFeeds();
   const [savePopoverOpen, setSavePopoverOpen] = useState(false);
   const [saveFeedLabel, setSaveFeedLabel] = useState('');
   const [savedJustNow, setSavedJustNow] = useState(false);
 
-  // A query with an explicit author set is already user-specific — only valid for feed, not profile.
-  const isAuthorSpecific = !!authorQuery;
+  // 'people' scope with explicit authors = user-specific; not eligible for profile tab
+  const isAuthorSpecific = authorScope === 'people' && authorPubkeys.length > 0;
 
   // Build the filters object for matching / saving
-  const currentFilters = { query: searchQuery.trim(), mediaType, language, platform, kindFilter, customKindText, authorPubkey: authorQuery };
+  const currentFilters = useMemo<import('@/contexts/AppContext').SavedFeedFilters>(() => ({
+    query: searchQuery.trim(), mediaType, language, platform, kindFilter, customKindText,
+    authorScope, authorPubkeys, sort,
+  }), [searchQuery, mediaType, language, platform, kindFilter, customKindText, authorScope, authorPubkeys, sort]);
+
   const alreadySaved = savedFeeds.some(
     (f) =>
       f.filters.query === currentFilters.query &&
@@ -325,29 +381,30 @@ export function SearchPage() {
       f.filters.language === currentFilters.language &&
       f.filters.platform === currentFilters.platform &&
       f.filters.kindFilter === currentFilters.kindFilter &&
-      f.filters.authorPubkey === currentFilters.authorPubkey,
+      f.filters.authorScope === currentFilters.authorScope &&
+      f.filters.sort === currentFilters.sort &&
+      JSON.stringify([...f.filters.authorPubkeys].sort()) === JSON.stringify([...currentFilters.authorPubkeys].sort()),
   );
 
   const handleSave = async (destination: 'feed' | 'profile') => {
     if (!saveFeedLabel.trim() || isSavingFeed) return;
-    // Profile tabs auto-lock to the current user's pubkey
-    const authorPubkey = destination === 'profile' && user
-      ? (authorQuery || user.pubkey)
-      : authorQuery;
-    await addSavedFeed(saveFeedLabel, {
-      query: searchQuery.trim(),
-      mediaType,
-      language,
-      platform,
-      kindFilter,
-      customKindText,
-      authorPubkey,
-    }, destination);
+    // Profile tabs auto-lock scope to 'people' with the current user's pubkey
+    const filtersToSave = destination === 'profile' && user
+      ? { ...currentFilters, authorScope: 'people' as const, authorPubkeys: authorPubkeys.length > 0 ? authorPubkeys : [user.pubkey] }
+      : currentFilters;
+    await addSavedFeed(saveFeedLabel, filtersToSave, destination);
     setSavePopoverOpen(false);
     setSaveFeedLabel('');
     setSavedJustNow(true);
     setTimeout(() => setSavedJustNow(false), 2000);
   };
+
+  // Resolve author pubkeys for the stream
+  const streamAuthorPubkeys = authorScope === 'follows'
+    ? followPubkeys
+    : authorScope === 'people' && authorPubkeys.length > 0
+      ? authorPubkeys
+      : undefined;
 
   const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, {
     includeReplies,
@@ -355,7 +412,8 @@ export function SearchPage() {
     language,
     protocols,
     kindsOverride,
-    authorPubkey: authorQuery || undefined,
+    authorPubkeys: streamAuthorPubkeys,
+    sort,
   });
   const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
 
@@ -403,11 +461,11 @@ export function SearchPage() {
                         {savedJustNow ? <Check className="size-4" /> : <BookmarkPlus className="size-4" />}
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent align="end" className="w-72 p-4 space-y-4">
-                      <p className="font-semibold text-sm">Add to…</p>
+                    <PopoverContent align="end" className="w-64 p-3 space-y-3">
+                      <p className="font-semibold text-sm">Save as tab</p>
 
                       {alreadySaved ? (
-                        <p className="text-sm text-muted-foreground">This search is already saved.</p>
+                        <p className="text-sm text-muted-foreground">Already saved.</p>
                       ) : (
                         <>
                           <Input
@@ -418,34 +476,24 @@ export function SearchPage() {
                             className="bg-secondary/50 border-border focus-visible:ring-1 text-sm"
                             autoFocus
                           />
-
-                          <div className={cn('grid gap-2', isAuthorSpecific ? 'grid-cols-1' : 'grid-cols-2')}>
-                            {/* Home feed */}
-                            <button
+                          <div className="space-y-1">
+                            <SaveDestinationRow
+                              icon={<BookmarkPlus className="size-4 text-muted-foreground" />}
+                              label="Home feed"
+                              description="Tab on your home page"
                               onClick={() => handleSave('feed')}
                               disabled={!saveFeedLabel.trim() || isSavingFeed}
-                              className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary hover:border-primary/50 disabled:opacity-50 disabled:pointer-events-none transition-colors p-3 text-left"
-                            >
-                              {isSavingFeed
-                                ? <Loader2 className="size-4 animate-spin text-primary" />
-                                : <BookmarkPlus className="size-4 text-primary" />}
-                              <span className="text-xs font-medium">Home feed</span>
-                              <span className="text-[10px] text-muted-foreground text-center leading-tight">Tab on your home page</span>
-                            </button>
-
-                            {/* Profile tab — only for generic (non-author-specific) searches */}
+                              loading={isSavingFeed}
+                            />
                             {!isAuthorSpecific && (
-                              <button
+                              <SaveDestinationRow
+                                icon={<User className="size-4 text-muted-foreground" />}
+                                label="Profile tab"
+                                description="Your posts matching this search"
                                 onClick={() => handleSave('profile')}
                                 disabled={!saveFeedLabel.trim() || isSavingFeed}
-                                className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary hover:border-primary/50 disabled:opacity-50 disabled:pointer-events-none transition-colors p-3 text-left"
-                              >
-                                {isSavingFeed
-                                  ? <Loader2 className="size-4 animate-spin text-primary" />
-                                  : <User className="size-4 text-primary" />}
-                                <span className="text-xs font-medium">Profile tab</span>
-                                <span className="text-[10px] text-muted-foreground text-center leading-tight">Your posts matching this search</span>
-                              </button>
+                                loading={isSavingFeed}
+                              />
                             )}
                           </div>
                         </>
@@ -472,171 +520,180 @@ export function SearchPage() {
                     <SlidersHorizontal className="size-4" />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-72 p-4 space-y-4">
+                <PopoverContent align="end" className="w-80 p-3 space-y-3">
 
-                  {/* Header with reset button */}
+                  {/* Header */}
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-sm">Filters</span>
                     {hasActiveFilters && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                      <button
+                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                         onClick={resetFilters}
                       >
                         <RotateCcw className="size-3" />
-                        Reset all
-                      </Button>
+                        Reset
+                      </button>
                     )}
                   </div>
 
-                  <Separator />
-
-                  {/* Including replies */}
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">Include replies</span>
-                    <Switch
-                      checked={includeReplies}
-                      onCheckedChange={setIncludeReplies}
-                    />
-                  </div>
-
-                  <Separator />
-
-                  {/* Author scope */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1.5">
-                      <User className="size-3.5 text-muted-foreground" />
-                      <span className="font-medium text-sm">Author</span>
-                    </div>
-                    {authorQuery ? (
-                      /* Selected author chip */
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/60 border border-border">
-                        <span className="flex-1 text-sm truncate font-medium">{authorDisplayLabel || authorQuery.slice(0, 16) + '…'}</span>
+                  {/* Author scope — 3-segment toggle */}
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">From</span>
+                    <div className="flex rounded-lg border border-border overflow-hidden">
+                      {([
+                        ['anyone', 'Anyone', Globe],
+                        ['follows', 'Follows', Users],
+                        ['people', 'People', UserSearch],
+                      ] as const).map(([scope, label, Icon]) => (
                         <button
-                          onClick={clearAuthor}
-                          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                          aria-label="Clear author filter"
+                          key={scope}
+                          onClick={() => setAuthorScope(scope)}
+                          className={cn(
+                            'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
+                            authorScope === scope
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
+                          )}
                         >
-                          <X className="size-3.5" />
+                          <Icon className="size-3.5 shrink-0" />
+                          {label}
                         </button>
+                      ))}
+                    </div>
+                    {authorScope === 'people' && (
+                      <div className="space-y-1.5">
+                        {/* Chips for each selected author */}
+                        {authorPubkeys.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {authorPubkeys.map((pk) => (
+                              <AuthorChip key={pk} pubkey={pk} onRemove={() => removeAuthor(pk)} />
+                            ))}
+                          </div>
+                        )}
+                        <AuthorFilterDropdown onCommit={addAuthor} />
                       </div>
-                    ) : (
-                      <AuthorFilterDropdown onCommit={commitAuthor} />
                     )}
                   </div>
 
                   <Separator />
 
-                  {/* Media type */}
-                  <div className="space-y-2">
-                    <span className="font-medium text-sm">Media type</span>
-                    <Select value={mediaType} onValueChange={setMediaType}>
-                      <SelectTrigger className="w-full bg-secondary/50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[
-                          { value: 'all', label: 'All media' },
-                          { value: 'images', label: 'Images', icon: Image },
-                          { value: 'videos', label: 'Videos', icon: Video },
-                          { value: 'vines', label: 'Shorts & Vines', icon: Film },
-                          { value: 'none', label: 'No media' },
-                        ].map(({ value, label, icon: Icon }) => (
-                          <SelectItem key={value} value={value}>
-                            <span className="flex items-center gap-2">
-                              {Icon && <Icon className="size-3.5 shrink-0 text-muted-foreground" />}
-                              {label}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Separator />
-
-                  {/* Language */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1.5">
-                      <Languages className="size-3.5 text-muted-foreground" />
-                      <span className="font-medium text-sm">Language</span>
+                  {/* Media type + Replies row */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Media</span>
+                      <Select value={mediaType} onValueChange={setMediaType}>
+                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All</SelectItem>
+                          <SelectItem value="images">Images</SelectItem>
+                          <SelectItem value="videos">Videos</SelectItem>
+                          <SelectItem value="vines">Shorts</SelectItem>
+                          <SelectItem value="none">No media</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <Select value={language} onValueChange={setLanguage}>
-                      <SelectTrigger className="w-full bg-secondary/50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="global">Global</SelectItem>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
-                        <SelectItem value="de">German</SelectItem>
-                        <SelectItem value="ja">Japanese</SelectItem>
-                        <SelectItem value="zh">Chinese</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Separator />
-
-                  {/* Event kind */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1.5">
-                      <Hash className="size-3.5 text-muted-foreground" />
-                      <span className="font-medium text-sm">Event kind</span>
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Platform</span>
+                      <Select value={platform} onValueChange={setPlatform}>
+                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="nostr">Nostr</SelectItem>
+                          <SelectItem value="activitypub">Mastodon</SelectItem>
+                          <SelectItem value="atproto">Bluesky</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <Select value={kindFilter} onValueChange={setKindFilter}>
-                      <SelectTrigger className="w-full bg-secondary/50">
-                        <SelectValue placeholder="All kinds" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All kinds</SelectItem>
-                        {kindOptions.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            <span className="flex items-center gap-2">
-                              {opt.icon && <opt.icon className="size-3.5 shrink-0 text-muted-foreground" />}
-                              {opt.label}
-                            </span>
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="custom">Custom kind…</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {kindFilter === 'custom' && (
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="e.g. 1, 30023"
-                        value={customKindText}
-                        onChange={(e) => setCustomKindText(e.target.value)}
-                        className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-sm"
-                      />
-                    )}
-                    {/* Conflict warning */}
-                    {hasKindMediaConflict && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
-                        <Info className="size-3.5 shrink-0 mt-0.5" />
-                        Media type and Event kind filters may conflict. Kind filter takes precedence.
-                      </p>
-                    )}
                   </div>
 
-                  <Separator />
+                  {/* Language + Kind row */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Language</span>
+                      <Select value={language} onValueChange={setLanguage}>
+                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="global">Global</SelectItem>
+                          <SelectItem value="en">English</SelectItem>
+                          <SelectItem value="es">Spanish</SelectItem>
+                          <SelectItem value="fr">French</SelectItem>
+                          <SelectItem value="de">German</SelectItem>
+                          <SelectItem value="ja">Japanese</SelectItem>
+                          <SelectItem value="zh">Chinese</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kind</span>
+                      <Select value={kindFilter} onValueChange={setKindFilter}>
+                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
+                          <SelectValue placeholder="All" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All</SelectItem>
+                          {kindOptions.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                          <SelectItem value="custom">Custom…</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-                  {/* Platform */}
-                  <div className="space-y-2">
-                    <span className="font-medium text-sm">Show posts from</span>
-                    <Select value={platform} onValueChange={setPlatform}>
-                      <SelectTrigger className="w-full bg-secondary/50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="nostr">Nostr</SelectItem>
-                        <SelectItem value="activitypub">Mastodon</SelectItem>
-                        <SelectItem value="atproto">Bluesky</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  {kindFilter === 'custom' && (
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="e.g. 1, 30023"
+                      value={customKindText}
+                      onChange={(e) => setCustomKindText(e.target.value)}
+                      className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-xs h-8"
+                    />
+                  )}
+                  {hasKindMediaConflict && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+                      <Info className="size-3.5 shrink-0 mt-0.5" />
+                      Media + Kind filters may conflict. Kind takes precedence.
+                    </p>
+                  )}
+
+                  {/* Sort + Replies row */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="space-y-1.5 flex-1">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sort</span>
+                      <div className="flex rounded-lg border border-border overflow-hidden">
+                        {([
+                          ['recent', 'Recent', Clock],
+                          ['hot', 'Hot', Flame],
+                          ['trending', 'Trending', TrendingUp],
+                        ] as const).map(([s, label, Icon]) => (
+                          <button
+                            key={s}
+                            onClick={() => setSort(s)}
+                            className={cn(
+                              'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
+                              sort === s
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
+                            )}
+                          >
+                            <Icon className="size-3.5 shrink-0" />
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Include replies toggle */}
+                  <div className="flex items-center justify-between pt-0.5">
+                    <span className="text-xs font-medium text-muted-foreground">Include replies</span>
+                    <Switch checked={includeReplies} onCheckedChange={setIncludeReplies} className="scale-90" />
                   </div>
                 </PopoverContent>
               </Popover>
@@ -961,6 +1018,55 @@ function AccountSkeleton() {
  *  - A profile is selected from the dropdown (fires onCommit immediately with npub + display name)
  *  - The user manually types a full npub1… / hex pubkey / NIP-05 and presses Enter or blurs
  */
+/** Small removable chip showing a single selected author. */
+function AuthorChip({ pubkey, onRemove }: { pubkey: string; onRemove: () => void }) {
+  const hexPubkey = useMemo(() => {
+    if (/^[0-9a-f]{64}$/i.test(pubkey)) return pubkey;
+    try { const d = nip19.decode(pubkey); return d.type === 'npub' ? d.data : pubkey; } catch { return pubkey; }
+  }, [pubkey]);
+  const author = useAuthor(hexPubkey);
+  const name = author.data?.metadata?.display_name || author.data?.metadata?.name || pubkey.slice(0, 10) + '…';
+  const picture = author.data?.metadata?.picture;
+  return (
+    <span className="inline-flex items-center gap-1.5 pl-1.5 pr-1 py-0.5 rounded-full bg-secondary border border-border text-xs max-w-[160px]">
+      {picture ? (
+        <img src={picture} alt="" className="size-4 rounded-full shrink-0 object-cover" />
+      ) : (
+        <User className="size-3 shrink-0 text-muted-foreground" />
+      )}
+      <span className="truncate">{name}</span>
+      <button onClick={onRemove} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors" aria-label="Remove">
+        <X className="size-3" />
+      </button>
+    </span>
+  );
+}
+
+function SaveDestinationRow({
+  icon, label, description, onClick, disabled, loading,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+  onClick: () => void;
+  disabled: boolean;
+  loading: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary/60 disabled:opacity-40 disabled:pointer-events-none transition-colors text-left"
+    >
+      <span className="shrink-0">{loading ? <Loader2 className="size-4 animate-spin text-muted-foreground" /> : icon}</span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="block text-xs text-muted-foreground">{description}</span>
+      </span>
+    </button>
+  );
+}
+
 function AuthorFilterDropdown({ onCommit }: { onCommit: (pubkey: string, label: string) => void }) {
   const handleSelect = useCallback((profile: SearchProfile) => {
     const npub = nip19.npubEncode(profile.pubkey);

@@ -660,11 +660,10 @@ export function ProfilePage() {
   const { savedFeeds } = useSavedFeeds();
   const profileSavedFeeds = useMemo(
     () => savedFeeds.filter(
-      (f) => f.destination === 'profile' && pubkey && (
-        f.filters.authorPubkey === pubkey ||
-        // also match npub-encoded form
-        (() => { try { const d = nip19.decode(f.filters.authorPubkey); return d.type === 'npub' && d.data === pubkey; } catch { return false; } })()
-      ),
+      (f) => f.destination === 'profile' && pubkey && f.filters.authorPubkeys.some((ap) => {
+        if (ap === pubkey) return true;
+        try { const d = nip19.decode(ap); return d.type === 'npub' && d.data === pubkey; } catch { return false; }
+      }),
     ),
     [savedFeeds, pubkey],
   );
@@ -2056,7 +2055,8 @@ function ProfileSavedFeedContent({ feed }: { feed: SavedFeed }) {
     language: filters.language,
     protocols,
     kindsOverride,
-    authorPubkey: filters.authorPubkey || undefined,
+    authorPubkeys: filters.authorPubkeys.length > 0 ? filters.authorPubkeys : undefined,
+    sort: filters.sort,
   });
 
   if (isLoading && posts.length === 0) {
