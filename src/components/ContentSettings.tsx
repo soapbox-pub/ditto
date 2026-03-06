@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { IntroImage } from '@/components/IntroImage';
 import { ChevronDown, ChevronUp, Users, Download, Loader2, X, Pencil, Check, Home, User, Globe, Clock, Flame, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,9 @@ import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/useToast';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
+import { SavedFeedFiltersEditor, buildKindOptions } from '@/components/SavedFeedFiltersEditor';
 import { cn } from '@/lib/utils';
-import type { SavedFeed } from '@/contexts/AppContext';
+import type { SavedFeed, SavedFeedFilters } from '@/contexts/AppContext';
 
 export function ContentSettings() {
   const [notesOpen, setNotesOpen] = useState(true);
@@ -575,13 +576,8 @@ function SavedFeedsSection() {
 
   if (savedFeeds.length === 0) return null;
 
-  const handleSave = async (id: string, label: string, query: string) => {
-    const feed = savedFeeds.find((f) => f.id === id);
-    if (!feed) return;
-    await updateSavedFeed(id, {
-      label,
-      filters: { ...feed.filters, query },
-    });
+  const handleSave = async (id: string, label: string, filters: SavedFeedFilters) => {
+    await updateSavedFeed(id, { label, filters });
     toast({ title: 'Feed updated' });
     setEditingId(null);
   };
@@ -608,7 +604,7 @@ function SavedFeedsSection() {
               isEditing={editingId === feed.id}
               onEdit={() => setEditingId(feed.id)}
               onCancel={() => setEditingId(null)}
-              onSave={(label, query) => handleSave(feed.id, label, query)}
+              onSave={(label, filters) => handleSave(feed.id, label, filters)}
               onRemove={() => handleRemove(feed)}
               isPending={isPending}
             />
@@ -629,7 +625,7 @@ function SavedFeedsSection() {
               isEditing={editingId === feed.id}
               onEdit={() => setEditingId(feed.id)}
               onCancel={() => setEditingId(null)}
-              onSave={(label, query) => handleSave(feed.id, label, query)}
+              onSave={(label, filters) => handleSave(feed.id, label, filters)}
               onRemove={() => handleRemove(feed)}
               isPending={isPending}
             />
@@ -653,17 +649,18 @@ function SavedFeedRow({
   isEditing: boolean;
   onEdit: () => void;
   onCancel: () => void;
-  onSave: (label: string, query: string) => void;
+  onSave: (label: string, filters: SavedFeedFilters) => void;
   onRemove: () => void;
   isPending: boolean;
 }) {
   const [labelValue, setLabelValue] = useState(feed.label);
-  const [queryValue, setQueryValue] = useState(feed.filters.query);
+  const [filtersValue, setFiltersValue] = useState<SavedFeedFilters>(feed.filters);
+  const kindOptions = useMemo(() => buildKindOptions(), []);
 
   // Reset local state when this row starts editing
   const handleEdit = () => {
     setLabelValue(feed.label);
-    setQueryValue(feed.filters.query);
+    setFiltersValue(feed.filters);
     onEdit();
   };
 
@@ -726,31 +723,28 @@ function SavedFeedRow({
 
       {/* Inline edit panel */}
       {isEditing && (
-        <div className="px-2.5 pb-2.5 pt-1 border-t border-border/50 space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Tab name</label>
-              <Input
-                value={labelValue}
-                onChange={(e) => setLabelValue(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
-                className="h-7 text-sm bg-background"
-                placeholder="Tab name…"
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Search query</label>
-              <Input
-                value={queryValue}
-                onChange={(e) => setQueryValue(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') onSave(labelValue, queryValue); if (e.key === 'Escape') onCancel(); }}
-                className="h-7 text-sm bg-background"
-                placeholder="e.g. bitcoin"
-              />
-            </div>
+        <div className="px-2.5 pb-3 pt-2 border-t border-border/50 space-y-3">
+          {/* Tab name */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Tab name</label>
+            <Input
+              value={labelValue}
+              onChange={(e) => setLabelValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
+              className="h-8 text-sm bg-background"
+              placeholder="Tab name…"
+              autoFocus
+            />
           </div>
-          <div className="flex justify-end gap-1.5">
+
+          {/* Full filter editor */}
+          <SavedFeedFiltersEditor
+            value={filtersValue}
+            onChange={(patch) => setFiltersValue((prev) => ({ ...prev, ...patch }))}
+            kindOptions={kindOptions}
+          />
+
+          <div className="flex justify-end gap-1.5 pt-1">
             <button
               onClick={onCancel}
               className="h-7 px-2.5 rounded text-xs text-muted-foreground hover:bg-secondary transition-colors"
@@ -758,7 +752,7 @@ function SavedFeedRow({
               Cancel
             </button>
             <button
-              onClick={() => onSave(labelValue, queryValue)}
+              onClick={() => onSave(labelValue, filtersValue)}
               disabled={isPending || !labelValue.trim()}
               className="h-7 px-2.5 rounded text-xs bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center gap-1"
             >
