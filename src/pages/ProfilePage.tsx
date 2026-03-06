@@ -59,10 +59,19 @@ import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
+import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
-import { ProfileTabsManagerModal } from '@/components/ProfileTabsManagerModal';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import type { ProfileTab as CustomProfileTab } from '@/lib/profileTabsEvent';
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, sortableKeyboardCoordinates, useSortable,
+  horizontalListSortingStrategy, arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS as DndCSS } from '@dnd-kit/utilities';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
 import { loadAndApplyFont } from '@/lib/fontLoader';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
@@ -345,7 +354,7 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
     <button
       onClick={onClick}
       className={cn(
-        'shrink-0 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 whitespace-nowrap',
+        'flex-1 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 whitespace-nowrap',
         active ? 'text-foreground' : 'text-muted-foreground',
       )}
     >
@@ -354,6 +363,66 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 max-w-16 h-1 bg-primary rounded-full" />
       )}
     </button>
+  );
+}
+
+type EditableTab = { label: string; isCore: boolean; tab?: CustomProfileTab };
+
+function SortableTabChip({
+  tab, active, onSelect, onRemove,
+}: {
+  tab: EditableTab;
+  active: boolean;
+  onSelect: () => void;
+  onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.label });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: DndCSS.Transform.toString(transform), transition }}
+      className={cn(
+        'shrink-0 relative flex items-stretch group/chip px-1 text-sm font-medium select-none whitespace-nowrap',
+        active ? 'text-foreground' : 'text-muted-foreground',
+        isDragging && 'opacity-60 z-50',
+      )}
+      {...attributes}
+    >
+      {/* Grip handle */}
+      <span
+        {...listeners}
+        className="shrink-0 flex items-center cursor-grab active:cursor-grabbing touch-none pr-1"
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="size-4 text-muted-foreground/40" />
+      </span>
+
+      {/* Tab label — tap navigates */}
+      <button
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onSelect(); }}
+        className="py-3.5 pr-1"
+      >
+        {tab.label}
+      </button>
+
+      {/* Active indicator bar */}
+      {active && (
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+      )}
+
+      {/* × — only rendered when active */}
+      {active && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="shrink-0 flex items-center justify-center text-xl leading-none font-bold py-3.5 pr-1 text-muted-foreground/50 hover:text-destructive transition-colors"
+          aria-label={`Remove ${tab.label}`}
+        >
+          ×
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -745,33 +814,127 @@ export function ProfilePage() {
 
   // Custom profile tabs from kind 16769
   const profileTabsQuery = useProfileTabs(pubkey);
-  const profileSavedFeeds = profileTabsQuery.data ?? [];
+  const { savedFeeds: encryptedSavedFeeds } = useSavedFeeds();
+
+  // Kind 16769 is the canonical source. Fall back to encrypted settings (profile-destined,
+  // author-matching) if no kind 16769 event has been published yet — this handles migration.
+  const profileSavedFeeds = useMemo<CustomProfileTab[]>(() => {
+    if (!profileTabsQuery.isFetched) return []; // still loading
+    // null = no kind 16769 event published yet → fall back to encrypted settings (migration)
+    if (profileTabsQuery.data === null) {
+      return encryptedSavedFeeds
+        .filter((f) => f.destination === 'profile' && pubkey && f.filters.authorPubkeys.some((ap) => {
+          if (ap === pubkey) return true;
+          try { const d = nip19.decode(ap); return d.type === 'npub' && d.data === pubkey; } catch { return false; }
+        }))
+        .map((f) => ({ label: f.label, filters: f.filters }));
+    }
+    // Array (possibly empty) = kind 16769 event exists → canonical, respect deletions
+    return profileTabsQuery.data ?? [];
+  }, [profileTabsQuery.data, profileTabsQuery.isFetched, encryptedSavedFeeds, pubkey]);
+
   const { publishProfileTabs, isPending: isPublishingTabs } = usePublishProfileTabs();
 
-  // Modal state for add/edit (single tab)
+  // Tab edit mode (inline reorder/remove/add)
+  const [tabEditMode, setTabEditMode] = useState(false);
+
+  // All tabs as a flat ordered list for the drag UI — core tabs have isCore=true and can't be removed
+  type EditableTab = { label: string; isCore: boolean; tab?: CustomProfileTab };
+  const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
+  const [localTabs, setLocalTabs] = useState<EditableTab[]>([]);
   const [tabModalOpen, setTabModalOpen] = useState(false);
   const [editingTab, setEditingTab] = useState<CustomProfileTab | undefined>(undefined);
-  // Manager modal state (reorder + remove)
-  const [tabManagerOpen, setTabManagerOpen] = useState(false);
+
+  // Map from display label → internal tab id for core tabs
+  const CORE_TAB_IDS: Record<string, string> = {
+    'Posts': 'posts', 'Posts & replies': 'replies',
+    'Media': 'media', 'Likes': 'likes', 'Wall': 'wall',
+  };
+
+  // The ordered tab list for view mode:
+  // - null (no kind 16769 event) → show all 5 defaults
+  // - [] (event exists, all removed) → show nothing
+  // - [...] (event with tabs) → show exactly those
+  const viewTabs: EditableTab[] = useMemo(() => {
+    if (profileTabsQuery.data === null || !profileTabsQuery.isFetched) {
+      // No event yet — show defaults
+      return CORE_TAB_LABELS.map((label) => ({ label, isCore: true }));
+    }
+    // Event exists — use its tab list (may be empty)
+    return (profileTabsQuery.data ?? []).map((t) =>
+      CORE_TAB_LABELS.includes(t.label)
+        ? { label: t.label, isCore: true }
+        : { label: t.label, isCore: false, tab: t },
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileTabsQuery.data, profileTabsQuery.isFetched]);
+
+  const enterTabEditMode = () => {
+    // Start edit with current view tabs, filling in any missing core tabs at the end
+    const existingLabels = new Set(viewTabs.map((t) => t.label));
+    const missingCore = CORE_TAB_LABELS
+      .filter((l) => !existingLabels.has(l))
+      .map((label) => ({ label, isCore: true }));
+    setLocalTabs([...viewTabs, ...missingCore]);
+    setTabEditMode(true);
+  };
+
+  const handleTabDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setLocalTabs((prev) => {
+        const oldIdx = prev.findIndex((t) => t.label === active.id);
+        const newIdx = prev.findIndex((t) => t.label === over.id);
+        return arrayMove(prev, oldIdx, newIdx);
+      });
+    }
+  };
+
+  const handleRemoveLocalTab = (label: string) => {
+    setLocalTabs((prev) => prev.filter((t) => t.label !== label));
+  };
+
+  const handleSaveTabEdit = async () => {
+    // Publish ALL tabs in order — core tabs stored as stubs with empty filters,
+    // custom tabs with their full filters
+    const DEFAULT_FILTERS: CustomProfileTab['filters'] = {
+      query: '', mediaType: 'all', language: 'global', platform: 'nostr',
+      kindFilter: 'all', customKindText: '', authorScope: 'anyone', authorPubkeys: [], sort: 'recent',
+    };
+    const allTabs: CustomProfileTab[] = localTabs.map((t) =>
+      t.tab ?? { label: t.label, filters: DEFAULT_FILTERS },
+    );
+    await publishProfileTabs(allTabs);
+    const remainingLabels = localTabs.map((t) => t.label.toLowerCase());
+    const coreMatch = ['posts', 'replies', 'media', 'likes', 'wall'];
+    if (!remainingLabels.includes(activeTab.toLowerCase()) && !coreMatch.includes(activeTab)) {
+      setActiveTab('posts');
+    }
+    setTabEditMode(false);
+  };
 
   const handleOpenAddCustomTab = () => { setEditingTab(undefined); setTabModalOpen(true); };
 
+  // Called from the add/edit modal — in edit mode append to localTabs; otherwise publish immediately
   const handleSaveTab = async (tab: CustomProfileTab) => {
-    if (editingTab) {
-      const updated = profileSavedFeeds.map((t) => t.label === editingTab.label ? tab : t);
-      await publishProfileTabs(updated);
+    if (tabEditMode) {
+      setLocalTabs((prev) =>
+        editingTab
+          ? prev.map((t) => t.label === editingTab.label ? { label: tab.label, isCore: false, tab } : t)
+          : [...prev, { label: tab.label, isCore: false, tab }],
+      );
     } else {
-      await publishProfileTabs([...profileSavedFeeds, tab]);
+      const base = editingTab
+        ? profileSavedFeeds.map((t) => t.label === editingTab.label ? tab : t)
+        : [...profileSavedFeeds, tab];
+      await publishProfileTabs(base);
     }
   };
 
-  const handleSaveAllTabs = async (tabs: CustomProfileTab[]) => {
-    await publishProfileTabs(tabs);
-    // If active tab was removed, fall back to posts
-    if (!tabs.find((t) => t.label === activeTab) && !['posts','replies','media','likes','wall'].includes(activeTab)) {
-      setActiveTab('posts');
-    }
-  };
+  const dndSensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   // Drop active tab if it was deleted
   useEffect(() => {
@@ -1697,59 +1860,134 @@ export function ProfilePage() {
 
         {/* Tabs */}
         <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border backdrop-blur-md z-10 overflow-x-auto scrollbar-none')}>
-          <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
-          <TabButton label="Posts & replies" active={activeTab === 'replies'} onClick={() => setActiveTab('replies')} />
-          <TabButton label="Media" active={activeTab === 'media'} onClick={() => { setActiveTab('media'); setSidebarMediaUrl(null); }} />
-          <TabButton label="Likes" active={activeTab === 'likes'} onClick={() => setActiveTab('likes')} />
-          <TabButton label="Wall" active={activeTab === 'wall'} onClick={() => setActiveTab('wall')} />
-          {profileSavedFeeds.map((tab) => (
-            <TabButton
-              key={tab.label}
-              label={tab.label}
-              active={activeTab === tab.label}
-              onClick={() => setActiveTab(tab.label)}
-            />
-          ))}
-          {/* Own-profile controls at end of tab row */}
-          {isOwnProfile && (
-            <>
-              {/* + dropdown: default core tabs (always visible) → show custom as default */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className="shrink-0 px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                    aria-label="Add tab"
-                  >
-                    <Plus className="size-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {/* Core tabs — always visible, shown as already-added */}
-                  {(['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'] as const).map((name) => (
-                    <DropdownMenuItem key={name} disabled className="text-muted-foreground">
-                      <Check className="size-3.5 mr-2 opacity-60" />
-                      {name}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleOpenAddCustomTab}>
-                    <Plus className="size-3.5 mr-2" />
-                    Add custom tab
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+          {/* All tabs in view mode — ordered by kind 16769, fallback to defaults */}
+          {!tabEditMode && viewTabs.map((tab) => {
+            const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
+            return (
+              <TabButton
+                key={tab.label}
+                label={tab.label}
+                active={activeTab === tabId}
+                onClick={() => {
+                  setActiveTab(tabId);
+                  if (tab.label === 'Media') setSidebarMediaUrl(null);
+                }}
+              />
+            );
+          })}
 
-              {/* Manager pencil — opens reorder/remove sheet (only if custom tabs exist) */}
-              {profileSavedFeeds.length > 0 && (
-                <button
-                  onClick={() => setTabManagerOpen(true)}
-                  className="shrink-0 px-2 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                  aria-label="Manage tabs"
-                >
-                  <SlidersHorizontal className="size-3.5" />
-                </button>
+          {/* Custom tabs — inline edit mode (draggable) */}
+          {tabEditMode && (
+            <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTabDragEnd}>
+              <SortableContext items={localTabs.map((t) => t.label)} strategy={horizontalListSortingStrategy}>
+                <div className="flex items-center flex-1 min-w-0 overflow-x-auto scrollbar-none">
+                  {localTabs.length === 0 ? (
+                    <span className="px-4 text-sm text-muted-foreground italic">No custom tabs — use + to add one</span>
+                  ) : (
+                    localTabs.map((tab) => {
+                      const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
+                      return (
+                        <SortableTabChip
+                          key={tab.label}
+                          tab={tab}
+                          active={activeTab === tabId}
+                          onSelect={() => setActiveTab(tabId)}
+                          onRemove={() => handleRemoveLocalTab(tab.label)}
+                        />
+                      );
+                    })
+                  )}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+
+          {/* Visitor controls — show missing default tabs when profile has customised tab list */}
+          {!isOwnProfile && !tabEditMode && profileTabsQuery.isFetched && profileTabsQuery.data !== null && (() => {
+            const missingDefaults = CORE_TAB_LABELS.filter(
+              (label) => !viewTabs.some((t) => t.label === label),
+            );
+            if (missingDefaults.length === 0) return null;
+            return (
+              <div className="flex items-center shrink-0 ml-auto">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                      aria-label="More tabs"
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {missingDefaults.map((label) => {
+                      const tabId = CORE_TAB_IDS[label] ?? label;
+                      return (
+                        <DropdownMenuItem key={label} onClick={() => setActiveTab(tabId)}>
+                          {label}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            );
+          })()}
+
+          {/* Own-profile controls */}
+          {isOwnProfile && (
+            <div className="flex items-center shrink-0 ml-auto">
+              {/* + dropdown — only visible in edit mode */}
+              {tabEditMode && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                      aria-label="Add tab"
+                    >
+                      <Plus className="size-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {CORE_TAB_LABELS.map((name) => {
+                      const present = localTabs.some((t) => t.label === name);
+                      return (
+                        <DropdownMenuItem
+                          key={name}
+                          disabled={present}
+                          className={present ? 'text-muted-foreground' : undefined}
+                          onClick={present ? undefined : () => setLocalTabs((prev) => [...prev, { label: name, isCore: true }])}
+                        >
+                          {present
+                            ? <Check className="size-3.5 mr-2 opacity-60" />
+                            : <Plus className="size-3.5 mr-2" />}
+                          {name}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleOpenAddCustomTab}>
+                      <Plus className="size-3.5 mr-2" />
+                      Add custom tab
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
-            </>
+
+              {/* Pencil → enters edit mode / Check → saves */}
+              <button
+                onClick={tabEditMode ? handleSaveTabEdit : enterTabEditMode}
+                disabled={tabEditMode && isPublishingTabs}
+                className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors disabled:opacity-50"
+                aria-label={tabEditMode ? 'Save tab order' : 'Edit tabs'}
+              >
+                {isPublishingTabs
+                  ? <Loader2 className="size-4 animate-spin" />
+                  : tabEditMode
+                    ? <Check className="size-4 text-primary" />
+                    : <Pencil className="size-3.5" />}
+              </button>
+            </div>
           )}
         </div>
 
@@ -1761,19 +1999,7 @@ export function ProfilePage() {
             tab={editingTab}
             ownerPubkey={pubkey}
             onSave={handleSaveTab}
-            isPending={isPublishingTabs}
-          />
-        )}
-
-        {/* Manager modal (reorder + remove) */}
-        {pubkey && (
-          <ProfileTabsManagerModal
-            open={tabManagerOpen}
-            onOpenChange={setTabManagerOpen}
-            tabs={profileSavedFeeds}
-            ownerPubkey={pubkey}
-            onSave={handleSaveAllTabs}
-            isPending={isPublishingTabs}
+            isPending={false}
           />
         )}
 
