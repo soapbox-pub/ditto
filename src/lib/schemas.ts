@@ -173,6 +173,24 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludePodcastTrailers: z.boolean().optional(),
 });
 
+/** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */
+export const TabFilterSchema = z.record(z.string(), z.unknown());
+
+/** Schema for a variable definition. */
+export const TabVarDefSchema = z.object({
+  name: z.string(),
+  tagName: z.string(),
+  pointer: z.string(),
+});
+
+export const SavedFeedSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  filter: TabFilterSchema,
+  vars: z.array(TabVarDefSchema).default([]),
+  createdAt: z.number(),
+});
+
 // ─── AppConfigSchema ─────────────────────────────────────────────────
 
 /**
@@ -208,6 +226,14 @@ export const AppConfigSchema = z.object({
   contentWarningPolicy: ContentWarningPolicySchema,
   sentryDsn: z.string(),
   sentryEnabled: z.boolean(),
+  savedFeeds: z.array(z.unknown()).transform((arr) =>
+    arr.flatMap((item) => {
+      if (typeof item !== 'object' || item === null) return [];
+      if ((item as Record<string, unknown>).destination !== undefined) return [];
+      const result = SavedFeedSchema.safeParse(item);
+      return result.success ? [result.data] : [];
+    })
+  ).optional().default([]),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────
@@ -247,25 +273,6 @@ export const ContentFilterSchema = z.object({
 
 // ─── SavedFeed Schema ────────────────────────────────────────────────
 
-/** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */
-export const TabFilterSchema = z.record(z.string(), z.unknown());
-
-/** Schema for a variable definition. */
-export const TabVarDefSchema = z.object({
-  name: z.string(),
-  tagName: z.string(),
-  pointer: z.string(),
-});
-
-export const SavedFeedSchema = z.object({
-  id: z.string(),
-  label: z.string(),
-  filter: TabFilterSchema,
-  vars: z.array(TabVarDefSchema).default([]),
-  destination: z.enum(['feed', 'profile']).default('feed'),
-  createdAt: z.number(),
-});
-
 // ─── EncryptedSettings Schema ────────────────────────────────────────
 
 /**
@@ -298,5 +305,12 @@ export const EncryptedSettingsSchema = z.looseObject({
   faviconUrl: z.string().optional(),
   linkPreviewUrl: z.string().optional(),
   sentryDsn: z.string().optional(),
-  savedFeeds: z.array(SavedFeedSchema).optional(),
+  savedFeeds: z.array(z.unknown()).transform((arr) =>
+    arr.flatMap((item) => {
+      if (typeof item !== 'object' || item === null) return [];
+      if ((item as Record<string, unknown>).destination !== undefined) return [];
+      const result = SavedFeedSchema.safeParse(item);
+      return result.success ? [result.data] : [];
+    })
+  ).optional(),
 });

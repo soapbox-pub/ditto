@@ -17,6 +17,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
+import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -69,31 +70,22 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
     return 'Community';
   })();
 
-  const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
+  const [activeTab, setActiveTab] = useState<FeedTab>(() => {
+    if (!user) return 'global';
+    return 'follows';
+  });
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
 
-  // Switch to follows tab when user logs in
-  useEffect(() => {
-    if (user) {
-      setActiveTab('follows');
-    }
-  }, [user]);
+  const handleSetActiveTab = useCallback((tab: FeedTab) => {
+    setActiveTab(tab);
+  }, []);
 
   // Is the active tab a saved feed?
   const activeSavedFeed = useMemo(
     () => savedFeeds.find((f) => f.id === activeTab) ?? null,
     [savedFeeds, activeTab],
   );
-
-  // If a saved feed tab is deleted while active, fall back to follows/global
-  useEffect(() => {
-    if (activeTab !== 'follows' && activeTab !== 'global' && activeTab !== 'communities') {
-      if (!savedFeeds.find((f) => f.id === activeTab)) {
-        setActiveTab(user ? 'follows' : 'global');
-      }
-    }
-  }, [savedFeeds, activeTab, user]);
 
   // When logged out (and not on a kind-specific page), show the "hot" sorted
   // feed instead of the noisy global feed so new visitors see quality content.
@@ -190,19 +182,19 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
       {/* Tabs (logged in) or CTA (logged out, main feed only) */}
       {user ? (
         <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none">
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {showCommunityFeed && (
-            <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => setActiveTab('communities')} />
+            <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
           )}
           {showGlobalFeed && (
-            <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+            <TabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
           )}
           {showSavedFeedTabs && savedFeeds.map((feed) => (
             <TabButton
               key={feed.id}
               label={feed.label}
               active={activeTab === feed.id}
-              onClick={() => setActiveTab(feed.id)}
+              onClick={() => handleSetActiveTab(feed.id)}
             />
           ))}
         </div>
@@ -260,7 +252,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
               }
               onSwitchToGlobal={
                 activeTab === 'follows' && showGlobalFeed
-                  ? () => setActiveTab('global')
+                  ? () => handleSetActiveTab('global')
                   : undefined
               }
             />
@@ -283,19 +275,28 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
 
 /** Renders a saved search feed using useStreamPosts (live streaming). */
 function SavedFeedContent({ feed }: { feed: SavedFeed }) {
-  const { filter } = feed;
   const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
+  const { user } = useCurrentUser();
 
-  const search = typeof filter.search === 'string' ? filter.search : '';
-  const kindsOverride = Array.isArray(filter.kinds) ? filter.kinds as number[] : undefined;
-  const authorPubkeys = Array.isArray(filter.authors) ? filter.authors as string[] : undefined;
+  // Resolve variable placeholders ($follows etc.) the same way profile tabs do
+  const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(
+    feed.filter,
+    feed.vars ?? [],
+    user?.pubkey ?? '',
+  );
 
-  const { posts, isLoading } = useStreamPosts(search, {
+  const search = typeof resolvedFilter?.search === 'string' ? resolvedFilter.search : '';
+  const kindsOverride = Array.isArray(resolvedFilter?.kinds) ? resolvedFilter.kinds as number[] : undefined;
+  const authorPubkeys = Array.isArray(resolvedFilter?.authors) ? resolvedFilter.authors as string[] : undefined;
+
+  const { posts, isLoading: isStreamLoading } = useStreamPosts(search, {
     includeReplies: true,
     mediaType: 'all',
     kindsOverride,
     authorPubkeys: authorPubkeys && authorPubkeys.length > 0 ? authorPubkeys : undefined,
   });
+
+  const isLoading = isResolving || isStreamLoading;
 
   // Simple scroll-based load more isn't available with useStreamPosts (it's a stream),
   // but we still wire the ref for future pagination support

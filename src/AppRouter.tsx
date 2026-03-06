@@ -41,6 +41,7 @@ import { WorldPage } from "./pages/WorldPage";
 import { MusicFeedPage } from "./pages/MusicFeedPage";
 import { PodcastsFeedPage } from "./pages/PodcastsFeedPage";
 import { BooksPage } from "./pages/BooksPage";
+import { UserListsPage } from "./pages/UserListsPage";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -106,6 +107,7 @@ export function AppRouter() {
           <Route path="/ai-chat" element={<AIChatPage />} />
           <Route path="/world" element={<WorldPage />} />
           <Route path="/books" element={<BooksPage />} />
+          <Route path="/lists" element={<UserListsPage />} />
           <Route path="/i/*" element={<ExternalContentPage />} />
 
           {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}

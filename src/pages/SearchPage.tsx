@@ -32,7 +32,13 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useProfileTabs } from '@/hooks/useProfileTabs';
+import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
+import { useFollowPacks } from '@/hooks/useFollowPacks';
+
+import { ListPackPicker } from '@/components/SavedFeedFiltersEditor';
 
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -161,6 +167,17 @@ export function SearchPage() {
       if (scope !== 'people') {
         next.delete('author');
       }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  /** Replace the current author list with the pubkeys from a Follow Set or Pack. */
+  const setAuthorsFromList = useCallback((pubkeys: string[]) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('author');
+      pubkeys.forEach((pk) => next.append('author', pk));
+      next.set('authorScope', 'people');
       return next;
     }, { replace: true });
   }, [setSearchParams]);
@@ -296,10 +313,16 @@ export function SearchPage() {
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const followPubkeys = useMemo(() => followData?.pubkeys ?? [], [followData?.pubkeys]);
+  const { lists } = useUserLists();
+  const { data: followPacks = [] } = useFollowPacks();
   const { savedFeeds, addSavedFeed, isPending: isSavingFeed } = useSavedFeeds();
+  const profileTabsQuery = useProfileTabs(user?.pubkey);
+  const { publishProfileTabs, isPending: isPublishingTabs } = usePublishProfileTabs();
   const [savePopoverOpen, setSavePopoverOpen] = useState(false);
   const [saveFeedLabel, setSaveFeedLabel] = useState('');
   const [savedJustNow, setSavedJustNow] = useState(false);
+
+  const listPickerValue = useMatchedListId(authorPubkeys);
 
   // 'people' scope with explicit authors = user-specific; not eligible for profile tab
   const isAuthorSpecific = authorScope === 'people' && authorPubkeys.length > 0;
@@ -317,13 +340,25 @@ export function SearchPage() {
     (f) => JSON.stringify(f.filter) === JSON.stringify(currentFilter),
   );
 
-  const handleSave = async (destination: 'feed' | 'profile') => {
+  const handleSaveFeed = async () => {
     if (!saveFeedLabel.trim() || isSavingFeed) return;
-    // Profile tabs auto-lock to the current user's pubkey
-    const filterToSave: TabFilter = destination === 'profile' && user
-      ? { ...currentFilter, authors: authorPubkeys.length > 0 ? authorPubkeys : [user.pubkey] }
-      : currentFilter;
-    await addSavedFeed(saveFeedLabel, filterToSave, [], destination);
+    const varsToSave = authorScope === 'follows' && user
+      ? [{ name: '$follows', tagName: 'p', pointer: `a:3:${user.pubkey}:` }]
+      : [];
+    await addSavedFeed(saveFeedLabel, currentFilter, varsToSave);
+    setSavePopoverOpen(false);
+    setSaveFeedLabel('');
+    setSavedJustNow(true);
+    setTimeout(() => setSavedJustNow(false), 2000);
+  };
+
+  const handleSaveProfileTab = async () => {
+    if (!saveFeedLabel.trim() || isPublishingTabs || !user) return;
+    const existing = profileTabsQuery.data ?? { tabs: [], vars: [] };
+    await publishProfileTabs({
+      tabs: [...existing.tabs, { label: saveFeedLabel.trim(), filter: currentFilter }],
+      vars: existing.vars,
+    });
     setSavePopoverOpen(false);
     setSaveFeedLabel('');
     setSavedJustNow(true);
@@ -376,8 +411,22 @@ export function SearchPage() {
               </div>
 
                 {/* Add to feed button */}
-                {user && searchQuery.trim() && (
-                  <Popover open={savePopoverOpen} onOpenChange={(o) => { setSavePopoverOpen(o); if (o && !saveFeedLabel) setSaveFeedLabel(searchQuery.trim()); }}>
+                {user && (searchQuery.trim() || hasActiveFilters) && (
+                  <Popover open={savePopoverOpen} onOpenChange={(o) => {
+                    setSavePopoverOpen(o);
+                    if (o && !saveFeedLabel) {
+                      // Pre-fill with the search query, or a label derived from active filters
+                      if (searchQuery.trim()) {
+                        setSaveFeedLabel(searchQuery.trim());
+                      } else if (listPickerValue) {
+                        const matched =
+                          listPickerValue.startsWith('set:')
+                            ? lists.find((l) => l.id === listPickerValue.slice(4))?.title
+                            : followPacks.find((p) => p.id === listPickerValue.slice(5))?.title;
+                        if (matched) setSaveFeedLabel(matched);
+                      }
+                    }
+                  }}>
                     <PopoverTrigger asChild>
                       <button
                         className={cn(
@@ -403,7 +452,7 @@ export function SearchPage() {
                             placeholder="Tab name…"
                             value={saveFeedLabel}
                             onChange={(e) => setSaveFeedLabel(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleSave('feed'); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFeed(); }}
                             className="bg-secondary/50 border-border focus-visible:ring-1 text-sm"
                             autoFocus
                           />
@@ -412,19 +461,19 @@ export function SearchPage() {
                               icon={<BookmarkPlus className="size-4 text-muted-foreground" />}
                               label="Home feed"
                               description="Tab on your home page"
-                              onClick={() => handleSave('feed')}
-                              disabled={!saveFeedLabel.trim() || isSavingFeed}
-                              loading={isSavingFeed}
-                            />
-                            {!isAuthorSpecific && (
-                              <SaveDestinationRow
-                                icon={<User className="size-4 text-muted-foreground" />}
-                                label="Profile tab"
-                                description="Your posts matching this search"
-                                onClick={() => handleSave('profile')}
-                                disabled={!saveFeedLabel.trim() || isSavingFeed}
-                                loading={isSavingFeed}
-                              />
+                              onClick={() => handleSaveFeed()}
+                               disabled={!saveFeedLabel.trim() || isSavingFeed || isPublishingTabs}
+                               loading={isSavingFeed}
+                             />
+                             {!isAuthorSpecific && (
+                               <SaveDestinationRow
+                                 icon={<User className="size-4 text-muted-foreground" />}
+                                 label="Profile tab"
+                                 description="Your posts matching this search"
+                                 onClick={() => handleSaveProfileTab()}
+                                 disabled={!saveFeedLabel.trim() || isSavingFeed || isPublishingTabs}
+                                 loading={isPublishingTabs}
+                               />
                             )}
                           </div>
                         </>
@@ -517,6 +566,12 @@ export function SearchPage() {
                             }, { replace: true });
                           }
                         }} />
+                        <ListPackPicker
+                          lists={lists}
+                          followPacks={followPacks}
+                          value={listPickerValue}
+                          onSelectPubkeys={setAuthorsFromList}
+                        />
                       </div>
                     )}
                   </div>
