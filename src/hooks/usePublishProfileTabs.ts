@@ -1,8 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { PROFILE_TABS_KIND, buildProfileTabsTags } from '@/lib/profileTabsEvent';
-import type { ProfileTab } from '@/lib/profileTabsEvent';
+import { PROFILE_TABS_KIND, buildProfileTabsTags, type ProfileTab } from '@/lib/profileTabsEvent';
 
 /**
  * Publish a kind 16769 profile tabs event, replacing any previous one.
@@ -22,8 +21,9 @@ export function usePublishProfileTabs() {
       tags: buildProfileTabsTags(tabs),
     });
 
-    // Invalidate so ProfilePage and useProfileTabs refetch
+    // Invalidate both so ProfilePage refetches fresh data
     await queryClient.invalidateQueries({ queryKey: ['profile-tabs', user.pubkey] });
+    await queryClient.invalidateQueries({ queryKey: ['profile-supplementary', user.pubkey] });
   };
 
   return { publishProfileTabs, isPending };
