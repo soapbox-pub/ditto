@@ -1,3 +1,5 @@
+import { getSubdivisionName, getSubdivisionWikipediaTitle } from './subdivisions';
+
 /** ISO 3166-1 alpha-2 country code to country name and flag emoji mapping. */
 export const COUNTRIES: Record<string, { name: string; flag: string }> = {
   AF: { name: 'Afghanistan', flag: '🇦🇫' },
@@ -277,18 +279,28 @@ const WIKIPEDIA_TITLES: Record<string, string> = {
   VN: 'Vietnam',
 };
 
-/** Get the Wikipedia article title for a country by ISO 3166-1 alpha-2 code. */
+/** Get the Wikipedia article title for a country or subdivision. */
 export function getWikipediaTitle(code: string): string | null {
   const upper = code.toUpperCase();
-  // Strip subdivision suffix (e.g. "US-CA" → "US")
-  const countryCode = upper.includes('-') ? upper.split('-')[0] : upper;
-  const country = COUNTRIES[countryCode];
+
+  if (upper.includes('-')) {
+    // Subdivision — try subdivision-specific Wikipedia title
+    const subTitle = getSubdivisionWikipediaTitle(upper);
+    if (subTitle) return subTitle;
+    // Fall back to parent country
+    const countryCode = upper.split('-')[0];
+    const country = COUNTRIES[countryCode];
+    if (!country) return null;
+    return WIKIPEDIA_TITLES[countryCode] ?? country.name;
+  }
+
+  const country = COUNTRIES[upper];
   if (!country) return null;
-  return WIKIPEDIA_TITLES[countryCode] ?? country.name;
+  return WIKIPEDIA_TITLES[upper] ?? country.name;
 }
 
 /** Get country info from an ISO 3166 code (country or subdivision). */
-export function getCountryInfo(code: string): { name: string; flag: string; subdivision?: string } | null {
+export function getCountryInfo(code: string): { name: string; flag: string; subdivision?: string; subdivisionName?: string } | null {
   const upper = code.toUpperCase();
 
   // Handle subdivision codes like "US-CA"
@@ -300,6 +312,7 @@ export function getCountryInfo(code: string): { name: string; flag: string; subd
       name: country.name,
       flag: country.flag,
       subdivision: upper,
+      subdivisionName: getSubdivisionName(upper) ?? undefined,
     };
   }
 
