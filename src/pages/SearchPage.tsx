@@ -1,16 +1,32 @@
 import { useSeoMeta } from '@unhead/react';
 import { useAppContext } from '@/hooks/useAppContext';
-import { SlidersHorizontal, Search as SearchIcon, Image, Video, Film, Languages, UserRoundCheck, Hash } from 'lucide-react';
+import {
+  SlidersHorizontal,
+  Search as SearchIcon,
+  Image,
+  Video,
+  Film,
+  Languages,
+  UserRoundCheck,
+  Hash,
+  User,
+  RotateCcw,
+  X,
+  Info,
+} from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
@@ -33,6 +49,22 @@ function parseTab(value: string | null): TabType {
   return VALID_TABS.includes(value as TabType) ? (value as TabType) : 'posts';
 }
 
+const DEFAULT_FILTERS = {
+  includeReplies: true,
+  mediaType: 'all' as const,
+  language: 'global',
+  platform: 'nostr' as const,
+  kindFilter: 'all',
+  customKindText: '',
+  authorQuery: '',
+};
+
+/** Parse a boolean from a URL param, returning defaultVal if absent/invalid. */
+function parseBoolParam(value: string | null, defaultVal: boolean): boolean {
+  if (value === null) return defaultVal;
+  return value !== 'false';
+}
+
 export function SearchPage() {
   const { config } = useAppContext();
 
@@ -44,14 +76,62 @@ export function SearchPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Derive tab directly from URL — single source of truth (no separate state)
+  // Derive tab directly from URL — single source of truth
   const activeTab = parseTab(searchParams.get('tab'));
 
   // Local input state for the search field (avoids trimming while typing)
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  // Update tab in URL without a feedback loop
+  // ── Filter state — all derived from URL params ──────────────────────────
+  const includeReplies = parseBoolParam(searchParams.get('replies'), DEFAULT_FILTERS.includeReplies);
+  const VALID_MEDIA_TYPES = ['all', 'images', 'videos', 'vines', 'none'] as const;
+  type MediaType = typeof VALID_MEDIA_TYPES[number];
+  const rawMedia = searchParams.get('media') ?? DEFAULT_FILTERS.mediaType;
+  const mediaType: MediaType = (VALID_MEDIA_TYPES as readonly string[]).includes(rawMedia) ? (rawMedia as MediaType) : DEFAULT_FILTERS.mediaType;
+  const language = searchParams.get('lang') ?? DEFAULT_FILTERS.language;
+  const VALID_PLATFORMS = ['nostr', 'activitypub', 'atproto'] as const;
+  type PlatformType = typeof VALID_PLATFORMS[number];
+  const rawPlatform = searchParams.get('platform') ?? DEFAULT_FILTERS.platform;
+  const platform: PlatformType = (VALID_PLATFORMS as readonly string[]).includes(rawPlatform) ? (rawPlatform as PlatformType) : DEFAULT_FILTERS.platform;
+  const kindFilter = searchParams.get('kind') ?? DEFAULT_FILTERS.kindFilter;
+  const customKindText = searchParams.get('customKind') ?? DEFAULT_FILTERS.customKindText;
+  const authorQuery = searchParams.get('author') ?? DEFAULT_FILTERS.authorQuery;
+  // ────────────────────────────────────────────────────────────────────────
+
+  // Helper to update a single URL param
+  const setParam = useCallback((key: string, value: string, defaultValue: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value === defaultValue) {
+        next.delete(key);
+      } else {
+        next.set(key, value);
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setIncludeReplies = useCallback((v: boolean) => setParam('replies', String(v), String(DEFAULT_FILTERS.includeReplies)), [setParam]);
+  const setMediaType = useCallback((v: string) => setParam('media', v, DEFAULT_FILTERS.mediaType), [setParam]);
+  const setLanguage = useCallback((v: string) => setParam('lang', v, DEFAULT_FILTERS.language), [setParam]);
+  const setPlatform = useCallback((v: string) => setParam('platform', v, DEFAULT_FILTERS.platform), [setParam]);
+  const setKindFilter = useCallback((v: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (v === DEFAULT_FILTERS.kindFilter) {
+        next.delete('kind');
+      } else {
+        next.set('kind', v);
+      }
+      if (v !== 'custom') next.delete('customKind');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+  const setCustomKindText = useCallback((v: string) => setParam('customKind', v, DEFAULT_FILTERS.customKindText), [setParam]);
+  const setAuthorQuery = useCallback((v: string) => setParam('author', v, DEFAULT_FILTERS.authorQuery), [setParam]);
+
+  // Update tab in URL
   const setActiveTab = useCallback((tab: TabType) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -64,7 +144,7 @@ export function SearchPage() {
     }, { replace: true });
   }, [setSearchParams]);
 
-  // Sync search query state → URL (only when the trimmed value actually differs)
+  // Sync search query state → URL
   useEffect(() => {
     const currentQ = searchParams.get('q') ?? '';
     const trimmed = searchQuery.trim();
@@ -97,16 +177,7 @@ export function SearchPage() {
     }
   }, [searchQuery, navigate]);
 
-  // Search filters
-  const [includeReplies, setIncludeReplies] = useState(true);
-  const [mediaType, setMediaType] = useState<'all' | 'images' | 'videos' | 'vines' | 'none'>('all');
-  const [language, setLanguage] = useState('global');
-  const [platform, setPlatform] = useState<'nostr' | 'activitypub' | 'atproto'>('nostr');
-  // Kind filter: 'all' = no override, 'custom' = user types a number, otherwise a kind number string
-  const [kindFilter, setKindFilter] = useState<string>('all');
-  const [customKindText, setCustomKindText] = useState('');
-
-  const protocols = [platform];
+  const protocols = useMemo(() => [platform], [platform]);
 
   // Build a flat list of (kind, label, icon) options from EXTRA_KINDS for the dropdown
   const kindOptions = useMemo(() => {
@@ -159,202 +230,90 @@ export function SearchPage() {
     return Number.isInteger(n) && n > 0 ? [n] : undefined;
   }, [kindFilter, customKindText]);
 
+  // Detect kind + media type conflict: a specific kind is selected AND a media type is set
+  const hasKindMediaConflict = kindsOverride !== undefined && mediaType !== 'all';
+
+  // Determine if any filter differs from the default
+  const hasActiveFilters = !includeReplies || mediaType !== DEFAULT_FILTERS.mediaType ||
+    language !== DEFAULT_FILTERS.language || platform !== DEFAULT_FILTERS.platform ||
+    kindFilter !== DEFAULT_FILTERS.kindFilter || authorQuery !== DEFAULT_FILTERS.authorQuery;
+
+  const resetFilters = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('replies');
+      next.delete('media');
+      next.delete('lang');
+      next.delete('platform');
+      next.delete('kind');
+      next.delete('customKind');
+      next.delete('author');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Build the NIP-50 search string that will be sent to the relay (for display)
+  const nip50SearchString = useMemo(() => {
+    const bridged = protocols.filter(p => p !== 'nostr');
+    const parts: string[] = bridged.length > 0
+      ? bridged.map(p => `protocol:${p}`)
+      : ['protocol:nostr'];
+    if (searchQuery.trim()) parts.push(searchQuery.trim());
+    if (language !== 'global') parts.push(`language:${language}`);
+    const isDedicatedKindQuery = !kindsOverride && (mediaType === 'vines' || mediaType === 'images' || mediaType === 'videos');
+    if (!isDedicatedKindQuery && !hasKindMediaConflict) {
+      if (mediaType === 'images') { parts.push('media:true'); parts.push('video:false'); }
+      else if (mediaType === 'videos') parts.push('video:true');
+      else if (mediaType === 'none') parts.push('media:false');
+    }
+    return parts.join(' ');
+  }, [searchQuery, language, mediaType, protocols, kindsOverride, hasKindMediaConflict]);
+
+  // Active filter labels for the summary / empty state hints
+  const activeFilterLabels = useMemo(() => {
+    const labels: string[] = [];
+    if (!includeReplies) labels.push('No replies');
+    if (mediaType !== 'all') labels.push({ images: 'Images', videos: 'Videos', vines: 'Shorts & Vines', none: 'No media' }[mediaType] ?? mediaType);
+    if (language !== 'global') labels.push(language.toUpperCase());
+    if (platform !== 'nostr') labels.push({ activitypub: 'Mastodon', atproto: 'Bluesky' }[platform] ?? platform);
+    if (kindFilter !== 'all' && kindFilter !== 'custom') {
+      const opt = kindOptions.find(o => o.value === kindFilter);
+      if (opt) labels.push(opt.label);
+    } else if (kindFilter === 'custom' && customKindText) {
+      labels.push(`Kind: ${customKindText}`);
+    }
+    if (authorQuery) labels.push(`Author: ${authorQuery.slice(0, 12)}…`);
+    return labels;
+  }, [includeReplies, mediaType, language, platform, kindFilter, customKindText, authorQuery, kindOptions]);
+
   // Hooks
-  const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, { includeReplies, mediaType, language, protocols, kindsOverride });
+  const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, {
+    includeReplies,
+    mediaType,
+    language,
+    protocols,
+    kindsOverride,
+    authorPubkey: authorQuery || undefined,
+  });
   const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
 
   return (
-      <main className="">
-        {/* Tabs — sticky at top */}
-        <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
-          <div className="flex">
-            <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
-            <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
-          </div>
+    <main className="">
+      {/* Tabs — sticky at top */}
+      <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
+        <div className="flex">
+          <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
+          <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
         </div>
+      </div>
 
-        {/* ─── Posts Tab ─── */}
-        {activeTab === 'posts' && (
-          <>
-            {/* Search input + filter icon */}
-            <div className="px-4 pt-5 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    type="text"
-                    placeholder="Search"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
-                  />
-                  <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-                </div>
-
-                {/* Filter popover */}
-                <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-                   <PopoverTrigger asChild>
-                     <button
-                       className={cn(
-                          'shrink-0 h-10 w-10 rounded-lg border bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors',
-                           filtersOpen
-                             ? 'border-2 border-primary bg-secondary text-primary'
-                             : (includeReplies !== true || mediaType !== 'all' || language !== 'global' || platform !== 'nostr' || kindFilter !== 'all')
-                               ? 'border-primary text-primary'
-                               : 'border-border',
-                       )}
-                       style={{ outline: 'none' }}
-                       aria-label="Search filters"
-                     >
-                      <SlidersHorizontal className="size-4" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent align="end" className="w-72 p-4 space-y-4">
-                    {/* Including replies */}
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">Include replies</span>
-                      <Switch
-                        checked={includeReplies}
-                        onCheckedChange={setIncludeReplies}
-                      />
-                    </div>
-
-                    <Separator />
-
-                    {/* Media type */}
-                     <div className="space-y-2">
-                       <span className="font-medium text-sm">Media type</span>
-                       <Select value={mediaType} onValueChange={(v) => setMediaType(v as typeof mediaType)}>
-                         <SelectTrigger className="w-full bg-secondary/50">
-                           <SelectValue />
-                         </SelectTrigger>
-                         <SelectContent>
-                           {[
-                             { value: 'all', label: 'All media' },
-                             { value: 'images', label: 'Images', icon: Image },
-                             { value: 'videos', label: 'Videos', icon: Video },
-                             { value: 'vines', label: 'Shorts & Vines', icon: Film },
-                             { value: 'none', label: 'No media' },
-                           ].map(({ value, label, icon: Icon }) => (
-                             <SelectItem key={value} value={value}>
-                               <span className="flex items-center gap-2">
-                                 {Icon && <Icon className="size-3.5 shrink-0 text-muted-foreground" />}
-                                 {label}
-                               </span>
-                             </SelectItem>
-                           ))}
-                         </SelectContent>
-                       </Select>
-                     </div>
-
-                    <Separator />
-
-                    {/* Language */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1.5">
-                        <Languages className="size-3.5 text-muted-foreground" />
-                        <span className="font-medium text-sm">Language</span>
-                      </div>
-                      <Select value={language} onValueChange={setLanguage}>
-                        <SelectTrigger className="w-full bg-secondary/50">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="global">Global</SelectItem>
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="es">Spanish</SelectItem>
-                          <SelectItem value="fr">French</SelectItem>
-                          <SelectItem value="de">German</SelectItem>
-                          <SelectItem value="ja">Japanese</SelectItem>
-                          <SelectItem value="zh">Chinese</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <Separator />
-
-                     {/* Event kind */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-1.5">
-                          <Hash className="size-3.5 text-muted-foreground" />
-                          <span className="font-medium text-sm">Event kind</span>
-                        </div>
-                        <Select value={kindFilter} onValueChange={(v) => { setKindFilter(v); if (v !== 'custom') setCustomKindText(''); }}>
-                          <SelectTrigger className="w-full bg-secondary/50">
-                            <SelectValue placeholder="All kinds" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All kinds</SelectItem>
-                            {kindOptions.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                <span className="flex items-center gap-2">
-                                  {opt.icon && <opt.icon className="size-3.5 shrink-0 text-muted-foreground" />}
-                                  {opt.label}
-                                </span>
-                              </SelectItem>
-                            ))}
-                            <SelectItem value="custom">Custom kind…</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {kindFilter === 'custom' && (
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="e.g. 1, 30023"
-                            value={customKindText}
-                            onChange={(e) => setCustomKindText(e.target.value)}
-                            className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-sm"
-                          />
-                        )}
-                      </div>
-
-                      <Separator />
-
-                     {/* Platform */}
-                      <div className="space-y-2">
-                        <span className="font-medium text-sm">Show posts from</span>
-                        <Select value={platform} onValueChange={(v) => setPlatform(v as typeof platform)}>
-                          <SelectTrigger className="w-full bg-secondary/50">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="nostr">Nostr</SelectItem>
-                            <SelectItem value="activitypub">Mastodon</SelectItem>
-                            <SelectItem value="atproto">Bluesky</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                   </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-
-            {/* Post results — stream */}
-            {postsLoading && posts.length === 0 ? (
-              <div className="divide-y divide-border">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <PostSkeleton key={i} />
-                ))}
-              </div>
-            ) : posts.length > 0 ? (
-              <div>
-                {posts.map((event) => (
-                  <NoteCard key={event.id} event={event} />
-                ))}
-              </div>
-            ) : searchQuery.trim() ? (
-              <EmptyState message="No posts found matching your search." />
-            ) : (
-              <EmptyState message="Enter a search query to find posts." />
-            )}
-          </>
-        )}
-
-        {/* ─── Accounts Tab ─── */}
-        {activeTab === 'accounts' && (
-          <>
-            {/* Search input for accounts */}
-            <div className="px-4 pt-5 pb-2">
-              <div className="relative">
+      {/* ─── Posts Tab ─── */}
+      {activeTab === 'posts' && (
+        <>
+          {/* Search input + filter icon */}
+          <div className="px-4 pt-5 pb-3">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
                 <Input
                   type="text"
                   placeholder="Search"
@@ -364,32 +323,301 @@ export function SearchPage() {
                 />
                 <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               </div>
+
+              {/* Filter popover */}
+              <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    className={cn(
+                      'shrink-0 h-10 w-10 rounded-lg border bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors',
+                      filtersOpen
+                        ? 'border-2 border-primary bg-secondary text-primary'
+                        : hasActiveFilters
+                          ? 'border-primary text-primary'
+                          : 'border-border',
+                    )}
+                    style={{ outline: 'none' }}
+                    aria-label="Search filters"
+                  >
+                    <SlidersHorizontal className="size-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-72 p-4 space-y-4">
+
+                  {/* Header with reset button */}
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-sm">Filters</span>
+                    {hasActiveFilters && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                        onClick={resetFilters}
+                      >
+                        <RotateCcw className="size-3" />
+                        Reset all
+                      </Button>
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  {/* Including replies */}
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm">Include replies</span>
+                    <Switch
+                      checked={includeReplies}
+                      onCheckedChange={setIncludeReplies}
+                    />
+                  </div>
+
+                  <Separator />
+
+                  {/* Author scope */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <User className="size-3.5 text-muted-foreground" />
+                      <span className="font-medium text-sm">Author</span>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        type="text"
+                        placeholder="npub1… or hex pubkey"
+                        value={authorQuery}
+                        onChange={(e) => setAuthorQuery(e.target.value)}
+                        className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-sm pr-7"
+                      />
+                      {authorQuery && (
+                        <button
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          onClick={() => setAuthorQuery('')}
+                          aria-label="Clear author"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Media type */}
+                  <div className="space-y-2">
+                    <span className="font-medium text-sm">Media type</span>
+                    <Select value={mediaType} onValueChange={setMediaType}>
+                      <SelectTrigger className="w-full bg-secondary/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[
+                          { value: 'all', label: 'All media' },
+                          { value: 'images', label: 'Images', icon: Image },
+                          { value: 'videos', label: 'Videos', icon: Video },
+                          { value: 'vines', label: 'Shorts & Vines', icon: Film },
+                          { value: 'none', label: 'No media' },
+                        ].map(({ value, label, icon: Icon }) => (
+                          <SelectItem key={value} value={value}>
+                            <span className="flex items-center gap-2">
+                              {Icon && <Icon className="size-3.5 shrink-0 text-muted-foreground" />}
+                              {label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Separator />
+
+                  {/* Language */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Languages className="size-3.5 text-muted-foreground" />
+                      <span className="font-medium text-sm">Language</span>
+                    </div>
+                    <Select value={language} onValueChange={setLanguage}>
+                      <SelectTrigger className="w-full bg-secondary/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="global">Global</SelectItem>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="es">Spanish</SelectItem>
+                        <SelectItem value="fr">French</SelectItem>
+                        <SelectItem value="de">German</SelectItem>
+                        <SelectItem value="ja">Japanese</SelectItem>
+                        <SelectItem value="zh">Chinese</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Separator />
+
+                  {/* Event kind */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Hash className="size-3.5 text-muted-foreground" />
+                      <span className="font-medium text-sm">Event kind</span>
+                    </div>
+                    <Select value={kindFilter} onValueChange={setKindFilter}>
+                      <SelectTrigger className="w-full bg-secondary/50">
+                        <SelectValue placeholder="All kinds" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All kinds</SelectItem>
+                        {kindOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            <span className="flex items-center gap-2">
+                              {opt.icon && <opt.icon className="size-3.5 shrink-0 text-muted-foreground" />}
+                              {opt.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="custom">Custom kind…</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {kindFilter === 'custom' && (
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="e.g. 1, 30023"
+                        value={customKindText}
+                        onChange={(e) => setCustomKindText(e.target.value)}
+                        className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-sm"
+                      />
+                    )}
+                    {/* Conflict warning */}
+                    {hasKindMediaConflict && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+                        <Info className="size-3.5 shrink-0 mt-0.5" />
+                        Media type and Event kind filters may conflict. Kind filter takes precedence.
+                      </p>
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  {/* Platform */}
+                  <div className="space-y-2">
+                    <span className="font-medium text-sm">Show posts from</span>
+                    <Select value={platform} onValueChange={setPlatform}>
+                      <SelectTrigger className="w-full bg-secondary/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nostr">Nostr</SelectItem>
+                        <SelectItem value="activitypub">Mastodon</SelectItem>
+                        <SelectItem value="atproto">Bluesky</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
-            <div>
-              {searchQuery.trim() ? (
-                profilesLoading ? (
-                  <div className="divide-y divide-border">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <AccountSkeleton key={i} />
-                    ))}
-                  </div>
-                ) : profiles && profiles.length > 0 ? (
-                  <div className="divide-y divide-border">
-                    {profiles.map((profile) => (
-                      <AccountItem key={profile.pubkey} profile={profile} isFollowed={followedPubkeys.has(profile.pubkey)} />
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState message="No accounts found matching your search." />
-                )
-              ) : (
-                <FollowsList />
-              )}
+            {/* Active filter summary chips */}
+            {activeFilterLabels.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {activeFilterLabels.map((label) => (
+                  <Badge key={label} variant="secondary" className="text-xs font-normal">
+                    {label}
+                  </Badge>
+                ))}
+                <button
+                  onClick={resetFilters}
+                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+
+            {/* NIP-50 search query debug block */}
+            {searchQuery.trim() && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="mt-2 px-3 py-2 rounded-md bg-secondary/40 border border-border cursor-default">
+                      <p className="text-xs text-muted-foreground font-mono truncate">
+                        <span className="text-muted-foreground/60 mr-1">search:</span>
+                        {nip50SearchString}
+                      </p>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs text-xs font-mono break-all">
+                    {nip50SearchString}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+
+          {/* Post results — stream */}
+          {postsLoading && posts.length === 0 ? (
+            <div className="divide-y divide-border">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <PostSkeleton key={i} />
+              ))}
             </div>
-          </>
-        )}
-      </main>
+          ) : posts.length > 0 ? (
+            <div>
+              {posts.map((event) => (
+                <NoteCard key={event.id} event={event} />
+              ))}
+            </div>
+          ) : searchQuery.trim() ? (
+            <EmptyState
+              message="No posts found matching your search."
+              activeFilters={activeFilterLabels}
+              onResetFilters={hasActiveFilters ? resetFilters : undefined}
+            />
+          ) : (
+            <EmptyState message="Enter a search query to find posts." />
+          )}
+        </>
+      )}
+
+      {/* ─── Accounts Tab ─── */}
+      {activeTab === 'accounts' && (
+        <>
+          {/* Search input for accounts */}
+          <div className="px-4 pt-5 pb-2">
+            <div className="relative">
+              <Input
+                type="text"
+                placeholder="Search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
+              />
+              <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+            </div>
+          </div>
+
+          <div>
+            {searchQuery.trim() ? (
+              profilesLoading ? (
+                <div className="divide-y divide-border">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <AccountSkeleton key={i} />
+                  ))}
+                </div>
+              ) : profiles && profiles.length > 0 ? (
+                <div className="divide-y divide-border">
+                  {profiles.map((profile) => (
+                    <AccountItem key={profile.pubkey} profile={profile} isFollowed={followedPubkeys.has(profile.pubkey)} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState message="No accounts found matching your search." />
+              )
+            ) : (
+              <FollowsList />
+            )}
+          </div>
+        </>
+      )}
+    </main>
   );
 }
 
@@ -526,10 +754,38 @@ function FollowItem({ pubkey }: { pubkey: string }) {
   );
 }
 
-function EmptyState({ message }: { message: string }) {
+function EmptyState({
+  message,
+  activeFilters,
+  onResetFilters,
+}: {
+  message: string;
+  activeFilters?: string[];
+  onResetFilters?: () => void;
+}) {
   return (
     <div className="py-16 px-8 text-center">
       <p className="text-muted-foreground">{message}</p>
+      {activeFilters && activeFilters.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs text-muted-foreground/70 mb-2">Active filters:</p>
+          <div className="flex flex-wrap justify-center gap-1.5">
+            {activeFilters.map((label) => (
+              <Badge key={label} variant="secondary" className="text-xs font-normal">
+                {label}
+              </Badge>
+            ))}
+          </div>
+          {onResetFilters && (
+            <button
+              onClick={onResetFilters}
+              className="mt-3 text-xs text-primary hover:underline underline-offset-2 transition-colors"
+            >
+              Clear all filters
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
