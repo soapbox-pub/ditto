@@ -11,11 +11,26 @@ import {
   type BlobbiCompanion,
 } from '@/lib/blobbi';
 
+/** Maximum number of d-tags per query chunk to avoid relay issues */
+const CHUNK_SIZE = 20;
+
+/**
+ * Split an array into chunks of a given size.
+ */
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
 /**
  * Hook to fetch ALL Blobbi companions (Kind 31124) owned by the logged-in user.
  * 
  * Features:
- * - Fetches multiple pets by d-tag list in a single query
+ * - Fetches ALL pets by d-tag list (no limit: 1)
+ * - Chunks large d-lists into multiple queries for relay compatibility
  * - Keeps only the newest event per d-tag
  * - Returns both a lookup record and array of companions
  * - Provides invalidation and optimistic update helpers
@@ -42,21 +57,37 @@ export function useBlobbisCollection(dList: string[] | undefined) {
         return { companionsByD: {}, companions: [] };
       }
       
-      const filter = {
-        kinds: [KIND_BLOBBI_STATE],
-        authors: [user.pubkey],
-        '#d': sortedDList,
-      };
+      // Log the dList we're about to query
+      console.log('[Blobbi] dList:', sortedDList);
       
-      console.log('[useBlobbisCollection] Sending query with filter:', JSON.stringify(filter, null, 2));
-      console.log('[useBlobbisCollection] Requesting d-tags:', sortedDList);
+      // Chunk the d-list for relay compatibility
+      const chunks = chunkArray(sortedDList, CHUNK_SIZE);
+      console.log('[useBlobbisCollection] Splitting into', chunks.length, 'chunk(s)');
       
-      const events = await nostr.query([filter], { signal });
+      // Query all chunks in parallel
+      const allEvents: NostrEvent[] = [];
       
-      console.log('[useBlobbisCollection] Events received:', events.length);
+      for (const chunk of chunks) {
+        const filter = {
+          kinds: [KIND_BLOBBI_STATE],
+          authors: [user.pubkey],
+          '#d': chunk,
+          // IMPORTANT: No limit - fetch ALL pets matching the d-tags
+        };
+        
+        // Log the filter immediately before query
+        console.log('[Blobbi] 31124 query filter:', JSON.stringify(filter, null, 2));
+        
+        const events = await nostr.query([filter], { signal });
+        allEvents.push(...events);
+        
+        console.log('[useBlobbisCollection] Chunk returned', events.length, 'events');
+      }
+      
+      console.log('[useBlobbisCollection] Total events received:', allEvents.length);
       
       // Filter to valid events
-      const validEvents = events.filter(isValidBlobbiEvent);
+      const validEvents = allEvents.filter(isValidBlobbiEvent);
       
       console.log('[useBlobbisCollection] Valid events:', validEvents.length);
       
