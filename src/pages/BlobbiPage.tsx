@@ -1,12 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { Egg, Moon, Sun, Eye, EyeOff, Loader2, Sparkles, RefreshCw } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
-import { useBlobbiCompanion } from '@/hooks/useBlobbiCompanion';
+import { useBlobbisCollection } from '@/hooks/useBlobbisCollection';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { isLegacyBlobbiD } from '@/lib/blobbi';
 import { toast } from '@/hooks/useToast';
 
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -75,23 +76,58 @@ function BlobbiContent() {
   
   const {
     profile,
-    effectiveCompanionD,
     isLoading: profileLoading,
     isFetching: profileFetching,
     invalidate: invalidateProfile,
     updateProfileEvent,
   } = useBlobbonautProfile();
   
+  // Build the list of all d-tags to fetch:
+  // unique(profile.has[] + currentCompanion if present)
+  const dList = useMemo(() => {
+    if (!profile) return undefined;
+    
+    const allDs = new Set<string>(profile.has);
+    if (profile.currentCompanion) {
+      allDs.add(profile.currentCompanion);
+    }
+    
+    const result = Array.from(allDs);
+    console.log('[BlobbiContent] dList for collection query:', result);
+    return result.length > 0 ? result : undefined;
+  }, [profile]);
+  
+  // Fetch ALL Blobbi pets for this user
   const {
-    companion,
-    isLoading: companionLoading,
-    isFetching: companionFetching,
-    needsMigration,
-    invalidate: invalidateCompanion,
+    companionsByD,
+    isLoading: collectionLoading,
+    isFetching: collectionFetching,
+    invalidate: invalidateCollection,
     updateCompanionEvent,
-  } = useBlobbiCompanion({
-    companionD: effectiveCompanionD,
-  });
+  } = useBlobbisCollection(dList);
+  
+  // Determine the selected companion:
+  // Priority: currentCompanion > first in has[] > undefined
+  const selectedD = useMemo(() => {
+    if (!profile) return undefined;
+    if (profile.currentCompanion) return profile.currentCompanion;
+    if (profile.has.length > 0) return profile.has[0];
+    return undefined;
+  }, [profile]);
+  
+  // Get the selected companion from the collection
+  const companion = selectedD ? companionsByD[selectedD] ?? null : null;
+  
+  // Determine if the selected companion needs migration
+  const needsMigration = selectedD ? isLegacyBlobbiD(selectedD) : false;
+  
+  // Combine loading/fetching states
+  const companionLoading = collectionLoading;
+  const companionFetching = collectionFetching;
+  const invalidateCompanion = invalidateCollection;
+  
+  // For compatibility with existing code, use selectedD as effectiveCompanionD
+  const effectiveCompanionD = selectedD;
   
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   
