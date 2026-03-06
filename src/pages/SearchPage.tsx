@@ -28,7 +28,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmojifiedText } from '@/components/CustomEmoji';
-import { useSearchProfiles } from '@/hooks/useSearchProfiles';
+import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
+import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -82,6 +83,8 @@ export function SearchPage() {
   // Local input state for the search field (avoids trimming while typing)
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Display label for selected author (name/npub shown in chip); separate from URL param
+  const [authorDisplayLabel, setAuthorDisplayLabel] = useState<string>('');
 
   // ── Filter state — all derived from URL params ──────────────────────────
   const includeReplies = parseBoolParam(searchParams.get('replies'), DEFAULT_FILTERS.includeReplies);
@@ -129,7 +132,18 @@ export function SearchPage() {
     }, { replace: true });
   }, [setSearchParams]);
   const setCustomKindText = useCallback((v: string) => setParam('customKind', v, DEFAULT_FILTERS.customKindText), [setParam]);
-  const setAuthorQuery = useCallback((v: string) => setParam('author', v, DEFAULT_FILTERS.authorQuery), [setParam]);
+
+  /** Commit a resolved pubkey (hex or npub) to the URL author param. */
+  const commitAuthor = useCallback((pubkey: string, label: string) => {
+    setAuthorDisplayLabel(label);
+    setParam('author', pubkey, DEFAULT_FILTERS.authorQuery);
+  }, [setParam]);
+
+  /** Clear the author filter from URL and display. */
+  const clearAuthor = useCallback(() => {
+    setAuthorDisplayLabel('');
+    setParam('author', '', DEFAULT_FILTERS.authorQuery);
+  }, [setParam]);
 
   // Update tab in URL
   const setActiveTab = useCallback((tab: TabType) => {
@@ -239,6 +253,7 @@ export function SearchPage() {
     kindFilter !== DEFAULT_FILTERS.kindFilter || authorQuery !== DEFAULT_FILTERS.authorQuery;
 
   const resetFilters = useCallback(() => {
+    setAuthorDisplayLabel('');
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('replies');
@@ -379,24 +394,21 @@ export function SearchPage() {
                       <User className="size-3.5 text-muted-foreground" />
                       <span className="font-medium text-sm">Author</span>
                     </div>
-                    <div className="relative">
-                      <Input
-                        type="text"
-                        placeholder="npub1… or hex pubkey"
-                        value={authorQuery}
-                        onChange={(e) => setAuthorQuery(e.target.value)}
-                        className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-sm pr-7"
-                      />
-                      {authorQuery && (
+                    {authorQuery ? (
+                      /* Selected author chip */
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/60 border border-border">
+                        <span className="flex-1 text-sm truncate font-medium">{authorDisplayLabel || authorQuery.slice(0, 16) + '…'}</span>
                         <button
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          onClick={() => setAuthorQuery('')}
-                          aria-label="Clear author"
+                          onClick={clearAuthor}
+                          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                          aria-label="Clear author filter"
                         >
                           <X className="size-3.5" />
                         </button>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <AuthorFilterDropdown onCommit={commitAuthor} />
+                    )}
                   </div>
 
                   <Separator />
@@ -825,5 +837,29 @@ function AccountSkeleton() {
         <Skeleton className="h-3 w-36" />
       </div>
     </div>
+  );
+}
+
+/**
+ * Author filter input that uses the profile search dropdown.
+ * Commits to the parent only when:
+ *  - A profile is selected from the dropdown (fires onCommit immediately with npub + display name)
+ *  - The user manually types a full npub1… / hex pubkey / NIP-05 and presses Enter or blurs
+ */
+function AuthorFilterDropdown({ onCommit }: { onCommit: (pubkey: string, label: string) => void }) {
+  const handleSelect = useCallback((profile: SearchProfile) => {
+    const npub = nip19.npubEncode(profile.pubkey);
+    const label = profile.metadata.display_name || profile.metadata.name || npub.slice(0, 16) + '…';
+    onCommit(npub, label);
+  }, [onCommit]);
+
+  return (
+    <ProfileSearchDropdown
+      placeholder="Search by name or npub…"
+      onSelect={handleSelect}
+      hideCountry
+      inputClassName="rounded-lg text-sm h-9"
+      className="w-full"
+    />
   );
 }
