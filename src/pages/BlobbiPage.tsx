@@ -8,7 +8,7 @@ import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbisCollection } from '@/hooks/useBlobbisCollection';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { isLegacyBlobbiD } from '@/lib/blobbi';
+import { useBlobbiMigration } from '@/hooks/useBlobbiMigration';
 import { toast } from '@/hooks/useToast';
 
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -32,12 +32,10 @@ import {
   KIND_BLOBBONAUT_PROFILE,
   buildBlobbonautTags,
   buildEggTags,
-  buildMigrationTags,
   generatePetId10,
   getCanonicalBlobbiD,
   updateBlobbiTags,
   updateBlobbonautTags,
-  migratePetInHas,
   type BlobbiCompanion,
 } from '@/lib/blobbi';
 
@@ -83,6 +81,7 @@ function LoggedOutState() {
 function BlobbiContent() {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
+  const { ensureCanonicalBlobbiBeforeAction } = useBlobbiMigration();
   
   const {
     profile,
@@ -172,12 +171,10 @@ function BlobbiContent() {
         name: companion.name,
         stage: companion.stage,
         state: companion.state,
+        isLegacy: companion.isLegacy,
       });
     }
   }, [selectedD, companion]);
-  
-  // Determine if the selected companion needs migration
-  const needsMigration = selectedD ? isLegacyBlobbiD(selectedD) : false;
   
   // Combine loading/fetching states
   const companionLoading = collectionLoading;
@@ -193,55 +190,21 @@ function BlobbiContent() {
     setShowSelector(false);
   }, [setStoredSelectedD]);
   
-  // ─── Helper: Migrate Legacy Pet ───
-  const migrateLegacyPet = useCallback(async (): Promise<{ canonicalD: string; event: import('@nostrify/nostrify').NostrEvent } | null> => {
-    if (!user?.pubkey || !companion || !needsMigration || !profile) {
-      return null;
-    }
+  // ─── Helper: Ensure Canonical Before Action ───
+  // Centralized migration helper that auto-migrates legacy pets before any action
+  const ensureCanonicalBeforeAction = useCallback(async () => {
+    if (!companion || !profile) return null;
     
-    try {
-      const newPetId = generatePetId10();
-      const migrationTags = buildMigrationTags(companion.event, newPetId, user.pubkey);
-      const canonicalD = getCanonicalBlobbiD(user.pubkey, newPetId);
-      
-      // Publish the canonical Blobbi state
-      const canonicalEvent = await publishEvent({
-        kind: KIND_BLOBBI_STATE,
-        content: companion.event.content || `${companion.name} is a ${companion.stage} Blobbi.`,
-        tags: migrationTags,
-      });
-      
-      // Update profile: replace legacy d with canonical d in has[], set current_companion
-      const updatedHas = migratePetInHas(profile.has, companion.d, canonicalD);
-      const profileTags = updateBlobbonautTags(profile.allTags, {
-        current_companion: canonicalD,
-        has: updatedHas,
-      });
-      
-      const profileEvent = await publishEvent({
-        kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
-        tags: profileTags,
-      });
-      
-      updateProfileEvent(profileEvent);
-      
-      toast({
-        title: 'Pet migrated!',
-        description: `${companion.name} has been upgraded to the new format.`,
-      });
-      
-      return { canonicalD, event: canonicalEvent };
-    } catch (error) {
-      console.error('Failed to migrate legacy pet:', error);
-      toast({
-        title: 'Migration failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
-      return null;
-    }
-  }, [user?.pubkey, companion, needsMigration, profile, publishEvent, updateProfileEvent]);
+    return ensureCanonicalBlobbiBeforeAction({
+      companion,
+      profile,
+      updateProfileEvent,
+      updateCompanionEvent,
+      updateStoredSelectedD: setStoredSelectedD,
+      invalidateCompanion,
+      invalidateProfile,
+    });
+  }, [companion, profile, ensureCanonicalBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent, setStoredSelectedD, invalidateCompanion, invalidateProfile]);
   
   // ─── Initialize Blobbonaut Profile ───
   const handleInitializeProfile = useCallback(async () => {
@@ -330,45 +293,31 @@ function BlobbiContent() {
     
     setActionInProgress('rest');
     try {
-      // If this is a legacy pet, migrate it first
-      if (needsMigration) {
-        const migrationResult = await migrateLegacyPet();
-        if (migrationResult) {
-          // Update the migrated event with the new state
-          const now = Math.floor(Date.now() / 1000).toString();
-          const newTags = updateBlobbiTags(migrationResult.event.tags, {
-            state: newState,
-            last_interaction: now,
-            last_decay_at: now,
-          });
-          
-          const event = await publishEvent({
-            kind: KIND_BLOBBI_STATE,
-            content: migrationResult.event.content,
-            tags: newTags,
-          });
-          
-          updateCompanionEvent(event);
-          invalidateCompanion();
-          invalidateProfile();
-        }
-      } else {
-        // Normal flow for canonical pets
-        const now = Math.floor(Date.now() / 1000).toString();
-        const newTags = updateBlobbiTags(companion.allTags, {
-          state: newState,
-          last_interaction: now,
-          last_decay_at: now,
-        });
-        
-        const event = await publishEvent({
-          kind: KIND_BLOBBI_STATE,
-          content: companion.event.content,
-          tags: newTags,
-        });
-        
-        updateCompanionEvent(event);
-        invalidateCompanion();
+      // Ensure canonical before action (auto-migrates legacy pets)
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) {
+        setActionInProgress(null);
+        return;
+      }
+      
+      // Perform the action using the canonical companion
+      const now = Math.floor(Date.now() / 1000).toString();
+      const newTags = updateBlobbiTags(canonical.allTags, {
+        state: newState,
+        last_interaction: now,
+        last_decay_at: now,
+      });
+      
+      const event = await publishEvent({
+        kind: KIND_BLOBBI_STATE,
+        content: canonical.content,
+        tags: newTags,
+      });
+      
+      updateCompanionEvent(event);
+      invalidateCompanion();
+      if (canonical.wasMigrated) {
+        invalidateProfile();
       }
       
       toast({
@@ -387,7 +336,7 @@ function BlobbiContent() {
     } finally {
       setActionInProgress(null);
     }
-  }, [user?.pubkey, companion, needsMigration, migrateLegacyPet, publishEvent, updateCompanionEvent, invalidateCompanion, invalidateProfile]);
+  }, [user?.pubkey, companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent, invalidateCompanion, invalidateProfile]);
   
   // ─── Toggle Visibility (with automatic legacy migration) ───
   const handleToggleVisibility = useCallback(async () => {
@@ -397,43 +346,30 @@ function BlobbiContent() {
     
     setActionInProgress('visibility');
     try {
-      // If this is a legacy pet, migrate it first
-      if (needsMigration) {
-        const migrationResult = await migrateLegacyPet();
-        if (migrationResult) {
-          // Update the migrated event with new visibility
-          const now = Math.floor(Date.now() / 1000).toString();
-          const newTags = updateBlobbiTags(migrationResult.event.tags, {
-            visible_to_others: newVisibility.toString(),
-            last_interaction: now,
-          });
-          
-          const event = await publishEvent({
-            kind: KIND_BLOBBI_STATE,
-            content: migrationResult.event.content,
-            tags: newTags,
-          });
-          
-          updateCompanionEvent(event);
-          invalidateCompanion();
-          invalidateProfile();
-        }
-      } else {
-        // Normal flow for canonical pets
-        const now = Math.floor(Date.now() / 1000).toString();
-        const newTags = updateBlobbiTags(companion.allTags, {
-          visible_to_others: newVisibility.toString(),
-          last_interaction: now,
-        });
-        
-        const event = await publishEvent({
-          kind: KIND_BLOBBI_STATE,
-          content: companion.event.content,
-          tags: newTags,
-        });
-        
-        updateCompanionEvent(event);
-        invalidateCompanion();
+      // Ensure canonical before action (auto-migrates legacy pets)
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) {
+        setActionInProgress(null);
+        return;
+      }
+      
+      // Perform the action using the canonical companion
+      const now = Math.floor(Date.now() / 1000).toString();
+      const newTags = updateBlobbiTags(canonical.allTags, {
+        visible_to_others: newVisibility.toString(),
+        last_interaction: now,
+      });
+      
+      const event = await publishEvent({
+        kind: KIND_BLOBBI_STATE,
+        content: canonical.content,
+        tags: newTags,
+      });
+      
+      updateCompanionEvent(event);
+      invalidateCompanion();
+      if (canonical.wasMigrated) {
+        invalidateProfile();
       }
       
       toast({
@@ -452,7 +388,7 @@ function BlobbiContent() {
     } finally {
       setActionInProgress(null);
     }
-  }, [user?.pubkey, companion, needsMigration, migrateLegacyPet, publishEvent, updateCompanionEvent, invalidateCompanion, invalidateProfile]);
+  }, [user?.pubkey, companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent, invalidateCompanion, invalidateProfile]);
   
   // ─── Determine UI State ───
   // Priority: Wait for queries to settle before showing "create" states
@@ -667,7 +603,7 @@ function BlobbiContent() {
       </div>
       
       {/* Legacy Migration Notice */}
-      {needsMigration && (
+      {companion.isLegacy && (
         <Card className="border-amber-500/50 bg-amber-500/5">
           <CardContent className="p-4">
             <p className="text-sm text-amber-600 dark:text-amber-400">
