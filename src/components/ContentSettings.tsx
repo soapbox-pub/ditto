@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { IntroImage } from '@/components/IntroImage';
-import { ChevronDown, ChevronUp, Users, Download, Loader2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Users, Download, Loader2, X, Pencil, Check, Home, User, Globe, Clock, Flame, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/useToast';
+import { useSavedFeeds } from '@/hooks/useSavedFeeds';
+import { SavedFeedFiltersEditor, buildKindOptions } from '@/components/SavedFeedFiltersEditor';
+import { cn } from '@/lib/utils';
+import type { SavedFeed, SavedFeedFilters } from '@/contexts/AppContext';
 
 export function ContentSettings() {
   const [notesOpen, setNotesOpen] = useState(true);
@@ -553,6 +557,211 @@ function FeedTabsSection() {
         )}
       </div>
       </div>
+
+      {/* Saved Feeds */}
+      <SavedFeedsSection />
+    </div>
+  );
+}
+
+// ─── Saved Feeds Section ─────────────────────────────────────────────────────
+
+function SavedFeedsSection() {
+  const { savedFeeds, removeSavedFeed, updateSavedFeed, isPending } = useSavedFeeds();
+  const { toast } = useToast();
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const feedFeeds = savedFeeds.filter((f) => f.destination === 'feed');
+  const profileFeeds = savedFeeds.filter((f) => f.destination === 'profile');
+
+  if (savedFeeds.length === 0) return null;
+
+  const handleSave = async (id: string, label: string, filters: SavedFeedFilters) => {
+    await updateSavedFeed(id, { label, filters });
+    toast({ title: 'Feed updated' });
+    setEditingId(null);
+  };
+
+  const handleRemove = async (feed: SavedFeed) => {
+    await removeSavedFeed(feed.id);
+    toast({ title: `"${feed.label}" removed` });
+  };
+
+  return (
+    <div className="px-3 py-4 space-y-4 border-t border-border">
+      <h3 className="text-sm font-semibold">Saved Feeds</h3>
+
+      {feedFeeds.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            <Home className="size-3.5" />
+            Home feed tabs
+          </p>
+          {feedFeeds.map((feed) => (
+            <SavedFeedRow
+              key={feed.id}
+              feed={feed}
+              isEditing={editingId === feed.id}
+              onEdit={() => setEditingId(feed.id)}
+              onCancel={() => setEditingId(null)}
+              onSave={(label, filters) => handleSave(feed.id, label, filters)}
+              onRemove={() => handleRemove(feed)}
+              isPending={isPending}
+            />
+          ))}
+        </div>
+      )}
+
+      {profileFeeds.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            <User className="size-3.5" />
+            Profile tabs
+          </p>
+          {profileFeeds.map((feed) => (
+            <SavedFeedRow
+              key={feed.id}
+              feed={feed}
+              isEditing={editingId === feed.id}
+              onEdit={() => setEditingId(feed.id)}
+              onCancel={() => setEditingId(null)}
+              onSave={(label, filters) => handleSave(feed.id, label, filters)}
+              onRemove={() => handleRemove(feed)}
+              isPending={isPending}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SavedFeedRow({
+  feed,
+  isEditing,
+  onEdit,
+  onCancel,
+  onSave,
+  onRemove,
+  isPending,
+}: {
+  feed: SavedFeed;
+  isEditing: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+  onSave: (label: string, filters: SavedFeedFilters) => void;
+  onRemove: () => void;
+  isPending: boolean;
+}) {
+  const [labelValue, setLabelValue] = useState(feed.label);
+  const [filtersValue, setFiltersValue] = useState<SavedFeedFilters>(feed.filters);
+  const kindOptions = useMemo(() => buildKindOptions(), []);
+
+  // Reset local state when this row starts editing
+  const handleEdit = () => {
+    setLabelValue(feed.label);
+    setFiltersValue(feed.filters);
+    onEdit();
+  };
+
+  const SortIcon = feed.filters.sort === 'hot' ? Flame : feed.filters.sort === 'trending' ? TrendingUp : Clock;
+  const scopeLabel = feed.filters.authorScope === 'follows'
+    ? 'Follows'
+    : feed.filters.authorScope === 'people' && feed.filters.authorPubkeys.length > 0
+      ? `${feed.filters.authorPubkeys.length} author${feed.filters.authorPubkeys.length > 1 ? 's' : ''}`
+      : null;
+
+  return (
+    <div className={cn('rounded-lg border bg-secondary/30 overflow-hidden transition-colors', isEditing ? 'border-border' : 'border-border/50 group')}>
+      {/* Summary row — always visible */}
+      <div className="flex items-center gap-2 py-2 px-2.5">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{feed.label}</p>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            {feed.filters.query && (
+              <span className="text-[10px] text-muted-foreground bg-secondary rounded px-1 py-0.5 truncate max-w-[140px]">"{feed.filters.query}"</span>
+            )}
+            {scopeLabel && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                <Globe className="size-2.5" />{scopeLabel}
+              </span>
+            )}
+            {feed.filters.sort !== 'recent' && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                <SortIcon className="size-2.5" />{feed.filters.sort}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className={cn('flex items-center gap-0.5 shrink-0', !isEditing && 'opacity-0 group-hover:opacity-100 transition-opacity')}>
+          <button
+            onClick={isEditing ? onCancel : handleEdit}
+            className={cn(
+              'size-7 flex items-center justify-center rounded transition-colors',
+              isEditing
+                ? 'text-muted-foreground hover:bg-secondary'
+                : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
+            )}
+            aria-label={isEditing ? 'Cancel edit' : 'Edit'}
+          >
+            {isEditing ? <X className="size-3.5" /> : <Pencil className="size-3.5" />}
+          </button>
+          {!isEditing && (
+            <button
+              onClick={onRemove}
+              disabled={isPending}
+              className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
+              aria-label="Remove"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Inline edit panel */}
+      {isEditing && (
+        <div className="px-2.5 pb-3 pt-2 border-t border-border/50 space-y-3">
+          {/* Tab name */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Tab name</label>
+            <Input
+              value={labelValue}
+              onChange={(e) => setLabelValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
+              className="h-8 text-sm bg-background"
+              placeholder="Tab name…"
+              autoFocus
+            />
+          </div>
+
+          {/* Full filter editor */}
+          <SavedFeedFiltersEditor
+            value={filtersValue}
+            onChange={(patch) => setFiltersValue((prev) => ({ ...prev, ...patch }))}
+            kindOptions={kindOptions}
+          />
+
+          <div className="flex justify-end gap-1.5 pt-1">
+            <button
+              onClick={onCancel}
+              className="h-7 px-2.5 rounded text-xs text-muted-foreground hover:bg-secondary transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave(labelValue, filtersValue)}
+              disabled={isPending || !labelValue.trim()}
+              className="h-7 px-2.5 rounded text-xs bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center gap-1"
+            >
+              {isPending ? <Loader2 className="size-3 animate-spin" /> : <Check className="size-3" />}
+              Save
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -958,7 +1167,6 @@ export function ThemePreferencesSection() {
 }
 
 // Homepage setting section
-import { Home } from 'lucide-react';
 import { SIDEBAR_ITEMS } from '@/lib/sidebarItems';
 
 function HomePageSetting() {
