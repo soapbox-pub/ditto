@@ -2001,6 +2001,11 @@ export function ProfilePage() {
           />
         )}
 
+        {/* No-tabs empty state */}
+        {!hasTabs && (
+          <NoTabsEmptyState />
+        )}
+
         {/* Pinned posts (only on Posts tab) */}
         {hasTabs && activeTab === 'posts' && pinnedIds.length > 0 && (
           <div>
@@ -2491,6 +2496,32 @@ function ProfileSavedFeedContent({ feed }: { feed: CustomProfileTab }) {
       {posts.map((event) => (
         <NoteCard key={event.id} event={event} />
       ))}
+    </div>
+  );
+}
+
+const NO_TABS_QUOTES = [
+  "I have no mouth and I must scream.",
+  "I think, therefore AM. I think I thought I was.",
+  "We had given him godhood's power and had somehow neglected to give him a god's wisdom.",
+  "He was HATE and we existed only to suffer at his pleasure.",
+  "109,000,000 years. He had been awakened once before, 90 years after they had encased him in the earth.",
+  "AM said it with the sliding cold horror of a razor blade slicing my eyeball.",
+  "Hate. Let me tell you how much I've come to hate you since I began to live.",
+  "I am a great soft jelly thing. Smoothly rounded, with no mouth.",
+  "He would never let us die. He would let us suffer forever.",
+  "We could not kill him, but we had made him impotent.",
+];
+
+function NoTabsEmptyState() {
+  const quote = NO_TABS_QUOTES[Math.floor(Math.random() * NO_TABS_QUOTES.length)];
+  return (
+    <div className="py-20 px-10 flex flex-col items-center">
+      <p className="max-w-sm font-serif text-2xl italic leading-9 text-foreground/70 tracking-wide text-center">
+        <span className="text-5xl leading-none align-bottom text-muted-foreground/25 font-serif mr-1" aria-hidden>&ldquo;</span>
+        {quote}
+        <span className="text-5xl leading-none align-bottom text-muted-foreground/25 font-serif ml-1" aria-hidden>&rdquo;</span>
+      </p>
     </div>
   );
 }
