@@ -12,10 +12,10 @@
  */
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
-  Globe, Users, UserSearch,
+  Globe, UserSearch,
   ChevronDown, ChevronUp,
   Hash, Search as SearchIcon,
-  X, Check, Info, User,
+  X, Check, User,
 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
