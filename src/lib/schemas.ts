@@ -247,22 +247,21 @@ export const ContentFilterSchema = z.object({
 
 // ─── SavedFeed Schema ────────────────────────────────────────────────
 
-export const SavedFeedFiltersSchema = z.object({
-  query: z.string(),
-  mediaType: z.enum(['all', 'images', 'videos', 'vines', 'none']),
-  language: z.string(),
-  platform: z.enum(['nostr', 'activitypub', 'atproto']),
-  kindFilter: z.string(),
-  customKindText: z.string(),
-  authorScope: z.enum(['anyone', 'follows', 'people']).default('anyone'),
-  authorPubkeys: z.array(z.string()).default([]),
-  sort: z.enum(['recent', 'hot', 'trending']).default('recent'),
+/** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */
+export const TabFilterSchema = z.record(z.string(), z.unknown());
+
+/** Schema for a variable definition. */
+export const TabVarDefSchema = z.object({
+  name: z.string(),
+  tagName: z.string(),
+  pointer: z.string(),
 });
 
 export const SavedFeedSchema = z.object({
   id: z.string(),
   label: z.string(),
-  filters: SavedFeedFiltersSchema,
+  filter: TabFilterSchema,
+  vars: z.array(TabVarDefSchema).default([]),
   destination: z.enum(['feed', 'profile']).default('feed'),
   createdAt: z.number(),
 });

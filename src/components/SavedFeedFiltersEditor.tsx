@@ -1,22 +1,24 @@
 /**
  * SavedFeedFiltersEditor
  *
- * A controlled component that renders the full set of search/feed filter
- * controls (query, author scope, sort, media, platform, language, kind).
- * Used both on the Search page filter popover and in the Settings > Feed
- * saved-feed edit panel.
+ * A controlled component that renders filter controls for a standard
+ * NIP-01 filter object (TabFilter). Used on the Search page filter
+ * popover and in the Settings > Feed saved-feed edit panel.
+ *
+ * Edits the following filter fields:
+ * - `kinds` (array of kind numbers)
+ * - `authors` (array of pubkeys)
+ * - `search` (NIP-50 search string)
  */
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Globe, Users, UserSearch,
-  Clock, Flame, TrendingUp,
   ChevronDown, ChevronUp,
   Hash, Search as SearchIcon,
   X, Check, Info, User,
 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
@@ -24,7 +26,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
-import type { SavedFeedFilters } from '@/contexts/AppContext';
+import type { TabFilter } from '@/contexts/AppContext';
 import type { SearchProfile } from '@/hooks/useSearchProfiles';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -194,7 +196,7 @@ export function KindPicker({ value, options, onChange }: {
             ? <SelectedIcon className="size-3.5 shrink-0 text-muted-foreground" />
             : <Hash className="size-3.5 shrink-0 text-muted-foreground" />}
           <span className="flex-1 truncate">
-            {value === 'all' ? 'All' : value === 'custom' ? 'Custom…' : (selected?.label ?? value)}
+            {value === 'all' ? 'All' : value === 'custom' ? 'Custom...' : (selected?.label ?? value)}
           </span>
           <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
         </button>
@@ -209,7 +211,7 @@ export function KindPicker({ value, options, onChange }: {
           <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
           <input
             className="flex-1 text-xs bg-transparent outline-none placeholder:text-muted-foreground"
-            placeholder="Search kinds…"
+            placeholder="Search kinds..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             autoFocus
@@ -227,7 +229,7 @@ export function KindPicker({ value, options, onChange }: {
             <KindPickerItem key={opt.value} icon={opt.icon ?? null} label={opt.label} active={value === opt.value} onClick={() => handleSelect(opt.value)} />
           ))}
           {(!search || 'custom'.includes(search.toLowerCase())) && (
-            <KindPickerItem icon={Hash} label="Custom kind…" active={value === 'custom'} onClick={() => handleSelect('custom')} />
+            <KindPickerItem icon={Hash} label="Custom kind..." active={value === 'custom'} onClick={() => handleSelect('custom')} />
           )}
           {filtered.length === 0 && search && (
             <p className="text-xs text-muted-foreground text-center py-4">No kinds match</p>
@@ -247,7 +249,7 @@ export function AuthorChip({ pubkey, onRemove }: { pubkey: string; onRemove: () 
     try { const d = nip19.decode(pubkey); return d.type === 'npub' ? d.data : pubkey; } catch { return pubkey; }
   }, [pubkey]);
   const author = useAuthor(hexPubkey);
-  const name = author.data?.metadata?.display_name || author.data?.metadata?.name || pubkey.slice(0, 10) + '…';
+  const name = author.data?.metadata?.display_name || author.data?.metadata?.name || pubkey.slice(0, 10) + '...';
   const picture = author.data?.metadata?.picture;
   return (
     <span className="inline-flex items-center gap-1.5 pl-1.5 pr-1 py-0.5 rounded-full bg-secondary border border-border text-xs max-w-[160px]">
@@ -266,14 +268,13 @@ export function AuthorChip({ pubkey, onRemove }: { pubkey: string; onRemove: () 
 
 export function AuthorFilterDropdown({ onCommit }: { onCommit: (pubkey: string, _label: string) => void }) {
   const handleSelect = useCallback((profile: SearchProfile) => {
-    const npub = nip19.npubEncode(profile.pubkey);
-    const label = profile.metadata.display_name || profile.metadata.name || npub.slice(0, 16) + '…';
-    onCommit(npub, label);
+    const label = profile.metadata.display_name || profile.metadata.name || profile.pubkey.slice(0, 16) + '...';
+    onCommit(profile.pubkey, label);
   }, [onCommit]);
 
   return (
     <ProfileSearchDropdown
-      placeholder="Search by name or npub…"
+      placeholder="Search by name or npub..."
       onSelect={handleSelect}
       hideCountry
       inputClassName="rounded-lg bg-secondary/50 border border-border focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 text-sm h-9"
@@ -282,19 +283,33 @@ export function AuthorFilterDropdown({ onCommit }: { onCommit: (pubkey: string, 
   );
 }
 
+// ─── Helper: parse kinds from filter ──────────────────────────────────────────
+
+/** Get the kindFilter string representation from a TabFilter's kinds array. */
+function kindsToKindFilter(filter: TabFilter): string {
+  const kinds = filter.kinds;
+  if (!Array.isArray(kinds) || kinds.length === 0) return 'all';
+  return kinds.map(String).join(',');
+}
+
+/** Get the author scope from a TabFilter. */
+function getAuthorScope(filter: TabFilter): 'anyone' | 'people' {
+  const authors = filter.authors;
+  if (Array.isArray(authors) && authors.length > 0) return 'people';
+  return 'anyone';
+}
+
 // ─── SavedFeedFiltersEditor ───────────────────────────────────────────────────
 
 interface SavedFeedFiltersEditorProps {
   /** Current filter values */
-  value: SavedFeedFilters;
-  /** Called on every field change with a partial update merged into value */
-  onChange: (patch: Partial<SavedFeedFilters>) => void;
+  value: TabFilter;
+  /** Called on every field change with the updated filter */
+  onChange: (filter: TabFilter) => void;
   /** When true, the query input is shown at the top (default: true) */
   showQuery?: boolean;
   /** Hide the From / author scope section (e.g. profile tabs where author is implicit) */
   hideFrom?: boolean;
-  /** Hide the Sort section */
-  hideSort?: boolean;
   /** Optional: pre-built kind options (pass to avoid rebuilding) */
   kindOptions?: KindOption[];
 }
@@ -304,28 +319,73 @@ export function SavedFeedFiltersEditor({
   onChange,
   showQuery = true,
   hideFrom = false,
-  hideSort = false,
   kindOptions: kindOptionsProp,
 }: SavedFeedFiltersEditorProps) {
   const kindOptions = useMemo(() => kindOptionsProp ?? buildKindOptions(), [kindOptionsProp]);
 
-  const { authorScope, authorPubkeys, sort, mediaType, platform, language, kindFilter, customKindText, query } = value;
-
-  const hasKindMediaConflict = kindFilter !== 'all' && kindFilter !== 'custom' && mediaType !== 'all';
+  const search = typeof value.search === 'string' ? value.search : '';
+  const authorPubkeys = Array.isArray(value.authors) ? (value.authors as string[]) : [];
+  const authorScope = getAuthorScope(value);
+  const kindFilter = kindsToKindFilter(value);
+  const [customKindText, setCustomKindText] = useState('');
 
   const addAuthor = useCallback((pubkey: string, _label: string) => {
     const next = authorPubkeys.includes(pubkey) ? authorPubkeys : [...authorPubkeys, pubkey];
-    onChange({ authorPubkeys: next, authorScope: 'people' });
-  }, [authorPubkeys, onChange]);
+    onChange({ ...value, authors: next });
+  }, [authorPubkeys, onChange, value]);
 
   const removeAuthor = useCallback((pubkey: string) => {
     const next = authorPubkeys.filter((p) => p !== pubkey);
-    onChange({ authorPubkeys: next, authorScope: next.length > 0 ? 'people' : 'anyone' });
-  }, [authorPubkeys, onChange]);
+    const updated = { ...value };
+    if (next.length > 0) {
+      updated.authors = next;
+    } else {
+      delete updated.authors;
+    }
+    onChange(updated);
+  }, [authorPubkeys, onChange, value]);
 
-  const setAuthorScope = useCallback((scope: SavedFeedFilters['authorScope']) => {
-    onChange({ authorScope: scope, ...(scope !== 'people' ? { authorPubkeys: [] } : {}) });
-  }, [onChange]);
+  const setAuthorScope = useCallback((scope: 'anyone' | 'people') => {
+    const updated = { ...value };
+    if (scope === 'anyone') {
+      delete updated.authors;
+    }
+    onChange(updated);
+  }, [onChange, value]);
+
+  const handleKindChange = useCallback((v: string) => {
+    const updated = { ...value };
+    if (v === 'all') {
+      delete updated.kinds;
+      setCustomKindText('');
+    } else if (v === 'custom') {
+      // Keep existing kinds until user types
+      setCustomKindText(Array.isArray(value.kinds) ? (value.kinds as number[]).join(', ') : '');
+    } else {
+      // Single kind selected
+      updated.kinds = [parseInt(v, 10)];
+      setCustomKindText('');
+    }
+    onChange(updated);
+  }, [onChange, value]);
+
+  const handleCustomKindChange = useCallback((text: string) => {
+    setCustomKindText(text);
+    const kinds = text.split(/[\s,]+/).map(Number).filter((n) => !isNaN(n) && n > 0);
+    if (kinds.length > 0) {
+      onChange({ ...value, kinds });
+    }
+  }, [onChange, value]);
+
+  const handleSearchChange = useCallback((newSearch: string) => {
+    const updated = { ...value };
+    if (newSearch.trim()) {
+      updated.search = newSearch;
+    } else {
+      delete updated.search;
+    }
+    onChange(updated);
+  }, [onChange, value]);
 
   return (
     <div className="space-y-3">
@@ -335,8 +395,8 @@ export function SavedFeedFiltersEditor({
           <div className="space-y-1.5">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Search query</span>
             <Input
-              value={query}
-              onChange={(e) => onChange({ query: e.target.value })}
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="e.g. bitcoin"
               className="bg-secondary/50 border-border focus-visible:ring-1 h-8 text-sm"
             />
@@ -353,7 +413,6 @@ export function SavedFeedFiltersEditor({
             <div className="flex rounded-lg border border-border overflow-hidden">
               {([
                 ['anyone', 'Anyone', Globe],
-                ['follows', 'Follows', Users],
                 ['people', 'People', UserSearch],
               ] as const).map(([scope, label, Icon]) => (
                 <button
@@ -388,92 +447,10 @@ export function SavedFeedFiltersEditor({
         </>
       )}
 
-      {/* Sort */}
-      {!hideSort && (
-        <>
-          <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sort</span>
-            <div className="flex rounded-lg border border-border overflow-hidden">
-              {([
-                ['recent', 'Recent', Clock],
-                ['hot', 'Hot', Flame],
-                ['trending', 'Trending', TrendingUp],
-              ] as const).map(([s, label, Icon]) => (
-                <button
-                  key={s}
-                  onClick={() => onChange({ sort: s })}
-                  className={cn(
-                    'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
-                    sort === s
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
-                  )}
-                >
-                  <Icon className="size-3.5 shrink-0" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <Separator />
-        </>
-      )}
-
-      {/* Media + Platform */}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1.5">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Media</span>
-          <Select value={mediaType} onValueChange={(v) => onChange({ mediaType: v as SavedFeedFilters['mediaType'] })}>
-            <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="images">Images</SelectItem>
-              <SelectItem value="videos">Videos</SelectItem>
-              <SelectItem value="vines">Shorts</SelectItem>
-              <SelectItem value="none">No media</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Platform</span>
-          <Select value={platform} onValueChange={(v) => onChange({ platform: v as SavedFeedFilters['platform'] })}>
-            <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="nostr">Nostr</SelectItem>
-              <SelectItem value="activitypub">Mastodon</SelectItem>
-              <SelectItem value="atproto">Bluesky</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Language + Kind */}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1.5">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Language</span>
-          <Select value={language} onValueChange={(v) => onChange({ language: v })}>
-            <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="global">Global</SelectItem>
-              <SelectItem value="en">English</SelectItem>
-              <SelectItem value="es">Spanish</SelectItem>
-              <SelectItem value="fr">French</SelectItem>
-              <SelectItem value="de">German</SelectItem>
-              <SelectItem value="ja">Japanese</SelectItem>
-              <SelectItem value="zh">Chinese</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kind</span>
-          <KindPicker value={kindFilter} options={kindOptions} onChange={(v) => onChange({ kindFilter: v, ...(v !== 'custom' ? { customKindText: '' } : {}) })} />
-        </div>
+      {/* Kind */}
+      <div className="space-y-1.5">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kind</span>
+        <KindPicker value={kindFilter} options={kindOptions} onChange={handleKindChange} />
       </div>
 
       {kindFilter === 'custom' && (
@@ -482,18 +459,10 @@ export function SavedFeedFiltersEditor({
           inputMode="numeric"
           placeholder="e.g. 1, 30023"
           value={customKindText}
-          onChange={(e) => onChange({ customKindText: e.target.value })}
+          onChange={(e) => handleCustomKindChange(e.target.value)}
           className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-xs h-8"
         />
       )}
-
-      {hasKindMediaConflict && (
-        <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
-          <Info className="size-3.5 shrink-0 mt-0.5" />
-          Media + Kind filters may conflict. Kind takes precedence.
-        </p>
-      )}
-
     </div>
   );
 }

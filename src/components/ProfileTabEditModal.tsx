@@ -25,8 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { buildKindOptions } from '@/components/SavedFeedFiltersEditor';
 import { cn } from '@/lib/utils';
-import type { ProfileTab } from '@/lib/profileTabsEvent';
-import type { SavedFeedFilters } from '@/contexts/AppContext';
+import type { ProfileTab, TabFilter } from '@/lib/profileTabsEvent';
 
 type KindOption = {
   value: string;
@@ -36,24 +35,12 @@ type KindOption = {
   icon: React.ComponentType<{ className?: string }> | undefined;
 };
 
-const DEFAULT_FILTERS: SavedFeedFilters = {
-  query: '',
-  mediaType: 'all',
-  language: 'global',
-  platform: 'nostr',
-  kindFilter: 'all',
-  customKindText: '',
-  authorScope: 'anyone',
-  authorPubkeys: [],
-  sort: 'recent',
-};
-
 interface ProfileTabEditModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Existing tab to edit. If undefined, creates a new tab. */
   tab?: ProfileTab;
-  /** The profile owner's pubkey — used to pre-populate authorPubkeys when scope is 'people'. */
+  /** The profile owner's pubkey — used to pre-populate authors when scope is 'me'. */
   ownerPubkey: string;
   /** Called with the resulting tab on save. */
   onSave: (tab: ProfileTab) => Promise<void>;
@@ -64,37 +51,38 @@ interface ProfileTabEditModalProps {
 
 type ProfileAuthorScope = 'me' | 'contacts' | 'global';
 
-/** Map from our simplified scope to SavedFeedFilters fields. */
-function scopeToFilters(scope: ProfileAuthorScope, ownerPubkey: string): Partial<SavedFeedFilters> {
+/** Map from simplified scope to filter fields. */
+function scopeToFilter(scope: ProfileAuthorScope, ownerPubkey: string): Partial<TabFilter> {
   switch (scope) {
     case 'me':
-      return { authorScope: 'people', authorPubkeys: [ownerPubkey] };
+      return { authors: [ownerPubkey] };
     case 'contacts':
-      return { authorScope: 'follows', authorPubkeys: [] };
+      // Uses $follows variable — handled at event level via var tags
+      return { authors: ['$follows'] };
     case 'global':
-      return { authorScope: 'anyone', authorPubkeys: [] };
+      return {};
   }
 }
 
-/** Derive the simplified scope from SavedFeedFilters. */
-function filtersToScope(filters: SavedFeedFilters, ownerPubkey: string): ProfileAuthorScope {
-  if (filters.authorScope === 'people' && filters.authorPubkeys.length === 1 && filters.authorPubkeys[0] === ownerPubkey) {
-    return 'me';
-  }
-  if (filters.authorScope === 'follows') return 'contacts';
+/** Derive the simplified scope from a TabFilter. */
+function filterToScope(filter: TabFilter, ownerPubkey: string): ProfileAuthorScope {
+  const authors = Array.isArray(filter.authors) ? filter.authors as string[] : [];
+  if (authors.length === 1 && authors[0] === ownerPubkey) return 'me';
+  if (authors.includes('$follows')) return 'contacts';
+  if (authors.length > 0) return 'me'; // has specific authors
   return 'global';
 }
 
-/** Parse kindFilter string into an array of selected kind values. */
-function parseSelectedKinds(kindFilter: string): string[] {
-  if (kindFilter === 'all' || kindFilter === '' || kindFilter === 'custom') return [];
-  return kindFilter.split(',').filter(Boolean);
+/** Parse kinds from filter into selected kind value strings. */
+function parseSelectedKinds(filter: TabFilter): string[] {
+  const kinds = filter.kinds;
+  if (!Array.isArray(kinds) || kinds.length === 0) return [];
+  return kinds.map(String);
 }
 
-/** Serialize selected kind values into kindFilter string. */
-function serializeSelectedKinds(kinds: string[]): string {
-  if (kinds.length === 0) return 'all';
-  return kinds.join(',');
+/** Serialize selected kind values into a kinds array for the filter. */
+function serializeSelectedKinds(kinds: string[]): number[] {
+  return kinds.map(Number).filter((n) => !isNaN(n) && n > 0);
 }
 
 // ─── Multi-Select Kind Picker ─────────────────────────────────────────────────
@@ -384,32 +372,30 @@ export function ProfileTabEditModal({
   const kindOptions = useMemo(() => buildKindOptions(), []);
   const isNew = !tab;
 
-  const initialFilters = useMemo<SavedFeedFilters>(() => {
-    if (tab) return tab.filters;
-    return {
-      ...DEFAULT_FILTERS,
-      authorScope: 'people',
-      authorPubkeys: [ownerPubkey],
-    };
+  const initialFilter = useMemo<TabFilter>(() => {
+    if (tab) return tab.filter;
+    return { authors: [ownerPubkey] };
   }, [tab, ownerPubkey]);
 
   const [label, setLabel] = useState(tab?.label ?? '');
-  const [query, setQuery] = useState(initialFilters.query);
+  const [query, setQuery] = useState(
+    typeof initialFilter.search === 'string' ? initialFilter.search : '',
+  );
   const [authorScope, setAuthorScope] = useState<ProfileAuthorScope>(
-    filtersToScope(initialFilters, ownerPubkey),
+    filterToScope(initialFilter, ownerPubkey),
   );
   const [selectedKinds, setSelectedKinds] = useState<string[]>(
-    parseSelectedKinds(initialFilters.kindFilter),
+    parseSelectedKinds(initialFilter),
   );
 
   // Reset state when modal opens
   const handleOpenChange = (o: boolean) => {
     if (o) {
       setLabel(tab?.label ?? '');
-      const f = tab ? tab.filters : { ...DEFAULT_FILTERS, authorScope: 'people' as const, authorPubkeys: [ownerPubkey] };
-      setQuery(f.query);
-      setAuthorScope(filtersToScope(f, ownerPubkey));
-      setSelectedKinds(parseSelectedKinds(f.kindFilter));
+      const f = tab ? tab.filter : { authors: [ownerPubkey] };
+      setQuery(typeof f.search === 'string' ? f.search : '');
+      setAuthorScope(filterToScope(f, ownerPubkey));
+      setSelectedKinds(parseSelectedKinds(f));
     }
     onOpenChange(o);
   };
@@ -417,15 +403,20 @@ export function ProfileTabEditModal({
   const handleSave = async () => {
     if (!label.trim() || isPending) return;
 
-    const filters: SavedFeedFilters = {
-      ...DEFAULT_FILTERS,
-      query,
-      kindFilter: serializeSelectedKinds(selectedKinds),
-      customKindText: '',
-      ...scopeToFilters(authorScope, ownerPubkey),
+    const filter: TabFilter = {
+      ...scopeToFilter(authorScope, ownerPubkey),
     };
 
-    await onSave({ label: label.trim(), filters });
+    if (query.trim()) {
+      filter.search = query.trim();
+    }
+
+    const kinds = serializeSelectedKinds(selectedKinds);
+    if (kinds.length > 0) {
+      filter.kinds = kinds;
+    }
+
+    await onSave({ label: label.trim(), filter });
     onOpenChange(false);
   };
 
