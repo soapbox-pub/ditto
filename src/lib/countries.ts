@@ -244,6 +244,49 @@ export function searchCountry(query: string): CountryMatch | null {
   return best ? { country: best, exact: false } : null;
 }
 
+/**
+ * Map of ISO 3166-1 alpha-2 codes to their Wikipedia article titles,
+ * only for countries whose common name differs from the Wikipedia title.
+ */
+const WIKIPEDIA_TITLES: Record<string, string> = {
+  BS: 'The Bahamas',
+  BO: 'Bolivia',
+  CG: 'Republic of the Congo',
+  CD: 'Democratic Republic of the Congo',
+  CI: 'Ivory Coast',
+  CZ: 'Czech Republic',
+  SZ: 'Eswatini',
+  GM: 'The Gambia',
+  GE: 'Georgia (country)',
+  IR: 'Iran',
+  KP: 'North Korea',
+  KR: 'South Korea',
+  LA: 'Laos',
+  FM: 'Federated States of Micronesia',
+  MD: 'Moldova',
+  MM: 'Myanmar',
+  MK: 'North Macedonia',
+  RU: 'Russia',
+  ST: 'São Tomé and Príncipe',
+  SY: 'Syria',
+  TW: 'Taiwan',
+  TZ: 'Tanzania',
+  GB: 'United Kingdom',
+  US: 'United States',
+  VE: 'Venezuela',
+  VN: 'Vietnam',
+};
+
+/** Get the Wikipedia article title for a country by ISO 3166-1 alpha-2 code. */
+export function getWikipediaTitle(code: string): string | null {
+  const upper = code.toUpperCase();
+  // Strip subdivision suffix (e.g. "US-CA" → "US")
+  const countryCode = upper.includes('-') ? upper.split('-')[0] : upper;
+  const country = COUNTRIES[countryCode];
+  if (!country) return null;
+  return WIKIPEDIA_TITLES[countryCode] ?? country.name;
+}
+
 /** Get country info from an ISO 3166 code (country or subdivision). */
 export function getCountryInfo(code: string): { name: string; flag: string; subdivision?: string } | null {
   const upper = code.toUpperCase();
