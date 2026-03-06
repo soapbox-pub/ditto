@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -21,7 +21,7 @@ import {
  * Features:
  * - localStorage boot cache for instant UI on page load
  * - Fetches from relays with legacy d-tag support for migration
- * - Prevents duplicate fetches and query loops
+ * - React Query handles request deduplication via queryKey and staleTime
  * - Provides the parsed profile or null if none exists
  */
 export function useBlobbonautProfile() {
@@ -34,11 +34,6 @@ export function useBlobbonautProfile() {
     BLOBBI_CACHE_KEY,
     null
   );
-  
-  // Track if we've already applied the boot cache to prevent duplicate work
-  const bootCacheApplied = useRef(false);
-  // Track last fetched pubkey to prevent refetching on re-renders
-  const lastFetchedPubkey = useRef<string | null>(null);
   
   // Get the cached profile immediately on mount (before async query)
   // Validate that the cache belongs to the current user
@@ -64,33 +59,59 @@ export function useBlobbonautProfile() {
     return bootCache.profile;
   }, [bootCache, user?.pubkey]);
   
+  // Debug logging at hook start
+  console.log('[useBlobbonautProfile] Hook state:', {
+    pubkey: user?.pubkey,
+    enabled: !!user?.pubkey,
+    hasCachedProfile: !!cachedProfile,
+    bootCachePubkey: bootCache?.pubkey,
+    bootCachedAt: bootCache?.cachedAt ? new Date(bootCache.cachedAt).toISOString() : null,
+  });
+  
   // Main query to fetch the profile from relays
   const query = useQuery({
     queryKey: ['blobbonaut-profile', user?.pubkey],
     queryFn: async ({ signal }) => {
-      if (!user?.pubkey) return null;
+      console.log('[useBlobbonautProfile] QUERY FN CALLED');
+      
+      if (!user?.pubkey) {
+        console.log('[useBlobbonautProfile] No pubkey, returning null');
+        return null;
+      }
       
       // Query with all possible d-tag values (canonical + legacy)
       const dValues = getBlobbonautQueryDValues(user.pubkey);
       
-      const events = await nostr.query(
-        [{
-          kinds: [KIND_BLOBBONAUT_PROFILE],
-          authors: [user.pubkey],
-          '#d': dValues,
-        }],
-        { signal }
-      );
+      const filter = {
+        kinds: [KIND_BLOBBONAUT_PROFILE],
+        authors: [user.pubkey],
+        '#d': dValues,
+      };
+      
+      console.log('[useBlobbonautProfile] Sending query with filter:', JSON.stringify(filter, null, 2));
+      
+      const events = await nostr.query([filter], { signal });
+      
+      console.log('[useBlobbonautProfile] Events received:', events.length);
       
       // Filter to valid events and find the newest
       const validEvents = events
         .filter(isValidBlobbonautEvent)
         .sort((a, b) => b.created_at - a.created_at);
       
-      if (validEvents.length === 0) return null;
+      console.log('[useBlobbonautProfile] Valid events:', validEvents.length);
+      
+      if (validEvents.length === 0) {
+        console.log('[useBlobbonautProfile] No valid events found');
+        return null;
+      }
       
       const latestEvent = validEvents[0];
-      lastFetchedPubkey.current = user.pubkey;
+      console.log('[useBlobbonautProfile] Selected event:', {
+        created_at: latestEvent.created_at,
+        d: latestEvent.tags.find(([n]) => n === 'd')?.[1],
+      });
+      
       return parseBlobbonautEvent(latestEvent) ?? null;
     },
     enabled: !!user?.pubkey,
@@ -98,41 +119,48 @@ export function useBlobbonautProfile() {
     gcTime: 5 * 60 * 1000, // 5 minutes garbage collection
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
     refetchOnReconnect: true, // Refetch when connection is restored
+    refetchOnMount: 'always', // Always fetch on mount, even with initialData
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     // Use cached profile as initial data for instant UI
+    // initialDataUpdatedAt tells React Query when this data was fetched
+    // so it knows whether to refetch based on staleTime
     initialData: cachedProfile ?? undefined,
-    placeholderData: cachedProfile ?? undefined,
+    initialDataUpdatedAt: cachedProfile ? (bootCache?.cachedAt ?? 0) : undefined,
   });
   
+  // Create stable signature for profile to detect actual changes
+  const profileSignature = useMemo(() => {
+    const profile = query.data;
+    if (!profile) return '';
+    return `${profile.d}:${profile.event.created_at}`;
+  }, [query.data]);
+  
   // Update boot cache when we get fresh data from relays
-  useEffect(() => {
-    if (query.data && !query.isPlaceholderData && user?.pubkey) {
-      // Verify the data belongs to the current user before caching
-      if (query.data.event.pubkey === user.pubkey) {
-        setBootCache(prev => ({
-          pubkey: user.pubkey,
-          profile: query.data,
-          companion: prev?.pubkey === user.pubkey ? prev.companion : null,
-          cachedAt: Date.now(),
-        }));
+  // Use the signature to prevent unnecessary updates
+  useMemo(() => {
+    if (!query.data || !user?.pubkey) return;
+    if (query.data.event.pubkey !== user.pubkey) return;
+    
+    setBootCache(prev => {
+      const prevSignature = prev?.profile 
+        ? `${prev.profile.d}:${prev.profile.event.created_at}`
+        : '';
+      
+      // Skip update if nothing changed
+      if (prev?.pubkey === user.pubkey && prevSignature === profileSignature) {
+        return prev;
       }
-    }
-  }, [query.data, query.isPlaceholderData, user?.pubkey, setBootCache]);
-  
-  // Apply boot cache on first mount
-  useEffect(() => {
-    if (cachedProfile && !bootCacheApplied.current) {
-      bootCacheApplied.current = true;
-    }
-  }, [cachedProfile]);
-  
-  // Reset tracking when user changes
-  useEffect(() => {
-    if (user?.pubkey !== lastFetchedPubkey.current) {
-      bootCacheApplied.current = false;
-    }
-  }, [user?.pubkey]);
+      
+      return {
+        pubkey: user.pubkey,
+        profile: query.data,
+        companion: prev?.pubkey === user.pubkey ? (prev.companion ?? null) : null,
+        cachedAt: Date.now(),
+      };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileSignature, user?.pubkey]);
   
   // Helper to invalidate and refetch after publishing
   const invalidate = useCallback(() => {
@@ -146,27 +174,39 @@ export function useBlobbonautProfile() {
     const parsed = parseBlobbonautEvent(event);
     if (parsed && user?.pubkey) {
       queryClient.setQueryData(['blobbonaut-profile', user.pubkey], parsed);
-      // Also update boot cache
-      setBootCache(prev => ({
-        pubkey: user.pubkey,
-        profile: parsed,
-        companion: prev?.pubkey === user.pubkey ? prev.companion : null,
-        cachedAt: Date.now(),
-      }));
+      // Also update boot cache (preserve companions) with stable comparison
+      setBootCache(prev => {
+        // Check if the profile actually changed
+        if (
+          prev?.pubkey === user.pubkey &&
+          prev.profile?.event.created_at === parsed.event.created_at &&
+          prev.profile?.d === parsed.d
+        ) {
+          return prev; // No change, return same reference
+        }
+        
+        return {
+          pubkey: user.pubkey,
+          profile: parsed,
+          companion: prev?.pubkey === user.pubkey ? (prev.companion ?? null) : null,
+          cachedAt: Date.now(),
+        };
+      });
     }
   }, [queryClient, user?.pubkey, setBootCache]);
   
-  // Determine the effective companion d-tag (current_companion or first from has[])
+  // Derive effectiveCompanionD from profile:
+  // Priority: current_companion > first item in has[]
   const effectiveCompanionD = useMemo(() => {
     const profile = query.data;
     if (!profile) return undefined;
     
-    // First try current_companion
+    // Use current_companion if set
     if (profile.currentCompanion) {
       return profile.currentCompanion;
     }
     
-    // Fall back to first pet in has[] array
+    // Fall back to first item in has[]
     if (profile.has.length > 0) {
       return profile.has[0];
     }
@@ -176,13 +216,13 @@ export function useBlobbonautProfile() {
   
   return {
     profile: query.data ?? null,
-    /** The d-tag of the companion to display (current_companion or first from has[]) */
+    /** The d-tag of the companion to display (current_companion or first in has[]) */
     effectiveCompanionD,
     /** True only when we have no cached data AND query is loading */
     isLoading: query.isLoading && !cachedProfile,
     /** True when actively fetching (may have cached data displayed) */
     isFetching: query.isFetching,
-    /** True when displaying cached data while fetching fresh data */
+    /** True when displaying stale data */
     isStale: query.isStale,
     error: query.error,
     invalidate,
