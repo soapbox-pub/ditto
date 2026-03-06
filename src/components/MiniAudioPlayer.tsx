@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { formatTime } from '@/lib/formatTime';
 
 /** Audio file extensions used to detect audio URLs. */
-const AUDIO_EXTENSIONS = /\.(mp3|ogg|wav|flac|aac|m4a|opus|weba)(\?.*)?$/i;
+const AUDIO_EXTENSIONS = /\.(mp3|mpga|ogg|oga|wav|flac|aac|m4a|opus|weba|webm|spx|caf)(\?.*)?$/i;
 
 /** Check whether a URL points to an audio file by extension. */
 export function isAudioUrl(url: string): boolean {
