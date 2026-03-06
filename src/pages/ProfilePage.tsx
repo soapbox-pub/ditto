@@ -5,12 +5,12 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, SlidersHorizontal } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -33,7 +33,7 @@ import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, filterByTab } from '@/hooks/useProfileFeed';
-import type { ProfileTab } from '@/hooks/useProfileFeed';
+import type { ProfileTab as CoreProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { MediaGrid, MediaGridSkeleton } from '@/components/MediaGrid';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
@@ -57,8 +57,12 @@ import { useUserStatus } from '@/hooks/useUserStatus';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { useSavedFeeds } from '@/hooks/useSavedFeeds';
+import { useProfileTabs } from '@/hooks/useProfileTabs';
+import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
+import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
+import { ProfileTabsManagerModal } from '@/components/ProfileTabsManagerModal';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
+import type { ProfileTab as CustomProfileTab } from '@/lib/profileTabsEvent';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
 import { loadAndApplyFont } from '@/lib/fontLoader';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
@@ -697,7 +701,7 @@ export function ProfilePage() {
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<ProfileTab | string>('posts');
+  const [activeTab, setActiveTab] = useState<CoreProfileTab | string>('posts');
   const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [followingModalOpen, setFollowingModalOpen] = useState(false);
@@ -739,22 +743,40 @@ export function ProfilePage() {
     return user?.pubkey;
   }, [npub, user, isNip05Param, nip05Pubkey]);
 
-  // Saved feed tabs scoped to this profile (destination=profile, authorPubkey matches)
-  const { savedFeeds } = useSavedFeeds();
-  const profileSavedFeeds = useMemo(
-    () => savedFeeds.filter(
-      (f) => f.destination === 'profile' && pubkey && f.filters.authorPubkeys.some((ap) => {
-        if (ap === pubkey) return true;
-        try { const d = nip19.decode(ap); return d.type === 'npub' && d.data === pubkey; } catch { return false; }
-      }),
-    ),
-    [savedFeeds, pubkey],
-  );
+  // Custom profile tabs from kind 16769
+  const profileTabsQuery = useProfileTabs(pubkey);
+  const profileSavedFeeds = profileTabsQuery.data ?? [];
+  const { publishProfileTabs, isPending: isPublishingTabs } = usePublishProfileTabs();
 
-  // Drop active tab if its saved feed was deleted
+  // Modal state for add/edit (single tab)
+  const [tabModalOpen, setTabModalOpen] = useState(false);
+  const [editingTab, setEditingTab] = useState<CustomProfileTab | undefined>(undefined);
+  // Manager modal state (reorder + remove)
+  const [tabManagerOpen, setTabManagerOpen] = useState(false);
+
+  const handleOpenAddCustomTab = () => { setEditingTab(undefined); setTabModalOpen(true); };
+
+  const handleSaveTab = async (tab: CustomProfileTab) => {
+    if (editingTab) {
+      const updated = profileSavedFeeds.map((t) => t.label === editingTab.label ? tab : t);
+      await publishProfileTabs(updated);
+    } else {
+      await publishProfileTabs([...profileSavedFeeds, tab]);
+    }
+  };
+
+  const handleSaveAllTabs = async (tabs: CustomProfileTab[]) => {
+    await publishProfileTabs(tabs);
+    // If active tab was removed, fall back to posts
+    if (!tabs.find((t) => t.label === activeTab) && !['posts','replies','media','likes','wall'].includes(activeTab)) {
+      setActiveTab('posts');
+    }
+  };
+
+  // Drop active tab if it was deleted
   useEffect(() => {
     const isCoreTab = ['posts', 'replies', 'media', 'likes', 'wall'].includes(activeTab);
-    if (!isCoreTab && !profileSavedFeeds.find((f) => f.id === activeTab)) {
+    if (!isCoreTab && !profileSavedFeeds.find((t) => t.label === activeTab)) {
       setActiveTab('posts');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1241,7 +1263,7 @@ export function ProfilePage() {
   );
 
   const isCoreProfileTab = activeTab === 'posts' || activeTab === 'replies' || activeTab === 'media' || activeTab === 'likes' || activeTab === 'wall';
-  const currentItems = activeTab === 'wall' ? [] : activeTab === 'likes' ? likedFeedItems : activeTab === 'media' ? mediaFeedItems : filterByTab(feedItems, isCoreProfileTab ? (activeTab as ProfileTab) : 'posts');
+  const currentItems = activeTab === 'wall' ? [] : activeTab === 'likes' ? likedFeedItems : activeTab === 'media' ? mediaFeedItems : filterByTab(feedItems, isCoreProfileTab ? (activeTab as CoreProfileTab) : 'posts');
   const currentLoading = activeTab === 'wall' ? wallPending : activeTab === 'likes' ? likesPending : activeTab === 'media' ? mediaPending : feedPending;
   const hasMore = activeTab === 'wall' ? hasNextWallPage : activeTab === 'likes' ? hasNextLikesPage : activeTab === 'media' ? hasNextMediaPage : hasNextFeedPage;
   const isFetchingMore = activeTab === 'wall' ? isFetchingNextWallPage : activeTab === 'likes' ? isFetchingNextLikesPage : activeTab === 'media' ? isFetchingNextMediaPage : isFetchingNextFeedPage;
@@ -1680,10 +1702,80 @@ export function ProfilePage() {
           <TabButton label="Media" active={activeTab === 'media'} onClick={() => { setActiveTab('media'); setSidebarMediaUrl(null); }} />
           <TabButton label="Likes" active={activeTab === 'likes'} onClick={() => setActiveTab('likes')} />
           <TabButton label="Wall" active={activeTab === 'wall'} onClick={() => setActiveTab('wall')} />
-          {profileSavedFeeds.map((feed) => (
-            <TabButton key={feed.id} label={feed.label} active={activeTab === feed.id} onClick={() => setActiveTab(feed.id)} />
+          {profileSavedFeeds.map((tab) => (
+            <TabButton
+              key={tab.label}
+              label={tab.label}
+              active={activeTab === tab.label}
+              onClick={() => setActiveTab(tab.label)}
+            />
           ))}
+          {/* Own-profile controls at end of tab row */}
+          {isOwnProfile && (
+            <>
+              {/* + dropdown: default core tabs (always visible) → show custom as default */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="shrink-0 px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                    aria-label="Add tab"
+                  >
+                    <Plus className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {/* Core tabs — always visible, shown as already-added */}
+                  {(['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'] as const).map((name) => (
+                    <DropdownMenuItem key={name} disabled className="text-muted-foreground">
+                      <Check className="size-3.5 mr-2 opacity-60" />
+                      {name}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleOpenAddCustomTab}>
+                    <Plus className="size-3.5 mr-2" />
+                    Add custom tab
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Manager pencil — opens reorder/remove sheet (only if custom tabs exist) */}
+              {profileSavedFeeds.length > 0 && (
+                <button
+                  onClick={() => setTabManagerOpen(true)}
+                  className="shrink-0 px-2 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                  aria-label="Manage tabs"
+                >
+                  <SlidersHorizontal className="size-3.5" />
+                </button>
+              )}
+            </>
+          )}
         </div>
+
+        {/* Add/edit single tab modal */}
+        {pubkey && (
+          <ProfileTabEditModal
+            open={tabModalOpen}
+            onOpenChange={setTabModalOpen}
+            tab={editingTab}
+            ownerPubkey={pubkey}
+            onSave={handleSaveTab}
+            isPending={isPublishingTabs}
+          />
+        )}
+
+        {/* Manager modal (reorder + remove) */}
+        {pubkey && (
+          <ProfileTabsManagerModal
+            open={tabManagerOpen}
+            onOpenChange={setTabManagerOpen}
+            tabs={profileSavedFeeds}
+            ownerPubkey={pubkey}
+            onSave={handleSaveAllTabs}
+            isPending={isPublishingTabs}
+          />
+        )}
 
         {/* Pinned posts (only on Posts tab) */}
         {activeTab === 'posts' && pinnedIds.length > 0 && (
@@ -1827,8 +1919,8 @@ export function ProfilePage() {
         )}
 
         {/* Custom saved-feed tab content */}
-        {!isCoreProfileTab && profileSavedFeeds.find((f) => f.id === activeTab) && (
-          <ProfileSavedFeedContent feed={profileSavedFeeds.find((f) => f.id === activeTab)!} />
+        {!isCoreProfileTab && profileSavedFeeds.find((t) => t.label === activeTab) && (
+          <ProfileSavedFeedContent feed={profileSavedFeeds.find((t) => t.label === activeTab)!} />
         )}
 
         {/* Tab content (posts / replies / likes) */}
@@ -2118,9 +2210,7 @@ export function ProfilePage() {
 
 // ─── Profile Saved Feed Tab ───────────────────────────────────────────────────
 
-import type { SavedFeed } from '@/contexts/AppContext';
-
-function ProfileSavedFeedContent({ feed }: { feed: SavedFeed }) {
+function ProfileSavedFeedContent({ feed }: { feed: CustomProfileTab }) {
   const { filters } = feed;
 
   const kindsOverride = useMemo<number[] | undefined>(() => {
