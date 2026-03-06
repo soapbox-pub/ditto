@@ -50,12 +50,22 @@ export function useSavedFeeds() {
     await updateSettings.mutateAsync({ savedFeeds: updated });
   };
 
+  /** Update a saved feed's label and/or filters. */
+  const updateSavedFeed = async (id: string, changes: Partial<Pick<SavedFeed, 'label' | 'filters'>>): Promise<void> => {
+    if (!user) throw new Error('Must be logged in to update feeds');
+    const updated = savedFeeds.map((f) =>
+      f.id === id ? { ...f, ...changes, label: (changes.label ?? f.label).trim() } : f,
+    );
+    await updateSettings.mutateAsync({ savedFeeds: updated });
+  };
+
   return {
     savedFeeds,
     isLoading,
     addSavedFeed,
     removeSavedFeed,
     renameSavedFeed,
+    updateSavedFeed,
     isPending: updateSettings.isPending,
   };
 }

@@ -566,28 +566,24 @@ function FeedTabsSection() {
 // ─── Saved Feeds Section ─────────────────────────────────────────────────────
 
 function SavedFeedsSection() {
-  const { savedFeeds, removeSavedFeed, renameSavedFeed, isPending } = useSavedFeeds();
+  const { savedFeeds, removeSavedFeed, updateSavedFeed, isPending } = useSavedFeeds();
   const { toast } = useToast();
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const feedFeeds = savedFeeds.filter((f) => f.destination === 'feed');
   const profileFeeds = savedFeeds.filter((f) => f.destination === 'profile');
 
   if (savedFeeds.length === 0) return null;
 
-  const startRename = (feed: SavedFeed) => {
-    setRenamingId(feed.id);
-    setRenameValue(feed.label);
-  };
-
-  const commitRename = async (id: string) => {
-    const trimmed = renameValue.trim();
-    if (trimmed) {
-      await renameSavedFeed(id, trimmed);
-      toast({ title: 'Feed renamed' });
-    }
-    setRenamingId(null);
+  const handleSave = async (id: string, label: string, query: string) => {
+    const feed = savedFeeds.find((f) => f.id === id);
+    if (!feed) return;
+    await updateSavedFeed(id, {
+      label,
+      filters: { ...feed.filters, query },
+    });
+    toast({ title: 'Feed updated' });
+    setEditingId(null);
   };
 
   const handleRemove = async (feed: SavedFeed) => {
@@ -597,13 +593,11 @@ function SavedFeedsSection() {
 
   return (
     <div className="px-3 py-4 space-y-4 border-t border-border">
-      <div className="flex items-center gap-2">
-        <h3 className="text-sm font-semibold flex-1">Saved Feeds</h3>
-      </div>
+      <h3 className="text-sm font-semibold">Saved Feeds</h3>
 
       {feedFeeds.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
             <Home className="size-3.5" />
             Home feed tabs
           </p>
@@ -611,12 +605,10 @@ function SavedFeedsSection() {
             <SavedFeedRow
               key={feed.id}
               feed={feed}
-              isRenaming={renamingId === feed.id}
-              renameValue={renameValue}
-              onRenameValueChange={setRenameValue}
-              onStartRename={() => startRename(feed)}
-              onCommitRename={() => commitRename(feed.id)}
-              onCancelRename={() => setRenamingId(null)}
+              isEditing={editingId === feed.id}
+              onEdit={() => setEditingId(feed.id)}
+              onCancel={() => setEditingId(null)}
+              onSave={(label, query) => handleSave(feed.id, label, query)}
               onRemove={() => handleRemove(feed)}
               isPending={isPending}
             />
@@ -625,8 +617,8 @@ function SavedFeedsSection() {
       )}
 
       {profileFeeds.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
             <User className="size-3.5" />
             Profile tabs
           </p>
@@ -634,12 +626,10 @@ function SavedFeedsSection() {
             <SavedFeedRow
               key={feed.id}
               feed={feed}
-              isRenaming={renamingId === feed.id}
-              renameValue={renameValue}
-              onRenameValueChange={setRenameValue}
-              onStartRename={() => startRename(feed)}
-              onCommitRename={() => commitRename(feed.id)}
-              onCancelRename={() => setRenamingId(null)}
+              isEditing={editingId === feed.id}
+              onEdit={() => setEditingId(feed.id)}
+              onCancel={() => setEditingId(null)}
+              onSave={(label, query) => handleSave(feed.id, label, query)}
               onRemove={() => handleRemove(feed)}
               isPending={isPending}
             />
@@ -652,25 +642,31 @@ function SavedFeedsSection() {
 
 function SavedFeedRow({
   feed,
-  isRenaming,
-  renameValue,
-  onRenameValueChange,
-  onStartRename,
-  onCommitRename,
-  onCancelRename,
+  isEditing,
+  onEdit,
+  onCancel,
+  onSave,
   onRemove,
   isPending,
 }: {
   feed: SavedFeed;
-  isRenaming: boolean;
-  renameValue: string;
-  onRenameValueChange: (v: string) => void;
-  onStartRename: () => void;
-  onCommitRename: () => void;
-  onCancelRename: () => void;
+  isEditing: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+  onSave: (label: string, query: string) => void;
   onRemove: () => void;
   isPending: boolean;
 }) {
+  const [labelValue, setLabelValue] = useState(feed.label);
+  const [queryValue, setQueryValue] = useState(feed.filters.query);
+
+  // Reset local state when this row starts editing
+  const handleEdit = () => {
+    setLabelValue(feed.label);
+    setQueryValue(feed.filters.query);
+    onEdit();
+  };
+
   const SortIcon = feed.filters.sort === 'hot' ? Flame : feed.filters.sort === 'trending' ? TrendingUp : Clock;
   const scopeLabel = feed.filters.authorScope === 'follows'
     ? 'Follows'
@@ -679,21 +675,14 @@ function SavedFeedRow({
       : null;
 
   return (
-    <div className="flex items-center gap-2 py-2 px-2.5 rounded-lg bg-secondary/30 border border-border/50 group">
-      {isRenaming ? (
-        <Input
-          value={renameValue}
-          onChange={(e) => onRenameValueChange(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') onCommitRename(); if (e.key === 'Escape') onCancelRename(); }}
-          className="h-7 text-sm flex-1 bg-background"
-          autoFocus
-        />
-      ) : (
+    <div className={cn('rounded-lg border bg-secondary/30 overflow-hidden transition-colors', isEditing ? 'border-border' : 'border-border/50 group')}>
+      {/* Summary row — always visible */}
+      <div className="flex items-center gap-2 py-2 px-2.5">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{feed.label}</p>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {feed.filters.query && (
-              <span className="text-[10px] text-muted-foreground bg-secondary rounded px-1 py-0.5 truncate max-w-[120px]">"{feed.filters.query}"</span>
+              <span className="text-[10px] text-muted-foreground bg-secondary rounded px-1 py-0.5 truncate max-w-[140px]">"{feed.filters.query}"</span>
             )}
             {scopeLabel && (
               <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
@@ -707,37 +696,22 @@ function SavedFeedRow({
             )}
           </div>
         </div>
-      )}
 
-      {/* Actions */}
-      <div className={cn('flex items-center gap-0.5 shrink-0', !isRenaming && 'opacity-0 group-hover:opacity-100 transition-opacity')}>
-        {isRenaming ? (
-          <>
-            <button
-              onClick={onCommitRename}
-              disabled={isPending || !renameValue.trim()}
-              className="size-7 flex items-center justify-center rounded text-primary hover:bg-primary/10 disabled:opacity-40 transition-colors"
-              aria-label="Save name"
-            >
-              {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
-            </button>
-            <button
-              onClick={onCancelRename}
-              className="size-7 flex items-center justify-center rounded text-muted-foreground hover:bg-secondary transition-colors"
-              aria-label="Cancel"
-            >
-              <X className="size-3.5" />
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={onStartRename}
-              className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              aria-label="Rename"
-            >
-              <Pencil className="size-3.5" />
-            </button>
+        {/* Actions */}
+        <div className={cn('flex items-center gap-0.5 shrink-0', !isEditing && 'opacity-0 group-hover:opacity-100 transition-opacity')}>
+          <button
+            onClick={isEditing ? onCancel : handleEdit}
+            className={cn(
+              'size-7 flex items-center justify-center rounded transition-colors',
+              isEditing
+                ? 'text-muted-foreground hover:bg-secondary'
+                : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
+            )}
+            aria-label={isEditing ? 'Cancel edit' : 'Edit'}
+          >
+            {isEditing ? <X className="size-3.5" /> : <Pencil className="size-3.5" />}
+          </button>
+          {!isEditing && (
             <button
               onClick={onRemove}
               disabled={isPending}
@@ -746,9 +720,54 @@ function SavedFeedRow({
             >
               <X className="size-3.5" />
             </button>
-          </>
-        )}
+          )}
+        </div>
       </div>
+
+      {/* Inline edit panel */}
+      {isEditing && (
+        <div className="px-2.5 pb-2.5 pt-1 border-t border-border/50 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Tab name</label>
+              <Input
+                value={labelValue}
+                onChange={(e) => setLabelValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
+                className="h-7 text-sm bg-background"
+                placeholder="Tab name…"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Search query</label>
+              <Input
+                value={queryValue}
+                onChange={(e) => setQueryValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') onSave(labelValue, queryValue); if (e.key === 'Escape') onCancel(); }}
+                className="h-7 text-sm bg-background"
+                placeholder="e.g. bitcoin"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-1.5">
+            <button
+              onClick={onCancel}
+              className="h-7 px-2.5 rounded text-xs text-muted-foreground hover:bg-secondary transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave(labelValue, queryValue)}
+              disabled={isPending || !labelValue.trim()}
+              className="h-7 px-2.5 rounded text-xs bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center gap-1"
+            >
+              {isPending ? <Loader2 className="size-3 animate-spin" /> : <Check className="size-3" />}
+              Save
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
