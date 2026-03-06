@@ -858,7 +858,7 @@ function AuthorFilterDropdown({ onCommit }: { onCommit: (pubkey: string, label: 
       placeholder="Search by name or npub…"
       onSelect={handleSelect}
       hideCountry
-      inputClassName="rounded-lg text-sm h-9"
+      inputClassName="rounded-lg bg-secondary/50 border border-border focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 text-sm h-9"
       className="w-full"
     />
   );
