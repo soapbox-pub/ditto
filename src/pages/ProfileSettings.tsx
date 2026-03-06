@@ -57,13 +57,16 @@ import {
 } from '@/components/ui/collapsible';
 
 const WALLET_TICKERS = [
-  'BTC', 'ETH', 'SOL', 'XMR', 'LTC', 'DOGE', 'ADA', 'DOT', 'XRP', 'MATIC',
+  '$BTC', '$ETH', '$SOL', '$XMR', '$LTC', '$DOGE', '$ADA', '$DOT', '$XRP', '$MATIC',
 ] as const;
+
+/** Bare tickers used only for detection (strips leading $). */
+const BARE_TICKERS = WALLET_TICKERS.map((t) => t.slice(1));
 
 /** Infer the field type from stored label/value when loading from existing data. */
 function inferFieldType(label: string, value: string): 'text' | 'wallet' | 'media' {
-  const ticker = label.replace(/^\$/, '').toUpperCase();
-  if (WALLET_TICKERS.includes(ticker as typeof WALLET_TICKERS[number])) return 'wallet';
+  const bare = label.replace(/^\$/, '').toUpperCase();
+  if (BARE_TICKERS.includes(bare)) return 'wallet';
   // Known media file extensions
   if (/^https?:\/\/.+\.(jpe?g|png|gif|webp|svg|avif|mp4|webm|mov|mp3|ogg|wav|flac)(\?.*)?$/i.test(value)) return 'media';
   // Blossom-style URLs: path is a long hex hash (SHA-256), optionally with an extension
@@ -241,8 +244,10 @@ export function ProfileSettings() {
           .filter((f: unknown) => Array.isArray(f) && f.length >= 2)
           .map((f: string[]) => {
             const type = inferFieldType(f[0], f[1]);
-            // Normalize wallet labels so the Select value matches a ticker (e.g. "$BTC" → "BTC")
-            const label = type === 'wallet' ? f[0].replace(/^\$/, '').toUpperCase() : f[0];
+            // Ensure wallet labels carry the $ prefix so the Select value matches (e.g. "BTC" → "$BTC")
+            const label = type === 'wallet' && !f[0].startsWith('$')
+              ? `$${f[0].toUpperCase()}`
+              : f[0];
             return { label, value: f[1], type };
           });
       }
@@ -550,7 +555,7 @@ export function ProfileSettings() {
                     <Type className="size-4 mr-2" />
                     Text
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => append({ label: 'BTC', value: '', type: 'wallet' })}>
+                  <DropdownMenuItem onClick={() => append({ label: '$BTC', value: '', type: 'wallet' })}>
                     <Wallet className="size-4 mr-2" />
                     Wallet Address
                   </DropdownMenuItem>
