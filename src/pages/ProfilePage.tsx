@@ -63,7 +63,7 @@ import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
-import type { ProfileTab, ProfileTabsData, TabVarDef } from '@/lib/profileTabsEvent';
+import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -898,11 +898,21 @@ export function ProfilePage() {
     setLocalTabs((prev) => prev.filter((t) => t.label !== label));
   };
 
+  // Canonical NIP-01 filters for core tabs so other clients can interpret the event.
+  // Values are interpolated with the actual pubkey (not $me) since these are concrete filters.
+  const CORE_TAB_FILTERS: Record<string, TabFilter> = pubkey ? {
+    'Posts': { kinds: [1, 6], authors: [pubkey] },
+    'Posts & replies': { authors: [pubkey] },
+    'Media': { kinds: [1], authors: [pubkey] },
+    'Likes': { kinds: [7], authors: [pubkey] },
+    'Wall': { kinds: [1111], '#A': [`0:${pubkey}:`] },
+  } : {};
+
   const handleSaveTabEdit = async () => {
-    // Publish ALL tabs in order — core tabs stored as stubs with empty filters,
-    // custom tabs with their full filter objects
+    // Publish ALL tabs in order — core tabs get canonical filters,
+    // custom tabs keep their full filter objects
     const allTabs: ProfileTab[] = localTabs.map((t) =>
-      t.tab ?? { label: t.label, filter: {} },
+      t.tab ?? { label: t.label, filter: CORE_TAB_FILTERS[t.label] ?? {} },
     );
     await publishProfileTabs({ tabs: allTabs, vars: profileVars });
     // If the active tab was removed, fall back to the first remaining tab
