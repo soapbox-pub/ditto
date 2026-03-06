@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { IntroImage } from '@/components/IntroImage';
-import { ChevronDown, ChevronUp, Users, Download, Loader2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Users, Download, Loader2, X, Pencil, Check, Home, User, Globe, Clock, Flame, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/useToast';
+import { useSavedFeeds } from '@/hooks/useSavedFeeds';
+import { cn } from '@/lib/utils';
+import type { SavedFeed } from '@/contexts/AppContext';
 
 export function ContentSettings() {
   const [notesOpen, setNotesOpen] = useState(true);
@@ -553,6 +556,199 @@ function FeedTabsSection() {
         )}
       </div>
       </div>
+
+      {/* Saved Feeds */}
+      <SavedFeedsSection />
+    </div>
+  );
+}
+
+// ─── Saved Feeds Section ─────────────────────────────────────────────────────
+
+function SavedFeedsSection() {
+  const { savedFeeds, removeSavedFeed, renameSavedFeed, isPending } = useSavedFeeds();
+  const { toast } = useToast();
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const feedFeeds = savedFeeds.filter((f) => f.destination === 'feed');
+  const profileFeeds = savedFeeds.filter((f) => f.destination === 'profile');
+
+  if (savedFeeds.length === 0) return null;
+
+  const startRename = (feed: SavedFeed) => {
+    setRenamingId(feed.id);
+    setRenameValue(feed.label);
+  };
+
+  const commitRename = async (id: string) => {
+    const trimmed = renameValue.trim();
+    if (trimmed) {
+      await renameSavedFeed(id, trimmed);
+      toast({ title: 'Feed renamed' });
+    }
+    setRenamingId(null);
+  };
+
+  const handleRemove = async (feed: SavedFeed) => {
+    await removeSavedFeed(feed.id);
+    toast({ title: `"${feed.label}" removed` });
+  };
+
+  return (
+    <div className="px-3 py-4 space-y-4 border-t border-border">
+      <div className="flex items-center gap-2">
+        <h3 className="text-sm font-semibold flex-1">Saved Feeds</h3>
+      </div>
+
+      {feedFeeds.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+            <Home className="size-3.5" />
+            Home feed tabs
+          </p>
+          {feedFeeds.map((feed) => (
+            <SavedFeedRow
+              key={feed.id}
+              feed={feed}
+              isRenaming={renamingId === feed.id}
+              renameValue={renameValue}
+              onRenameValueChange={setRenameValue}
+              onStartRename={() => startRename(feed)}
+              onCommitRename={() => commitRename(feed.id)}
+              onCancelRename={() => setRenamingId(null)}
+              onRemove={() => handleRemove(feed)}
+              isPending={isPending}
+            />
+          ))}
+        </div>
+      )}
+
+      {profileFeeds.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+            <User className="size-3.5" />
+            Profile tabs
+          </p>
+          {profileFeeds.map((feed) => (
+            <SavedFeedRow
+              key={feed.id}
+              feed={feed}
+              isRenaming={renamingId === feed.id}
+              renameValue={renameValue}
+              onRenameValueChange={setRenameValue}
+              onStartRename={() => startRename(feed)}
+              onCommitRename={() => commitRename(feed.id)}
+              onCancelRename={() => setRenamingId(null)}
+              onRemove={() => handleRemove(feed)}
+              isPending={isPending}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SavedFeedRow({
+  feed,
+  isRenaming,
+  renameValue,
+  onRenameValueChange,
+  onStartRename,
+  onCommitRename,
+  onCancelRename,
+  onRemove,
+  isPending,
+}: {
+  feed: SavedFeed;
+  isRenaming: boolean;
+  renameValue: string;
+  onRenameValueChange: (v: string) => void;
+  onStartRename: () => void;
+  onCommitRename: () => void;
+  onCancelRename: () => void;
+  onRemove: () => void;
+  isPending: boolean;
+}) {
+  const SortIcon = feed.filters.sort === 'hot' ? Flame : feed.filters.sort === 'trending' ? TrendingUp : Clock;
+  const scopeLabel = feed.filters.authorScope === 'follows'
+    ? 'Follows'
+    : feed.filters.authorScope === 'people' && feed.filters.authorPubkeys.length > 0
+      ? `${feed.filters.authorPubkeys.length} author${feed.filters.authorPubkeys.length > 1 ? 's' : ''}`
+      : null;
+
+  return (
+    <div className="flex items-center gap-2 py-2 px-2.5 rounded-lg bg-secondary/30 border border-border/50 group">
+      {isRenaming ? (
+        <Input
+          value={renameValue}
+          onChange={(e) => onRenameValueChange(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') onCommitRename(); if (e.key === 'Escape') onCancelRename(); }}
+          className="h-7 text-sm flex-1 bg-background"
+          autoFocus
+        />
+      ) : (
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{feed.label}</p>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            {feed.filters.query && (
+              <span className="text-[10px] text-muted-foreground bg-secondary rounded px-1 py-0.5 truncate max-w-[120px]">"{feed.filters.query}"</span>
+            )}
+            {scopeLabel && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                <Globe className="size-2.5" />{scopeLabel}
+              </span>
+            )}
+            {feed.filters.sort !== 'recent' && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                <SortIcon className="size-2.5" />{feed.filters.sort}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className={cn('flex items-center gap-0.5 shrink-0', !isRenaming && 'opacity-0 group-hover:opacity-100 transition-opacity')}>
+        {isRenaming ? (
+          <>
+            <button
+              onClick={onCommitRename}
+              disabled={isPending || !renameValue.trim()}
+              className="size-7 flex items-center justify-center rounded text-primary hover:bg-primary/10 disabled:opacity-40 transition-colors"
+              aria-label="Save name"
+            >
+              {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+            </button>
+            <button
+              onClick={onCancelRename}
+              className="size-7 flex items-center justify-center rounded text-muted-foreground hover:bg-secondary transition-colors"
+              aria-label="Cancel"
+            >
+              <X className="size-3.5" />
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={onStartRename}
+              className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              aria-label="Rename"
+            >
+              <Pencil className="size-3.5" />
+            </button>
+            <button
+              onClick={onRemove}
+              disabled={isPending}
+              className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
+              aria-label="Remove"
+            >
+              <X className="size-3.5" />
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -958,7 +1154,6 @@ export function ThemePreferencesSection() {
 }
 
 // Homepage setting section
-import { Home } from 'lucide-react';
 import { SIDEBAR_ITEMS } from '@/lib/sidebarItems';
 
 function HomePageSetting() {
