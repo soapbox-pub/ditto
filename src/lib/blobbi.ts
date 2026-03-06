@@ -479,23 +479,36 @@ function normalizeHexColor(value: string | undefined): string | undefined {
 /**
  * Derive all visual traits from seed, with legacy tag fallbacks.
  * 
- * Priority order (explicit and stable):
- * 1. If the event contains explicit visual tags AND they are valid, use them.
- * 2. If tags are missing or invalid, derive deterministically from seed.
- * 3. If seed is missing, use safe defaults.
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │ VISUAL TRAIT POLICY                                                         │
+ * │                                                                              │
+ * │ Visual tags are LEGACY COMPATIBILITY / TRANSITIONAL DATA.                   │
+ * │ The SEED is the long-term source of truth for visual identity.              │
+ * │                                                                              │
+ * │ Priority order (explicit and stable):                                       │
+ * │ 1. Explicit valid tags → compatibility override (legacy events)             │
+ * │ 2. Derive from seed → primary source of truth (canonical events)            │
+ * │ 3. Safe defaults → final fallback when seed is missing                      │
+ * │                                                                              │
+ * │ The system does NOT depend on visual tags as primary truth.                 │
+ * │ New events should only rely on seed for visual derivation.                  │
+ * │ Legacy tags are preserved during migration for backwards compatibility.     │
+ * └─────────────────────────────────────────────────────────────────────────────┘
  * 
- * This function is the single source of truth for visual trait resolution.
+ * This function is the SINGLE SOURCE OF TRUTH for visual trait resolution.
+ * The UI should consume the output directly without additional logic.
  */
 export function deriveVisualTraits(
   tags: string[][],
   seed: string | undefined
 ): BlobbiVisualTraits {
-  // If no seed, return defaults
+  // Final fallback: no seed means we use safe defaults
   if (!seed || seed.length !== 64) {
     return { ...DEFAULT_VISUAL_TRAITS };
   }
   
-  // Legacy tag values (may be undefined or invalid)
+  // Legacy tag values - only used as compatibility override if valid
+  // These tags may exist in older events but should not be depended upon
   const tagBaseColor = normalizeHexColor(getTagValue(tags, 'base_color'));
   const tagSecondaryColor = normalizeHexColor(getTagValue(tags, 'secondary_color'));
   const tagEyeColor = normalizeHexColor(getTagValue(tags, 'eye_color'));
@@ -503,6 +516,7 @@ export function deriveVisualTraits(
   const tagSpecialMark = normalizeSpecialMarkTag(getTagValue(tags, 'special_mark'));
   const tagSize = normalizeSizeTag(getTagValue(tags, 'size'));
   
+  // Priority: explicit valid tag > seed-derived value
   return {
     baseColor: tagBaseColor ?? deriveBaseColorFromSeed(seed),
     secondaryColor: tagSecondaryColor ?? deriveSecondaryColorFromSeed(seed),
@@ -631,15 +645,50 @@ export function isValidBlobbonautEvent(event: NostrEvent): boolean {
  * @param d - The d-tag value
  * @returns The derived name with first letter capitalized, or "Unnamed Blobbi" if not derivable
  */
+/**
+ * Capitalize each word in a string.
+ * @example "mr cool" -> "Mr Cool"
+ */
+function capitalizeWords(str: string): string {
+  return str
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
+ * Derive a display name from a legacy d-tag.
+ * 
+ * Transformation rules:
+ * 1. Remove "blobbi-" prefix
+ * 2. Replace "-" and "_" with spaces
+ * 3. Trim whitespace
+ * 4. Capitalize words in a human-friendly way
+ * 5. Fallback to "Unnamed Blobbi" if result is empty
+ * 
+ * @example "blobbi-puck" -> "Puck"
+ * @example "blobbi-mr-cool" -> "Mr Cool"
+ * @example "blobbi_blue" -> "Blue"
+ * @example "blobbi-" -> "Unnamed Blobbi"
+ */
 export function deriveNameFromLegacyD(d: string): string {
-  if (d.startsWith('blobbi-')) {
-    const derivedName = d.replace('blobbi-', '');
-    if (derivedName && derivedName.length > 0) {
-      // Capitalize first letter
-      return derivedName.charAt(0).toUpperCase() + derivedName.slice(1);
-    }
+  if (!d.startsWith('blobbi-')) {
+    return 'Unnamed Blobbi';
   }
-  return 'Unnamed Blobbi';
+  
+  // Remove prefix and normalize separators
+  const rawName = d
+    .replace('blobbi-', '')
+    .replace(/[-_]/g, ' ')
+    .trim();
+  
+  // If nothing meaningful remains, return fallback
+  if (!rawName || rawName.length === 0) {
+    return 'Unnamed Blobbi';
+  }
+  
+  // Capitalize words for human-friendly display
+  return capitalizeWords(rawName);
 }
 
 /**
@@ -808,6 +857,22 @@ export const MANAGED_BLOBBI_STATE_TAG_NAMES = new Set([
   'care_streak', 'hunger', 'happiness', 'health', 'hygiene', 'energy',
   'last_interaction', 'last_decay_at', 'incubation_time', 'start_incubation',
 ]);
+
+/**
+ * Legacy visual tags that should be explicitly preserved during migration.
+ * These tags are TRANSITIONAL - seed is the future source of truth.
+ * They are preserved for backwards compatibility with older events.
+ */
+export const LEGACY_VISUAL_TAG_NAMES = [
+  'base_color',
+  'secondary_color',
+  'eye_color',
+  'pattern',
+  'special_mark',
+  'size',
+  'egg_temperature',
+  'egg_status',
+] as const;
 
 /**
  * Tags managed by the client for Kind 31125 (Blobbonaut Profile).
@@ -1011,7 +1076,13 @@ export function getBlobbonautQueryDValues(pubkey: string): string[] {
 
 /**
  * Build tags for migrating a legacy Blobbi pet to canonical format.
- * Preserves compatible tags from the legacy event and generates seed if missing.
+ * 
+ * Migration preserves:
+ * - seed (existing or derived once)
+ * - name (tag > legacy d-tag derived > fallback)
+ * - core state tags (stage, state, stats, etc.)
+ * - legacy visual tags (explicitly preserved for backwards compatibility)
+ * - unknown tags (for forward compatibility)
  * 
  * @param legacyEvent - The original legacy event
  * @param newPetId - The new 10-char hex petId for canonical format
@@ -1027,6 +1098,7 @@ export function buildMigrationTags(
   const legacyTags = legacyEvent.tags;
   
   // Get or derive seed - use legacy event's created_at for consistency
+  // IMPORTANT: If seed exists and is valid, preserve it. Only derive if missing.
   const existingSeed = getTagValue(legacyTags, 'seed');
   const seed = existingSeed && existingSeed.length === 64
     ? existingSeed
@@ -1043,23 +1115,33 @@ export function buildMigrationTags(
     ['seed', seed],
   ];
   
-  // Preserve name (use legacy d-tag suffix as fallback)
-  const name = getTagValue(legacyTags, 'name');
+  // Preserve name with priority: name tag > legacy d-tag derived > fallback
+  const nameTag = getTagValue(legacyTags, 'name');
   const legacyD = getTagValue(legacyTags, 'd');
-  const legacyName = legacyD?.replace('blobbi-', '') ?? 'Blobbi';
-  newTags.push(['name', name ?? legacyName]);
+  const resolvedName = nameTag ?? (legacyD ? deriveNameFromLegacyD(legacyD) : 'Unnamed Blobbi');
+  newTags.push(['name', resolvedName]);
   
   // Preserve core state tags
-  const preserveTags = [
+  const coreStateTags = [
     'stage', 'state', 'visible_to_others', 'generation', 'breeding_ready',
     'experience', 'care_streak', 'hunger', 'happiness', 'health', 'hygiene', 'energy',
     'incubation_time', 'start_incubation',
   ];
   
-  for (const tagName of preserveTags) {
+  for (const tagName of coreStateTags) {
     const value = getTagValue(legacyTags, tagName);
     if (value !== undefined) {
       newTags.push([tagName, value]);
+    }
+  }
+  
+  // EXPLICITLY preserve legacy visual tags for backwards compatibility
+  // These are TRANSITIONAL - seed is the future source of truth
+  // Do not overwrite if they exist in the legacy event
+  for (const visualTag of LEGACY_VISUAL_TAG_NAMES) {
+    const value = getTagValue(legacyTags, visualTag);
+    if (value !== undefined) {
+      newTags.push([visualTag, value]);
     }
   }
   
@@ -1072,10 +1154,13 @@ export function buildMigrationTags(
     newTags.push(['last_decay_at', now]);
   }
   
-  // Preserve unknown tags for forward compatibility
-  const unknownTags = legacyTags.filter(tag => 
-    !MANAGED_BLOBBI_STATE_TAG_NAMES.has(tag[0])
-  );
+  // Preserve truly unknown tags for forward compatibility
+  // (tags not in managed set AND not in legacy visual set)
+  const knownTagNames = new Set([
+    ...MANAGED_BLOBBI_STATE_TAG_NAMES,
+    ...LEGACY_VISUAL_TAG_NAMES,
+  ]);
+  const unknownTags = legacyTags.filter(tag => !knownTagNames.has(tag[0]));
   
   return [...newTags, ...unknownTags];
 }
