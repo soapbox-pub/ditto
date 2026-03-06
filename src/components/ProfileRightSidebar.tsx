@@ -1,18 +1,56 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert } from 'lucide-react';
+import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
+import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { useToast } from '@/hooks/useToast';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
+import type { AddrCoords } from '@/hooks/useEvent';
 import QRCode from 'qrcode';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getContentWarning } from '@/lib/contentWarning';
 import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
+
+/** Simple email regex for display purposes. */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Bech32 charset used by NIP-19 identifiers. */
+const B32 = '023456789acdefghjklmnpqrstuvwxyz';
+
+/** Regex that matches nostr:<nip19> URIs. */
+const NOSTR_URI_REGEX = new RegExp(`^nostr:(note1|nevent1|naddr1|npub1|nprofile1)[${B32}]+$`);
+
+/** Parse a nostr: URI value and return embed info, or null if not a valid nostr URI. */
+function parseNostrUri(value: string): { type: 'note'; eventId: string } | { type: 'nevent'; eventId: string; relays?: string[]; author?: string } | { type: 'naddr'; addr: AddrCoords } | { type: 'profile'; pubkey: string } | null {
+  const trimmed = value.trim();
+  if (!NOSTR_URI_REGEX.test(trimmed)) return null;
+  try {
+    const bech32 = trimmed.slice('nostr:'.length);
+    const decoded = nip19.decode(bech32);
+    switch (decoded.type) {
+      case 'note':
+        return { type: 'note', eventId: decoded.data as string };
+      case 'nevent':
+        return { type: 'nevent', eventId: decoded.data.id, relays: decoded.data.relays, author: decoded.data.author };
+      case 'naddr':
+        return { type: 'naddr', addr: decoded.data as AddrCoords };
+      case 'npub':
+        return { type: 'profile', pubkey: decoded.data as string };
+      case 'nprofile':
+        return { type: 'profile', pubkey: decoded.data.pubkey };
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
 
 interface ProfileField {
   label: string;
@@ -282,6 +320,47 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
             {copied ? <Check className="size-3.5" /> : 'Copy'}
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  // Nostr URI: render embedded event
+  const nostrEmbed = parseNostrUri(field.value);
+  if (nostrEmbed) {
+    return (
+      <div>
+        <div className="font-semibold text-sm mb-1.5">{field.label}</div>
+        {nostrEmbed.type === 'note' && (
+          <EmbeddedNote eventId={nostrEmbed.eventId} />
+        )}
+        {nostrEmbed.type === 'nevent' && (
+          <EmbeddedNote eventId={nostrEmbed.eventId} relays={nostrEmbed.relays} authorHint={nostrEmbed.author} />
+        )}
+        {nostrEmbed.type === 'naddr' && (
+          <EmbeddedNaddr addr={nostrEmbed.addr} />
+        )}
+        {nostrEmbed.type === 'profile' && (
+          <Link to={`/${nip19.npubEncode(nostrEmbed.pubkey)}`} className="text-sm text-primary hover:underline">
+            {nip19.npubEncode(nostrEmbed.pubkey).slice(0, 16)}...
+          </Link>
+        )}
+      </div>
+    );
+  }
+
+  // Email field: render as mailto link
+  const isEmail = field.label.toLowerCase() === 'email' && EMAIL_REGEX.test(field.value);
+  if (isEmail) {
+    return (
+      <div>
+        <div className="font-semibold text-sm">{field.label}</div>
+        <a
+          href={`mailto:${field.value}`}
+          className="flex items-center gap-1.5 text-sm text-primary hover:underline truncate mt-0.5"
+        >
+          <Mail className="size-4 shrink-0 text-muted-foreground" />
+          <span className="truncate">{field.value}</span>
+        </a>
       </div>
     );
   }

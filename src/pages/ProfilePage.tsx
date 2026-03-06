@@ -5,7 +5,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -44,6 +44,8 @@ import { genUserName } from '@/lib/genUserName';
 
 import { canZap } from '@/lib/canZap';
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReportDialog } from '@/components/ReportDialog';
 import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
@@ -64,6 +66,7 @@ import { ColorPicker } from '@/components/ui/color-picker';
 import { FontPicker } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
+import type { AddrCoords } from '@/hooks/useEvent';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
@@ -412,6 +415,43 @@ function BitcoinQRModal({ address }: { address: string }) {
   );
 }
 
+// ----- Profile field helpers -----
+
+/** Simple email regex for display purposes. */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Bech32 charset used by NIP-19 identifiers. */
+const B32 = '023456789acdefghjklmnpqrstuvwxyz';
+
+/** Regex that matches nostr:<nip19> URIs. */
+const NOSTR_URI_REGEX = new RegExp(`^nostr:(note1|nevent1|naddr1|npub1|nprofile1)[${B32}]+$`);
+
+/** Parse a nostr: URI value and return embed info, or null if not a valid nostr URI. */
+function parseNostrUri(value: string): { type: 'note'; eventId: string } | { type: 'nevent'; eventId: string; relays?: string[]; author?: string } | { type: 'naddr'; addr: AddrCoords } | { type: 'profile'; pubkey: string } | null {
+  const trimmed = value.trim();
+  if (!NOSTR_URI_REGEX.test(trimmed)) return null;
+  try {
+    const bech32 = trimmed.slice('nostr:'.length);
+    const decoded = nip19.decode(bech32);
+    switch (decoded.type) {
+      case 'note':
+        return { type: 'note', eventId: decoded.data as string };
+      case 'nevent':
+        return { type: 'nevent', eventId: decoded.data.id, relays: decoded.data.relays, author: decoded.data.author };
+      case 'naddr':
+        return { type: 'naddr', addr: decoded.data as AddrCoords };
+      case 'npub':
+        return { type: 'profile', pubkey: decoded.data as string };
+      case 'nprofile':
+        return { type: 'profile', pubkey: decoded.data.pubkey };
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
 // ----- Inline Profile Field (mobile) -----
 
 function ProfileFieldInline({ field }: { field: { label: string; value: string } }) {
@@ -461,6 +501,44 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
             <ExternalLink className="size-4" />
           </a>
         </div>
+      </div>
+    );
+  }
+
+  // Nostr URI: render embedded event
+  const nostrEmbed = parseNostrUri(field.value);
+  if (nostrEmbed) {
+    return (
+      <div className="min-w-0">
+        <span className="text-sm text-muted-foreground">{field.label}</span>
+        {nostrEmbed.type === 'note' && (
+          <EmbeddedNote eventId={nostrEmbed.eventId} className="mt-1" />
+        )}
+        {nostrEmbed.type === 'nevent' && (
+          <EmbeddedNote eventId={nostrEmbed.eventId} relays={nostrEmbed.relays} authorHint={nostrEmbed.author} className="mt-1" />
+        )}
+        {nostrEmbed.type === 'naddr' && (
+          <EmbeddedNaddr addr={nostrEmbed.addr} className="mt-1" />
+        )}
+        {nostrEmbed.type === 'profile' && (
+          <Link to={`/${nip19.npubEncode(nostrEmbed.pubkey)}`} className="text-sm text-primary hover:underline">
+            {nip19.npubEncode(nostrEmbed.pubkey).slice(0, 16)}...
+          </Link>
+        )}
+      </div>
+    );
+  }
+
+  // Email field: render as mailto link
+  const isEmail = field.label.toLowerCase() === 'email' && EMAIL_REGEX.test(field.value);
+  if (isEmail) {
+    return (
+      <div className="flex items-center gap-1.5 min-w-0">
+        <Mail className="size-4 shrink-0 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground shrink-0">{field.label}</span>
+        <a href={`mailto:${field.value}`} className="text-sm text-primary hover:underline truncate">
+          {field.value}
+        </a>
       </div>
     );
   }
@@ -711,20 +789,10 @@ export function ProfilePage() {
   // doesn't block the profile header or feed from rendering.
   const { data: supplementary } = useProfileSupplementary(pubkey);
 
-  // Parse profile fields from the raw kind 0 event content, prepending website and lightning address if present
+  // Parse profile fields from the raw kind 0 event content (website and lightning are shown in the header instead)
   const fields = useMemo(() => {
-    const parsed = metadataEvent?.content ? parseProfileFields(metadataEvent.content) : [];
-    const prepended: typeof parsed = [];
-    if (metadata?.website) {
-      prepended.push({ label: 'Website', value: metadata.website });
-    }
-    if (metadata?.lud16) {
-      prepended.push({ label: 'Lightning', value: metadata.lud16 });
-    } else if (metadata?.lud06) {
-      prepended.push({ label: 'Lightning', value: metadata.lud06 });
-    }
-    return [...prepended, ...parsed];
-  }, [metadataEvent?.content, metadata?.website, metadata?.lud16, metadata?.lud06]);
+    return metadataEvent?.content ? parseProfileFields(metadataEvent.content) : [];
+  }, [metadataEvent?.content]);
 
   useSeoMeta({
     title: `${displayName} | ${config.appName}`,
@@ -1541,6 +1609,19 @@ export function ProfilePage() {
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
                   <Zap className="size-3.5 text-amber-500 shrink-0" />
                   <span className="truncate">{metadata.lud16 || metadata.lud06}</span>
+                </div>
+              )}
+              {metadata?.website && (
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
+                  <Globe className="size-3.5 text-muted-foreground shrink-0" />
+                  <a
+                    href={metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="truncate text-primary hover:underline"
+                  >
+                    {metadata.website.replace(/^https?:\/\//, '')}
+                  </a>
                 </div>
               )}
 
