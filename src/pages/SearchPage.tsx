@@ -17,6 +17,8 @@ import {
   BookmarkPlus,
   Check,
   Loader2,
+  ChevronDown,
+  Hash,
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -630,18 +632,7 @@ export function SearchPage() {
                     </div>
                     <div className="space-y-1.5">
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kind</span>
-                      <Select value={kindFilter} onValueChange={setKindFilter}>
-                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
-                          <SelectValue placeholder="All" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All</SelectItem>
-                          {kindOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                          <SelectItem value="custom">Custom…</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <KindPicker value={kindFilter} options={kindOptions} onChange={setKindFilter} />
                     </div>
                   </div>
 
@@ -1063,6 +1054,159 @@ function SaveDestinationRow({
         <span className="block text-sm font-medium">{label}</span>
         <span className="block text-xs text-muted-foreground">{description}</span>
       </span>
+    </button>
+  );
+}
+
+type KindOption = {
+  value: string;
+  label: string;
+  description: string;
+  parentId: string;
+  icon: React.ComponentType<{ className?: string }> | undefined;
+};
+
+function KindPicker({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: KindOption[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return options;
+    return options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(q) ||
+        o.description.toLowerCase().includes(q) ||
+        o.value.includes(q),
+    );
+  }, [options, search]);
+
+  const selected = value === 'all' ? null : value === 'custom' ? null : options.find((o) => o.value === value);
+  const SelectedIcon = selected?.icon;
+
+  const handleSelect = (v: string) => {
+    onChange(v);
+    setOpen(false);
+    setSearch('');
+  };
+
+  return (
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(''); }}>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            'w-full h-8 px-2.5 rounded-md border bg-secondary/50 text-xs flex items-center gap-1.5 text-left transition-colors',
+            'hover:bg-secondary border-border',
+            open && 'border-ring ring-1 ring-ring',
+          )}
+        >
+          {SelectedIcon
+            ? <SelectedIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            : <Hash className="size-3.5 shrink-0 text-muted-foreground" />}
+          <span className="flex-1 truncate">
+            {value === 'all' ? 'All' : value === 'custom' ? 'Custom…' : selected?.label ?? value}
+          </span>
+          <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        side="bottom"
+        className="w-56 p-0 overflow-hidden"
+        style={{ maxHeight: '280px' }}
+      >
+        {/* Search input */}
+        <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-border">
+          <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
+          <input
+            className="flex-1 text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+            placeholder="Search kinds…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoFocus
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="text-muted-foreground hover:text-foreground">
+              <X className="size-3" />
+            </button>
+          )}
+        </div>
+
+        {/* Scrollable list */}
+        <div className="overflow-y-auto" style={{ maxHeight: '216px' }}>
+          {/* All option */}
+          {!search && (
+            <KindPickerItem
+              icon={null}
+              label="All kinds"
+              active={value === 'all'}
+              onClick={() => handleSelect('all')}
+            />
+          )}
+
+          {filtered.map((opt) => (
+            <KindPickerItem
+              key={opt.value}
+              icon={opt.icon ?? null}
+              label={opt.label}
+              active={value === opt.value}
+              onClick={() => handleSelect(opt.value)}
+            />
+          ))}
+
+          {/* Custom option */}
+          {(!search || 'custom'.includes(search.toLowerCase())) && (
+            <KindPickerItem
+              icon={Hash}
+              label="Custom kind…"
+              active={value === 'custom'}
+              onClick={() => handleSelect('custom')}
+            />
+          )}
+
+          {filtered.length === 0 && search && (
+            <p className="text-xs text-muted-foreground text-center py-4">No kinds match</p>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function KindPickerItem({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }> | null;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'w-full flex items-center gap-2 px-2.5 py-1.5 text-xs transition-colors text-left',
+        active
+          ? 'bg-primary/10 text-primary'
+          : 'hover:bg-secondary/60 text-foreground',
+      )}
+    >
+      {Icon
+        ? <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+        : <span className="size-3.5 shrink-0" />}
+      <span className="truncate">{label}</span>
+      {active && <Check className="size-3 shrink-0 ml-auto text-primary" />}
     </button>
   );
 }
