@@ -211,19 +211,27 @@ export function CountryContentHeader({ code }: { code: string }) {
       {/* Flag + name */}
       <div className="p-6 sm:p-8">
         <div className="flex items-center gap-4">
-          <span className="text-6xl sm:text-7xl leading-none" role="img" aria-label={`Flag of ${info.name}`}>
-            {info.flag}
-          </span>
+          {info.subdivision && wiki?.thumbnail ? (
+            <img
+              src={wiki.thumbnail.source}
+              alt={info.subdivisionName ?? info.subdivision}
+              className="size-16 sm:size-20 rounded-md object-cover shadow-sm border border-border"
+            />
+          ) : (
+            <span className="text-6xl sm:text-7xl leading-none" role="img" aria-label={`Flag of ${info.name}`}>
+              {info.flag}
+            </span>
+          )}
           <div className="space-y-1">
             <h2 className="text-2xl sm:text-3xl font-bold leading-snug">
-              {info.name}
+              {info.subdivisionName ?? info.name}
             </h2>
             {info.subdivision && (
               <p className="text-sm text-muted-foreground">
-                Subdivision: {info.subdivision}
+                {info.name}{info.subdivisionName ? '' : ` · ${info.subdivision}`}
               </p>
             )}
-            {wiki?.description && !info.subdivision && (
+            {wiki?.description && (
               <p className="text-sm text-muted-foreground capitalize">
                 {wiki.description}
               </p>
