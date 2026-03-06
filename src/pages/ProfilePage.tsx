@@ -2514,7 +2514,10 @@ const NO_TABS_QUOTES = [
 ];
 
 function NoTabsEmptyState() {
-  const quote = NO_TABS_QUOTES[Math.floor(Math.random() * NO_TABS_QUOTES.length)];
+  const quote = useMemo(
+    () => NO_TABS_QUOTES[Math.floor(Math.random() * NO_TABS_QUOTES.length)],
+    [],
+  );
   return (
     <div className="py-20 px-10 flex flex-col items-center">
       <p className="max-w-sm font-serif text-2xl italic leading-9 text-foreground/70 tracking-wide text-center">
