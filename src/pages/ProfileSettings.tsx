@@ -63,7 +63,10 @@ const WALLET_TICKERS = [
 /** Infer the field type from stored label/value when loading from existing data. */
 function inferFieldType(label: string, value: string): 'text' | 'wallet' | 'media' {
   if (WALLET_TICKERS.includes(label.toUpperCase() as typeof WALLET_TICKERS[number])) return 'wallet';
-  if (/^https?:\/\/.+\.(jpe?g|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|wav)(\?.*)?$/i.test(value)) return 'media';
+  // Known media file extensions
+  if (/^https?:\/\/.+\.(jpe?g|png|gif|webp|svg|avif|mp4|webm|mov|mp3|ogg|wav|flac)(\?.*)?$/i.test(value)) return 'media';
+  // Blossom-style URLs: path is a long hex hash (SHA-256), optionally with an extension
+  if (/^https?:\/\/.+\/[0-9a-f]{64}(\.\w+)?$/i.test(value)) return 'media';
   return 'text';
 }
 
@@ -480,7 +483,8 @@ export function ProfileSettings() {
                 control={form.control}
                 name="website"
                 render={({ field }) => (
-                  <div className="grid grid-cols-[1fr,2fr,auto] gap-2 items-center">
+                  <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
+                    <div className="w-6" />
                     <div className="flex items-center h-9 px-3 text-sm text-muted-foreground">
                       <span>Website</span>
                     </div>
@@ -495,7 +499,8 @@ export function ProfileSettings() {
                 control={form.control}
                 name="lud16"
                 render={({ field }) => (
-                  <div className="grid grid-cols-[1fr,2fr,auto] gap-2 items-center">
+                  <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
+                    <div className="w-6" />
                     <div className="flex items-center h-9 px-3 text-sm text-muted-foreground">
                       <span>Lightning</span>
                     </div>
