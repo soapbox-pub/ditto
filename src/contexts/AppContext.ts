@@ -124,33 +124,28 @@ export interface FeedSettings {
   followsFeedShowReplies: boolean;
 }
 
-/** Filters captured when a search is saved as a feed tab. */
-export interface SavedFeedFilters {
-  /** NIP-50 search query */
-  query: string;
-  mediaType: 'all' | 'images' | 'videos' | 'vines' | 'none';
-  language: string;
-  platform: 'nostr' | 'activitypub' | 'atproto';
-  kindFilter: string;
-  customKindText: string;
-  /**
-   * Who to show posts from:
-   * - 'anyone'   — no author restriction (global)
-   * - 'follows'  — only people the current user follows
-   * - 'people'   — one or more specific authors (see authorPubkeys)
-   */
-  authorScope: 'anyone' | 'follows' | 'people';
-  /** Author pubkeys (npub or hex). Only used when authorScope === 'people'. */
-  authorPubkeys: string[];
-  /** NIP-50 sort preference. 'recent' = default chronological. */
-  sort: 'recent' | 'hot' | 'trending';
+/**
+ * A standard NIP-01 filter object that may contain variable placeholders
+ * (`$name`) in string positions. After resolution, becomes a `NostrFilter`.
+ */
+export type TabFilter = Record<string, unknown>;
+
+/** A variable definition for tab filters (extracted from `var` tags). */
+export interface TabVarDef {
+  /** Variable name including the `$` prefix, e.g. `"$follows"`. */
+  name: string;
+  /** Tag name to extract from the referenced event, e.g. `"p"`. */
+  tagName: string;
+  /** Event pointer: `e:<id>` or `a:<kind>:<pubkey>:<d-tag>`. May contain variables. */
+  pointer: string;
 }
 
 /** A named feed tab saved from the search page. */
 export interface SavedFeed {
   id: string;
   label: string;
-  filters: SavedFeedFilters;
+  filter: TabFilter;
+  vars: TabVarDef[];
   /** Where this tab appears: home feed tabs or the current user's profile tabs. */
   destination: 'feed' | 'profile';
   createdAt: number;

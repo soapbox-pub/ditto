@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useCurrentUser } from './useCurrentUser';
-import type { SavedFeed, SavedFeedFilters } from '@/contexts/AppContext';
+import type { SavedFeed, TabFilter, TabVarDef } from '@/contexts/AppContext';
 
 /**
  * CRUD hook for saved feed tabs.
@@ -18,13 +18,14 @@ export function useSavedFeeds() {
   );
 
   /** Add a new saved feed. Returns the created feed. */
-  const addSavedFeed = async (label: string, filters: SavedFeedFilters, destination: SavedFeed['destination'] = 'feed'): Promise<SavedFeed> => {
+  const addSavedFeed = async (label: string, filter: TabFilter, vars: TabVarDef[], destination: SavedFeed['destination'] = 'feed'): Promise<SavedFeed> => {
     if (!user) throw new Error('Must be logged in to save feeds');
 
     const newFeed: SavedFeed = {
       id: crypto.randomUUID(),
       label: label.trim(),
-      filters,
+      filter,
+      vars,
       destination,
       createdAt: Date.now(),
     };
@@ -50,8 +51,8 @@ export function useSavedFeeds() {
     await updateSettings.mutateAsync({ savedFeeds: updated });
   };
 
-  /** Update a saved feed's label and/or filters. */
-  const updateSavedFeed = async (id: string, changes: Partial<Pick<SavedFeed, 'label' | 'filters'>>): Promise<void> => {
+  /** Update a saved feed's label and/or filter. */
+  const updateSavedFeed = async (id: string, changes: Partial<Pick<SavedFeed, 'label' | 'filter' | 'vars'>>): Promise<void> => {
     if (!user) throw new Error('Must be logged in to update feeds');
     const updated = savedFeeds.map((f) =>
       f.id === id ? { ...f, ...changes, label: (changes.label ?? f.label).trim() } : f,

@@ -18,7 +18,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { cn, parseKindFilter } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { SavedFeed } from '@/contexts/AppContext';
 
@@ -283,24 +283,18 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
 
 /** Renders a saved search feed using useStreamPosts (live streaming). */
 function SavedFeedContent({ feed }: { feed: SavedFeed }) {
-  const { filters } = feed;
+  const { filter } = feed;
   const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
 
-  const kindsOverride = useMemo<number[] | undefined>(
-    () => parseKindFilter(filters.kindFilter, filters.customKindText),
-    [filters.kindFilter, filters.customKindText],
-  );
+  const search = typeof filter.search === 'string' ? filter.search : '';
+  const kindsOverride = Array.isArray(filter.kinds) ? filter.kinds as number[] : undefined;
+  const authorPubkeys = Array.isArray(filter.authors) ? filter.authors as string[] : undefined;
 
-  const protocols = useMemo(() => [filters.platform], [filters.platform]);
-
-  const { posts, isLoading } = useStreamPosts(filters.query, {
+  const { posts, isLoading } = useStreamPosts(search, {
     includeReplies: true,
-    mediaType: filters.mediaType,
-    language: filters.language,
-    protocols,
+    mediaType: 'all',
     kindsOverride,
-    authorPubkeys: filters.authorPubkeys.length > 0 ? filters.authorPubkeys : undefined,
-    sort: filters.sort,
+    authorPubkeys: authorPubkeys && authorPubkeys.length > 0 ? authorPubkeys : undefined,
   });
 
   // Simple scroll-based load more isn't available with useStreamPosts (it's a stream),

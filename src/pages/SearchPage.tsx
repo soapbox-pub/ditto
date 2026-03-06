@@ -9,6 +9,8 @@ import {
   BookmarkPlus,
   Check,
   Loader2,
+  Globe, Users, UserSearch,
+  Clock, Flame, TrendingUp,
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -23,7 +25,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmojifiedText } from '@/components/CustomEmoji';
-import { SavedFeedFiltersEditor, buildKindOptions } from '@/components/SavedFeedFiltersEditor';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { buildKindOptions, KindPicker, AuthorChip, AuthorFilterDropdown } from '@/components/SavedFeedFiltersEditor';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
@@ -35,6 +38,7 @@ import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { cn, STICKY_HEADER_CLASS, parseKindFilter } from '@/lib/utils';
+import type { TabFilter } from '@/contexts/AppContext';
 import { nip19 } from 'nostr-tools';
 
 
@@ -300,31 +304,26 @@ export function SearchPage() {
   // 'people' scope with explicit authors = user-specific; not eligible for profile tab
   const isAuthorSpecific = authorScope === 'people' && authorPubkeys.length > 0;
 
-  // Build the filters object for matching / saving
-  const currentFilters = useMemo<import('@/contexts/AppContext').SavedFeedFilters>(() => ({
-    query: searchQuery.trim(), mediaType, language, platform, kindFilter, customKindText,
-    authorScope, authorPubkeys, sort,
-  }), [searchQuery, mediaType, language, platform, kindFilter, customKindText, authorScope, authorPubkeys, sort]);
+  // Build a standard NIP-01 TabFilter from the current search state
+  const currentFilter = useMemo<TabFilter>(() => {
+    const filter: TabFilter = {};
+    if (searchQuery.trim()) filter.search = searchQuery.trim();
+    if (kindsOverride && kindsOverride.length > 0) filter.kinds = kindsOverride;
+    if (authorScope === 'people' && authorPubkeys.length > 0) filter.authors = authorPubkeys;
+    return filter;
+  }, [searchQuery, kindsOverride, authorScope, authorPubkeys]);
 
   const alreadySaved = savedFeeds.some(
-    (f) =>
-      f.filters.query === currentFilters.query &&
-      f.filters.mediaType === currentFilters.mediaType &&
-      f.filters.language === currentFilters.language &&
-      f.filters.platform === currentFilters.platform &&
-      f.filters.kindFilter === currentFilters.kindFilter &&
-      f.filters.authorScope === currentFilters.authorScope &&
-      f.filters.sort === currentFilters.sort &&
-      JSON.stringify([...f.filters.authorPubkeys].sort()) === JSON.stringify([...currentFilters.authorPubkeys].sort()),
+    (f) => JSON.stringify(f.filter) === JSON.stringify(currentFilter),
   );
 
   const handleSave = async (destination: 'feed' | 'profile') => {
     if (!saveFeedLabel.trim() || isSavingFeed) return;
-    // Profile tabs auto-lock scope to 'people' with the current user's pubkey
-    const filtersToSave = destination === 'profile' && user
-      ? { ...currentFilters, authorScope: 'people' as const, authorPubkeys: authorPubkeys.length > 0 ? authorPubkeys : [user.pubkey] }
-      : currentFilters;
-    await addSavedFeed(saveFeedLabel, filtersToSave, destination);
+    // Profile tabs auto-lock to the current user's pubkey
+    const filterToSave: TabFilter = destination === 'profile' && user
+      ? { ...currentFilter, authors: authorPubkeys.length > 0 ? authorPubkeys : [user.pubkey] }
+      : currentFilter;
+    await addSavedFeed(saveFeedLabel, filterToSave, [], destination);
     setSavePopoverOpen(false);
     setSaveFeedLabel('');
     setSavedJustNow(true);
@@ -466,32 +465,159 @@ export function SearchPage() {
                     )}
                   </div>
 
-                  <SavedFeedFiltersEditor
-                    showQuery={false}
-                    value={{ query: searchQuery.trim(), mediaType, language, platform, kindFilter, customKindText, authorScope, authorPubkeys, sort }}
-                    onChange={(patch) => {
-                      if ('authorScope' in patch && patch.authorScope !== undefined) setAuthorScope(patch.authorScope);
-                      if ('authorPubkeys' in patch && patch.authorPubkeys !== undefined) {
-                        // Sync array to URL repeated params
-                        setSearchParams((prev) => {
-                          const next = new URLSearchParams(prev);
-                          next.delete('author');
-                          (patch.authorPubkeys ?? []).forEach((pk) => next.append('author', pk));
-                          if ((patch.authorPubkeys ?? []).length === 0) next.delete('authorScope');
-                          return next;
-                        }, { replace: true });
-                      }
-                      if ('sort' in patch && patch.sort !== undefined) setSort(patch.sort);
-                      if ('mediaType' in patch && patch.mediaType !== undefined) setMediaType(patch.mediaType);
-                      if ('platform' in patch && patch.platform !== undefined) setPlatform(patch.platform);
-                      if ('language' in patch && patch.language !== undefined) setLanguage(patch.language);
-                      if ('kindFilter' in patch && patch.kindFilter !== undefined) setKindFilter(patch.kindFilter);
-                      if ('customKindText' in patch && patch.customKindText !== undefined) setCustomKindText(patch.customKindText);
-                    }}
-                    kindOptions={kindOptions}
-                  />
+                  {/* Author scope */}
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">From</span>
+                    <div className="flex rounded-lg border border-border overflow-hidden">
+                      {([
+                        ['anyone', 'Anyone', Globe],
+                        ['follows', 'Follows', Users],
+                        ['people', 'People', UserSearch],
+                      ] as const).map(([scope, label, Icon]) => (
+                        <button
+                          key={scope}
+                          onClick={() => setAuthorScope(scope as AuthorScope)}
+                          className={cn(
+                            'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
+                            authorScope === scope
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
+                          )}
+                        >
+                          <Icon className="size-3.5 shrink-0" />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {authorScope === 'people' && (
+                      <div className="space-y-1.5">
+                        {authorPubkeys.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {authorPubkeys.map((pk) => (
+                              <AuthorChip key={pk} pubkey={pk} onRemove={() => {
+                                const next = authorPubkeys.filter((p) => p !== pk);
+                                setSearchParams((prev) => {
+                                  const n = new URLSearchParams(prev);
+                                  n.delete('author');
+                                  next.forEach((p) => n.append('author', p));
+                                  if (next.length === 0) n.delete('authorScope');
+                                  return n;
+                                }, { replace: true });
+                              }} />
+                            ))}
+                          </div>
+                        )}
+                        <AuthorFilterDropdown onCommit={(pubkey) => {
+                          if (!authorPubkeys.includes(pubkey)) {
+                            setSearchParams((prev) => {
+                              const n = new URLSearchParams(prev);
+                              n.append('author', pubkey);
+                              n.set('authorScope', 'people');
+                              return n;
+                            }, { replace: true });
+                          }
+                        }} />
+                      </div>
+                    )}
+                  </div>
+                  <Separator />
 
-                  {/* Include replies toggle — lives outside SavedFeedFilters schema */}
+                  {/* Sort */}
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sort</span>
+                    <div className="flex rounded-lg border border-border overflow-hidden">
+                      {([
+                        ['recent', 'Recent', Clock],
+                        ['hot', 'Hot', Flame],
+                        ['trending', 'Trending', TrendingUp],
+                      ] as const).map(([s, label, Icon]) => (
+                        <button
+                          key={s}
+                          onClick={() => setSort(s)}
+                          className={cn(
+                            'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
+                            sort === s
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
+                          )}
+                        >
+                          <Icon className="size-3.5 shrink-0" />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <Separator />
+
+                  {/* Media + Platform */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Media</span>
+                      <Select value={mediaType} onValueChange={(v) => setMediaType(v)}>
+                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All</SelectItem>
+                          <SelectItem value="images">Images</SelectItem>
+                          <SelectItem value="videos">Videos</SelectItem>
+                          <SelectItem value="vines">Shorts</SelectItem>
+                          <SelectItem value="none">No media</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Platform</span>
+                      <Select value={platform} onValueChange={(v) => setPlatform(v)}>
+                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="nostr">Nostr</SelectItem>
+                          <SelectItem value="activitypub">Mastodon</SelectItem>
+                          <SelectItem value="atproto">Bluesky</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Language + Kind */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Language</span>
+                      <Select value={language} onValueChange={(v) => setLanguage(v)}>
+                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="global">Global</SelectItem>
+                          <SelectItem value="en">English</SelectItem>
+                          <SelectItem value="es">Spanish</SelectItem>
+                          <SelectItem value="fr">French</SelectItem>
+                          <SelectItem value="de">German</SelectItem>
+                          <SelectItem value="ja">Japanese</SelectItem>
+                          <SelectItem value="zh">Chinese</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kind</span>
+                      <KindPicker value={kindFilter} options={kindOptions} onChange={(v) => setKindFilter(v)} />
+                    </div>
+                  </div>
+
+                  {kindFilter === 'custom' && (
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="e.g. 1, 30023"
+                      value={customKindText}
+                      onChange={(e) => setCustomKindText(e.target.value)}
+                      className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-xs h-8"
+                    />
+                  )}
+
+                  {/* Include replies toggle */}
                   <Separator />
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground">Include replies</span>

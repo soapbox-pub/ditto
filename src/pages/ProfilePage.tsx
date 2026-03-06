@@ -5,7 +5,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, SlidersHorizontal } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -59,10 +59,11 @@ import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
-import { useSavedFeeds } from '@/hooks/useSavedFeeds';
+
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
-import type { ProfileTab as CustomProfileTab } from '@/lib/profileTabsEvent';
+import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
+import type { ProfileTab, ProfileTabsData, TabVarDef } from '@/lib/profileTabsEvent';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -78,7 +79,7 @@ import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontPicker } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
-import { cn, STICKY_HEADER_CLASS, parseKindFilter } from '@/lib/utils';
+import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -366,7 +367,7 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   );
 }
 
-type EditableTab = { label: string; isCore: boolean; tab?: CustomProfileTab };
+type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
 function SortableTabChip({
   tab, active, onSelect, onRemove,
@@ -814,24 +815,18 @@ export function ProfilePage() {
 
   // Custom profile tabs from kind 16769
   const profileTabsQuery = useProfileTabs(pubkey);
-  const { savedFeeds: encryptedSavedFeeds } = useSavedFeeds();
 
-  // Kind 16769 is the canonical source. Fall back to encrypted settings (profile-destined,
-  // author-matching) if no kind 16769 event has been published yet — this handles migration.
-  const profileSavedFeeds = useMemo<CustomProfileTab[]>(() => {
-    if (!profileTabsQuery.isFetched) return []; // still loading
-    // null = no kind 16769 event published yet → fall back to encrypted settings (migration)
-    if (profileTabsQuery.data === null) {
-      return encryptedSavedFeeds
-        .filter((f) => f.destination === 'profile' && pubkey && f.filters.authorPubkeys.some((ap) => {
-          if (ap === pubkey) return true;
-          try { const d = nip19.decode(ap); return d.type === 'npub' && d.data === pubkey; } catch { return false; }
-        }))
-        .map((f) => ({ label: f.label, filters: f.filters }));
-    }
-    // Array (possibly empty) = kind 16769 event exists → canonical, respect deletions
-    return profileTabsQuery.data ?? [];
-  }, [profileTabsQuery.data, profileTabsQuery.isFetched, encryptedSavedFeeds, pubkey]);
+  // Extract tabs and vars from the kind 16769 data
+  const profileTabsData = useMemo<ProfileTabsData | null>(() => {
+    if (!profileTabsQuery.isFetched) return null;
+    return profileTabsQuery.data ?? null;
+  }, [profileTabsQuery.data, profileTabsQuery.isFetched]);
+
+  const profileSavedTabs = useMemo<ProfileTab[]>(() => {
+    return profileTabsData?.tabs ?? [];
+  }, [profileTabsData]);
+
+  const profileVars = useMemo(() => profileTabsData?.vars ?? [], [profileTabsData]);
 
   const { publishProfileTabs, isPending: isPublishingTabs } = usePublishProfileTabs();
 
@@ -839,11 +834,11 @@ export function ProfilePage() {
   const [tabEditMode, setTabEditMode] = useState(false);
 
   // All tabs as a flat ordered list for the drag UI — core tabs have isCore=true and can't be removed
-  type EditableTab = { label: string; isCore: boolean; tab?: CustomProfileTab };
+  type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
   const [localTabs, setLocalTabs] = useState<EditableTab[]>([]);
   const [tabModalOpen, setTabModalOpen] = useState(false);
-  const [editingTab, setEditingTab] = useState<CustomProfileTab | undefined>(undefined);
+  const [editingTab, setEditingTab] = useState<ProfileTab | undefined>(undefined);
 
   // Map from display label → internal tab id for core tabs
   const CORE_TAB_IDS: Record<string, string> = {
@@ -856,18 +851,18 @@ export function ProfilePage() {
   // - [] (event exists, all removed) → show nothing
   // - [...] (event with tabs) → show exactly those
   const viewTabs: EditableTab[] = useMemo(() => {
-    if (profileTabsQuery.data === null || !profileTabsQuery.isFetched) {
+    if (profileTabsData === null) {
       // No event yet — show defaults
       return CORE_TAB_LABELS.map((label) => ({ label, isCore: true }));
     }
     // Event exists — use its tab list (may be empty)
-    return (profileTabsQuery.data ?? []).map((t) =>
+    return profileTabsData.tabs.map((t) =>
       CORE_TAB_LABELS.includes(t.label)
         ? { label: t.label, isCore: true }
         : { label: t.label, isCore: false, tab: t },
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileTabsQuery.data, profileTabsQuery.isFetched]);
+  }, [profileTabsData]);
 
   // Derive the ID of the first visible tab (used as default selection).
   const firstTabId = useMemo(() => {
@@ -905,15 +900,11 @@ export function ProfilePage() {
 
   const handleSaveTabEdit = async () => {
     // Publish ALL tabs in order — core tabs stored as stubs with empty filters,
-    // custom tabs with their full filters
-    const DEFAULT_FILTERS: CustomProfileTab['filters'] = {
-      query: '', mediaType: 'all', language: 'global', platform: 'nostr',
-      kindFilter: 'all', customKindText: '', authorScope: 'anyone', authorPubkeys: [], sort: 'recent',
-    };
-    const allTabs: CustomProfileTab[] = localTabs.map((t) =>
-      t.tab ?? { label: t.label, filters: DEFAULT_FILTERS },
+    // custom tabs with their full filter objects
+    const allTabs: ProfileTab[] = localTabs.map((t) =>
+      t.tab ?? { label: t.label, filter: {} },
     );
-    await publishProfileTabs(allTabs);
+    await publishProfileTabs({ tabs: allTabs, vars: profileVars });
     // If the active tab was removed, fall back to the first remaining tab
     const remainingIds = localTabs.map((t) => CORE_TAB_IDS[t.label] ?? t.label);
     if (!remainingIds.includes(activeTab)) {
@@ -925,7 +916,7 @@ export function ProfilePage() {
   const handleOpenAddCustomTab = () => { setEditingTab(undefined); setTabModalOpen(true); };
 
   // Called from the add/edit modal — in edit mode append to localTabs; otherwise publish immediately
-  const handleSaveTab = async (tab: CustomProfileTab) => {
+  const handleSaveTab = async (tab: ProfileTab) => {
     if (tabEditMode) {
       setLocalTabs((prev) =>
         editingTab
@@ -934,9 +925,9 @@ export function ProfilePage() {
       );
     } else {
       const base = editingTab
-        ? profileSavedFeeds.map((t) => t.label === editingTab.label ? tab : t)
-        : [...profileSavedFeeds, tab];
-      await publishProfileTabs(base);
+        ? profileSavedTabs.map((t) => t.label === editingTab.label ? tab : t)
+        : [...profileSavedTabs, tab];
+      await publishProfileTabs({ tabs: base, vars: profileVars });
     }
   };
 
@@ -948,11 +939,11 @@ export function ProfilePage() {
   // Drop active tab if it was deleted
   useEffect(() => {
     const isCoreTab = ['posts', 'replies', 'media', 'likes', 'wall'].includes(activeTab);
-    if (!isCoreTab && !profileSavedFeeds.find((t) => t.label === activeTab)) {
+    if (!isCoreTab && !profileSavedTabs.find((t) => t.label === activeTab)) {
       setActiveTab(firstTabId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileSavedFeeds, firstTabId]);
+  }, [profileSavedTabs, firstTabId]);
 
   // Whether the profile has any visible tabs.
   const hasTabs = viewTabs.length > 0;
@@ -2162,8 +2153,12 @@ export function ProfilePage() {
         )}
 
         {/* Custom saved-feed tab content */}
-        {hasTabs && !isCoreProfileTab && profileSavedFeeds.find((t) => t.label === activeTab) && (
-          <ProfileSavedFeedContent feed={profileSavedFeeds.find((t) => t.label === activeTab)!} />
+        {hasTabs && !isCoreProfileTab && profileSavedTabs.find((t) => t.label === activeTab) && pubkey && (
+          <ProfileSavedFeedContent
+            feed={profileSavedTabs.find((t) => t.label === activeTab)!}
+            vars={profileVars}
+            ownerPubkey={pubkey}
+          />
         )}
 
         {/* Tab content (posts / replies / likes) */}
@@ -2453,25 +2448,26 @@ export function ProfilePage() {
 
 // ─── Profile Saved Feed Tab ───────────────────────────────────────────────────
 
-function ProfileSavedFeedContent({ feed }: { feed: CustomProfileTab }) {
-  const { filters } = feed;
+function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
+  feed: ProfileTab;
+  vars: TabVarDef[];
+  ownerPubkey: string;
+}) {
+  const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(feed.filter, vars, ownerPubkey);
 
-  const kindsOverride = useMemo<number[] | undefined>(
-    () => parseKindFilter(filters.kindFilter, filters.customKindText),
-    [filters.kindFilter, filters.customKindText],
-  );
+  // Extract search query and kinds from the resolved filter for useStreamPosts
+  const search = typeof resolvedFilter?.search === 'string' ? resolvedFilter.search : '';
+  const kindsOverride = Array.isArray(resolvedFilter?.kinds) ? resolvedFilter.kinds as number[] : undefined;
+  const authorPubkeys = Array.isArray(resolvedFilter?.authors) ? resolvedFilter.authors as string[] : undefined;
 
-  const protocols = useMemo(() => [filters.platform], [filters.platform]);
-
-  const { posts, isLoading } = useStreamPosts(filters.query, {
+  const { posts, isLoading: isStreamLoading } = useStreamPosts(search, {
     includeReplies: true,
-    mediaType: filters.mediaType,
-    language: filters.language,
-    protocols,
+    mediaType: 'all',
     kindsOverride,
-    authorPubkeys: filters.authorPubkeys.length > 0 ? filters.authorPubkeys : undefined,
-    sort: filters.sort,
+    authorPubkeys: authorPubkeys && authorPubkeys.length > 0 ? authorPubkeys : undefined,
   });
+
+  const isLoading = isResolving || isStreamLoading;
 
   if (isLoading && posts.length === 0) {
     return (
