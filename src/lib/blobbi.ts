@@ -40,37 +40,115 @@ export interface BlobbiStats {
 
 /**
  * Visual traits for a Blobbi, derived from seed or legacy tags.
+ * 
+ * This interface is designed to be directly consumable by the EggGraphic module.
+ * All color values are canonical CSS hex colors.
+ * All categorical values match the EggGraphic vocabulary.
  */
 export interface BlobbiVisualTraits {
-  /** Base color of the Blobbi */
+  /** Primary/base color - hex value (e.g., "#F59E0B") */
   baseColor: string;
-  /** Pattern type */
-  pattern: string;
-  /** Special marking */
-  specialMark: string;
-  /** Size category */
-  size: string;
+  /** Secondary/accent color - hex value */
+  secondaryColor: string;
+  /** Eye color - hex value */
+  eyeColor: string;
+  /** Pattern type: 'solid' | 'spotted' | 'striped' | 'gradient' */
+  pattern: BlobbiPattern;
+  /** Special marking: 'none' | 'star' | 'heart' | 'sparkle' | 'blush' */
+  specialMark: BlobbiSpecialMark;
+  /** Size category: 'small' | 'medium' | 'large' */
+  size: BlobbiSize;
 }
 
-/** Available base colors for Blobbi */
-export const BLOBBI_BASE_COLORS = [
-  'pink', 'blue', 'green', 'yellow', 'purple', 'orange', 'cyan', 'red',
+/** Pattern types supported by EggGraphic */
+export type BlobbiPattern = 'solid' | 'spotted' | 'striped' | 'gradient';
+
+/** Special marks supported by EggGraphic */
+export type BlobbiSpecialMark = 'none' | 'star' | 'heart' | 'sparkle' | 'blush';
+
+/** Size categories supported by EggGraphic */
+export type BlobbiSize = 'small' | 'medium' | 'large';
+
+/**
+ * Base color palette - canonical hex values.
+ * These are carefully chosen to look good on egg shapes.
+ */
+export const BLOBBI_BASE_COLORS: readonly string[] = [
+  '#F59E0B', // Amber/Gold
+  '#55C4A2', // Teal
+  '#60A5FA', // Sky Blue
+  '#F472B6', // Pink
+  '#A78BFA', // Purple
+  '#F87171', // Coral Red
+  '#34D399', // Emerald
+  '#FBBF24', // Yellow
+  '#818CF8', // Indigo
+  '#FB923C', // Orange
 ] as const;
 
-/** Available patterns for Blobbi */
-export const BLOBBI_PATTERNS = [
-  'solid', 'spotted', 'striped', 'gradient', 'speckled',
+/**
+ * Secondary color palette - complementary/accent hex values.
+ */
+export const BLOBBI_SECONDARY_COLORS: readonly string[] = [
+  '#FCD34D', // Light Gold
+  '#6EE7B7', // Light Teal
+  '#93C5FD', // Light Blue
+  '#F9A8D4', // Light Pink
+  '#C4B5FD', // Light Purple
+  '#FCA5A5', // Light Coral
+  '#A7F3D0', // Light Emerald
+  '#FDE68A', // Light Yellow
+  '#A5B4FC', // Light Indigo
+  '#FDBA74', // Light Orange
 ] as const;
 
-/** Available special marks for Blobbi */
-export const BLOBBI_SPECIAL_MARKS = [
-  'none', 'star', 'heart', 'moon', 'diamond', 'lightning',
+/**
+ * Eye color palette - expressive hex values.
+ */
+export const BLOBBI_EYE_COLORS: readonly string[] = [
+  '#1F2937', // Dark Gray (default)
+  '#7C3AED', // Violet
+  '#059669', // Emerald
+  '#DC2626', // Red
+  '#2563EB', // Blue
+  '#D97706', // Amber
+  '#DB2777', // Pink
+  '#4F46E5', // Indigo
 ] as const;
 
-/** Available sizes for Blobbi */
-export const BLOBBI_SIZES = [
-  'tiny', 'small', 'medium', 'large',
+/** Available patterns - EggGraphic compatible */
+export const BLOBBI_PATTERNS: readonly BlobbiPattern[] = [
+  'solid',
+  'spotted',
+  'striped',
+  'gradient',
 ] as const;
+
+/** Available special marks - EggGraphic compatible */
+export const BLOBBI_SPECIAL_MARKS: readonly BlobbiSpecialMark[] = [
+  'none',
+  'star',
+  'heart',
+  'sparkle',
+  'blush',
+] as const;
+
+/** Available sizes - EggGraphic compatible */
+export const BLOBBI_SIZES: readonly BlobbiSize[] = [
+  'small',
+  'medium',
+  'large',
+] as const;
+
+/** Default visual traits when seed is missing */
+export const DEFAULT_VISUAL_TRAITS: BlobbiVisualTraits = {
+  baseColor: '#F59E0B',
+  secondaryColor: '#FCD34D',
+  eyeColor: '#1F2937',
+  pattern: 'solid',
+  specialMark: 'none',
+  size: 'medium',
+} as const;
 
 /**
  * Parsed representation of a Kind 31124 Blobbi Current State event.
@@ -292,71 +370,146 @@ export function isLegacyBlobbiD(d: string): boolean {
 
 /**
  * Derive a numeric value from a seed at a specific offset.
- * Uses 4 bytes (8 hex chars) starting at offset to create a number.
+ * Uses 4 bytes (8 hex chars) starting at offset to create a deterministic number.
+ * 
+ * Seed offset layout (per spec):
+ * - [0..8]   base_color
+ * - [8..16]  secondary_color / eye_color
+ * - [16..24] pattern
+ * - [24..32] special_mark
+ * - [32..40] size
  */
-function deriveNumberFromSeed(seed: string, offset: number, max: number): number {
+function deriveIndexFromSeed(seed: string, offset: number, max: number): number {
   const slice = seed.slice(offset, offset + 8);
   const value = parseInt(slice, 16);
-  return value % max;
+  return Math.abs(value) % max;
 }
 
 /**
- * Derive base color from seed.
- * Priority: tag value > derived from seed
+ * Derive base color (hex) from seed.
  */
 export function deriveBaseColorFromSeed(seed: string): string {
-  const index = deriveNumberFromSeed(seed, 0, BLOBBI_BASE_COLORS.length);
+  const index = deriveIndexFromSeed(seed, 0, BLOBBI_BASE_COLORS.length);
   return BLOBBI_BASE_COLORS[index];
 }
 
 /**
- * Derive pattern from seed.
- * Priority: tag value > derived from seed
+ * Derive secondary color (hex) from seed.
  */
-export function derivePatternFromSeed(seed: string): string {
-  const index = deriveNumberFromSeed(seed, 8, BLOBBI_PATTERNS.length);
+export function deriveSecondaryColorFromSeed(seed: string): string {
+  const index = deriveIndexFromSeed(seed, 8, BLOBBI_SECONDARY_COLORS.length);
+  return BLOBBI_SECONDARY_COLORS[index];
+}
+
+/**
+ * Derive eye color (hex) from seed.
+ */
+export function deriveEyeColorFromSeed(seed: string): string {
+  const index = deriveIndexFromSeed(seed, 12, BLOBBI_EYE_COLORS.length);
+  return BLOBBI_EYE_COLORS[index];
+}
+
+/**
+ * Derive pattern from seed.
+ */
+export function derivePatternFromSeed(seed: string): BlobbiPattern {
+  const index = deriveIndexFromSeed(seed, 16, BLOBBI_PATTERNS.length);
   return BLOBBI_PATTERNS[index];
 }
 
 /**
  * Derive special mark from seed.
- * Priority: tag value > derived from seed
  */
-export function deriveSpecialMarkFromSeed(seed: string): string {
-  const index = deriveNumberFromSeed(seed, 16, BLOBBI_SPECIAL_MARKS.length);
+export function deriveSpecialMarkFromSeed(seed: string): BlobbiSpecialMark {
+  const index = deriveIndexFromSeed(seed, 24, BLOBBI_SPECIAL_MARKS.length);
   return BLOBBI_SPECIAL_MARKS[index];
 }
 
 /**
  * Derive size from seed.
- * Priority: tag value > derived from seed
  */
-export function deriveSizeFromSeed(seed: string): string {
-  const index = deriveNumberFromSeed(seed, 24, BLOBBI_SIZES.length);
+export function deriveSizeFromSeed(seed: string): BlobbiSize {
+  const index = deriveIndexFromSeed(seed, 32, BLOBBI_SIZES.length);
   return BLOBBI_SIZES[index];
 }
 
 /**
- * Derive all visual traits from a seed or use tag fallbacks.
+ * Validate and normalize a pattern value from a tag.
+ * Returns undefined if invalid, allowing fallback to seed derivation.
+ */
+function normalizePatternTag(value: string | undefined): BlobbiPattern | undefined {
+  if (!value) return undefined;
+  const normalized = value.toLowerCase() as BlobbiPattern;
+  return BLOBBI_PATTERNS.includes(normalized) ? normalized : undefined;
+}
+
+/**
+ * Validate and normalize a special mark value from a tag.
+ * Returns undefined if invalid, allowing fallback to seed derivation.
+ */
+function normalizeSpecialMarkTag(value: string | undefined): BlobbiSpecialMark | undefined {
+  if (!value) return undefined;
+  const normalized = value.toLowerCase() as BlobbiSpecialMark;
+  return BLOBBI_SPECIAL_MARKS.includes(normalized) ? normalized : undefined;
+}
+
+/**
+ * Validate and normalize a size value from a tag.
+ * Returns undefined if invalid, allowing fallback to seed derivation.
+ */
+function normalizeSizeTag(value: string | undefined): BlobbiSize | undefined {
+  if (!value) return undefined;
+  const normalized = value.toLowerCase() as BlobbiSize;
+  return BLOBBI_SIZES.includes(normalized) ? normalized : undefined;
+}
+
+/**
+ * Validate a hex color value.
+ * Returns the value if valid hex, undefined otherwise.
+ */
+function normalizeHexColor(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  // Accept both #RGB and #RRGGBB formats
+  if (/^#[0-9A-Fa-f]{3}$/.test(value) || /^#[0-9A-Fa-f]{6}$/.test(value)) {
+    return value.toUpperCase();
+  }
+  return undefined;
+}
+
+/**
+ * Derive all visual traits from seed, with legacy tag fallbacks.
  * 
- * Visual trait priority order:
- * 1. If the event contains explicit visual tags (base_color, pattern, etc), use them.
- * 2. If the tags are missing, derive the values from the seed.
- * 3. If seed is also missing, use default values.
+ * Priority order (explicit and stable):
+ * 1. If the event contains explicit visual tags AND they are valid, use them.
+ * 2. If tags are missing or invalid, derive deterministically from seed.
+ * 3. If seed is missing, use safe defaults.
+ * 
+ * This function is the single source of truth for visual trait resolution.
  */
 export function deriveVisualTraits(
   tags: string[][],
   seed: string | undefined
 ): BlobbiVisualTraits {
-  // Default seed for fallback derivation (all zeros)
-  const fallbackSeed = '0'.repeat(64);
-  const effectiveSeed = seed ?? fallbackSeed;
+  // If no seed, return defaults
+  if (!seed || seed.length !== 64) {
+    return { ...DEFAULT_VISUAL_TRAITS };
+  }
+  
+  // Legacy tag values (may be undefined or invalid)
+  const tagBaseColor = normalizeHexColor(getTagValue(tags, 'base_color'));
+  const tagSecondaryColor = normalizeHexColor(getTagValue(tags, 'secondary_color'));
+  const tagEyeColor = normalizeHexColor(getTagValue(tags, 'eye_color'));
+  const tagPattern = normalizePatternTag(getTagValue(tags, 'pattern'));
+  const tagSpecialMark = normalizeSpecialMarkTag(getTagValue(tags, 'special_mark'));
+  const tagSize = normalizeSizeTag(getTagValue(tags, 'size'));
   
   return {
-    baseColor: getTagValue(tags, 'base_color') ?? deriveBaseColorFromSeed(effectiveSeed),
-    pattern: getTagValue(tags, 'pattern') ?? derivePatternFromSeed(effectiveSeed),
-    specialMark: getTagValue(tags, 'special_mark') ?? deriveSpecialMarkFromSeed(effectiveSeed),
-    size: getTagValue(tags, 'size') ?? deriveSizeFromSeed(effectiveSeed),
+    baseColor: tagBaseColor ?? deriveBaseColorFromSeed(seed),
+    secondaryColor: tagSecondaryColor ?? deriveSecondaryColorFromSeed(seed),
+    eyeColor: tagEyeColor ?? deriveEyeColorFromSeed(seed),
+    pattern: tagPattern ?? derivePatternFromSeed(seed),
+    specialMark: tagSpecialMark ?? deriveSpecialMarkFromSeed(seed),
+    size: tagSize ?? deriveSizeFromSeed(seed),
   };
 }
 
@@ -493,14 +646,23 @@ export function deriveNameFromLegacyD(d: string): string {
  * Parse a Kind 31124 Blobbi Current State event into a structured object.
  * Returns undefined if the event is invalid.
  * 
+ * This function is the SINGLE SOURCE OF TRUTH for resolving:
+ * - name (from tag or legacy d-tag derivation)
+ * - seed
+ * - visualTraits (derived from seed, with legacy tag fallbacks)
+ * - isLegacy flag
+ * 
+ * The UI should NOT need to guess names or traits - everything is resolved here.
+ * 
  * Name resolution priority:
  * 1. Use `name` tag if present
  * 2. Derive from legacy d-tag format (blobbi-{name})
  * 3. Fall back to "Unnamed Blobbi"
  * 
  * Visual trait priority:
- * 1. Use explicit visual tags if present (legacy compatibility)
- * 2. Derive from seed if tags are missing
+ * 1. Use explicit visual tags if valid (legacy compatibility)
+ * 2. Derive deterministically from seed
+ * 3. Use safe defaults if seed is missing
  */
 export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined {
   if (!isValidBlobbiEvent(event)) return undefined;
@@ -512,34 +674,22 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
   const state = getTagValue(tags, 'state') as BlobbiState;
   const seed = getTagValue(tags, 'seed');
   
-  // Legacy name handling
-  // Priority: name tag > derive from d-tag > "Unnamed Blobbi"
-  let name: string;
-  if (nameTag) {
-    name = nameTag;
-  } else {
-    name = deriveNameFromLegacyD(d);
-    if (name === 'Unnamed Blobbi') {
-      console.warn('[Blobbi Parser] No name tag and cannot derive from d-tag:', d);
-    }
-  }
+  // Resolve name: tag > legacy d-tag derivation > fallback
+  const name = nameTag ?? deriveNameFromLegacyD(d);
   
-  // Derive visual traits (from tags or seed)
+  // Derive visual traits (single source of truth)
   const visualTraits = deriveVisualTraits(tags, seed);
   
-  // Check if this is a legacy event
+  // Check if this is a legacy event that needs migration
   const isLegacy = isLegacyBlobbiEvent(event);
   
-  // Debug logs
-  console.log('[Blobbi Parser]', {
-    d,
+  // Concise, structured debug log
+  console.log('[Blobbi]', {
+    d: d.length > 30 ? `${d.slice(0, 20)}...` : d,
     name,
-    nameTag,
-    stage,
-    state,
-    seed: seed ? `${seed.slice(0, 8)}...` : undefined,
     isLegacy,
-    visualTraits,
+    hasSeed: !!seed,
+    traits: `${visualTraits.baseColor} ${visualTraits.pattern} ${visualTraits.size}`,
   });
   
   return {
