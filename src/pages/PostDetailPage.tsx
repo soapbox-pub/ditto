@@ -39,6 +39,7 @@ import { CalendarEventDetailPage } from '@/components/CalendarEventDetailPage';
 import { LiveStreamPage } from '@/components/LiveStreamPage';
 import { MusicDetailContent } from '@/components/MusicDetailContent';
 import { PodcastDetailContent } from '@/components/PodcastDetailContent';
+import { BadgeDetailContent } from '@/components/BadgeDetailContent';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { extractAudioUrls } from '@/lib/mediaUrls';
@@ -59,6 +60,9 @@ const PODCAST_KINDS = new Set([30054, 30055]);
 /** NIP-52 Calendar Events. */
 const CALENDAR_EVENT_KINDS = new Set([31922, 31923]);
 
+/** NIP-58 Badge Definition. */
+const BADGE_DEFINITION_KIND = 30009;
+
 /** Kind 31985 = Bookstr book reviews. */
 const BOOK_REVIEW_KIND = 31985;
 
@@ -70,6 +74,7 @@ function shellTitleForKind(kind?: number): string {
   if (CALENDAR_EVENT_KINDS.has(kind)) return 'Event Details';
   if (FOLLOW_PACK_KINDS.has(kind)) return 'Follow Pack';
   if (kind === LIVE_STREAM_KIND) return 'Live Stream';
+  if (kind === BADGE_DEFINITION_KIND) return 'Badge Details';
   if (kind === BOOK_REVIEW_KIND) return 'Book Review';
   return 'Post Details';
 }
@@ -278,6 +283,17 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   // Calendar events (NIP-52) get a dedicated detail page with RSVP
   if (CALENDAR_EVENT_KINDS.has(resolvedEvent.kind)) {
     return <CalendarEventDetailPage event={resolvedEvent} />;
+  }
+
+  // NIP-58 badge definitions get a detail view with issuer info and awardees
+  if (resolvedEvent.kind === BADGE_DEFINITION_KIND) {
+    return (
+      <PostDetailShell title="Badge Details">
+        <MutedContentGuard event={resolvedEvent}>
+          <BadgeDetailContent event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
+    );
   }
 
   return (
