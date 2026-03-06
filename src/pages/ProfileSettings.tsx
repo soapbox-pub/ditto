@@ -14,7 +14,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import {
-  SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
+  SortableContext, verticalListSortingStrategy, useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
