@@ -36,6 +36,42 @@ export interface BlobbiStats {
   energy: number;
 }
 
+// ─── Visual Traits Types ──────────────────────────────────────────────────────
+
+/**
+ * Visual traits for a Blobbi, derived from seed or legacy tags.
+ */
+export interface BlobbiVisualTraits {
+  /** Base color of the Blobbi */
+  baseColor: string;
+  /** Pattern type */
+  pattern: string;
+  /** Special marking */
+  specialMark: string;
+  /** Size category */
+  size: string;
+}
+
+/** Available base colors for Blobbi */
+export const BLOBBI_BASE_COLORS = [
+  'pink', 'blue', 'green', 'yellow', 'purple', 'orange', 'cyan', 'red',
+] as const;
+
+/** Available patterns for Blobbi */
+export const BLOBBI_PATTERNS = [
+  'solid', 'spotted', 'striped', 'gradient', 'speckled',
+] as const;
+
+/** Available special marks for Blobbi */
+export const BLOBBI_SPECIAL_MARKS = [
+  'none', 'star', 'heart', 'moon', 'diamond', 'lightning',
+] as const;
+
+/** Available sizes for Blobbi */
+export const BLOBBI_SIZES = [
+  'tiny', 'small', 'medium', 'large',
+] as const;
+
 /**
  * Parsed representation of a Kind 31124 Blobbi Current State event.
  */
@@ -52,6 +88,10 @@ export interface BlobbiCompanion {
   state: BlobbiState;
   /** Deterministic identity seed (64-char hex) */
   seed: string | undefined;
+  /** Visual traits (derived from seed or legacy tags) */
+  visualTraits: BlobbiVisualTraits;
+  /** Whether this is a legacy event that needs migration */
+  isLegacy: boolean;
   /** Timestamp of last user interaction (unix seconds) */
   lastInteraction: number;
   /** Timestamp used for stat decay checkpoint (unix seconds) */
@@ -248,6 +288,143 @@ export function isLegacyBlobbiD(d: string): boolean {
   return true;
 }
 
+// ─── Visual Trait Derivation ──────────────────────────────────────────────────
+
+/**
+ * Derive a numeric value from a seed at a specific offset.
+ * Uses 4 bytes (8 hex chars) starting at offset to create a number.
+ */
+function deriveNumberFromSeed(seed: string, offset: number, max: number): number {
+  const slice = seed.slice(offset, offset + 8);
+  const value = parseInt(slice, 16);
+  return value % max;
+}
+
+/**
+ * Derive base color from seed.
+ * Priority: tag value > derived from seed
+ */
+export function deriveBaseColorFromSeed(seed: string): string {
+  const index = deriveNumberFromSeed(seed, 0, BLOBBI_BASE_COLORS.length);
+  return BLOBBI_BASE_COLORS[index];
+}
+
+/**
+ * Derive pattern from seed.
+ * Priority: tag value > derived from seed
+ */
+export function derivePatternFromSeed(seed: string): string {
+  const index = deriveNumberFromSeed(seed, 8, BLOBBI_PATTERNS.length);
+  return BLOBBI_PATTERNS[index];
+}
+
+/**
+ * Derive special mark from seed.
+ * Priority: tag value > derived from seed
+ */
+export function deriveSpecialMarkFromSeed(seed: string): string {
+  const index = deriveNumberFromSeed(seed, 16, BLOBBI_SPECIAL_MARKS.length);
+  return BLOBBI_SPECIAL_MARKS[index];
+}
+
+/**
+ * Derive size from seed.
+ * Priority: tag value > derived from seed
+ */
+export function deriveSizeFromSeed(seed: string): string {
+  const index = deriveNumberFromSeed(seed, 24, BLOBBI_SIZES.length);
+  return BLOBBI_SIZES[index];
+}
+
+/**
+ * Derive all visual traits from a seed or use tag fallbacks.
+ * 
+ * Visual trait priority order:
+ * 1. If the event contains explicit visual tags (base_color, pattern, etc), use them.
+ * 2. If the tags are missing, derive the values from the seed.
+ * 3. If seed is also missing, use default values.
+ */
+export function deriveVisualTraits(
+  tags: string[][],
+  seed: string | undefined
+): BlobbiVisualTraits {
+  // Default seed for fallback derivation (all zeros)
+  const fallbackSeed = '0'.repeat(64);
+  const effectiveSeed = seed ?? fallbackSeed;
+  
+  return {
+    baseColor: getTagValue(tags, 'base_color') ?? deriveBaseColorFromSeed(effectiveSeed),
+    pattern: getTagValue(tags, 'pattern') ?? derivePatternFromSeed(effectiveSeed),
+    specialMark: getTagValue(tags, 'special_mark') ?? deriveSpecialMarkFromSeed(effectiveSeed),
+    size: getTagValue(tags, 'size') ?? deriveSizeFromSeed(effectiveSeed),
+  };
+}
+
+// ─── Legacy Event Detection ───────────────────────────────────────────────────
+
+/**
+ * Check if a Blobbi event is a legacy event that needs migration.
+ * 
+ * A Blobbi is considered legacy if ANY of the following is true:
+ * - the d tag is not in canonical format
+ * - the seed tag is missing
+ * - the name tag is missing and must be derived from d
+ * - visual traits exist but seed does not
+ * 
+ * Canonical Blobbi events must always contain:
+ * - canonical d
+ * - seed
+ * - name
+ * - stage
+ * - state
+ * - stats
+ * - ecosystem tag
+ */
+export function isLegacyBlobbiEvent(event: NostrEvent): boolean {
+  const tags = event.tags;
+  const d = getTagValue(tags, 'd');
+  
+  if (!d) return true;
+  
+  // Check if d-tag is not canonical
+  if (!isCanonicalBlobbiD(d)) {
+    return true;
+  }
+  
+  // Check if seed is missing
+  const seed = getTagValue(tags, 'seed');
+  if (!seed || seed.length !== 64) {
+    return true;
+  }
+  
+  // Check if name tag is missing
+  const name = getTagValue(tags, 'name');
+  if (!name) {
+    return true;
+  }
+  
+  // Check if visual traits exist but seed does not
+  // (This case is already covered by seed check above, but being explicit)
+  const hasVisualTags = getTagValue(tags, 'base_color') !== undefined ||
+                        getTagValue(tags, 'pattern') !== undefined ||
+                        getTagValue(tags, 'special_mark') !== undefined ||
+                        getTagValue(tags, 'size') !== undefined;
+  
+  if (hasVisualTags && !seed) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Check if a parsed BlobbiCompanion needs migration.
+ * This is a convenience wrapper around isLegacyBlobbiEvent.
+ */
+export function companionNeedsMigration(companion: BlobbiCompanion): boolean {
+  return companion.isLegacy;
+}
+
 // ─── Event Validation ─────────────────────────────────────────────────────────
 
 /**
@@ -320,6 +497,10 @@ export function deriveNameFromLegacyD(d: string): string {
  * 1. Use `name` tag if present
  * 2. Derive from legacy d-tag format (blobbi-{name})
  * 3. Fall back to "Unnamed Blobbi"
+ * 
+ * Visual trait priority:
+ * 1. Use explicit visual tags if present (legacy compatibility)
+ * 2. Derive from seed if tags are missing
  */
 export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined {
   if (!isValidBlobbiEvent(event)) return undefined;
@@ -329,8 +510,9 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
   const nameTag = getTagValue(tags, 'name');
   const stage = getTagValue(tags, 'stage') as BlobbiStage;
   const state = getTagValue(tags, 'state') as BlobbiState;
+  const seed = getTagValue(tags, 'seed');
   
-  // STEP 2: Legacy name handling
+  // Legacy name handling
   // Priority: name tag > derive from d-tag > "Unnamed Blobbi"
   let name: string;
   if (nameTag) {
@@ -342,13 +524,22 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     }
   }
   
-  // STEP 1: Debug logs
+  // Derive visual traits (from tags or seed)
+  const visualTraits = deriveVisualTraits(tags, seed);
+  
+  // Check if this is a legacy event
+  const isLegacy = isLegacyBlobbiEvent(event);
+  
+  // Debug logs
   console.log('[Blobbi Parser]', {
     d,
     name,
     nameTag,
     stage,
     state,
+    seed: seed ? `${seed.slice(0, 8)}...` : undefined,
+    isLegacy,
+    visualTraits,
   });
   
   return {
@@ -357,7 +548,9 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     name,
     stage,
     state,
-    seed: getTagValue(tags, 'seed'),
+    seed,
+    visualTraits,
+    isLegacy,
     lastInteraction: parseNumericTag(tags, 'last_interaction')!,
     lastDecayAt: parseNumericTag(tags, 'last_decay_at'),
     stats: {
