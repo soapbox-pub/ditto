@@ -21,8 +21,9 @@ export function usePublishProfileTabs() {
       tags: buildProfileTabsTags(data),
     });
 
-    // Invalidate both so ProfilePage refetches fresh data
-    await queryClient.invalidateQueries({ queryKey: ['profile-tabs', user.pubkey] });
+    // Update cache directly so the UI reflects the change instantly
+    // without waiting for a relay round-trip.
+    queryClient.setQueryData(['profile-tabs', user.pubkey], data);
     await queryClient.invalidateQueries({ queryKey: ['profile-supplementary', user.pubkey] });
   };
 
