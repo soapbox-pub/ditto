@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, ExternalLink, Globe, MapPin, User, Users } from 'lucide-react';
+import { BookOpen, ExternalLink, FileText, Globe, MapPin, Play, User, Users } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +16,7 @@ import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo, getWikipediaTitle } from '@/lib/countries';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
 import { parseExternalUri, formatIsbn } from '@/lib/externalContent';
+import { EXTRA_KINDS } from '@/lib/extraKinds';
 
 // ---------------------------------------------------------------------------
 // Full-size content headers (used on /i/ page)
@@ -564,6 +565,121 @@ export function ProfilePreview({ pubkey }: { pubkey: string }) {
             {metadata.nip05}
           </p>
         )}
+      </div>
+    </Link>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Addressable event preview (vines, music, articles, etc.)
+// ---------------------------------------------------------------------------
+
+/** Extract a thumbnail URL from an addressable event's tags. */
+function extractThumbnail(tags: string[][]): string | undefined {
+  // 1. Explicit image/thumb tag
+  const imageTag = tags.find(([n]) => n === 'image' || n === 'thumb')?.[1];
+  if (imageTag) return imageTag;
+
+  // 2. imeta tag (used by vines / kind 34236)
+  const imetaTag = tags.find(([n]) => n === 'imeta');
+  if (imetaTag) {
+    for (let i = 1; i < imetaTag.length; i++) {
+      const part = imetaTag[i];
+      if (part.startsWith('image ')) return part.slice(6);
+    }
+  }
+
+  return undefined;
+}
+
+/** Check if an event has video content (imeta with url containing video indicators). */
+function hasVideo(tags: string[][]): boolean {
+  const imetaTag = tags.find(([n]) => n === 'imeta');
+  if (!imetaTag) return false;
+  for (let i = 1; i < imetaTag.length; i++) {
+    const part = imetaTag[i];
+    if (part.startsWith('url ') || part.startsWith('m video/')) return true;
+  }
+  return false;
+}
+
+export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
+  const { data: event, isLoading } = useAddrEvent(addr);
+  const author = useAuthor(addr.pubkey);
+  const authorMeta = author.data?.metadata;
+  const authorName = authorMeta?.name ?? genUserName(addr.pubkey);
+
+  const kindDef = useMemo(
+    () => EXTRA_KINDS.find((d) => d.kind === addr.kind || d.subKinds?.some((s) => s.kind === addr.kind)),
+    [addr.kind],
+  );
+  const kindLabel = useMemo(() => {
+    if (kindDef) return kindDef.label;
+    const sub = EXTRA_KINDS.flatMap((d) => d.subKinds ?? []).find((s) => s.kind === addr.kind);
+    if (sub) return sub.label;
+    return `Kind ${addr.kind}`;
+  }, [kindDef, addr.kind]);
+
+  const title = event?.tags.find(([n]) => n === 'title')?.[1]
+    || event?.tags.find(([n]) => n === 'name')?.[1]
+    || event?.tags.find(([n]) => n === 'd')?.[1]
+    || kindLabel;
+  const thumbnail = event ? extractThumbnail(event.tags) : undefined;
+  const isVideo = event ? hasVideo(event.tags) : false;
+
+  const link = useMemo(() => {
+    return `/${nip19.naddrEncode({ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier })}`;
+  }, [addr]);
+
+  if (isLoading) {
+    return (
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-12 rounded-lg shrink-0" />
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      to={link}
+      className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors"
+    >
+      {thumbnail ? (
+        <div className="relative size-12 rounded-lg overflow-hidden shrink-0">
+          <img
+            src={thumbnail}
+            alt={title}
+            className="size-full object-cover"
+            loading="lazy"
+          />
+          {isVideo && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <Play className="size-4 text-white fill-white" />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <FileText className="size-5 text-primary/50" />
+        </div>
+      )}
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span>{kindLabel}</span>
+          <span className="text-muted-foreground/60">&middot;</span>
+          <span className="truncate">{authorName}</span>
+        </div>
+        <p className="text-sm font-medium truncate mt-0.5">
+          {title}
+        </p>
       </div>
     </Link>
   );
