@@ -132,6 +132,20 @@ public class NostrPoller {
                 }
                 return "mentioned you";
             }
+            case 1111: {
+                // NIP-22 comment. If the lowercase k tag is "1111", the parent is another
+                // comment — this is a reply. Otherwise it's a top-level comment on content.
+                JSONArray tags = event.optJSONArray("tags");
+                if (tags != null) {
+                    for (int i = 0; i < tags.length(); i++) {
+                        JSONArray tag = tags.optJSONArray(i);
+                        if (tag != null && "k".equals(tag.optString(0)) && "1111".equals(tag.optString(1))) {
+                            return "replied to your comment";
+                        }
+                    }
+                }
+                return "commented on your post";
+            }
             default: return "mentioned you";
         }
     }
