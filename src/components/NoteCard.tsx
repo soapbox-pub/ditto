@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MessageCircle, Zap, MoreHorizontal, Play, Radio, Users, Palette, SmilePlus } from 'lucide-react';
+import { MessageCircle, Zap, MoreHorizontal, Share2, Play, Radio, Users, Palette, SmilePlus } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -55,6 +55,8 @@ import { MusicTrackContent, MusicPlaylistContent, PodcastEpisodeContent, Podcast
 import { CalendarEventContent } from '@/components/CalendarEventContent';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
+import { shareOrCopy } from '@/lib/share';
+import { toast } from '@/hooks/useToast';
 import { extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
 
 interface NoteCardProps {
@@ -425,6 +427,19 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           </button>
         </ZapDialog>
       )}
+
+      <button
+        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+        title="Share"
+        onClick={async (e) => {
+          e.stopPropagation();
+          const url = `${window.location.origin}/${encodedId}`;
+          const result = await shareOrCopy(url);
+          if (result === 'copied') toast({ title: 'Link copied to clipboard' });
+        }}
+      >
+        <Share2 className="size-5" />
+      </button>
 
       <button
         className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
