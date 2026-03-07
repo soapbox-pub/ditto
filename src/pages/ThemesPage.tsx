@@ -131,7 +131,7 @@ export function ThemesPage() {
           {/* Sync theme toggle */}
           {user && (
             <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <Label htmlFor="auto-share-theme" className="flex flex-col gap-1 cursor-pointer">
                   <span className="text-sm font-medium">Sync app theme with your profile theme</span>
                   <span className="text-xs text-muted-foreground font-normal">
