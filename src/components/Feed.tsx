@@ -32,11 +32,13 @@ const LANDING_KINDS = [
   36767, // Themes
   37381, // Magic Decks
   3367,  // Color Moments
-  1063,  // Webxdc
   37516, // Treasures (Geocaches)
   7516,  // Treasures (Found Logs)
   30030, // Emoji Packs
 ];
+
+/** Webxdc needs a MIME-type tag filter, so it gets its own filter object. */
+const LANDING_WEBXDC_FILTER = { kinds: [1063], '#m': ['application/x-webxdc'] };
 
 interface FeedProps {
   /** Override the kinds list instead of using feed settings. */
@@ -111,8 +113,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   );
 
   // "Hot" sorted feed query (used when logged out on the home page)
-  // Shows curated "otherstuff" kinds (photos, videos, articles, themes, etc.) instead of kind 1.
-  const topQuery = useInfiniteHotFeed(LANDING_KINDS, useTopFeedForLoggedOut);
+  // Shows curated "otherstuff" kinds instead of kind 1. Webxdc needs a
+  // separate filter with a MIME-type tag constraint.
+  const topQuery = useInfiniteHotFeed(LANDING_KINDS, useTopFeedForLoggedOut, undefined, [LANDING_WEBXDC_FILTER]);
 
   // Unify the two query shapes behind a single interface
   const activeQuery = useTopFeedForLoggedOut ? topQuery : feedQuery;
