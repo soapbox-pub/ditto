@@ -1,16 +1,35 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { IntroImage } from '@/components/IntroImage';
-import { ChevronDown, ChevronUp, Users, Download, Loader2, X, Pencil, Check, Home, User, Globe } from 'lucide-react';
+import {
+  ChevronDown, ChevronUp, Users, Download, Loader2, X, Pencil, Home, Globe,
+  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink, ShieldAlert,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Link } from 'react-router-dom';
+import { nip19 } from 'nostr-tools';
 import { useToast } from '@/hooks/useToast';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
-import { SavedFeedFiltersEditor, buildKindOptions } from '@/components/SavedFeedFiltersEditor';
-import { cn } from '@/lib/utils';
-import type { SavedFeed, TabFilter } from '@/contexts/AppContext';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppContext } from '@/hooks/useAppContext';
+import { useMuteList, type MuteListItem } from '@/hooks/useMuteList';
+import { useAuthor } from '@/hooks/useAuthor';
+import { FeedEditModal } from '@/components/FeedEditModal';
+import { buildKindOptions } from '@/components/SavedFeedFiltersEditor';
+import { genUserName } from '@/lib/genUserName';
+import { EXTRA_KINDS, FEED_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
+import { CONTENT_KIND_ICONS, SIDEBAR_ITEMS } from '@/lib/sidebarItems';
+import type { SavedFeed, TabFilter, ContentWarningPolicy } from '@/contexts/AppContext';
+import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 
 export function ContentSettings() {
   const [notesOpen, setNotesOpen] = useState(true);
@@ -137,14 +156,7 @@ export function ContentSettings() {
   );
 }
 
-// Import the internals from FeedSettingsForm (we'll need to export them)
-import { Palette } from 'lucide-react';
-import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { EXTRA_KINDS, FEED_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
-import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
-import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
+
 
 function KindBadge({ kind }: { kind: number }) {
   return (
@@ -567,19 +579,23 @@ function FeedTabsSection() {
 // ─── Saved Feeds Section ─────────────────────────────────────────────────────
 
 function SavedFeedsSection() {
-  const { savedFeeds, removeSavedFeed, updateSavedFeed, isPending } = useSavedFeeds();
+  const { savedFeeds, addSavedFeed, removeSavedFeed, updateSavedFeed, isPending } = useSavedFeeds();
   const { toast } = useToast();
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [addFeedModalOpen, setAddFeedModalOpen] = useState(false);
+  const [editingFeed, setEditingFeed] = useState<SavedFeed | null>(null);
 
-  const feedFeeds = savedFeeds.filter((f) => f.destination === 'feed');
-  const profileFeeds = savedFeeds.filter((f) => f.destination === 'profile');
+  const feedTabs = savedFeeds;
 
-  if (savedFeeds.length === 0) return null;
+  const handleAddFeed = async (label: string, filter: TabFilter, vars: SavedFeed['vars']) => {
+    await addSavedFeed(label, filter, vars);
+    toast({ title: `"${label}" added to home feed tabs` });
+  };
 
-  const handleSave = async (id: string, label: string, filter: TabFilter) => {
-    await updateSavedFeed(id, { label, filter });
+  const handleEditFeed = async (label: string, filter: TabFilter, vars: SavedFeed['vars']) => {
+    if (!editingFeed) return;
+    await updateSavedFeed(editingFeed.id, { label, filter, vars });
     toast({ title: 'Feed updated' });
-    setEditingId(null);
+    setEditingFeed(null);
   };
 
   const handleRemove = async (feed: SavedFeed) => {
@@ -588,23 +604,31 @@ function SavedFeedsSection() {
   };
 
   return (
-    <div className="px-3 py-4 space-y-4 border-t border-border">
-      <h3 className="text-sm font-semibold">Saved Feeds</h3>
+    <div className="px-3 py-4 space-y-3 border-t border-border">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Home Feed Tabs</h3>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 gap-1 text-xs"
+          onClick={() => setAddFeedModalOpen(true)}
+        >
+          <Plus className="size-3.5" />
+          Add tab
+        </Button>
+      </div>
 
-      {feedFeeds.length > 0 && (
+      {feedTabs.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No custom tabs yet. Save a search from the search page, or add one above.
+        </p>
+      ) : (
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-            <Home className="size-3.5" />
-            Home feed tabs
-          </p>
-          {feedFeeds.map((feed) => (
+          {feedTabs.map((feed) => (
             <SavedFeedRow
               key={feed.id}
               feed={feed}
-              isEditing={editingId === feed.id}
-              onEdit={() => setEditingId(feed.id)}
-              onCancel={() => setEditingId(null)}
-              onSave={(label, filter) => handleSave(feed.id, label, filter)}
+              onEdit={() => setEditingFeed(feed)}
               onRemove={() => handleRemove(feed)}
               isPending={isPending}
             />
@@ -612,67 +636,57 @@ function SavedFeedsSection() {
         </div>
       )}
 
-      {profileFeeds.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-            <User className="size-3.5" />
-            Profile tabs
-          </p>
-          {profileFeeds.map((feed) => (
-            <SavedFeedRow
-              key={feed.id}
-              feed={feed}
-              isEditing={editingId === feed.id}
-              onEdit={() => setEditingId(feed.id)}
-              onCancel={() => setEditingId(null)}
-              onSave={(label, filter) => handleSave(feed.id, label, filter)}
-              onRemove={() => handleRemove(feed)}
-              isPending={isPending}
-            />
-          ))}
-        </div>
-      )}
+      <FeedEditModal
+        open={addFeedModalOpen}
+        onOpenChange={setAddFeedModalOpen}
+        onSave={handleAddFeed}
+        isPending={isPending}
+      />
+
+      <FeedEditModal
+        key={editingFeed?.id ?? 'edit'}
+        open={editingFeed !== null}
+        onOpenChange={(o) => { if (!o) setEditingFeed(null); }}
+        initialLabel={editingFeed?.label}
+        initialFilter={editingFeed?.filter}
+        onSave={handleEditFeed}
+        isPending={isPending}
+      />
     </div>
   );
 }
 
+const kindOptions = buildKindOptions();
+
 function SavedFeedRow({
   feed,
-  isEditing,
   onEdit,
-  onCancel,
-  onSave,
   onRemove,
   isPending,
 }: {
   feed: SavedFeed;
-  isEditing: boolean;
   onEdit: () => void;
-  onCancel: () => void;
-  onSave: (label: string, filter: TabFilter) => void;
   onRemove: () => void;
   isPending: boolean;
 }) {
-  const [labelValue, setLabelValue] = useState(feed.label);
-  const [filterValue, setFilterValue] = useState<TabFilter>(feed.filter);
-  const kindOptions = useMemo(() => buildKindOptions(), []);
-
-  // Reset local state when this row starts editing
-  const handleEdit = () => {
-    setLabelValue(feed.label);
-    setFilterValue(feed.filter);
-    onEdit();
-  };
-
   const search = typeof feed.filter.search === 'string' ? feed.filter.search : '';
   const authors = Array.isArray(feed.filter.authors) ? feed.filter.authors as string[] : [];
-  const scopeLabel = authors.length > 0
-    ? `${authors.length} author${authors.length > 1 ? 's' : ''}`
-    : null;
+  const kinds = Array.isArray(feed.filter.kinds) ? feed.filter.kinds as number[] : [];
+
+  const scopeLabel = authors.includes('$follows')
+    ? 'Follows'
+    : authors.length > 0
+      ? `${authors.length} author${authors.length > 1 ? 's' : ''}`
+      : null;
+
+  const kindLabel = kinds.length === 0
+    ? null
+    : kinds.length === 1
+      ? (kindOptions.find((o) => o.value === String(kinds[0]))?.label ?? `Kind ${kinds[0]}`)
+      : `${kinds.length} kinds`;
 
   return (
-    <div className={cn('rounded-lg border bg-secondary/30 overflow-hidden transition-colors', isEditing ? 'border-border' : 'border-border/50 group')}>
-      {/* Summary row — always visible */}
+    <div className="rounded-lg border border-border/50 bg-secondary/30 group">
       <div className="flex items-center gap-2 py-2 px-2.5">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{feed.label}</p>
@@ -685,86 +699,33 @@ function SavedFeedRow({
                 <Globe className="size-2.5" />{scopeLabel}
               </span>
             )}
+            {kindLabel && (
+              <span className="text-[10px] text-muted-foreground bg-secondary rounded px-1 py-0.5">{kindLabel}</span>
+            )}
           </div>
         </div>
 
-        {/* Actions */}
-        <div className={cn('flex items-center gap-0.5 shrink-0', !isEditing && 'opacity-0 group-hover:opacity-100 transition-opacity')}>
+        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
-            onClick={isEditing ? onCancel : handleEdit}
-            className={cn(
-              'size-7 flex items-center justify-center rounded transition-colors',
-              isEditing
-                ? 'text-muted-foreground hover:bg-secondary'
-                : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
-            )}
-            aria-label={isEditing ? 'Cancel edit' : 'Edit'}
+            onClick={onEdit}
+            className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            aria-label="Edit"
           >
-            {isEditing ? <X className="size-3.5" /> : <Pencil className="size-3.5" />}
+            <Pencil className="size-3.5" />
           </button>
-          {!isEditing && (
-            <button
-              onClick={onRemove}
-              disabled={isPending}
-              className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
-              aria-label="Remove"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
+          <button
+            onClick={onRemove}
+            disabled={isPending}
+            className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
+            aria-label="Remove"
+          >
+            <X className="size-3.5" />
+          </button>
         </div>
       </div>
-
-      {/* Inline edit panel */}
-      {isEditing && (
-        <div className="px-2.5 pb-3 pt-2 border-t border-border/50 space-y-3">
-          {/* Tab name */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Tab name</label>
-            <Input
-              value={labelValue}
-              onChange={(e) => setLabelValue(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
-              className="h-8 text-sm bg-background"
-              placeholder="Tab name..."
-              autoFocus
-            />
-          </div>
-
-          {/* Full filter editor */}
-          <SavedFeedFiltersEditor
-            value={filterValue}
-            onChange={(updated) => setFilterValue(updated)}
-            kindOptions={kindOptions}
-          />
-
-          <div className="flex justify-end gap-1.5 pt-1">
-            <button
-              onClick={onCancel}
-              className="h-7 px-2.5 rounded text-xs text-muted-foreground hover:bg-secondary transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => onSave(labelValue, filterValue)}
-              disabled={isPending || !labelValue.trim()}
-              className="h-7 px-2.5 rounded text-xs bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center gap-1"
-            >
-              {isPending ? <Loader2 className="size-3 animate-spin" /> : <Check className="size-3" />}
-              Save
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-
-// Sensitive content settings section
-import { useAppContext } from '@/hooks/useAppContext';
-import type { ContentWarningPolicy } from '@/contexts/AppContext';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ShieldAlert } from 'lucide-react';
 
 const CW_POLICY_OPTIONS: { value: ContentWarningPolicy; label: string; description: string }[] = [
   {
@@ -836,17 +797,6 @@ export function SensitiveContentSection() {
     </div>
   );
 }
-
-// Mute settings internals (without the intro/image)
-import { Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { nip19 } from 'nostr-tools';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { useMuteList, type MuteListItem } from '@/hooks/useMuteList';
-import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const MUTE_TYPE_CONFIG = {
   pubkey: {
@@ -1159,9 +1109,6 @@ export function ThemePreferencesSection() {
     </div>
   );
 }
-
-// Homepage setting section
-import { SIDEBAR_ITEMS } from '@/lib/sidebarItems';
 
 function HomePageSetting() {
   const { config, updateConfig } = useAppContext();

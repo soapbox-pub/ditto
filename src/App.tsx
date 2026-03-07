@@ -108,6 +108,7 @@ const hardcodedConfig: AppConfig = {
   contentWarningPolicy: 'blur',
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || '',
   sentryEnabled: true,
+  savedFeeds: [],
 };
 
 /**
