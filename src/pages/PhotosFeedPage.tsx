@@ -15,6 +15,7 @@ import { FeedEmptyState } from '@/components/FeedEmptyState';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFeedTab } from '@/hooks/useFeedTab';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useFeed } from '@/hooks/useFeed';
 import { useInfiniteHotFeed } from '@/hooks/useTrending';
@@ -59,12 +60,10 @@ export function PhotosFeedPage() {
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
 
-  const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
+  const [activeTab, setActiveTab] = useFeedTab<FeedTab>('photos', ['follows', 'global']);
 
   useSeoMeta({ title: `Photos | ${config.appName}`, description: 'Photo posts on Nostr' });
   useLayoutOptions({ showFAB: false });
-
-  useEffect(() => { if (user) setActiveTab('follows'); }, [user]);
 
   // ── Follows feed (chronological) ──
   const followsQuery = useFeed('follows', { kinds: [PHOTO_KIND] });

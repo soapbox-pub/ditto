@@ -15,6 +15,7 @@ import { useBookFeed } from '@/hooks/useBookFeed';
 import { useBookSearch, type BookSearchResult } from '@/hooks/useBookSearch';
 import { usePrefetchBookSummaries } from '@/hooks/useBookSummary';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFeedTab } from '@/hooks/useFeedTab';
 import { useAppContext } from '@/hooks/useAppContext';
 import { cn } from '@/lib/utils';
 import type { ExtraKindDef } from '@/lib/extraKinds';
@@ -37,11 +38,7 @@ export function BooksPage() {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
-
-  useEffect(() => {
-    if (user) setActiveTab('follows');
-  }, [user]);
+  const [activeTab, setActiveTab] = useFeedTab<FeedTab>('books', ['follows', 'global']);
 
   useSeoMeta({
     title: `Books | ${config.appName}`,
