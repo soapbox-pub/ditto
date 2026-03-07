@@ -429,7 +429,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
       )}
 
       <button
-        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
         title="Share"
         onClick={async (e) => {
           e.stopPropagation();

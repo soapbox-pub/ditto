@@ -1785,12 +1785,12 @@ export function ProfilePage() {
                   >
                     <MoreHorizontal className="size-5" />
                   </Button>
-                  {/* Share button */}
+                  {/* Share button (mobile only) */}
                   {pubkey && (
                     <Button
                       variant="outline"
                       size="icon"
-                      className="rounded-full size-10"
+                      className="rounded-full size-10 sidebar:hidden"
                       title="Share profile"
                       onClick={async () => {
                         const npubId = nip19.npubEncode(pubkey);
