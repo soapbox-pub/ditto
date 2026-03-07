@@ -14,6 +14,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
 import { useInfiniteSortedPosts } from '@/hooks/useTrending';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFeedTab } from '@/hooks/useFeedTab';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
@@ -37,9 +38,11 @@ interface FeedProps {
   hideCompose?: boolean;
   /** Message shown when the feed is empty. */
   emptyMessage?: string;
+  /** Unique identifier for this feed page, used to persist the active tab in sessionStorage. Defaults to 'home'. */
+  feedId?: string;
 }
 
-export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: FeedProps = {}) {
+export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home' }: FeedProps = {}) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
@@ -70,26 +73,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
     return 'Community';
   })();
 
-  const FEED_TAB_KEY = 'ditto:active-feed-tab';
-  const CORE_TABS: readonly string[] = ['follows', 'global', 'communities'];
-
-  const [activeTab, setActiveTab] = useState<FeedTab>(() => {
-    const defaultTab: FeedTab = user ? 'follows' : 'global';
-    try {
-      const stored = sessionStorage.getItem(FEED_TAB_KEY);
-      if (stored && (CORE_TABS.includes(stored) || savedFeeds.some((f) => f.id === stored))) {
-        return stored as FeedTab;
-      }
-    } catch { /* sessionStorage unavailable */ }
-    return defaultTab;
-  });
+  const [activeTab, handleSetActiveTab] = useFeedTab<FeedTab>(feedId);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
-
-  const handleSetActiveTab = useCallback((tab: FeedTab) => {
-    setActiveTab(tab);
-    try { sessionStorage.setItem(FEED_TAB_KEY, tab); } catch { /* ignore */ }
-  }, []);
 
   // Is the active tab a saved feed?
   const activeSavedFeed = useMemo(
