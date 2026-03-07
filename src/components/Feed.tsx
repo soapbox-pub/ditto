@@ -13,7 +13,7 @@ import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
-import { useInfiniteSortedPosts } from '@/hooks/useTrending';
+import { useInfiniteHotFeed } from '@/hooks/useTrending';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
@@ -26,6 +26,23 @@ import type { SavedFeed } from '@/contexts/AppContext';
 
 type CoreFeedTab = 'follows' | 'global' | 'communities';
 type FeedTab = CoreFeedTab | string; // string = saved feed id
+
+/** Curated kinds for the logged-out homepage: visual and interactive "otherstuff" content. */
+const LANDING_KINDS = [
+  20,    // Photos
+  21,    // Videos
+  22,    // Short Videos
+  30023, // Articles
+  34236, // Vines
+  36787, // Music
+  36767, // Themes
+  1068,  // Polls
+  31922, // Date-based Calendar Events
+  31923, // Time-based Calendar Events
+  3367,  // Color Moments
+  39089, // Follow Packs
+  30030, // Emoji Packs
+];
 
 interface FeedProps {
   /** Override the kinds list instead of using feed settings. */
@@ -100,12 +117,13 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   );
 
   // "Hot" sorted feed query (used when logged out on the home page)
-  const topQuery = useInfiniteSortedPosts('hot', useTopFeedForLoggedOut);
+  // Shows curated "otherstuff" kinds (photos, videos, articles, themes, etc.) instead of kind 1.
+  const topQuery = useInfiniteHotFeed(LANDING_KINDS, useTopFeedForLoggedOut);
 
   // Unify the two query shapes behind a single interface
   const activeQuery = useTopFeedForLoggedOut ? topQuery : feedQuery;
   const queryKey = useMemo(
-    () => useTopFeedForLoggedOut ? ['infinite-sorted-posts', 'hot'] : ['feed', activeTab],
+    () => useTopFeedForLoggedOut ? ['infinite-hot-feed', LANDING_KINDS.join(',')] : ['feed', activeTab],
     [useTopFeedForLoggedOut, activeTab],
   );
 
