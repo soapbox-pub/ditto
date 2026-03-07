@@ -48,6 +48,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   const queryClient = useQueryClient();
   const { savedFeeds } = useSavedFeeds();
 
+
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
     const stored = localStorage.getItem('ditto:showGlobalFeed');
@@ -78,6 +79,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   });
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
+
 
   const handleSetActiveTab = useCallback((tab: FeedTab) => {
     setActiveTab(tab);
@@ -208,8 +210,14 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
           ))}
         </div>
       ) : !kinds && (
-        // Logged-out "Join" CTA: always visible, always sticky below the top bar
-        <div className="border-b border-border sticky top-mobile-bar sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3">
+        // Join CTA: always visible, never hides. Sticks below the top bar
+        // normally. When the top bar hides, translateY(-3rem) pulls it up
+        // by exactly the bar height so it ends up flush at the top.
+        <div className={cn(
+          'border-b border-border sticky top-mobile-bar sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3',
+          'transition-transform duration-300 ease-in-out',
+          topBarHidden ? '-translate-y-mobile-bar sidebar:translate-y-0' : 'translate-y-0',
+        )}>
           <div className="flex items-center justify-center gap-3 px-6">
             <p className="text-[13px] sidebar:text-sm text-muted-foreground">
               Follow accounts you care about on {config.appName}

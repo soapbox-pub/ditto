@@ -50,6 +50,13 @@
     top: calc(3rem + env(safe-area-inset-top, 0px));
   }
 
+  /* Negative translateY by mobile top bar height — pulls a sticky element
+     upward by the bar height so it visually moves from top-mobile-bar to top-0 */
+  .-translate-y-mobile-bar {
+    --tw-translate-y: calc(-3rem - env(safe-area-inset-top, 0px));
+    transform: translate(var(--tw-translate-x, 0), var(--tw-translate-y)) rotate(var(--tw-rotate, 0)) skewX(var(--tw-skew-x, 0)) skewY(var(--tw-skew-y, 0)) scaleX(var(--tw-scale-x, 1)) scaleY(var(--tw-scale-y, 1));
+  }
+
   /* AI chat height on mobile: full viewport minus top bar, bottom nav, and safe-area insets */
   .ai-chat-height {
     height: calc(100dvh - 3rem - 3.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
