@@ -96,10 +96,6 @@ export function SearchPage() {
 
   // Local input state for the search field (avoids trimming while typing)
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
-
-  // The effective query used for data fetching — derived directly from URL
-  // params so it is never one render behind when navigating from the sidebar.
-  const effectiveQuery = searchParams.get('q') ?? '';
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // ── Filter state — all derived from URL params ──────────────────────────
@@ -275,7 +271,7 @@ export function SearchPage() {
     const parts: string[] = bridged.length > 0
       ? bridged.map(p => `protocol:${p}`)
       : ['protocol:nostr'];
-    if (effectiveQuery.trim()) parts.push(effectiveQuery.trim());
+    if (searchQuery.trim()) parts.push(searchQuery.trim());
     if (language !== 'global') parts.push(`language:${language}`);
     const isDedicatedKindQuery = !kindsOverride && (mediaType === 'vines' || mediaType === 'images' || mediaType === 'videos');
     if (!isDedicatedKindQuery && !hasKindMediaConflict) {
@@ -286,7 +282,7 @@ export function SearchPage() {
     if (sort === 'hot') parts.push('sort:hot');
     else if (sort === 'trending') parts.push('sort:trending');
     return parts.join(' ');
-  }, [effectiveQuery, language, mediaType, protocols, kindsOverride, hasKindMediaConflict, sort]);
+  }, [searchQuery, language, mediaType, protocols, kindsOverride, hasKindMediaConflict, sort]);
 
   // Active filter labels for the summary / empty state hints
   const activeFilterLabels = useMemo(() => {
@@ -334,11 +330,11 @@ export function SearchPage() {
   // Build a standard NIP-01 TabFilter from the current search state
   const currentFilter = useMemo<TabFilter>(() => {
     const filter: TabFilter = {};
-    if (effectiveQuery.trim()) filter.search = effectiveQuery.trim();
+    if (searchQuery.trim()) filter.search = searchQuery.trim();
     if (kindsOverride && kindsOverride.length > 0) filter.kinds = kindsOverride;
     if (authorScope === 'people' && authorPubkeys.length > 0) filter.authors = authorPubkeys;
     return filter;
-  }, [effectiveQuery, kindsOverride, authorScope, authorPubkeys]);
+  }, [searchQuery, kindsOverride, authorScope, authorPubkeys]);
 
   const alreadySaved = savedFeeds.some(
     (f) => JSON.stringify(f.filter) === JSON.stringify(currentFilter),
@@ -376,7 +372,7 @@ export function SearchPage() {
       ? authorPubkeys
       : undefined;
 
-  const { posts, isLoading: postsLoading } = useStreamPosts(effectiveQuery, {
+  const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, {
     includeReplies,
     mediaType,
     language,
@@ -385,7 +381,7 @@ export function SearchPage() {
     authorPubkeys: streamAuthorPubkeys,
     sort,
   });
-  const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? effectiveQuery : '');
+  const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
 
   return (
     <main className="">
@@ -704,7 +700,7 @@ export function SearchPage() {
             )}
 
             {/* NIP-50 search query debug block */}
-            {effectiveQuery.trim() && (
+            {searchQuery.trim() && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -736,7 +732,7 @@ export function SearchPage() {
                 <NoteCard key={event.id} event={event} />
               ))}
             </div>
-          ) : effectiveQuery.trim() ? (
+          ) : searchQuery.trim() ? (
             <EmptyState
               message="No posts found matching your search."
               activeFilters={activeFilterLabels}
@@ -766,7 +762,7 @@ export function SearchPage() {
           </div>
 
           <div>
-            {effectiveQuery.trim() ? (
+            {searchQuery.trim() ? (
               profilesLoading ? (
                 <div className="divide-y divide-border">
                   {Array.from({ length: 5 }).map((_, i) => (

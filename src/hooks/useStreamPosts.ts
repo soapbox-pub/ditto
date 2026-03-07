@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useFeedSettings } from './useFeedSettings';
 import { useMuteList } from './useMuteList';
 import { useContentFilters } from './useContentFilters';
@@ -136,14 +136,6 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { shouldFilterEvent } = useContentFilters();
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Track the query that produced the current allEvents so we can
-  // synchronously discard stale results during render (not after).
-  const lastQueryRef = useRef(query);
-  const stale = lastQueryRef.current !== query;
-  if (stale) {
-    lastQueryRef.current = query;
-  }
 
   // Resolve authorPubkeys: accept hex or npub-encoded entries
   const resolvedAuthorPubkeys = useMemo(() => {
@@ -332,10 +324,6 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
   // Apply client-side filters (including mute filtering and content filters) without restarting the stream
   const posts = useMemo(() => {
-    // When the query just changed, allEvents still holds stale data from the
-    // previous search (the clearing effect hasn't run yet). Return empty to
-    // prevent old results from flashing for one render cycle.
-    if (stale) return [];
     const authorSet = resolvedAuthorPubkeys ? new Set(resolvedAuthorPubkeys) : undefined;
     return allEvents.filter((event) => {
       if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
@@ -345,7 +333,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       return filterEvent(event, options, query);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
-  }, [allEvents, options.includeReplies, options.mediaType, protocolsKey, query, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey, stale]);
+  }, [allEvents, options.includeReplies, options.mediaType, protocolsKey, query, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey]);
 
   return { posts, isLoading };
 }
