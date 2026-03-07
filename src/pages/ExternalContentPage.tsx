@@ -277,8 +277,12 @@ export function ExternalContentPage() {
       ? topLevel.filter((r) => !isEventMuted(r, muteItems))
       : topLevel;
 
-    // Sort oldest-first for threaded conversation view (useComments returns newest-first)
-    const sorted = [...filteredTopLevel].sort((a, b) => a.created_at - b.created_at);
+    // Country feeds are social feeds (newest-first); other types are threaded conversations (oldest-first)
+    const sorted = [...filteredTopLevel].sort((a, b) =>
+      content?.type === 'iso3166'
+        ? b.created_at - a.created_at
+        : a.created_at - b.created_at
+    );
 
     return sorted.map((reply) => {
       const directReplies = commentsData?.getDirectReplies(reply.id) ?? [];
