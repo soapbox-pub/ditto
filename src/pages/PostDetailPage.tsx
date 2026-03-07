@@ -92,7 +92,7 @@ import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { ContentWarningGuard } from '@/components/ContentWarningGuard';
 import { MutedContentGuard } from '@/components/MutedContentGuard';
-import { ExternalContentPreview, ProfilePreview, CommunityPreview } from '@/components/ExternalContentHeader';
+import { ExternalContentPreview, ProfilePreview, CommunityPreview, AddressableEventPreview } from '@/components/ExternalContentHeader';
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
 import { EmojiPackContent } from '@/components/EmojiPackContent';
 import { CommunityContent } from '@/components/CommunityContent';
@@ -896,6 +896,23 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     return { kind, pubkey, identifier };
   }, [event, isComment]);
 
+  // For kind 1111 comments on any other addressable event (vines, music, etc.),
+  // extract the addr for a generic preview — only if not already handled above.
+  const addrRoot = useMemo(() => {
+    if (!isComment || externalIdentifier || profileRootPubkey || communityRootAddr) return undefined;
+    const kTag = event.tags.find(([n]) => n === 'K')?.[1];
+    if (!kTag) return undefined;
+    const kind = parseInt(kTag, 10);
+    if (isNaN(kind)) return undefined;
+    const aTag = event.tags.find(([n]) => n === 'A')?.[1];
+    if (!aTag) return undefined;
+    const parts = aTag.split(':');
+    const pubkey = parts[1];
+    const identifier = parts.slice(2).join(':');
+    if (!pubkey) return undefined;
+    return { kind, pubkey, identifier };
+  }, [event, isComment, externalIdentifier, profileRootPubkey, communityRootAddr]);
+
   // Keep the focused post pinned to top while ancestor content loads above it.
   // A ResizeObserver on the ancestor container re-scrolls on every layout shift
   // (image loads, skeleton→content swaps) for the first few seconds.
@@ -954,6 +971,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       )}
       {communityRootAddr && (
         <CommunityPreview addr={communityRootAddr} />
+      )}
+      {addrRoot && (
+        <AddressableEventPreview addr={addrRoot} />
       )}
 
       {/* Book context for reviews (kind 31985) and posts that tag a book */}
