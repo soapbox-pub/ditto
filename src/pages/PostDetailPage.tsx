@@ -1,9 +1,10 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Zap, MoreHorizontal, Radio, Loader2, AlertCircle, Copy, Check, ChevronRight, Star } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Zap, MoreHorizontal, Share2, Radio, Loader2, AlertCircle, Copy, Check, ChevronRight, Star } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
+import { nip19 } from 'nostr-tools';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 
@@ -94,6 +95,8 @@ import { ContentWarningGuard } from '@/components/ContentWarningGuard';
 import { MutedContentGuard } from '@/components/MutedContentGuard';
 import { ExternalContentPreview, ProfilePreview, CommunityPreview } from '@/components/ExternalContentHeader';
 import { getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
+import { shareOrCopy } from '@/lib/share';
+import { toast } from '@/hooks/useToast';
 import { EmojiPackContent } from '@/components/EmojiPackContent';
 import { CommunityContent } from '@/components/CommunityContent';
 import { extractISBNFromEvent } from '@/lib/bookstr';
@@ -659,6 +662,21 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const nip05 = metadata?.nip05;
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
+  // NIP-19 encoded event identifier for share URLs
+  const encodedEventId = useMemo(() => {
+    if (event.kind >= 30000 && event.kind < 40000) {
+      const dTag = event.tags.find(([n]) => n === 'd')?.[1];
+      if (dTag) return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+    }
+    return nip19.neventEncode({ id: event.id, author: event.pubkey });
+  }, [event]);
+
+  const handleShare = useCallback(async () => {
+    const url = `${window.location.origin}/${encodedEventId}`;
+    const result = await shareOrCopy(url);
+    if (result === 'copied') toast({ title: 'Link copied to clipboard' });
+  }, [encodedEventId]);
+
     // Kind detection — mirrors NoteCard
     const isVine = event.kind === 34236;
     const isPoll = event.kind === 1068;
@@ -1042,6 +1060,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
             <button
               className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="Share"
+              onClick={handleShare}
+            >
+              <Share2 className="size-5" />
+            </button>
+
+            <button
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
               title="More"
               onClick={() => setMoreMenuOpen(true)}
             >
@@ -1293,6 +1319,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </button>
             </ZapDialog>
           )}
+
+          {/* Share */}
+          <button
+            className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+            title="Share"
+            onClick={handleShare}
+          >
+            <Share2 className="size-5" />
+          </button>
 
           {/* More */}
           <button
