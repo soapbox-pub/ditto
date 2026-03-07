@@ -30,13 +30,22 @@ import {
 /** Life stage values accepted by EggGraphic */
 type EggLifeStage = NonNullable<EggVisualBlobbi['lifeStage']>;
 
+/** Pattern values accepted by EggGraphic */
+type EggPattern = NonNullable<EggVisualBlobbi['pattern']>;
+
+/** Special mark values accepted by EggGraphic */
+type EggSpecialMark = NonNullable<EggVisualBlobbi['specialMark']>;
+
+/** Theme variant values accepted by EggGraphic */
+type EggThemeVariant = NonNullable<EggVisualBlobbi['themeVariant']>;
+
 // ─── Mapping Tables ───────────────────────────────────────────────────────────
 
 /**
  * Maps Blobbi pattern values to EggGraphic pattern values.
  * Explicit mapping allows vocabularies to diverge in the future.
  */
-const PATTERN_MAP: Record<BlobbiPattern, string> = {
+const PATTERN_MAP: Record<BlobbiPattern, EggPattern> = {
   'solid': 'solid',
   'spotted': 'spotted',
   'striped': 'striped',
@@ -46,7 +55,7 @@ const PATTERN_MAP: Record<BlobbiPattern, string> = {
 /**
  * Maps Blobbi special mark values to EggGraphic special mark values.
  */
-const SPECIAL_MARK_MAP: Record<BlobbiSpecialMark, string> = {
+const SPECIAL_MARK_MAP: Record<BlobbiSpecialMark, EggSpecialMark> = {
   'none': 'none',
   'star': 'star',
   'heart': 'heart',
@@ -56,7 +65,6 @@ const SPECIAL_MARK_MAP: Record<BlobbiSpecialMark, string> = {
 
 /**
  * Maps Blobbi stage values to EggGraphic life stage values.
- * Uses the exact union type from EggVisualBlobbi.
  */
 const LIFE_STAGE_MAP: Record<BlobbiStage, EggLifeStage> = {
   'egg': 'egg',
@@ -66,10 +74,10 @@ const LIFE_STAGE_MAP: Record<BlobbiStage, EggLifeStage> = {
 
 // ─── Fallback Values ──────────────────────────────────────────────────────────
 
-const DEFAULT_PATTERN = 'solid';
-const DEFAULT_SPECIAL_MARK = 'none';
+const DEFAULT_PATTERN: EggPattern = 'solid';
+const DEFAULT_SPECIAL_MARK: EggSpecialMark = 'none';
 const DEFAULT_LIFE_STAGE: EggLifeStage = 'egg';
-const DEFAULT_THEME_VARIANT = 'default';
+const DEFAULT_THEME_VARIANT: EggThemeVariant = 'default';
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
@@ -115,7 +123,7 @@ function extractCrossoverApp(allTags: string[][]): string | undefined {
  */
 export function toEggGraphicVisualBlobbi(
   companion: BlobbiCompanion,
-  themeVariant: string = DEFAULT_THEME_VARIANT
+  themeVariant: EggThemeVariant = DEFAULT_THEME_VARIANT
 ): EggVisualBlobbi {
   const { visualTraits, stage, name, allTags } = companion;
   
