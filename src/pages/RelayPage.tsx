@@ -74,11 +74,10 @@ function useRelayFeed(relayUrl: string | undefined, kinds: number[]) {
     queryFn: async ({ signal }) => {
       if (!relayUrl) return [];
       const relay = nostr.relay(relayUrl);
-      const events = await relay.query(
-        [{ kinds, limit: 40 }],
+      return relay.query(
+        [{ kinds, limit: 15 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
-      return events.sort((a, b) => b.created_at - a.created_at);
     },
     enabled: !!relayUrl && kinds.length > 0,
   });
