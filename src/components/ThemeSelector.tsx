@@ -784,9 +784,9 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               <div className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="auto-share-theme-dialog" className="flex flex-col gap-1 cursor-pointer">
-                    <span className="text-sm font-medium">Share theme on your profile</span>
+                    <span className="text-sm font-medium">Sync app theme with your profile theme</span>
                     <span className="text-xs text-muted-foreground font-normal">
-                      Automatically publish theme changes to your profile
+                      Turn this off if you want to display a different theme on your profile page than you use in the rest of the app.
                     </span>
                   </Label>
                   <Switch
