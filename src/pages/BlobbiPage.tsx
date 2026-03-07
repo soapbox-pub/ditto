@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, Sparkles, RefreshCw, ArrowLeftRight, Check, Info } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, Sparkles, RefreshCw, Check, Info, Users, Target, Zap, ShoppingBag, Package } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -621,6 +621,13 @@ function BlobbiDashboard({
 }: BlobbiDashboardProps) {
   const isSleeping = companion.state === 'sleeping';
   
+  // Modal states for bottom bar
+  const [showActionsModal, setShowActionsModal] = useState(false);
+  const [showMissionsModal, setShowMissionsModal] = useState(false);
+  const [showShopModal, setShowShopModal] = useState(false);
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  
   return (
     <DashboardShell>
       {/* Header Row */}
@@ -667,40 +674,13 @@ function BlobbiDashboard({
       
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:px-6">
-        {/* Floating Quick Actions */}
-        <div className="absolute top-20 right-4 sm:right-6 flex flex-col gap-2 z-20">
-          {companions.length > 1 && (
-            <Dialog open={showSelector} onOpenChange={setShowSelector}>
-              <DialogTrigger asChild>
-                <QuickActionButton tooltip="Switch Blobbi">
-                  <ArrowLeftRight className="size-4" />
-                </QuickActionButton>
-              </DialogTrigger>
-              <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Switch Blobbi</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-3 pt-2">
-                  {companions.map((c) => (
-                    <BlobbiSelectorCard
-                      key={c.d}
-                      companion={c}
-                      onSelect={() => onSelectBlobbi(c.d)}
-                      isSelected={c.d === selectedD}
-                    />
-                  ))}
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-          
+        {/* Floating Quick Actions - positioned lower for visual balance */}
+        <div className="absolute top-28 sm:top-32 right-4 sm:right-6 flex flex-col gap-2 z-20">
           <QuickActionButton
-            tooltip={isSleeping ? 'Wake Up' : 'Rest'}
-            onClick={onRest}
-            disabled={isPublishing || actionInProgress !== null}
-            loading={actionInProgress === 'rest'}
+            tooltip="Blobbi Info"
+            onClick={() => setShowInfoModal(true)}
           >
-            {isSleeping ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            <Info className="size-4" />
           </QuickActionButton>
           
           <QuickActionButton
@@ -716,19 +696,6 @@ function BlobbiDashboard({
         {/* Blobbi Name */}
         <div className="flex items-center gap-2 mb-6">
           <h2 className="text-2xl sm:text-3xl font-bold text-center">{companion.name}</h2>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className="text-muted-foreground hover:text-foreground transition-colors">
-                <Info className="size-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="capitalize">{companion.stage} Blobbi</p>
-              <p className="text-xs text-muted-foreground">
-                {companion.visibleToOthers ? 'Visible to others' : 'Hidden from others'}
-              </p>
-            </TooltipContent>
-          </Tooltip>
         </div>
         
         {/* Main Blobbi Visual */}
@@ -754,7 +721,7 @@ function BlobbiDashboard({
       </div>
       
       {/* Stats & Info Section */}
-      <div className="px-4 pb-6 sm:px-6 space-y-4">
+      <div className="px-4 pb-24 sm:px-6 space-y-4">
         {/* Stats Grid */}
         <div className="grid grid-cols-5 gap-2 sm:gap-4">
           <StatIndicator label="Hunger" value={companion.stats.hunger} color="orange" />
@@ -776,6 +743,78 @@ function BlobbiDashboard({
           </CardContent>
         </Card>
       </div>
+      
+      {/* Bottom Action Bar */}
+      <BlobbiBottomBar
+        onBlobbiesClick={() => setShowSelector(true)}
+        onMissionsClick={() => setShowMissionsModal(true)}
+        onActionsClick={() => setShowActionsModal(true)}
+        onShopClick={() => setShowShopModal(true)}
+        onInventoryClick={() => setShowInventoryModal(true)}
+        blobbiesCount={companions.length}
+      />
+      
+      {/* Blobbi Selector Modal */}
+      <Dialog open={showSelector} onOpenChange={setShowSelector}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Your Blobbies</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 pt-2">
+            {companions.map((c) => (
+              <BlobbiSelectorCard
+                key={c.d}
+                companion={c}
+                onSelect={() => onSelectBlobbi(c.d)}
+                isSelected={c.d === selectedD}
+              />
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Actions Modal */}
+      <BlobbiActionsModal
+        open={showActionsModal}
+        onOpenChange={setShowActionsModal}
+        companion={companion}
+        onRest={onRest}
+        onToggleVisibility={onToggleVisibility}
+        actionInProgress={actionInProgress}
+        isPublishing={isPublishing}
+      />
+      
+      {/* Placeholder Modals */}
+      <BlobbiPlaceholderModal
+        open={showMissionsModal}
+        onOpenChange={setShowMissionsModal}
+        title="Missions"
+        description="Missions content will be added here."
+        icon={<Target className="size-8 text-primary" />}
+      />
+      
+      <BlobbiPlaceholderModal
+        open={showShopModal}
+        onOpenChange={setShowShopModal}
+        title="Shop"
+        description="Shop content will be added here."
+        icon={<ShoppingBag className="size-8 text-primary" />}
+      />
+      
+      <BlobbiPlaceholderModal
+        open={showInventoryModal}
+        onOpenChange={setShowInventoryModal}
+        title="Inventory"
+        description="Inventory content will be added here."
+        icon={<Package className="size-8 text-primary" />}
+      />
+      
+      {/* Blobbi Info Modal */}
+      <BlobbiInfoModal
+        open={showInfoModal}
+        onOpenChange={setShowInfoModal}
+        companion={companion}
+      />
     </DashboardShell>
   );
 }
@@ -1044,6 +1083,271 @@ function DashboardLoadingState() {
         <Skeleton className="h-24 w-full rounded-xl" />
       </div>
     </DashboardShell>
+  );
+}
+
+// ─── Bottom Action Bar ────────────────────────────────────────────────────────
+
+interface BlobbiBottomBarProps {
+  onBlobbiesClick: () => void;
+  onMissionsClick: () => void;
+  onActionsClick: () => void;
+  onShopClick: () => void;
+  onInventoryClick: () => void;
+  blobbiesCount?: number;
+}
+
+function BlobbiBottomBar({
+  onBlobbiesClick,
+  onMissionsClick,
+  onActionsClick,
+  onShopClick,
+  onInventoryClick,
+  blobbiesCount,
+}: BlobbiBottomBarProps) {
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-30">
+      <div className="container mx-auto max-w-4xl px-4 pb-4">
+        <div className="flex items-center justify-between bg-card/95 backdrop-blur-md border border-border rounded-2xl px-3 py-2 shadow-lg">
+          {/* Left Group */}
+          <div className="flex items-center gap-1">
+            <BottomBarButton onClick={onBlobbiesClick} icon={<Users className="size-4" />} label="Blobbies" badge={blobbiesCount} />
+            <BottomBarButton onClick={onMissionsClick} icon={<Target className="size-4" />} label="Missions" />
+          </div>
+          
+          {/* Center Action Button */}
+          <button
+            onClick={onActionsClick}
+            className="flex items-center justify-center size-14 -mt-6 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all border-4 border-background"
+          >
+            <Zap className="size-6" />
+          </button>
+          
+          {/* Right Group */}
+          <div className="flex items-center gap-1">
+            <BottomBarButton onClick={onShopClick} icon={<ShoppingBag className="size-4" />} label="Shop" />
+            <BottomBarButton onClick={onInventoryClick} icon={<Package className="size-4" />} label="Inventory" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Bottom Bar Button ────────────────────────────────────────────────────────
+
+interface BottomBarButtonProps {
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  badge?: number;
+}
+
+function BottomBarButton({ onClick, icon, label, badge }: BottomBarButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-[60px]"
+    >
+      <div className="relative">
+        {icon}
+        {badge !== undefined && badge > 1 && (
+          <span className="absolute -top-1 -right-2 size-4 flex items-center justify-center text-[10px] font-medium bg-primary text-primary-foreground rounded-full">
+            {badge}
+          </span>
+        )}
+      </div>
+      <span className="text-[10px] text-muted-foreground">{label}</span>
+    </button>
+  );
+}
+
+// ─── Actions Modal ────────────────────────────────────────────────────────────
+
+interface BlobbiActionsModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  companion: BlobbiCompanion;
+  onRest: () => void;
+  onToggleVisibility: () => void;
+  actionInProgress: string | null;
+  isPublishing: boolean;
+}
+
+function BlobbiActionsModal({
+  open,
+  onOpenChange,
+  companion,
+  onRest,
+  onToggleVisibility,
+  actionInProgress,
+  isPublishing,
+}: BlobbiActionsModalProps) {
+  const isSleeping = companion.state === 'sleeping';
+  const isDisabled = isPublishing || actionInProgress !== null;
+  
+  const handleAction = (action: () => void) => {
+    action();
+    // Don't close immediately - let the action complete
+  };
+  
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Blobbi Actions</DialogTitle>
+          <p className="text-sm text-muted-foreground">{companion.name}</p>
+        </DialogHeader>
+        <div className="grid gap-3 pt-2">
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 h-14"
+            onClick={() => handleAction(onRest)}
+            disabled={isDisabled}
+          >
+            {actionInProgress === 'rest' ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : isSleeping ? (
+              <Sun className="size-5" />
+            ) : (
+              <Moon className="size-5" />
+            )}
+            <div className="text-left">
+              <p className="font-medium">{isSleeping ? 'Wake Up' : 'Rest'}</p>
+              <p className="text-xs text-muted-foreground">
+                {isSleeping ? 'Wake your Blobbi up' : 'Put your Blobbi to sleep'}
+              </p>
+            </div>
+          </Button>
+          
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 h-14"
+            onClick={() => handleAction(onToggleVisibility)}
+            disabled={isDisabled}
+          >
+            {actionInProgress === 'visibility' ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : companion.visibleToOthers ? (
+              <EyeOff className="size-5" />
+            ) : (
+              <Eye className="size-5" />
+            )}
+            <div className="text-left">
+              <p className="font-medium">{companion.visibleToOthers ? 'Hide' : 'Show'}</p>
+              <p className="text-xs text-muted-foreground">
+                {companion.visibleToOthers ? 'Make your Blobbi private' : 'Make your Blobbi visible to others'}
+              </p>
+            </div>
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Placeholder Modal ────────────────────────────────────────────────────────
+
+interface BlobbiPlaceholderModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  icon?: React.ReactNode;
+}
+
+function BlobbiPlaceholderModal({
+  open,
+  onOpenChange,
+  title,
+  description,
+  icon,
+}: BlobbiPlaceholderModalProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col items-center gap-4 py-8 text-center">
+          {icon && (
+            <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+              {icon}
+            </div>
+          )}
+          <p className="text-muted-foreground">{description}</p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Blobbi Info Modal ────────────────────────────────────────────────────────
+
+interface BlobbiInfoModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  companion: BlobbiCompanion;
+}
+
+function BlobbiInfoModal({ open, onOpenChange, companion }: BlobbiInfoModalProps) {
+  const isSleeping = companion.state === 'sleeping';
+  
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{companion.name}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          {/* Blobbi Visual */}
+          <div className="flex justify-center">
+            <BlobbiEggVisual
+              companion={companion}
+              size="md"
+              animated={!isSleeping}
+            />
+          </div>
+          
+          {/* Info Grid */}
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-muted-foreground text-xs">Stage</p>
+              <p className="font-medium capitalize">{companion.stage}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-muted-foreground text-xs">State</p>
+              <p className="font-medium capitalize">{companion.state}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-muted-foreground text-xs">Generation</p>
+              <p className="font-medium">{companion.generation ?? 1}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-muted-foreground text-xs">Experience</p>
+              <p className="font-medium">{companion.experience ?? 0}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-muted-foreground text-xs">Care Streak</p>
+              <p className="font-medium">{companion.careStreak ?? 0} days</p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-muted-foreground text-xs">Visibility</p>
+              <p className="font-medium">{companion.visibleToOthers ? 'Public' : 'Private'}</p>
+            </div>
+          </div>
+          
+          {/* Legacy Notice */}
+          {companion.isLegacy && (
+            <div className="px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                This pet uses a legacy format and will be upgraded on next interaction.
+              </p>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
