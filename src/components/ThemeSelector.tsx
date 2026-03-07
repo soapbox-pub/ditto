@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, type RefCallback } from 'react';
 import { Check, Palette, Plus, Trash2, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 
 /** Extracts HSL color string from a theme token value like "258 70% 55%" */
 function hsl(value: string): string {
@@ -471,6 +472,12 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
   // Editor mode: which user theme is being edited
   const [editingTheme, setEditingTheme] = useState<ThemeDefinition | null>(null);
 
+  // Portal container for popovers inside the builder dialog (so scroll works)
+  const [builderPortalContainer, setBuilderPortalContainer] = useState<HTMLElement | undefined>(undefined);
+  const builderContentRef: RefCallback<HTMLElement> = useCallback((node) => {
+    setBuilderPortalContainer(node ?? undefined);
+  }, []);
+
   // Publish dialog state
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [publishTitle, setPublishTitle] = useState('');
@@ -753,7 +760,8 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
 
       {/* ── Builder Dialog ── */}
       <Dialog open={builderOpen ?? false} onOpenChange={(open) => onBuilderOpenChange?.(open)}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-lg">
+        <DialogContent ref={builderContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-lg">
+          <PortalContainerProvider value={builderPortalContainer}>
           <DialogHeader>
             <DialogTitle>{editingTheme ? 'Edit Theme' : 'New Theme'}</DialogTitle>
             <DialogDescription>
@@ -854,6 +862,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               )}
             </div>
           )}
+          </PortalContainerProvider>
         </DialogContent>
       </Dialog>
 
