@@ -55,6 +55,8 @@ export type EggGraphicThemeVariant = 'default' | 'dark' | 'festive' | 'minimal';
 /**
  * The visual data shape expected by the EggGraphic module.
  * This is the OUTPUT type that EggGraphic consumes.
+ * 
+ * Compatible with EggVisualBlobbi from the egg module.
  */
 export interface EggGraphicVisualBlobbi {
   /** Primary color - CSS hex value */
@@ -77,8 +79,8 @@ export interface EggGraphicVisualBlobbi {
   eggTemperature: number | undefined;
   /** Theme variant for rendering context */
   themeVariant: EggGraphicThemeVariant;
-  /** Optional tags for additional metadata */
-  tags: string[];
+  /** Original tags array (string[][]) for EggGraphic metadata lookups */
+  tags: string[][];
   /** Optional crossover app identifier */
   crossoverApp: string | undefined;
 }
@@ -212,20 +214,12 @@ function extractCrossoverApp(allTags: string[][]): string | undefined {
 }
 
 /**
- * Extract relevant tags for EggGraphic metadata.
- * Filters to tags that might be useful for rendering context.
+ * Filter tags to those relevant for EggGraphic rendering.
+ * Preserves the full tag structure (string[][]) for metadata lookups.
  */
-function extractRelevantTags(allTags: string[][]): string[] {
-  const relevantTagNames = ['t', 'theme', 'event', 'season'];
-  const tags: string[] = [];
-  
-  for (const tag of allTags) {
-    if (relevantTagNames.includes(tag[0]) && tag[1]) {
-      tags.push(tag[1]);
-    }
-  }
-  
-  return tags;
+function extractRelevantTags(allTags: string[][]): string[][] {
+  const relevantTagNames = new Set(['t', 'theme', 'event', 'season', 'base_color', 'secondary_color', 'crossover_app']);
+  return allTags.filter(tag => relevantTagNames.has(tag[0]));
 }
 
 // ─── Main Adapter Function ────────────────────────────────────────────────────
