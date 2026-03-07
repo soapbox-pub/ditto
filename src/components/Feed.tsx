@@ -27,20 +27,14 @@ import type { SavedFeed } from '@/contexts/AppContext';
 type CoreFeedTab = 'follows' | 'global' | 'communities';
 type FeedTab = CoreFeedTab | string; // string = saved feed id
 
-/** Curated kinds for the logged-out homepage: visual and interactive "otherstuff" content. */
+/** Curated kinds for the logged-out homepage: unique Ditto content types. */
 const LANDING_KINDS = [
-  20,    // Photos
-  21,    // Videos
-  22,    // Short Videos
-  30023, // Articles
-  34236, // Vines
-  36787, // Music
   36767, // Themes
-  1068,  // Polls
-  31922, // Date-based Calendar Events
-  31923, // Time-based Calendar Events
+  37381, // Magic Decks
   3367,  // Color Moments
-  39089, // Follow Packs
+  1063,  // Webxdc
+  37516, // Treasures (Geocaches)
+  7516,  // Treasures (Found Logs)
   30030, // Emoji Packs
 ];
 
