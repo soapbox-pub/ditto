@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteContent } from '@/components/NoteContent';
 import { ComposeBox } from '@/components/ComposeBox';
@@ -48,14 +49,20 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
   const isQuote = !!quotedEvent;
   const [previewMode, setPreviewMode] = useState(false);
   const [hasPreviewableContent, setHasPreviewableContent] = useState(false);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
 
   const isProfileRoot = !isUrl && event instanceof Object && 'kind' in event && event.kind === 0;
   const title = titleOverride ?? (isUrl ? 'New comment' : isProfileRoot ? 'Comment on profile' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post');
   const placeholder = placeholderOverride ?? (isUrl ? 'Write a comment...' : isReply ? "What's on your mind?" : isQuote ? 'Add a comment...' : "What's happening?");
 
+  const dialogContentRef = useCallback((node: HTMLElement | null) => {
+    setPortalContainer(node ?? undefined);
+  }, []);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        ref={dialogContentRef}
         className="max-w-[520px] max-h-[85vh] rounded-2xl p-0 gap-0 border-border overflow-visible [&>button]:hidden flex flex-col"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
@@ -64,71 +71,73 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
           textarea?.focus();
         }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 h-12 shrink-0">
-          <DialogTitle className="text-base font-semibold">
-            {title}
-          </DialogTitle>
+        <PortalContainerProvider value={portalContainer}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 h-12 shrink-0">
+            <DialogTitle className="text-base font-semibold">
+              {title}
+            </DialogTitle>
 
-          <div className="flex items-center gap-2">
-            {/* Preview toggle */}
-            {hasPreviewableContent && (
-              <div className="inline-flex items-center gap-0.5 p-1 bg-muted/50 rounded-lg">
-                <button
-                  onClick={() => setPreviewMode(false)}
-                  className={cn(
-                    "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
-                    !previewMode 
-                      ? "bg-background text-foreground shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => setPreviewMode(true)}
-                  className={cn(
-                    "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
-                    previewMode 
-                      ? "bg-background text-foreground shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Preview
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Preview toggle */}
+              {hasPreviewableContent && (
+                <div className="inline-flex items-center gap-0.5 p-1 bg-muted/50 rounded-lg">
+                  <button
+                    onClick={() => setPreviewMode(false)}
+                    className={cn(
+                      "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
+                      !previewMode 
+                        ? "bg-background text-foreground shadow-sm" 
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setPreviewMode(true)}
+                    className={cn(
+                      "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
+                      previewMode 
+                        ? "bg-background text-foreground shadow-sm" 
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Preview
+                  </button>
+                </div>
+              )}
 
-            <button
-              onClick={() => onOpenChange(false)}
-              className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-            >
-              <X className="size-5" />
-            </button>
+              <button
+                onClick={() => onOpenChange(false)}
+                className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Embedded original post (reply only, not for URL roots or quotes) */}
-        {event && !isUrl && !isQuote && (
-          <div className="overflow-y-auto min-h-0 shrink">
-            <EmbeddedPost event={event} />
+          {/* Embedded original post (reply only, not for URL roots or quotes) */}
+          {event && !isUrl && !isQuote && (
+            <div className="overflow-y-auto min-h-0 shrink">
+              <EmbeddedPost event={event} />
+            </div>
+          )}
+
+          {/* Compose area */}
+          <div className="shrink-0">
+            <ComposeBox
+              replyTo={isQuote ? undefined : (event ?? undefined)}
+              quotedEvent={quotedEvent ?? undefined}
+              onSuccess={() => { onOpenChange(false); onSuccess?.(); }}
+              placeholder={placeholder}
+              forceExpanded
+              hideAvatar
+              previewMode={previewMode}
+              onHasPreviewableContentChange={setHasPreviewableContent}
+              initialContent={initialContent}
+            />
           </div>
-        )}
-
-        {/* Compose area */}
-        <div className="shrink-0">
-          <ComposeBox
-            replyTo={isQuote ? undefined : (event ?? undefined)}
-            quotedEvent={quotedEvent ?? undefined}
-            onSuccess={() => { onOpenChange(false); onSuccess?.(); }}
-            placeholder={placeholder}
-            forceExpanded
-            hideAvatar
-            previewMode={previewMode}
-            onHasPreviewableContentChange={setHasPreviewableContent}
-            initialContent={initialContent}
-          />
-        </div>
+        </PortalContainerProvider>
       </DialogContent>
     </Dialog>
   );
