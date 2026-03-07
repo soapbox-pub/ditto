@@ -2,15 +2,16 @@
  * BlobbiEggVisual - Reusable component for rendering Blobbi eggs
  * 
  * This component is the UI integration point between the Blobbi domain model
- * and the EggGraphic visual module. It uses the adapter to translate
- * BlobbiCompanion data into EggGraphic-compatible format.
+ * and the EggGraphic visual module.
  * 
- * The rendering flow:
- * BlobbiCompanion → toEggGraphicVisualBlobbi() → EggGraphic
+ * Rendering flow:
+ *   BlobbiCompanion → toEggGraphicVisualBlobbi() → EggGraphic
+ * 
+ * The adapter is the ONLY translation boundary - this component should not
+ * contain any domain-to-visual mapping logic.
  */
 
 import { useMemo } from 'react';
-import { Egg } from 'lucide-react';
 
 import { EggGraphic } from '@/blobbi/egg';
 import { toEggGraphicVisualBlobbi } from '@/lib/blobbi-egg-adapter';
@@ -34,10 +35,18 @@ export interface BlobbiEggVisualProps {
 
 // ─── Size Configuration ───────────────────────────────────────────────────────
 
+/**
+ * Maps external size API to container dimensions and EggGraphic sizeVariant.
+ * 
+ * Container sizes are chosen to work well in common UI contexts:
+ * - sm: Compact cards, lists, thumbnails
+ * - md: Standard display, selector cards
+ * - lg: Hero/main display, prominent visuals
+ */
 const SIZE_CONFIG: Record<BlobbiEggSize, { container: string; sizeVariant: 'tiny' | 'small' | 'medium' | 'large' }> = {
-  sm: { container: 'size-12', sizeVariant: 'tiny' },
-  md: { container: 'size-24', sizeVariant: 'small' },
-  lg: { container: 'size-40', sizeVariant: 'medium' },
+  sm: { container: 'size-14', sizeVariant: 'small' },
+  md: { container: 'size-24', sizeVariant: 'medium' },
+  lg: { container: 'size-40', sizeVariant: 'large' },
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -47,8 +56,6 @@ const SIZE_CONFIG: Record<BlobbiEggSize, { container: string; sizeVariant: 'tiny
  * 
  * Uses the adapter as the ONLY translation boundary between
  * Blobbi domain data and EggGraphic rendering.
- * 
- * Includes fallback safety - if rendering fails, shows a placeholder.
  */
 export function BlobbiEggVisual({
   companion,
@@ -56,15 +63,13 @@ export function BlobbiEggVisual({
   animated = false,
   className,
 }: BlobbiEggVisualProps) {
-  // Memoize the adapter output to avoid unnecessary re-renders
+  // Memoize adapter output to avoid unnecessary re-renders
   const eggVisual = useMemo(
     () => toEggGraphicVisualBlobbi(companion),
     [companion]
   );
   
   const config = SIZE_CONFIG[size];
-  
-  // Determine if the Blobbi is sleeping (for opacity adjustment)
   const isSleeping = companion.state === 'sleeping';
   
   return (
@@ -78,49 +83,11 @@ export function BlobbiEggVisual({
         className
       )}
     >
-      <EggGraphicSafe
+      <EggGraphic
         blobbi={eggVisual}
         sizeVariant={config.sizeVariant}
         animated={animated && !isSleeping}
       />
-    </div>
-  );
-}
-
-// ─── Safe Wrapper with Fallback ───────────────────────────────────────────────
-
-interface EggGraphicSafeProps {
-  blobbi: ReturnType<typeof toEggGraphicVisualBlobbi>;
-  sizeVariant: 'tiny' | 'small' | 'medium' | 'large';
-  animated: boolean;
-}
-
-/**
- * Safe wrapper around EggGraphic with error boundary fallback.
- * If EggGraphic fails to render, shows a simple placeholder.
- */
-function EggGraphicSafe({ blobbi, sizeVariant, animated }: EggGraphicSafeProps) {
-  try {
-    return (
-      <EggGraphic
-        blobbi={blobbi}
-        sizeVariant={sizeVariant}
-        animated={animated}
-      />
-    );
-  } catch {
-    // Fallback to simple placeholder if rendering fails
-    return <EggPlaceholder />;
-  }
-}
-
-/**
- * Simple placeholder egg icon for fallback scenarios.
- */
-function EggPlaceholder() {
-  return (
-    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-100 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/20 rounded-full">
-      <Egg className="size-1/2 text-amber-500" />
     </div>
   );
 }
