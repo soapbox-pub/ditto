@@ -68,8 +68,8 @@ function LoggedOutState() {
   return (
     <main className="flex flex-col items-center justify-center p-6 gap-6 min-h-[60vh]">
       <div className="flex flex-col items-center gap-3 text-center max-w-sm">
-        <div className="size-20 rounded-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 flex items-center justify-center">
-          <Egg className="size-10 text-purple-500" />
+        <div className="size-20 rounded-3xl bg-primary/10 flex items-center justify-center">
+          <Egg className="size-10 text-primary" />
         </div>
         <h1 className="text-2xl font-bold">Blobbi</h1>
         <p className="text-muted-foreground">
@@ -405,8 +405,8 @@ function BlobbiContent() {
       <DashboardShell>
         <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
           <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-            <div className="size-24 rounded-3xl bg-gradient-to-br from-purple-500/20 via-pink-500/10 to-purple-500/5 flex items-center justify-center">
-              <Sparkles className="size-12 text-purple-500" />
+            <div className="size-24 rounded-3xl bg-primary/10 flex items-center justify-center">
+              <Sparkles className="size-12 text-primary" />
             </div>
             <h1 className="text-2xl font-bold">Welcome to Blobbi!</h1>
             <p className="text-muted-foreground">
@@ -498,7 +498,7 @@ function BlobbiContent() {
       <DashboardShell>
         <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
           <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-            <div className="size-24 rounded-3xl bg-gradient-to-br from-muted/30 via-muted/20 to-muted/10 flex items-center justify-center">
+            <div className="size-24 rounded-3xl bg-muted/50 flex items-center justify-center">
               <RefreshCw className={cn(
                 "size-12 text-muted-foreground",
                 companionFetching && "animate-spin"
@@ -576,9 +576,9 @@ function DashboardShell({ children }: DashboardShellProps) {
     <main className="min-h-[calc(100vh-4rem)] p-4 pb-20">
       <div className="container mx-auto max-w-4xl">
         {/* Frosted glass dashboard container */}
-        <div className="relative rounded-2xl bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border border-white/50 dark:border-gray-700/50 border-t-2 border-t-purple-300 dark:border-t-purple-600 overflow-hidden min-h-[70vh]">
-          {/* Decorative gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-50/80 via-pink-50/40 to-purple-50/80 dark:from-purple-900/20 dark:via-pink-900/10 dark:to-purple-900/20 pointer-events-none" />
+        <div className="relative rounded-2xl bg-card/80 backdrop-blur-sm border border-border overflow-hidden min-h-[70vh]">
+          {/* Subtle decorative gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-muted/50 via-transparent to-muted/30 pointer-events-none" />
           
           {/* Content wrapper */}
           <div className="relative z-10 h-full flex flex-col min-h-[70vh]">
@@ -624,10 +624,10 @@ function BlobbiDashboard({
   return (
     <DashboardShell>
       {/* Header Row */}
-      <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-purple-200/50 dark:border-purple-800/30">
+      <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="size-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-            <Egg className="size-5 text-purple-500" />
+          <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Egg className="size-5 text-primary" />
           </div>
           <div>
             <h1 className="text-lg font-semibold">Blobbi</h1>
@@ -640,13 +640,7 @@ function BlobbiDashboard({
             <RefreshCw className="size-4 text-muted-foreground animate-spin" />
           )}
           
-          <Badge 
-            variant={isSleeping ? 'secondary' : 'default'}
-            className={cn(
-              "text-xs",
-              !isSleeping && "bg-purple-500 hover:bg-purple-600"
-            )}
-          >
+          <Badge variant={isSleeping ? 'secondary' : 'default'}>
             {isSleeping ? (
               <>
                 <Moon className="size-3 mr-1" />
@@ -742,8 +736,8 @@ function BlobbiDashboard({
           "relative transition-all duration-500",
           isSleeping && "opacity-80"
         )}>
-          {/* Glow effect behind the egg */}
-          <div className="absolute inset-0 -m-8 bg-gradient-to-br from-purple-400/20 via-pink-400/20 to-purple-400/20 rounded-full blur-3xl" />
+          {/* Subtle glow effect behind the egg */}
+          <div className="absolute inset-0 -m-8 bg-primary/5 rounded-full blur-3xl" />
           
           <BlobbiEggVisual
             companion={companion}
@@ -767,11 +761,11 @@ function BlobbiDashboard({
           <StatIndicator label="Happy" value={companion.stats.happiness} color="yellow" />
           <StatIndicator label="Health" value={companion.stats.health} color="green" />
           <StatIndicator label="Hygiene" value={companion.stats.hygiene} color="blue" />
-          <StatIndicator label="Energy" value={companion.stats.energy} color="purple" />
+          <StatIndicator label="Energy" value={companion.stats.energy} color="violet" />
         </div>
         
         {/* Info Card */}
-        <Card className="bg-white/50 dark:bg-gray-800/50 border-purple-200/30 dark:border-purple-700/30">
+        <Card className="bg-card/50 border-border">
           <CardContent className="p-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
               <InfoItem label="Generation" value={companion.generation?.toString() ?? '1'} />
@@ -805,7 +799,7 @@ function QuickActionButton({ children, tooltip, onClick, disabled, loading }: Qu
           size="icon"
           onClick={onClick}
           disabled={disabled}
-          className="size-10 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-purple-200/50 dark:border-purple-700/50 hover:border-purple-300 dark:hover:border-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-all shadow-sm"
+          className="size-10 rounded-full bg-background/80 backdrop-blur-sm border-border hover:bg-accent hover:border-border transition-all shadow-sm"
         >
           {loading ? <Loader2 className="size-4 animate-spin" /> : children}
         </Button>
@@ -822,23 +816,24 @@ function QuickActionButton({ children, tooltip, onClick, disabled, loading }: Qu
 interface StatIndicatorProps {
   label: string;
   value: number | undefined;
-  color: 'orange' | 'yellow' | 'green' | 'blue' | 'purple';
+  color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
 }
 
+// Semantic colors for stats - these represent the stat type, not brand colors
 const STAT_COLORS = {
-  orange: 'from-orange-500 to-orange-400',
-  yellow: 'from-yellow-500 to-yellow-400',
-  green: 'from-green-500 to-green-400',
-  blue: 'from-blue-500 to-blue-400',
-  purple: 'from-purple-500 to-purple-400',
+  orange: 'text-orange-500',
+  yellow: 'text-yellow-500',
+  green: 'text-green-500',
+  blue: 'text-blue-500',
+  violet: 'text-violet-500',
 };
 
 const STAT_BG_COLORS = {
-  orange: 'bg-orange-100 dark:bg-orange-900/30',
-  yellow: 'bg-yellow-100 dark:bg-yellow-900/30',
-  green: 'bg-green-100 dark:bg-green-900/30',
-  blue: 'bg-blue-100 dark:bg-blue-900/30',
-  purple: 'bg-purple-100 dark:bg-purple-900/30',
+  orange: 'bg-orange-500/10',
+  yellow: 'bg-yellow-500/10',
+  green: 'bg-green-500/10',
+  blue: 'bg-blue-500/10',
+  violet: 'bg-violet-500/10',
 };
 
 function StatIndicator({ label, value, color }: StatIndicatorProps) {
@@ -866,18 +861,12 @@ function StatIndicator({ label, value, color }: StatIndicatorProps) {
             cy="18"
             r="15"
             fill="none"
-            stroke="url(#statGradient)"
+            stroke="currentColor"
             strokeWidth="3"
             strokeLinecap="round"
             strokeDasharray={`${displayValue * 0.94} 100`}
-            className="transition-all duration-500"
+            className={cn("transition-all duration-500", STAT_COLORS[color])}
           />
-          <defs>
-            <linearGradient id="statGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" className={cn("stop-color-current", STAT_COLORS[color].split(' ')[0].replace('from-', 'text-'))} />
-              <stop offset="100%" className={cn("stop-color-current", STAT_COLORS[color].split(' ')[1].replace('to-', 'text-'))} />
-            </linearGradient>
-          </defs>
         </svg>
         <span className="text-xs sm:text-sm font-semibold">{displayValue}</span>
       </div>
@@ -909,10 +898,10 @@ function BlobbiSelectorPage({ companions, onSelect, isLoading }: BlobbiSelectorP
   return (
     <DashboardShell>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-purple-200/50 dark:border-purple-800/30">
+      <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="size-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-            <Egg className="size-5 text-purple-500" />
+          <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Egg className="size-5 text-primary" />
           </div>
           <div>
             <h1 className="text-lg font-semibold">Choose Your Blobbi</h1>
@@ -956,12 +945,11 @@ function BlobbiSelectorCard({ companion, onSelect, isSelected }: BlobbiSelectorC
       onClick={onSelect}
       className={cn(
         'w-full p-4 rounded-xl text-left transition-all',
-        'bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm',
-        'border border-purple-200/50 dark:border-purple-700/50',
-        'hover:border-purple-300 dark:hover:border-purple-600',
-        'hover:bg-purple-50/50 dark:hover:bg-purple-900/20',
+        'bg-card/60 backdrop-blur-sm',
+        'border border-border',
+        'hover:border-primary/30 hover:bg-accent/50',
         'hover:shadow-md',
-        isSelected && 'border-purple-500 ring-2 ring-purple-500/20 bg-purple-50/50 dark:bg-purple-900/20'
+        isSelected && 'border-primary ring-2 ring-primary/20 bg-accent/50'
       )}
     >
       <div className="flex items-center gap-4">
@@ -978,20 +966,14 @@ function BlobbiSelectorCard({ companion, onSelect, isSelected }: BlobbiSelectorC
           <div className="flex items-center gap-2">
             <h3 className="font-semibold truncate">{companion.name}</h3>
             {isSelected && (
-              <Check className="size-4 text-purple-500 shrink-0" />
+              <Check className="size-4 text-primary shrink-0" />
             )}
           </div>
           <p className="text-sm text-muted-foreground capitalize">
             {companion.stage} Blobbi
           </p>
           <div className="flex items-center gap-2 mt-1">
-            <Badge 
-              variant={isSleeping ? 'secondary' : 'default'} 
-              className={cn(
-                "text-xs",
-                !isSleeping && "bg-purple-500 hover:bg-purple-600"
-              )}
-            >
+            <Badge variant={isSleeping ? 'secondary' : 'default'} className="text-xs">
               {isSleeping ? (
                 <>
                   <Moon className="size-3 mr-1" />
@@ -1030,7 +1012,7 @@ function DashboardLoadingState() {
   return (
     <DashboardShell>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-purple-200/50 dark:border-purple-800/30">
+      <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-border">
         <div className="flex items-center gap-3">
           <Skeleton className="size-10 rounded-xl" />
           <div className="space-y-1">
