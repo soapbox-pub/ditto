@@ -131,11 +131,11 @@ export function ThemesPage() {
           {/* Sync theme toggle */}
           {user && (
             <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <Label htmlFor="auto-share-theme" className="flex flex-col gap-1 cursor-pointer">
-                  <span className="text-sm font-medium">Sync theme to profile</span>
+                  <span className="text-sm font-medium">Sync app theme with your profile theme</span>
                   <span className="text-xs text-muted-foreground font-normal">
-                    Automatically publish theme changes to your Nostr profile
+                    Turn this off if you want to display a different theme on your profile than you use in the rest of the app.
                   </span>
                 </Label>
                 <Switch
