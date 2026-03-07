@@ -8,7 +8,10 @@ import { NoteCard } from '@/components/NoteCard';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useMuteList } from '@/hooks/useMuteList';
+import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -61,29 +64,33 @@ function useRelayInfo(relayUrl: string | undefined) {
   });
 }
 
-/** Fetch the latest events from a specific relay. */
-function useRelayFeed(relayUrl: string | undefined) {
+/** Fetch the latest events from a specific relay, filtered to supported kinds. */
+function useRelayFeed(relayUrl: string | undefined, kinds: number[]) {
   const { nostr } = useNostr();
+  const kindsKey = [...kinds].sort().join(',');
 
   return useQuery<NostrEvent[]>({
-    queryKey: ['relay-feed', relayUrl],
+    queryKey: ['relay-feed', relayUrl, kindsKey],
     queryFn: async ({ signal }) => {
       if (!relayUrl) return [];
       const relay = nostr.relay(relayUrl);
       const events = await relay.query(
-        [{ limit: 40 }],
+        [{ kinds, limit: 40 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
       return events.sort((a, b) => b.created_at - a.created_at);
     },
-    enabled: !!relayUrl,
+    enabled: !!relayUrl && kinds.length > 0,
   });
 }
 
 export function RelayPage() {
   const { config } = useAppContext();
   const { '*': urlParam } = useParams();
+  const { feedSettings } = useFeedSettings();
   const { muteItems } = useMuteList();
+
+  const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
 
   // Reconstruct the relay URL from the wildcard param
   const relayUrl = useMemo(() => {
@@ -107,7 +114,7 @@ export function RelayPage() {
   }, [relayUrl]);
 
   const { data: info, isLoading: infoLoading, isError: infoError } = useRelayInfo(relayUrl);
-  const { data: events, isLoading: eventsLoading } = useRelayFeed(relayUrl);
+  const { data: events, isLoading: eventsLoading } = useRelayFeed(relayUrl, kinds);
 
   const filteredEvents = useMemo(() => {
     if (!events || muteItems.length === 0) return events;
