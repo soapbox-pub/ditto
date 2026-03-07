@@ -635,7 +635,7 @@ export function NoteContent({
             return (
               <Link
                 key={i}
-                to={`/r/${token.url}`}
+                to={`/r/${encodeURIComponent(token.url)}`}
                 className="text-primary hover:underline break-all"
                 onClick={(e) => e.stopPropagation()}
               >
