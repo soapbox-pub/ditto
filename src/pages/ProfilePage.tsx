@@ -81,6 +81,7 @@ import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontPicker } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
+import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -1107,6 +1108,10 @@ export function ProfilePage() {
   const [shareThemeOpen, setShareThemeOpen] = useState(false);
   const [removeThemeOpen, setRemoveThemeOpen] = useState(false);
   const [editProfileThemeOpen, setEditProfileThemeOpen] = useState(false);
+  const [editThemePortalContainer, setEditThemePortalContainer] = useState<HTMLElement | undefined>(undefined);
+  const editThemeContentRef = useCallback((node: HTMLElement | null) => {
+    setEditThemePortalContainer(node ?? undefined);
+  }, []);
   const [localProfileColors, setLocalProfileColors] = useState<CoreThemeColors>({
     background: '228 20% 10%',
     text: '210 40% 98%',
@@ -2429,7 +2434,8 @@ export function ProfilePage() {
 
         {/* Edit profile theme dialog — independent from app theme */}
         <Dialog open={editProfileThemeOpen} onOpenChange={setEditProfileThemeOpen}>
-          <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-lg">
+          <DialogContent ref={editThemeContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-lg">
+            <PortalContainerProvider value={editThemePortalContainer}>
             <DialogHeader>
               <DialogTitle>Edit Profile Theme</DialogTitle>
               <DialogDescription>
@@ -2493,6 +2499,7 @@ export function ProfilePage() {
                 Save Profile Theme
               </Button>
             </DialogFooter>
+            </PortalContainerProvider>
           </DialogContent>
         </Dialog>
       </PullToRefresh>
