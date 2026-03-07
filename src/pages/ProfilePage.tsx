@@ -5,7 +5,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -43,6 +43,7 @@ import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 
 import { canZap } from '@/lib/canZap';
+import { shareOrCopy } from '@/lib/share';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
@@ -1204,7 +1205,6 @@ export function ProfilePage() {
     // Apply profile background image (if any)
     const bgStyleId = 'theme-background';
     const previousBgEl = document.getElementById(bgStyleId) as HTMLStyleElement | null;
-    const previousBgCss = previousBgEl?.textContent ?? null;
 
     if (effectiveProfileBackground?.url) {
       let bgEl = previousBgEl;
@@ -1252,19 +1252,19 @@ export function ProfilePage() {
       const ownBgUrl = ownActiveConfig?.background?.url;
 
       if (ownBgUrl) {
-        // Restore own background
-        if (!bgEl) {
+        // Always rebuild background CSS from the current own theme (via ref)
+        // so we never restore stale CSS captured before e.g. "Copy Theme".
+        const targetEl = bgEl ?? (() => {
           const newBgEl = document.createElement('style');
           newBgEl.id = bgStyleId;
           document.head.appendChild(newBgEl);
-          const ownBgMode = ownActiveConfig?.background?.mode ?? 'cover';
-          if (ownBgMode === 'tile') {
-            newBgEl.textContent = `body { background-image: url("${ownBgUrl}"); background-repeat: repeat; background-size: auto; }`;
-          } else {
-            newBgEl.textContent = `body { background-image: url("${ownBgUrl}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
-          }
-        } else if (previousBgCss) {
-          bgEl.textContent = previousBgCss;
+          return newBgEl;
+        })();
+        const ownBgMode = ownActiveConfig?.background?.mode ?? 'cover';
+        if (ownBgMode === 'tile') {
+          targetEl.textContent = `body { background-image: url("${ownBgUrl}"); background-repeat: repeat; background-size: auto; }`;
+        } else {
+          targetEl.textContent = `body { background-image: url("${ownBgUrl}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
         }
       } else {
         // Own theme has no background — remove the style element
@@ -1784,6 +1784,23 @@ export function ProfilePage() {
                   >
                     <MoreHorizontal className="size-5" />
                   </Button>
+                  {/* Share button (mobile only) */}
+                  {pubkey && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="rounded-full size-10 sidebar:hidden"
+                      title="Share profile"
+                      onClick={async () => {
+                        const npubId = nip19.npubEncode(pubkey);
+                        const url = `${window.location.origin}/${npubId}`;
+                        const result = await shareOrCopy(url);
+                        if (result === 'copied') toast({ title: 'Profile link copied to clipboard' });
+                      }}
+                    >
+                      <Share2 className="size-5" />
+                    </Button>
+                  )}
                   {/* Zap button */}
                   {!isOwnProfile && authorEvent && canZap(metadata) && (
                     <ZapDialog target={authorEvent}>

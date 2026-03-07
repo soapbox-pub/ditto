@@ -7,7 +7,7 @@
  * Streamlined for profile tabs: only Search Query, Author Scope (Me / Contacts / Global),
  * and multi-select Kind picker.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Loader2, Check, Globe, Users, User,
 } from 'lucide-react';
@@ -28,6 +28,7 @@ import {
   parseSelectedKinds,
 } from '@/components/SavedFeedFiltersEditor';
 import type { ScopeOption } from '@/components/SavedFeedFiltersEditor';
+import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import type { ProfileTab, TabFilter } from '@/lib/profileTabsEvent';
 
 
@@ -110,6 +111,11 @@ export function ProfileTabEditModal({
   const [selectedKinds, setSelectedKinds] = useState<string[]>(
     parseSelectedKinds(initialFilter),
   );
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
+
+  const dialogContentRef = useCallback((node: HTMLElement | null) => {
+    setPortalContainer(node ?? undefined);
+  }, []);
 
   // Reset state when modal opens
   const handleOpenChange = (o: boolean) => {
@@ -145,7 +151,8 @@ export function ProfileTabEditModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-sm max-h-[90dvh] overflow-y-auto">
+      <DialogContent ref={dialogContentRef} className="max-w-sm max-h-[90dvh] overflow-y-auto">
+        <PortalContainerProvider value={portalContainer}>
         <DialogHeader>
           <DialogTitle>{isNew ? 'Add profile tab' : 'Edit tab'}</DialogTitle>
         </DialogHeader>
@@ -166,9 +173,21 @@ export function ProfileTabEditModal({
 
           <Separator />
 
-          {/* Search query */}
+          {/* Kind multi-select */}
+          <div className="space-y-2">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Content Kinds</span>
+            <MultiKindPicker
+              selectedKinds={selectedKinds}
+              options={kindOptions}
+              onChange={setSelectedKinds}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Filter by word */}
           <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Search query</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Filter by Word</span>
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -189,18 +208,6 @@ export function ProfileTabEditModal({
               {authorScope === 'global' && 'Show posts from everyone.'}
             </p>
           </div>
-
-          <Separator />
-
-          {/* Kind multi-select */}
-          <div className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kinds</span>
-            <MultiKindPicker
-              selectedKinds={selectedKinds}
-              options={kindOptions}
-              onChange={setSelectedKinds}
-            />
-          </div>
         </div>
 
         <DialogFooter className="flex-col gap-2 pt-3 sm:flex-col">
@@ -214,6 +221,7 @@ export function ProfileTabEditModal({
             Cancel
           </Button>
         </DialogFooter>
+        </PortalContainerProvider>
       </DialogContent>
     </Dialog>
   );

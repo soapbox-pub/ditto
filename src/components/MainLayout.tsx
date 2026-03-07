@@ -3,7 +3,6 @@ import { Outlet } from 'react-router-dom';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { RightSidebar } from '@/components/RightSidebar';
 import { MobileTopBar } from '@/components/MobileTopBar';
-import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { MobileDrawer } from '@/components/MobileDrawer';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
@@ -64,7 +63,7 @@ function PageSkeleton() {
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
-  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, noBottomSpacer = false, wrapperClassName } = useLayoutSnapshot();
+  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { config } = useAppContext();
 
@@ -102,11 +101,7 @@ function MainLayoutInner() {
         </Suspense>
       </div>
 
-      {/* Mobile bottom nav - only on small screens */}
-      <MobileBottomNav />
 
-      {/* Bottom padding spacer for mobile bottom nav */}
-      {!noBottomSpacer && <div className="h-14 sidebar:hidden" />}
     </>
   );
 }

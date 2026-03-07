@@ -14,8 +14,6 @@ export interface LayoutOptions {
   onFabClick?: () => void;
   /** If set, overrides the default FAB icon (Plus). */
   fabIcon?: React.ReactNode;
-  /** Skip the bottom nav spacer (for pages that handle their own bottom padding) */
-  noBottomSpacer?: boolean;
   /** Additional classes for the wrapper div */
   wrapperClassName?: string;
 }
@@ -82,7 +80,6 @@ export function useLayoutOptions(options: LayoutOptions): void {
     prev.current.fabHref !== options.fabHref ||
     prev.current.onFabClick !== options.onFabClick ||
     prev.current.fabIcon !== options.fabIcon ||
-    prev.current.noBottomSpacer !== options.noBottomSpacer ||
     prev.current.wrapperClassName !== options.wrapperClassName ||
     prev.current.rightSidebar !== options.rightSidebar;
 
