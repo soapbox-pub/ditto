@@ -175,7 +175,8 @@ type ContentToken =
   | { type: 'nevent-embed'; eventId: string; relays?: string[]; author?: string }
   | { type: 'naddr-embed'; addr: AddrCoords; url?: string }
   | { type: 'nostr-link'; id: string; raw: string }
-  | { type: 'hashtag'; tag: string; raw: string };
+  | { type: 'hashtag'; tag: string; raw: string }
+  | { type: 'relay-link'; url: string };
 
 /**
  * Regex segment matching a single visual emoji unit, including:
@@ -235,7 +236,7 @@ export function NoteContent({
     const text = event.content;
     // Match: URLs | nostr:-prefixed NIP-19 ids | @-prefixed or bare NIP-19 ids | hashtags
     // NIP-19 ids can appear anywhere (with optional @ prefix that gets consumed)
-    const regex = /(https?:\/\/[^\s]+)|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|(#\w+)/g;
+    const regex = /((?:https?|wss?):\/\/[^\s]+)|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|(#\w+)/g;
 
     const result: ContentToken[] = [];
     let lastIndex = 0;
@@ -267,6 +268,14 @@ export function NoteContent({
             // The punctuation will be part of the next text token
           }
         }
+
+        // WebSocket relay URLs → link to internal relay page
+        if (/^wss?:\/\//i.test(url)) {
+          result.push({ type: 'relay-link', url });
+          lastIndex = index + fullMatch.length;
+          continue;
+        }
+
         // Image URLs → render inline at their position in the text
         if (IMAGE_URL_REGEX.test(url)) {
           if (result.length > 0) {
@@ -620,6 +629,17 @@ export function NoteContent({
                 onClick={(e) => e.stopPropagation()}
               >
                 {token.raw}
+              </Link>
+            );
+          case 'relay-link':
+            return (
+              <Link
+                key={i}
+                to={`/relay/${token.url}`}
+                className="text-primary hover:underline break-all"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {token.url}
               </Link>
             );
         }
