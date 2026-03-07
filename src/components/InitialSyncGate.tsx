@@ -435,8 +435,8 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       </div>
 
       {/* Content area */}
-      <div className="flex-1 flex items-center justify-center overflow-y-auto">
-        <div className="w-full max-w-md px-6 py-12">
+      <div className="flex-1 flex flex-col overflow-y-auto">
+        <div className="w-full max-w-md mx-auto my-auto px-6 py-12">
           {/* Signup steps */}
           {step === 'keygen' && (
             <KeygenStep onGenerate={handleGenerate} />
