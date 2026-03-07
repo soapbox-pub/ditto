@@ -166,9 +166,21 @@ export function ProfileTabEditModal({
 
           <Separator />
 
-          {/* Search query */}
+          {/* Kind multi-select */}
+          <div className="space-y-2">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Content Kinds</span>
+            <MultiKindPicker
+              selectedKinds={selectedKinds}
+              options={kindOptions}
+              onChange={setSelectedKinds}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Filter by word */}
           <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Search query</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Filter by Word</span>
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -188,18 +200,6 @@ export function ProfileTabEditModal({
               {authorScope === 'contacts' && 'Show posts from people you follow.'}
               {authorScope === 'global' && 'Show posts from everyone.'}
             </p>
-          </div>
-
-          <Separator />
-
-          {/* Kind multi-select */}
-          <div className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kinds</span>
-            <MultiKindPicker
-              selectedKinds={selectedKinds}
-              options={kindOptions}
-              onChange={setSelectedKinds}
-            />
           </div>
         </div>
 
