@@ -135,7 +135,7 @@ export function ThemesPage() {
                 <Label htmlFor="auto-share-theme" className="flex flex-col gap-1 cursor-pointer">
                   <span className="text-sm font-medium">Sync app theme with your profile theme</span>
                   <span className="text-xs text-muted-foreground font-normal">
-                    Turn this off if you want to display a different theme on your profile page than you use in the rest of the app.
+                    Turn this off if you want to display a different theme on your profile than you use in the rest of the app.
                   </span>
                 </Label>
                 <Switch
