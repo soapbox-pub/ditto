@@ -9,8 +9,7 @@ import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LayoutStore, LayoutStoreContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
-import { ScrollHideContext } from '@/contexts/ScrollHideContext';
-import { useScrollDirection } from '@/hooks/useScrollDirection';
+import { ScrollHideContext, useScrollHideProvider } from '@/contexts/ScrollHideContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { cn } from '@/lib/utils';
 
@@ -69,7 +68,7 @@ function MainLayoutInner() {
   const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, noBottomSpacer = false, wrapperClassName } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { config } = useAppContext();
-  const scrollHide = useScrollDirection();
+  const scrollHide = useScrollHideProvider();
 
   return (
     <ScrollHideContext.Provider value={scrollHide}>
@@ -94,7 +93,8 @@ function MainLayoutInner() {
           <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l border-r border-border bg-background/85")}>
             <Outlet />
             {showFAB && (
-              <div className="sticky bottom-fab sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
+              // Desktop: sticky inside the content column (no scrolling chrome to hide)
+              <div className="hidden sidebar:flex sticky bottom-6 z-30 pointer-events-none justify-end pr-6">
                 <div className="pointer-events-auto">
                   <FloatingComposeButton kind={fabKind} href={fabHref} onFabClick={onFabClick} icon={fabIcon} />
                 </div>
@@ -104,6 +104,17 @@ function MainLayoutInner() {
           {rightSidebar ?? <RightSidebar />}
         </Suspense>
       </div>
+
+      {/* Mobile FAB - fixed position, hides with the bottom nav on scroll */}
+      {showFAB && (
+        <div className={cn(
+          'fixed bottom-fab right-6 z-40 sidebar:hidden',
+          'transition-[transform,opacity] duration-300 ease-in-out',
+          scrollHide.hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100',
+        )}>
+          <FloatingComposeButton kind={fabKind} href={fabHref} onFabClick={onFabClick} icon={fabIcon} />
+        </div>
+      )}
 
       {/* Mobile bottom nav - only on small screens */}
       <MobileBottomNav />

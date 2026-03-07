@@ -186,7 +186,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
         // Logged-in tabs: slide away with the top bar when scrolling down
         <div className={cn(
           'flex border-b border-border sticky bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none',
-          'transition-[top,transform,opacity] duration-300 ease-in-out',
+          'transition-[transform,opacity] duration-300 ease-in-out',
           topBarHidden
             ? 'top-0 -translate-y-full opacity-0 pointer-events-none'
             : 'top-mobile-bar sidebar:top-0 translate-y-0 opacity-100',
