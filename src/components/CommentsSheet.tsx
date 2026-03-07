@@ -142,7 +142,7 @@ export function CommentsSheet({ event, open, onClose }: CommentsModalProps) {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm animate-in fade-in-0 duration-200"
+        className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm cursor-pointer animate-in fade-in-0 duration-200"
         onClick={(e) => { e.stopPropagation(); onClose(); }}
       />
 
