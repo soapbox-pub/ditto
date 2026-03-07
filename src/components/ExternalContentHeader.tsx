@@ -17,6 +17,7 @@ import { getCountryInfo, getWikipediaTitle } from '@/lib/countries';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
 import { parseExternalUri, formatIsbn } from '@/lib/externalContent';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
+import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
 // ---------------------------------------------------------------------------
 // Full-size content headers (used on /i/ page)
@@ -620,6 +621,11 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
     return `Kind ${addr.kind}`;
   }, [kindDef, addr.kind]);
 
+  const KindIcon = useMemo(() => {
+    if (kindDef?.id) return CONTENT_KIND_ICONS[kindDef.id] ?? FileText;
+    return FileText;
+  }, [kindDef]);
+
   const title = event?.tags.find(([n]) => n === 'title')?.[1]
     || event?.tags.find(([n]) => n === 'name')?.[1]
     || event?.tags.find(([n]) => n === 'd')?.[1]
@@ -667,12 +673,13 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
         </div>
       ) : (
         <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <FileText className="size-5 text-primary/50" />
+          <KindIcon className="size-5 text-primary/50" />
         </div>
       )}
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <KindIcon className="size-3 shrink-0" />
           <span>{kindLabel}</span>
           <span className="text-muted-foreground/60">&middot;</span>
           <span className="truncate">{authorName}</span>
