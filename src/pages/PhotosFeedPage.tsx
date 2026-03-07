@@ -6,7 +6,7 @@
  * - Infinite-scroll 3-column grid via the shared MediaGrid component
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Camera, Loader2 } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
