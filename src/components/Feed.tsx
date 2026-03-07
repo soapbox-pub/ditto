@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
 import { ComposeBox } from '@/components/ComposeBox';
+import { LandingHero } from '@/components/LandingHero';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
@@ -199,16 +200,10 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
           ))}
         </div>
       ) : !kinds && (
-        <div className="border-b border-border sticky top-mobile-bar sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3">
-          <div className="flex items-center justify-center gap-3 px-6">
-            <p className="text-[13px] sidebar:text-sm text-muted-foreground">
-              Follow accounts you care about on {config.appName}
-            </p>
-            <Button onClick={() => setLoginDialogOpen(true)} className="rounded-full" size="sm">
-              Join
-            </Button>
-          </div>
-        </div>
+        <LandingHero
+          onLoginClick={() => setLoginDialogOpen(true)}
+          onSignupClick={startSignup}
+        />
       )}
 
       {/* Feed content — saved feed tab gets its own stream */}
