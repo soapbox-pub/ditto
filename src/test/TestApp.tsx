@@ -93,6 +93,7 @@ export function TestApp({ children }: TestAppProps) {
     contentWarningPolicy: 'blur',
     sentryDsn: '',
     sentryEnabled: false,
+    savedFeeds: [],
   };
 
   return (

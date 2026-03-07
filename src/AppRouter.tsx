@@ -42,6 +42,7 @@ import { MusicFeedPage } from "./pages/MusicFeedPage";
 import { PodcastsFeedPage } from "./pages/PodcastsFeedPage";
 import { BooksPage } from "./pages/BooksPage";
 import { RelayPage } from "./pages/RelayPage";
+import { UserListsPage } from "./pages/UserListsPage";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -86,6 +87,7 @@ export function AppRouter() {
           <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
           <Route path="/settings/magic" element={<MagicSettingsPage />} />
           <Route path="/settings/network" element={<NetworkSettingsPage />} />
+          <Route path="/settings/lists" element={<UserListsPage />} />
           <Route path="/events" element={<EventsFeedPage />} />
           <Route path="/photos" element={<PhotosFeedPage />} />
           <Route path="/videos" element={<VideosFeedPage />} />
@@ -108,6 +110,7 @@ export function AppRouter() {
           <Route path="/world" element={<WorldPage />} />
           <Route path="/books" element={<BooksPage />} />
           <Route path="/r/*" element={<RelayPage />} />
+          <Route path="/lists" element={<Navigate to="/settings/lists" replace />} />
           <Route path="/i/*" element={<ExternalContentPage />} />
 
           {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}

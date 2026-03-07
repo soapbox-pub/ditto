@@ -15,6 +15,7 @@ import {
   FileDigit,
   Trash2,
   StickyNote,
+  ListPlus,
 } from 'lucide-react';
 import {
   Dialog,
@@ -38,6 +39,7 @@ import { NoteContent } from '@/components/NoteContent';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ReportDialog } from '@/components/ReportDialog';
+import { AddToListDialog } from '@/components/AddToListDialog';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -93,6 +95,7 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   // These states live here (not in NoteMoreMenuContent) so they persist after the menu closes
   const [reportOpen, setReportOpen] = useState(false);
   const [mentionComposeOpen, setMentionComposeOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
 
   const mentionContent = `nostr:${nip19.npubEncode(event.pubkey)} `;
 
@@ -111,6 +114,10 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
             onOpenChange(false);
             setTimeout(() => setMentionComposeOpen(true), 150);
           }}
+          onAddToList={() => {
+            onOpenChange(false);
+            setTimeout(() => setAddToListOpen(true), 150);
+          }}
         />
       )}
 
@@ -122,6 +129,12 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
         initialContent={mentionContent}
         title="New post"
       />
+
+      <AddToListDialog
+        pubkey={event.pubkey}
+        open={addToListOpen}
+        onOpenChange={setAddToListOpen}
+      />
     </>
   );
 }
@@ -129,9 +142,10 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
 interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onReport: () => void;
   onMention: () => void;
+  onAddToList: () => void;
 }
 
-function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention }: NoteMoreMenuContentProps) {
+function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, onAddToList }: NoteMoreMenuContentProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const { isBookmarked, toggleBookmark } = useBookmarks();
@@ -307,6 +321,13 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention }:
             label={bookmarked ? 'Remove Bookmark' : 'Bookmark'}
             onClick={handleBookmark}
           />
+          {user && (
+            <MenuItem
+              icon={<ListPlus className="size-5" />}
+              label="Add to list"
+              onClick={() => { onAddToList(); }}
+            />
+          )}
         </div>
 
         <Separator />
