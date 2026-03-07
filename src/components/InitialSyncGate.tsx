@@ -37,8 +37,7 @@ import {
   Heart,
   Download,
 } from 'lucide-react';
-import { EXTRA_KINDS } from '@/lib/extraKinds';
-import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
+
 
 import { OnboardingContext } from '@/hooks/useOnboarding';
 
@@ -184,23 +183,8 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // Setup Questionnaire
 // ---------------------------------------------------------------------------
 
-/** Extra-kind IDs shown in the onboarding content picker, in display order. */
-const ONBOARDING_CONTENT_IDS = ['vines', 'colors', 'decks', 'treasures', 'webxdc'];
-
-/** Onboarding content kinds derived from EXTRA_KINDS — no separate data to maintain. */
-const CONTENT_KINDS = ONBOARDING_CONTENT_IDS.flatMap((id) => {
-  const def = EXTRA_KINDS.find((d) => d.id === id);
-  // Use top-level feedKey, or fall back to the first subKind's feedKey for entries like treasures
-  const feedKey = def?.feedKey ?? def?.subKinds?.[0]?.feedKey;
-  if (!def || !feedKey) return [];
-  return [{
-    key: def.id,
-    label: def.label,
-    description: def.description,
-    icon: CONTENT_KIND_ICONS[def.id],
-    feedKey: feedKey as string,
-  }];
-});
+/** Extra-kind IDs enabled by default during onboarding, in sidebar order. */
+const ONBOARDING_EXTRA_IDS = ['vines', 'colors', 'decks', 'treasures', 'webxdc'];
 
 const CW_OPTIONS: { value: ContentWarningPolicy; label: string; description: string; icon: typeof Eye }[] = [
   { value: 'blur', label: 'Blur', description: 'Blur sensitive content until you tap', icon: Shield },
@@ -215,11 +199,11 @@ const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] = 
 
 // Steps for signup (includes keygen + profile) vs. settings-only (existing login)
 type SignupStep = 'keygen' | 'download' | 'profile';
-type SettingsStep = 'welcome' | 'theme' | 'content' | 'safety' | 'follows' | 'outro';
+type SettingsStep = 'welcome' | 'theme' | 'safety' | 'follows' | 'outro';
 type Step = SignupStep | SettingsStep;
 
-const SIGNUP_STEPS: Step[] = ['welcome', 'theme', 'keygen', 'download', 'profile', 'content', 'safety', 'follows', 'outro'];
-const SETTINGS_STEPS: Step[] = ['welcome', 'theme', 'content', 'safety', 'follows', 'outro'];
+const SIGNUP_STEPS: Step[] = ['welcome', 'theme', 'keygen', 'download', 'profile', 'safety', 'follows', 'outro'];
+const SETTINGS_STEPS: Step[] = ['welcome', 'theme', 'safety', 'follows', 'outro'];
 
 function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
   onComplete: () => void;
@@ -235,9 +219,6 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
   const steps = isSignup ? SIGNUP_STEPS : SETTINGS_STEPS;
 
   const [step, setStep] = useState<Step>(steps[0]);
-  const [selectedContent, setSelectedContent] = useState<Set<string>>(
-    new Set(['events', 'vines']),
-  );
   const [selectedCW, setSelectedCW] = useState<ContentWarningPolicy>('blur');
   const [isSaving, setIsSaving] = useState(false);
   const [hasFollows, setHasFollows] = useState<boolean | null>(null);
@@ -264,17 +245,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
     }
   }, [step, steps]);
 
-  const toggleContent = useCallback((key: string) => {
-    setSelectedContent((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }, []);
+
 
   // Keygen handler
   const handleGenerate = useCallback(() => {
@@ -323,17 +294,17 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
 
     const feedSettings = {
       showArticles: false,
-      showEvents: selectedContent.has('events'),
-      feedIncludeEvents: selectedContent.has('events'),
-      showVines: selectedContent.has('vines'),
+      showEvents: true,
+      feedIncludeEvents: true,
+      showVines: true,
       showPolls: false,
-      showTreasures: selectedContent.has('treasures'),
+      showTreasures: true,
       showTreasureGeocaches: true,
       showTreasureFoundLogs: true,
-      showColors: selectedContent.has('colors'),
+      showColors: true,
       showPacks: false,
-      showDecks: selectedContent.has('decks'),
-      showWebxdc: selectedContent.has('webxdc'),
+      showDecks: true,
+      showWebxdc: true,
       showProfileThemes: false,
       showThemeDefinitions: true,
       showProfileThemeUpdates: true,
@@ -341,17 +312,17 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       feedIncludePosts: true,
       feedIncludeReposts: true,
       feedIncludeArticles: false,
-      feedIncludeVines: selectedContent.has('vines'),
+      feedIncludeVines: true,
       feedIncludePolls: false,
-      feedIncludeColors: selectedContent.has('colors'),
-      feedIncludeDecks: selectedContent.has('decks'),
+      feedIncludeColors: true,
+      feedIncludeDecks: true,
       feedIncludePacks: false,
-      feedIncludeTreasureGeocaches: selectedContent.has('treasures'),
-      feedIncludeTreasureFoundLogs: selectedContent.has('treasures'),
-      feedIncludeWebxdc: selectedContent.has('webxdc'),
+      feedIncludeTreasureGeocaches: true,
+      feedIncludeTreasureFoundLogs: true,
+      feedIncludeWebxdc: true,
       feedIncludeVoiceMessages: false,
-      showEmojiPacks: selectedContent.has('emojis'),
-      feedIncludeEmojiPacks: selectedContent.has('emojis'),
+      showEmojiPacks: true,
+      feedIncludeEmojiPacks: true,
       showCustomEmojis: true,
       showUserStatuses: true,
       feedIncludeProfileThemes: true,
@@ -371,12 +342,10 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       followsFeedShowReplies: true,
     };
 
-    // Build sidebar order: base built-ins + selected extra kinds in CONTENT_KINDS order
+    // Build sidebar order: base built-ins + all extra content kinds
     const BASE_SIDEBAR = ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings'];
-    const selectedSidebarIds = CONTENT_KINDS
-      .filter((k) => selectedContent.has(k.key))
-      .map((k) => k.key);
-    const sidebarOrder = [...BASE_SIDEBAR, ...selectedSidebarIds];
+    const extraSidebarIds = ONBOARDING_EXTRA_IDS;
+    const sidebarOrder = [...BASE_SIDEBAR, ...extraSidebarIds];
 
     updateConfig((current) => ({
       ...current,
@@ -422,7 +391,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
     } else {
       goTo('follows');
     }
-  }, [selectedContent, selectedCW, updateConfig, updateSettings, user, nostr, goTo]);
+  }, [selectedCW, updateConfig, updateSettings, user, nostr, goTo]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
@@ -460,15 +429,6 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
               onNext={next}
               onBack={back}
               isFirst={isSignup && steps.indexOf('theme') === 0}
-            />
-          )}
-
-          {step === 'content' && (
-            <ContentStep
-              selected={selectedContent}
-              onToggle={toggleContent}
-              onNext={next}
-              onBack={back}
             />
           )}
 
@@ -780,71 +740,6 @@ function ThemeStep({
         )}
       </div>
     </>
-  );
-}
-
-function ContentStep({
-  selected,
-  onToggle,
-  onNext,
-  onBack,
-}: {
-  selected: Set<string>;
-  onToggle: (key: string) => void;
-  onNext: () => void;
-  onBack: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-right-4 duration-400">
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight">What interests you?</h2>
-        <p className="text-sm text-muted-foreground">
-          Enable content types to see in your sidebar and feed. You can change these anytime.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        {CONTENT_KINDS.map((kind) => {
-          const isSelected = selected.has(kind.key);
-          return (
-            <button
-              key={kind.key}
-              type="button"
-              onClick={() => onToggle(kind.key)}
-              className={cn(
-                'w-full flex items-center gap-4 p-3.5 rounded-xl transition-all duration-200 text-left',
-                isSelected
-                  ? 'ring-2 ring-primary bg-primary/5'
-                  : 'ring-1 ring-border hover:bg-muted/50',
-              )}
-            >
-              <div className={cn(
-                'w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
-                isSelected ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
-              )}>
-                <kind.icon className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{kind.label}</p>
-                <p className="text-xs text-muted-foreground">{kind.description}</p>
-              </div>
-              <div
-                className={cn(
-                  'w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors',
-                  isSelected
-                    ? 'bg-primary text-primary-foreground'
-                    : 'border border-input',
-                )}
-              >
-                {isSelected && <Check className="w-3.5 h-3.5" />}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      <StepNav onBack={onBack} onNext={onNext} />
-    </div>
   );
 }
 
