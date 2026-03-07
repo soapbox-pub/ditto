@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, Sparkles, RefreshCw, Check, Info, Users, Target, Zap, ShoppingBag, Package } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, Sparkles, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -1108,25 +1108,28 @@ function BlobbiBottomBar({
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30">
       <div className="container mx-auto max-w-4xl px-4 pb-4">
-        <div className="flex items-center justify-between bg-card/95 backdrop-blur-md border border-border rounded-2xl px-3 py-2 shadow-lg">
-          {/* Left Group */}
-          <div className="flex items-center gap-1">
-            <BottomBarButton onClick={onBlobbiesClick} icon={<Users className="size-4" />} label="Blobbies" badge={blobbiesCount} />
-            <BottomBarButton onClick={onMissionsClick} icon={<Target className="size-4" />} label="Missions" />
-          </div>
-          
-          {/* Center Action Button */}
-          <button
-            onClick={onActionsClick}
-            className="flex items-center justify-center size-14 -mt-6 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all border-4 border-background"
-          >
-            <Zap className="size-6" />
-          </button>
-          
-          {/* Right Group */}
-          <div className="flex items-center gap-1">
-            <BottomBarButton onClick={onShopClick} icon={<ShoppingBag className="size-4" />} label="Shop" />
-            <BottomBarButton onClick={onInventoryClick} icon={<Package className="size-4" />} label="Inventory" />
+        <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl px-2 py-2 shadow-lg">
+          {/* 3-column grid: left | center | right */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">
+            {/* Left Group - aligned to end (closer to center) */}
+            <div className="flex items-center justify-end gap-0.5">
+              <BottomBarButton onClick={onBlobbiesClick} icon={<Users className="size-4" />} label="Blobbies" badge={blobbiesCount} />
+              <BottomBarButton onClick={onMissionsClick} icon={<Target className="size-4" />} label="Missions" />
+            </div>
+            
+            {/* Center Action Button */}
+            <button
+              onClick={onActionsClick}
+              className="flex items-center justify-center size-12 -mt-4 mx-1 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all border-4 border-background"
+            >
+              <Sparkles className="size-5" />
+            </button>
+            
+            {/* Right Group - aligned to start (closer to center) */}
+            <div className="flex items-center justify-start gap-0.5">
+              <BottomBarButton onClick={onShopClick} icon={<ShoppingBag className="size-4" />} label="Shop" />
+              <BottomBarButton onClick={onInventoryClick} icon={<Package className="size-4" />} label="Inventory" />
+            </div>
           </div>
         </div>
       </div>
@@ -1147,7 +1150,7 @@ function BottomBarButton({ onClick, icon, label, badge }: BottomBarButtonProps) 
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-[60px]"
+      className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-[52px]"
     >
       <div className="relative">
         {icon}
