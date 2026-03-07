@@ -1059,7 +1059,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             />
 
             <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
               title="Share"
               onClick={handleShare}
             >
@@ -1322,7 +1322,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
           {/* Share */}
           <button
-            className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+            className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
             title="Share"
             onClick={handleShare}
           >
