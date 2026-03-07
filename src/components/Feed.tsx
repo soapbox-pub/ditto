@@ -70,15 +70,25 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
     return 'Community';
   })();
 
+  const FEED_TAB_KEY = 'ditto:active-feed-tab';
+  const CORE_TABS: readonly string[] = ['follows', 'global', 'communities'];
+
   const [activeTab, setActiveTab] = useState<FeedTab>(() => {
-    if (!user) return 'global';
-    return 'follows';
+    const defaultTab: FeedTab = user ? 'follows' : 'global';
+    try {
+      const stored = sessionStorage.getItem(FEED_TAB_KEY);
+      if (stored && (CORE_TABS.includes(stored) || savedFeeds.some((f) => f.id === stored))) {
+        return stored as FeedTab;
+      }
+    } catch { /* sessionStorage unavailable */ }
+    return defaultTab;
   });
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
 
   const handleSetActiveTab = useCallback((tab: FeedTab) => {
     setActiveTab(tab);
+    try { sessionStorage.setItem(FEED_TAB_KEY, tab); } catch { /* ignore */ }
   }, []);
 
   // Is the active tab a saved feed?
