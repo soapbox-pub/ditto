@@ -25,6 +25,11 @@ import {
   getTagValue,
 } from './blobbi';
 
+// ─── Egg Module Types (derived from EggVisualBlobbi) ──────────────────────────
+
+/** Life stage values accepted by EggGraphic */
+type EggLifeStage = NonNullable<EggVisualBlobbi['lifeStage']>;
+
 // ─── Mapping Tables ───────────────────────────────────────────────────────────
 
 /**
@@ -36,7 +41,7 @@ const PATTERN_MAP: Record<BlobbiPattern, string> = {
   'spotted': 'spotted',
   'striped': 'striped',
   'gradient': 'gradient',
-} as const;
+};
 
 /**
  * Maps Blobbi special mark values to EggGraphic special mark values.
@@ -47,22 +52,24 @@ const SPECIAL_MARK_MAP: Record<BlobbiSpecialMark, string> = {
   'heart': 'heart',
   'sparkle': 'sparkle',
   'blush': 'blush',
-} as const;
+};
 
 /**
  * Maps Blobbi stage values to EggGraphic life stage values.
+ * Uses the exact union type from EggVisualBlobbi.
  */
-const LIFE_STAGE_MAP: Record<BlobbiStage, 'egg' | 'baby' | 'adult'> = {
+const LIFE_STAGE_MAP: Record<BlobbiStage, EggLifeStage> = {
   'egg': 'egg',
   'baby': 'baby',
   'adult': 'adult',
-} as const;
+};
 
 // ─── Fallback Values ──────────────────────────────────────────────────────────
 
 const DEFAULT_PATTERN = 'solid';
 const DEFAULT_SPECIAL_MARK = 'none';
-const DEFAULT_LIFE_STAGE: 'egg' | 'baby' | 'adult' = 'egg';
+const DEFAULT_LIFE_STAGE: EggLifeStage = 'egg';
+const DEFAULT_THEME_VARIANT = 'default';
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
@@ -103,12 +110,12 @@ function extractCrossoverApp(allTags: string[][]): string | undefined {
  * - Does NOT leak app-specific assumptions into EggGraphic
  * 
  * @param companion - The parsed BlobbiCompanion from parseBlobbiEvent
- * @param themeVariant - Optional theme variant override (default: 'default')
- * @returns Visual data ready for EggGraphic rendering
+ * @param themeVariant - Optional theme variant override
+ * @returns Visual data compatible with EggVisualBlobbi
  */
 export function toEggGraphicVisualBlobbi(
   companion: BlobbiCompanion,
-  themeVariant: string = 'default'
+  themeVariant: string = DEFAULT_THEME_VARIANT
 ): EggVisualBlobbi {
   const { visualTraits, stage, name, allTags } = companion;
   
@@ -126,7 +133,7 @@ export function toEggGraphicVisualBlobbi(
     title: name,
     themeVariant,
     
-    // Pass through full tags - EggGraphic may need any of them for lookups
+    // Pass through full tags for EggGraphic metadata lookups
     tags: allTags,
     
     // Extracted convenience values
@@ -136,7 +143,7 @@ export function toEggGraphicVisualBlobbi(
 }
 
 /**
- * Check if two EggGraphic visual configurations are visually equivalent.
+ * Check if two EggVisualBlobbi configurations are visually equivalent.
  * Useful for memoization and avoiding unnecessary re-renders.
  */
 export function areEggGraphicVisualsEqual(
