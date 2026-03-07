@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, Sparkles, RefreshCw, ArrowLeftRight, Check } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, Sparkles, RefreshCw, ArrowLeftRight, Check, Info } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -13,23 +13,13 @@ import { toast } from '@/hooks/useToast';
 
 import { LoginArea } from '@/components/auth/LoginArea';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { BlobbiEggVisual } from '@/blobbi/ui/BlobbiEggVisual';
 import { cn } from '@/lib/utils';
-
-/**
- * Get the localStorage key for the selected Blobbi.
- * User-scoped: blobbi:selected:d:<pubkey>
- */
-function getSelectedBlobbiKey(pubkey: string): string {
-  return `blobbi:selected:d:${pubkey}`;
-}
-
-/** Enable debug logging in development only */
-const DEBUG_BLOBBI = import.meta.env.DEV;
 
 import {
   KIND_BLOBBI_STATE,
@@ -42,6 +32,17 @@ import {
   updateBlobbonautTags,
   type BlobbiCompanion,
 } from '@/lib/blobbi';
+
+/**
+ * Get the localStorage key for the selected Blobbi.
+ * User-scoped: blobbi:selected:d:<pubkey>
+ */
+function getSelectedBlobbiKey(pubkey: string): string {
+  return `blobbi:selected:d:${pubkey}`;
+}
+
+/** Enable debug logging in development only */
+const DEBUG_BLOBBI = import.meta.env.DEV;
 
 // ─── Page Component ───────────────────────────────────────────────────────────
 
@@ -67,8 +68,8 @@ function LoggedOutState() {
   return (
     <main className="flex flex-col items-center justify-center p-6 gap-6 min-h-[60vh]">
       <div className="flex flex-col items-center gap-3 text-center max-w-sm">
-        <div className="size-20 rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-          <Egg className="size-10 text-primary" />
+        <div className="size-20 rounded-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 flex items-center justify-center">
+          <Egg className="size-10 text-purple-500" />
         </div>
         <h1 className="text-2xl font-bold">Blobbi</h1>
         <p className="text-muted-foreground">
@@ -395,38 +396,40 @@ function BlobbiContent() {
   
   // Still loading profile? Show loading
   if (profileLoading) {
-    return <LoadingState />;
+    return <DashboardLoadingState />;
   }
   
   // Case D: No profile exists → show "Initialize Blobbonaut"
   if (!profile) {
     return (
-      <main className="flex flex-col items-center justify-center p-6 gap-6 min-h-[60vh]">
-        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-          <div className="size-24 rounded-3xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 flex items-center justify-center">
-            <Sparkles className="size-12 text-primary" />
+      <DashboardShell>
+        <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
+          <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+            <div className="size-24 rounded-3xl bg-gradient-to-br from-purple-500/20 via-pink-500/10 to-purple-500/5 flex items-center justify-center">
+              <Sparkles className="size-12 text-purple-500" />
+            </div>
+            <h1 className="text-2xl font-bold">Welcome to Blobbi!</h1>
+            <p className="text-muted-foreground">
+              Initialize your Blobbonaut profile to start caring for virtual pets on Nostr.
+            </p>
+            <Button
+              onClick={handleInitializeProfile}
+              disabled={isPublishing || actionInProgress !== null}
+              size="lg"
+              className="mt-2"
+            >
+              {actionInProgress === 'init-profile' ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Initializing...
+                </>
+              ) : (
+                'Initialize Blobbonaut'
+              )}
+            </Button>
           </div>
-          <h1 className="text-2xl font-bold">Welcome to Blobbi!</h1>
-          <p className="text-muted-foreground">
-            Initialize your Blobbonaut profile to start caring for virtual pets on Nostr.
-          </p>
-          <Button
-            onClick={handleInitializeProfile}
-            disabled={isPublishing || actionInProgress !== null}
-            size="lg"
-            className="mt-2"
-          >
-            {actionInProgress === 'init-profile' ? (
-              <>
-                <Loader2 className="size-4 mr-2 animate-spin" />
-                Initializing...
-              </>
-            ) : (
-              'Initialize Blobbonaut'
-            )}
-          </Button>
         </div>
-      </main>
+      </DashboardShell>
     );
   }
   
@@ -434,41 +437,43 @@ function BlobbiContent() {
   // Case C: Profile exists but no pets → show "Create Egg"
   if (!dList || dList.length === 0) {
     return (
-      <main className="flex flex-col items-center justify-center p-6 gap-6 min-h-[60vh]">
-        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-          <div className="size-24 rounded-3xl bg-gradient-to-br from-amber-500/20 via-orange-500/10 to-yellow-500/5 flex items-center justify-center">
-            <Egg className="size-12 text-amber-500" />
+      <DashboardShell>
+        <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
+          <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+            <div className="size-24 rounded-3xl bg-gradient-to-br from-amber-500/20 via-orange-500/10 to-yellow-500/5 flex items-center justify-center">
+              <Egg className="size-12 text-amber-500" />
+            </div>
+            <h1 className="text-2xl font-bold">Create Your First Blobbi!</h1>
+            <p className="text-muted-foreground">
+              Create an egg to begin your Blobbi journey. Watch it grow and care for it!
+            </p>
+            <Button
+              onClick={handleCreateEgg}
+              disabled={isPublishing || actionInProgress !== null}
+              size="lg"
+              className="mt-2"
+            >
+              {actionInProgress === 'create-egg' ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Egg className="size-4 mr-2" />
+                  Create Egg
+                </>
+              )}
+            </Button>
           </div>
-          <h1 className="text-2xl font-bold">Create Your First Blobbi!</h1>
-          <p className="text-muted-foreground">
-            Create an egg to begin your Blobbi journey. Watch it grow and care for it!
-          </p>
-          <Button
-            onClick={handleCreateEgg}
-            disabled={isPublishing || actionInProgress !== null}
-            size="lg"
-            className="mt-2"
-          >
-            {actionInProgress === 'create-egg' ? (
-              <>
-                <Loader2 className="size-4 mr-2 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              <>
-                <Egg className="size-4 mr-2" />
-                Create Egg
-              </>
-            )}
-          </Button>
         </div>
-      </main>
+      </DashboardShell>
     );
   }
   
   // We have dList, wait for collection to load
   if (companionLoading) {
-    return <LoadingState />;
+    return <DashboardLoadingState />;
   }
   
   // STEP 7: No valid selection but we have pets → show Blobbi Selector
@@ -490,42 +495,44 @@ function BlobbiContent() {
   // This could mean the pets don't exist on relays yet
   if (!selectedD || companions.length === 0) {
     return (
-      <main className="flex flex-col items-center justify-center p-6 gap-6 min-h-[60vh]">
-        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-          <div className="size-24 rounded-3xl bg-gradient-to-br from-muted/30 via-muted/20 to-muted/10 flex items-center justify-center">
-            <RefreshCw className={cn(
-              "size-12 text-muted-foreground",
-              companionFetching && "animate-spin"
-            )} />
+      <DashboardShell>
+        <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
+          <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+            <div className="size-24 rounded-3xl bg-gradient-to-br from-muted/30 via-muted/20 to-muted/10 flex items-center justify-center">
+              <RefreshCw className={cn(
+                "size-12 text-muted-foreground",
+                companionFetching && "animate-spin"
+              )} />
+            </div>
+            <h1 className="text-2xl font-bold">Loading your Blobbi...</h1>
+            <p className="text-muted-foreground">
+              {companionFetching 
+                ? 'Fetching your pet data from relays...'
+                : 'Your pet data could not be found. You can create a new egg.'}
+            </p>
+            {!companionFetching && (
+              <Button
+                onClick={handleCreateEgg}
+                disabled={isPublishing || actionInProgress !== null}
+                size="lg"
+                className="mt-2"
+              >
+                {actionInProgress === 'create-egg' ? (
+                  <>
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Egg className="size-4 mr-2" />
+                    Create New Egg
+                  </>
+                )}
+              </Button>
+            )}
           </div>
-          <h1 className="text-2xl font-bold">Loading your Blobbi...</h1>
-          <p className="text-muted-foreground">
-            {companionFetching 
-              ? 'Fetching your pet data from relays...'
-              : 'Your pet data could not be found. You can create a new egg.'}
-          </p>
-          {!companionFetching && (
-            <Button
-              onClick={handleCreateEgg}
-              disabled={isPublishing || actionInProgress !== null}
-              size="lg"
-              className="mt-2"
-            >
-              {actionInProgress === 'create-egg' ? (
-                <>
-                  <Loader2 className="size-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Egg className="size-4 mr-2" />
-                  Create New Egg
-                </>
-              )}
-            </Button>
-          )}
         </div>
-      </main>
+      </DashboardShell>
     );
   }
   
@@ -540,54 +547,107 @@ function BlobbiContent() {
     );
   }
   
-  // Case A: Profile exists and companion exists → Render the Blobbi
+  // Case A: Profile exists and companion exists → Render the Blobbi Dashboard
   return (
-    <main className="container max-w-2xl mx-auto p-4 pb-20 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Egg className="size-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold">Blobbi</h1>
-            <p className="text-sm text-muted-foreground">Your virtual companion</p>
+    <BlobbiDashboard
+      companion={companion}
+      companions={companions}
+      selectedD={selectedD}
+      showSelector={showSelector}
+      setShowSelector={setShowSelector}
+      onSelectBlobbi={handleSelectBlobbi}
+      onRest={handleRest}
+      onToggleVisibility={handleToggleVisibility}
+      actionInProgress={actionInProgress}
+      isPublishing={isPublishing}
+      isFetching={profileFetching || companionFetching}
+    />
+  );
+}
+
+// ─── Dashboard Shell ──────────────────────────────────────────────────────────
+
+interface DashboardShellProps {
+  children: React.ReactNode;
+}
+
+function DashboardShell({ children }: DashboardShellProps) {
+  return (
+    <main className="min-h-[calc(100vh-4rem)] p-4 pb-20">
+      <div className="container mx-auto max-w-4xl">
+        {/* Frosted glass dashboard container */}
+        <div className="relative rounded-2xl bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border border-white/50 dark:border-gray-700/50 border-t-2 border-t-purple-300 dark:border-t-purple-600 overflow-hidden min-h-[70vh]">
+          {/* Decorative gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-50/80 via-pink-50/40 to-purple-50/80 dark:from-purple-900/20 dark:via-pink-900/10 dark:to-purple-900/20 pointer-events-none" />
+          
+          {/* Content wrapper */}
+          <div className="relative z-10 h-full flex flex-col min-h-[70vh]">
+            {children}
           </div>
         </div>
+      </div>
+    </main>
+  );
+}
+
+// ─── Main Blobbi Dashboard ────────────────────────────────────────────────────
+
+interface BlobbiDashboardProps {
+  companion: BlobbiCompanion;
+  companions: BlobbiCompanion[];
+  selectedD: string;
+  showSelector: boolean;
+  setShowSelector: (show: boolean) => void;
+  onSelectBlobbi: (d: string) => void;
+  onRest: () => void;
+  onToggleVisibility: () => void;
+  actionInProgress: string | null;
+  isPublishing: boolean;
+  isFetching: boolean;
+}
+
+function BlobbiDashboard({
+  companion,
+  companions,
+  selectedD,
+  showSelector,
+  setShowSelector,
+  onSelectBlobbi,
+  onRest,
+  onToggleVisibility,
+  actionInProgress,
+  isPublishing,
+  isFetching,
+}: BlobbiDashboardProps) {
+  const isSleeping = companion.state === 'sleeping';
+  
+  return (
+    <DashboardShell>
+      {/* Header Row */}
+      <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-purple-200/50 dark:border-purple-800/30">
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+            <Egg className="size-5 text-purple-500" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold">Blobbi</h1>
+            <p className="text-xs text-muted-foreground">Your virtual companion</p>
+          </div>
+        </div>
+        
         <div className="flex items-center gap-2">
-          {(profileFetching || companionFetching) && (
+          {isFetching && (
             <RefreshCw className="size-4 text-muted-foreground animate-spin" />
           )}
           
-          {/* STEP 8: Switch Blobbi Button */}
-          {companions.length > 1 && (
-            <Dialog open={showSelector} onOpenChange={setShowSelector}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1">
-                  <ArrowLeftRight className="size-3" />
-                  Switch
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Switch Blobbi</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-3 pt-2">
-                  {companions.map((c) => (
-                    <BlobbiSelectorCard
-                      key={c.d}
-                      companion={c}
-                      onSelect={() => handleSelectBlobbi(c.d)}
-                      isSelected={c.d === selectedD}
-                    />
-                  ))}
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-          
-          <Badge variant={companion.state === 'sleeping' ? 'secondary' : 'default'}>
-            {companion.state === 'sleeping' ? (
+          <Badge 
+            variant={isSleeping ? 'secondary' : 'default'}
+            className={cn(
+              "text-xs",
+              !isSleeping && "bg-purple-500 hover:bg-purple-600"
+            )}
+          >
+            {isSleeping ? (
               <>
                 <Moon className="size-3 mr-1" />
                 Sleeping
@@ -604,175 +664,224 @@ function BlobbiContent() {
       
       {/* Legacy Migration Notice */}
       {companion.isLegacy && (
-        <Card className="border-amber-500/50 bg-amber-500/5">
-          <CardContent className="p-4">
-            <p className="text-sm text-amber-600 dark:text-amber-400">
-              This pet uses an older format. It will be automatically upgraded on your next interaction.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="mx-4 mt-4 sm:mx-6 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+          <p className="text-sm text-amber-600 dark:text-amber-400">
+            This pet uses an older format. It will be automatically upgraded on your next interaction.
+          </p>
+        </div>
       )}
       
-      {/* Companion Display */}
-      <BlobbiDisplay
-        companion={companion}
-        onRest={handleRest}
-        onToggleVisibility={handleToggleVisibility}
-        actionInProgress={actionInProgress}
-        isPublishing={isPublishing}
-      />
-    </main>
-  );
-}
-
-// ─── Blobbi Display ───────────────────────────────────────────────────────────
-
-interface BlobbiDisplayProps {
-  companion: BlobbiCompanion;
-  onRest: () => void;
-  onToggleVisibility: () => void;
-  actionInProgress: string | null;
-  isPublishing: boolean;
-}
-
-function BlobbiDisplay({
-  companion,
-  onRest,
-  onToggleVisibility,
-  actionInProgress,
-  isPublishing,
-}: BlobbiDisplayProps) {
-  const isSleeping = companion.state === 'sleeping';
-  
-  return (
-    <div className="space-y-4">
-      {/* Main Card */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col items-center gap-4">
-            {/* Blobbi Visual - Real EggGraphic rendering */}
-            <BlobbiEggVisual
-              companion={companion}
-              size="lg"
-              animated
-            />
-            
-            {/* Name & Stage */}
-            <div className="text-center">
-              <h2 className="text-xl font-bold">{companion.name}</h2>
-              <p className="text-sm text-muted-foreground capitalize">
-                {companion.stage} Blobbi
-              </p>
-            </div>
-            
-            {/* Visibility Badge */}
-            <Badge variant="outline" className="gap-1">
-              {companion.visibleToOthers ? (
-                <>
-                  <Eye className="size-3" />
-                  Visible
-                </>
-              ) : (
-                <>
-                  <EyeOff className="size-3" />
-                  Hidden
-                </>
-              )}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Stats Card */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Stats</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <StatBar label="Hunger" value={companion.stats.hunger} color="bg-orange-500" />
-          <StatBar label="Happiness" value={companion.stats.happiness} color="bg-yellow-500" />
-          <StatBar label="Health" value={companion.stats.health} color="bg-green-500" />
-          <StatBar label="Hygiene" value={companion.stats.hygiene} color="bg-blue-500" />
-          <StatBar label="Energy" value={companion.stats.energy} color="bg-purple-500" />
-        </CardContent>
-      </Card>
-      
-      {/* Actions */}
-      <div className="flex gap-3">
-        <Button
-          onClick={onRest}
-          disabled={isPublishing || actionInProgress !== null}
-          variant={isSleeping ? 'default' : 'secondary'}
-          className="flex-1"
-        >
-          {actionInProgress === 'rest' ? (
-            <Loader2 className="size-4 mr-2 animate-spin" />
-          ) : isSleeping ? (
-            <Sun className="size-4 mr-2" />
-          ) : (
-            <Moon className="size-4 mr-2" />
+      {/* Hero Section */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:px-6">
+        {/* Floating Quick Actions */}
+        <div className="absolute top-20 right-4 sm:right-6 flex flex-col gap-2 z-20">
+          {companions.length > 1 && (
+            <Dialog open={showSelector} onOpenChange={setShowSelector}>
+              <DialogTrigger asChild>
+                <QuickActionButton tooltip="Switch Blobbi">
+                  <ArrowLeftRight className="size-4" />
+                </QuickActionButton>
+              </DialogTrigger>
+              <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Switch Blobbi</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-3 pt-2">
+                  {companions.map((c) => (
+                    <BlobbiSelectorCard
+                      key={c.d}
+                      companion={c}
+                      onSelect={() => onSelectBlobbi(c.d)}
+                      isSelected={c.d === selectedD}
+                    />
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
-          {isSleeping ? 'Wake Up' : 'Rest'}
-        </Button>
+          
+          <QuickActionButton
+            tooltip={isSleeping ? 'Wake Up' : 'Rest'}
+            onClick={onRest}
+            disabled={isPublishing || actionInProgress !== null}
+            loading={actionInProgress === 'rest'}
+          >
+            {isSleeping ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </QuickActionButton>
+          
+          <QuickActionButton
+            tooltip={companion.visibleToOthers ? 'Hide' : 'Show'}
+            onClick={onToggleVisibility}
+            disabled={isPublishing || actionInProgress !== null}
+            loading={actionInProgress === 'visibility'}
+          >
+            {companion.visibleToOthers ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          </QuickActionButton>
+        </div>
         
-        <Button
-          onClick={onToggleVisibility}
-          disabled={isPublishing || actionInProgress !== null}
-          variant="outline"
-          className="flex-1"
-        >
-          {actionInProgress === 'visibility' ? (
-            <Loader2 className="size-4 mr-2 animate-spin" />
-          ) : companion.visibleToOthers ? (
-            <EyeOff className="size-4 mr-2" />
-          ) : (
-            <Eye className="size-4 mr-2" />
-          )}
-          {companion.visibleToOthers ? 'Hide' : 'Show'}
-        </Button>
+        {/* Blobbi Name */}
+        <div className="flex items-center gap-2 mb-6">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center">{companion.name}</h2>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="text-muted-foreground hover:text-foreground transition-colors">
+                <Info className="size-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="capitalize">{companion.stage} Blobbi</p>
+              <p className="text-xs text-muted-foreground">
+                {companion.visibleToOthers ? 'Visible to others' : 'Hidden from others'}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        
+        {/* Main Blobbi Visual */}
+        <div className={cn(
+          "relative transition-all duration-500",
+          isSleeping && "opacity-80"
+        )}>
+          {/* Glow effect behind the egg */}
+          <div className="absolute inset-0 -m-8 bg-gradient-to-br from-purple-400/20 via-pink-400/20 to-purple-400/20 rounded-full blur-3xl" />
+          
+          <BlobbiEggVisual
+            companion={companion}
+            size="lg"
+            animated={!isSleeping}
+            className="size-48 sm:size-56"
+          />
+        </div>
+        
+        {/* Stage Badge */}
+        <Badge variant="outline" className="mt-6 capitalize">
+          {companion.stage} Stage
+        </Badge>
       </div>
       
-      {/* Info */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <InfoItem label="Generation" value={companion.generation?.toString() ?? '1'} />
-            <InfoItem label="Experience" value={companion.experience?.toString() ?? '0'} />
-            <InfoItem label="Care Streak" value={`${companion.careStreak ?? 0} days`} />
-            <InfoItem
-              label="Last Interaction"
-              value={formatTimeAgo(companion.lastInteraction)}
-            />
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      {/* Stats & Info Section */}
+      <div className="px-4 pb-6 sm:px-6 space-y-4">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-5 gap-2 sm:gap-4">
+          <StatIndicator label="Hunger" value={companion.stats.hunger} color="orange" />
+          <StatIndicator label="Happy" value={companion.stats.happiness} color="yellow" />
+          <StatIndicator label="Health" value={companion.stats.health} color="green" />
+          <StatIndicator label="Hygiene" value={companion.stats.hygiene} color="blue" />
+          <StatIndicator label="Energy" value={companion.stats.energy} color="purple" />
+        </div>
+        
+        {/* Info Card */}
+        <Card className="bg-white/50 dark:bg-gray-800/50 border-purple-200/30 dark:border-purple-700/30">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+              <InfoItem label="Generation" value={companion.generation?.toString() ?? '1'} />
+              <InfoItem label="Experience" value={companion.experience?.toString() ?? '0'} />
+              <InfoItem label="Care Streak" value={`${companion.careStreak ?? 0} days`} />
+              <InfoItem label="Last Active" value={formatTimeAgo(companion.lastInteraction)} />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardShell>
   );
 }
 
-// ─── Stat Bar ─────────────────────────────────────────────────────────────────
+// ─── Quick Action Button ──────────────────────────────────────────────────────
 
-interface StatBarProps {
-  label: string;
-  value: number | undefined;
-  color: string;
+interface QuickActionButtonProps {
+  children: React.ReactNode;
+  tooltip: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  loading?: boolean;
 }
 
-function StatBar({ label, value, color }: StatBarProps) {
+function QuickActionButton({ children, tooltip, onClick, disabled, loading }: QuickActionButtonProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onClick}
+          disabled={disabled}
+          className="size-10 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-purple-200/50 dark:border-purple-700/50 hover:border-purple-300 dark:hover:border-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-all shadow-sm"
+        >
+          {loading ? <Loader2 className="size-4 animate-spin" /> : children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="left">
+        <p>{tooltip}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// ─── Stat Indicator ───────────────────────────────────────────────────────────
+
+interface StatIndicatorProps {
+  label: string;
+  value: number | undefined;
+  color: 'orange' | 'yellow' | 'green' | 'blue' | 'purple';
+}
+
+const STAT_COLORS = {
+  orange: 'from-orange-500 to-orange-400',
+  yellow: 'from-yellow-500 to-yellow-400',
+  green: 'from-green-500 to-green-400',
+  blue: 'from-blue-500 to-blue-400',
+  purple: 'from-purple-500 to-purple-400',
+};
+
+const STAT_BG_COLORS = {
+  orange: 'bg-orange-100 dark:bg-orange-900/30',
+  yellow: 'bg-yellow-100 dark:bg-yellow-900/30',
+  green: 'bg-green-100 dark:bg-green-900/30',
+  blue: 'bg-blue-100 dark:bg-blue-900/30',
+  purple: 'bg-purple-100 dark:bg-purple-900/30',
+};
+
+function StatIndicator({ label, value, color }: StatIndicatorProps) {
   const displayValue = value ?? 0;
   
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-sm">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium">{displayValue}</span>
+    <div className="flex flex-col items-center gap-1">
+      <div className={cn(
+        "relative size-12 sm:size-14 rounded-full flex items-center justify-center",
+        STAT_BG_COLORS[color]
+      )}>
+        {/* Progress ring */}
+        <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
+          <circle
+            cx="18"
+            cy="18"
+            r="15"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            className="text-muted/20"
+          />
+          <circle
+            cx="18"
+            cy="18"
+            r="15"
+            fill="none"
+            stroke="url(#statGradient)"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeDasharray={`${displayValue * 0.94} 100`}
+            className="transition-all duration-500"
+          />
+          <defs>
+            <linearGradient id="statGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" className={cn("stop-color-current", STAT_COLORS[color].split(' ')[0].replace('from-', 'text-'))} />
+              <stop offset="100%" className={cn("stop-color-current", STAT_COLORS[color].split(' ')[1].replace('to-', 'text-'))} />
+            </linearGradient>
+          </defs>
+        </svg>
+        <span className="text-xs sm:text-sm font-semibold">{displayValue}</span>
       </div>
-      <div className="h-2 bg-muted rounded-full overflow-hidden">
-        <div
-          className={cn('h-full rounded-full transition-all duration-500', color)}
-          style={{ width: `${displayValue}%` }}
-        />
-      </div>
+      <span className="text-[10px] sm:text-xs text-muted-foreground">{label}</span>
     </div>
   );
 }
@@ -781,7 +890,7 @@ function StatBar({ label, value, color }: StatBarProps) {
 
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div className="text-center sm:text-left">
       <p className="text-muted-foreground text-xs">{label}</p>
       <p className="font-medium">{value}</p>
     </div>
@@ -798,16 +907,16 @@ interface BlobbiSelectorPageProps {
 
 function BlobbiSelectorPage({ companions, onSelect, isLoading }: BlobbiSelectorPageProps) {
   return (
-    <main className="container max-w-2xl mx-auto p-4 pb-20 space-y-6">
+    <DashboardShell>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-purple-200/50 dark:border-purple-800/30">
         <div className="flex items-center gap-3">
-          <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Egg className="size-5 text-primary" />
+          <div className="size-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+            <Egg className="size-5 text-purple-500" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">Choose Your Blobbi</h1>
-            <p className="text-sm text-muted-foreground">Select a companion to care for</p>
+            <h1 className="text-lg font-semibold">Choose Your Blobbi</h1>
+            <p className="text-xs text-muted-foreground">Select a companion to care for</p>
           </div>
         </div>
         {isLoading && (
@@ -816,16 +925,18 @@ function BlobbiSelectorPage({ companions, onSelect, isLoading }: BlobbiSelectorP
       </div>
       
       {/* Blobbi List */}
-      <div className="grid gap-4">
-        {companions.map((companion) => (
-          <BlobbiSelectorCard
-            key={companion.d}
-            companion={companion}
-            onSelect={() => onSelect(companion.d)}
-          />
-        ))}
+      <div className="flex-1 p-4 sm:p-6">
+        <div className="grid gap-3 max-w-lg mx-auto">
+          {companions.map((companion) => (
+            <BlobbiSelectorCard
+              key={companion.d}
+              companion={companion}
+              onSelect={() => onSelect(companion.d)}
+            />
+          ))}
+        </div>
       </div>
-    </main>
+    </DashboardShell>
   );
 }
 
@@ -841,109 +952,116 @@ function BlobbiSelectorCard({ companion, onSelect, isSelected }: BlobbiSelectorC
   const isSleeping = companion.state === 'sleeping';
   
   return (
-    <Card 
-      className={cn(
-        'cursor-pointer transition-all hover:border-primary/50 hover:shadow-md',
-        isSelected && 'border-primary ring-2 ring-primary/20'
-      )}
+    <button
       onClick={onSelect}
+      className={cn(
+        'w-full p-4 rounded-xl text-left transition-all',
+        'bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm',
+        'border border-purple-200/50 dark:border-purple-700/50',
+        'hover:border-purple-300 dark:hover:border-purple-600',
+        'hover:bg-purple-50/50 dark:hover:bg-purple-900/20',
+        'hover:shadow-md',
+        isSelected && 'border-purple-500 ring-2 ring-purple-500/20 bg-purple-50/50 dark:bg-purple-900/20'
+      )}
     >
-      <CardContent className="p-4">
-        <div className="flex items-center gap-4">
-          {/* Blobbi Visual - Real EggGraphic rendering */}
-          <div className="shrink-0">
-            <BlobbiEggVisual
-              companion={companion}
-              size="sm"
-            />
+      <div className="flex items-center gap-4">
+        {/* Blobbi Visual */}
+        <div className="shrink-0">
+          <BlobbiEggVisual
+            companion={companion}
+            size="sm"
+          />
+        </div>
+        
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold truncate">{companion.name}</h3>
+            {isSelected && (
+              <Check className="size-4 text-purple-500 shrink-0" />
+            )}
           </div>
-          
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold truncate">{companion.name}</h3>
-              {isSelected && (
-                <Check className="size-4 text-primary shrink-0" />
+          <p className="text-sm text-muted-foreground capitalize">
+            {companion.stage} Blobbi
+          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <Badge 
+              variant={isSleeping ? 'secondary' : 'default'} 
+              className={cn(
+                "text-xs",
+                !isSleeping && "bg-purple-500 hover:bg-purple-600"
               )}
-            </div>
-            <p className="text-sm text-muted-foreground capitalize">
-              {companion.stage} Blobbi
-            </p>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant={isSleeping ? 'secondary' : 'default'} className="text-xs">
-                {isSleeping ? (
-                  <>
-                    <Moon className="size-3 mr-1" />
-                    Sleeping
-                  </>
-                ) : (
-                  <>
-                    <Sun className="size-3 mr-1" />
-                    Active
-                  </>
-                )}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {companion.visibleToOthers ? (
-                  <>
-                    <Eye className="size-3 mr-1" />
-                    Visible
-                  </>
-                ) : (
-                  <>
-                    <EyeOff className="size-3 mr-1" />
-                    Hidden
-                  </>
-                )}
-              </Badge>
-            </div>
+            >
+              {isSleeping ? (
+                <>
+                  <Moon className="size-3 mr-1" />
+                  Sleeping
+                </>
+              ) : (
+                <>
+                  <Sun className="size-3 mr-1" />
+                  Active
+                </>
+              )}
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              {companion.visibleToOthers ? (
+                <>
+                  <Eye className="size-3 mr-1" />
+                  Visible
+                </>
+              ) : (
+                <>
+                  <EyeOff className="size-3 mr-1" />
+                  Hidden
+                </>
+              )}
+            </Badge>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </button>
   );
 }
 
-// ─── Loading State ────────────────────────────────────────────────────────────
+// ─── Dashboard Loading State ──────────────────────────────────────────────────
 
-function LoadingState() {
+function DashboardLoadingState() {
   return (
-    <main className="container max-w-2xl mx-auto p-4 space-y-6">
-      <div className="flex items-center justify-between">
+    <DashboardShell>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-purple-200/50 dark:border-purple-800/30">
         <div className="flex items-center gap-3">
           <Skeleton className="size-10 rounded-xl" />
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-20" />
-            <Skeleton className="h-4 w-32" />
+          <div className="space-y-1">
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-3 w-28" />
           </div>
         </div>
         <Skeleton className="h-6 w-20 rounded-full" />
       </div>
       
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col items-center gap-4">
-            <Skeleton className="size-32 rounded-full" />
-            <Skeleton className="h-6 w-24" />
-            <Skeleton className="h-4 w-16" />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Hero */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+        <Skeleton className="h-8 w-32 mb-6" />
+        <Skeleton className="size-48 sm:size-56 rounded-full" />
+        <Skeleton className="h-6 w-24 mt-6 rounded-full" />
+      </div>
       
-      <Card>
-        <CardContent className="p-6 space-y-4">
+      {/* Stats */}
+      <div className="px-4 pb-6 sm:px-6 space-y-4">
+        <div className="grid grid-cols-5 gap-2 sm:gap-4">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="space-y-2">
-              <div className="flex justify-between">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-4 w-8" />
-              </div>
-              <Skeleton className="h-2 w-full rounded-full" />
+            <div key={i} className="flex flex-col items-center gap-1">
+              <Skeleton className="size-12 sm:size-14 rounded-full" />
+              <Skeleton className="h-3 w-10" />
             </div>
           ))}
-        </CardContent>
-      </Card>
-    </main>
+        </div>
+        
+        <Skeleton className="h-24 w-full rounded-xl" />
+      </div>
+    </DashboardShell>
   );
 }
 
