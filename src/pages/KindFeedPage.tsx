@@ -23,6 +23,8 @@ interface KindFeedPageProps {
   fabHref?: string;
   /** Additional tag filters to apply (e.g. `{ '#m': ['application/x-webxdc'] }`). */
   tagFilters?: Record<string, string[]>;
+  /** Unique feed ID for tab persistence. Defaults to lowercase title. */
+  feedId?: string;
   /** Extra content rendered after the feed header (e.g. a custom compose dialog). */
   extra?: React.ReactNode;
   /** If set, overrides the default FAB click behavior. */
@@ -31,7 +33,7 @@ interface KindFeedPageProps {
   showFAB?: boolean;
 }
 
-export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra, onFabClick, showFAB = true }: KindFeedPageProps) {
+export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra, onFabClick, showFAB = true, feedId }: KindFeedPageProps) {
   const { config } = useAppContext();
   const primaryKind = Array.isArray(kind) ? kind[0] : kind;
 
@@ -58,6 +60,7 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
         kinds={kinds}
         tagFilters={tagFilters}
         hideCompose
+        feedId={feedId ?? title.toLowerCase()}
         emptyMessage={emptyMessage ?? `No ${title.toLowerCase()} yet. Check back soon!`}
         header={
           <div className="flex items-center gap-4 px-4 pt-4 pb-5">
