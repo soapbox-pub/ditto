@@ -7,7 +7,7 @@
  * Streamlined for profile tabs: only Search Query, Author Scope (Me / Contacts / Global),
  * and multi-select Kind picker.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Loader2, Check, Globe, Users, User,
 } from 'lucide-react';
@@ -28,6 +28,7 @@ import {
   parseSelectedKinds,
 } from '@/components/SavedFeedFiltersEditor';
 import type { ScopeOption } from '@/components/SavedFeedFiltersEditor';
+import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import type { ProfileTab, TabFilter } from '@/lib/profileTabsEvent';
 
 
@@ -110,6 +111,11 @@ export function ProfileTabEditModal({
   const [selectedKinds, setSelectedKinds] = useState<string[]>(
     parseSelectedKinds(initialFilter),
   );
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
+
+  const dialogContentRef = useCallback((node: HTMLElement | null) => {
+    setPortalContainer(node ?? undefined);
+  }, []);
 
   // Reset state when modal opens
   const handleOpenChange = (o: boolean) => {
@@ -145,7 +151,8 @@ export function ProfileTabEditModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-sm max-h-[90dvh] overflow-y-auto">
+      <DialogContent ref={dialogContentRef} className="max-w-sm max-h-[90dvh] overflow-y-auto">
+        <PortalContainerProvider value={portalContainer}>
         <DialogHeader>
           <DialogTitle>{isNew ? 'Add profile tab' : 'Edit tab'}</DialogTitle>
         </DialogHeader>
@@ -214,6 +221,7 @@ export function ProfileTabEditModal({
             Cancel
           </Button>
         </DialogFooter>
+        </PortalContainerProvider>
       </DialogContent>
     </Dialog>
   );
