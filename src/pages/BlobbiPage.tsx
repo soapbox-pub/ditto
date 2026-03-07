@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { Egg, Moon, Sun, Eye, EyeOff, Loader2, Sparkles, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package } from 'lucide-react';
+// Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -13,7 +14,7 @@ import { toast } from '@/hooks/useToast';
 
 import { LoginArea } from '@/components/auth/LoginArea';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -339,57 +340,6 @@ function BlobbiContent() {
     }
   }, [user?.pubkey, companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent, invalidateCompanion, invalidateProfile]);
   
-  // ─── Toggle Visibility (with automatic legacy migration) ───
-  const handleToggleVisibility = useCallback(async () => {
-    if (!user?.pubkey || !companion) return;
-    
-    const newVisibility = !companion.visibleToOthers;
-    
-    setActionInProgress('visibility');
-    try {
-      // Ensure canonical before action (auto-migrates legacy pets)
-      const canonical = await ensureCanonicalBeforeAction();
-      if (!canonical) {
-        setActionInProgress(null);
-        return;
-      }
-      
-      // Perform the action using the canonical companion
-      const now = Math.floor(Date.now() / 1000).toString();
-      const newTags = updateBlobbiTags(canonical.allTags, {
-        visible_to_others: newVisibility.toString(),
-        last_interaction: now,
-      });
-      
-      const event = await publishEvent({
-        kind: KIND_BLOBBI_STATE,
-        content: canonical.content,
-        tags: newTags,
-      });
-      
-      updateCompanionEvent(event);
-      invalidateCompanion();
-      if (canonical.wasMigrated) {
-        invalidateProfile();
-      }
-      
-      toast({
-        title: newVisibility ? 'Now visible!' : 'Now hidden',
-        description: newVisibility
-          ? 'Others can see your Blobbi.'
-          : 'Your Blobbi is now private.',
-      });
-    } catch (error) {
-      console.error('Failed to toggle visibility:', error);
-      toast({
-        title: 'Failed to update',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
-    } finally {
-      setActionInProgress(null);
-    }
-  }, [user?.pubkey, companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent, invalidateCompanion, invalidateProfile]);
   
   // ─── Determine UI State ───
   // Priority: Wait for queries to settle before showing "create" states
@@ -557,7 +507,6 @@ function BlobbiContent() {
       setShowSelector={setShowSelector}
       onSelectBlobbi={handleSelectBlobbi}
       onRest={handleRest}
-      onToggleVisibility={handleToggleVisibility}
       actionInProgress={actionInProgress}
       isPublishing={isPublishing}
       isFetching={profileFetching || companionFetching}
@@ -600,7 +549,6 @@ interface BlobbiDashboardProps {
   setShowSelector: (show: boolean) => void;
   onSelectBlobbi: (d: string) => void;
   onRest: () => void;
-  onToggleVisibility: () => void;
   actionInProgress: string | null;
   isPublishing: boolean;
   isFetching: boolean;
@@ -614,7 +562,6 @@ function BlobbiDashboard({
   setShowSelector,
   onSelectBlobbi,
   onRest,
-  onToggleVisibility,
   actionInProgress,
   isPublishing,
   isFetching,
@@ -682,15 +629,6 @@ function BlobbiDashboard({
           >
             <Info className="size-4" />
           </QuickActionButton>
-          
-          <QuickActionButton
-            tooltip={companion.visibleToOthers ? 'Hide' : 'Show'}
-            onClick={onToggleVisibility}
-            disabled={isPublishing || actionInProgress !== null}
-            loading={actionInProgress === 'visibility'}
-          >
-            {companion.visibleToOthers ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-          </QuickActionButton>
         </div>
         
         {/* Blobbi Name */}
@@ -720,8 +658,8 @@ function BlobbiDashboard({
         </Badge>
       </div>
       
-      {/* Stats & Info Section */}
-      <div className="px-4 pb-24 sm:px-6 space-y-4">
+      {/* Stats Section */}
+      <div className="px-4 pb-24 sm:px-6">
         {/* Stats Grid */}
         <div className="grid grid-cols-5 gap-2 sm:gap-4">
           <StatIndicator label="Hunger" value={companion.stats.hunger} color="orange" />
@@ -730,18 +668,6 @@ function BlobbiDashboard({
           <StatIndicator label="Hygiene" value={companion.stats.hygiene} color="blue" />
           <StatIndicator label="Energy" value={companion.stats.energy} color="violet" />
         </div>
-        
-        {/* Info Card */}
-        <Card className="bg-card/50 border-border">
-          <CardContent className="p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-              <InfoItem label="Generation" value={companion.generation?.toString() ?? '1'} />
-              <InfoItem label="Experience" value={companion.experience?.toString() ?? '0'} />
-              <InfoItem label="Care Streak" value={`${companion.careStreak ?? 0} days`} />
-              <InfoItem label="Last Active" value={formatTimeAgo(companion.lastInteraction)} />
-            </div>
-          </CardContent>
-        </Card>
       </div>
       
       {/* Bottom Action Bar */}
@@ -779,7 +705,6 @@ function BlobbiDashboard({
         onOpenChange={setShowActionsModal}
         companion={companion}
         onRest={onRest}
-        onToggleVisibility={onToggleVisibility}
         actionInProgress={actionInProgress}
         isPublishing={isPublishing}
       />
@@ -910,17 +835,6 @@ function StatIndicator({ label, value, color }: StatIndicatorProps) {
         <span className="text-xs sm:text-sm font-semibold">{displayValue}</span>
       </div>
       <span className="text-[10px] sm:text-xs text-muted-foreground">{label}</span>
-    </div>
-  );
-}
-
-// ─── Info Item ────────────────────────────────────────────────────────────────
-
-function InfoItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="text-center sm:text-left">
-      <p className="text-muted-foreground text-xs">{label}</p>
-      <p className="font-medium">{value}</p>
     </div>
   );
 }
@@ -1070,7 +984,7 @@ function DashboardLoadingState() {
       </div>
       
       {/* Stats */}
-      <div className="px-4 pb-6 sm:px-6 space-y-4">
+      <div className="px-4 pb-6 sm:px-6">
         <div className="grid grid-cols-5 gap-2 sm:gap-4">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="flex flex-col items-center gap-1">
@@ -1079,8 +993,6 @@ function DashboardLoadingState() {
             </div>
           ))}
         </div>
-        
-        <Skeleton className="h-24 w-full rounded-xl" />
       </div>
     </DashboardShell>
   );
@@ -1108,11 +1020,11 @@ function BlobbiBottomBar({
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30">
       <div className="container mx-auto max-w-4xl px-4 pb-4">
-        <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl px-2 py-2 shadow-lg">
+        <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl px-3 py-2 shadow-lg">
           {/* 3-column grid: left | center | right */}
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
             {/* Left Group - aligned to end (closer to center) */}
-            <div className="flex items-center justify-end gap-0.5">
+            <div className="flex items-center justify-end gap-1">
               <BottomBarButton onClick={onBlobbiesClick} icon={<Users className="size-4" />} label="Blobbies" badge={blobbiesCount} />
               <BottomBarButton onClick={onMissionsClick} icon={<Target className="size-4" />} label="Missions" />
             </div>
@@ -1120,13 +1032,13 @@ function BlobbiBottomBar({
             {/* Center Action Button */}
             <button
               onClick={onActionsClick}
-              className="flex items-center justify-center size-12 -mt-4 mx-1 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all border-4 border-background"
+              className="flex items-center justify-center size-12 -mt-4 mx-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all border-4 border-background"
             >
               <Sparkles className="size-5" />
             </button>
             
             {/* Right Group - aligned to start (closer to center) */}
-            <div className="flex items-center justify-start gap-0.5">
+            <div className="flex items-center justify-start gap-1">
               <BottomBarButton onClick={onShopClick} icon={<ShoppingBag className="size-4" />} label="Shop" />
               <BottomBarButton onClick={onInventoryClick} icon={<Package className="size-4" />} label="Inventory" />
             </div>
@@ -1150,7 +1062,7 @@ function BottomBarButton({ onClick, icon, label, badge }: BottomBarButtonProps) 
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-[52px]"
+      className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-[56px]"
     >
       <div className="relative">
         {icon}
@@ -1172,7 +1084,6 @@ interface BlobbiActionsModalProps {
   onOpenChange: (open: boolean) => void;
   companion: BlobbiCompanion;
   onRest: () => void;
-  onToggleVisibility: () => void;
   actionInProgress: string | null;
   isPublishing: boolean;
 }
@@ -1182,7 +1093,6 @@ function BlobbiActionsModal({
   onOpenChange,
   companion,
   onRest,
-  onToggleVisibility,
   actionInProgress,
   isPublishing,
 }: BlobbiActionsModalProps) {
@@ -1219,27 +1129,6 @@ function BlobbiActionsModal({
               <p className="font-medium">{isSleeping ? 'Wake Up' : 'Rest'}</p>
               <p className="text-xs text-muted-foreground">
                 {isSleeping ? 'Wake your Blobbi up' : 'Put your Blobbi to sleep'}
-              </p>
-            </div>
-          </Button>
-          
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3 h-14"
-            onClick={() => handleAction(onToggleVisibility)}
-            disabled={isDisabled}
-          >
-            {actionInProgress === 'visibility' ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : companion.visibleToOthers ? (
-              <EyeOff className="size-5" />
-            ) : (
-              <Eye className="size-5" />
-            )}
-            <div className="text-left">
-              <p className="font-medium">{companion.visibleToOthers ? 'Hide' : 'Show'}</p>
-              <p className="text-xs text-muted-foreground">
-                {companion.visibleToOthers ? 'Make your Blobbi private' : 'Make your Blobbi visible to others'}
               </p>
             </div>
           </Button>
@@ -1354,14 +1243,4 @@ function BlobbiInfoModal({ open, onOpenChange, companion }: BlobbiInfoModalProps
   );
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatTimeAgo(timestamp: number): string {
-  const now = Math.floor(Date.now() / 1000);
-  const diff = now - timestamp;
-  
-  if (diff < 60) return 'Just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
