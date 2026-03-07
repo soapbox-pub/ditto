@@ -86,22 +86,22 @@ function useRelayFeed(relayUrl: string | undefined, kinds: number[]) {
 
 export function RelayPage() {
   const { config } = useAppContext();
-  const { '*': urlParam } = useParams();
+  const { '*': rawParam } = useParams();
   const { feedSettings } = useFeedSettings();
   const { muteItems } = useMuteList();
 
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
 
-  // Reconstruct the relay URL from the wildcard param
+  // Support both encoded URLs (/r/wss%3A%2F%2F...) and bare URLs (/r/wss://...).
   const relayUrl = useMemo(() => {
-    if (!urlParam) return undefined;
-    // If the param already has a protocol, use it as-is
-    if (urlParam.startsWith('wss://') || urlParam.startsWith('ws://')) {
-      return urlParam;
+    if (!rawParam) return undefined;
+    // If the wildcard param has no "://", it's encoded — decode it.
+    const url = rawParam.includes('://') ? rawParam : decodeURIComponent(rawParam);
+    if (url.startsWith('wss://') || url.startsWith('ws://')) {
+      return url;
     }
-    // Otherwise, prepend wss://
-    return `wss://${urlParam}`;
-  }, [urlParam]);
+    return `wss://${url}`;
+  }, [rawParam]);
 
   // Derive a display hostname from the URL
   const hostname = useMemo(() => {
@@ -130,7 +130,7 @@ export function RelayPage() {
     description: info?.description ?? `Events from ${hostname}`,
   });
 
-  if (!urlParam) {
+  if (!rawParam) {
     return <NotFound />;
   }
 
