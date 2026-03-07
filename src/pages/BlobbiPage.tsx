@@ -28,6 +28,9 @@ function getSelectedBlobbiKey(pubkey: string): string {
   return `blobbi:selected:d:${pubkey}`;
 }
 
+/** Enable debug logging in development only */
+const DEBUG_BLOBBI = import.meta.env.DEV;
+
 import {
   KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
@@ -104,8 +107,9 @@ function BlobbiContent() {
     
     const result = Array.from(allDs);
     
-    // Debug log as specified
-    console.log('[Blobbi] dList:', result);
+    if (DEBUG_BLOBBI) {
+      console.log('[Blobbi] dList:', result);
+    }
     
     return result.length > 0 ? result : undefined;
   }, [profile]);
@@ -136,27 +140,23 @@ function BlobbiContent() {
     
     // Priority 1: localStorage selection (if it exists in loaded collection)
     if (storedSelectedD && companionsByD[storedSelectedD]) {
-      console.log('[Blobbi] Using localStorage selection:', storedSelectedD);
       return storedSelectedD;
     }
     
     // Priority 2: First item from profile.has that exists in companionsByD
     for (const d of profile.has) {
       if (companionsByD[d]) {
-        console.log('[Blobbi] Using first valid from profile.has:', d);
         return d;
       }
     }
     
     // Priority 3: No valid selection
-    console.log('[Blobbi] No valid selection found');
     return undefined;
   }, [profile, storedSelectedD, companionsByD]);
   
   // Auto-save selection to localStorage when it changes
   useEffect(() => {
     if (selectedD && selectedD !== storedSelectedD) {
-      console.log('[Blobbi] Auto-saving selection to localStorage:', selectedD);
       setStoredSelectedD(selectedD);
     }
   }, [selectedD, storedSelectedD, setStoredSelectedD]);
@@ -164,9 +164,9 @@ function BlobbiContent() {
   // Get the selected companion from the collection
   const companion = selectedD ? companionsByD[selectedD] ?? null : null;
   
-  // STEP 7: Debug log to confirm which Blobbi is rendered
+  // Debug log to confirm which Blobbi is rendered (dev only)
   useEffect(() => {
-    if (companion) {
+    if (DEBUG_BLOBBI && companion) {
       console.log('[Blobbi UI]', {
         selectedD,
         name: companion.name,
@@ -186,7 +186,6 @@ function BlobbiContent() {
   
   // Handler for selecting a Blobbi from the selector
   const handleSelectBlobbi = useCallback((d: string) => {
-    console.log('[Blobbi] User selected:', d);
     setStoredSelectedD(d);
     setShowSelector(false);
   }, [setStoredSelectedD]);
