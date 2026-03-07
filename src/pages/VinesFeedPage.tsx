@@ -627,7 +627,6 @@ export function VinesFeedPage() {
 
   useLayoutOptions({
     showFAB: false,
-    noBottomSpacer: true,
   });
 
   // Lock body scroll when mobile comments are open

@@ -2,17 +2,16 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
 import { ComposeBox } from '@/components/ComposeBox';
+import { LandingHero } from '@/components/LandingHero';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
-import { useInfiniteSortedPosts } from '@/hooks/useTrending';
+import { useInfiniteHotFeed } from '@/hooks/useTrending';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useMuteList } from '@/hooks/useMuteList';
@@ -26,6 +25,19 @@ import type { SavedFeed } from '@/contexts/AppContext';
 
 type CoreFeedTab = 'follows' | 'global' | 'communities';
 type FeedTab = CoreFeedTab | string; // string = saved feed id
+
+/** Curated kinds for the logged-out homepage: unique Ditto content types. */
+const LANDING_KINDS = [
+  36767, // Themes
+  37381, // Magic Decks
+  3367,  // Color Moments
+  37516, // Treasures (Geocaches)
+  7516,  // Treasures (Found Logs)
+  30030, // Emoji Packs
+];
+
+/** Webxdc needs a MIME-type tag filter, so it gets its own filter object. */
+const LANDING_WEBXDC_FILTER = { kinds: [1063], '#m': ['application/x-webxdc'] };
 
 interface FeedProps {
   /** Override the kinds list instead of using feed settings. */
@@ -43,7 +55,6 @@ interface FeedProps {
 }
 
 export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home' }: FeedProps = {}) {
-  const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
@@ -95,12 +106,14 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   );
 
   // "Hot" sorted feed query (used when logged out on the home page)
-  const topQuery = useInfiniteSortedPosts('hot', useTopFeedForLoggedOut);
+  // Shows curated "otherstuff" kinds instead of kind 1. Webxdc needs a
+  // separate filter with a MIME-type tag constraint.
+  const topQuery = useInfiniteHotFeed(LANDING_KINDS, useTopFeedForLoggedOut, undefined, [LANDING_WEBXDC_FILTER]);
 
   // Unify the two query shapes behind a single interface
   const activeQuery = useTopFeedForLoggedOut ? topQuery : feedQuery;
   const queryKey = useMemo(
-    () => useTopFeedForLoggedOut ? ['infinite-sorted-posts', 'hot'] : ['feed', activeTab],
+    () => useTopFeedForLoggedOut ? ['infinite-hot-feed', LANDING_KINDS.join(',')] : ['feed', activeTab],
     [useTopFeedForLoggedOut, activeTab],
   );
 
@@ -195,16 +208,10 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
           ))}
         </div>
       ) : !kinds && (
-        <div className="border-b border-border sticky top-mobile-bar sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3">
-          <div className="flex items-center justify-center gap-3 px-6">
-            <p className="text-[13px] sidebar:text-sm text-muted-foreground">
-              Follow accounts you care about on {config.appName}
-            </p>
-            <Button onClick={() => setLoginDialogOpen(true)} className="rounded-full" size="sm">
-              Join
-            </Button>
-          </div>
-        </div>
+        <LandingHero
+          onLoginClick={() => setLoginDialogOpen(true)}
+          onSignupClick={startSignup}
+        />
       )}
 
       {/* Feed content — saved feed tab gets its own stream */}
