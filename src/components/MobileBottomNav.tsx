@@ -8,6 +8,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
 import { getSidebarItem } from '@/lib/sidebarItems';
+import { useScrollHide } from '@/contexts/ScrollHideContext';
 
 export function MobileBottomNav() {
   const location = useLocation();
@@ -15,6 +16,7 @@ export function MobileBottomNav() {
   const { config } = useAppContext();
   const homePage = config.homePage;
   const hasUnread = useHasUnreadNotifications();
+  const { hidden } = useScrollHide();
 
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -47,7 +49,13 @@ export function MobileBottomNav() {
     <>
       <MobileSearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom">
+      <nav
+        className={cn(
+          'fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom',
+          'transition-transform duration-300 ease-in-out will-change-transform',
+          hidden && 'translate-y-full',
+        )}
+      >
         <div className="h-14 flex items-center">
 
           <Link

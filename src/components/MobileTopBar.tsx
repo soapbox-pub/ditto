@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { DittoLogo } from '@/components/DittoLogo';
+import { useScrollHide } from '@/contexts/ScrollHideContext';
+import { cn } from '@/lib/utils';
 
 interface MobileTopBarProps {
   onAvatarClick: () => void;
@@ -9,6 +11,7 @@ interface MobileTopBarProps {
 
 export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
   const location = useLocation();
+  const { hidden } = useScrollHide();
 
   const handleLogoClick = useCallback((e: React.MouseEvent) => {
     if (location.pathname === '/') {
@@ -18,7 +21,13 @@ export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
   }, [location.pathname]);
 
   return (
-    <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border sidebar:hidden safe-area-top">
+    <header
+      className={cn(
+        'sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border sidebar:hidden safe-area-top',
+        'transition-transform duration-300 ease-in-out will-change-transform',
+        hidden && '-translate-y-full',
+      )}
+    >
       <div className="flex items-center px-3 h-12">
         {/* Left: hamburger menu icon */}
         <div className="flex items-center justify-center w-7 shrink-0">

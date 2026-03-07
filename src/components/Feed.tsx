@@ -20,6 +20,7 @@ import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { cn } from '@/lib/utils';
+import { useScrollHide } from '@/contexts/ScrollHideContext';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { SavedFeed } from '@/contexts/AppContext';
 
@@ -42,6 +43,7 @@ interface FeedProps {
 export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: FeedProps = {}) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
+  const { hidden: topBarHidden } = useScrollHide();
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
   const { savedFeeds } = useSavedFeeds();
@@ -181,7 +183,11 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
 
       {/* Tabs (logged in) or CTA (logged out, main feed only) */}
       {user ? (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none">
+        <div className={cn(
+          'flex border-b border-border sticky bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none',
+          'transition-[top] duration-300 ease-in-out',
+          topBarHidden ? 'top-0' : 'top-mobile-bar sidebar:top-0',
+        )}>
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {showCommunityFeed && (
             <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
@@ -199,7 +205,11 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
           ))}
         </div>
       ) : !kinds && (
-        <div className="border-b border-border sticky top-mobile-bar sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3">
+        <div className={cn(
+          'border-b border-border sticky bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3',
+          'transition-[top] duration-300 ease-in-out',
+          topBarHidden ? 'top-0' : 'top-mobile-bar sidebar:top-0',
+        )}>
           <div className="flex items-center justify-center gap-3 px-6">
             <p className="text-[13px] sidebar:text-sm text-muted-foreground">
               Follow accounts you care about on {config.appName}

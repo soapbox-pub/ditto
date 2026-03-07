@@ -9,6 +9,8 @@ import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LayoutStore, LayoutStoreContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
+import { ScrollHideContext } from '@/contexts/ScrollHideContext';
+import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useAppContext } from '@/hooks/useAppContext';
 import { cn } from '@/lib/utils';
 
@@ -67,9 +69,10 @@ function MainLayoutInner() {
   const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, noBottomSpacer = false, wrapperClassName } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { config } = useAppContext();
+  const scrollHide = useScrollDirection();
 
   return (
-    <>
+    <ScrollHideContext.Provider value={scrollHide}>
       {/* Magic Mouse fire particle overlay */}
       {config.magicMouse && <CursorFireEffect />}
 
@@ -107,7 +110,7 @@ function MainLayoutInner() {
 
       {/* Bottom padding spacer for mobile bottom nav */}
       {!noBottomSpacer && <div className="h-14 sidebar:hidden" />}
-    </>
+    </ScrollHideContext.Provider>
   );
 }
 
