@@ -1204,7 +1204,6 @@ export function ProfilePage() {
     // Apply profile background image (if any)
     const bgStyleId = 'theme-background';
     const previousBgEl = document.getElementById(bgStyleId) as HTMLStyleElement | null;
-    const previousBgCss = previousBgEl?.textContent ?? null;
 
     if (effectiveProfileBackground?.url) {
       let bgEl = previousBgEl;
@@ -1252,19 +1251,19 @@ export function ProfilePage() {
       const ownBgUrl = ownActiveConfig?.background?.url;
 
       if (ownBgUrl) {
-        // Restore own background
-        if (!bgEl) {
+        // Always rebuild background CSS from the current own theme (via ref)
+        // so we never restore stale CSS captured before e.g. "Copy Theme".
+        const targetEl = bgEl ?? (() => {
           const newBgEl = document.createElement('style');
           newBgEl.id = bgStyleId;
           document.head.appendChild(newBgEl);
-          const ownBgMode = ownActiveConfig?.background?.mode ?? 'cover';
-          if (ownBgMode === 'tile') {
-            newBgEl.textContent = `body { background-image: url("${ownBgUrl}"); background-repeat: repeat; background-size: auto; }`;
-          } else {
-            newBgEl.textContent = `body { background-image: url("${ownBgUrl}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
-          }
-        } else if (previousBgCss) {
-          bgEl.textContent = previousBgCss;
+          return newBgEl;
+        })();
+        const ownBgMode = ownActiveConfig?.background?.mode ?? 'cover';
+        if (ownBgMode === 'tile') {
+          targetEl.textContent = `body { background-image: url("${ownBgUrl}"); background-repeat: repeat; background-size: auto; }`;
+        } else {
+          targetEl.textContent = `body { background-image: url("${ownBgUrl}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
         }
       } else {
         // Own theme has no background — remove the style element
