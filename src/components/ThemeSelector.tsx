@@ -168,6 +168,7 @@ export function ThemeGrid({
   editingTheme,
   onEditingThemeChange,
   columns = 'responsive',
+  limit,
 }: {
   /** Called after any theme is selected. */
   onSelect?: () => void;
@@ -183,6 +184,8 @@ export function ThemeGrid({
    * - 'scroll': horizontal scrolling strip on mobile, 3-col grid at sm+
    */
   columns?: 'responsive' | 'sm' | '2' | 'scroll';
+  /** Maximum number of themes to display. When set, the list is truncated after this many items. */
+  limit?: number;
 }) {
   const { theme, customTheme, themes, setTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
@@ -314,7 +317,7 @@ export function ThemeGrid({
     return items;
   };
 
-  const allItems = buildItems();
+  const allItems = limit ? buildItems().slice(0, limit) : buildItems();
 
   if (isScroll) {
     // Auto-select the theme that scrolls into view
