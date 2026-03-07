@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { BlobbiEggVisual } from '@/blobbi/ui/BlobbiEggVisual';
 import { cn } from '@/lib/utils';
 
 /**
@@ -650,24 +651,12 @@ function BlobbiDisplay({
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col items-center gap-4">
-            {/* Egg Visual */}
-            <div
-              className={cn(
-                'size-32 rounded-full flex items-center justify-center transition-all duration-500',
-                'bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100',
-                'dark:from-amber-900/30 dark:via-orange-900/20 dark:to-yellow-900/30',
-                'border-4 border-amber-200 dark:border-amber-800',
-                'shadow-lg shadow-amber-200/50 dark:shadow-amber-900/30',
-                isSleeping && 'opacity-70'
-              )}
-            >
-              <Egg
-                className={cn(
-                  'size-16 text-amber-500 transition-transform duration-1000',
-                  !isSleeping && 'animate-pulse'
-                )}
-              />
-            </div>
+            {/* Blobbi Visual - Real EggGraphic rendering */}
+            <BlobbiEggVisual
+              companion={companion}
+              size="lg"
+              animated
+            />
             
             {/* Name & Stage */}
             <div className="text-center">
@@ -862,20 +851,12 @@ function BlobbiSelectorCard({ companion, onSelect, isSelected }: BlobbiSelectorC
     >
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
-          {/* Blobbi Visual */}
-          <div
-            className={cn(
-              'size-16 rounded-full flex items-center justify-center shrink-0',
-              'bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100',
-              'dark:from-amber-900/30 dark:via-orange-900/20 dark:to-yellow-900/30',
-              'border-2 border-amber-200 dark:border-amber-800',
-              isSleeping && 'opacity-70'
-            )}
-          >
-            <Egg className={cn(
-              'size-8 text-amber-500',
-              !isSleeping && 'animate-pulse'
-            )} />
+          {/* Blobbi Visual - Real EggGraphic rendering */}
+          <div className="shrink-0">
+            <BlobbiEggVisual
+              companion={companion}
+              size="sm"
+            />
           </div>
           
           {/* Info */}
