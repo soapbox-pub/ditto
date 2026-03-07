@@ -107,7 +107,7 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
                 id="invoice"
                 value={invoice}
                 readOnly
-                className="font-mono text-xs min-w-0 flex-1 overflow-hidden text-ellipsis"
+                className="font-mono text-base md:text-xs min-w-0 flex-1 overflow-hidden text-ellipsis"
                 onClick={(e) => e.currentTarget.select()}
               />
               <Button
@@ -194,14 +194,14 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
             placeholder="Custom amount"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full text-sm"
+            className="w-full"
           />
           <Textarea
             id="custom-comment"
             placeholder="Add a comment (optional)"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            className="w-full resize-none text-sm"
+            className="w-full resize-none"
             rows={2}
           />
         </div>
