@@ -2434,8 +2434,9 @@ export function ProfilePage() {
 
         {/* Edit profile theme dialog — independent from app theme */}
         <Dialog open={editProfileThemeOpen} onOpenChange={setEditProfileThemeOpen}>
-          <DialogContent ref={editThemeContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-lg">
+          <DialogContent ref={editThemeContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-visible rounded-lg p-0">
             <PortalContainerProvider value={editThemePortalContainer}>
+            <div className="overflow-y-auto max-h-[85vh] p-6 space-y-4">
             <DialogHeader>
               <DialogTitle>Edit Profile Theme</DialogTitle>
               <DialogDescription>
@@ -2499,6 +2500,7 @@ export function ProfilePage() {
                 Save Profile Theme
               </Button>
             </DialogFooter>
+            </div>
             </PortalContainerProvider>
           </DialogContent>
         </Dialog>

@@ -760,8 +760,9 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
 
       {/* ── Builder Dialog ── */}
       <Dialog open={builderOpen ?? false} onOpenChange={(open) => onBuilderOpenChange?.(open)}>
-        <DialogContent ref={builderContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-lg">
+        <DialogContent ref={builderContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-visible rounded-lg p-0">
           <PortalContainerProvider value={builderPortalContainer}>
+          <div className="overflow-y-auto max-h-[85vh] p-6 space-y-4">
           <DialogHeader>
             <DialogTitle>{editingTheme ? 'Edit Theme' : 'New Theme'}</DialogTitle>
             <DialogDescription>
@@ -862,6 +863,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               )}
             </div>
           )}
+          </div>
           </PortalContainerProvider>
         </DialogContent>
       </Dialog>
