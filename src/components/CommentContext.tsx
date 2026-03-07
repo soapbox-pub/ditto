@@ -31,6 +31,7 @@ interface CommentRoot {
 /** Parse the root reference from a kind 1111 comment's tags. */
 function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
   const aTag = event.tags.find(([name]) => name === 'A')?.[1];
+  // Use find (not findLast) to get the root E tag, not a parent e tag
   const eTag = event.tags.find(([name]) => name === 'E')?.[1];
   const iTag = event.tags.find(([name]) => name === 'I')?.[1];
   const kTag = event.tags.find(([name]) => name === 'K')?.[1];
@@ -117,11 +118,20 @@ interface CommentContextProps {
 }
 
 /**
- * Displays "Commenting on [name]" context for kind 1111 comments.
- * Fetches the root event to display its title/name, with a hover preview.
+ * Displays "Replying to @user" or "Commenting on [name]" context for kind 1111 comments.
+ * When the parent item (lowercase k tag) is another kind 1111 comment, shows "Replying to @user"
+ * using the lowercase p tag (parent author). Otherwise shows "Commenting on [root]".
  */
 export function CommentContext({ event, className }: CommentContextProps) {
-  const root = useMemo(() => parseCommentRoot(event), [event]);
+  // If the direct parent is another comment (k="1111"), show "Replying to @user"
+  const parentKind = event.tags.find(([name]) => name === 'k')?.[1];
+  const parentAuthorPubkey = event.tags.findLast(([name]) => name === 'p')?.[1];
+
+  if (parentKind === '1111' && parentAuthorPubkey) {
+    return <ReplyToCommentContext pubkey={parentAuthorPubkey} eventId={event.tags.findLast(([name]) => name === 'e')?.[1]} className={className} />;
+  }
+
+  const root = parseCommentRoot(event);
 
   if (!root) return null;
 
@@ -135,6 +145,40 @@ export function CommentContext({ event, className }: CommentContextProps) {
     default:
       return null;
   }
+}
+
+/** Comment context when replying directly to another kind 1111 comment — shows "Replying to @user". */
+function ReplyToCommentContext({ pubkey, eventId, className }: { pubkey: string; eventId?: string; className?: string }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name ?? genUserName(pubkey);
+  const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
+  const parentLink = useMemo(() => {
+    if (!eventId) return undefined;
+    try { return `/${nip19.neventEncode({ id: eventId, author: pubkey })}`; } catch { return undefined; }
+  }, [eventId, pubkey]);
+
+  if (author.isLoading) {
+    return (
+      <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
+        <span className="shrink-0">Replying to</span>
+        <Skeleton className="h-3.5 w-24 inline-block" />
+      </div>
+    );
+  }
+
+  return (
+    <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
+      <span className="shrink-0">Replying to</span>
+      <Link
+        to={parentLink ?? `/${npubEncoded}`}
+        className="text-primary hover:underline truncate"
+        onClick={(e) => e.stopPropagation()}
+      >
+        @{displayName}
+      </Link>
+    </div>
+  );
 }
 
 /** Comment context for addressable event roots (A tag). */
