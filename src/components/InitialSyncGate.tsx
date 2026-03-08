@@ -199,11 +199,11 @@ const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] = 
 
 // Steps for signup (includes keygen + profile) vs. settings-only (existing login)
 type SignupStep = 'keygen' | 'download' | 'profile';
-type SettingsStep = 'welcome' | 'theme' | 'safety' | 'follows' | 'outro';
+type SettingsStep = 'theme' | 'safety' | 'follows' | 'outro';
 type Step = SignupStep | SettingsStep;
 
-const SIGNUP_STEPS: Step[] = ['welcome', 'theme', 'keygen', 'download', 'profile', 'safety', 'follows', 'outro'];
-const SETTINGS_STEPS: Step[] = ['welcome', 'theme', 'safety', 'follows', 'outro'];
+const SIGNUP_STEPS: Step[] = ['theme', 'keygen', 'download', 'profile', 'safety', 'follows', 'outro'];
+const SETTINGS_STEPS: Step[] = ['theme', 'safety', 'follows', 'outro'];
 
 function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
   onComplete: () => void;
@@ -420,10 +420,6 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
           )}
 
           {/* Settings steps */}
-          {step === 'welcome' && (
-            <WelcomeStep onNext={next} />
-          )}
-
           {step === 'theme' && (
             <ThemeStep
               onNext={next}
@@ -666,34 +662,6 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
 // ---------------------------------------------------------------------------
 // Settings steps
 // ---------------------------------------------------------------------------
-
-function WelcomeStep({ onNext }: { onNext: () => void }) {
-  const { config } = useAppContext();
-
-  return (
-    <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <DittoLogo size={80} />
-
-      <div className="space-y-3">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Welcome to {config.appName}
-        </h1>
-        <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
-          Let's get you set up. It only takes a moment, and you can change anything later in Settings.
-        </p>
-      </div>
-
-      <Button
-        size="lg"
-        className="w-full max-w-xs gap-2 rounded-full h-12"
-        onClick={onNext}
-      >
-        Get started
-        <ChevronRight className="w-4 h-4" />
-      </Button>
-    </div>
-  );
-}
 
 function ThemeStep({
   onNext,
