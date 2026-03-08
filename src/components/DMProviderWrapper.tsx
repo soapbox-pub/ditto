@@ -1,11 +1,6 @@
 import { type ReactNode, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
-import {
-  DMProvider,
-  DEFAULT_NEW_MESSAGE_SOUNDS,
-  useDMContext as useDMContextFromPackage,
-  useConversationMessages as useConversationMessagesFromPackage,
-} from '@samthomson/nostr-messaging/core';
+import { DMProvider, DEFAULT_NEW_MESSAGE_SOUNDS } from '@samthomson/nostr-messaging/core';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -17,8 +12,6 @@ import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { toast } from '@/hooks/useToast';
 import { getDisplayName } from '@/lib/getDisplayName';
-
-export { useDMContextFromPackage as useDMContext, useConversationMessagesFromPackage as useConversationMessages };
 
 interface DMProviderWrapperProps {
   children: ReactNode;

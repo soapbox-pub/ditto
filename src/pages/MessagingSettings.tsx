@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useDMContext } from '@/components/DMProviderWrapper';
+import { useDMContext } from '@/hooks/useDMHooks';
 import { RelayListManager } from '@/components/RelayListManager';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
