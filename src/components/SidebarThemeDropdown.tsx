@@ -128,7 +128,7 @@ export function SidebarThemeDropdown({ userPubkey, onNavigate, className }: Side
           </div>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top" className="w-48">
+      <DropdownMenuContent align="end" side="top" className="w-48 z-[270]">
         {/* Built-in options: System, Light, Dark */}
         {BUILTIN_THEMES.map((opt) => {
           const Icon = builtinIcon[opt.value];
