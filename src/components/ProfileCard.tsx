@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, CheckCircle2, Plus, Trash2, ChevronDown } from 'lucide-react';
+import { Camera, CheckCircle2, Pencil, Plus, Trash2, ChevronDown } from 'lucide-react';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import { getNip05Domain, formatNip05Display } from '@/lib/nip05';
@@ -136,11 +136,16 @@ export function ProfileCard({
           </div>
         )}
         {editable && (
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-            <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-white text-xs font-medium bg-black/50 rounded-full px-3 py-1.5 backdrop-blur-sm">
-              <Camera className="size-3.5" /> {metadata.banner ? 'Change banner' : 'Add banner'}
-            </span>
-          </div>
+          <>
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-white text-xs font-medium bg-black/50 rounded-full px-3 py-1.5 backdrop-blur-sm">
+                <Camera className="size-3.5" /> {metadata.banner ? 'Change banner' : 'Add banner'}
+              </span>
+            </div>
+            <div className="absolute bottom-2 right-2 size-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center group-hover:opacity-0 transition-opacity">
+              <Pencil className="size-3.5 text-muted-foreground" />
+            </div>
+          </>
         )}
       </div>
 
@@ -160,9 +165,14 @@ export function ProfileCard({
               </AvatarFallback>
             </Avatar>
             {editable && (
-              <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/45 transition-colors flex items-center justify-center">
-                <Camera className="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
-              </div>
+              <>
+                <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/45 transition-colors flex items-center justify-center">
+                  <Camera className="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                </div>
+                <div className="absolute bottom-0 right-0 size-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center group-hover:opacity-0 transition-opacity">
+                  <Pencil className="size-3.5 text-muted-foreground" />
+                </div>
+              </>
             )}
           </div>
         </div>
