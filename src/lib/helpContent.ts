@@ -113,7 +113,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'Can I download this on the App Store or Google Play?',
         answer: [
           'This site works as a web app right from your browser \u2014 no download needed! You can also "Add to Home Screen" on your phone to get an app-like experience.',
-          'Because Nostr is an open protocol, there are also dozens of other apps (Primal, Damus, Amethyst, etc.) that all work with the same account.',
+          'Native app store releases are planned for the future \u2014 stay tuned!',
         ],
       },
       {
@@ -145,14 +145,14 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'What are zaps?',
         answer: [
           'Zaps are tips! They let you send tiny amounts of Bitcoin to someone as a way of saying "great post" or "thanks."',
-          'Think of it like a super-powered Like button that actually sends real money. They use the Lightning Network, which makes them instant and nearly free.',
+          'Think of it like a super-powered Like button that actually sends real money. They use the Lightning Network, which makes them instant and nearly free. To learn more, check out [Understanding Zaps](https://nostr.how/en/zaps).',
         ],
       },
       {
         id: 'connect-wallet',
         question: 'How do I connect a wallet?',
         answer: [
-          'To send or receive zaps, you need a Lightning wallet. Options like Alby, Zeus, or Wallet of Satoshi work well for beginners.',
+          'To send or receive zaps, you need a Lightning wallet. Great options for beginners include [Alby](https://getalby.com/), [Zeus](https://zeusln.com/), and [Wallet of Satoshi](https://www.walletofsatoshi.com/).',
           'Once you have one, add your Lightning address to your profile settings, and you\'re ready to go.',
         ],
       },
