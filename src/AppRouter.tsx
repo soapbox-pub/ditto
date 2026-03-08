@@ -44,6 +44,7 @@ import { BooksPage } from "./pages/BooksPage";
 import { RelayPage } from "./pages/RelayPage";
 import { UserListsPage } from "./pages/UserListsPage";
 import { HelpPage } from "./pages/HelpPage";
+import { MessagesPage } from "./pages/MessagesPage";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -79,6 +80,7 @@ export function AppRouter() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/feed" element={<Index />} />
+          <Route path="/messages" element={<MessagesPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/search" element={<SearchPageKeyed />} />
           <Route path="/trends" element={<TrendsPage />} />

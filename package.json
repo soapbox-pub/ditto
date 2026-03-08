@@ -8,7 +8,8 @@
     "build": "npm i --silent && vite build -l error && cp dist/index.html dist/404.html && echo 'Project built successfully!'",
     "test": "npm i --silent && tsc --noEmit && eslint && vitest run --reporter=dot --silent && vite build -l error && cp dist/index.html dist/404.html && echo 'All tests passed!'",
     "icons": "bash scripts/generate-icons.sh",
-    "release": "git tag \"v$(date +%Y.%m.%d)+$(git rev-parse --short HEAD)\" && git push origin --tags"
+    "release": "git tag \"v$(date +%Y.%m.%d)+$(git rev-parse --short HEAD)\" && git push origin --tags",
+    "postinstall": "sh scripts/postinstall.sh"
   },
   "engines": {
     "npm": "10.9.4",
@@ -76,6 +77,7 @@
     "@radix-ui/react-toggle": "^1.1.0",
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.4",
+    "@samthomson/nostr-messaging": "^0.6.1",
     "@sentry/react": "^10.42.0",
     "@tanstack/react-query": "^5.56.2",
     "@unhead/addons": "^2.0.10",

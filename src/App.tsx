@@ -17,6 +17,7 @@ import { AppProvider } from '@/components/AppProvider';
 import { SentryProvider } from '@/components/SentryProvider';
 import { NWCProvider } from '@/contexts/NWCContext';
 import { AppConfig } from '@/contexts/AppContext';
+import { DMProviderWrapper } from '@/components/DMProviderWrapper';
 import AppRouter from './AppRouter';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Capacitor } from '@capacitor/core';
@@ -99,7 +100,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludePodcastTrailers: false,
     followsFeedShowReplies: true,
   },
-  sidebarOrder: ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings', 'help'],
+  sidebarOrder: ['feed', 'notifications', 'messages', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings', 'help'],
   nip85StatsPubkey: '5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea',
   blossomServers: ['https://blossom.ditto.pub/', 'https://blossom.dreamith.to/', 'https://blossom.primal.net/'],
   faviconUrl: 'https://fetch.ditto.pub/favicon/{hostname}',
@@ -143,12 +144,14 @@ export function App() {
                 <NostrSync />
                 <NativeNotifications />
                 <NWCProvider>
-                  <TooltipProvider>
-                    <Toaster />
-                    <InitialSyncGate>
-                      <AppRouter />
-                    </InitialSyncGate>
-                  </TooltipProvider>
+                  <DMProviderWrapper>
+                    <TooltipProvider>
+                      <Toaster />
+                      <InitialSyncGate>
+                        <AppRouter />
+                      </InitialSyncGate>
+                    </TooltipProvider>
+                  </DMProviderWrapper>
                 </NWCProvider>
               </NostrProvider>
             </NostrLoginProvider>

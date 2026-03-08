@@ -1192,20 +1192,23 @@ Run available tools in this priority order:
 2. **Building/Compilation** (Required): Verify the project builds successfully
 3. **Linting** (Recommended): Check code style and catch potential issues
 4. **Tests** (If Available): Run existing test suite
-5. **Git Commit** (Required): Create a commit with your changes when finished
 
 **Minimum Requirements:**
 - Code must type-check without errors
 - Code must build/compile successfully
 - Fix any critical linting errors that would break functionality
-- Create a git commit when your changes are complete
+- Inform the user when changes are complete and ready to commit
 
 The validation ensures code quality and catches errors before deployment, regardless of the development environment.
 
 ### Using Git
 
-If git is available in your environment (through a `shell` tool, or other git-specific tools), you should utilize `git log` to understand project history. Use `git status` and `git diff` to check the status of your changes, and if you make a mistake use `git checkout` to restore files.
+**CRITICAL: You do NOT have permission to create git commits or push to remote repositories. NEVER run `git commit`, `git push`, or any other git write commands.**
 
-When your changes are complete and validated, create a git commit with a descriptive message summarizing your changes.
+You may use git for read-only operations only:
+- `git log` to understand project history
+- `git status` to check the status of changes
+- `git diff` to view changes
+- `git checkout` to restore files (only when explicitly fixing mistakes)
 
-**ALWAYS commit when you are finished making changes.**
+When your changes are complete and validated, inform the user that the changes are ready to commit. The user will create commits themselves.
