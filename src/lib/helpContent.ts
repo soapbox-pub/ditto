@@ -54,6 +54,14 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         ],
       },
       {
+        id: 'login-other-apps',
+        question: 'Can I log into other Nostr apps with my Ditto account?',
+        answer: [
+          'Yes! Your Ditto account **is** a Nostr account. You can use the same keys to log into any Nostr app \u2014 Primal, Damus, Amethyst, Coracle, and many more. Your posts, followers, and profile carry over everywhere.',
+          'Explore the full range of Nostr apps at [nostrapps.com](https://nostrapps.com/).',
+        ],
+      },
+      {
         id: 'why-login-different',
         question: 'Why is my sign-in so different and long?',
         answer: [
@@ -116,6 +124,14 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
           'You can take your keys to Primal, Damus, Amethyst, Coracle, or any other Nostr app and everything carries over \u2014 your posts, your followers, all of it.',
         ],
       },
+      {
+        id: 'nostr-app-store',
+        question: 'Is there a Nostr-specific app store?',
+        answer: [
+          'Yes! [Zap Store](https://zapstore.dev/) is a community-driven app store built specifically for the Nostr ecosystem. You can discover and download Nostr apps, and the apps are verified by the community rather than a corporation.',
+          'You can also browse a directory of Nostr apps at [nostrapps.com](https://nostrapps.com/).',
+        ],
+      },
     ],
   },
 
@@ -170,7 +186,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         answer: [
           'Relays are the servers that store and deliver your posts. Think of them like different mail carriers \u2014 your messages get sent through them to reach other people.',
           'You don\'t need to think about relays to use Nostr; the defaults work great. But if you\'re curious, you can add or remove relays in Settings > Network.',
-          'Using multiple relays means your content is backed up in more places, making it harder for anyone to silence you.',
+          'Using multiple relays means your content is backed up in more places, making it harder for anyone to silence you. To dive deeper, read [Understanding Nostr Relays](https://nostr.how/en/relays).',
         ],
       },
       {
@@ -178,7 +194,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'What are Blossom servers?',
         answer: [
           'Blossom servers are where your media files (photos, videos, audio) get stored when you upload them. Think of them like cloud storage for your files.',
-          'Different Blossom servers are run by different people in different places. You can manage which servers you use in Settings > Network.',
+          'Different Blossom servers are run by different people in different places. You can manage which servers you use in Settings > Network. To learn more about how Blossom works, read [The Blossom Protocol](https://onnostr.substack.com/p/the-blossom-protocol-supercharging).',
         ],
       },
       {
