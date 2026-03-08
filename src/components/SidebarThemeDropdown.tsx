@@ -1,13 +1,31 @@
+import { useMemo } from 'react';
 import { Palette, Sun, Moon, Monitor, Check, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-  DropdownMenuLabel, DropdownMenuSeparator,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserThemes } from '@/hooks/useUserThemes';
 import { useNavigate } from 'react-router-dom';
 import { themePresets } from '@/themes';
 import type { Theme } from '@/contexts/AppContext';
+import type { CoreThemeColors, ThemeConfig } from '@/themes';
+
+/** Maximum number of theme slots shown between the built-in options and "More..." */
+const MAX_THEME_SLOTS = 5;
+
+/** Static builtin theme option metadata (icons created at render time). */
+const BUILTIN_THEMES: { value: Theme; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
+
+const builtinIcon: Record<string, React.ComponentType<{ className?: string }>> = {
+  system: Monitor,
+  light: Sun,
+  dark: Moon,
+};
 
 interface SidebarThemeDropdownProps {
   userPubkey?: string;
@@ -16,42 +34,84 @@ interface SidebarThemeDropdownProps {
   className?: string;
 }
 
+/** Compare two CoreThemeColors objects by value. */
+function colorsMatch(a: CoreThemeColors, b: CoreThemeColors): boolean {
+  return a.background === b.background && a.text === b.text && a.primary === b.primary;
+}
+
+interface SlotItem {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  config: ThemeConfig;
+  isActive: boolean;
+}
+
 export function SidebarThemeDropdown({ userPubkey, onNavigate, className }: SidebarThemeDropdownProps) {
   const navigate = useNavigate();
   const { theme, setTheme, applyCustomTheme, customTheme } = useTheme();
   const userThemes = useUserThemes(userPubkey);
 
-  const builtinOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
-    { value: 'system', label: 'System', icon: <Monitor className="size-4" /> },
-    { value: 'light', label: 'Light', icon: <Sun className="size-4" /> },
-    { value: 'dark', label: 'Dark', icon: <Moon className="size-4" /> },
-  ];
+  // Build up to MAX_THEME_SLOTS items: user themes first, then featured presets.
+  const slotItems = useMemo((): SlotItem[] => {
+    const items: SlotItem[] = [];
 
-  const presetOptions = Object.entries(themePresets)
-    .filter(([, p]) => p.featured)
-    .map(([id, p]) => ({ id, label: p.label, emoji: p.emoji }));
+    // 1. Add user themes (already sorted newest-first by the hook).
+    const userList = userThemes.data ?? [];
+    for (const ut of userList) {
+      if (items.length >= MAX_THEME_SLOTS) break;
+      items.push({
+        key: `user-${ut.identifier}`,
+        label: ut.title,
+        icon: <Palette className="size-3.5 text-primary shrink-0" />,
+        config: { colors: ut.colors, font: ut.font, background: ut.background },
+        isActive: theme === 'custom' && !!customTheme && colorsMatch(customTheme.colors, ut.colors),
+      });
+    }
 
-  const activePreset = theme === 'custom' && customTheme
-    ? Object.entries(themePresets).find(([, p]) => JSON.stringify(p.colors) === JSON.stringify(customTheme.colors))
-    : undefined;
+    // 2. Fill remaining slots with featured presets (skip any whose colors duplicate a user theme already shown).
+    if (items.length < MAX_THEME_SLOTS) {
+      const shownColors = items.map((i) => i.config.colors);
+      for (const [id, p] of Object.entries(themePresets)) {
+        if (items.length >= MAX_THEME_SLOTS) break;
+        if (!p.featured) continue;
+        if (shownColors.some((c) => colorsMatch(c, p.colors))) continue;
+        items.push({
+          key: `preset-${id}`,
+          label: p.label,
+          icon: <span className="text-sm leading-none">{p.emoji}</span>,
+          config: { colors: p.colors, font: p.font, background: p.background },
+          isActive: theme === 'custom' && !!customTheme && colorsMatch(customTheme.colors, p.colors),
+        });
+      }
+    }
 
-  const activeUserTheme = theme === 'custom' && customTheme && !activePreset
-    ? userThemes.data?.find(t => JSON.stringify(t.colors) === JSON.stringify(customTheme.colors))
-    : undefined;
+    return items;
+  }, [userThemes.data, theme, customTheme]);
 
-  const currentLabel = (() => {
-    if (theme !== 'custom') return builtinOptions.find(t => t.value === theme)?.label ?? theme;
-    if (activePreset) return activePreset[1].label;
-    if (activeUserTheme) return activeUserTheme.title;
+  // Resolve current label and icon for the trigger button.
+  const currentLabel = useMemo(() => {
+    if (theme !== 'custom') return BUILTIN_THEMES.find((t) => t.value === theme)?.label ?? theme;
+    // Check slot items for a match.
+    const active = slotItems.find((s) => s.isActive);
+    if (active) return active.label;
+    // Check all presets (including non-featured ones, in case user picked one from /themes).
+    if (customTheme) {
+      const preset = Object.entries(themePresets).find(([, p]) => colorsMatch(p.colors, customTheme.colors));
+      if (preset) return preset[1].label;
+    }
     return 'Custom';
-  })();
+  }, [theme, customTheme, slotItems]);
 
-  const currentIcon = (() => {
-    const builtin = builtinOptions.find(t => t.value === theme);
-    if (builtin) return builtin.icon;
-    if (activePreset) return <span className="text-sm leading-none">{activePreset[1].emoji}</span>;
+  const currentIcon = useMemo(() => {
+    const Icon = builtinIcon[theme];
+    if (Icon) return <Icon className="size-4" />;
+    if (theme === 'custom' && customTheme) {
+      const preset = Object.entries(themePresets).find(([, p]) => colorsMatch(p.colors, customTheme.colors));
+      if (preset) return <span className="text-sm leading-none">{preset[1].emoji}</span>;
+    }
     return <Palette className="size-4" />;
-  })();
+  }, [theme, customTheme]);
 
   return (
     <DropdownMenu>
@@ -69,43 +129,38 @@ export function SidebarThemeDropdown({ userPubkey, onNavigate, className }: Side
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" side="top" className="w-48">
-        {builtinOptions.map((opt) => (
-          <DropdownMenuItem key={opt.value} onClick={() => setTheme(opt.value)} className="flex items-center justify-between cursor-pointer">
-            <div className="flex items-center gap-2">{opt.icon}<span>{opt.label}</span></div>
-            {theme === opt.value && <Check className="size-4 text-primary" />}
-          </DropdownMenuItem>
-        ))}
-        {presetOptions.map((preset) => {
-          const p = themePresets[preset.id];
-          const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme.colors) === JSON.stringify(p.colors);
+        {/* Built-in options: System, Light, Dark */}
+        {BUILTIN_THEMES.map((opt) => {
+          const Icon = builtinIcon[opt.value];
           return (
-            <DropdownMenuItem key={preset.id} onClick={() => applyCustomTheme({ colors: p.colors, font: p.font, background: p.background })} className="flex items-center justify-between cursor-pointer">
-              <div className="flex items-center gap-2"><span className="text-sm leading-none">{preset.emoji}</span><span>{preset.label}</span></div>
-              {isActive && <Check className="size-4 text-primary" />}
+            <DropdownMenuItem key={opt.value} onClick={() => setTheme(opt.value)} className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center gap-2">{Icon && <Icon className="size-4" />}<span>{opt.label}</span></div>
+              {theme === opt.value && <Check className="size-4 text-primary" />}
             </DropdownMenuItem>
           );
         })}
-        {userThemes.data && userThemes.data.length > 0 && (
+
+        {/* Smart theme slots */}
+        {slotItems.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">My Themes</DropdownMenuLabel>
-            {userThemes.data.map((ut) => {
-              const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme.colors) === JSON.stringify(ut.colors);
-              return (
-                <DropdownMenuItem key={ut.identifier} onClick={() => applyCustomTheme({ colors: ut.colors, font: ut.font, background: ut.background ?? customTheme?.background })} className="flex items-center justify-between cursor-pointer">
-                  <div className="flex items-center gap-2 min-w-0"><Palette className="size-3.5 text-primary shrink-0" /><span className="truncate">{ut.title}</span></div>
-                  {isActive && <Check className="size-4 text-primary shrink-0" />}
-                </DropdownMenuItem>
-              );
-            })}
+            {slotItems.map((item) => (
+              <DropdownMenuItem
+                key={item.key}
+                onClick={() => applyCustomTheme(item.config)}
+                className="flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  {item.icon}
+                  <span className="truncate">{item.label}</span>
+                </div>
+                {item.isActive && <Check className="size-4 text-primary shrink-0" />}
+              </DropdownMenuItem>
+            ))}
           </>
         )}
-        {customTheme && !activePreset && !activeUserTheme && (
-          <DropdownMenuItem onClick={() => { setTheme('custom'); }} className="flex items-center justify-between cursor-pointer">
-            <div className="flex items-center gap-2"><Palette className="size-4" /><span>Custom</span></div>
-            {theme === 'custom' && <Check className="size-4 text-primary" />}
-          </DropdownMenuItem>
-        )}
+
+        {/* More... link */}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => { onNavigate?.(); navigate('/themes'); }} className="cursor-pointer text-muted-foreground">
           More...

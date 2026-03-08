@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  UserPlus, LogOut, Check, Moon, Sun, Monitor, Palette, ChevronDown,
+  UserPlus, LogOut,
   Loader2,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,12 +12,12 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { SidebarNavList } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
+import { SidebarThemeDropdown } from '@/components/SidebarThemeDropdown';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
-import { useTheme } from '@/hooks/useTheme';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
@@ -25,17 +25,10 @@ import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getSidebarItem, isItemActive } from '@/lib/sidebarItems';
-import { themePresets } from '@/themes';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-  DropdownMenuLabel, DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import { useUserThemes } from '@/hooks/useUserThemes';
 import { useUserStatus } from '@/hooks/useUserStatus';
 import { usePublishStatus } from '@/hooks/usePublishStatus';
 import { useToast } from '@/hooks/useToast';
 import { Input } from '@/components/ui/input';
-import type { Theme } from '@/contexts/AppContext';
 
 export function LeftSidebar() {
   const location = useLocation();
@@ -43,7 +36,6 @@ export function LeftSidebar() {
   const { user, metadata, event: currentUserEvent, isLoading: isProfileLoading } = useCurrentUser();
   const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
   const { logout } = useLoginActions();
-  const { theme, setTheme, applyCustomTheme, customTheme } = useTheme();
   const {
     orderedItems, hiddenItems, updateSidebarOrder, addToSidebar, addDividerToSidebar, removeFromSidebar,
   } = useFeedSettings();
@@ -90,30 +82,6 @@ export function LeftSidebar() {
     await logout();
     navigate('/');
   };
-
-  // ── Theme (for the popover inline display) ────────────────────────────────
-
-  const builtinThemeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
-    { value: 'system', label: 'System', icon: <Monitor className="size-4" /> },
-    { value: 'light', label: 'Light', icon: <Sun className="size-4" /> },
-    { value: 'dark', label: 'Dark', icon: <Moon className="size-4" /> },
-  ];
-  const presetOptions = Object.entries(themePresets).filter(([, p]) => p.featured).map(([id, p]) => ({ id, label: p.label, emoji: p.emoji }));
-  const activePreset = theme === 'custom' && customTheme ? Object.entries(themePresets).find(([, p]) => JSON.stringify(p.colors) === JSON.stringify(customTheme)) : undefined;
-  const sidebarUserThemes = useUserThemes(user?.pubkey);
-  const activeUserTheme = theme === 'custom' && customTheme && !activePreset ? sidebarUserThemes.data?.find(t => JSON.stringify(t.colors) === JSON.stringify(customTheme)) : undefined;
-  const currentThemeLabel = (() => {
-    if (theme !== 'custom') return builtinThemeOptions.find(t => t.value === theme)?.label ?? theme;
-    if (activePreset) return activePreset[1].label;
-    if (activeUserTheme) return activeUserTheme.title;
-    return 'Custom';
-  })();
-  const currentThemeIcon = (() => {
-    const builtin = builtinThemeOptions.find(t => t.value === theme);
-    if (builtin) return builtin.icon;
-    if (activePreset) return <span className="text-sm leading-none">{activePreset[1].emoji}</span>;
-    return <Palette className="size-4" />;
-  })();
 
   return (
     <aside className="flex flex-col h-screen sticky top-0 py-3 px-4 w-[300px] shrink-0">
@@ -326,55 +294,11 @@ export function LeftSidebar() {
 
               {/* Theme */}
               <div className="border-b border-border py-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors">
-                      <div className="flex items-center gap-3"><Palette className="size-4 text-muted-foreground" /><span>Theme</span></div>
-                      <div className="flex items-center gap-2 text-muted-foreground">{currentThemeIcon}<span className="text-xs">{currentThemeLabel}</span><ChevronDown className="size-4" /></div>
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" side="top" className="w-48">
-                    {builtinThemeOptions.map((opt) => (
-                      <DropdownMenuItem key={opt.value} onClick={() => setTheme(opt.value)} className="flex items-center justify-between cursor-pointer">
-                        <div className="flex items-center gap-2">{opt.icon}<span>{opt.label}</span></div>
-                        {theme === opt.value && <Check className="size-4 text-primary" />}
-                      </DropdownMenuItem>
-                    ))}
-                    {presetOptions.map((preset) => {
-                      const p = themePresets[preset.id];
-                      const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme.colors) === JSON.stringify(p.colors);
-                      return (
-                        <DropdownMenuItem key={preset.id} onClick={() => applyCustomTheme({ colors: p.colors, font: p.font, background: p.background })} className="flex items-center justify-between cursor-pointer">
-                          <div className="flex items-center gap-2"><span className="text-sm leading-none">{preset.emoji}</span><span>{preset.label}</span></div>
-                          {isActive && <Check className="size-4 text-primary" />}
-                        </DropdownMenuItem>
-                      );
-                    })}
-                    {sidebarUserThemes.data && sidebarUserThemes.data.length > 0 && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">My Themes</DropdownMenuLabel>
-                        {sidebarUserThemes.data.map((ut) => {
-                          const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme.colors) === JSON.stringify(ut.colors);
-                          return (
-                            <DropdownMenuItem key={ut.identifier} onClick={() => applyCustomTheme({ colors: ut.colors, font: ut.font, background: ut.background ?? customTheme?.background })} className="flex items-center justify-between cursor-pointer">
-                              <div className="flex items-center gap-2 min-w-0"><Palette className="size-3.5 text-primary shrink-0" /><span className="truncate">{ut.title}</span></div>
-                              {isActive && <Check className="size-4 text-primary shrink-0" />}
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </>
-                    )}
-                    {customTheme && !activePreset && !activeUserTheme && (
-                      <DropdownMenuItem onClick={() => { setTheme('custom'); }} className="flex items-center justify-between cursor-pointer">
-                        <div className="flex items-center gap-2"><Palette className="size-4" /><span>Custom</span></div>
-                        {theme === 'custom' && <Check className="size-4 text-primary" />}
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => { setAccountPopoverOpen(false); navigate('/themes'); }} className="cursor-pointer text-muted-foreground">More...</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <SidebarThemeDropdown
+                  userPubkey={user.pubkey}
+                  onNavigate={() => setAccountPopoverOpen(false)}
+                  className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors"
+                />
               </div>
 
               {/* Actions */}
