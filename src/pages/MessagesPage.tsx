@@ -9,7 +9,7 @@ export function MessagesPage() {
   });
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="h-screen flex flex-col">
       <DMMessagingInterface />
     </div>
   );
