@@ -23,6 +23,15 @@ export function useUploadFile() {
       });
 
       const tags = await uploader.upload(file);
+
+      // If the returned URL is missing a file extension, append one from the
+      // source file name. Blossom URLs are content-addressed (`/<sha256>`) and
+      // may omit the extension. Adding it helps clients infer the media type.
+      const ext = getFileExtension(file.name);
+      if (ext) {
+        tags[0][1] = appendExtensionIfMissing(tags[0][1], ext);
+      }
+
       const url = tags[0][1];
 
       // Mirror to all other servers in the background (fire-and-forget).
@@ -40,6 +49,23 @@ export function useUploadFile() {
       return tags;
     },
   });
+}
+
+/** Extract the file extension (with leading dot) from a filename, or empty string if none. */
+function getFileExtension(filename: string): string {
+  const dotIndex = filename.lastIndexOf('.');
+  if (dotIndex <= 0) return '';
+  return filename.slice(dotIndex).toLowerCase();
+}
+
+/** Append a file extension to a URL if its path doesn't already have one. */
+function appendExtensionIfMissing(urlString: string, ext: string): string {
+  const url = new URL(urlString);
+  const lastSegment = url.pathname.split('/').pop() ?? '';
+  // Check if the last path segment already contains a dot (has an extension)
+  if (lastSegment.includes('.')) return urlString;
+  url.pathname = url.pathname + ext;
+  return url.toString();
 }
 
 /** Mirror a blob to additional Blossom servers (BUD-04). */

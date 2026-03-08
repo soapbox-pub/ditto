@@ -6,6 +6,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { IntroImage } from '@/components/IntroImage';
+import { HelpTip } from '@/components/HelpTip';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
@@ -68,7 +69,7 @@ export function NotificationSettings() {
           <div>
             <h1 className="text-xl font-bold">Notifications</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Configure push notification preferences
+              Get push notifications for mentions, replies, and other activity.
             </p>
           </div>
         </div>
@@ -97,8 +98,8 @@ export function NotificationSettings() {
                 <Label htmlFor="push-notifications" className="text-sm font-medium cursor-pointer">
                   Push Notifications
                 </Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Receive notifications for mentions, replies, and zaps
+                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                  Receive notifications for mentions, replies, and zaps <HelpTip faqId="what-are-zaps" iconSize="size-3.5" />
                 </p>
               </div>
             </div>

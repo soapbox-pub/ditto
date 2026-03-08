@@ -188,22 +188,42 @@ export function useInfiniteSortedPosts(sort: SortMode, enabled = true) {
 /**
  * Fetches hot-sorted events for specific kinds with infinite scroll.
  * Uses NIP-50 search extension `sort:hot` against relay.ditto.pub.
+ *
+ * `extraFilters` allows appending additional filter objects to the REQ,
+ * useful when some kinds need tag constraints (e.g. webxdc needs `#m`).
  */
-export function useInfiniteHotFeed(kinds: number[], enabled = true, limit = SORTED_PAGE_SIZE) {
+export function useInfiniteHotFeed(
+  kinds: number[],
+  enabled = true,
+  limit = SORTED_PAGE_SIZE,
+  extraFilters?: Record<string, unknown>[],
+) {
   const { nostr } = useNostr();
+  const extraKey = extraFilters ? JSON.stringify(extraFilters) : '';
 
   return useInfiniteQuery<NostrEvent[], Error>({
-    queryKey: ['infinite-hot-feed', kinds.join(','), limit],
+    queryKey: ['infinite-hot-feed', kinds.join(','), limit, extraKey],
     queryFn: async ({ pageParam, signal }) => {
       const ditto = nostr.relay(DITTO_RELAY);
-      const filter: Record<string, unknown> = {
-        kinds,
+
+      const base: Record<string, unknown> = {
         search: 'sort:hot protocol:nostr',
         limit,
       };
-      if (pageParam) filter.until = pageParam;
+      if (pageParam) base.until = pageParam;
+
+      // Primary filter for the main kinds list
+      const filters: Record<string, unknown>[] = [{ ...base, kinds }];
+
+      // Append extra filters (each gets the same sort/pagination params)
+      if (extraFilters) {
+        for (const extra of extraFilters) {
+          filters.push({ ...base, ...extra });
+        }
+      }
+
       return ditto.query(
-        [filter as { kinds: number[]; search: string; limit: number; until?: number }],
+        filters as { kinds: number[]; search: string; limit: number; until?: number }[],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
     },

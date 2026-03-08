@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, forwardRef } from 'react';
 import { Zap, Copy, Check, ExternalLink, Sparkle, Sparkles, Star, Rocket, X } from 'lucide-react';
+import { HelpTip } from '@/components/HelpTip';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -107,7 +108,7 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
                 id="invoice"
                 value={invoice}
                 readOnly
-                className="font-mono text-xs min-w-0 flex-1 overflow-hidden text-ellipsis"
+                className="font-mono text-base md:text-xs min-w-0 flex-1 overflow-hidden text-ellipsis"
                 onClick={(e) => e.currentTarget.select()}
               />
               <Button
@@ -194,14 +195,14 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
             placeholder="Custom amount"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full text-sm"
+            className="w-full"
           />
           <Textarea
             id="custom-comment"
             placeholder="Add a comment (optional)"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            className="w-full resize-none text-sm"
+            className="w-full resize-none"
             rows={2}
           />
         </div>
@@ -350,8 +351,8 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
       </DialogTrigger>
       <DialogContent className="max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-hidden max-h-[95vh] [&>button]:hidden" data-testid="zap-modal">
         <div className="flex items-center justify-between px-4 h-12">
-          <DialogTitle className="text-base font-semibold">
-            {invoice ? 'Lightning Payment' : 'Send a Zap'}
+          <DialogTitle className="text-base font-semibold flex items-center gap-1.5">
+            {invoice ? 'Lightning Payment' : 'Send a Zap'} <HelpTip faqId="what-are-zaps" />
           </DialogTitle>
           <button
             onClick={() => setOpen(false)}

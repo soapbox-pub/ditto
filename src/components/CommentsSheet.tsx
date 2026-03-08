@@ -3,11 +3,12 @@
  * comments/replies on any Nostr event.
  */
 
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
+import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -121,6 +122,7 @@ interface CommentsModalProps {
 
 export function CommentsSheet({ event, open, onClose }: CommentsModalProps) {
   const { data: rawComments = [], isLoading, dataUpdatedAt } = useEventComments(event);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
 
   // Only show comments once the query has actually fetched for this event.
   // `dataUpdatedAt === 0` means the query has never resolved — show nothing.
@@ -130,56 +132,63 @@ export function CommentsSheet({ event, open, onClose }: CommentsModalProps) {
     return rawComments.filter((e) => seen.has(e.id) ? false : (seen.add(e.id), true));
   }, [rawComments, dataUpdatedAt]);
 
+  const modalRef = useCallback((node: HTMLDivElement | null) => {
+    setPortalContainer(node ?? undefined);
+  }, []);
+
   if (!open) return null;
 
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm animate-in fade-in-0 duration-200"
+        className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm cursor-pointer animate-in fade-in-0 duration-200"
         onClick={(e) => { e.stopPropagation(); onClose(); }}
       />
 
       {/* Modal — centered, rounded */}
       <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 pointer-events-none">
         <div
+          ref={modalRef}
           className="pointer-events-auto w-full max-w-lg max-h-[80vh] flex flex-col bg-background/90 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in-0 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 shrink-0">
-            <h3 className="font-semibold text-sm">{event?.kind === 1 ? 'Replies' : 'Comments'}</h3>
-            <button
-              className="p-1.5 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
-              onClick={onClose}
-            >
-              <X className="size-4" strokeWidth={4} />
-            </button>
-          </div>
-
-          {/* Compose — top */}
-          {event && (
-            <div className="shrink-0 -mb-px overflow-hidden">
-              <ComposeBox replyTo={event} compact placeholder={event?.kind === 1 ? 'Add a reply…' : 'Add a comment…'} />
+          <PortalContainerProvider value={portalContainer}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 shrink-0">
+              <h3 className="font-semibold text-sm">{event?.kind === 1 ? 'Replies' : 'Comments'}</h3>
+              <button
+                className="p-1.5 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
+                onClick={onClose}
+              >
+                <X className="size-4" strokeWidth={4} />
+              </button>
             </div>
-          )}
 
-          {/* Comment list */}
-          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-border/50">
-            {isLoading ? (
-              <div className="py-2">
-                {Array.from({ length: 5 }).map((_, i) => <CommentSkeleton key={i} />)}
+            {/* Compose — top */}
+            {event && (
+              <div className="shrink-0 -mb-px overflow-hidden">
+                <ComposeBox replyTo={event} compact placeholder={event?.kind === 1 ? 'Add a reply…' : 'Add a comment…'} />
               </div>
-            ) : comments.length === 0 ? (
-              <div className="flex items-center justify-center h-32">
-                <p className="text-sm text-muted-foreground">
-                {event?.kind === 1 ? 'No replies yet. Be the first!' : 'No comments yet. Be the first!'}
-              </p>
-              </div>
-            ) : (
-              comments.map((reply) => <CommentRow key={reply.id} event={reply} />)
             )}
-          </div>
+
+            {/* Comment list */}
+            <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-border/50">
+              {isLoading ? (
+                <div className="py-2">
+                  {Array.from({ length: 5 }).map((_, i) => <CommentSkeleton key={i} />)}
+                </div>
+              ) : comments.length === 0 ? (
+                <div className="flex items-center justify-center h-32">
+                  <p className="text-sm text-muted-foreground">
+                  {event?.kind === 1 ? 'No replies yet. Be the first!' : 'No comments yet. Be the first!'}
+                </p>
+                </div>
+              ) : (
+                comments.map((reply) => <CommentRow key={reply.id} event={reply} />)
+              )}
+            </div>
+          </PortalContainerProvider>
         </div>
       </div>
     </>

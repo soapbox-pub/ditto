@@ -124,11 +124,38 @@ export interface FeedSettings {
   followsFeedShowReplies: boolean;
 }
 
+/**
+ * A standard NIP-01 filter object that may contain variable placeholders
+ * (`$name`) in string positions. After resolution, becomes a `NostrFilter`.
+ */
+export type TabFilter = Record<string, unknown>;
+
+/** A variable definition for tab filters (extracted from `var` tags). */
+export interface TabVarDef {
+  /** Variable name including the `$` prefix, e.g. `"$follows"`. */
+  name: string;
+  /** Tag name to extract from the referenced event, e.g. `"p"`. */
+  tagName: string;
+  /** Event pointer: `e:<id>` or `a:<kind>:<pubkey>:<d-tag>`. May contain variables. */
+  pointer: string;
+}
+
+/** A named feed tab saved from the search page. */
+export interface SavedFeed {
+  id: string;
+  label: string;
+  filter: TabFilter;
+  vars: TabVarDef[];
+  createdAt: number;
+}
+
 export interface AppConfig {
   /** Application display name used in page titles, UI text, and branding. Default: "Ditto". */
   appName: string;
   /** Application identifier used as a prefix for application-specific metadata (NIP-78 d-tags, etc). Default: "ditto". */
   appId: string;
+  /** Sidebar item ID to display on the homepage ("/"). Default: "feed". */
+  homePage: string;
   /** NIP-89 addr (`31990:<pubkey>:<d-tag>`) identifying this client's handler event. Included as the third element of the "client" tag. */
   client?: string;
   /** Enable Magic Mouse mode: cursor/finger emanates magical fire in the primary color */
@@ -165,6 +192,8 @@ export interface AppConfig {
   sentryDsn: string;
   /** Whether the user has enabled Sentry error reporting. */
   sentryEnabled: boolean;
+  /** Saved home feed tabs. Cached locally so they appear instantly on load. */
+  savedFeeds: SavedFeed[];
 }
 
 export interface AppContextType {

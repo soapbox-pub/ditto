@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { type ContentWarningPolicy } from '@/contexts/AppContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { ThemeGrid } from '@/components/ThemeSelector';
@@ -30,15 +29,13 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
-  Shield,
   Users,
   UserPlus,
   Loader2,
   Heart,
   Download,
 } from 'lucide-react';
-import { EXTRA_KINDS } from '@/lib/extraKinds';
-import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
+
 
 import { OnboardingContext } from '@/hooks/useOnboarding';
 
@@ -184,30 +181,6 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // Setup Questionnaire
 // ---------------------------------------------------------------------------
 
-/** Extra-kind IDs shown in the onboarding content picker, in display order. */
-const ONBOARDING_CONTENT_IDS = ['vines', 'colors', 'decks', 'treasures', 'webxdc'];
-
-/** Onboarding content kinds derived from EXTRA_KINDS — no separate data to maintain. */
-const CONTENT_KINDS = ONBOARDING_CONTENT_IDS.flatMap((id) => {
-  const def = EXTRA_KINDS.find((d) => d.id === id);
-  // Use top-level feedKey, or fall back to the first subKind's feedKey for entries like treasures
-  const feedKey = def?.feedKey ?? def?.subKinds?.[0]?.feedKey;
-  if (!def || !feedKey) return [];
-  return [{
-    key: def.id,
-    label: def.label,
-    description: def.description,
-    icon: CONTENT_KIND_ICONS[def.id],
-    feedKey: feedKey as string,
-  }];
-});
-
-const CW_OPTIONS: { value: ContentWarningPolicy; label: string; description: string; icon: typeof Eye }[] = [
-  { value: 'blur', label: 'Blur', description: 'Blur sensitive content until you tap', icon: Shield },
-  { value: 'hide', label: 'Hide', description: 'Remove sensitive content entirely', icon: EyeOff },
-  { value: 'show', label: 'Show', description: 'Display all content without warnings', icon: Eye },
-];
-
 /** Suggested follow packs shown to new users with empty follow lists. */
 const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] = [
   { kind: 39089, pubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d', identifier: 'k4p5w0n22suf' },
@@ -215,11 +188,11 @@ const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] = 
 
 // Steps for signup (includes keygen + profile) vs. settings-only (existing login)
 type SignupStep = 'keygen' | 'download' | 'profile';
-type SettingsStep = 'welcome' | 'theme' | 'content' | 'safety' | 'follows' | 'outro';
+type SettingsStep = 'theme' | 'follows' | 'outro';
 type Step = SignupStep | SettingsStep;
 
-const SIGNUP_STEPS: Step[] = ['welcome', 'theme', 'keygen', 'download', 'profile', 'content', 'safety', 'follows', 'outro'];
-const SETTINGS_STEPS: Step[] = ['welcome', 'theme', 'content', 'safety', 'follows', 'outro'];
+const SIGNUP_STEPS: Step[] = ['theme', 'keygen', 'download', 'profile', 'follows', 'outro'];
+const SETTINGS_STEPS: Step[] = ['theme', 'follows', 'outro'];
 
 function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
   onComplete: () => void;
@@ -235,10 +208,6 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
   const steps = isSignup ? SIGNUP_STEPS : SETTINGS_STEPS;
 
   const [step, setStep] = useState<Step>(steps[0]);
-  const [selectedContent, setSelectedContent] = useState<Set<string>>(
-    new Set(['events', 'vines']),
-  );
-  const [selectedCW, setSelectedCW] = useState<ContentWarningPolicy>('blur');
   const [isSaving, setIsSaving] = useState(false);
   const [hasFollows, setHasFollows] = useState<boolean | null>(null);
 
@@ -264,17 +233,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
     }
   }, [step, steps]);
 
-  const toggleContent = useCallback((key: string) => {
-    setSelectedContent((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }, []);
+
 
   // Keygen handler
   const handleGenerate = useCallback(() => {
@@ -323,17 +282,17 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
 
     const feedSettings = {
       showArticles: false,
-      showEvents: selectedContent.has('events'),
-      feedIncludeEvents: selectedContent.has('events'),
-      showVines: selectedContent.has('vines'),
+      showEvents: true,
+      feedIncludeEvents: true,
+      showVines: true,
       showPolls: false,
-      showTreasures: selectedContent.has('treasures'),
+      showTreasures: true,
       showTreasureGeocaches: true,
       showTreasureFoundLogs: true,
-      showColors: selectedContent.has('colors'),
+      showColors: true,
       showPacks: false,
-      showDecks: selectedContent.has('decks'),
-      showWebxdc: selectedContent.has('webxdc'),
+      showDecks: true,
+      showWebxdc: true,
       showProfileThemes: false,
       showThemeDefinitions: true,
       showProfileThemeUpdates: true,
@@ -341,17 +300,17 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       feedIncludePosts: true,
       feedIncludeReposts: true,
       feedIncludeArticles: false,
-      feedIncludeVines: selectedContent.has('vines'),
+      feedIncludeVines: true,
       feedIncludePolls: false,
-      feedIncludeColors: selectedContent.has('colors'),
-      feedIncludeDecks: selectedContent.has('decks'),
+      feedIncludeColors: true,
+      feedIncludeDecks: true,
       feedIncludePacks: false,
-      feedIncludeTreasureGeocaches: selectedContent.has('treasures'),
-      feedIncludeTreasureFoundLogs: selectedContent.has('treasures'),
-      feedIncludeWebxdc: selectedContent.has('webxdc'),
+      feedIncludeTreasureGeocaches: true,
+      feedIncludeTreasureFoundLogs: true,
+      feedIncludeWebxdc: true,
       feedIncludeVoiceMessages: false,
-      showEmojiPacks: selectedContent.has('emoji-packs'),
-      feedIncludeEmojiPacks: selectedContent.has('emoji-packs'),
+      showEmojiPacks: true,
+      feedIncludeEmojiPacks: true,
       showCustomEmojis: true,
       showUserStatuses: true,
       feedIncludeProfileThemes: true,
@@ -371,26 +330,17 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       followsFeedShowReplies: true,
     };
 
-    // Build sidebar order: base built-ins + selected extra kinds in CONTENT_KINDS order
-    const BASE_SIDEBAR = ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings'];
-    const selectedSidebarIds = CONTENT_KINDS
-      .filter((k) => selectedContent.has(k.key))
-      .map((k) => k.key);
-    const sidebarOrder = [...BASE_SIDEBAR, ...selectedSidebarIds];
-
     updateConfig((current) => ({
       ...current,
       feedSettings,
-      contentWarningPolicy: selectedCW,
-      sidebarOrder,
+      contentWarningPolicy: 'blur',
     }));
 
     if (user?.signer.nip44) {
       try {
         await updateSettings.mutateAsync({
           feedSettings,
-          contentWarningPolicy: selectedCW,
-          sidebarOrder,
+          contentWarningPolicy: 'blur',
         });
       } catch (error) {
         console.warn('Failed to save initial settings to Nostr:', error);
@@ -422,7 +372,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
     } else {
       goTo('follows');
     }
-  }, [selectedContent, selectedCW, updateConfig, updateSettings, user, nostr, goTo]);
+  }, [updateConfig, updateSettings, user, nostr, goTo]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
@@ -435,8 +385,8 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       </div>
 
       {/* Content area */}
-      <div className="flex-1 flex items-center justify-center overflow-y-auto">
-        <div className="w-full max-w-md px-6 py-12">
+      <div className="flex-1 flex flex-col overflow-y-auto">
+        <div className="w-full max-w-md mx-auto my-auto px-6 py-12">
           {/* Signup steps */}
           {step === 'keygen' && (
             <KeygenStep onGenerate={handleGenerate} />
@@ -447,38 +397,16 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
           )}
 
           {step === 'profile' && (
-            <ProfileStep onNext={next} />
+            <ProfileStep onNext={handleSaveAndContinue} isSaving={isSaving} />
           )}
 
           {/* Settings steps */}
-          {step === 'welcome' && (
-            <WelcomeStep onNext={next} />
-          )}
-
           {step === 'theme' && (
             <ThemeStep
-              onNext={next}
+              onNext={isSignup ? next : handleSaveAndContinue}
               onBack={back}
               isFirst={isSignup && steps.indexOf('theme') === 0}
-            />
-          )}
-
-          {step === 'content' && (
-            <ContentStep
-              selected={selectedContent}
-              onToggle={toggleContent}
-              onNext={next}
-              onBack={back}
-            />
-          )}
-
-          {step === 'safety' && (
-            <SafetyStep
-              selected={selectedCW}
-              onSelect={setSelectedCW}
-              onNext={handleSaveAndContinue}
-              onBack={back}
-              isSaving={isSaving}
+              isSaving={!isSignup && isSaving}
             />
           )}
 
@@ -488,7 +416,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
                 if (didFollow) onPreload();
                 goTo('outro');
               }}
-              onBack={() => goTo('safety')}
+              onBack={back}
             />
           )}
 
@@ -586,7 +514,7 @@ function DownloadStep({ nsec, onDownload }: { nsec: string; onDownload: () => vo
   );
 }
 
-function ProfileStep({ onNext }: { onNext: () => void }) {
+function ProfileStep({ onNext, isSaving = false }: { onNext: () => void; isSaving?: boolean }) {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
@@ -692,11 +620,11 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
       )}
 
       <div className="flex gap-3">
-        <Button variant="ghost" onClick={onNext} className="flex-1 rounded-full h-11" disabled={isPublishing}>
+        <Button variant="ghost" onClick={onNext} className="flex-1 rounded-full h-11" disabled={isPublishing || isSaving}>
           Skip
         </Button>
-        <Button onClick={handlePublishProfile} className="flex-1 rounded-full h-11 gap-1.5" disabled={isPublishing || isUploading}>
-          {isPublishing ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <>Continue <ChevronRight className="w-4 h-4" /></>}
+        <Button onClick={handlePublishProfile} className="flex-1 rounded-full h-11 gap-1.5" disabled={isPublishing || isUploading || isSaving}>
+          {(isPublishing || isSaving) ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <>Continue <ChevronRight className="w-4 h-4" /></>}
         </Button>
       </div>
     </div>
@@ -707,42 +635,16 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
 // Settings steps
 // ---------------------------------------------------------------------------
 
-function WelcomeStep({ onNext }: { onNext: () => void }) {
-  const { config } = useAppContext();
-
-  return (
-    <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <DittoLogo size={80} />
-
-      <div className="space-y-3">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Welcome to {config.appName}
-        </h1>
-        <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
-          Let's get you set up. It only takes a moment, and you can change anything later in Settings.
-        </p>
-      </div>
-
-      <Button
-        size="lg"
-        className="w-full max-w-xs gap-2 rounded-full h-12"
-        onClick={onNext}
-      >
-        Get started
-        <ChevronRight className="w-4 h-4" />
-      </Button>
-    </div>
-  );
-}
-
 function ThemeStep({
   onNext,
   onBack,
   isFirst = false,
+  isSaving = false,
 }: {
   onNext: () => void;
   onBack: () => void;
   isFirst?: boolean;
+  isSaving?: boolean;
 }) {
   const { customTheme } = useTheme();
   const bgUrl = customTheme?.background?.url;
@@ -768,172 +670,32 @@ function ThemeStep({
           <p className="text-sm text-muted-foreground">Pick a theme that feels right.</p>
         </div>
 
-        <ThemeGrid columns="scroll" />
+        <ThemeGrid columns="scroll" limit={9} />
 
         {isFirst ? (
-          <Button onClick={onNext} className="w-full rounded-full h-11 gap-1.5">
-            Continue
-            <ChevronRight className="w-4 h-4" />
+          <Button onClick={onNext} className="w-full rounded-full h-11 gap-1.5" disabled={isSaving}>
+            {isSaving ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+            ) : (
+              <>Continue <ChevronRight className="w-4 h-4" /></>
+            )}
           </Button>
         ) : (
-          <StepNav onBack={onBack} onNext={onNext} />
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={onBack} className="flex-1 rounded-full h-11" disabled={isSaving}>
+              Back
+            </Button>
+            <Button onClick={onNext} className="flex-1 rounded-full h-11 gap-1.5" disabled={isSaving}>
+              {isSaving ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+              ) : (
+                <>Continue <ChevronRight className="w-4 h-4" /></>
+              )}
+            </Button>
+          </div>
         )}
       </div>
     </>
-  );
-}
-
-function ContentStep({
-  selected,
-  onToggle,
-  onNext,
-  onBack,
-}: {
-  selected: Set<string>;
-  onToggle: (key: string) => void;
-  onNext: () => void;
-  onBack: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-right-4 duration-400">
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight">What interests you?</h2>
-        <p className="text-sm text-muted-foreground">
-          Enable content types to see in your sidebar and feed. You can change these anytime.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        {CONTENT_KINDS.map((kind) => {
-          const isSelected = selected.has(kind.key);
-          return (
-            <button
-              key={kind.key}
-              type="button"
-              onClick={() => onToggle(kind.key)}
-              className={cn(
-                'w-full flex items-center gap-4 p-3.5 rounded-xl transition-all duration-200 text-left',
-                isSelected
-                  ? 'ring-2 ring-primary bg-primary/5'
-                  : 'ring-1 ring-border hover:bg-muted/50',
-              )}
-            >
-              <div className={cn(
-                'w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
-                isSelected ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
-              )}>
-                <kind.icon className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{kind.label}</p>
-                <p className="text-xs text-muted-foreground">{kind.description}</p>
-              </div>
-              <div
-                className={cn(
-                  'w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors',
-                  isSelected
-                    ? 'bg-primary text-primary-foreground'
-                    : 'border border-input',
-                )}
-              >
-                {isSelected && <Check className="w-3.5 h-3.5" />}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      <StepNav onBack={onBack} onNext={onNext} />
-    </div>
-  );
-}
-
-function SafetyStep({
-  selected,
-  onSelect,
-  onNext,
-  onBack,
-  isSaving,
-}: {
-  selected: ContentWarningPolicy;
-  onSelect: (p: ContentWarningPolicy) => void;
-  onNext: () => void;
-  onBack: () => void;
-  isSaving: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-right-4 duration-400">
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight">Content safety</h2>
-        <p className="text-sm text-muted-foreground">
-          Choose how to handle posts marked with content warnings.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        {CW_OPTIONS.map((option) => {
-          const Icon = option.icon;
-          const isSelected = selected === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onSelect(option.value)}
-              disabled={isSaving}
-              className={cn(
-                'w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-200 text-left',
-                isSelected
-                  ? 'ring-2 ring-primary bg-primary/5'
-                  : 'ring-1 ring-border hover:bg-muted/50',
-                isSaving && 'opacity-50 pointer-events-none',
-              )}
-            >
-              <div className={cn(
-                'w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0',
-                isSelected ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
-              )}>
-                <Icon className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{option.label}</p>
-                <p className="text-xs text-muted-foreground">{option.description}</p>
-              </div>
-              {isSelected && (
-                <Check className="w-4 h-4 text-primary flex-shrink-0" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex gap-3">
-        <Button
-          variant="ghost"
-          onClick={onBack}
-          className="flex-1 rounded-full h-11"
-          disabled={isSaving}
-        >
-          Back
-        </Button>
-        <Button
-          onClick={onNext}
-          className="flex-1 rounded-full h-11 gap-1.5"
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              Continue
-              <ChevronRight className="w-4 h-4" />
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
   );
 }
 
@@ -1258,7 +1020,7 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
 // Shared nav buttons
 // ---------------------------------------------------------------------------
 
-function StepNav({
+function _StepNav({
   onBack,
   onNext,
   nextLabel = 'Continue',

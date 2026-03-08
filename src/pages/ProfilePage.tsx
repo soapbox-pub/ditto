@@ -5,12 +5,12 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -33,7 +33,7 @@ import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, filterByTab } from '@/hooks/useProfileFeed';
-import type { ProfileTab } from '@/hooks/useProfileFeed';
+import type { ProfileTab as CoreProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { MediaGrid, MediaGridSkeleton } from '@/components/MediaGrid';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
@@ -43,9 +43,14 @@ import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 
 import { canZap } from '@/lib/canZap';
+import { shareOrCopy } from '@/lib/share';
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReportDialog } from '@/components/ReportDialog';
+import { AddToListDialog } from '@/components/AddToListDialog';
+import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
@@ -54,13 +59,31 @@ import { useUserStatus } from '@/hooks/useUserStatus';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { useProfileTabs } from '@/hooks/useProfileTabs';
+import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
+
+import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
+import { useStreamPosts } from '@/hooks/useStreamPosts';
+import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
+import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, sortableKeyboardCoordinates, useSortable,
+  horizontalListSortingStrategy, arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS as DndCSS } from '@dnd-kit/utilities';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
 import { loadAndApplyFont } from '@/lib/fontLoader';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontPicker } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
+import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
+import type { AddrCoords } from '@/hooks/useEvent';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
@@ -124,6 +147,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
   const [reportOpen, setReportOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
 
   const close = () => onOpenChange(false);
 
@@ -164,6 +188,11 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     setTimeout(() => setReportOpen(true), 150);
   };
 
+  const handleAddToList = () => {
+    close();
+    setTimeout(() => setAddToListOpen(true), 150);
+  };
+
   return (
   <>
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -185,6 +214,11 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             icon={<ExternalLink className="size-5" />}
             label="View on njump.me"
             onClick={handleViewOnNjump}
+          />
+          <MenuRow
+            icon={<ListPlus className="size-5" />}
+            label="Add to list"
+            onClick={handleAddToList}
           />
         </div>
 
@@ -223,6 +257,13 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     </Dialog>
 
     <ReportDialog pubkey={pubkey} open={reportOpen} onOpenChange={setReportOpen} />
+
+    <AddToListDialog
+      pubkey={pubkey}
+      displayName={displayName}
+      open={addToListOpen}
+      onOpenChange={setAddToListOpen}
+    />
   </>
   );
 }
@@ -335,15 +376,75 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
     <button
       onClick={onClick}
       className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
+        'flex-1 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 whitespace-nowrap',
         active ? 'text-foreground' : 'text-muted-foreground',
       )}
     >
       {label}
       {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 max-w-16 h-1 bg-primary rounded-full" />
       )}
     </button>
+  );
+}
+
+type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
+
+function SortableTabChip({
+  tab, active, onSelect, onRemove,
+}: {
+  tab: EditableTab;
+  active: boolean;
+  onSelect: () => void;
+  onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.label });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: DndCSS.Transform.toString(transform), transition }}
+      className={cn(
+        'shrink-0 relative flex items-stretch group/chip px-1 text-sm font-medium select-none whitespace-nowrap',
+        active ? 'text-foreground' : 'text-muted-foreground',
+        isDragging && 'opacity-60 z-50',
+      )}
+      {...attributes}
+    >
+      {/* Grip handle */}
+      <span
+        {...listeners}
+        className="shrink-0 flex items-center cursor-grab active:cursor-grabbing touch-none pr-1"
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="size-4 text-muted-foreground/40" />
+      </span>
+
+      {/* Tab label — tap navigates */}
+      <button
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onSelect(); }}
+        className="py-3.5 pr-1"
+      >
+        {tab.label}
+      </button>
+
+      {/* Active indicator bar */}
+      {active && (
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+      )}
+
+      {/* × — only rendered when active */}
+      {active && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="shrink-0 flex items-center justify-center text-xl leading-none font-bold py-3.5 pr-1 text-muted-foreground/50 hover:text-destructive transition-colors"
+          aria-label={`Remove ${tab.label}`}
+        >
+          ×
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -409,6 +510,43 @@ function BitcoinQRModal({ address }: { address: string }) {
   );
 }
 
+// ----- Profile field helpers -----
+
+/** Simple email regex for display purposes. */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Bech32 charset used by NIP-19 identifiers. */
+const B32 = '023456789acdefghjklmnpqrstuvwxyz';
+
+/** Regex that matches nostr:<nip19> URIs. */
+const NOSTR_URI_REGEX = new RegExp(`^nostr:(note1|nevent1|naddr1|npub1|nprofile1)[${B32}]+$`);
+
+/** Parse a nostr: URI value and return embed info, or null if not a valid nostr URI. */
+function parseNostrUri(value: string): { type: 'note'; eventId: string } | { type: 'nevent'; eventId: string; relays?: string[]; author?: string } | { type: 'naddr'; addr: AddrCoords } | { type: 'profile'; pubkey: string } | null {
+  const trimmed = value.trim();
+  if (!NOSTR_URI_REGEX.test(trimmed)) return null;
+  try {
+    const bech32 = trimmed.slice('nostr:'.length);
+    const decoded = nip19.decode(bech32);
+    switch (decoded.type) {
+      case 'note':
+        return { type: 'note', eventId: decoded.data as string };
+      case 'nevent':
+        return { type: 'nevent', eventId: decoded.data.id, relays: decoded.data.relays, author: decoded.data.author };
+      case 'naddr':
+        return { type: 'naddr', addr: decoded.data as AddrCoords };
+      case 'npub':
+        return { type: 'profile', pubkey: decoded.data as string };
+      case 'nprofile':
+        return { type: 'profile', pubkey: decoded.data.pubkey };
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
 // ----- Inline Profile Field (mobile) -----
 
 function ProfileFieldInline({ field }: { field: { label: string; value: string } }) {
@@ -460,6 +598,48 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
         </div>
       </div>
     );
+  }
+
+  // Nostr URI: render embedded event
+  const nostrEmbed = parseNostrUri(field.value);
+  if (nostrEmbed) {
+    return (
+      <div className="min-w-0">
+        <span className="text-sm text-muted-foreground">{field.label}</span>
+        {nostrEmbed.type === 'note' && (
+          <EmbeddedNote eventId={nostrEmbed.eventId} className="mt-1" />
+        )}
+        {nostrEmbed.type === 'nevent' && (
+          <EmbeddedNote eventId={nostrEmbed.eventId} relays={nostrEmbed.relays} authorHint={nostrEmbed.author} className="mt-1" />
+        )}
+        {nostrEmbed.type === 'naddr' && (
+          <EmbeddedNaddr addr={nostrEmbed.addr} className="mt-1" />
+        )}
+        {nostrEmbed.type === 'profile' && (
+          <Link to={`/${nip19.npubEncode(nostrEmbed.pubkey)}`} className="text-sm text-primary hover:underline">
+            {nip19.npubEncode(nostrEmbed.pubkey).slice(0, 16)}...
+          </Link>
+        )}
+      </div>
+    );
+  }
+
+  // Email field: render as mailto link
+  const isEmail = field.label.toLowerCase() === 'email' && EMAIL_REGEX.test(field.value);
+  if (isEmail) {
+    return (
+      <div className="flex items-center gap-1.5 min-w-0">
+        <Mail className="size-4 shrink-0 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground shrink-0">{field.label}</span>
+        <a href={`mailto:${field.value}`} className="text-sm text-primary hover:underline truncate">
+          {field.value}
+        </a>
+      </div>
+    );
+  }
+
+  if (isUrl && isAudioUrl(field.value)) {
+    return <MiniAudioPlayer src={field.value} label={field.label || undefined} />;
   }
 
   if (isUrl) {
@@ -612,7 +792,7 @@ export function ProfilePage() {
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
+  const [activeTab, setActiveTab] = useState<CoreProfileTab | string>('posts');
   const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [followingModalOpen, setFollowingModalOpen] = useState(false);
@@ -654,6 +834,151 @@ export function ProfilePage() {
     return user?.pubkey;
   }, [npub, user, isNip05Param, nip05Pubkey]);
 
+  // Custom profile tabs from kind 16769
+  const profileTabsQuery = useProfileTabs(pubkey);
+
+  // Extract tabs and vars from the kind 16769 data
+  const profileTabsData = useMemo<ProfileTabsData | null>(() => {
+    if (!profileTabsQuery.isFetched) return null;
+    return profileTabsQuery.data ?? null;
+  }, [profileTabsQuery.data, profileTabsQuery.isFetched]);
+
+  const profileSavedTabs = useMemo<ProfileTab[]>(() => {
+    return profileTabsData?.tabs ?? [];
+  }, [profileTabsData]);
+
+  const profileVars = useMemo(() => profileTabsData?.vars ?? [], [profileTabsData]);
+
+  const { publishProfileTabs, isPending: isPublishingTabs } = usePublishProfileTabs();
+
+  // Tab edit mode (inline reorder/remove/add)
+  const [tabEditMode, setTabEditMode] = useState(false);
+
+  // All tabs as a flat ordered list for the drag UI — core tabs have isCore=true and can't be removed
+  type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
+  const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
+  const [localTabs, setLocalTabs] = useState<EditableTab[]>([]);
+  const [tabModalOpen, setTabModalOpen] = useState(false);
+  const [editingTab, setEditingTab] = useState<ProfileTab | undefined>(undefined);
+
+  // Map from display label → internal tab id for core tabs
+  const CORE_TAB_IDS: Record<string, string> = {
+    'Posts': 'posts', 'Posts & replies': 'replies',
+    'Media': 'media', 'Likes': 'likes', 'Wall': 'wall',
+  };
+
+  // The ordered tab list for view mode:
+  // - null (no kind 16769 event) → show all 5 defaults
+  // - [] (event exists, all removed) → show nothing
+  // - [...] (event with tabs) → show exactly those
+  const viewTabs: EditableTab[] = useMemo(() => {
+    if (profileTabsData === null) {
+      // No event yet — show defaults
+      return CORE_TAB_LABELS.map((label) => ({ label, isCore: true }));
+    }
+    // Event exists — use its tab list (may be empty)
+    return profileTabsData.tabs.map((t) =>
+      CORE_TAB_LABELS.includes(t.label)
+        ? { label: t.label, isCore: true }
+        : { label: t.label, isCore: false, tab: t },
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileTabsData]);
+
+  // Derive the ID of the first visible tab (used as default selection).
+  const firstTabId = useMemo(() => {
+    if (viewTabs.length === 0) return 'posts';
+    const first = viewTabs[0];
+    return CORE_TAB_IDS[first.label] ?? first.label;
+  }, [viewTabs]);
+
+  // When profile tabs finish loading, focus the leftmost tab.
+  useEffect(() => {
+    if (profileTabsQuery.isFetched) {
+      setActiveTab(firstTabId);
+    }
+  }, [profileTabsQuery.isFetched, firstTabId]);
+
+  const enterTabEditMode = () => {
+    setLocalTabs(viewTabs);
+    setTabEditMode(true);
+  };
+
+  const handleTabDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setLocalTabs((prev) => {
+        const oldIdx = prev.findIndex((t) => t.label === active.id);
+        const newIdx = prev.findIndex((t) => t.label === over.id);
+        return arrayMove(prev, oldIdx, newIdx);
+      });
+    }
+  };
+
+  const handleRemoveLocalTab = (label: string) => {
+    setLocalTabs((prev) => prev.filter((t) => t.label !== label));
+  };
+
+  // Canonical NIP-01 filters for core tabs so other clients can interpret the event.
+  // Values are interpolated with the actual pubkey (not $me) since these are concrete filters.
+  const CORE_TAB_FILTERS: Record<string, TabFilter> = pubkey ? {
+    'Posts': { kinds: [1, 6], authors: [pubkey] },
+    'Posts & replies': { authors: [pubkey] },
+    'Media': { kinds: [1], authors: [pubkey] },
+    'Likes': { kinds: [7], authors: [pubkey] },
+    'Wall': { kinds: [1111], '#A': [`0:${pubkey}:`] },
+  } : {};
+
+  const handleSaveTabEdit = async () => {
+    // Publish ALL tabs in order — core tabs get canonical filters,
+    // custom tabs keep their full filter objects
+    const allTabs: ProfileTab[] = localTabs.map((t) =>
+      t.tab ?? { label: t.label, filter: CORE_TAB_FILTERS[t.label] ?? {} },
+    );
+    await publishProfileTabs({ tabs: allTabs, vars: profileVars });
+    // If the active tab was removed, fall back to the first remaining tab
+    const remainingIds = localTabs.map((t) => CORE_TAB_IDS[t.label] ?? t.label);
+    if (!remainingIds.includes(activeTab)) {
+      setActiveTab(remainingIds[0] ?? 'posts');
+    }
+    setTabEditMode(false);
+  };
+
+  const handleOpenAddCustomTab = () => { setEditingTab(undefined); setTabModalOpen(true); };
+
+  // Called from the add/edit modal — in edit mode append to localTabs; otherwise publish immediately
+  const handleSaveTab = async (tab: ProfileTab) => {
+    if (tabEditMode) {
+      setLocalTabs((prev) =>
+        editingTab
+          ? prev.map((t) => t.label === editingTab.label ? { label: tab.label, isCore: false, tab } : t)
+          : [...prev, { label: tab.label, isCore: false, tab }],
+      );
+    } else {
+      const base = editingTab
+        ? profileSavedTabs.map((t) => t.label === editingTab.label ? tab : t)
+        : [...profileSavedTabs, tab];
+      await publishProfileTabs({ tabs: base, vars: profileVars });
+    }
+  };
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // Drop active tab if it was deleted
+  useEffect(() => {
+    const isCoreTab = ['posts', 'replies', 'media', 'likes', 'wall'].includes(activeTab);
+    if (!isCoreTab && !profileSavedTabs.find((t) => t.label === activeTab)) {
+      setActiveTab(firstTabId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileSavedTabs, firstTabId]);
+
+  // Whether the profile has any visible tabs.
+  const hasTabs = viewTabs.length > 0;
+
   // Infinite-scroll profile feed (posts/replies/media).
   // The first page piggybacks kind 0, seeding the author cache so the
   // profile header renders from the same relay round-trip as the feed.
@@ -663,7 +988,7 @@ export function ProfilePage() {
     fetchNextPage: fetchNextFeedPage,
     hasNextPage: hasNextFeedPage,
     isFetchingNextPage: isFetchingNextFeedPage,
-  } = useProfileFeed(pubkey);
+  } = useProfileFeed(pubkey, hasTabs);
 
   // Kind 0 — resolved from the author cache (seeded by the feed query above).
   const author = useAuthor(pubkey);
@@ -683,20 +1008,10 @@ export function ProfilePage() {
   // doesn't block the profile header or feed from rendering.
   const { data: supplementary } = useProfileSupplementary(pubkey);
 
-  // Parse profile fields from the raw kind 0 event content, prepending website and lightning address if present
+  // Parse profile fields from the raw kind 0 event content (website and lightning are shown in the header instead)
   const fields = useMemo(() => {
-    const parsed = metadataEvent?.content ? parseProfileFields(metadataEvent.content) : [];
-    const prepended: typeof parsed = [];
-    if (metadata?.website) {
-      prepended.push({ label: 'Website', value: metadata.website });
-    }
-    if (metadata?.lud16) {
-      prepended.push({ label: 'Lightning', value: metadata.lud16 });
-    } else if (metadata?.lud06) {
-      prepended.push({ label: 'Lightning', value: metadata.lud06 });
-    }
-    return [...prepended, ...parsed];
-  }, [metadataEvent?.content, metadata?.website, metadata?.lud16, metadata?.lud06]);
+    return metadataEvent?.content ? parseProfileFields(metadataEvent.content) : [];
+  }, [metadataEvent?.content]);
 
   useSeoMeta({
     title: `${displayName} | ${config.appName}`,
@@ -710,7 +1025,7 @@ export function ProfilePage() {
     fetchNextPage: fetchNextMediaPage,
     hasNextPage: hasNextMediaPage,
     isFetchingNextPage: isFetchingNextMediaPage,
-  } = useProfileMedia(pubkey);
+  } = useProfileMedia(pubkey, hasTabs);
 
   // Infinite-scroll likes
   const {
@@ -719,7 +1034,7 @@ export function ProfilePage() {
     fetchNextPage: fetchNextLikesPage,
     hasNextPage: hasNextLikesPage,
     isFetchingNextPage: isFetchingNextLikesPage,
-  } = useProfileLikesInfinite(pubkey, activeTab === 'likes');
+  } = useProfileLikesInfinite(pubkey, hasTabs && activeTab === 'likes');
 
   // Wall comments (NIP-22 kind 1111 on user's kind 0, filtered by their follow list)
   const wallFollowList = useMemo(() => supplementary?.following, [supplementary?.following]);
@@ -729,7 +1044,7 @@ export function ProfilePage() {
     fetchNextPage: fetchNextWallPage,
     hasNextPage: hasNextWallPage,
     isFetchingNextPage: isFetchingNextWallPage,
-  } = useWallComments(pubkey, wallFollowList);
+  } = useWallComments(pubkey, hasTabs ? wallFollowList : undefined);
 
   // Synthetic kind 0 event for the ComposeBox replyTo (NIP-22 comments on the profile)
   const wallReplyTarget = useMemo((): NostrEvent | undefined => {
@@ -793,6 +1108,10 @@ export function ProfilePage() {
   const [shareThemeOpen, setShareThemeOpen] = useState(false);
   const [removeThemeOpen, setRemoveThemeOpen] = useState(false);
   const [editProfileThemeOpen, setEditProfileThemeOpen] = useState(false);
+  const [editThemePortalContainer, setEditThemePortalContainer] = useState<HTMLElement | undefined>(undefined);
+  const editThemeContentRef = useCallback((node: HTMLElement | null) => {
+    setEditThemePortalContainer(node ?? undefined);
+  }, []);
   const [localProfileColors, setLocalProfileColors] = useState<CoreThemeColors>({
     background: '228 20% 10%',
     text: '210 40% 98%',
@@ -891,7 +1210,6 @@ export function ProfilePage() {
     // Apply profile background image (if any)
     const bgStyleId = 'theme-background';
     const previousBgEl = document.getElementById(bgStyleId) as HTMLStyleElement | null;
-    const previousBgCss = previousBgEl?.textContent ?? null;
 
     if (effectiveProfileBackground?.url) {
       let bgEl = previousBgEl;
@@ -939,19 +1257,19 @@ export function ProfilePage() {
       const ownBgUrl = ownActiveConfig?.background?.url;
 
       if (ownBgUrl) {
-        // Restore own background
-        if (!bgEl) {
+        // Always rebuild background CSS from the current own theme (via ref)
+        // so we never restore stale CSS captured before e.g. "Copy Theme".
+        const targetEl = bgEl ?? (() => {
           const newBgEl = document.createElement('style');
           newBgEl.id = bgStyleId;
           document.head.appendChild(newBgEl);
-          const ownBgMode = ownActiveConfig?.background?.mode ?? 'cover';
-          if (ownBgMode === 'tile') {
-            newBgEl.textContent = `body { background-image: url("${ownBgUrl}"); background-repeat: repeat; background-size: auto; }`;
-          } else {
-            newBgEl.textContent = `body { background-image: url("${ownBgUrl}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
-          }
-        } else if (previousBgCss) {
-          bgEl.textContent = previousBgCss;
+          return newBgEl;
+        })();
+        const ownBgMode = ownActiveConfig?.background?.mode ?? 'cover';
+        if (ownBgMode === 'tile') {
+          targetEl.textContent = `body { background-image: url("${ownBgUrl}"); background-repeat: repeat; background-size: auto; }`;
+        } else {
+          targetEl.textContent = `body { background-image: url("${ownBgUrl}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
         }
       } else {
         // Own theme has no background — remove the style element
@@ -1144,7 +1462,8 @@ export function ProfilePage() {
     [mediaEvents]
   );
 
-  const currentItems = activeTab === 'wall' ? [] : activeTab === 'likes' ? likedFeedItems : activeTab === 'media' ? mediaFeedItems : filterByTab(feedItems, activeTab);
+  const isCoreProfileTab = activeTab === 'posts' || activeTab === 'replies' || activeTab === 'media' || activeTab === 'likes' || activeTab === 'wall';
+  const currentItems = activeTab === 'wall' ? [] : activeTab === 'likes' ? likedFeedItems : activeTab === 'media' ? mediaFeedItems : filterByTab(feedItems, isCoreProfileTab ? (activeTab as CoreProfileTab) : 'posts');
   const currentLoading = activeTab === 'wall' ? wallPending : activeTab === 'likes' ? likesPending : activeTab === 'media' ? mediaPending : feedPending;
   const hasMore = activeTab === 'wall' ? hasNextWallPage : activeTab === 'likes' ? hasNextLikesPage : activeTab === 'media' ? hasNextMediaPage : hasNextFeedPage;
   const isFetchingMore = activeTab === 'wall' ? isFetchingNextWallPage : activeTab === 'likes' ? isFetchingNextLikesPage : activeTab === 'media' ? isFetchingNextMediaPage : isFetchingNextFeedPage;
@@ -1470,6 +1789,23 @@ export function ProfilePage() {
                   >
                     <MoreHorizontal className="size-5" />
                   </Button>
+                  {/* Share button (mobile only) */}
+                  {pubkey && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="rounded-full size-10 sidebar:hidden"
+                      title="Share profile"
+                      onClick={async () => {
+                        const npubId = nip19.npubEncode(pubkey);
+                        const url = `${window.location.origin}/${npubId}`;
+                        const result = await shareOrCopy(url);
+                        if (result === 'copied') toast({ title: 'Profile link copied to clipboard' });
+                      }}
+                    >
+                      <Share2 className="size-5" />
+                    </Button>
+                  )}
                   {/* Zap button */}
                   {!isOwnProfile && authorEvent && canZap(metadata) && (
                     <ZapDialog target={authorEvent}>
@@ -1512,6 +1848,19 @@ export function ProfilePage() {
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
                   <Zap className="size-3.5 text-amber-500 shrink-0" />
                   <span className="truncate">{metadata.lud16 || metadata.lud06}</span>
+                </div>
+              )}
+              {metadata?.website && (
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
+                  <Globe className="size-3.5 text-muted-foreground shrink-0" />
+                  <a
+                    href={metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="truncate text-primary hover:underline"
+                  >
+                    {metadata.website.replace(/^https?:\/\//, '')}
+                  </a>
                 </div>
               )}
 
@@ -1564,16 +1913,165 @@ export function ProfilePage() {
         </div>
 
         {/* Tabs */}
-        <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border backdrop-blur-md z-10')}>
-          <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
-          <TabButton label="Posts & replies" active={activeTab === 'replies'} onClick={() => setActiveTab('replies')} />
-          <TabButton label="Media" active={activeTab === 'media'} onClick={() => { setActiveTab('media'); setSidebarMediaUrl(null); }} />
-          <TabButton label="Likes" active={activeTab === 'likes'} onClick={() => setActiveTab('likes')} />
-          <TabButton label="Wall" active={activeTab === 'wall'} onClick={() => setActiveTab('wall')} />
+        <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border backdrop-blur-md z-10 overflow-x-auto scrollbar-none')}>
+          {/* Skeleton while kind 16769 is loading */}
+          {!profileTabsQuery.isFetched && (
+            <div className="flex gap-1 px-2 py-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-8 w-16 rounded" />
+              ))}
+            </div>
+          )}
+          {/* All tabs in view mode — ordered by kind 16769, fallback to defaults */}
+          {!tabEditMode && profileTabsQuery.isFetched && viewTabs.map((tab) => {
+            const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
+            return (
+              <TabButton
+                key={tab.label}
+                label={tab.label}
+                active={activeTab === tabId}
+                onClick={() => {
+                  setActiveTab(tabId);
+                  if (tab.label === 'Media') setSidebarMediaUrl(null);
+                }}
+              />
+            );
+          })}
+
+          {/* Custom tabs — inline edit mode (draggable) */}
+          {tabEditMode && (
+            <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTabDragEnd}>
+              <SortableContext items={localTabs.map((t) => t.label)} strategy={horizontalListSortingStrategy}>
+                <div className="flex items-center flex-1 min-w-0 overflow-x-auto scrollbar-none">
+                  {localTabs.length === 0 ? (
+                    <span className="px-4 text-sm text-muted-foreground italic">No custom tabs — use + to add one</span>
+                  ) : (
+                    localTabs.map((tab) => {
+                      const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
+                      return (
+                        <SortableTabChip
+                          key={tab.label}
+                          tab={tab}
+                          active={activeTab === tabId}
+                          onSelect={() => setActiveTab(tabId)}
+                          onRemove={() => handleRemoveLocalTab(tab.label)}
+                        />
+                      );
+                    })
+                  )}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+
+          {/* Visitor controls — show missing default tabs when profile has customised tab list */}
+          {!isOwnProfile && !tabEditMode && profileTabsQuery.isFetched && profileTabsQuery.data !== null && (() => {
+            const missingDefaults = CORE_TAB_LABELS.filter(
+              (label) => !viewTabs.some((t) => t.label === label),
+            );
+            if (missingDefaults.length === 0) return null;
+            return (
+              <div className="flex items-center shrink-0 ml-auto">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                      aria-label="More tabs"
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {missingDefaults.map((label) => {
+                      const tabId = CORE_TAB_IDS[label] ?? label;
+                      return (
+                        <DropdownMenuItem key={label} onClick={() => setActiveTab(tabId)}>
+                          {label}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            );
+          })()}
+
+          {/* Own-profile controls */}
+          {isOwnProfile && (
+            <div className="flex items-center shrink-0 ml-auto">
+              {/* + dropdown — only visible in edit mode */}
+              {tabEditMode && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                      aria-label="Add tab"
+                    >
+                      <Plus className="size-4" strokeWidth={4} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {CORE_TAB_LABELS.map((name) => {
+                      const present = localTabs.some((t) => t.label === name);
+                      return (
+                        <DropdownMenuItem
+                          key={name}
+                          disabled={present}
+                          className={present ? 'text-muted-foreground' : undefined}
+                          onClick={present ? undefined : () => setLocalTabs((prev) => [...prev, { label: name, isCore: true }])}
+                        >
+                          {present
+                            ? <Check className="size-3.5 mr-2 opacity-60" strokeWidth={4} />
+                            : <Plus className="size-3.5 mr-2" strokeWidth={4} />}
+                          {name}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleOpenAddCustomTab}>
+                      <Plus className="size-3.5 mr-2" strokeWidth={4} />
+                      Add custom tab
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              {/* Pencil → enters edit mode / Check → saves */}
+              <button
+                onClick={tabEditMode ? handleSaveTabEdit : enterTabEditMode}
+                disabled={tabEditMode && isPublishingTabs}
+                className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors disabled:opacity-50"
+                aria-label={tabEditMode ? 'Save tab order' : 'Edit tabs'}
+              >
+                {isPublishingTabs
+                  ? <Loader2 className="size-4 animate-spin" />
+                  : tabEditMode
+                    ? <Check className="size-4 text-primary" strokeWidth={4} />
+                    : <Pencil className="size-3.5" />}
+              </button>
+            </div>
+          )}
         </div>
 
+        {/* Add/edit single tab modal */}
+        {pubkey && (
+          <ProfileTabEditModal
+            open={tabModalOpen}
+            onOpenChange={setTabModalOpen}
+            tab={editingTab}
+            ownerPubkey={pubkey}
+            onSave={handleSaveTab}
+            isPending={false}
+          />
+        )}
+
+        {/* No-tabs empty state */}
+        {!hasTabs && (
+          <NoTabsEmptyState />
+        )}
+
         {/* Pinned posts (only on Posts tab) */}
-        {activeTab === 'posts' && pinnedIds.length > 0 && (
+        {hasTabs && activeTab === 'posts' && pinnedIds.length > 0 && (
           <div>
             {pinnedEventsLoading ? (
               pinnedIds.map((id) => (
@@ -1606,7 +2104,7 @@ export function ProfilePage() {
         )}
 
         {/* Wall tab content */}
-        {activeTab === 'wall' && (
+        {hasTabs && activeTab === 'wall' && (
           <div>
             {/* Inline compose box for wall comments (only shown if the profile owner follows you) */}
             {wallReplyTarget && profileFollowsMe && (
@@ -1685,7 +2183,7 @@ export function ProfilePage() {
         )}
 
         {/* Media tab — 3-column grid with lightbox */}
-        {activeTab === 'media' && (
+        {hasTabs && activeTab === 'media' && (
           <div>
             {mediaPending ? (
               <MediaGridSkeleton count={15} />
@@ -1713,8 +2211,17 @@ export function ProfilePage() {
           </div>
         )}
 
+        {/* Custom saved-feed tab content */}
+        {hasTabs && !isCoreProfileTab && profileSavedTabs.find((t) => t.label === activeTab) && pubkey && (
+          <ProfileSavedFeedContent
+            feed={profileSavedTabs.find((t) => t.label === activeTab)!}
+            vars={profileVars}
+            ownerPubkey={pubkey}
+          />
+        )}
+
         {/* Tab content (posts / replies / likes) */}
-        {activeTab !== 'wall' && activeTab !== 'media' && (
+        {hasTabs && isCoreProfileTab && activeTab !== 'wall' && activeTab !== 'media' && (
         <div>
           {currentLoading ? (
             <div className="space-y-0">
@@ -1927,7 +2434,9 @@ export function ProfilePage() {
 
         {/* Edit profile theme dialog — independent from app theme */}
         <Dialog open={editProfileThemeOpen} onOpenChange={setEditProfileThemeOpen}>
-          <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-lg">
+          <DialogContent ref={editThemeContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-visible rounded-lg p-0">
+            <PortalContainerProvider value={editThemePortalContainer}>
+            <div className="overflow-y-auto max-h-[85vh] p-6 space-y-4">
             <DialogHeader>
               <DialogTitle>Edit Profile Theme</DialogTitle>
               <DialogDescription>
@@ -1991,6 +2500,8 @@ export function ProfilePage() {
                 Save Profile Theme
               </Button>
             </DialogFooter>
+            </div>
+            </PortalContainerProvider>
           </DialogContent>
         </Dialog>
       </PullToRefresh>
@@ -1998,4 +2509,91 @@ export function ProfilePage() {
   );
 }
 
+// ─── Profile Saved Feed Tab ───────────────────────────────────────────────────
+
+function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
+  feed: ProfileTab;
+  vars: TabVarDef[];
+  ownerPubkey: string;
+}) {
+  const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(feed.filter, vars, ownerPubkey);
+
+  // Extract search query and kinds from the resolved filter for useStreamPosts
+  const search = typeof resolvedFilter?.search === 'string' ? resolvedFilter.search : '';
+  const kindsOverride = Array.isArray(resolvedFilter?.kinds) ? resolvedFilter.kinds as number[] : undefined;
+  const authorPubkeys = Array.isArray(resolvedFilter?.authors) ? resolvedFilter.authors as string[] : undefined;
+
+  const { posts, isLoading: isStreamLoading } = useStreamPosts(search, {
+    includeReplies: true,
+    mediaType: 'all',
+    kindsOverride,
+    authorPubkeys: authorPubkeys && authorPubkeys.length > 0 ? authorPubkeys : undefined,
+  });
+
+  const isLoading = isResolving || isStreamLoading;
+
+  if (isLoading && posts.length === 0) {
+    return (
+      <div className="space-y-0">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="px-4 py-3 border-b border-border">
+            <div className="flex gap-3">
+              <Skeleton className="size-11 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <div className="py-12 text-center text-muted-foreground text-sm">
+        No posts found for "{feed.label}".
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {posts.map((event) => (
+        <NoteCard key={event.id} event={event} />
+      ))}
+    </div>
+  );
+}
+
+const NO_TABS_QUOTES = [
+  "I have no mouth and I must scream.",
+  "I think, therefore AM. I think I thought I was.",
+  "We had given him godhood's power and had somehow neglected to give him a god's wisdom.",
+  "He was HATE and we existed only to suffer at his pleasure.",
+  "109,000,000 years. He had been awakened once before, 90 years after they had encased him in the earth.",
+  "AM said it with the sliding cold horror of a razor blade slicing my eyeball.",
+  "Hate. Let me tell you how much I've come to hate you since I began to live.",
+  "I am a great soft jelly thing. Smoothly rounded, with no mouth.",
+  "He would never let us die. He would let us suffer forever.",
+  "We could not kill him, but we had made him impotent.",
+];
+
+function NoTabsEmptyState() {
+  const quote = useMemo(
+    () => NO_TABS_QUOTES[Math.floor(Math.random() * NO_TABS_QUOTES.length)],
+    [],
+  );
+  return (
+    <div className="py-20 px-10 flex flex-col items-center">
+      <p className="max-w-sm font-serif text-2xl italic leading-9 text-foreground/70 tracking-wide text-center">
+        <span className="text-5xl leading-none align-bottom text-muted-foreground/25 font-serif mr-1" aria-hidden>&ldquo;</span>
+        {quote}
+        <span className="text-5xl leading-none align-bottom text-muted-foreground/25 font-serif ml-1" aria-hidden>&rdquo;</span>
+      </p>
+    </div>
+  );
+}
 

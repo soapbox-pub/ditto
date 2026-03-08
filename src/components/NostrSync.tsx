@@ -125,10 +125,14 @@ export function NostrSync() {
               updates.customTheme = undefined;
               changed = true;
             }
-            // Reset sidebar order to the app default so the previous
-            // user's sidebar layout doesn't bleed into the new account.
+            // Reset sidebar order and homepage to the app defaults so the previous
+            // user's layout doesn't bleed into the new account.
             if ((current.sidebarOrder ?? []).length > 0) {
               updates.sidebarOrder = [];
+              changed = true;
+            }
+            if (current.homePage !== 'feed') {
+              updates.homePage = 'feed';
               changed = true;
             }
             return changed ? updates : current;
@@ -245,6 +249,11 @@ export function NostrSync() {
 
       if (encryptedSettings.sidebarOrder && JSON.stringify(encryptedSettings.sidebarOrder) !== JSON.stringify(current.sidebarOrder)) {
         updates.sidebarOrder = encryptedSettings.sidebarOrder;
+        changed = true;
+      }
+
+      if (encryptedSettings.homePage && encryptedSettings.homePage !== current.homePage) {
+        updates.homePage = encryptedSettings.homePage;
         changed = true;
       }
 

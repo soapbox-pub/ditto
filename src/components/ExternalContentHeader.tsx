@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, ExternalLink, Globe, MapPin, User, Users } from 'lucide-react';
+import { BookOpen, ExternalLink, FileText, Globe, MapPin, Play, User, Users } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,8 +13,11 @@ import { useAddrEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { genUserName } from '@/lib/genUserName';
-import { getCountryInfo } from '@/lib/countries';
+import { getCountryInfo, getWikipediaTitle } from '@/lib/countries';
+import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
 import { parseExternalUri, formatIsbn } from '@/lib/externalContent';
+import { EXTRA_KINDS } from '@/lib/extraKinds';
+import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
 // ---------------------------------------------------------------------------
 // Full-size content headers (used on /i/ page)
@@ -135,8 +138,66 @@ export function BookContentHeader({ isbn }: { isbn: string }) {
   );
 }
 
+const WIKI_MAX_HEIGHT = 100; // px — extract taller than this gets truncated
+
+function WikipediaExtract({ extract, articleUrl }: { extract: string; articleUrl: string }) {
+  const contentRef = useRef<HTMLParagraphElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const measure = useCallback(() => {
+    const el = contentRef.current;
+    if (el) setOverflows(el.scrollHeight > WIKI_MAX_HEIGHT);
+  }, []);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  return (
+    <div className="mt-5 space-y-2">
+      <div className="relative">
+        <p
+          ref={contentRef}
+          style={!expanded && overflows ? { maxHeight: WIKI_MAX_HEIGHT, overflow: 'hidden' } : undefined}
+          className="text-sm leading-relaxed text-muted-foreground"
+        >
+          {extract}
+        </p>
+        {!expanded && overflows && (
+          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+        )}
+      </div>
+      <div className="flex items-center gap-3">
+        {overflows && (
+          <button
+            className="text-sm text-primary hover:underline"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? 'Show less' : 'Read more'}
+          </button>
+        )}
+        <a
+          href={articleUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Globe className="size-3.5" />
+          <span>Wikipedia</span>
+          <ExternalLink className="size-3" />
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export function CountryContentHeader({ code }: { code: string }) {
   const info = getCountryInfo(code);
+  const wikiTitle = getWikipediaTitle(code);
+  const { data: wiki, isLoading: wikiLoading } = useWikipediaSummary(wikiTitle);
 
   if (!info) {
     return (
@@ -149,22 +210,47 @@ export function CountryContentHeader({ code }: { code: string }) {
 
   return (
     <div className="rounded-2xl border border-border overflow-hidden">
+      {/* Flag + name */}
       <div className="p-6 sm:p-8">
         <div className="flex items-center gap-4">
-          <span className="text-6xl sm:text-7xl leading-none" role="img" aria-label={`Flag of ${info.name}`}>
-            {info.flag}
-          </span>
+          {info.subdivision && wiki?.thumbnail ? (
+            <img
+              src={wiki.thumbnail.source}
+              alt={info.subdivisionName ?? info.subdivision}
+              className="size-16 sm:size-20 rounded-md object-cover shadow-sm border border-border"
+            />
+          ) : (
+            <span className="text-6xl sm:text-7xl leading-none" role="img" aria-label={`Flag of ${info.name}`}>
+              {info.flag}
+            </span>
+          )}
           <div className="space-y-1">
             <h2 className="text-2xl sm:text-3xl font-bold leading-snug">
-              {info.name}
+              {info.subdivisionName ?? info.name}
             </h2>
             {info.subdivision && (
               <p className="text-sm text-muted-foreground">
-                Subdivision: {info.subdivision}
+                {info.name}{info.subdivisionName ? '' : ` · ${info.subdivision}`}
+              </p>
+            )}
+            {wiki?.description && (
+              <p className="text-sm text-muted-foreground capitalize">
+                {wiki.description}
               </p>
             )}
           </div>
         </div>
+
+        {/* Wikipedia extract */}
+        {wikiLoading ? (
+          <div className="mt-5 space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        ) : wiki?.extract ? (
+          <WikipediaExtract extract={wiki.extract} articleUrl={wiki.articleUrl} />
+        ) : null}
       </div>
     </div>
   );
@@ -480,6 +566,127 @@ export function ProfilePreview({ pubkey }: { pubkey: string }) {
             {metadata.nip05}
           </p>
         )}
+      </div>
+    </Link>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Addressable event preview (vines, music, articles, etc.)
+// ---------------------------------------------------------------------------
+
+/** Extract a thumbnail URL from an addressable event's tags. */
+function extractThumbnail(tags: string[][]): string | undefined {
+  // 1. Explicit image/thumb tag
+  const imageTag = tags.find(([n]) => n === 'image' || n === 'thumb')?.[1];
+  if (imageTag) return imageTag;
+
+  // 2. imeta tag (used by vines / kind 34236)
+  const imetaTag = tags.find(([n]) => n === 'imeta');
+  if (imetaTag) {
+    for (let i = 1; i < imetaTag.length; i++) {
+      const part = imetaTag[i];
+      if (part.startsWith('image ')) return part.slice(6);
+    }
+  }
+
+  return undefined;
+}
+
+/** Check if an event has video content (imeta with url containing video indicators). */
+function hasVideo(tags: string[][]): boolean {
+  const imetaTag = tags.find(([n]) => n === 'imeta');
+  if (!imetaTag) return false;
+  for (let i = 1; i < imetaTag.length; i++) {
+    const part = imetaTag[i];
+    if (part.startsWith('url ') || part.startsWith('m video/')) return true;
+  }
+  return false;
+}
+
+export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
+  const { data: event, isLoading } = useAddrEvent(addr);
+  const author = useAuthor(addr.pubkey);
+  const authorMeta = author.data?.metadata;
+  const authorName = authorMeta?.name ?? genUserName(addr.pubkey);
+
+  const kindDef = useMemo(
+    () => EXTRA_KINDS.find((d) => d.kind === addr.kind || d.subKinds?.some((s) => s.kind === addr.kind)),
+    [addr.kind],
+  );
+  const kindLabel = useMemo(() => {
+    if (kindDef) return kindDef.label;
+    const sub = EXTRA_KINDS.flatMap((d) => d.subKinds ?? []).find((s) => s.kind === addr.kind);
+    if (sub) return sub.label;
+    return `Kind ${addr.kind}`;
+  }, [kindDef, addr.kind]);
+
+  const KindIcon = useMemo(() => {
+    if (kindDef?.id) return CONTENT_KIND_ICONS[kindDef.id] ?? FileText;
+    return FileText;
+  }, [kindDef]);
+
+  const title = event?.tags.find(([n]) => n === 'title')?.[1]
+    || event?.tags.find(([n]) => n === 'name')?.[1]
+    || event?.tags.find(([n]) => n === 'd')?.[1]
+    || kindLabel;
+  const thumbnail = event ? extractThumbnail(event.tags) : undefined;
+  const isVideo = event ? hasVideo(event.tags) : false;
+
+  const link = useMemo(() => {
+    return `/${nip19.naddrEncode({ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier })}`;
+  }, [addr]);
+
+  if (isLoading) {
+    return (
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-12 rounded-lg shrink-0" />
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      to={link}
+      className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors"
+    >
+      {thumbnail ? (
+        <div className="relative size-12 rounded-lg overflow-hidden shrink-0">
+          <img
+            src={thumbnail}
+            alt={title}
+            className="size-full object-cover"
+            loading="lazy"
+          />
+          {isVideo && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <Play className="size-4 text-white fill-white" />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <KindIcon className="size-5 text-primary/50" />
+        </div>
+      )}
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <KindIcon className="size-3 shrink-0" />
+          <span>{kindLabel}</span>
+          <span className="text-muted-foreground/60">&middot;</span>
+          <span className="truncate">{authorName}</span>
+        </div>
+        <p className="text-sm font-medium truncate mt-0.5">
+          {title}
+        </p>
       </div>
     </Link>
   );

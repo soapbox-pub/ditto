@@ -29,7 +29,7 @@ export function MagicSettingsPage() {
           <div>
             <h1 className="text-xl font-bold">Magic</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Enchanted cursor effects and mystical interface powers
+              Harness the mystical energies of your device. Imbue your cursor with elemental fire.
             </p>
           </div>
         </div>

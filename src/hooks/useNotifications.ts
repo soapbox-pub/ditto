@@ -10,7 +10,7 @@ import { useEncryptedSettings } from './useEncryptedSettings';
 const PAGE_SIZE = 20;
 
 export interface NotificationItem {
-  /** The notification event (kind 1, 6, 16, 7, 9735, 1222, or 1244). */
+  /** The notification event (kind 1, 6, 16, 7, 9735, 1111, 1222, or 1244). */
   event: NostrEvent;
   /** The referenced event (the post that was liked/reposted/zapped), if available. */
   referencedEvent?: NostrEvent;
@@ -65,7 +65,7 @@ export function useNotifications(): NotificationData {
       if (!user) return { items: [], oldestTimestamp: Math.floor(Date.now() / 1000) };
 
       const filter: Record<string, unknown> = {
-        kinds: [1, 6, 16, 7, 9735, 1222, 1244],
+        kinds: [1, 6, 16, 7, 9735, 1111, 1222, 1244],
         '#p': [user.pubkey],
         limit: PAGE_SIZE,
       };
@@ -93,7 +93,8 @@ export function useNotifications(): NotificationData {
       // Collect referenced event IDs for batch fetching
       const referencedIds: string[] = [];
       for (const ev of filtered) {
-        // kind 1 (mention) and voice messages (1222/1244) ARE the notification content
+        // kind 1 (mention) and voice messages (1222/1244) ARE the notification content;
+        // kind 1111 (comment) IS the content but we also fetch its parent for context.
         if (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244) {
           const refId = getReferencedEventId(ev);
           if (refId) referencedIds.push(refId);
@@ -135,6 +136,7 @@ export function useNotifications(): NotificationData {
 
       // Build notification items
       const items: NotificationItem[] = filtered.map((ev) => {
+        // kind 1111 has a referenced parent event via lowercase 'e' tag
         const refId = (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244) ? getReferencedEventId(ev) : undefined;
         return {
           event: ev,

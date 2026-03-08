@@ -25,6 +25,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useStreamKind } from '@/hooks/useStreamKind';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFeedTab } from '@/hooks/useFeedTab';
 import { useEventStats, type EventStats } from '@/hooks/useTrending';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
@@ -595,17 +596,7 @@ export function VinesFeedPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
 
-  // Default to follows when logged in, global when logged out
-  const [tab, setTab] = useState<FeedTab>(user ? 'follows' : 'global');
-
-  // Switch to follows when user logs in for the first time this session
-  const didSwitchRef = useRef(false);
-  useEffect(() => {
-    if (user && !didSwitchRef.current) {
-      didSwitchRef.current = true;
-      setTab('follows');
-    }
-  }, [user]);
+  const [tab, setTab] = useFeedTab<FeedTab>('vines', ['follows', 'global']);
 
   const { events, isLoading } = useVinesFeed(tab);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -636,7 +627,6 @@ export function VinesFeedPage() {
 
   useLayoutOptions({
     showFAB: false,
-    noBottomSpacer: true,
   });
 
   // Lock body scroll when mobile comments are open

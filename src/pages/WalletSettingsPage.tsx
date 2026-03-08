@@ -1,6 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
+import { HelpTip } from '@/components/HelpTip';
 import { WalletSettings } from '@/components/WalletSettings';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -27,7 +28,7 @@ export function WalletSettingsPage() {
             <ArrowLeft className="size-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold">Wallet</h1>
+            <h1 className="text-xl font-bold flex items-center gap-1.5">Wallet <HelpTip faqId="connect-wallet" /></h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Manage wallet connections and payments
             </p>
