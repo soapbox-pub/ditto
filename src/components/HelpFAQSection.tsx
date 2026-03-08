@@ -123,7 +123,7 @@ export function HelpFAQSection({ categories, items, hideHeadings, className }: H
             </div>
           )}
 
-          <Accordion type="single" collapsible className="w-full">
+          <Accordion type="single" collapsible className="w-full pl-3">
             {category.items.map((item) => (
               <FAQAccordionItem key={item.id} item={item} />
             ))}
