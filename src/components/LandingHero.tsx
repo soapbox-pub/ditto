@@ -166,6 +166,9 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
           <Button onClick={onLoginClick} variant="outline" className="rounded-full px-6" size="sm">
             Log in
           </Button>
+          <Button variant="ghost" className="rounded-full px-6" size="sm" asChild>
+            <Link to="/help">FAQ</Link>
+          </Button>
         </div>
       </div>
 
