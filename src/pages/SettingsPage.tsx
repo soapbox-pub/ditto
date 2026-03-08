@@ -1,10 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
 import { useState, useEffect, useRef } from 'react';
-import {
-  ArrowLeft, Bell, ChevronRight, EyeOff, Globe,
-  Rss, Settings, Sparkles, UserCircle, Wrench,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -16,7 +12,7 @@ interface SettingsSection {
   id: string;
   label: string;
   description: string;
-  icon: LucideIcon;
+  illustration?: string;
   path: string;
   requiresAuth?: boolean;
 }
@@ -26,7 +22,7 @@ const settingsSections: SettingsSection[] = [
     id: 'profile',
     label: 'Profile',
     description: 'Edit your display name, bio, and avatar',
-    icon: UserCircle,
+    illustration: '/profile-intro.png',
     path: '/settings/profile',
     requiresAuth: true,
   },
@@ -34,21 +30,21 @@ const settingsSections: SettingsSection[] = [
     id: 'feed',
     label: 'Home Feed',
     description: 'Choose what types of posts appear in your home feed',
-    icon: Rss,
+    illustration: '/community-intro.png',
     path: '/settings/feed',
   },
   {
     id: 'content',
     label: 'Content',
     description: 'Muted users, hashtags, and sensitive content settings',
-    icon: EyeOff,
+    illustration: '/mute-intro.png',
     path: '/settings/content',
   },
   {
     id: 'network',
     label: 'Network',
     description: 'Relays and file upload servers',
-    icon: Globe,
+    illustration: '/relay-intro.png',
     path: '/settings/network',
     requiresAuth: true,
   },
@@ -56,7 +52,7 @@ const settingsSections: SettingsSection[] = [
     id: 'notifications',
     label: 'Notifications',
     description: 'Configure push notification preferences',
-    icon: Bell,
+    illustration: '/notification-intro.png',
     path: '/settings/notifications',
     requiresAuth: true,
   },
@@ -64,14 +60,14 @@ const settingsSections: SettingsSection[] = [
     id: 'advanced',
     label: 'Advanced',
     description: 'Wallet, system, and power user settings',
-    icon: Wrench,
+    illustration: '/advanced-intro.png',
     path: '/settings/advanced',
   },
   {
     id: 'magic',
     label: 'Magic',
     description: 'Enchanted cursor effects and mystical interface powers',
-    icon: Sparkles,
+    illustration: '/magic-intro.png',
     path: '/settings/magic',
   },
 ];
@@ -133,6 +129,21 @@ export function SettingsPage() {
         </div>
       </div>
 
+      {/* Codex heading + exposition */}
+      <div className="px-7 pb-4 pt-4 text-center space-y-2.5">
+        <p className="text-xs text-muted-foreground leading-relaxed select-none">
+          Shape your identity, tune your feed, and manage how you connect to the Nostr network.<br />Everything you need to make this place feel like yours.
+        </p>
+        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/60 select-none pt-6">Codex of Configuration</p>
+      </div>
+
+      {/* Tome ornament */}
+      <div className="flex items-center gap-3 px-6 pb-5">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/40 to-primary/60" />
+        <span className="text-primary/50 text-xs tracking-[0.3em] select-none">✦</span>
+        <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/40 to-primary/60" />
+      </div>
+
       {/* Settings menu */}
       <div className="px-4">
         {visibleSections.map((section, i) => {
@@ -142,8 +153,10 @@ export function SettingsPage() {
                 className="flex items-center gap-4 px-3 py-2 my-1 cursor-pointer rounded-xl transition-colors hover:bg-muted/60 active:bg-muted/80 group"
                 onClick={() => navigate(section.path)}
               >
-                <div className="flex items-center justify-center size-10 shrink-0 rounded-full bg-primary/10">
-                  <section.icon className="size-5 text-primary" />
+                <div className="flex items-center justify-center size-20 shrink-0">
+                  {section.illustration && (
+                    <IntroImage src={section.illustration} size="w-22" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold">{section.label}</p>
@@ -159,6 +172,13 @@ export function SettingsPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* Bottom ornament */}
+      <div className="flex items-center gap-3 px-6 pt-4 pb-2">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/20 to-primary/30" />
+        <span className="text-primary/30 text-[10px] tracking-[0.4em] select-none">◆</span>
+        <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/20 to-primary/30" />
       </div>
 
       {/* Magic sigil — appears after 2 min inactivity, only when magic is locked */}
