@@ -4,7 +4,6 @@ import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { IntroImage } from '@/components/IntroImage';
 import { MuteSettingsInternals, SensitiveContentSection, ThemePreferencesSection } from '@/components/ContentSettings';
 import { useAppContext } from '@/hooks/useAppContext';
 
@@ -30,20 +29,9 @@ export function ContentPage() {
           <div>
             <h1 className="text-xl font-bold">Content</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Muted users, hashtags, and sensitive content settings
+              Control what you see. Mute users, hashtags, or words, and choose how content warnings are handled. Mutes are encrypted and private.
             </p>
           </div>
-        </div>
-      </div>
-
-      {/* Lead image — Muted Content */}
-      <div className="flex items-center gap-4 px-7 py-5">
-        <IntroImage src="/mute-intro.png" size="w-28" />
-        <div className="min-w-0">
-          <h2 className="text-base font-semibold">Content Control</h2>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Hide posts from specific users, hashtags, words, or entire threads. All mutes are encrypted and private.
-          </p>
         </div>
       </div>
 

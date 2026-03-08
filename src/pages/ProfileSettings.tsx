@@ -1,7 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Loader2, Plus, Trash2, ChevronDown, GripVertical, Type, Wallet, Image, Upload } from 'lucide-react';
-import { IntroImage } from '@/components/IntroImage';
 import { Link, Navigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -445,24 +444,13 @@ export function ProfileSettings() {
           </Link>
           <div>
             <h1 className="text-xl font-bold">Profile</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Edit your display name, bio, and avatar</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Your Nostr identity is portable — it goes wherever you go. Edit your display name, bio, and avatar.</p>
           </div>
         </div>
       </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl mx-auto px-4 pb-10 space-y-6">
-
-          {/* Intro */}
-          <div className="flex items-center gap-4 px-3 pt-2 pb-2">
-            <IntroImage src="/profile-intro.png" />
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold">Your Identity</h2>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Tap any field on the card to edit. Click your avatar or banner to upload and crop a new image.
-              </p>
-            </div>
-          </div>
 
           {/* Interactive profile card */}
           <ProfileCard

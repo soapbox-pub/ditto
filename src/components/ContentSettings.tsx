@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { IntroImage } from '@/components/IntroImage';
 import {
   ChevronDown, ChevronUp, Users, Download, Loader2, X, Pencil, Home, Globe,
-  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink, ShieldAlert,
+  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,14 +37,6 @@ export function ContentSettings() {
 
   return (
     <div>
-      {/* Intro */}
-      <div className="px-3 pt-2 pb-4">
-        <h2 className="text-sm font-semibold">What You See</h2>
-        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Customize your feed, choose what content appears, and control what you want to hide.
-        </p>
-      </div>
-
       {/* Homepage Section */}
       <HomePageSetting />
 
@@ -129,16 +120,9 @@ export function ContentSettings() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="pb-4">
-              {/* Intro section for Other Stuff */}
-              <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-                <IntroImage src="/feed-intro.png" />
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold">Other Stuff</h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
-                  </p>
-                </div>
-              </div>
+              <p className="text-xs text-muted-foreground px-3 pt-3 pb-2 leading-relaxed">
+                Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
+              </p>
 
               {/* Column headers */}
               <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
@@ -436,16 +420,9 @@ function FeedTabsSection() {
 
   return (
     <div>
-      {/* Intro section for Feed Tabs */}
-      <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-        <IntroImage src="/community-intro.png" />
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold">Feed Navigation</h3>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Manage which feed tabs appear in your navigation and follow communities by domain.
-          </p>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground px-3 pt-3 pb-2 leading-relaxed">
+        Manage which feed tabs appear in your navigation and follow communities by domain.
+      </p>
 
       {/* Feed Tab Toggles */}
       <div className="border-b border-border">
@@ -760,18 +737,9 @@ export function SensitiveContentSection() {
 
   return (
     <div>
-      {/* Intro */}
-      <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-        <div className="w-40 shrink-0 flex items-center justify-center">
-          <ShieldAlert className="size-16 text-muted-foreground/40" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold">Content Warnings</h3>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Some posts are tagged with content warnings (NIP-36) by their authors. This can include NSFW material, spoilers, or other sensitive content.
-          </p>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground px-3 pt-3 pb-2 leading-relaxed">
+        Some posts are tagged with content warnings by their authors. Choose how these are displayed.
+      </p>
 
       {/* Policy options — consistent row style with other settings */}
       <RadioGroup

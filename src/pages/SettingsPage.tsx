@@ -1,6 +1,10 @@
 import { useSeoMeta } from '@unhead/react';
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ChevronRight, Settings } from 'lucide-react';
+import {
+  ArrowLeft, Bell, ChevronRight, EyeOff, Globe, ListChecks,
+  Rss, Settings, Sparkles, UserCircle, Wrench,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -12,7 +16,7 @@ interface SettingsSection {
   id: string;
   label: string;
   description: string;
-  illustration?: string;
+  icon: LucideIcon;
   path: string;
   requiresAuth?: boolean;
 }
@@ -22,7 +26,7 @@ const settingsSections: SettingsSection[] = [
     id: 'profile',
     label: 'Profile',
     description: 'Edit your display name, bio, and avatar',
-    illustration: '/profile-intro.png',
+    icon: UserCircle,
     path: '/settings/profile',
     requiresAuth: true,
   },
@@ -30,21 +34,21 @@ const settingsSections: SettingsSection[] = [
     id: 'feed',
     label: 'Feed',
     description: 'Choose what types of posts appear in your feed',
-    illustration: '/community-intro.png',
+    icon: Rss,
     path: '/settings/feed',
   },
   {
     id: 'content',
     label: 'Content',
     description: 'Muted users, hashtags, and sensitive content settings',
-    illustration: '/mute-intro.png',
+    icon: EyeOff,
     path: '/settings/content',
   },
   {
     id: 'network',
     label: 'Network',
     description: 'Relays and file upload servers',
-    illustration: '/relay-intro.png',
+    icon: Globe,
     path: '/settings/network',
     requiresAuth: true,
   },
@@ -52,7 +56,7 @@ const settingsSections: SettingsSection[] = [
     id: 'lists',
     label: 'Lists',
     description: 'Organize people into follow sets for custom feeds',
-    illustration: '/lists-intro.png',
+    icon: ListChecks,
     path: '/settings/lists',
     requiresAuth: true,
   },
@@ -60,7 +64,7 @@ const settingsSections: SettingsSection[] = [
     id: 'notifications',
     label: 'Notifications',
     description: 'Configure push notification preferences',
-    illustration: '/notification-intro.png',
+    icon: Bell,
     path: '/settings/notifications',
     requiresAuth: true,
   },
@@ -68,14 +72,14 @@ const settingsSections: SettingsSection[] = [
     id: 'advanced',
     label: 'Advanced',
     description: 'Wallet, system, and power user settings',
-    illustration: '/advanced-intro.png',
+    icon: Wrench,
     path: '/settings/advanced',
   },
   {
     id: 'magic',
     label: 'Magic',
     description: 'Enchanted cursor effects and mystical interface powers',
-    illustration: '/magic-intro.png',
+    icon: Sparkles,
     path: '/settings/magic',
   },
 ];
@@ -161,10 +165,8 @@ export function SettingsPage() {
                 className="flex items-center gap-4 px-3 py-2 my-1 cursor-pointer rounded-xl transition-colors hover:bg-muted/60 active:bg-muted/80 group"
                 onClick={() => navigate(section.path)}
               >
-                <div className="flex items-center justify-center size-20 shrink-0">
-                  {section.illustration && (
-                    <IntroImage src={section.illustration} size="w-22" />
-                  )}
+                <div className="flex items-center justify-center size-10 shrink-0 rounded-full bg-primary/10">
+                  <section.icon className="size-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold">{section.label}</p>
