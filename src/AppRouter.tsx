@@ -43,6 +43,7 @@ import { PodcastsFeedPage } from "./pages/PodcastsFeedPage";
 import { BooksPage } from "./pages/BooksPage";
 import { RelayPage } from "./pages/RelayPage";
 import { UserListsPage } from "./pages/UserListsPage";
+import { HelpPage } from "./pages/HelpPage";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -115,6 +116,7 @@ export function AppRouter() {
           <Route path="/ai-chat" element={<AIChatPage />} />
           <Route path="/world" element={<WorldPage />} />
           <Route path="/books" element={<BooksPage />} />
+          <Route path="/help" element={<HelpPage />} />
           <Route path="/r/*" element={<RelayPage />} />
           <Route path="/settings/lists" element={<Navigate to="/lists" replace />} />
           <Route path="/i/*" element={<ExternalContentPage />} />
