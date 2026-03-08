@@ -1,6 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { IntroImage } from '@/components/IntroImage';
 import { AdvancedSettings } from '@/components/AdvancedSettings';
 import { WalletSettings } from '@/components/WalletSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -38,6 +39,17 @@ export function AdvancedSettingsPage() {
       </div>
 
       <div className="p-4">
+        {/* Intro */}
+        <div className="flex items-center gap-4 px-3 pt-2 pb-4">
+          <IntroImage src="/advanced-intro.png" />
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">Power User Settings</h2>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Wallet connections, system configuration, and other advanced options.
+            </p>
+          </div>
+        </div>
+
         {/* Wallet collapsible — only when logged in */}
         {user && (
           <Collapsible open={walletOpen} onOpenChange={setWalletOpen}>

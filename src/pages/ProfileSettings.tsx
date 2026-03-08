@@ -18,6 +18,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 import { ProfileCard } from '@/components/ProfileCard';
+import { IntroImage } from '@/components/IntroImage';
 import { HelpTip } from '@/components/HelpTip';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -451,6 +452,17 @@ export function ProfileSettings() {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl mx-auto px-4 pb-10 space-y-6">
+
+          {/* Intro */}
+          <div className="flex items-center gap-4 px-3 pt-2 pb-2">
+            <IntroImage src="/profile-intro.png" />
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold">Your Identity</h2>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Tap any field on the card to edit. Click your avatar or banner to upload and crop a new image.
+              </p>
+            </div>
+          </div>
 
           {/* Interactive profile card */}
           <ProfileCard

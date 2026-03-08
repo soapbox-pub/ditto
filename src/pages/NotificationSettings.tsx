@@ -5,6 +5,7 @@ import { ArrowLeft, Bell, BellOff, AlertTriangle } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { IntroImage } from '@/components/IntroImage';
 import { HelpTip } from '@/components/HelpTip';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -75,6 +76,17 @@ export function NotificationSettings() {
       </div>
 
       <div className="p-4">
+        {/* Intro */}
+        <div className="flex items-center gap-4 px-3 pt-2 pb-4">
+          <IntroImage src="/notification-intro.png" />
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">Stay in the Loop</h2>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Get notified for mentions, replies, and zaps — synced across all your devices.
+            </p>
+          </div>
+        </div>
+
         {/* Push notifications row */}
         <div className="border-b border-border last:border-b-0">
           <div className="flex items-center justify-between py-3.5 px-3">
