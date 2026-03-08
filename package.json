@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm i --silent && vite",
-    "build": "npm i --silent && vite build -l error && cp dist/index.html dist/404.html && echo 'Project built successfully!'",
-    "test": "npm i --silent && tsc --noEmit && eslint && vitest run --reporter=dot --silent && vite build -l error && cp dist/index.html dist/404.html && echo 'All tests passed!'",
+    "dev": "npm i && vite",
+    "build": "npm i && vite build && cp dist/index.html dist/404.html",
+    "test": "npm i && tsc --noEmit && eslint && vitest run --reporter=dot && vite build && cp dist/index.html dist/404.html",
     "icons": "bash scripts/generate-icons.sh",
     "release": "git tag \"v$(date +%Y.%m.%d)+$(git rev-parse --short HEAD)\" && git push origin --tags",
     "postinstall": "sh scripts/postinstall.sh"
