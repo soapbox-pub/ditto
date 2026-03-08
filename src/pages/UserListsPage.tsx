@@ -9,7 +9,7 @@ import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import {
   ArrowLeft, Plus, Trash2, Users, Pencil,
-  Check, X, ChevronDown, ChevronUp, Loader2,
+  Check, X, Loader2,
 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -23,9 +23,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Collapsible, CollapsibleContent, CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserLists } from '@/hooks/useUserLists';
@@ -289,7 +287,6 @@ export function UserListsPage() {
 
   const [newListName, setNewListName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<UserList | null>(null);
-  const [listsOpen, setListsOpen] = useState(true);
 
   if (!user) return <Navigate to="/settings" replace />;
 
@@ -363,58 +360,48 @@ export function UserListsPage() {
           </Button>
         </div>
 
-        {/* Lists collapsible */}
-        <Collapsible open={listsOpen} onOpenChange={setListsOpen}>
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-            >
-              <span className="text-base font-semibold">
-                Your Lists
-                {!isLoading && lists.length > 0 && (
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    {lists.length}
-                  </span>
-                )}
-              </span>
-              {listsOpen
-                ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="pt-2 pb-2">
-              {isLoading ? (
-                <div className="space-y-1 px-1">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-3 px-3 py-2.5">
-                      <div className="flex -space-x-1.5 w-10">
-                        <Skeleton className="size-7 rounded-full" />
-                        <Skeleton className="size-7 rounded-full" />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <Skeleton className="h-3.5 w-28" />
-                        <Skeleton className="h-3 w-16" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : lists.length === 0 ? (
-                <p className="px-3 py-4 text-sm text-muted-foreground">
-                  No lists yet. Create one above, or add users from the&nbsp;… menu on notes and profiles.
-                </p>
-              ) : (
-                <div className="space-y-0.5 px-1">
-                  {lists.map((list) => (
-                    <ListRow key={list.id} list={list} onDelete={setDeleteTarget} />
-                  ))}
-                </div>
+        {/* Your Lists */}
+        <div>
+          <div className="relative px-3 py-3.5">
+            <h2 className="text-base font-semibold">
+              Your Lists
+              {!isLoading && lists.length > 0 && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  {lists.length}
+                </span>
               )}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+            </h2>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+          </div>
+          <div className="pt-2 pb-2">
+            {isLoading ? (
+              <div className="space-y-1 px-1">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+                    <div className="flex -space-x-1.5 w-10">
+                      <Skeleton className="size-7 rounded-full" />
+                      <Skeleton className="size-7 rounded-full" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <Skeleton className="h-3.5 w-28" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : lists.length === 0 ? (
+              <p className="px-3 py-4 text-sm text-muted-foreground">
+                No lists yet. Create one above, or add users from the&nbsp;… menu on notes and profiles.
+              </p>
+            ) : (
+              <div className="space-y-0.5 px-1">
+                {lists.map((list) => (
+                  <ListRow key={list.id} list={list} onDelete={setDeleteTarget} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         <p className="text-xs text-muted-foreground px-3 pt-4 leading-relaxed">
           Lists are stored as Follow Sets (NIP-51) on Nostr and sync across clients.

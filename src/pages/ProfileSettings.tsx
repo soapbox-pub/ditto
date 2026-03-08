@@ -225,7 +225,6 @@ export function ProfileSettings() {
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
   const [cropState, setCropState] = useState<CropState | null>(null);
-  const [fieldsOpen, setFieldsOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   useSeoMeta({
@@ -467,16 +466,10 @@ export function ProfileSettings() {
             </div>
           )}
 
-          {/* Profile fields — collapsible */}
-          <Collapsible open={fieldsOpen} onOpenChange={setFieldsOpen}>
-            <CollapsibleTrigger asChild>
-              <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
-                <span className="text-sm font-medium">Profile Fields</span>
-                <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
-              </Button>
-            </CollapsibleTrigger>
-
-            <CollapsibleContent className="space-y-3 pt-3">
+          {/* Profile fields */}
+          <div>
+            <h2 className="text-sm font-medium py-2">Profile Fields</h2>
+            <div className="space-y-3 pt-1">
               {/* Website — always first */}
               <FormField
                 control={form.control}
@@ -553,8 +546,8 @@ export function ProfileSettings() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </CollapsibleContent>
-          </Collapsible>
+            </div>
+          </div>
 
           {/* Advanced */}
           <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
