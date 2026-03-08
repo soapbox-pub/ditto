@@ -213,6 +213,15 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         ],
       },
       {
+        id: 'vs-mastodon-bluesky',
+        question: 'How is this different from Mastodon or Bluesky?',
+        answer: [
+          'Mastodon and Bluesky are also alternatives to Big Tech, but they work very differently from Nostr. On Mastodon, your account is tied to a specific server \u2014 if that server shuts down or bans you, you lose your account and have to start over. On Bluesky, the network is technically decentralized but in practice almost everyone depends on a single company (bsky.social), which can block entire servers.',
+          'Nostr is different because your identity is a cryptographic key that **you** control. It\'s not tied to any server, company, or app. No one can delete your account, and you can switch between apps freely while keeping your followers and posts.',
+          'The good news is you don\'t have to choose just one \u2014 bridges like Mostr let you follow people across all three networks. For a deeper comparison, check out [Nostr vs. Fediverse vs. Bluesky](https://soapbox.pub/blog/comparing-protocols).',
+        ],
+      },
+      {
         id: 'what-is-decentralization',
         question: 'What does "decentralized" actually mean?',
         answer: [
