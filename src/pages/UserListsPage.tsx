@@ -331,7 +331,7 @@ export function UserListsPage() {
       {/* Header */}
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-center gap-4">
-          <Link to="/settings" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
+          <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
           <div>
