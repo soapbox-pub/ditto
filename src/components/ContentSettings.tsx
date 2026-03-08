@@ -49,7 +49,7 @@ export function ContentSettings() {
       {/* Notes Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">Notes</h2>
+          <h2 className="text-base font-semibold">Basic Home Feed Options</h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
@@ -71,7 +71,7 @@ export function ContentSettings() {
       {/* Other Stuff Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">Other Stuff</h2>
+          <h2 className="text-base font-semibold">Show More Content Types in Home Feed</h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
@@ -436,69 +436,71 @@ function FeedTabsSection() {
         </div>
       </div>
 
-      <div className="px-3 py-4 space-y-4">
+      {showCommunityFeed && (
+        <div className="px-3 py-4 space-y-4">
 
-      {/* Community Management */}
-      <div className="space-y-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <Label className="text-sm font-medium">Community</Label>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Set a community domain. We'll download the NIP-05 user list to show posts only from verified members.
-          </p>
-        </div>
-
-        {!community ? (
-          <div className="flex gap-2">
-            <Input
-              placeholder="ditto.pub"
-              value={communityDomain}
-              onChange={(e) => setCommunityDomain(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleDownloadCommunity();
-                }
-              }}
-              className="h-9"
-              disabled={isDownloading}
-            />
-            <Button
-              onClick={handleDownloadCommunity}
-              disabled={isDownloading || !communityDomain.trim()}
-              size="sm"
-              className="h-9"
-            >
-              {isDownloading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{community.label}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {community.domain} • {community.userCount} {community.userCount === 1 ? 'user' : 'users'}
-                </p>
-              </div>
+        {/* Community Management */}
+        <div className="space-y-3">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">Community</Label>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleRemoveCommunity}
-              className="shrink-0 h-8 w-8 p-0"
-            >
-              <X className="h-4 w-4 text-destructive" />
-            </Button>
+            <p className="text-xs text-muted-foreground">
+              Set a community domain. We'll download the NIP-05 user list to show posts only from verified members.
+            </p>
           </div>
-        )}
-      </div>
-      </div>
+
+          {!community ? (
+            <div className="flex gap-2">
+              <Input
+                placeholder="ditto.pub"
+                value={communityDomain}
+                onChange={(e) => setCommunityDomain(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleDownloadCommunity();
+                  }
+                }}
+                className="h-9"
+                disabled={isDownloading}
+              />
+              <Button
+                onClick={handleDownloadCommunity}
+                disabled={isDownloading || !communityDomain.trim()}
+                size="sm"
+                className="h-9"
+              >
+                {isDownloading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{community.label}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {community.domain} • {community.userCount} {community.userCount === 1 ? 'user' : 'users'}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRemoveCommunity}
+                className="shrink-0 h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          )}
+        </div>
+        </div>
+      )}
 
       {/* Saved Feeds */}
       <SavedFeedsSection />
