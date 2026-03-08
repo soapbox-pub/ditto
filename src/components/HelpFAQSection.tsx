@@ -116,7 +116,7 @@ export function HelpFAQSection({ categories, items, hideHeadings, className }: H
         <Fragment key={category.id}>
           {/* Category heading */}
           {!hideHeadings && (
-            <div className="px-1 pt-6 pb-2 first:pt-0">
+            <div className={`px-1 pb-2 ${catIndex === 0 ? 'pt-2' : 'pt-6'}`}>
               <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
                 {category.label}
               </h3>
