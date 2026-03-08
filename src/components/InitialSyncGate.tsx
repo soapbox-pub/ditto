@@ -407,16 +407,16 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
           )}
 
           {step === 'profile' && (
-            <ProfileStep onNext={next} />
+            <ProfileStep onNext={handleSaveAndContinue} isSaving={isSaving} />
           )}
 
           {/* Settings steps */}
           {step === 'theme' && (
             <ThemeStep
-              onNext={handleSaveAndContinue}
+              onNext={isSignup ? next : handleSaveAndContinue}
               onBack={back}
               isFirst={isSignup && steps.indexOf('theme') === 0}
-              isSaving={isSaving}
+              isSaving={!isSignup && isSaving}
             />
           )}
 
@@ -426,7 +426,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
                 if (didFollow) onPreload();
                 goTo('outro');
               }}
-              onBack={() => goTo('theme')}
+              onBack={back}
             />
           )}
 
@@ -524,7 +524,7 @@ function DownloadStep({ nsec, onDownload }: { nsec: string; onDownload: () => vo
   );
 }
 
-function ProfileStep({ onNext }: { onNext: () => void }) {
+function ProfileStep({ onNext, isSaving = false }: { onNext: () => void; isSaving?: boolean }) {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
@@ -630,11 +630,11 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
       )}
 
       <div className="flex gap-3">
-        <Button variant="ghost" onClick={onNext} className="flex-1 rounded-full h-11" disabled={isPublishing}>
+        <Button variant="ghost" onClick={onNext} className="flex-1 rounded-full h-11" disabled={isPublishing || isSaving}>
           Skip
         </Button>
-        <Button onClick={handlePublishProfile} className="flex-1 rounded-full h-11 gap-1.5" disabled={isPublishing || isUploading}>
-          {isPublishing ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <>Continue <ChevronRight className="w-4 h-4" /></>}
+        <Button onClick={handlePublishProfile} className="flex-1 rounded-full h-11 gap-1.5" disabled={isPublishing || isUploading || isSaving}>
+          {(isPublishing || isSaving) ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <>Continue <ChevronRight className="w-4 h-4" /></>}
         </Button>
       </div>
     </div>
