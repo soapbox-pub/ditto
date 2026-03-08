@@ -115,7 +115,7 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-sm max-h-[80dvh] p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
+      <DialogContent className="max-w-sm max-h-[80dvh] p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 shrink-0">
           <DialogHeader className="p-0 space-y-0">

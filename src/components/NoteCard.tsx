@@ -117,6 +117,21 @@ function encodeEventId(event: NostrEvent): string {
   return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
 
+/** d-tags reserved by NIP-51 for other purposes — hide these kind 30000 events. */
+const DEPRECATED_DTAGS = new Set(['mute', 'pin', 'bookmark', 'communities']);
+
+/** Returns true if a kind 30000 event is a deprecated/junk list that should be hidden. */
+function isDeprecatedFollowSet(event: NostrEvent): boolean {
+  if (event.kind !== 30000) return false;
+  const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+  if (DEPRECATED_DTAGS.has(dTag)) return true;
+  // Filter empty lists with no p-tags or title
+  const hasPTags = event.tags.some(([n]) => n === 'p');
+  const hasTitle = event.tags.some(([n]) => n === 'title' || n === 'name');
+  if (!hasPTags && !hasTitle) return true;
+  return false;
+}
+
 export function NoteCard({ event, className, repostedBy, compact, threaded, threadedLast }: NoteCardProps) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
@@ -258,6 +273,11 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const imeta = useMemo(() => isVine ? parseImeta(event.tags) : undefined, [event.tags, isVine]);
   const vineTitle = isVine ? getTag(event.tags, 'title') : undefined;
   const hashtags = isVine ? event.tags.filter(([n]) => n === 't').map(([, v]) => v) : [];
+
+  // Filter out deprecated/junk kind 30000 events
+  if (isDeprecatedFollowSet(event)) {
+    return null;
+  }
 
   // NIP-36: If the event has a content-warning and the policy is "hide", skip rendering entirely
   if (getContentWarning(event) !== undefined && config.contentWarningPolicy === 'hide') {
