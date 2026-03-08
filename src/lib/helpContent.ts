@@ -157,7 +157,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
       },
       {
         id: 'what-are-relays',
-        question: 'What are relays, and why does my account ask about them?',
+        question: 'What are relays?',
         answer: [
           'Relays are the servers that store and deliver your posts. Think of them like different mail carriers \u2014 your messages get sent through them to reach other people.',
           'You don\'t need to think about relays to use Nostr; the defaults work great. But if you\'re curious, you can add or remove relays in Settings > Network.',
@@ -184,7 +184,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         id: 'report-content',
         question: 'How do I report harmful content?',
         answer: [
-          'You can mute or block individual users, and you can report posts you find harmful.',
+          'To report a post, tap the three-dot menu (**...**) on any post and select "Report." You can also mute or block individual users from the same menu.',
           'Because Nostr is decentralized, there\'s no single company reviewing reports \u2014 but relay operators can choose to remove content from their servers, and your mute list keeps your feed clean for you.',
         ],
       },

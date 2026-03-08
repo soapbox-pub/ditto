@@ -114,18 +114,16 @@ export function HelpFAQSection({ categories, items, hideHeadings, className }: H
     <div className={className}>
       {filteredCategories.map((category, catIndex) => (
         <Fragment key={category.id}>
-          {/* Category heading */}
+          {/* Category separator + heading */}
+          {!hideHeadings && catIndex > 0 && (
+            <div className="border-t border-border mt-4" />
+          )}
           {!hideHeadings && (
-            <div className={`px-1 pb-2 ${catIndex === 0 ? 'pt-2' : 'pt-6'}`}>
+            <div className={`px-1 pb-2 ${catIndex === 0 ? 'pt-2' : 'pt-5'}`}>
               <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
                 {category.label}
               </h3>
             </div>
-          )}
-
-          {/* Category separator (between categories, not before the first) */}
-          {!hideHeadings && catIndex > 0 && (
-            <div className="mx-1 mb-2" />
           )}
 
           <Accordion type="single" collapsible className="w-full">
@@ -142,10 +140,10 @@ export function HelpFAQSection({ categories, items, hideHeadings, className }: H
 function FAQAccordionItem({ item }: { item: FAQItem }) {
   return (
     <AccordionItem value={item.id}>
-      <AccordionTrigger className="text-left text-[15px] leading-snug hover:no-underline gap-3">
+      <AccordionTrigger className="text-left text-base font-semibold leading-snug hover:no-underline gap-3">
         {item.question}
       </AccordionTrigger>
-      <AccordionContent className="text-[14px] leading-relaxed text-muted-foreground space-y-3">
+      <AccordionContent className="text-[14px] leading-relaxed text-foreground/80 space-y-3">
         {item.answer.map((paragraph, i) => (
           <p key={i}>{renderInlineMarkup(paragraph)}</p>
         ))}
