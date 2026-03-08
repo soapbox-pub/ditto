@@ -38,11 +38,19 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
     label: 'Getting Started',
     items: [
       {
+        id: 'what-is-ditto',
+        question: 'What is Ditto?',
+        answer: [
+          'Ditto is a social media platform built on Nostr \u2014 a new kind of open, decentralized network. Think of Ditto as the app you\'re using right now to connect with people, post, and discover content.',
+          'Because Ditto is built on Nostr, your account isn\'t locked to this site. You own your identity and can take it to any other Nostr app. Learn more at [ditto.pub](https://soapbox.pub/ditto).',
+        ],
+      },
+      {
         id: 'what-is-nostr',
-        question: 'What is Nostr, and what am I using?',
+        question: 'What is Nostr?',
         answer: [
           'Nostr is a new kind of social network where **you** own your account, not a company. Think of it like email \u2014 you can use different apps, but your identity stays the same. Nobody can ban you from the entire network.',
-          'This site runs on Nostr, so everything you post, every person you follow, and your entire identity is portable. You can take it with you anywhere.',
+          'Everything you post, every person you follow, and your entire identity is portable. You can take it with you anywhere. To learn more, check out [Nostr 101](https://soapbox.pub/blog/nostr101).',
         ],
       },
       {
@@ -58,7 +66,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'What happens if I lose my secret key?',
         answer: [
           '**There is no "forgot password" button.** No company stores your key or can reset it for you. If you lose it, your account is gone forever.',
-          'This is the tradeoff for true ownership \u2014 nobody can take your account away, but nobody can recover it either. **Save your secret key somewhere safe right now.**',
+          'This is the tradeoff for true ownership \u2014 nobody can take your account away, but nobody can recover it either. **Save your secret key somewhere safe right now.** For tips on keeping your key safe, read [Managing Your Nostr Keys](https://soapbox.pub/blog/managing-nostr-keys).',
         ],
       },
       {
@@ -66,6 +74,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'Can I save my secret key in my phone\'s password manager?',
         answer: [
           'Yes! You can save it in your device\'s password manager (like iCloud Keychain, 1Password, or Bitwarden). On iPhone, if you save it correctly in Passwords, you can even use Face ID or Touch ID to log in.',
+          'For a full guide on the best ways to store and manage your keys, check out [Managing Your Nostr Keys](https://soapbox.pub/blog/managing-nostr-keys).',
         ],
       },
       {
@@ -209,7 +218,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'How is this different from Instagram, X, or Facebook?',
         answer: [
           'On traditional social media, a company owns your account, controls what you see, and can delete your profile at any time.',
-          'On Nostr, **you** own your identity. No company can lock you out, shadowban you, or shut down your account. Your followers, your posts, and your identity belong to you \u2014 not a corporation.',
+          'On Nostr, **you** own your identity. No company can lock you out, shadowban you, or shut down your account. Your followers, your posts, and your identity belong to you \u2014 not a corporation. We take this seriously \u2014 read our [ethics pledge](https://soapbox.pub/ethics) to see what we stand for.',
         ],
       },
       {
@@ -226,7 +235,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'What does "decentralized" actually mean?',
         answer: [
           'It means there\'s no single company or server running everything. Nostr is a network of independent relays and apps, all speaking the same language.',
-          'If one relay goes down or kicks you off, your account still works everywhere else. It\'s like the difference between one company owning all the roads vs. having thousands of independent roads anyone can build and use.',
+          'If one relay goes down or kicks you off, your account still works everywhere else. It\'s like the difference between one company owning all the roads vs. having thousands of independent roads anyone can build and use. For more on why this matters, read [The Future Is Decentralized](https://soapbox.pub/blog/future-is-decentralized).',
         ],
       },
       {
@@ -242,7 +251,15 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'What does "open source" mean, and why does it matter?',
         answer: [
           'Open source means the code that powers this app is publicly available for anyone to read, verify, and improve. There are no hidden algorithms, no secret data collection, and no backdoors.',
-          'Anyone can check exactly what the software does. It\'s the digital equivalent of a restaurant with a glass kitchen \u2014 nothing to hide.',
+          'Anyone can check exactly what the software does. It\'s the digital equivalent of a restaurant with a glass kitchen \u2014 nothing to hide. You can browse the [Ditto source code](https://gitlab.com/soapbox-pub/ditto) yourself, or if you want to try editing Ditto, you can jump right in with [Shakespeare](https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git).',
+        ],
+      },
+      {
+        id: 'self-host',
+        question: 'Can I self-host Ditto?',
+        answer: [
+          'Yes! Because Ditto is open source, anyone can run their own instance. You get full control over your server, your data, and your community.',
+          'If you\'re interested, check out the [self-hosting guide](https://about.ditto.pub/guides/self-hosting) to get started.',
         ],
       },
       {
