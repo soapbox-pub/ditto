@@ -5,22 +5,23 @@ import { useNavigate } from 'react-router-dom';
 import {
   Bookmark,
   ClipboardCopy,
-  ExternalLink,
   AtSign,
   BellOff,
   VolumeX,
   Flag,
   Pin,
   FileJson,
-  FileDigit,
   Trash2,
   StickyNote,
   ListPlus,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogTitle,
+  DialogHeader,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -91,12 +92,79 @@ function encodeEventNip19(event: NostrEvent): string {
   return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
 
+interface EventJsonDialogProps {
+  event: NostrEvent;
+  nip19Id: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast({ title: `${label} copied to clipboard` });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={handleCopy}
+      className="size-6 shrink-0 text-muted-foreground hover:text-foreground"
+    >
+      {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+    </Button>
+  );
+}
+
+function EventJsonDialog({ event, nip19Id, open, onOpenChange }: EventJsonDialogProps) {
+  const jsonText = JSON.stringify(event, null, 2);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85dvh] flex flex-col gap-0 p-0 rounded-2xl overflow-hidden">
+        <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
+          <DialogTitle className="text-base font-semibold">Event Details</DialogTitle>
+        </DialogHeader>
+
+        <div className="px-5 pb-3 shrink-0">
+          <p className="text-xs font-medium text-muted-foreground mb-1">Event ID</p>
+          <div className="relative flex items-center bg-muted rounded-lg px-3 py-2">
+            <p className="font-mono text-xs break-all text-foreground/80 flex-1 pr-2 select-all">
+              {nip19Id}
+            </p>
+            <CopyButton text={nip19Id} label="Event ID" />
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 flex flex-col flex-1 min-h-0">
+          <p className="text-xs font-medium text-muted-foreground mb-1">Raw JSON</p>
+          <div className="relative flex-1 min-h-0 overflow-auto rounded-lg bg-muted border border-border">
+            <div className="sticky top-2 right-2 float-right mr-2">
+              <CopyButton text={jsonText} label="Event JSON" />
+            </div>
+            <pre className="p-4 text-xs font-mono text-foreground/80 whitespace-pre leading-relaxed">
+              {jsonText}
+            </pre>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   // These states live here (not in NoteMoreMenuContent) so they persist after the menu closes
   const [reportOpen, setReportOpen] = useState(false);
   const [mentionComposeOpen, setMentionComposeOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
+  const [eventJsonOpen, setEventJsonOpen] = useState(false);
 
+  const nip19Id = encodeEventNip19(event);
   const mentionContent = `nostr:${nip19.npubEncode(event.pubkey)} `;
 
   return (
@@ -118,6 +186,10 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
             onOpenChange(false);
             setTimeout(() => setAddToListOpen(true), 150);
           }}
+          onViewEventJson={() => {
+            onOpenChange(false);
+            setTimeout(() => setEventJsonOpen(true), 150);
+          }}
         />
       )}
 
@@ -135,6 +207,13 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
         open={addToListOpen}
         onOpenChange={setAddToListOpen}
       />
+
+      <EventJsonDialog
+        event={event}
+        nip19Id={nip19Id}
+        open={eventJsonOpen}
+        onOpenChange={setEventJsonOpen}
+      />
     </>
   );
 }
@@ -143,9 +222,10 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onReport: () => void;
   onMention: () => void;
   onAddToList: () => void;
+  onViewEventJson: () => void;
 }
 
-function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, onAddToList }: NoteMoreMenuContentProps) {
+function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, onAddToList, onViewEventJson }: NoteMoreMenuContentProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const { isBookmarked, toggleBookmark } = useBookmarks();
@@ -177,11 +257,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
     close();
   };
 
-  const handleViewOnNjump = () => {
-    window.open(`https://njump.me/${nip19Id}`, '_blank', 'noopener,noreferrer');
-    close();
-  };
-
   const handleBookmark = () => {
     toggleBookmark.mutate(event.id);
     close();
@@ -196,18 +271,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
         toast({ title: 'Failed to update pinned posts', variant: 'destructive' });
       },
     });
-    close();
-  };
-
-  const handleCopyEventId = () => {
-    navigator.clipboard.writeText(nip19Id);
-    toast({ title: 'Event ID copied to clipboard' });
-    close();
-  };
-
-  const handleCopyEventJson = () => {
-    navigator.clipboard.writeText(JSON.stringify(event, null, 2));
-    toast({ title: 'Event JSON copied to clipboard' });
     close();
   };
 
@@ -302,19 +365,9 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
             onClick={handleCopyLink}
           />
           <MenuItem
-            icon={<FileDigit className="size-5" />}
-            label="Copy Event ID"
-            onClick={handleCopyEventId}
-          />
-          <MenuItem
             icon={<FileJson className="size-5" />}
-            label="Copy Event JSON"
-            onClick={handleCopyEventJson}
-          />
-          <MenuItem
-            icon={<ExternalLink className="size-5" />}
-            label="View post on njump.me"
-            onClick={handleViewOnNjump}
+            label="View Event JSON"
+            onClick={onViewEventJson}
           />
           <MenuItem
             icon={<Bookmark className={cn("size-5", bookmarked && "fill-current")} />}
