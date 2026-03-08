@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, forwardRef } from 'react';
 import { Zap, Copy, Check, ExternalLink, Sparkle, Sparkles, Star, Rocket, X } from 'lucide-react';
+import { HelpTip } from '@/components/HelpTip';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -350,8 +351,8 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
       </DialogTrigger>
       <DialogContent className="max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-hidden max-h-[95vh] [&>button]:hidden" data-testid="zap-modal">
         <div className="flex items-center justify-between px-4 h-12">
-          <DialogTitle className="text-base font-semibold">
-            {invoice ? 'Lightning Payment' : 'Send a Zap'}
+          <DialogTitle className="text-base font-semibold flex items-center gap-1.5">
+            {invoice ? 'Lightning Payment' : 'Send a Zap'} <HelpTip faqId="what-are-zaps" />
           </DialogTitle>
           <button
             onClick={() => setOpen(false)}
