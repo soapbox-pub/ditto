@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MessageCircle, Zap, MoreHorizontal, Share2, Play, Radio, Users, Palette, SmilePlus } from 'lucide-react';
+import { MessageCircle, Zap, MoreHorizontal, Share2, Play, Radio, Users, Palette, SmilePlus, Award } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,8 @@ import { ArticleContent } from '@/components/ArticleContent';
 import { type ImetaEntry, parseImetaMap } from '@/lib/imeta';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { EmojiPackContent } from '@/components/EmojiPackContent';
+import { BadgeContent } from '@/components/BadgeContent';
+import { ProfileBadgesContent } from '@/components/ProfileBadgesContent';
 import { FileMetadataContent } from '@/components/FileMetadataContent';
 import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -199,6 +201,9 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
   const isCalendarEvent = event.kind === 31922 || event.kind === 31923;
   const isEmojiPack = event.kind === 30030;
+  const isBadgeDefinition = event.kind === 30009;
+  const isProfileBadges = event.kind === 30008;
+  const isBadge = isBadgeDefinition || isProfileBadges;
   const isReaction = event.kind === 7;
   const isPhoto = event.kind === 20;
   const isNormalVideo = event.kind === 21;
@@ -209,7 +214,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isPodcastEpisode = event.kind === 30054;
   const isPodcastTrailer = event.kind === 30055;
   const isAudioKind = isMusicTrack || isMusicPlaylist || isPodcastEpisode || isPodcastTrailer;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isCalendarEvent && !isEmojiPack && !isReaction && !isPhoto && !isVideo && !isAudioKind;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isCalendarEvent && !isEmojiPack && !isBadge && !isReaction && !isPhoto && !isVideo && !isAudioKind;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideoUrls(event.content) : [], [event.content, isTextNote]);
@@ -332,6 +337,10 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           <FileMetadataContent event={event} compact />
         ) : isEmojiPack ? (
           <EmojiPackContent event={event} />
+        ) : isBadgeDefinition ? (
+          <BadgeContent event={event} />
+        ) : isProfileBadges ? (
+          <ProfileBadgesContent event={event} />
         ) : isTheme ? (
           <ThemeContent event={event} />
         ) : isVoiceMessage ? (
@@ -1090,6 +1099,8 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   36767: { icon: Palette,   action: 'shared a', noun: 'theme',    nounRoute: '/themes'    },
   16767: { icon: Palette,   action: 'updated their', noun: 'theme', nounRoute: '/themes'  },
   30030: { icon: SmilePlus, action: 'shared an', noun: 'emoji pack', nounRoute: '/emojis' },
+  30009: { icon: Award, action: 'created a', noun: 'badge', nounRoute: '/badges' },
+  30008: { icon: Award, action: 'updated their', noun: 'badges', nounRoute: '/badges' },
   30311: {
     icon: Radio,
     iconClassName: undefined, // computed dynamically below
