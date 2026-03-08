@@ -1,6 +1,11 @@
 import { type ReactNode, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
-import { DMProvider, DEFAULT_NEW_MESSAGE_SOUNDS } from '@samthomson/nostr-messaging/core';
+import {
+  DMProvider,
+  DEFAULT_NEW_MESSAGE_SOUNDS,
+  useDMContext as useDMContextFromPackage,
+  useConversationMessages as useConversationMessagesFromPackage,
+} from '@samthomson/nostr-messaging/core';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -12,6 +17,8 @@ import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { toast } from '@/hooks/useToast';
 import { getDisplayName } from '@/lib/getDisplayName';
+
+export { useDMContextFromPackage as useDMContext, useConversationMessagesFromPackage as useConversationMessages };
 
 interface DMProviderWrapperProps {
   children: ReactNode;
@@ -54,12 +61,23 @@ export function DMProviderWrapper({ children }: DMProviderWrapperProps) {
     });
   };
 
-  // Discovery relays for DM inbox discovery - use the app's configured read relays
+  const messaging = useMemo(() => config.messaging ?? {}, [config.messaging]);
+
+  // Discovery relays for DM inbox discovery
   const discoveryRelays = useMemo(() => {
+    if (messaging.discoveryRelays?.length) {
+      return messaging.discoveryRelays;
+    }
     return config.relayMetadata.relays
       .filter(r => r.read)
       .map(r => r.url);
-  }, [config.relayMetadata.relays]);
+  }, [messaging.discoveryRelays, config.relayMetadata.relays]);
+
+  const relayMode = messaging.relayMode ?? 'hybrid';
+  const renderInlineMedia = messaging.renderInlineMedia ?? true;
+  const soundEnabled = messaging.soundEnabled ?? false;
+  const soundId = messaging.soundId ?? DEFAULT_NEW_MESSAGE_SOUNDS[0]?.id ?? '';
+  const devMode = messaging.devMode ?? false;
 
   return (
     <DMProvider
@@ -67,14 +85,14 @@ export function DMProviderWrapper({ children }: DMProviderWrapperProps) {
       user={user ?? null}
       messagingConfig={{
         discoveryRelays,
-        relayMode: 'hybrid',
-        renderInlineMedia: true,
-        devMode: false,
+        relayMode,
+        renderInlineMedia,
+        devMode,
         appName: config.appName,
         appDescription: `Direct messages on ${config.appName}`,
         soundPref: {
           options: DEFAULT_NEW_MESSAGE_SOUNDS,
-          value: { enabled: true, soundId: DEFAULT_NEW_MESSAGE_SOUNDS[0].id },
+          value: { enabled: soundEnabled, soundId },
           onChange: () => {},
         },
       }}

@@ -2,6 +2,12 @@ import { createContext } from "react";
 import type { ThemeConfig, ThemesConfig } from "@/themes";
 
 /**
+ * Note: The @samthomson/nostr-messaging package exports its own MessagingConfig type
+ * which is used internally by the DMProvider. Our MessagingSettings type here stores
+ * simple user preferences that get transformed into the package's MessagingConfig format.
+ */
+
+/**
  * A builtin theme whose colors are defined at build time.
  * "system" resolves to "light" or "dark" based on OS preference.
  * "custom" uses user-defined token values stored in `customTheme`.
@@ -149,6 +155,25 @@ export interface SavedFeed {
   createdAt: number;
 }
 
+/**
+ * User's messaging preferences stored in app config.
+ * These are simple values that get transformed into the package's MessagingConfig.
+ */
+export interface MessagingSettings {
+  /** Discovery relays for finding DM inboxes (NIP-17). If not set, uses app's read relays. */
+  discoveryRelays?: string[];
+  /** Relay mode: 'discovery' (discovery only), 'hybrid' (user + discovery), 'strict_outbox' (NIP-65/10050 only). Default: 'hybrid'. */
+  relayMode?: 'discovery' | 'hybrid' | 'strict_outbox';
+  /** Show images/media inline in messages. Default: true. */
+  renderInlineMedia?: boolean;
+  /** Enable new message sound notifications. Default: false. */
+  soundEnabled?: boolean;
+  /** Sound ID to play for new messages. Default: first available sound. */
+  soundId?: string;
+  /** Show decryption/dev UI (e.g. seal payload). Default: false. */
+  devMode?: boolean;
+}
+
 export interface AppConfig {
   /** Application display name used in page titles, UI text, and branding. Default: "Ditto". */
   appName: string;
@@ -194,6 +219,8 @@ export interface AppConfig {
   sentryEnabled: boolean;
   /** Saved home feed tabs. Cached locally so they appear instantly on load. */
   savedFeeds: SavedFeed[];
+  /** Direct messaging user preferences. */
+  messaging?: MessagingSettings;
 }
 
 export interface AppContextType {

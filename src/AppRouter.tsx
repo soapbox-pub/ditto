@@ -45,6 +45,7 @@ import { RelayPage } from "./pages/RelayPage";
 import { UserListsPage } from "./pages/UserListsPage";
 import { HelpPage } from "./pages/HelpPage";
 import { MessagesPage } from "./pages/MessagesPage";
+import MessagingSettings from "./pages/MessagingSettings";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -93,6 +94,7 @@ export function AppRouter() {
           <Route path="/settings/content" element={<ContentPage />} />
           <Route path="/settings/wallet" element={<WalletSettingsPage />} />
           <Route path="/settings/notifications" element={<NotificationSettings />} />
+          <Route path="/settings/messaging" element={<MessagingSettings />} />
           <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
           <Route path="/settings/magic" element={<MagicSettingsPage />} />
           <Route path="/settings/network" element={<NetworkSettingsPage />} />
