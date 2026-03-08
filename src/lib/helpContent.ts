@@ -1,0 +1,275 @@
+/**
+ * Structured FAQ content for the Help section.
+ *
+ * This module is the single source of truth for all Help/FAQ data.
+ * Any page can import `FAQ_CATEGORIES` or use `getFAQItems()` to render
+ * a full FAQ or a filtered subset (e.g. only "payments" questions on a
+ * wallet settings page).
+ */
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface FAQItem {
+  /** Stable key used for accordion state and deep-linking. */
+  id: string;
+  /** The question (plain text). */
+  question: string;
+  /**
+   * The answer, as an array of paragraph strings.
+   * Strings may contain simple inline markup:
+   *   **bold**  and  [link text](url)
+   */
+  answer: string[];
+}
+
+export interface FAQCategory {
+  id: string;
+  label: string;
+  description?: string;
+  items: FAQItem[];
+}
+
+// ── Data ──────────────────────────────────────────────────────────────────────
+
+export const FAQ_CATEGORIES: FAQCategory[] = [
+  // ── Getting Started ─────────────────────────────────────────────────────
+  {
+    id: 'getting-started',
+    label: 'Getting Started',
+    items: [
+      {
+        id: 'what-is-nostr',
+        question: 'What is Nostr, and what am I using?',
+        answer: [
+          'Nostr is a new kind of social network where **you** own your account, not a company. Think of it like email \u2014 you can use different apps, but your identity stays the same. Nobody can ban you from the entire network.',
+          'This site runs on Nostr, so everything you post, every person you follow, and your entire identity is portable. You can take it with you anywhere.',
+        ],
+      },
+      {
+        id: 'why-login-different',
+        question: 'Why is my sign-in so different and long?',
+        answer: [
+          'Instead of a username and password controlled by a company, Nostr uses a pair of cryptographic keys \u2014 like a really secure digital ID.',
+          'Your "public key" (starts with **npub**) is your username that everyone can see. Your "secret key" (starts with **nsec**) is your password. The long string of characters is what makes it virtually impossible to hack.',
+        ],
+      },
+      {
+        id: 'lose-secret-key',
+        question: 'What happens if I lose my secret key?',
+        answer: [
+          '**There is no "forgot password" button.** No company stores your key or can reset it for you. If you lose it, your account is gone forever.',
+          'This is the tradeoff for true ownership \u2014 nobody can take your account away, but nobody can recover it either. **Save your secret key somewhere safe right now.**',
+        ],
+      },
+      {
+        id: 'manage-secret-key',
+        question: 'Can I save my secret key in my phone\'s password manager?',
+        answer: [
+          'Yes! You can save it in your device\'s password manager (like iCloud Keychain, 1Password, or Bitwarden). On iPhone, if you save it correctly in Passwords, you can even use Face ID or Touch ID to log in.',
+        ],
+      },
+      {
+        id: 'cost-to-use',
+        question: 'Does Ditto cost anything?',
+        answer: [
+          '**Nope!** Ditto is completely free to use. Zaps (tips) are optional and just for fun. There are no premium tiers, no paywalls, no hidden fees.',
+        ],
+      },
+      {
+        id: 'beginner-guide',
+        question: 'Is there a step-by-step guide for getting started?',
+        answer: [
+          'You\'re looking at it! This Help section covers everything you need. Start by saving your secret key, then explore your feed, follow some people, and try posting.',
+          'Don\'t worry about getting everything perfect \u2014 you can always come back here.',
+        ],
+      },
+    ],
+  },
+
+  // ── Apps & Access ───────────────────────────────────────────────────────
+  {
+    id: 'apps-access',
+    label: 'Apps & Access',
+    items: [
+      {
+        id: 'download-app',
+        question: 'Can I download this on the App Store or Google Play?',
+        answer: [
+          'This site works as a web app right from your browser \u2014 no download needed! You can also "Add to Home Screen" on your phone to get an app-like experience.',
+          'Because Nostr is an open protocol, there are also dozens of other apps (Primal, Damus, Amethyst, etc.) that all work with the same account.',
+        ],
+      },
+      {
+        id: 'one-account-many-apps',
+        question: 'Can I use my account on other apps?',
+        answer: [
+          'Yes! That\'s one of the best things about Nostr. Your account isn\'t locked to any single app.',
+          'You can take your keys to Primal, Damus, Amethyst, Coracle, or any other Nostr app and everything carries over \u2014 your posts, your followers, all of it.',
+        ],
+      },
+    ],
+  },
+
+  // ── Payments & Zaps ─────────────────────────────────────────────────────
+  {
+    id: 'payments',
+    label: 'Payments & Zaps',
+    items: [
+      {
+        id: 'what-are-zaps',
+        question: 'What are zaps?',
+        answer: [
+          'Zaps are tips! They let you send tiny amounts of Bitcoin to someone as a way of saying "great post" or "thanks."',
+          'Think of it like a super-powered Like button that actually sends real money. They use the Lightning Network, which makes them instant and nearly free.',
+        ],
+      },
+      {
+        id: 'connect-wallet',
+        question: 'How do I connect a wallet?',
+        answer: [
+          'To send or receive zaps, you need a Lightning wallet. Options like Alby, Zeus, or Wallet of Satoshi work well for beginners.',
+          'Once you have one, add your Lightning address to your profile settings, and you\'re ready to go.',
+        ],
+      },
+      {
+        id: 'only-bitcoin',
+        question: 'Can I only use Bitcoin, or can I use regular money?',
+        answer: [
+          'Zaps use Bitcoin\'s Lightning Network. If you don\'t have Bitcoin, you can skip zaps entirely \u2014 they\'re completely optional.',
+          'If you\'re curious, most Lightning wallets let you buy small amounts of Bitcoin right inside the app.',
+        ],
+      },
+    ],
+  },
+
+  // ── Content & Safety ────────────────────────────────────────────────────
+  {
+    id: 'content-safety',
+    label: 'Content & Safety',
+    items: [
+      {
+        id: 'fyp',
+        question: 'Will I have a "For You" page? How do I make my feed relevant?',
+        answer: [
+          'Your feed shows posts from people you follow \u2014 there\'s no algorithm deciding what you see. The more people you follow, the better your feed gets.',
+          'Use the "Trends" page to discover popular content, and check out Follow Packs (curated groups of people) to quickly fill your feed with interesting voices.',
+        ],
+      },
+      {
+        id: 'what-are-relays',
+        question: 'What are relays, and why does my account ask about them?',
+        answer: [
+          'Relays are the servers that store and deliver your posts. Think of them like different mail carriers \u2014 your messages get sent through them to reach other people.',
+          'You don\'t need to think about relays to use Nostr; the defaults work great. But if you\'re curious, you can add or remove relays in Settings > Network.',
+          'Using multiple relays means your content is backed up in more places, making it harder for anyone to silence you.',
+        ],
+      },
+      {
+        id: 'what-are-blossom',
+        question: 'What are Blossom servers?',
+        answer: [
+          'Blossom servers are where your media files (photos, videos, audio) get stored when you upload them. Think of them like cloud storage for your files.',
+          'Different Blossom servers are run by different people in different places. You can manage which servers you use in Settings > Network.',
+        ],
+      },
+      {
+        id: 'media-content',
+        question: 'What happens to media I upload? Can it be removed?',
+        answer: [
+          'When you upload media to Nostr, it gets stored on a Blossom server. That server has the right to remove any content for any reason, including based on the laws of their region.',
+          'This is why it\'s important to use multiple Blossom servers, manage your server connections, and make informed choices about where you store your data.',
+        ],
+      },
+      {
+        id: 'report-content',
+        question: 'How do I report harmful content?',
+        answer: [
+          'You can mute or block individual users, and you can report posts you find harmful.',
+          'Because Nostr is decentralized, there\'s no single company reviewing reports \u2014 but relay operators can choose to remove content from their servers, and your mute list keeps your feed clean for you.',
+        ],
+      },
+      {
+        id: 'terms-of-service',
+        question: 'Are there terms of service I need to agree to?',
+        answer: [
+          'Nostr itself is a protocol (like email or the web) \u2014 it doesn\'t have terms of service. Individual relays and apps may have their own rules.',
+          'Since no single entity controls the network, the community largely self-moderates. Think of it less like a walled garden and more like the open internet.',
+        ],
+      },
+    ],
+  },
+
+  // ── Why is this different from Big Tech? ────────────────────────────────
+  {
+    id: 'big-tech',
+    label: 'Why Is This Different from Big Tech?',
+    items: [
+      {
+        id: 'why-different',
+        question: 'How is this different from Instagram, X, or Facebook?',
+        answer: [
+          'On traditional social media, a company owns your account, controls what you see, and can delete your profile at any time.',
+          'On Nostr, **you** own your identity. No company can lock you out, shadowban you, or shut down your account. Your followers, your posts, and your identity belong to you \u2014 not a corporation.',
+        ],
+      },
+      {
+        id: 'what-is-decentralization',
+        question: 'What does "decentralized" actually mean?',
+        answer: [
+          'It means there\'s no single company or server running everything. Nostr is a network of independent relays and apps, all speaking the same language.',
+          'If one relay goes down or kicks you off, your account still works everywhere else. It\'s like the difference between one company owning all the roads vs. having thousands of independent roads anyone can build and use.',
+        ],
+      },
+      {
+        id: 'censorship-resistance',
+        question: 'What does "censorship-resistant" mean?',
+        answer: [
+          'It means no single person, company, or government can stop you from posting.',
+          'On traditional platforms, one decision by a content moderation team can erase your entire online presence. On Nostr, as long as there\'s at least one relay willing to host your content, you can keep posting. You may lose reach on some relays, but you can never be fully silenced.',
+        ],
+      },
+      {
+        id: 'open-source',
+        question: 'What does "open source" mean, and why does it matter?',
+        answer: [
+          'Open source means the code that powers this app is publicly available for anyone to read, verify, and improve. There are no hidden algorithms, no secret data collection, and no backdoors.',
+          'Anyone can check exactly what the software does. It\'s the digital equivalent of a restaurant with a glass kitchen \u2014 nothing to hide.',
+        ],
+      },
+      {
+        id: 'who-made-this',
+        question: 'Who made this?',
+        answer: [
+          'This platform is built by [Soapbox](https://soapbox.pub), a team of developers and freedom-of-speech advocates who believe social media should be owned by its users, not corporations.',
+          'Soapbox builds open-source tools for the Nostr ecosystem, including Ditto (the server that powers this site). You can learn more about the team and their mission at [soapbox.pub](https://soapbox.pub).',
+        ],
+      },
+    ],
+  },
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Flat list of every FAQ item, optionally filtered by category ID. */
+export function getFAQItems(categoryId?: string): FAQItem[] {
+  const cats = categoryId
+    ? FAQ_CATEGORIES.filter((c) => c.id === categoryId)
+    : FAQ_CATEGORIES;
+  return cats.flatMap((c) => c.items);
+}
+
+/** Look up a single FAQ item by its ID across all categories. */
+export function getFAQItem(itemId: string): FAQItem | undefined {
+  for (const cat of FAQ_CATEGORIES) {
+    const found = cat.items.find((i) => i.id === itemId);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/** The Team Soapbox follow pack coordinates (kind 39089 addressable event). */
+export const TEAM_SOAPBOX_PACK = {
+  kind: 39089,
+  pubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d',
+  identifier: 'k4p5w0n22suf',
+} as const;
