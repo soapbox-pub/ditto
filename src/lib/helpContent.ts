@@ -42,7 +42,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'What is Ditto?',
         answer: [
           'Ditto is a social media platform built on Nostr \u2014 a new kind of open, decentralized network. Think of Ditto as the app you\'re using right now to connect with people, post, and discover content.',
-          'Because Ditto is built on Nostr, your account isn\'t locked to this site. You own your identity and can take it to any other Nostr app. Learn more at [ditto.pub](https://soapbox.pub/ditto).',
+          'Because Ditto is built on Nostr, your account isn\'t locked to this site. You own your identity and can take it to any other Nostr app. Learn more at [soapbox.pub/ditto](https://soapbox.pub/ditto).',
         ],
       },
       {
