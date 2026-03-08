@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, type RefCallback } from 'react';
 import { Check, Palette, Plus, Trash2, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 
 /** Extracts HSL color string from a theme token value like "258 70% 55%" */
 function hsl(value: string): string {
@@ -168,6 +169,7 @@ export function ThemeGrid({
   editingTheme,
   onEditingThemeChange,
   columns = 'responsive',
+  limit,
 }: {
   /** Called after any theme is selected. */
   onSelect?: () => void;
@@ -183,6 +185,8 @@ export function ThemeGrid({
    * - 'scroll': horizontal scrolling strip on mobile, 3-col grid at sm+
    */
   columns?: 'responsive' | 'sm' | '2' | 'scroll';
+  /** Maximum number of themes to display. When set, the list is truncated after this many items. */
+  limit?: number;
 }) {
   const { theme, customTheme, themes, setTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
@@ -314,7 +318,7 @@ export function ThemeGrid({
     return items;
   };
 
-  const allItems = buildItems();
+  const allItems = limit ? buildItems().slice(0, limit) : buildItems();
 
   if (isScroll) {
     // Auto-select the theme that scrolls into view
@@ -467,6 +471,12 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
 
   // Editor mode: which user theme is being edited
   const [editingTheme, setEditingTheme] = useState<ThemeDefinition | null>(null);
+
+  // Portal container for popovers inside the builder dialog (so scroll works)
+  const [builderPortalContainer, setBuilderPortalContainer] = useState<HTMLElement | undefined>(undefined);
+  const builderContentRef: RefCallback<HTMLElement> = useCallback((node) => {
+    setBuilderPortalContainer(node ?? undefined);
+  }, []);
 
   // Publish dialog state
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
@@ -750,7 +760,9 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
 
       {/* ── Builder Dialog ── */}
       <Dialog open={builderOpen ?? false} onOpenChange={(open) => onBuilderOpenChange?.(open)}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-lg">
+        <DialogContent ref={builderContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-visible rounded-lg p-0">
+          <PortalContainerProvider value={builderPortalContainer}>
+          <div className="overflow-y-auto max-h-[85vh] p-6 space-y-4">
           <DialogHeader>
             <DialogTitle>{editingTheme ? 'Edit Theme' : 'New Theme'}</DialogTitle>
             <DialogDescription>
@@ -782,11 +794,11 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
             {/* Auto-share toggle */}
             {user && (
               <div className="rounded-xl border border-border bg-card p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <Label htmlFor="auto-share-theme-dialog" className="flex flex-col gap-1 cursor-pointer">
-                    <span className="text-sm font-medium">Share theme on your profile</span>
+                    <span className="text-sm font-medium">Sync app theme with your profile theme</span>
                     <span className="text-xs text-muted-foreground font-normal">
-                      Automatically publish theme changes to your profile
+                      Turn this off if you want to display a different theme on your profile than you use in the rest of the app.
                     </span>
                   </Label>
                   <Switch
@@ -851,6 +863,8 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               )}
             </div>
           )}
+          </div>
+          </PortalContainerProvider>
         </DialogContent>
       </Dialog>
 

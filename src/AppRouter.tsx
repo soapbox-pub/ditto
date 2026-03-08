@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useSearchParams } from "react-router-dom";
 import { getExtraKindDef } from "./lib/extraKinds";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { ScrollToTop } from "./components/ScrollToTop";
@@ -10,6 +10,7 @@ import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import { HomePage } from "./pages/HomePage";
 import { NIP19Page } from "./pages/NIP19Page";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { SearchPage } from "./pages/SearchPage";
@@ -41,6 +42,9 @@ import { MusicFeedPage } from "./pages/MusicFeedPage";
 import { PodcastsFeedPage } from "./pages/PodcastsFeedPage";
 import { BooksPage } from "./pages/BooksPage";
 import { BlobbiPage } from "./pages/BlobbiPage";
+import { RelayPage } from "./pages/RelayPage";
+import { UserListsPage } from "./pages/UserListsPage";
+import { HelpPage } from "./pages/HelpPage";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -48,7 +52,7 @@ const colorsDef = getExtraKindDef('colors')!;
 const packsDef = getExtraKindDef('packs')!;
 const articlesDef = getExtraKindDef('articles')!;
 const decksDef = getExtraKindDef('decks')!;
-const emojiPacksDef = getExtraKindDef('emoji-packs')!;
+const emojisDef = getExtraKindDef('emojis')!;
 
 /** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
 function ProfileRedirect() {
@@ -56,6 +60,12 @@ function ProfileRedirect() {
   const profileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   if (!user) return <Navigate to="/" replace />;
   return <Navigate to={profileUrl} replace />;
+}
+
+/** Forces SearchPage to remount when ?q changes, preventing stale results from flickering. */
+function SearchPageKeyed() {
+  const [searchParams] = useSearchParams();
+  return <SearchPage key={searchParams.get('q') ?? ''} />;
 }
 
 export function AppRouter() {
@@ -68,9 +78,10 @@ export function AppRouter() {
       <Routes>
         {/* All routes share the persistent MainLayout (sidebar + nav) */}
         <Route element={<MainLayout />}>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/feed" element={<Index />} />
           <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/search" element={<SearchPage />} />
+          <Route path="/search" element={<SearchPageKeyed />} />
           <Route path="/trends" element={<TrendsPage />} />
           <Route path="/profile" element={<ProfileRedirect />} />
           <Route path="/t/:tag" element={<HashtagPage />} />
@@ -84,6 +95,7 @@ export function AppRouter() {
           <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
           <Route path="/settings/magic" element={<MagicSettingsPage />} />
           <Route path="/settings/network" element={<NetworkSettingsPage />} />
+          <Route path="/lists" element={<UserListsPage />} />
           <Route path="/events" element={<EventsFeedPage />} />
           <Route path="/photos" element={<PhotosFeedPage />} />
           <Route path="/videos" element={<VideosFeedPage />} />
@@ -99,13 +111,16 @@ export function AppRouter() {
           <Route path="/webxdc" element={<WebxdcFeedPage />} />
           <Route path="/articles" element={<KindFeedPage kind={articlesDef.kind} title={articlesDef.label} icon={sidebarItemIcon('articles', 'size-5')} />} />
           <Route path="/decks" element={<KindFeedPage kind={decksDef.kind} title={decksDef.label} icon={sidebarItemIcon('decks', 'size-5')} />} />
-          <Route path="/emojis" element={<KindFeedPage kind={emojiPacksDef.kind} title={emojiPacksDef.label} icon={sidebarItemIcon('emoji-packs', 'size-5')} />} />
+          <Route path="/emojis" element={<KindFeedPage kind={emojisDef.kind} title={emojisDef.label} icon={sidebarItemIcon('emojis', 'size-5')} />} />
           <Route path="/themes" element={<ThemesPage />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
           <Route path="/ai-chat" element={<AIChatPage />} />
           <Route path="/blobbi" element={<BlobbiPage />} />
           <Route path="/world" element={<WorldPage />} />
           <Route path="/books" element={<BooksPage />} />
+          <Route path="/help" element={<HelpPage />} />
+          <Route path="/r/*" element={<RelayPage />} />
+          <Route path="/settings/lists" element={<Navigate to="/lists" replace />} />
           <Route path="/i/*" element={<ExternalContentPage />} />
 
           {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}

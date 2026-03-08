@@ -41,6 +41,7 @@ const queryClient = new QueryClient({
 const hardcodedConfig: AppConfig = {
   appName: 'Ditto',
   appId: 'ditto',
+  homePage: 'feed',
   magicMouse: false,
   theme: "system",
   autoShareTheme: true,
@@ -98,7 +99,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludePodcastTrailers: false,
     followsFeedShowReplies: true,
   },
-  sidebarOrder: ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings'],
+  sidebarOrder: ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings', 'help'],
   nip85StatsPubkey: '5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea',
   blossomServers: ['https://blossom.ditto.pub/', 'https://blossom.dreamith.to/', 'https://blossom.primal.net/'],
   faviconUrl: 'https://fetch.ditto.pub/favicon/{hostname}',
@@ -107,6 +108,7 @@ const hardcodedConfig: AppConfig = {
   contentWarningPolicy: 'blur',
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || '',
   sentryEnabled: true,
+  savedFeeds: [],
 };
 
 /**

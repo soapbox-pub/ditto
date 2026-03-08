@@ -11,3 +11,23 @@ export function cn(...inputs: ClassValue[]) {
  * On desktop (sidebar+), sticks to the top of the viewport.
  */
 export const STICKY_HEADER_CLASS = 'sticky top-mobile-bar sidebar:top-0';
+
+/**
+ * Parse a kindFilter string into an array of kind numbers.
+ * Supports:
+ * - 'all' → undefined (no override)
+ * - 'custom' → parse customKindText as comma/space-separated numbers
+ * - Single kind number (e.g. '1') → [1]
+ * - Comma-separated kind numbers (e.g. '1,30023,20') → [1, 30023, 20]
+ */
+export function parseKindFilter(kindFilter: string, customKindText?: string): number[] | undefined {
+  if (kindFilter === 'all' || kindFilter === '') return undefined;
+  if (kindFilter === 'custom') {
+    if (!customKindText) return undefined;
+    const parsed = customKindText.trim().split(/[\s,]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0);
+    return parsed.length > 0 ? parsed : undefined;
+  }
+  // Comma-separated or single value
+  const parsed = kindFilter.split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  return parsed.length > 0 ? parsed : undefined;
+}

@@ -2,24 +2,42 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
 import { ComposeBox } from '@/components/ComposeBox';
+import { LandingHero } from '@/components/LandingHero';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
-import { useInfiniteSortedPosts } from '@/hooks/useTrending';
+import { useInfiniteHotFeed } from '@/hooks/useTrending';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFeedTab } from '@/hooks/useFeedTab';
 import { useMuteList } from '@/hooks/useMuteList';
+import { useSavedFeeds } from '@/hooks/useSavedFeeds';
+import { useStreamPosts } from '@/hooks/useStreamPosts';
+import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
+import type { SavedFeed } from '@/contexts/AppContext';
 
-type FeedTab = 'follows' | 'global' | 'communities';
+type CoreFeedTab = 'follows' | 'global' | 'communities';
+type FeedTab = CoreFeedTab | string; // string = saved feed id
+
+/** Curated kinds for the logged-out homepage: unique Ditto content types. */
+const LANDING_KINDS = [
+  36767, // Themes
+  37381, // Magic Decks
+  3367,  // Color Moments
+  37516, // Treasures (Geocaches)
+  7516,  // Treasures (Found Logs)
+  30030, // Emoji Packs
+];
+
+/** Webxdc needs a MIME-type tag filter, so it gets its own filter object. */
+const LANDING_WEBXDC_FILTER = { kinds: [1063], '#m': ['application/x-webxdc'] };
 
 interface FeedProps {
   /** Override the kinds list instead of using feed settings. */
@@ -32,13 +50,16 @@ interface FeedProps {
   hideCompose?: boolean;
   /** Message shown when the feed is empty. */
   emptyMessage?: string;
+  /** Unique identifier for this feed page, used to persist the active tab in sessionStorage. Defaults to 'home'. */
+  feedId?: string;
 }
 
-export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: FeedProps = {}) {
-  const { config } = useAppContext();
+export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home' }: FeedProps = {}) {
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
+  const { savedFeeds } = useSavedFeeds();
+
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
     const stored = localStorage.getItem('ditto:showGlobalFeed');
@@ -63,31 +84,36 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
     return 'Community';
   })();
 
-  const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
+  const [activeTab, handleSetActiveTab] = useFeedTab<FeedTab>(feedId);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
 
-  // Switch to follows tab when user logs in
-  useEffect(() => {
-    if (user) {
-      setActiveTab('follows');
-    }
-  }, [user]);
+  // Is the active tab a saved feed?
+  const activeSavedFeed = useMemo(
+    () => savedFeeds.find((f) => f.id === activeTab) ?? null,
+    [savedFeeds, activeTab],
+  );
 
   // When logged out (and not on a kind-specific page), show the "hot" sorted
   // feed instead of the noisy global feed so new visitors see quality content.
   const useTopFeedForLoggedOut = !user && !kinds;
 
-  // Standard feed query (used when logged in, or on kind-specific pages)
-  const feedQuery = useFeed(activeTab, (kinds || tagFilters) ? { kinds, tagFilters } : undefined);
+  // Standard feed query (used when logged in, or on kind-specific pages, or core tabs)
+  const isCoreFeedTab = activeTab === 'follows' || activeTab === 'global' || activeTab === 'communities';
+  const feedQuery = useFeed(
+    isCoreFeedTab ? (activeTab as CoreFeedTab) : 'global',
+    (kinds || tagFilters) ? { kinds, tagFilters } : undefined,
+  );
 
   // "Hot" sorted feed query (used when logged out on the home page)
-  const topQuery = useInfiniteSortedPosts('hot', useTopFeedForLoggedOut);
+  // Shows curated "otherstuff" kinds instead of kind 1. Webxdc needs a
+  // separate filter with a MIME-type tag constraint.
+  const topQuery = useInfiniteHotFeed(LANDING_KINDS, useTopFeedForLoggedOut, undefined, [LANDING_WEBXDC_FILTER]);
 
   // Unify the two query shapes behind a single interface
   const activeQuery = useTopFeedForLoggedOut ? topQuery : feedQuery;
   const queryKey = useMemo(
-    () => useTopFeedForLoggedOut ? ['infinite-sorted-posts', 'hot'] : ['feed', activeTab],
+    () => useTopFeedForLoggedOut ? ['infinite-hot-feed', LANDING_KINDS.join(',')] : ['feed', activeTab],
     [useTopFeedForLoggedOut, activeTab],
   );
 
@@ -124,15 +150,11 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Flatten, deduplicate, and filter muted content.
-  // The two query types have different page shapes:
-  //   - useFeed returns { items: FeedItem[] }
-  //   - useInfiniteSortedPosts returns NostrEvent[]
   const feedItems = useMemo(() => {
     if (!rawData?.pages) return [];
     const seen = new Set<string>();
 
     if (useTopFeedForLoggedOut) {
-      // Pages are NostrEvent[]
       return (rawData.pages as unknown as import('@nostrify/nostrify').NostrEvent[][])
         .flat()
         .filter((event) => {
@@ -144,7 +166,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
         .map((event): FeedItem => ({ event, sortTimestamp: event.created_at }));
     }
 
-    // Pages are { items: FeedItem[] }
     return (rawData.pages as unknown as { items: FeedItem[] }[])
       .flatMap((page) => page.items)
       .filter((item) => {
@@ -158,6 +179,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
+  // Saved feed tabs are only shown on the main home feed (no kinds/tagFilters override)
+  const showSavedFeedTabs = user && !kinds && !tagFilters;
+
   return (
     <main className="flex-1 min-w-0">
       {!hideCompose && <ComposeBox compact />}
@@ -166,72 +190,78 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
 
       {/* Tabs (logged in) or CTA (logged out, main feed only) */}
       {user ? (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
+        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none">
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {showCommunityFeed && (
-            <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => setActiveTab('communities')} />
+            <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
           )}
           {showGlobalFeed && (
-            <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+            <TabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
           )}
+          {showSavedFeedTabs && savedFeeds.map((feed) => (
+            <TabButton
+              key={feed.id}
+              label={feed.label}
+              active={activeTab === feed.id}
+              onClick={() => handleSetActiveTab(feed.id)}
+            />
+          ))}
         </div>
       ) : !kinds && (
-        <div className="border-b border-border sticky top-mobile-bar sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3">
-          <div className="flex items-center justify-center gap-3 px-6">
-            <p className="text-[13px] sidebar:text-sm text-muted-foreground">
-              Follow accounts you care about on {config.appName}
-            </p>
-            <Button onClick={() => setLoginDialogOpen(true)} className="rounded-full" size="sm">
-              Join
-            </Button>
-          </div>
-        </div>
+        <LandingHero
+          onLoginClick={() => setLoginDialogOpen(true)}
+          onSignupClick={startSignup}
+        />
       )}
 
-      {/* Feed content */}
-      <PullToRefresh onRefresh={handleRefresh}>
-        {showSkeleton ? (
-          <div className="divide-y divide-border">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <NoteCardSkeleton key={i} />
-            ))}
-          </div>
-        ) : feedItems.length > 0 ? (
-          <div>
-            {feedItems.map((item: FeedItem) => (
-              <NoteCard
-                key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
-                event={item.event}
-                repostedBy={item.repostedBy}
-              />
-            ))}
-            {hasNextPage && (
-              <div ref={scrollRef} className="py-4">
-                {isFetchingNextPage && (
-                  <div className="flex justify-center">
-                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <FeedEmptyState
-            message={
-              emptyMessage ?? (
-                activeTab === 'follows'
-                  ? 'No posts yet. Follow some people to see their content here.'
-                  : 'No posts found. Check your relay connections or come back soon.'
-              )
-            }
-            onSwitchToGlobal={
-              activeTab === 'follows' && showGlobalFeed
-                ? () => setActiveTab('global')
-                : undefined
-            }
-          />
-        )}
-      </PullToRefresh>
+      {/* Feed content — saved feed tab gets its own stream */}
+      {activeSavedFeed ? (
+        <SavedFeedContent feed={activeSavedFeed} />
+      ) : (
+        <PullToRefresh onRefresh={handleRefresh}>
+          {showSkeleton ? (
+            <div className="divide-y divide-border">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <NoteCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : feedItems.length > 0 ? (
+            <div>
+              {feedItems.map((item: FeedItem) => (
+                <NoteCard
+                  key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+                  event={item.event}
+                  repostedBy={item.repostedBy}
+                />
+              ))}
+              {hasNextPage && (
+                <div ref={scrollRef} className="py-4">
+                  {isFetchingNextPage && (
+                    <div className="flex justify-center">
+                      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <FeedEmptyState
+              message={
+                emptyMessage ?? (
+                  activeTab === 'follows'
+                    ? 'No posts yet. Follow some people to see their content here.'
+                    : 'No posts found. Check your relay connections or come back soon.'
+                )
+              }
+              onSwitchToGlobal={
+                activeTab === 'follows' && showGlobalFeed
+                  ? () => handleSetActiveTab('global')
+                  : undefined
+              }
+            />
+          )}
+        </PullToRefresh>
+      )}
 
       {/* Login/Signup dialogs (only needed on main feed) */}
       {!kinds && (
@@ -246,18 +276,75 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: F
   );
 }
 
+/** Renders a saved search feed using useStreamPosts (live streaming). */
+function SavedFeedContent({ feed }: { feed: SavedFeed }) {
+  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
+  const { user } = useCurrentUser();
+
+  // Resolve variable placeholders ($follows etc.) the same way profile tabs do
+  const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(
+    feed.filter,
+    feed.vars ?? [],
+    user?.pubkey ?? '',
+  );
+
+  const search = typeof resolvedFilter?.search === 'string' ? resolvedFilter.search : '';
+  const kindsOverride = Array.isArray(resolvedFilter?.kinds) ? resolvedFilter.kinds as number[] : undefined;
+  const authorPubkeys = Array.isArray(resolvedFilter?.authors) ? resolvedFilter.authors as string[] : undefined;
+
+  const { posts, isLoading: isStreamLoading } = useStreamPosts(search, {
+    includeReplies: true,
+    mediaType: 'all',
+    kindsOverride,
+    authorPubkeys: authorPubkeys && authorPubkeys.length > 0 ? authorPubkeys : undefined,
+  });
+
+  const isLoading = isResolving || isStreamLoading;
+
+  // Simple scroll-based load more isn't available with useStreamPosts (it's a stream),
+  // but we still wire the ref for future pagination support
+  useEffect(() => {
+    // intentionally empty — useStreamPosts handles its own streaming
+  }, [inView]);
+
+  if (isLoading && posts.length === 0) {
+    return (
+      <div className="divide-y divide-border">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <NoteCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <FeedEmptyState message={`No posts found for "${feed.label}". The search may return results as new content arrives.`} />
+    );
+  }
+
+  return (
+    <div>
+      {posts.map((event) => (
+        <NoteCard key={event.id} event={event} />
+      ))}
+      <div ref={scrollRef} className="py-2" />
+    </div>
+  );
+}
+
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
+        'flex-1 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 whitespace-nowrap',
         active ? 'text-foreground' : 'text-muted-foreground',
       )}
     >
       {label}
       {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 max-w-16 h-1 bg-primary rounded-full" />
       )}
     </button>
   );

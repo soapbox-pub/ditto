@@ -1,3 +1,5 @@
+import { getSubdivisionName, getSubdivisionWikipediaTitle } from './subdivisions';
+
 /** ISO 3166-1 alpha-2 country code to country name and flag emoji mapping. */
 export const COUNTRIES: Record<string, { name: string; flag: string }> = {
   AF: { name: 'Afghanistan', flag: '🇦🇫' },
@@ -244,8 +246,61 @@ export function searchCountry(query: string): CountryMatch | null {
   return best ? { country: best, exact: false } : null;
 }
 
+/**
+ * Map of ISO 3166-1 alpha-2 codes to their Wikipedia article titles,
+ * only for countries whose common name differs from the Wikipedia title.
+ */
+const WIKIPEDIA_TITLES: Record<string, string> = {
+  BS: 'The Bahamas',
+  BO: 'Bolivia',
+  CG: 'Republic of the Congo',
+  CD: 'Democratic Republic of the Congo',
+  CI: 'Ivory Coast',
+  CZ: 'Czech Republic',
+  SZ: 'Eswatini',
+  GM: 'The Gambia',
+  GE: 'Georgia (country)',
+  IR: 'Iran',
+  KP: 'North Korea',
+  KR: 'South Korea',
+  LA: 'Laos',
+  FM: 'Federated States of Micronesia',
+  MD: 'Moldova',
+  MM: 'Myanmar',
+  MK: 'North Macedonia',
+  RU: 'Russia',
+  ST: 'São Tomé and Príncipe',
+  SY: 'Syria',
+  TW: 'Taiwan',
+  TZ: 'Tanzania',
+  GB: 'United Kingdom',
+  US: 'United States',
+  VE: 'Venezuela',
+  VN: 'Vietnam',
+};
+
+/** Get the Wikipedia article title for a country or subdivision. */
+export function getWikipediaTitle(code: string): string | null {
+  const upper = code.toUpperCase();
+
+  if (upper.includes('-')) {
+    // Subdivision — try subdivision-specific Wikipedia title
+    const subTitle = getSubdivisionWikipediaTitle(upper);
+    if (subTitle) return subTitle;
+    // Fall back to parent country
+    const countryCode = upper.split('-')[0];
+    const country = COUNTRIES[countryCode];
+    if (!country) return null;
+    return WIKIPEDIA_TITLES[countryCode] ?? country.name;
+  }
+
+  const country = COUNTRIES[upper];
+  if (!country) return null;
+  return WIKIPEDIA_TITLES[upper] ?? country.name;
+}
+
 /** Get country info from an ISO 3166 code (country or subdivision). */
-export function getCountryInfo(code: string): { name: string; flag: string; subdivision?: string } | null {
+export function getCountryInfo(code: string): { name: string; flag: string; subdivision?: string; subdivisionName?: string } | null {
   const upper = code.toUpperCase();
 
   // Handle subdivision codes like "US-CA"
@@ -257,6 +312,7 @@ export function getCountryInfo(code: string): { name: string; flag: string; subd
       name: country.name,
       flag: country.flag,
       subdivision: upper,
+      subdivisionName: getSubdivisionName(upper) ?? undefined,
     };
   }
 

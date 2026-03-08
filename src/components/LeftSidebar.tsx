@@ -19,6 +19,7 @@ import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useTheme } from '@/hooks/useTheme';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -46,6 +47,7 @@ export function LeftSidebar() {
   const {
     orderedItems, hiddenItems, updateSidebarOrder, addToSidebar, addDividerToSidebar, removeFromSidebar,
   } = useFeedSettings();
+  const { config } = useAppContext();
 
   const visibleItems = useMemo(() => {
     if (user) return orderedItems;
@@ -71,6 +73,8 @@ export function LeftSidebar() {
   const { toast } = useToast();
   const [statusEditing, setStatusEditing] = useState(false);
   const [statusDraft, setStatusDraft] = useState('');
+
+  const homePage = config.homePage;
 
   const scrollToTopIfCurrent = useCallback((to: string) => (e: React.MouseEvent) => {
     if (location.pathname === to) {
@@ -134,10 +138,11 @@ export function LeftSidebar() {
           editing={editing}
           onRemove={removeFromSidebar}
           onReorder={updateSidebarOrder}
-          isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl)}
-          getOnClick={(id) => id === 'feed' ? scrollToTopIfCurrent('/') : undefined}
+          isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl, homePage)}
+          getOnClick={(id) => id === homePage ? scrollToTopIfCurrent('/') : undefined}
           getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
           getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
+          homePage={homePage}
         />
 
         <SidebarMoreMenu
@@ -149,6 +154,7 @@ export function LeftSidebar() {
           onAddDivider={addDividerToSidebar}
           open={moreMenuOpen}
           onOpenChange={setMoreMenuOpen}
+          homePage={homePage}
         />
       </nav>
 

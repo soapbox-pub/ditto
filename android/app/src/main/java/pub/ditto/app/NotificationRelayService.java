@@ -264,7 +264,7 @@ public class NotificationRelayService extends Service {
         try {
             JSONObject filter = new JSONObject();
             JSONArray kinds = new JSONArray();
-            kinds.put(1); kinds.put(6); kinds.put(7); kinds.put(9735);
+            kinds.put(1); kinds.put(6); kinds.put(7); kinds.put(9735); kinds.put(1111);
             filter.put("kinds", kinds);
             JSONArray pTags = new JSONArray();
             pTags.put(userPubkey);

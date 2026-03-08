@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { BookMarked, Loader2, Search, X } from 'lucide-react';
+import { ArrowLeft, BookMarked, Loader2, Search, X } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { useBookFeed } from '@/hooks/useBookFeed';
 import { useBookSearch, type BookSearchResult } from '@/hooks/useBookSearch';
 import { usePrefetchBookSummaries } from '@/hooks/useBookSummary';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFeedTab } from '@/hooks/useFeedTab';
 import { useAppContext } from '@/hooks/useAppContext';
 import { cn } from '@/lib/utils';
 import type { ExtraKindDef } from '@/lib/extraKinds';
@@ -37,11 +38,7 @@ export function BooksPage() {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
-
-  useEffect(() => {
-    if (user) setActiveTab('follows');
-  }, [user]);
+  const [activeTab, setActiveTab] = useFeedTab<FeedTab>('books', ['follows', 'global']);
 
   useSeoMeta({
     title: `Books | ${config.appName}`,
@@ -97,10 +94,13 @@ export function BooksPage() {
   return (
     <main className="pb-16 sidebar:pb-0">
       {/* Page header */}
-      <div className="flex items-center gap-4 px-4 py-3.5 sidebar:py-5">
+      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
+        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+          <ArrowLeft className="size-5" />
+        </Link>
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <BookMarked className="size-5" />
-          <h1 className="font-bold text-xl">Books</h1>
+          <h1 className="text-xl font-bold">Books</h1>
         </div>
         <KindInfoButton kindDef={booksDef} icon={<BookMarked className="size-10" />} />
       </div>

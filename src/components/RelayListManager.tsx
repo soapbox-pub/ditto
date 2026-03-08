@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, X, Wifi, Settings } from 'lucide-react';
+import { HelpTip } from '@/components/HelpTip';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -266,9 +267,9 @@ export function RelayListManager() {
       {/* User Relays Section */}
       <div className="pb-4 pt-4">
         <div className="px-3 space-y-3">
-          <h3 className="text-sm font-medium">Your Relays</h3>
+          <h3 className="text-sm font-medium flex items-center gap-1.5">Your Relays <HelpTip faqId="what-are-relays" iconSize="size-3.5" /></h3>
           <p className="text-xs text-muted-foreground">
-            Your personal NIP-65 relay list. These are synced to Nostr when logged in.
+            Your personal relay list. These are synced to Nostr when logged in.
           </p>
         </div>
 

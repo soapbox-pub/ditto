@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
 
 interface DittoLogoProps {
@@ -106,9 +107,11 @@ function getPixelArtMask(): Promise<string> {
   return maskPromise;
 }
 
-/** The Ditto logo rendered from the custom SVG asset. Occasionally appears pixelated. */
+/** The Ditto logo rendered from the custom SVG asset. Occasionally appears pixelated for logged-in users. */
 export function DittoLogo({ className, size = 40 }: DittoLogoProps) {
-  if (isPixelated) {
+  const { user } = useCurrentUser();
+
+  if (isPixelated && user) {
     return <PixelatedLogo className={className} size={size} />;
   }
 

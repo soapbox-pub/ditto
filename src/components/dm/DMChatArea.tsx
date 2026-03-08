@@ -476,14 +476,14 @@ export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
               onValueChange={(value) => setSelectedProtocol(value as MessageProtocol)}
               disabled={!allowSelection}
             >
-              <SelectTrigger className="h-[32px] w-[90px] text-xs px-2">
+              <SelectTrigger className="h-[32px] w-[90px] text-base md:text-xs px-2">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={MESSAGE_PROTOCOL.NIP17} className="text-xs">
+                <SelectItem value={MESSAGE_PROTOCOL.NIP17} className="text-base md:text-xs">
                   NIP-17
                 </SelectItem>
-                <SelectItem value={MESSAGE_PROTOCOL.NIP04} className="text-xs">
+                <SelectItem value={MESSAGE_PROTOCOL.NIP04} className="text-base md:text-xs">
                   NIP-04
                 </SelectItem>
               </SelectContent>
