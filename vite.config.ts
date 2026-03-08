@@ -129,6 +129,11 @@ export default defineConfig(() => ({
     env: {
       DEBUG_PRINT_LIMIT: '0', // Suppress DOM output that exceeds AI context windows
     },
+    server: {
+      deps: {
+        inline: ['@samthomson/nostr-messaging'],
+      },
+    },
   },
   build: {
     target: 'esnext',
