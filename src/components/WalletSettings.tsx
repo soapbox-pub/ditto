@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, Trash2, Zap, Globe, WalletMinimal, CheckCircle, X } from 'lucide-react';
+import { HelpTip } from '@/components/HelpTip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -128,7 +129,7 @@ export function WalletSettings() {
         {/* NWC Wallets */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Nostr Wallet Connect</h2>
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">Nostr Wallet Connect <HelpTip faqId="connect-wallet" /></h2>
             <Button size="sm" variant="outline" onClick={() => setAddDialogOpen(true)} className="rounded-full">
               <Plus className="size-4 mr-1" />
               Add
@@ -140,7 +141,7 @@ export function WalletSettings() {
               <CardContent className="py-10 text-center">
                 <WalletMinimal className="size-8 mx-auto mb-3 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground mb-1">No wallets connected</p>
-                <p className="text-xs text-muted-foreground/70">Add an NWC connection to enable instant zaps.</p>
+                <p className="text-xs text-muted-foreground/70 flex items-center gap-1">Add an NWC connection to enable instant zaps. <HelpTip faqId="what-are-zaps" iconSize="size-3.5" /></p>
               </CardContent>
             </Card>
           ) : (

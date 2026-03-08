@@ -18,6 +18,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 import { ProfileCard } from '@/components/ProfileCard';
+import { HelpTip } from '@/components/HelpTip';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -493,8 +494,9 @@ export function ProfileSettings() {
                 render={({ field }) => (
                   <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
                     <div className="w-6" />
-                    <div className="flex items-center h-9 px-3 text-sm text-muted-foreground">
+                    <div className="flex items-center h-9 px-3 text-sm text-muted-foreground gap-1">
                       <span>Lightning</span>
+                      <HelpTip faqId="what-are-zaps" iconSize="size-3.5" />
                     </div>
                     <Input placeholder="you@walletofsatoshi.com" {...field} className="h-9" />
                     <div className="size-9" />
