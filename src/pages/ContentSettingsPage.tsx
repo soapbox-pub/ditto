@@ -23,7 +23,7 @@ export function ContentSettingsPage() {
           <div>
             <h1 className="text-xl font-bold">Feed</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Choose what types of posts appear in your feed
+              Nostr supports many content types beyond text posts. Customize which kinds appear in your feed.
             </p>
           </div>
         </div>
