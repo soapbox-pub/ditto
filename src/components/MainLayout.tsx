@@ -66,6 +66,9 @@ function MainLayoutInner() {
   const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { config } = useAppContext();
+  
+  // When right sidebar is hidden, allow main content to expand
+  const hasRightSidebar = rightSidebar !== null;
 
   return (
     <>
@@ -87,7 +90,10 @@ function MainLayoutInner() {
 
         {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
         <Suspense fallback={<PageSkeleton />}>
-          <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l border-r border-border bg-background/85")}>
+          <div className={cn(
+            "relative flex-1 min-w-0 sidebar:border-l border-border bg-background/85",
+            hasRightSidebar ? "sidebar:max-w-[600px] border-r" : ""
+          )}>
             <Outlet />
             {showFAB && (
               <div className="sticky bottom-fab sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
@@ -97,7 +103,7 @@ function MainLayoutInner() {
               </div>
             )}
           </div>
-          {rightSidebar ?? <RightSidebar />}
+          {rightSidebar === undefined ? <RightSidebar /> : rightSidebar}
         </Suspense>
       </div>
 
