@@ -1020,7 +1020,7 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
 // Shared nav buttons
 // ---------------------------------------------------------------------------
 
-function StepNav({
+function _StepNav({
   onBack,
   onNext,
   nextLabel = 'Continue',
