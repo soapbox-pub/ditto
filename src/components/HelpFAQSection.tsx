@@ -114,13 +114,10 @@ export function HelpFAQSection({ categories, items, hideHeadings, className }: H
     <div className={className}>
       {filteredCategories.map((category, catIndex) => (
         <Fragment key={category.id}>
-          {/* Category separator + heading */}
-          {!hideHeadings && catIndex > 0 && (
-            <div className="border-t border-border mt-4" />
-          )}
+          {/* Category heading */}
           {!hideHeadings && (
-            <div className={`px-1 pb-2 ${catIndex === 0 ? 'pt-2' : 'pt-5'}`}>
-              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+            <div className={catIndex === 0 ? 'pt-2 pb-2' : 'pt-6 pb-2'}>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-primary bg-primary/10 rounded-full px-3.5 py-1.5 inline-block">
                 {category.label}
               </h3>
             </div>
