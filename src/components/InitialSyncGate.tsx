@@ -181,9 +181,6 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // Setup Questionnaire
 // ---------------------------------------------------------------------------
 
-/** Extra-kind IDs enabled by default during onboarding, in sidebar order. */
-const ONBOARDING_EXTRA_IDS = ['vines', 'colors', 'decks', 'treasures', 'webxdc'];
-
 /** Suggested follow packs shown to new users with empty follow lists. */
 const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] = [
   { kind: 39089, pubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d', identifier: 'k4p5w0n22suf' },
@@ -333,16 +330,10 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       followsFeedShowReplies: true,
     };
 
-    // Build sidebar order: base built-ins + all extra content kinds
-    const BASE_SIDEBAR = ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings'];
-    const extraSidebarIds = ONBOARDING_EXTRA_IDS;
-    const sidebarOrder = [...BASE_SIDEBAR, ...extraSidebarIds];
-
     updateConfig((current) => ({
       ...current,
       feedSettings,
       contentWarningPolicy: 'blur',
-      sidebarOrder,
     }));
 
     if (user?.signer.nip44) {
@@ -350,7 +341,6 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
         await updateSettings.mutateAsync({
           feedSettings,
           contentWarningPolicy: 'blur',
-          sidebarOrder,
         });
       } catch (error) {
         console.warn('Failed to save initial settings to Nostr:', error);
