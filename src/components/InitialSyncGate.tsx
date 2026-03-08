@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { type ContentWarningPolicy } from '@/contexts/AppContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { ThemeGrid } from '@/components/ThemeSelector';
@@ -30,7 +29,6 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
-  Shield,
   Users,
   UserPlus,
   Loader2,
@@ -186,12 +184,6 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 /** Extra-kind IDs enabled by default during onboarding, in sidebar order. */
 const ONBOARDING_EXTRA_IDS = ['vines', 'colors', 'decks', 'treasures', 'webxdc'];
 
-const CW_OPTIONS: { value: ContentWarningPolicy; label: string; description: string; icon: typeof Eye }[] = [
-  { value: 'blur', label: 'Blur', description: 'Blur sensitive content until you tap', icon: Shield },
-  { value: 'hide', label: 'Hide', description: 'Remove sensitive content entirely', icon: EyeOff },
-  { value: 'show', label: 'Show', description: 'Display all content without warnings', icon: Eye },
-];
-
 /** Suggested follow packs shown to new users with empty follow lists. */
 const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] = [
   { kind: 39089, pubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d', identifier: 'k4p5w0n22suf' },
@@ -199,11 +191,11 @@ const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] = 
 
 // Steps for signup (includes keygen + profile) vs. settings-only (existing login)
 type SignupStep = 'keygen' | 'download' | 'profile';
-type SettingsStep = 'theme' | 'safety' | 'follows' | 'outro';
+type SettingsStep = 'theme' | 'follows' | 'outro';
 type Step = SignupStep | SettingsStep;
 
-const SIGNUP_STEPS: Step[] = ['theme', 'keygen', 'download', 'profile', 'safety', 'follows', 'outro'];
-const SETTINGS_STEPS: Step[] = ['theme', 'safety', 'follows', 'outro'];
+const SIGNUP_STEPS: Step[] = ['theme', 'keygen', 'download', 'profile', 'follows', 'outro'];
+const SETTINGS_STEPS: Step[] = ['theme', 'follows', 'outro'];
 
 function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
   onComplete: () => void;
@@ -219,7 +211,6 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
   const steps = isSignup ? SIGNUP_STEPS : SETTINGS_STEPS;
 
   const [step, setStep] = useState<Step>(steps[0]);
-  const [selectedCW, setSelectedCW] = useState<ContentWarningPolicy>('blur');
   const [isSaving, setIsSaving] = useState(false);
   const [hasFollows, setHasFollows] = useState<boolean | null>(null);
 
@@ -350,7 +341,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
     updateConfig((current) => ({
       ...current,
       feedSettings,
-      contentWarningPolicy: selectedCW,
+      contentWarningPolicy: 'blur',
       sidebarOrder,
     }));
 
@@ -358,7 +349,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       try {
         await updateSettings.mutateAsync({
           feedSettings,
-          contentWarningPolicy: selectedCW,
+          contentWarningPolicy: 'blur',
           sidebarOrder,
         });
       } catch (error) {
@@ -391,7 +382,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
     } else {
       goTo('follows');
     }
-  }, [selectedCW, updateConfig, updateSettings, user, nostr, goTo]);
+  }, [updateConfig, updateSettings, user, nostr, goTo]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
@@ -422,18 +413,9 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
           {/* Settings steps */}
           {step === 'theme' && (
             <ThemeStep
-              onNext={next}
-              onBack={back}
-              isFirst={isSignup && steps.indexOf('theme') === 0}
-            />
-          )}
-
-          {step === 'safety' && (
-            <SafetyStep
-              selected={selectedCW}
-              onSelect={setSelectedCW}
               onNext={handleSaveAndContinue}
               onBack={back}
+              isFirst={isSignup && steps.indexOf('theme') === 0}
               isSaving={isSaving}
             />
           )}
@@ -444,7 +426,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
                 if (didFollow) onPreload();
                 goTo('outro');
               }}
-              onBack={() => goTo('safety')}
+              onBack={() => goTo('theme')}
             />
           )}
 
@@ -667,10 +649,12 @@ function ThemeStep({
   onNext,
   onBack,
   isFirst = false,
+  isSaving = false,
 }: {
   onNext: () => void;
   onBack: () => void;
   isFirst?: boolean;
+  isSaving?: boolean;
 }) {
   const { customTheme } = useTheme();
   const bgUrl = customTheme?.background?.url;
@@ -699,104 +683,29 @@ function ThemeStep({
         <ThemeGrid columns="scroll" limit={9} />
 
         {isFirst ? (
-          <Button onClick={onNext} className="w-full rounded-full h-11 gap-1.5">
-            Continue
-            <ChevronRight className="w-4 h-4" />
+          <Button onClick={onNext} className="w-full rounded-full h-11 gap-1.5" disabled={isSaving}>
+            {isSaving ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+            ) : (
+              <>Continue <ChevronRight className="w-4 h-4" /></>
+            )}
           </Button>
         ) : (
-          <StepNav onBack={onBack} onNext={onNext} />
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={onBack} className="flex-1 rounded-full h-11" disabled={isSaving}>
+              Back
+            </Button>
+            <Button onClick={onNext} className="flex-1 rounded-full h-11 gap-1.5" disabled={isSaving}>
+              {isSaving ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+              ) : (
+                <>Continue <ChevronRight className="w-4 h-4" /></>
+              )}
+            </Button>
+          </div>
         )}
       </div>
     </>
-  );
-}
-
-function SafetyStep({
-  selected,
-  onSelect,
-  onNext,
-  onBack,
-  isSaving,
-}: {
-  selected: ContentWarningPolicy;
-  onSelect: (p: ContentWarningPolicy) => void;
-  onNext: () => void;
-  onBack: () => void;
-  isSaving: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-right-4 duration-400">
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight">Content safety</h2>
-        <p className="text-sm text-muted-foreground">
-          Choose how to handle posts marked with content warnings.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        {CW_OPTIONS.map((option) => {
-          const Icon = option.icon;
-          const isSelected = selected === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onSelect(option.value)}
-              disabled={isSaving}
-              className={cn(
-                'w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-200 text-left',
-                isSelected
-                  ? 'ring-2 ring-primary bg-primary/5'
-                  : 'ring-1 ring-border hover:bg-muted/50',
-                isSaving && 'opacity-50 pointer-events-none',
-              )}
-            >
-              <div className={cn(
-                'w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0',
-                isSelected ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
-              )}>
-                <Icon className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{option.label}</p>
-                <p className="text-xs text-muted-foreground">{option.description}</p>
-              </div>
-              {isSelected && (
-                <Check className="w-4 h-4 text-primary flex-shrink-0" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex gap-3">
-        <Button
-          variant="ghost"
-          onClick={onBack}
-          className="flex-1 rounded-full h-11"
-          disabled={isSaving}
-        >
-          Back
-        </Button>
-        <Button
-          onClick={onNext}
-          className="flex-1 rounded-full h-11 gap-1.5"
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              Continue
-              <ChevronRight className="w-4 h-4" />
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
   );
 }
 
