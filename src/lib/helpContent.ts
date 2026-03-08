@@ -282,7 +282,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         id: 'who-made-this',
         question: 'Who made this?',
         answer: [
-          'This platform is built by [Soapbox](https://soapbox.pub), a team of developers and freedom-of-speech advocates who believe social media should be owned by its users, not corporations.',
+          'This platform is built by [Soapbox](https://soapbox.pub), a team of developers who believe social media should be owned by its users, not corporations.',
           'Soapbox builds open-source tools for the Nostr ecosystem, including Ditto (the server that powers this site). You can learn more about the team and their mission at [soapbox.pub](https://soapbox.pub).',
         ],
       },
