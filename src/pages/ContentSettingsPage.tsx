@@ -8,8 +8,8 @@ export function ContentSettingsPage() {
   const { config } = useAppContext();
 
   useSeoMeta({
-    title: `Feed | Settings | ${config.appName}`,
-    description: 'Choose what types of posts appear in your feed',
+    title: `Home Feed | Settings | ${config.appName}`,
+    description: 'Choose what types of posts appear in your home feed',
   });
 
   return (
@@ -21,9 +21,9 @@ export function ContentSettingsPage() {
             <ArrowLeft className="size-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold">Feed</h1>
+            <h1 className="text-xl font-bold">Home Feed</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Choose what types of posts appear in your feed
+              Nostr supports many content types beyond text posts. Customize which kinds appear in your home feed.
             </p>
           </div>
         </div>

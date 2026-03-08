@@ -1,14 +1,12 @@
 import { useState } from 'react';
-import { IntroImage } from '@/components/IntroImage';
 import {
-  ChevronDown, ChevronUp, Users, Download, Loader2, X, Pencil, Home, Globe,
-  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink, ShieldAlert,
+  Users, Download, Loader2, X, Pencil, Home, Globe,
+  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -32,124 +30,63 @@ import type { SavedFeed, TabFilter, ContentWarningPolicy } from '@/contexts/AppC
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 
 export function ContentSettings() {
-  const [notesOpen, setNotesOpen] = useState(true);
-  const [otherStuffOpen, setOtherStuffOpen] = useState(true);
-  const [feedTabsOpen, setFeedTabsOpen] = useState(false);
-
   return (
     <div>
-      {/* Intro */}
-      <div className="px-3 pt-2 pb-4">
-        <h2 className="text-sm font-semibold">What You See</h2>
-        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Customize your feed, choose what content appears, and control what you want to hide.
-        </p>
-      </div>
-
       {/* Homepage Section */}
       <HomePageSetting />
 
       {/* Feed Tabs Section */}
       <div>
-        <Collapsible open={feedTabsOpen} onOpenChange={setFeedTabsOpen}>
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-            >
-              <span className="text-base font-semibold">Feed Tabs</span>
-              {feedTabsOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="pb-4">
-              <FeedTabsSection />
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+        <div className="relative px-3 py-3.5">
+          <h2 className="text-base font-semibold">Home Feed Tabs</h2>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+        </div>
+        <div className="pb-4">
+          <FeedTabsSection />
+        </div>
       </div>
 
       {/* Notes Section */}
       <div>
-        <Collapsible open={notesOpen} onOpenChange={setNotesOpen}>
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-            >
-              <span className="text-base font-semibold">Notes</span>
-              {notesOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="pb-4">
-              <div className="px-3 pt-3 pb-4">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Core content types that appear in your feed.
-                </p>
-              </div>
+        <div className="relative px-3 py-3.5">
+          <h2 className="text-base font-semibold">Basic Home Feed Options</h2>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+        </div>
+        <div className="pb-4">
+          <div className="px-3 pt-3 pb-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Core content types that appear in your feed.
+            </p>
+          </div>
 
-              {/* Column headers */}
-              <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
-                <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
-              </div>
+          {/* Column headers */}
+          <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
+            <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
+          </div>
 
-              <NotesFeedSettings />
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+          <NotesFeedSettings />
+        </div>
       </div>
 
       {/* Other Stuff Section */}
       <div>
-        <Collapsible open={otherStuffOpen} onOpenChange={setOtherStuffOpen}>
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-            >
-              <span className="text-base font-semibold">Other Stuff</span>
-              {otherStuffOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="pb-4">
-              {/* Intro section for Other Stuff */}
-              <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-                <IntroImage src="/feed-intro.png" />
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold">Other Stuff</h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
-                  </p>
-                </div>
-              </div>
+        <div className="relative px-3 py-3.5">
+          <h2 className="text-base font-semibold">Show More Content Types in Home Feed</h2>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+        </div>
+        <div className="pb-4">
+          <p className="text-xs text-muted-foreground px-3 pt-3 pb-2 leading-relaxed">
+            Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
+          </p>
 
-              {/* Column headers */}
-              <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
-                <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
-              </div>
+          {/* Column headers */}
+          <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
+            <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
+          </div>
 
-              {/* Content type rows - reuse the internals from FeedSettingsForm */}
-              <FeedSettingsFormInternals />
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+          {/* Content type rows - reuse the internals from FeedSettingsForm */}
+          <FeedSettingsFormInternals />
+        </div>
       </div>
 
     </div>
@@ -436,16 +373,9 @@ function FeedTabsSection() {
 
   return (
     <div>
-      {/* Intro section for Feed Tabs */}
-      <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-        <IntroImage src="/community-intro.png" />
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold">Feed Navigation</h3>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Manage which feed tabs appear in your navigation and follow communities by domain.
-          </p>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground px-3 pt-3 pb-2 leading-relaxed">
+        Manage which feed tabs appear in your navigation and follow communities by domain.
+      </p>
 
       {/* Feed Tab Toggles */}
       <div className="border-b border-border">
@@ -760,18 +690,9 @@ export function SensitiveContentSection() {
 
   return (
     <div>
-      {/* Intro */}
-      <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-        <div className="w-40 shrink-0 flex items-center justify-center">
-          <ShieldAlert className="size-16 text-muted-foreground/40" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold">Content Warnings</h3>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Some posts are tagged with content warnings (NIP-36) by their authors. This can include NSFW material, spoilers, or other sensitive content.
-          </p>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground px-3 pt-3 pb-2 leading-relaxed">
+        Some posts are tagged with content warnings by their authors. Choose how these are displayed.
+      </p>
 
       {/* Policy options — consistent row style with other settings */}
       <RadioGroup
