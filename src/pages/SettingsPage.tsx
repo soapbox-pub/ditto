@@ -1,7 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
 import { useState, useEffect, useRef } from 'react';
 import {
-  ArrowLeft, Bell, ChevronRight, EyeOff, Globe, ListChecks,
+  ArrowLeft, Bell, ChevronRight, EyeOff, Globe,
   Rss, Settings, Sparkles, UserCircle, Wrench,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -50,14 +50,6 @@ const settingsSections: SettingsSection[] = [
     description: 'Relays and file upload servers',
     icon: Globe,
     path: '/settings/network',
-    requiresAuth: true,
-  },
-  {
-    id: 'lists',
-    label: 'Lists',
-    description: 'Organize people into follow sets for custom feeds',
-    icon: ListChecks,
-    path: '/settings/lists',
     requiresAuth: true,
   },
   {
@@ -141,21 +133,6 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {/* Codex heading + exposition */}
-      <div className="px-7 pb-4 pt-4 text-center space-y-2.5">
-        <p className="text-xs text-muted-foreground leading-relaxed select-none">
-          Shape your identity, tune your feed, and manage how you connect to the Nostr network.<br />Everything you need to make this place feel like yours.
-        </p>
-        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/60 select-none pt-6">Codex of Configuration</p>
-      </div>
-
-      {/* Tome ornament */}
-      <div className="flex items-center gap-3 px-6 pb-5">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/40 to-primary/60" />
-        <span className="text-primary/50 text-xs tracking-[0.3em] select-none">✦</span>
-        <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/40 to-primary/60" />
-      </div>
-
       {/* Settings menu */}
       <div className="px-4">
         {visibleSections.map((section, i) => {
@@ -182,13 +159,6 @@ export function SettingsPage() {
             </div>
           );
         })}
-      </div>
-
-      {/* Bottom ornament */}
-      <div className="flex items-center gap-3 px-6 pt-4 pb-2">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/20 to-primary/30" />
-        <span className="text-primary/30 text-[10px] tracking-[0.4em] select-none">◆</span>
-        <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/20 to-primary/30" />
       </div>
 
       {/* Magic sigil — appears after 2 min inactivity, only when magic is locked */}
