@@ -5,6 +5,7 @@ import { ArrowLeft, Bell, BellOff, AlertTriangle } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { HelpTip } from '@/components/HelpTip';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
@@ -85,8 +86,8 @@ export function NotificationSettings() {
                 <Label htmlFor="push-notifications" className="text-sm font-medium cursor-pointer">
                   Push Notifications
                 </Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Receive notifications for mentions, replies, and zaps
+                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                  Receive notifications for mentions, replies, and zaps <HelpTip faqId="what-are-zaps" iconSize="size-3.5" />
                 </p>
               </div>
             </div>

@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { RelayListManager } from '@/components/RelayListManager';
 import { BlossomSettings } from '@/components/BlossomSettings';
+import { HelpTip } from '@/components/HelpTip';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 
@@ -40,7 +41,7 @@ export function NetworkSettingsPage() {
         {/* Relays */}
         <div>
           <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold">Relays</h2>
+            <h2 className="text-base font-semibold flex items-center gap-1.5">Relays <HelpTip faqId="what-are-relays" /></h2>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
           </div>
           <div className="pt-2 pb-4">
@@ -51,7 +52,7 @@ export function NetworkSettingsPage() {
         {/* Blossom Servers */}
         <div>
           <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold">Blossom Servers</h2>
+            <h2 className="text-base font-semibold flex items-center gap-1.5">Blossom Servers <HelpTip faqId="what-are-blossom" /></h2>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
           </div>
           <div className="pt-2 pb-4">
