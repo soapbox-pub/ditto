@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
+import { HelpTip } from '@/components/HelpTip';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
@@ -622,7 +623,7 @@ export function SearchPage() {
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Platform</span>
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Platform <HelpTip faqId="vs-mastodon-bluesky" iconSize="size-3" /></span>
                       <Select value={platform} onValueChange={(v) => setPlatform(v)}>
                         <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
                           <SelectValue />

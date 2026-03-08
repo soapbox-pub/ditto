@@ -2,6 +2,7 @@ import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MuteSettingsInternals, SensitiveContentSection, ThemePreferencesSection } from '@/components/ContentSettings';
+import { HelpTip } from '@/components/HelpTip';
 import { useAppContext } from '@/hooks/useAppContext';
 
 export function ContentPage() {
@@ -34,7 +35,7 @@ export function ContentPage() {
         {/* Muted Content Section */}
         <div>
           <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold">Muted Content</h2>
+            <h2 className="text-base font-semibold flex items-center gap-1.5">Muted Content <HelpTip faqId="report-content" /></h2>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
           </div>
           <div className="pb-4">
@@ -45,7 +46,7 @@ export function ContentPage() {
         {/* Sensitive Content Section */}
         <div>
           <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold">Sensitive Content</h2>
+            <h2 className="text-base font-semibold flex items-center gap-1.5">Sensitive Content <HelpTip faqId="report-content" /></h2>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
           </div>
           <div className="pb-4">
