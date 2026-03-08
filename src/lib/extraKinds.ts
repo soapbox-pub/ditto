@@ -148,7 +148,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     addressable: false,
     section: 'media',
     blurb: 'Watch and discover videos and live streams in a YouTube/Twitch-style interface.',
-    sites: [{ url: 'https://zap.stream', name: 'zap.stream' }],
+    sites: [{ url: 'https://zap.stream', name: 'zap.stream' }, { url: 'https://vidstr.shakespeare.wtf', name: 'Vidstr' }],
     subKinds: [
       {
         kind: 21,
