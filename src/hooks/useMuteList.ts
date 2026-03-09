@@ -1,6 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { NostrFilter } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter, NostrSigner } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { useCurrentUser } from './useCurrentUser';
@@ -50,6 +50,50 @@ export function parseMuteTags(tags: string[][]): MuteListItem[] {
     }
   }
   return items;
+}
+
+/**
+ * Fetches the absolute freshest kind 10000 mute list via the pool.
+ * Mirrors the safety pattern from useFollowActions' fetchFreshFollowEvent.
+ */
+async function fetchFreshMuteEvent(
+  nostr: ReturnType<typeof useNostr>['nostr'],
+  pubkey: string,
+): Promise<NostrEvent | null> {
+  const signal = AbortSignal.timeout(10_000);
+
+  const muteEvents = await nostr.query(
+    [{ kinds: [10000], authors: [pubkey], limit: 1 }],
+    { signal },
+  );
+
+  if (muteEvents.length === 0) return null;
+
+  // Pick the most recent event across all relays
+  return muteEvents.reduce((latest, current) =>
+    current.created_at > latest.created_at ? current : latest,
+  );
+}
+
+/**
+ * Decrypt a kind 10000 event's content and parse into MuteListItems.
+ * Returns an empty array if the event has no encrypted content.
+ */
+async function decryptMuteItems(
+  event: NostrEvent | null,
+  signer: NostrSigner,
+  pubkey: string,
+): Promise<MuteListItem[]> {
+  if (!event?.content || !signer.nip44) return [];
+
+  try {
+    const decrypted = await signer.nip44.decrypt(pubkey, event.content);
+    const tags = JSON.parse(decrypted) as string[][];
+    return parseMuteTags(tags);
+  } catch (error) {
+    console.error('Failed to decrypt mute items:', error);
+    return [];
+  }
 }
 
 /**
@@ -130,8 +174,17 @@ export function useMuteList() {
         normalizedValue = normalizeEventId(item.value);
       }
 
-      const currentItems = muteItems.data || [];
-      const newItems = [...currentItems, { ...item, value: normalizedValue }];
+      // ① Fetch the freshest kind 10000 from relays before mutating
+      const freshEvent = await fetchFreshMuteEvent(nostr, user.pubkey);
+      const currentItems = await decryptMuteItems(freshEvent, user.signer, user.pubkey);
+
+      // ② Add only if not already present (dedup)
+      const alreadyMuted = currentItems.some(
+        (i) => i.type === item.type && i.value === normalizedValue,
+      );
+      const newItems = alreadyMuted
+        ? currentItems
+        : [...currentItems, { ...item, value: normalizedValue }];
 
       // Update localStorage immediately so it survives page refresh
       setCachedMuteItems(user.pubkey, newItems);
@@ -148,9 +201,13 @@ export function useMuteList() {
     mutationFn: async (item: MuteListItem) => {
       if (!user) throw new Error('User not logged in');
 
-      const currentItems = muteItems.data || [];
+      // ① Fetch the freshest kind 10000 from relays before mutating
+      const freshEvent = await fetchFreshMuteEvent(nostr, user.pubkey);
+      const currentItems = await decryptMuteItems(freshEvent, user.signer, user.pubkey);
+
+      // ② Remove the target item
       const newItems = currentItems.filter(
-        (i) => !(i.type === item.type && i.value === item.value)
+        (i) => !(i.type === item.type && i.value === item.value),
       );
 
       // Update localStorage immediately so it survives page refresh
