@@ -13,17 +13,25 @@ export {
   // Types
   type InventoryAction,
   type ResolvedInventoryItem,
+  type EggStats,
+  type EggMedicineResult,
+  type EggStatPreview,
   // Constants
   ACTION_TO_ITEM_TYPE,
   ACTION_METADATA,
-  ITEM_USABLE_STAGES,
+  GENERAL_ITEM_USABLE_STAGES,
+  EGG_ALLOWED_ACTIONS,
   // Functions
   clampStat,
   applyStat,
   applyItemEffects,
+  applyMedicineToEgg,
   filterInventoryByAction,
   decrementStorageItem,
+  canUseAction,
   canUseInventoryItems,
   getStageRestrictionMessage,
   previewStatChanges,
+  previewMedicineForEgg,
+  hasMedicineEffectForEgg,
 } from './lib/blobbi-action-utils';
