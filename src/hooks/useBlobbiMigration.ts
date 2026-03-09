@@ -13,10 +13,11 @@ import {
   getCanonicalBlobbiD,
   migratePetInHas,
   updateBlobbonautTags,
-  updateBlobbiTags,
   parseBlobbiEvent,
+  parseStorageTags,
   type BlobbiCompanion,
   type BlobbonautProfile,
+  type StorageItem,
 } from '@/lib/blobbi';
 
 /**
@@ -31,6 +32,10 @@ export interface MigrationResult {
   companion: BlobbiCompanion;
   /** The updated profile event */
   profileEvent: NostrEvent;
+  /** The updated profile tags (canonical has, current_companion, etc.) */
+  profileTags: string[][];
+  /** The profile storage (unchanged during migration, but fresh from migrated profile) */
+  profileStorage: StorageItem[];
 }
 
 /**
@@ -65,6 +70,17 @@ export interface EnsureCanonicalResult {
   allTags: string[][];
   /** The event content to use */
   content: string;
+  /** 
+   * The latest profile tags to use for profile updates.
+   * IMPORTANT: Always use these instead of profile.allTags from hook closure
+   * to avoid restoring stale/legacy values after migration.
+   */
+  profileAllTags: string[][];
+  /**
+   * The latest profile storage to use.
+   * Use this as the base for storage modifications.
+   */
+  profileStorage: StorageItem[];
 }
 
 /**
@@ -198,11 +214,17 @@ export function useBlobbiMigration() {
         canonicalD,
       });
       
+      // Parse storage from the migrated profile tags
+      // Storage itself doesn't change during migration, but we need fresh tags
+      const migratedStorage = parseStorageTags(profileTags);
+      
       return {
         canonicalD,
         event: canonicalEvent,
         companion: canonicalCompanion,
         profileEvent,
+        profileTags,
+        profileStorage: migratedStorage,
       };
     } catch (error) {
       console.error('[Blobbi Migration] Migration failed:', error);
@@ -231,7 +253,7 @@ export function useBlobbiMigration() {
   const ensureCanonicalBlobbiBeforeAction = useCallback(async (
     options: EnsureCanonicalOptions
   ): Promise<EnsureCanonicalResult | null> => {
-    const { companion } = options;
+    const { companion, profile } = options;
     
     // Check if the companion needs migration
     if (companion.isLegacy) {
@@ -244,21 +266,27 @@ export function useBlobbiMigration() {
         return null;
       }
       
-      // Return the canonical companion for the action to continue
+      // Return the canonical companion AND migrated profile context
+      // CRITICAL: Consumers must use profileAllTags instead of profile.allTags
+      // to avoid restoring stale/legacy values
       return {
         wasMigrated: true,
         companion: migrationResult.companion,
         allTags: migrationResult.event.tags,
         content: migrationResult.event.content,
+        profileAllTags: migrationResult.profileTags,
+        profileStorage: migrationResult.profileStorage,
       };
     }
     
-    // Companion is already canonical, return as-is
+    // Companion is already canonical, return profile as-is
     return {
       wasMigrated: false,
       companion,
       allTags: companion.allTags,
       content: companion.event.content,
+      profileAllTags: profile.allTags,
+      profileStorage: profile.storage,
     };
   }, [migrateLegacyBlobbi]);
   
