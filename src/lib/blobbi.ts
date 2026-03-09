@@ -513,8 +513,14 @@ export function deriveVisualTraits(
   // Step 2: Determine fallback values (seed-derived or defaults)
   const hasSeed = seed && seed.length === 64;
   
+  // Resolve baseColor first (needed for secondaryColor fallback)
   const fallbackBaseColor = hasSeed ? deriveBaseColorFromSeed(seed) : DEFAULT_VISUAL_TRAITS.baseColor;
-  const fallbackSecondaryColor = hasSeed ? deriveSecondaryColorFromSeed(seed) : DEFAULT_VISUAL_TRAITS.secondaryColor;
+  const resolvedBaseColor = tagBaseColor ?? fallbackBaseColor;
+  
+  // Secondary color: if no seed, fall back to resolved baseColor for unified palette
+  // This ensures legacy events with only base_color don't get a mismatched yellow accent
+  const fallbackSecondaryColor = hasSeed ? deriveSecondaryColorFromSeed(seed) : resolvedBaseColor;
+  
   const fallbackEyeColor = hasSeed ? deriveEyeColorFromSeed(seed) : DEFAULT_VISUAL_TRAITS.eyeColor;
   const fallbackPattern = hasSeed ? derivePatternFromSeed(seed) : DEFAULT_VISUAL_TRAITS.pattern;
   const fallbackSpecialMark = hasSeed ? deriveSpecialMarkFromSeed(seed) : DEFAULT_VISUAL_TRAITS.specialMark;
@@ -522,7 +528,7 @@ export function deriveVisualTraits(
   
   // Step 3: Priority: explicit valid tag > fallback (seed-derived or default)
   return {
-    baseColor: tagBaseColor ?? fallbackBaseColor,
+    baseColor: resolvedBaseColor,
     secondaryColor: tagSecondaryColor ?? fallbackSecondaryColor,
     eyeColor: tagEyeColor ?? fallbackEyeColor,
     pattern: tagPattern ?? fallbackPattern,
