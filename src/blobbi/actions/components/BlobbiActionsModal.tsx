@@ -1,6 +1,6 @@
 // src/blobbi/actions/components/BlobbiActionsModal.tsx
 
-import { Loader2, Moon, Sun, Utensils, Gamepad2, Sparkles as SparklesIcon } from 'lucide-react';
+import { Loader2, Moon, Sun, Utensils, Gamepad2, Sparkles as SparklesIcon, Pill } from 'lucide-react';
 
 import {
   Dialog,
@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 
 import type { BlobbiCompanion } from '@/lib/blobbi';
-import { canUseInventoryItems } from '../lib/blobbi-action-utils';
+import { canUseAction } from '../lib/blobbi-action-utils';
 import type { InventoryAction } from '../lib/blobbi-action-utils';
 
 interface BlobbiActionsModalProps {
@@ -35,7 +35,14 @@ export function BlobbiActionsModal({
 }: BlobbiActionsModalProps) {
   const isSleeping = companion.state === 'sleeping';
   const isDisabled = isPublishing || actionInProgress !== null;
-  const canUseItems = canUseInventoryItems(companion);
+  const isEgg = companion.stage === 'egg';
+  
+  // Check which actions are available for this companion
+  const canFeed = canUseAction(companion, 'feed');
+  const canPlay = canUseAction(companion, 'play');
+  const canClean = canUseAction(companion, 'clean');
+  // Note: medicine is available for all stages (including eggs)
+  const _canMedicine = canUseAction(companion, 'medicine');
 
   const handleAction = (action: () => void) => {
     action();
@@ -60,7 +67,7 @@ export function BlobbiActionsModal({
             <div className="text-left">
               <p className="font-medium">Feed</p>
               <p className="text-xs text-muted-foreground">
-                {canUseItems ? 'Give your Blobbi something to eat' : 'Not available for eggs'}
+                {canFeed ? 'Give your Blobbi something to eat' : 'Not available for eggs'}
               </p>
             </div>
           </Button>
@@ -76,7 +83,7 @@ export function BlobbiActionsModal({
             <div className="text-left">
               <p className="font-medium">Play</p>
               <p className="text-xs text-muted-foreground">
-                {canUseItems ? 'Play with toys to make your Blobbi happy' : 'Not available for eggs'}
+                {canPlay ? 'Play with toys to make your Blobbi happy' : 'Not available for eggs'}
               </p>
             </div>
           </Button>
@@ -92,7 +99,25 @@ export function BlobbiActionsModal({
             <div className="text-left">
               <p className="font-medium">Clean</p>
               <p className="text-xs text-muted-foreground">
-                {canUseItems ? 'Keep your Blobbi clean and fresh' : 'Not available for eggs'}
+                {canClean ? 'Keep your Blobbi clean and fresh' : 'Not available for eggs'}
+              </p>
+            </div>
+          </Button>
+
+          {/* Medicine Action */}
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 h-14"
+            onClick={() => handleAction(() => onInventoryAction('medicine'))}
+            disabled={isDisabled}
+          >
+            <Pill className="size-5 text-green-500" />
+            <div className="text-left">
+              <p className="font-medium">Medicine</p>
+              <p className="text-xs text-muted-foreground">
+                {isEgg 
+                  ? 'Strengthen your egg\'s shell' 
+                  : 'Heal your Blobbi'}
               </p>
             </div>
           </Button>

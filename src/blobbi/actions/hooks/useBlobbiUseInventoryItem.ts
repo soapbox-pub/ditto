@@ -13,14 +13,17 @@ import {
   updateBlobbiTags,
   updateBlobbonautTags,
   createStorageTags,
+  getTagValue,
 } from '@/lib/blobbi';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,
+  applyMedicineToEgg,
   decrementStorageItem,
-  canUseInventoryItems,
+  canUseAction,
   getStageRestrictionMessage,
   clampStat,
+  hasMedicineEffectForEgg,
   type InventoryAction,
   ACTION_METADATA,
 } from '../lib/blobbi-action-utils';
@@ -107,10 +110,10 @@ export function useBlobbiUseInventoryItem({
         throw new Error('Profile not found');
       }
 
-      // Check stage restrictions
-      if (!canUseInventoryItems(companion)) {
-        const message = getStageRestrictionMessage(companion);
-        throw new Error(message ?? 'This companion cannot use items');
+      // Check stage restrictions for this specific action
+      if (!canUseAction(companion, action)) {
+        const message = getStageRestrictionMessage(companion, action);
+        throw new Error(message ?? 'This companion cannot use this item');
       }
 
       // Validate item exists in shop catalog
@@ -130,39 +133,59 @@ export function useBlobbiUseInventoryItem({
         throw new Error('This item has no effect');
       }
 
+      // For eggs using medicine, validate that the medicine has an applicable effect
+      const isEgg = companion.stage === 'egg';
+      if (isEgg && action === 'medicine' && !hasMedicineEffectForEgg(shopItem.effect)) {
+        throw new Error('This medicine has no effect on eggs');
+      }
+
       // ─── Ensure Canonical Before Action ───
       const canonical = await ensureCanonicalBeforeAction();
       if (!canonical) {
         throw new Error('Failed to prepare companion for action');
       }
 
-      // ─── Apply Item Effects to Stats ───
-      const currentStats = companion.stats;
-      const newStats = applyItemEffects(currentStats, shopItem.effect);
-
-      // Build stats update record for Blobbi tags
+      // ─── Apply Item Effects ───
       const statsUpdate: Record<string, string> = {};
       const statsChanged: Record<string, number> = {};
 
-      if (newStats.hunger !== undefined) {
-        statsUpdate.hunger = clampStat(newStats.hunger).toString();
-        statsChanged.hunger = (newStats.hunger ?? 0) - (currentStats.hunger ?? 0);
-      }
-      if (newStats.happiness !== undefined) {
-        statsUpdate.happiness = clampStat(newStats.happiness).toString();
-        statsChanged.happiness = (newStats.happiness ?? 0) - (currentStats.happiness ?? 0);
-      }
-      if (newStats.energy !== undefined) {
-        statsUpdate.energy = clampStat(newStats.energy).toString();
-        statsChanged.energy = (newStats.energy ?? 0) - (currentStats.energy ?? 0);
-      }
-      if (newStats.hygiene !== undefined) {
-        statsUpdate.hygiene = clampStat(newStats.hygiene).toString();
-        statsChanged.hygiene = (newStats.hygiene ?? 0) - (currentStats.hygiene ?? 0);
-      }
-      if (newStats.health !== undefined) {
-        statsUpdate.health = clampStat(newStats.health).toString();
-        statsChanged.health = (newStats.health ?? 0) - (currentStats.health ?? 0);
+      if (isEgg && action === 'medicine') {
+        // Egg-specific medicine handling:
+        // - health effect → shell_integrity
+        // - other effects are ignored
+        const shellIntegrityStr = getTagValue(canonical.allTags, 'shell_integrity');
+        const currentShellIntegrity = shellIntegrityStr ? parseInt(shellIntegrityStr, 10) : undefined;
+        const result = applyMedicineToEgg(currentShellIntegrity, shopItem.effect);
+        
+        if (result.shellIntegrityDelta !== 0) {
+          statsUpdate.shell_integrity = result.shellIntegrity.toString();
+          statsChanged.shell_integrity = result.shellIntegrityDelta;
+        }
+      } else {
+        // Normal stats application for baby/adult
+        const currentStats = companion.stats;
+        const newStats = applyItemEffects(currentStats, shopItem.effect);
+
+        if (newStats.hunger !== undefined) {
+          statsUpdate.hunger = clampStat(newStats.hunger).toString();
+          statsChanged.hunger = (newStats.hunger ?? 0) - (currentStats.hunger ?? 0);
+        }
+        if (newStats.happiness !== undefined) {
+          statsUpdate.happiness = clampStat(newStats.happiness).toString();
+          statsChanged.happiness = (newStats.happiness ?? 0) - (currentStats.happiness ?? 0);
+        }
+        if (newStats.energy !== undefined) {
+          statsUpdate.energy = clampStat(newStats.energy).toString();
+          statsChanged.energy = (newStats.energy ?? 0) - (currentStats.energy ?? 0);
+        }
+        if (newStats.hygiene !== undefined) {
+          statsUpdate.hygiene = clampStat(newStats.hygiene).toString();
+          statsChanged.hygiene = (newStats.hygiene ?? 0) - (currentStats.hygiene ?? 0);
+        }
+        if (newStats.health !== undefined) {
+          statsUpdate.health = clampStat(newStats.health).toString();
+          statsChanged.health = (newStats.health ?? 0) - (currentStats.health ?? 0);
+        }
       }
 
       // ─── Update Blobbi State Event (kind 31124) ───

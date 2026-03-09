@@ -18,12 +18,15 @@ import { cn } from '@/lib/utils';
 import {
   filterInventoryByAction,
   previewStatChanges,
-  canUseInventoryItems,
+  previewMedicineForEgg,
+  canUseAction,
   getStageRestrictionMessage,
   ACTION_METADATA,
   type InventoryAction,
   type ResolvedInventoryItem,
+  type EggStatPreview,
 } from '../lib/blobbi-action-utils';
+import { getTagValue } from '@/lib/blobbi';
 
 interface BlobbiActionInventoryModalProps {
   open: boolean;
@@ -56,9 +59,9 @@ export function BlobbiActionInventoryModal({
     return filterInventoryByAction(profile.storage, action);
   }, [profile, action]);
 
-  // Check stage restrictions
-  const canUse = canUseInventoryItems(companion);
-  const stageMessage = getStageRestrictionMessage(companion);
+  // Check stage restrictions for this specific action
+  const canUse = canUseAction(companion, action);
+  const stageMessage = getStageRestrictionMessage(companion, action);
 
   const isEmpty = availableItems.length === 0;
 
@@ -130,6 +133,7 @@ export function BlobbiActionInventoryModal({
                   key={item.itemId}
                   item={item}
                   companion={companion}
+                  action={action}
                   onUse={() => handleUseItem(item.itemId)}
                   isUsing={isUsingItem && usingItemId === item.itemId}
                   disabled={isUsingItem}
@@ -148,6 +152,7 @@ export function BlobbiActionInventoryModal({
 interface BlobbiInventoryUseRowProps {
   item: ResolvedInventoryItem;
   companion: BlobbiCompanion;
+  action: InventoryAction;
   onUse: () => void;
   isUsing: boolean;
   disabled: boolean;
@@ -156,14 +161,33 @@ interface BlobbiInventoryUseRowProps {
 function BlobbiInventoryUseRow({
   item,
   companion,
+  action,
   onUse,
   isUsing,
   disabled,
 }: BlobbiInventoryUseRowProps) {
-  // Preview stat changes
-  const statChanges = useMemo(() => {
-    return previewStatChanges(companion.stats, item.effect);
-  }, [companion.stats, item.effect]);
+  const isEgg = companion.stage === 'egg';
+  const isMedicine = action === 'medicine';
+
+  // Preview stat changes - handle egg-specific preview for medicine
+  const { normalStatChanges, eggStatChanges } = useMemo(() => {
+    if (isEgg && isMedicine) {
+      // For eggs using medicine, show shell_integrity preview
+      const shellIntegrityStr = getTagValue(companion.event.tags, 'shell_integrity');
+      const currentShellIntegrity = shellIntegrityStr ? parseInt(shellIntegrityStr, 10) : undefined;
+      return {
+        normalStatChanges: [],
+        eggStatChanges: previewMedicineForEgg(currentShellIntegrity, item.effect),
+      };
+    }
+    // Normal stats preview
+    return {
+      normalStatChanges: previewStatChanges(companion.stats, item.effect),
+      eggStatChanges: [] as EggStatPreview[],
+    };
+  }, [companion.stats, companion.event.tags, item.effect, isEgg, isMedicine]);
+
+  const hasChanges = normalStatChanges.length > 0 || eggStatChanges.length > 0;
 
   return (
     <div className="flex items-center gap-4 p-4 rounded-xl border bg-card/60 backdrop-blur-sm hover:border-primary/30 transition-colors">
@@ -185,9 +209,29 @@ function BlobbiInventoryUseRow({
         </div>
 
         {/* Effect Preview */}
-        {statChanges.length > 0 && (
+        {hasChanges && (
           <div className="flex flex-wrap gap-x-3 gap-y-1">
-            {statChanges.map(({ stat, delta }) => (
+            {/* Normal stat changes */}
+            {normalStatChanges.map(({ stat, delta }) => (
+              <span key={stat} className="text-xs">
+                <span
+                  className={cn(
+                    'font-medium',
+                    delta > 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-red-600 dark:text-red-400'
+                  )}
+                >
+                  {delta > 0 ? '+' : ''}
+                  {delta}
+                </span>{' '}
+                <span className="text-muted-foreground capitalize">
+                  {stat.replace('_', ' ')}
+                </span>
+              </span>
+            ))}
+            {/* Egg stat changes (shell_integrity) */}
+            {eggStatChanges.map(({ stat, delta }) => (
               <span key={stat} className="text-xs">
                 <span
                   className={cn(
