@@ -83,9 +83,9 @@ export interface BlobbiEggData {
   shellIntegrity?: number;
 }
 
-// export interface BlobbiBabyData {
-//   // Reserved for future baby-specific fields
-// }
+export interface BlobbiBabyData {
+  // Reserved for future baby-specific fields
+}
 
 export interface BlobbiAdultData {
   evolutionForm?: string;

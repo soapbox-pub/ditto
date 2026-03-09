@@ -19,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { BlobbiEggVisual } from '@/blobbi/ui/BlobbiEggVisual';
+import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { cn } from '@/lib/utils';
 
 import {
@@ -644,7 +644,7 @@ function BlobbiDashboard({
           {/* Subtle glow effect behind the egg */}
           <div className="absolute inset-0 -m-8 bg-primary/5 rounded-full blur-3xl" />
           
-          <BlobbiEggVisual
+          <BlobbiStageVisual
             companion={companion}
             size="lg"
             animated={!isSleeping}
@@ -908,7 +908,7 @@ function BlobbiSelectorCard({ companion, onSelect, isSelected }: BlobbiSelectorC
       <div className="flex items-center gap-4">
         {/* Blobbi Visual */}
         <div className="shrink-0">
-          <BlobbiEggVisual
+          <BlobbiStageVisual
             companion={companion}
             size="sm"
           />
@@ -1194,7 +1194,7 @@ function BlobbiInfoModal({ open, onOpenChange, companion }: BlobbiInfoModalProps
         <div className="space-y-4 pt-2">
           {/* Blobbi Visual */}
           <div className="flex justify-center">
-            <BlobbiEggVisual
+            <BlobbiStageVisual
               companion={companion}
               size="md"
               animated={!isSleeping}
