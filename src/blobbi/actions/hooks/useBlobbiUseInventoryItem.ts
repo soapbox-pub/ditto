@@ -57,6 +57,10 @@ export interface UseBlobbiUseInventoryItemParams {
     content: string;
     allTags: string[][];
     wasMigrated: boolean;
+    /** Latest profile tags after migration (use instead of profile.allTags) */
+    profileAllTags: string[][];
+    /** Latest profile storage after migration (use instead of profile.storage) */
+    profileStorage: import('@/lib/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
@@ -205,10 +209,13 @@ export function useBlobbiUseInventoryItem({
       updateCompanionEvent(blobbiEvent);
 
       // ─── Update Profile Storage (kind 31125) ───
-      const newStorage = decrementStorageItem(profile.storage, itemId, 1);
+      // CRITICAL: Use canonical.profileStorage and canonical.profileAllTags
+      // instead of profile.storage/profile.allTags to avoid restoring
+      // stale/legacy values after migration
+      const newStorage = decrementStorageItem(canonical.profileStorage, itemId, 1);
       const storageValues = createStorageTags(newStorage).map(tag => tag[1]);
 
-      const profileTags = updateBlobbonautTags(profile.allTags, {
+      const profileTags = updateBlobbonautTags(canonical.profileAllTags, {
         storage: storageValues,
       });
 
