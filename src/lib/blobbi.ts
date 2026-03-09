@@ -482,17 +482,16 @@ function normalizeHexColor(value: string | undefined): string | undefined {
  * ┌─────────────────────────────────────────────────────────────────────────────┐
  * │ VISUAL TRAIT POLICY                                                         │
  * │                                                                              │
- * │ Visual tags are LEGACY COMPATIBILITY / TRANSITIONAL DATA.                   │
- * │ The SEED is the long-term source of truth for visual identity.              │
+ * │ Trait resolution priority (per field):                                      │
+ * │ 1. Explicit valid tags → always take precedence if present                  │
+ * │ 2. Derive from seed → primary source for canonical events                   │
+ * │ 3. Safe defaults → final fallback when both tag and seed are missing        │
  * │                                                                              │
- * │ Priority order (explicit and stable):                                       │
- * │ 1. Explicit valid tags → compatibility override (legacy events)             │
- * │ 2. Derive from seed → primary source of truth (canonical events)            │
- * │ 3. Safe defaults → final fallback when seed is missing                      │
+ * │ IMPORTANT: Legacy events may have explicit tags WITHOUT a seed.             │
+ * │ These tags must be respected - do NOT discard them in favor of defaults.    │
  * │                                                                              │
- * │ The system does NOT depend on visual tags as primary truth.                 │
- * │ New events should only rely on seed for visual derivation.                  │
- * │ Legacy tags are preserved during migration for backwards compatibility.     │
+ * │ New canonical events should rely on seed for visual derivation.             │
+ * │ Legacy tags are preserved for backwards compatibility.                      │
  * └─────────────────────────────────────────────────────────────────────────────┘
  * 
  * This function is the SINGLE SOURCE OF TRUTH for visual trait resolution.
@@ -502,13 +501,8 @@ export function deriveVisualTraits(
   tags: string[][],
   seed: string | undefined
 ): BlobbiVisualTraits {
-  // Final fallback: no seed means we use safe defaults
-  if (!seed || seed.length !== 64) {
-    return { ...DEFAULT_VISUAL_TRAITS };
-  }
-  
-  // Legacy tag values - only used as compatibility override if valid
-  // These tags may exist in older events but should not be depended upon
+  // Step 1: Extract and validate explicit tag values
+  // These always take precedence if present and valid
   const tagBaseColor = normalizeHexColor(getTagValue(tags, 'base_color'));
   const tagSecondaryColor = normalizeHexColor(getTagValue(tags, 'secondary_color'));
   const tagEyeColor = normalizeHexColor(getTagValue(tags, 'eye_color'));
@@ -516,14 +510,24 @@ export function deriveVisualTraits(
   const tagSpecialMark = normalizeSpecialMarkTag(getTagValue(tags, 'special_mark'));
   const tagSize = normalizeSizeTag(getTagValue(tags, 'size'));
   
-  // Priority: explicit valid tag > seed-derived value
+  // Step 2: Determine fallback values (seed-derived or defaults)
+  const hasSeed = seed && seed.length === 64;
+  
+  const fallbackBaseColor = hasSeed ? deriveBaseColorFromSeed(seed) : DEFAULT_VISUAL_TRAITS.baseColor;
+  const fallbackSecondaryColor = hasSeed ? deriveSecondaryColorFromSeed(seed) : DEFAULT_VISUAL_TRAITS.secondaryColor;
+  const fallbackEyeColor = hasSeed ? deriveEyeColorFromSeed(seed) : DEFAULT_VISUAL_TRAITS.eyeColor;
+  const fallbackPattern = hasSeed ? derivePatternFromSeed(seed) : DEFAULT_VISUAL_TRAITS.pattern;
+  const fallbackSpecialMark = hasSeed ? deriveSpecialMarkFromSeed(seed) : DEFAULT_VISUAL_TRAITS.specialMark;
+  const fallbackSize = hasSeed ? deriveSizeFromSeed(seed) : DEFAULT_VISUAL_TRAITS.size;
+  
+  // Step 3: Priority: explicit valid tag > fallback (seed-derived or default)
   return {
-    baseColor: tagBaseColor ?? deriveBaseColorFromSeed(seed),
-    secondaryColor: tagSecondaryColor ?? deriveSecondaryColorFromSeed(seed),
-    eyeColor: tagEyeColor ?? deriveEyeColorFromSeed(seed),
-    pattern: tagPattern ?? derivePatternFromSeed(seed),
-    specialMark: tagSpecialMark ?? deriveSpecialMarkFromSeed(seed),
-    size: tagSize ?? deriveSizeFromSeed(seed),
+    baseColor: tagBaseColor ?? fallbackBaseColor,
+    secondaryColor: tagSecondaryColor ?? fallbackSecondaryColor,
+    eyeColor: tagEyeColor ?? fallbackEyeColor,
+    pattern: tagPattern ?? fallbackPattern,
+    specialMark: tagSpecialMark ?? fallbackSpecialMark,
+    size: tagSize ?? fallbackSize,
   };
 }
 
