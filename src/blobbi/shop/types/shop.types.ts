@@ -1,7 +1,7 @@
-// src/types/shop.ts
+// src/blobbi/shop/types/shop.types.ts
 
 /**
- * Shop item category
+ * Shop item category for Blobbi items
  */
 export type ShopItemCategory = 
   | 'food' 
@@ -11,7 +11,7 @@ export type ShopItemCategory =
   | 'accessory';
 
 /**
- * Stat effects that items can apply
+ * Stat effects that items can apply to Blobbi
  */
 export interface ItemEffect {
   hunger?: number;
@@ -25,7 +25,7 @@ export interface ItemEffect {
 }
 
 /**
- * Shop item definition
+ * Shop item definition for Blobbi shop
  */
 export interface ShopItem {
   id: string;
@@ -38,7 +38,7 @@ export interface ShopItem {
 }
 
 /**
- * Stored item in user's profile inventory
+ * Stored item in Blobbonaut profile inventory
  */
 export interface StorageItem {
   itemId: string;   // Must match a ShopItem.id
@@ -46,7 +46,7 @@ export interface StorageItem {
 }
 
 /**
- * Purchase request payload
+ * Purchase request payload for Blobbi shop
  */
 export interface PurchaseRequest {
   itemId: string;

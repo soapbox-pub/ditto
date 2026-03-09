@@ -35,8 +35,8 @@ import {
   type BlobbonautProfile,
 } from '@/lib/blobbi';
 
-import { ShopModal } from '@/components/shop/ShopModal';
-import { InventoryModal } from '@/components/shop/InventoryModal';
+import { BlobbiShopModal } from '@/blobbi/shop/components/BlobbiShopModal';
+import { BlobbiInventoryModal } from '@/blobbi/shop/components/BlobbiInventoryModal';
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -726,14 +726,14 @@ function BlobbiDashboard({
       />
       
       {/* Shop Modal */}
-      <ShopModal
+      <BlobbiShopModal
         open={showShopModal}
         onOpenChange={setShowShopModal}
         profile={profile}
       />
       
       {/* Inventory Modal */}
-      <InventoryModal
+      <BlobbiInventoryModal
         open={showInventoryModal}
         onOpenChange={setShowInventoryModal}
         profile={profile}

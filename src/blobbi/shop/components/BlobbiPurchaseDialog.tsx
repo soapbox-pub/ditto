@@ -12,10 +12,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 
-import type { ShopItem } from '@/types/shop';
+import type { ShopItem } from '../types/shop.types';
 import { cn } from '@/lib/utils';
 
-interface PurchaseDialogProps {
+interface BlobbiPurchaseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item: ShopItem;
@@ -24,14 +24,14 @@ interface PurchaseDialogProps {
   isPurchasing: boolean;
 }
 
-export function PurchaseDialog({
+export function BlobbiPurchaseDialog({
   open,
   onOpenChange,
   item,
   availableCoins,
   onPurchase,
   isPurchasing,
-}: PurchaseDialogProps) {
+}: BlobbiPurchaseDialogProps) {
   const [quantity, setQuantity] = useState(1);
 
   // Calculate max affordable quantity

@@ -10,16 +10,16 @@ import {
 import { Badge } from '@/components/ui/badge';
 
 import type { BlobbonautProfile } from '@/lib/blobbi';
-import { getShopItemById } from '@/lib/shop-items';
+import { getShopItemById } from '../lib/blobbi-shop-items';
 import { cn } from '@/lib/utils';
 
-interface InventoryModalProps {
+interface BlobbiInventoryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profile: BlobbonautProfile | null;
 }
 
-export function InventoryModal({ open, onOpenChange, profile }: InventoryModalProps) {
+export function BlobbiInventoryModal({ open, onOpenChange, profile }: BlobbiInventoryModalProps) {
   // Resolve storage items with their metadata from the shop catalog
   const inventoryItems = useMemo(() => {
     if (!profile) return [];

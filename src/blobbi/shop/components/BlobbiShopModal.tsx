@@ -9,16 +9,16 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 
-import { ShopItemCard } from './ShopItemCard';
-import { PurchaseDialog } from './PurchaseDialog';
+import { BlobbiShopItemRow } from './BlobbiShopItemRow';
+import { BlobbiPurchaseDialog } from './BlobbiPurchaseDialog';
 
-import type { ShopItem, ShopItemCategory } from '@/types/shop';
+import type { ShopItem, ShopItemCategory } from '../types/shop.types';
 import type { BlobbonautProfile } from '@/lib/blobbi';
-import { getShopItemsByType } from '@/lib/shop-items';
-import { usePurchaseItem } from '@/hooks/usePurchaseItem';
+import { getShopItemsByType } from '../lib/blobbi-shop-items';
+import { useBlobbiPurchaseItem } from '../hooks/useBlobbiPurchaseItem';
 import { cn } from '@/lib/utils';
 
-interface ShopModalProps {
+interface BlobbiShopModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profile: BlobbonautProfile | null;
@@ -36,12 +36,12 @@ const CATEGORIES: Array<{
   { type: 'accessory', label: 'Accessories', icon: <Palette className="size-4" /> },
 ];
 
-export function ShopModal({ open, onOpenChange, profile }: ShopModalProps) {
+export function BlobbiShopModal({ open, onOpenChange, profile }: BlobbiShopModalProps) {
   const [activeCategory, setActiveCategory] = useState<ShopItemCategory>('food');
   const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
 
-  const { mutate: purchaseItem, isPending: isPurchasing } = usePurchaseItem(profile);
+  const { mutate: purchaseItem, isPending: isPurchasing } = useBlobbiPurchaseItem(profile);
 
   const availableCoins = profile?.coins ?? 0;
   const items = getShopItemsByType(activeCategory);
@@ -136,11 +136,11 @@ export function ShopModal({ open, onOpenChange, profile }: ShopModalProps) {
             </div>
           )}
 
-          {/* Items Grid */}
+          {/* Items List */}
           <div className="flex-1 overflow-y-auto px-6 py-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
               {items.map(item => (
-                <ShopItemCard
+                <BlobbiShopItemRow
                   key={item.id}
                   item={item}
                   availableCoins={availableCoins}
@@ -154,7 +154,7 @@ export function ShopModal({ open, onOpenChange, profile }: ShopModalProps) {
 
       {/* Purchase Dialog */}
       {selectedItem && (
-        <PurchaseDialog
+        <BlobbiPurchaseDialog
           open={showPurchaseDialog}
           onOpenChange={setShowPurchaseDialog}
           item={selectedItem}

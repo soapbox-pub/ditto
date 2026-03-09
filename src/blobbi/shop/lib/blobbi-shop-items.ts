@@ -1,12 +1,12 @@
-// src/lib/shop-items.ts
+// src/blobbi/shop/lib/blobbi-shop-items.ts
 
-import type { ShopItem, ShopItemCategory } from '@/types/shop';
+import type { ShopItem, ShopItemCategory } from '../types/shop.types';
 
 /**
  * Complete shop item catalog for the Blobbi Shop.
  * Based on the specification from /docs/blobbi/blobbi-shop-spec.md
  */
-export const SHOP_ITEMS: ShopItem[] = [
+export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
   // ─── Food Items ─────────────────────────────────────────────────────────────
   {
     id: 'food_apple',
@@ -216,21 +216,21 @@ export const SHOP_ITEMS: ShopItem[] = [
  * Get a shop item by its ID
  */
 export function getShopItemById(id: string): ShopItem | undefined {
-  return SHOP_ITEMS.find(item => item.id === id);
+  return BLOBBI_SHOP_ITEMS.find(item => item.id === id);
 }
 
 /**
  * Get all shop items for a specific category
  */
 export function getShopItemsByType(type: ShopItemCategory): ShopItem[] {
-  return SHOP_ITEMS.filter(item => item.type === type);
+  return BLOBBI_SHOP_ITEMS.filter(item => item.type === type);
 }
 
 /**
  * Get all live (non-disabled) shop items
  */
 export function getLiveShopItems(): ShopItem[] {
-  return SHOP_ITEMS.filter(item => item.status === 'live');
+  return BLOBBI_SHOP_ITEMS.filter(item => item.status === 'live');
 }
 
 /**
