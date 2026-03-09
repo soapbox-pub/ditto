@@ -1,17 +1,17 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { useCurrentUser } from './useCurrentUser';
-import { useNostrPublish } from './useNostrPublish';
-import { toast } from './useToast';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { toast } from '@/hooks/useToast';
 
-import type { PurchaseRequest } from '@/types/shop';
+import type { PurchaseRequest } from '../types/shop.types';
 import type { BlobbonautProfile, StorageItem } from '@/lib/blobbi';
 import {
   KIND_BLOBBONAUT_PROFILE,
   updateBlobbonautTags,
   createStorageTags,
 } from '@/lib/blobbi';
-import { getShopItemById } from '@/lib/shop-items';
+import { getShopItemById } from '../lib/blobbi-shop-items';
 
 /**
  * Hook to purchase items from the Blobbi Shop.
@@ -22,7 +22,7 @@ import { getShopItemById } from '@/lib/shop-items';
  * - Atomic profile update (coins + storage in single event)
  * - Optimistic updates and error handling
  */
-export function usePurchaseItem(currentProfile: BlobbonautProfile | null) {
+export function useBlobbiPurchaseItem(currentProfile: BlobbonautProfile | null) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
