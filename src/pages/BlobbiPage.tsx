@@ -32,7 +32,11 @@ import {
   updateBlobbiTags,
   updateBlobbonautTags,
   type BlobbiCompanion,
+  type BlobbonautProfile,
 } from '@/lib/blobbi';
+
+import { ShopModal } from '@/components/shop/ShopModal';
+import { InventoryModal } from '@/components/shop/InventoryModal';
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -510,6 +514,7 @@ function BlobbiContent() {
       actionInProgress={actionInProgress}
       isPublishing={isPublishing}
       isFetching={profileFetching || companionFetching}
+      profile={profile}
     />
   );
 }
@@ -552,6 +557,7 @@ interface BlobbiDashboardProps {
   actionInProgress: string | null;
   isPublishing: boolean;
   isFetching: boolean;
+  profile: BlobbonautProfile | null;
 }
 
 function BlobbiDashboard({
@@ -565,6 +571,7 @@ function BlobbiDashboard({
   actionInProgress,
   isPublishing,
   isFetching,
+  profile,
 }: BlobbiDashboardProps) {
   const isSleeping = companion.state === 'sleeping';
   
@@ -718,20 +725,18 @@ function BlobbiDashboard({
         icon={<Target className="size-8 text-primary" />}
       />
       
-      <BlobbiPlaceholderModal
+      {/* Shop Modal */}
+      <ShopModal
         open={showShopModal}
         onOpenChange={setShowShopModal}
-        title="Shop"
-        description="Shop content will be added here."
-        icon={<ShoppingBag className="size-8 text-primary" />}
+        profile={profile}
       />
       
-      <BlobbiPlaceholderModal
+      {/* Inventory Modal */}
+      <InventoryModal
         open={showInventoryModal}
         onOpenChange={setShowInventoryModal}
-        title="Inventory"
-        description="Inventory content will be added here."
-        icon={<Package className="size-8 text-primary" />}
+        profile={profile}
       />
       
       {/* Blobbi Info Modal */}

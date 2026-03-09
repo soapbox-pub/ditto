@@ -195,6 +195,14 @@ export interface BlobbiCompanion {
 }
 
 /**
+ * Stored item in user's profile inventory
+ */
+export interface StorageItem {
+  itemId: string;   // Must match a ShopItem.id
+  quantity: number; // Must be >= 1
+}
+
+/**
  * Parsed representation of a Kind 31125 Blobbonaut Profile event.
  */
 export interface BlobbonautProfile {
@@ -210,6 +218,10 @@ export interface BlobbonautProfile {
   name: string | undefined;
   /** List of owned Blobbi d-tags */
   has: string[];
+  /** In-game currency balance */
+  coins: number;
+  /** Purchased items inventory */
+  storage: StorageItem[];
   /** All tags preserved for republishing */
   allTags: string[][];
 }
@@ -318,6 +330,39 @@ function parseBooleanTag(tags: string[][], name: string, defaultValue = false): 
   if (value === 'true') return true;
   if (value === 'false') return false;
   return defaultValue;
+}
+
+/**
+ * Parse storage tags from a Kind 31125 Blobbonaut Profile event.
+ * Storage tags format: ['storage', 'itemId:quantity']
+ * 
+ * @param tags - Event tags array
+ * @returns Array of storage items with itemId and quantity
+ */
+export function parseStorageTags(tags: string[][]): StorageItem[] {
+  return tags
+    .filter(tag => tag[0] === 'storage')
+    .map(tag => {
+      const [itemId, quantityStr] = tag[1].split(':');
+      return {
+        itemId,
+        quantity: parseInt(quantityStr, 10),
+      };
+    })
+    .filter(item => item.itemId && !isNaN(item.quantity) && item.quantity > 0);
+}
+
+/**
+ * Create storage tags from storage items array.
+ * Each item becomes: ['storage', 'itemId:quantity']
+ * 
+ * @param storage - Array of storage items
+ * @returns Array of storage tags
+ */
+export function createStorageTags(storage: StorageItem[]): string[][] {
+  return storage
+    .filter(item => item.itemId && item.quantity > 0)
+    .map(item => ['storage', `${item.itemId}:${item.quantity}`]);
 }
 
 // ─── Legacy Detection ─────────────────────────────────────────────────────────
@@ -797,6 +842,8 @@ export function parseBlobbonautEvent(event: NostrEvent): BlobbonautProfile | und
     onboardingDone: parseBooleanTag(tags, 'onboarding_done', false),
     name: getTagValue(tags, 'name'),
     has: getTagValues(tags, 'has'),
+    coins: parseNumericTag(tags, 'coins') ?? 0,
+    storage: parseStorageTags(tags),
     allTags: tags,
   };
 }
@@ -889,7 +936,7 @@ export const LEGACY_VISUAL_TAG_NAMES = [
  * These tags are controlled by the application and may be overwritten.
  */
 export const MANAGED_BLOBBONAUT_PROFILE_TAG_NAMES = new Set([
-  'd', 'b', 't', 'client', 'name', 'current_companion', 'onboarding_done', 'has',
+  'd', 'b', 't', 'client', 'name', 'current_companion', 'onboarding_done', 'has', 'storage',
   // Legacy player progress tags (preserved for compatibility)
   'coins', 'petting_level', 'pettingLevel', 'lifetime_blobbis', 'lifetimeBlobbis',
   'starter_blobbi', 'starterBlobbi', 'favorite_blobbi', 'favoriteBlobbi',
