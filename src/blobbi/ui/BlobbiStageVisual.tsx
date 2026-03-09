@@ -119,6 +119,11 @@ export function BlobbiStageVisual({
 
   // Baby stage
   if (stage === 'baby' && blobbiForBaby) {
+    console.log('[BlobbiStageVisual][baby]', {
+      companion,
+      blobbiForBaby,
+      visualTraits: companion.visualTraits,
+    });
     const containerClass = SIZE_CONFIG[size];
 
     return (

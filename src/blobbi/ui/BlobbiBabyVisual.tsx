@@ -38,10 +38,16 @@ export function BlobbiBabyVisual({ blobbi, className }: BlobbiBabyVisualProps) {
 
   // Memoize the customized SVG to avoid unnecessary processing
   const customizedSvg = useMemo(() => {
-    // Get the base SVG (awake or sleeping)
-    const baseSvg = resolveBabySvg(blobbi, { isSleeping });
+    console.log('[BlobbiBabyVisual]', {
+      id: blobbi.id,
+      baseColor: blobbi.baseColor,
+      secondaryColor: blobbi.secondaryColor,
+      eyeColor: blobbi.eyeColor,
+      pattern: blobbi.pattern,
+      isSleeping,
+    });
 
-    // Apply color customization
+    const baseSvg = resolveBabySvg(blobbi, { isSleeping });
     return customizeBabySvgFromBlobbi(baseSvg, blobbi, isSleeping);
   }, [blobbi, isSleeping]);
 
