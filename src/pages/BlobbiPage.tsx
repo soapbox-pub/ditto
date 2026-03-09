@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { cn } from '@/lib/utils';
@@ -37,6 +37,12 @@ import {
 
 import { BlobbiShopModal } from '@/blobbi/shop/components/BlobbiShopModal';
 import { BlobbiInventoryModal } from '@/blobbi/shop/components/BlobbiInventoryModal';
+import { 
+  BlobbiActionsModal, 
+  BlobbiActionInventoryModal,
+  useBlobbiUseInventoryItem,
+  type InventoryAction,
+} from '@/blobbi/actions';
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -344,6 +350,22 @@ function BlobbiContent() {
     }
   }, [user?.pubkey, companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent, invalidateCompanion, invalidateProfile]);
   
+  // ─── Use Inventory Item Hook ───
+  const { mutateAsync: executeUseItem, isPending: isUsingItem } = useBlobbiUseInventoryItem({
+    companion,
+    profile,
+    ensureCanonicalBeforeAction,
+    updateCompanionEvent,
+    updateProfileEvent,
+    invalidateCompanion,
+    invalidateProfile,
+  });
+  
+  // Handler for using an inventory item
+  const handleUseItem = useCallback(async (itemId: string, action: InventoryAction) => {
+    await executeUseItem({ itemId, action });
+  }, [executeUseItem]);
+  
   
   // ─── Determine UI State ───
   // Priority: Wait for queries to settle before showing "create" states
@@ -511,6 +533,8 @@ function BlobbiContent() {
       setShowSelector={setShowSelector}
       onSelectBlobbi={handleSelectBlobbi}
       onRest={handleRest}
+      onUseItem={handleUseItem}
+      isUsingItem={isUsingItem}
       actionInProgress={actionInProgress}
       isPublishing={isPublishing}
       isFetching={profileFetching || companionFetching}
@@ -554,6 +578,8 @@ interface BlobbiDashboardProps {
   setShowSelector: (show: boolean) => void;
   onSelectBlobbi: (d: string) => void;
   onRest: () => void;
+  onUseItem: (itemId: string, action: InventoryAction) => Promise<void>;
+  isUsingItem: boolean;
   actionInProgress: string | null;
   isPublishing: boolean;
   isFetching: boolean;
@@ -568,6 +594,8 @@ function BlobbiDashboard({
   setShowSelector,
   onSelectBlobbi,
   onRest,
+  onUseItem,
+  isUsingItem,
   actionInProgress,
   isPublishing,
   isFetching,
@@ -581,6 +609,35 @@ function BlobbiDashboard({
   const [showShopModal, setShowShopModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  
+  // Inventory action modal state
+  const [inventoryAction, setInventoryAction] = useState<InventoryAction | null>(null);
+  const [usingItemId, setUsingItemId] = useState<string | null>(null);
+  
+  // Handle opening an inventory action modal
+  const handleInventoryAction = (action: InventoryAction) => {
+    setShowActionsModal(false);
+    setInventoryAction(action);
+  };
+  
+  // Handle using an item
+  const handleUseItem = async (itemId: string) => {
+    if (!inventoryAction || isUsingItem) return;
+    setUsingItemId(itemId);
+    try {
+      await onUseItem(itemId, inventoryAction);
+      // Close the modal on success
+      setInventoryAction(null);
+    } finally {
+      setUsingItemId(null);
+    }
+  };
+  
+  // Handle opening shop from empty state
+  const handleOpenShopFromAction = () => {
+    setInventoryAction(null);
+    setShowShopModal(true);
+  };
   
   return (
     <DashboardShell>
@@ -712,9 +769,25 @@ function BlobbiDashboard({
         onOpenChange={setShowActionsModal}
         companion={companion}
         onRest={onRest}
+        onInventoryAction={handleInventoryAction}
         actionInProgress={actionInProgress}
         isPublishing={isPublishing}
       />
+      
+      {/* Inventory Action Modal (Feed/Play/Clean) */}
+      {inventoryAction && (
+        <BlobbiActionInventoryModal
+          open={!!inventoryAction}
+          onOpenChange={(open) => !open && setInventoryAction(null)}
+          action={inventoryAction}
+          companion={companion}
+          profile={profile}
+          onUseItem={handleUseItem}
+          onOpenShop={handleOpenShopFromAction}
+          isUsingItem={isUsingItem}
+          usingItemId={usingItemId}
+        />
+      )}
       
       {/* Placeholder Modals */}
       <BlobbiPlaceholderModal
@@ -1079,67 +1152,6 @@ function BottomBarButton({ onClick, icon, label, badge }: BottomBarButtonProps) 
       </div>
       <span className="text-[10px] text-muted-foreground">{label}</span>
     </button>
-  );
-}
-
-// ─── Actions Modal ────────────────────────────────────────────────────────────
-
-interface BlobbiActionsModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  companion: BlobbiCompanion;
-  onRest: () => void;
-  actionInProgress: string | null;
-  isPublishing: boolean;
-}
-
-function BlobbiActionsModal({
-  open,
-  onOpenChange,
-  companion,
-  onRest,
-  actionInProgress,
-  isPublishing,
-}: BlobbiActionsModalProps) {
-  const isSleeping = companion.state === 'sleeping';
-  const isDisabled = isPublishing || actionInProgress !== null;
-  
-  const handleAction = (action: () => void) => {
-    action();
-    // Don't close immediately - let the action complete
-  };
-  
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Blobbi Actions</DialogTitle>
-          <p className="text-sm text-muted-foreground">{companion.name}</p>
-        </DialogHeader>
-        <div className="grid gap-3 pt-2">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3 h-14"
-            onClick={() => handleAction(onRest)}
-            disabled={isDisabled}
-          >
-            {actionInProgress === 'rest' ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : isSleeping ? (
-              <Sun className="size-5" />
-            ) : (
-              <Moon className="size-5" />
-            )}
-            <div className="text-left">
-              <p className="font-medium">{isSleeping ? 'Wake Up' : 'Rest'}</p>
-              <p className="text-xs text-muted-foreground">
-                {isSleeping ? 'Wake your Blobbi up' : 'Put your Blobbi to sleep'}
-              </p>
-            </div>
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
 

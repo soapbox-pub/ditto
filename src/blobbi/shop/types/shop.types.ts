@@ -38,14 +38,6 @@ export interface ShopItem {
 }
 
 /**
- * Stored item in Blobbonaut profile inventory
- */
-export interface StorageItem {
-  itemId: string;   // Must match a ShopItem.id
-  quantity: number; // Must be >= 1
-}
-
-/**
  * Purchase request payload for Blobbi shop
  */
 export interface PurchaseRequest {
