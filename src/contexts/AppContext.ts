@@ -162,6 +162,8 @@ export interface SavedFeed {
 export interface MessagingSettings {
   /** Discovery relays for finding DM inboxes (NIP-17). If not set, uses app's read relays. */
   discoveryRelays?: string[];
+  /** DM inbox relays (kind 10050) - where others send you direct messages. */
+  dmInboxRelays?: string[];
   /** Relay mode: 'discovery' (discovery only), 'hybrid' (user + discovery), 'strict_outbox' (NIP-65/10050 only). Default: 'hybrid'. */
   relayMode?: 'discovery' | 'hybrid' | 'strict_outbox';
   /** Show images/media inline in messages. Default: true. */
