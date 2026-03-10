@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MessageCircle, Zap, MoreHorizontal, Share2, Play, Radio, Users, Palette, SmilePlus } from 'lucide-react';
+import { MessageCircle, Zap, MoreHorizontal, Share2, Play, Radio, Users, Palette, SmilePlus, Award } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,8 @@ import { ArticleContent } from '@/components/ArticleContent';
 import { type ImetaEntry, parseImetaMap } from '@/lib/imeta';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { EmojiPackContent } from '@/components/EmojiPackContent';
+import { BadgeContent } from '@/components/BadgeContent';
+import { ProfileBadgesContent } from '@/components/ProfileBadgesContent';
 import { FileMetadataContent } from '@/components/FileMetadataContent';
 import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -117,6 +119,21 @@ function encodeEventId(event: NostrEvent): string {
   return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
 
+/** d-tags reserved by NIP-51 for other purposes — hide these kind 30000 events. */
+const DEPRECATED_DTAGS = new Set(['mute', 'pin', 'bookmark', 'communities']);
+
+/** Returns true if a kind 30000 event is a deprecated/junk list that should be hidden. */
+function isDeprecatedFollowSet(event: NostrEvent): boolean {
+  if (event.kind !== 30000) return false;
+  const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+  if (DEPRECATED_DTAGS.has(dTag)) return true;
+  // Filter empty lists with no p-tags or title
+  const hasPTags = event.tags.some(([n]) => n === 'p');
+  const hasTitle = event.tags.some(([n]) => n === 'title' || n === 'name');
+  if (!hasPTags && !hasTitle) return true;
+  return false;
+}
+
 export function NoteCard({ event, className, repostedBy, compact, threaded, threadedLast }: NoteCardProps) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
@@ -184,6 +201,9 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
   const isCalendarEvent = event.kind === 31922 || event.kind === 31923;
   const isEmojiPack = event.kind === 30030;
+  const isBadgeDefinition = event.kind === 30009;
+  const isProfileBadges = event.kind === 30008;
+  const isBadge = isBadgeDefinition || isProfileBadges;
   const isReaction = event.kind === 7;
   const isPhoto = event.kind === 20;
   const isNormalVideo = event.kind === 21;
@@ -194,7 +214,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isPodcastEpisode = event.kind === 30054;
   const isPodcastTrailer = event.kind === 30055;
   const isAudioKind = isMusicTrack || isMusicPlaylist || isPodcastEpisode || isPodcastTrailer;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isCalendarEvent && !isEmojiPack && !isReaction && !isPhoto && !isVideo && !isAudioKind;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme && !isVoiceMessage && !isCalendarEvent && !isEmojiPack && !isBadge && !isReaction && !isPhoto && !isVideo && !isAudioKind;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideoUrls(event.content) : [], [event.content, isTextNote]);
@@ -259,6 +279,11 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const vineTitle = isVine ? getTag(event.tags, 'title') : undefined;
   const hashtags = isVine ? event.tags.filter(([n]) => n === 't').map(([, v]) => v) : [];
 
+  // Filter out deprecated/junk kind 30000 events
+  if (isDeprecatedFollowSet(event)) {
+    return null;
+  }
+
   // NIP-36: If the event has a content-warning and the policy is "hide", skip rendering entirely
   if (getContentWarning(event) !== undefined && config.contentWarningPolicy === 'hide') {
     return null;
@@ -312,6 +337,10 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           <FileMetadataContent event={event} compact />
         ) : isEmojiPack ? (
           <EmojiPackContent event={event} />
+        ) : isBadgeDefinition ? (
+          <BadgeContent event={event} />
+        ) : isProfileBadges ? (
+          <ProfileBadgesContent event={event} />
         ) : isTheme ? (
           <ThemeContent event={event} />
         ) : isVoiceMessage ? (
@@ -1070,6 +1099,8 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   36767: { icon: Palette,   action: 'shared a', noun: 'theme',    nounRoute: '/themes'    },
   16767: { icon: Palette,   action: 'updated their', noun: 'theme', nounRoute: '/themes'  },
   30030: { icon: SmilePlus, action: 'shared an', noun: 'emoji pack', nounRoute: '/emojis' },
+  30009: { icon: Award, action: 'created a', noun: 'badge', nounRoute: '/badges' },
+  30008: { icon: Award, action: 'updated their', noun: 'badges', nounRoute: '/badges' },
   30311: {
     icon: Radio,
     iconClassName: undefined, // computed dynamically below

@@ -5,7 +5,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -856,7 +856,8 @@ export function ProfilePage() {
 
   // All tabs as a flat ordered list for the drag UI — core tabs have isCore=true and can't be removed
   type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
-  const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
+  const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
+  const DEFAULT_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
   const [localTabs, setLocalTabs] = useState<EditableTab[]>([]);
   const [tabModalOpen, setTabModalOpen] = useState(false);
   const [editingTab, setEditingTab] = useState<ProfileTab | undefined>(undefined);
@@ -864,7 +865,7 @@ export function ProfilePage() {
   // Map from display label → internal tab id for core tabs
   const CORE_TAB_IDS: Record<string, string> = {
     'Posts': 'posts', 'Posts & replies': 'replies',
-    'Media': 'media', 'Likes': 'likes', 'Wall': 'wall',
+    'Media': 'media', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
   };
 
   // The ordered tab list for view mode:
@@ -873,8 +874,8 @@ export function ProfilePage() {
   // - [...] (event with tabs) → show exactly those
   const viewTabs: EditableTab[] = useMemo(() => {
     if (profileTabsData === null) {
-      // No event yet — show defaults
-      return CORE_TAB_LABELS.map((label) => ({ label, isCore: true }));
+      // No event yet — show defaults (subset of core tabs)
+      return DEFAULT_TAB_LABELS.map((label) => ({ label, isCore: true }));
     }
     // Event exists — use its tab list (may be empty)
     return profileTabsData.tabs.map((t) =>
@@ -925,6 +926,7 @@ export function ProfilePage() {
     'Posts': { kinds: [1, 6], authors: [pubkey] },
     'Posts & replies': { authors: [pubkey] },
     'Media': { kinds: [1], authors: [pubkey] },
+    'Badges': { kinds: [30008], authors: [pubkey], '#d': ['profile_badges'] },
     'Likes': { kinds: [7], authors: [pubkey] },
     'Wall': { kinds: [1111], '#A': [`0:${pubkey}:`] },
   } : {};
@@ -969,7 +971,7 @@ export function ProfilePage() {
 
   // Drop active tab if it was deleted
   useEffect(() => {
-    const isCoreTab = ['posts', 'replies', 'media', 'likes', 'wall'].includes(activeTab);
+    const isCoreTab = ['posts', 'replies', 'media', 'badges', 'likes', 'wall'].includes(activeTab);
     if (!isCoreTab && !profileSavedTabs.find((t) => t.label === activeTab)) {
       setActiveTab(firstTabId);
     }
@@ -1462,7 +1464,7 @@ export function ProfilePage() {
     [mediaEvents]
   );
 
-  const isCoreProfileTab = activeTab === 'posts' || activeTab === 'replies' || activeTab === 'media' || activeTab === 'likes' || activeTab === 'wall';
+  const isCoreProfileTab = activeTab === 'posts' || activeTab === 'replies' || activeTab === 'media' || activeTab === 'likes' || activeTab === 'wall' || activeTab === 'badges';
   const currentItems = activeTab === 'wall' ? [] : activeTab === 'likes' ? likedFeedItems : activeTab === 'media' ? mediaFeedItems : filterByTab(feedItems, isCoreProfileTab ? (activeTab as CoreProfileTab) : 'posts');
   const currentLoading = activeTab === 'wall' ? wallPending : activeTab === 'likes' ? likesPending : activeTab === 'media' ? mediaPending : feedPending;
   const hasMore = activeTab === 'wall' ? hasNextWallPage : activeTab === 'likes' ? hasNextLikesPage : activeTab === 'media' ? hasNextMediaPage : hasNextFeedPage;
@@ -2211,6 +2213,11 @@ export function ProfilePage() {
           </div>
         )}
 
+        {/* Badges tab — grid of accepted NIP-58 badges */}
+        {hasTabs && activeTab === 'badges' && pubkey && (
+          <ProfileBadgesTab pubkey={pubkey} displayName={displayName} />
+        )}
+
         {/* Custom saved-feed tab content */}
         {hasTabs && !isCoreProfileTab && profileSavedTabs.find((t) => t.label === activeTab) && pubkey && (
           <ProfileSavedFeedContent
@@ -2221,7 +2228,7 @@ export function ProfilePage() {
         )}
 
         {/* Tab content (posts / replies / likes) */}
-        {hasTabs && isCoreProfileTab && activeTab !== 'wall' && activeTab !== 'media' && (
+        {hasTabs && isCoreProfileTab && activeTab !== 'wall' && activeTab !== 'media' && activeTab !== 'badges' && (
         <div>
           {currentLoading ? (
             <div className="space-y-0">
@@ -2506,6 +2513,160 @@ export function ProfilePage() {
         </Dialog>
       </PullToRefresh>
       </main>
+  );
+}
+
+// ─── Profile Badges Tab ───────────────────────────────────────────────────────
+
+function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName: string }) {
+  const { nostr } = useNostr();
+
+  // Fetch the user's kind 30008 profile badges event
+  const profileBadgesQuery = useQuery({
+    queryKey: ['profile-badges', pubkey],
+    queryFn: async () => {
+      const events = await nostr.query([{
+        kinds: [30008],
+        authors: [pubkey],
+        '#d': ['profile_badges'],
+        limit: 1,
+      }]);
+      return events[0] ?? null;
+    },
+    staleTime: 2 * 60_000,
+  });
+
+  // Parse badge references from the profile badges event
+  const badgeRefs = useMemo(() => {
+    if (!profileBadgesQuery.data) return [];
+    const tags = profileBadgesQuery.data.tags;
+    const refs: Array<{ aTag: string; eTag?: string; pubkey: string; identifier: string }> = [];
+
+    for (let i = 0; i < tags.length; i++) {
+      if (tags[i][0] === 'a' && tags[i][1]) {
+        const aTag = tags[i][1];
+        const parts = aTag.split(':');
+        if (parts.length < 3 || parts[0] !== '30009') continue;
+
+        const bPubkey = parts[1];
+        const identifier = parts.slice(2).join(':');
+
+        let eTag: string | undefined;
+        if (i + 1 < tags.length && tags[i + 1][0] === 'e') {
+          eTag = tags[i + 1][1];
+        }
+
+        refs.push({ aTag, eTag, pubkey: bPubkey, identifier });
+      }
+    }
+    // Deduplicate by aTag — keep first occurrence only
+    const seen = new Set<string>();
+    return refs.filter((r) => {
+      if (seen.has(r.aTag)) return false;
+      seen.add(r.aTag);
+      return true;
+    });
+  }, [profileBadgesQuery.data]);
+
+  // Fetch all referenced badge definitions
+  const badgeDefsQuery = useQuery({
+    queryKey: ['badge-definitions-profile', pubkey, badgeRefs.map((r) => r.aTag).join(',')],
+    queryFn: async () => {
+      if (badgeRefs.length === 0) return [];
+      const filters = badgeRefs.map((ref) => ({
+        kinds: [30009 as const],
+        authors: [ref.pubkey],
+        '#d': [ref.identifier],
+        limit: 1,
+      }));
+      return nostr.query(filters);
+    },
+    enabled: badgeRefs.length > 0,
+    staleTime: 5 * 60_000,
+  });
+
+  // Build a lookup map from a-tag to parsed badge data
+  const badgeMap = useMemo(() => {
+    const map = new Map<string, { name: string; image?: string; description?: string }>();
+    if (!badgeDefsQuery.data) return map;
+    for (const event of badgeDefsQuery.data) {
+      const d = event.tags.find(([n]) => n === 'd')?.[1];
+      if (!d) continue;
+      const aTag = `30009:${event.pubkey}:${d}`;
+      const name = event.tags.find(([n]) => n === 'name')?.[1] || d;
+      const thumbTag = event.tags.find(([n]) => n === 'thumb');
+      const imageTag = event.tags.find(([n]) => n === 'image');
+      const image = thumbTag?.[1] ?? imageTag?.[1];
+      const description = event.tags.find(([n]) => n === 'description')?.[1];
+      map.set(aTag, { name, image, description });
+    }
+    return map;
+  }, [badgeDefsQuery.data]);
+
+  if (profileBadgesQuery.isLoading) {
+    return (
+      <div className="p-6">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex flex-col items-center gap-2">
+              <Skeleton className="size-16 rounded-xl" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (badgeRefs.length === 0) {
+    return (
+      <div className="py-12 text-center text-muted-foreground">
+        <Award className="size-12 mx-auto mb-4 opacity-30" />
+        <p className="text-lg font-medium mb-2">No badges yet</p>
+        <p className="text-sm">{displayName} hasn't accepted any badges.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+        {badgeRefs.map((ref, idx) => {
+          const badge = badgeMap.get(ref.aTag);
+          const isLoading = badgeDefsQuery.isLoading;
+          const badgeUrl = `/${nip19.naddrEncode({ kind: 30009, pubkey: ref.pubkey, identifier: ref.identifier })}`;
+
+          return (
+            <Link
+              key={`${ref.aTag}-${idx}`}
+              to={badgeUrl}
+              className="flex flex-col items-center gap-2 group"
+              title={badge?.description || badge?.name || ref.identifier}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {isLoading ? (
+                <Skeleton className="size-16 rounded-xl" />
+              ) : badge?.image ? (
+                <img
+                  src={badge.image}
+                  alt={badge.name}
+                  className="size-16 rounded-xl object-cover border border-border bg-secondary/30 transition-transform group-hover:scale-105"
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <div className="size-16 rounded-xl border border-border bg-secondary/30 flex items-center justify-center transition-transform group-hover:scale-105">
+                  <Award className="size-7 text-muted-foreground" />
+                </div>
+              )}
+              <span className="text-xs text-muted-foreground text-center leading-tight line-clamp-2 max-w-[5rem] group-hover:text-foreground transition-colors">
+                {isLoading ? <Skeleton className="h-3 w-14" /> : (badge?.name || ref.identifier)}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
