@@ -9,6 +9,15 @@ import './index.css';
 
 import '@fontsource-variable/inter';
 
+// ─── Plausible Analytics ──────────────────────────────────────────────────────
+// Enabled only when VITE_PLAUSIBLE_DOMAIN is set at build time.
+if (import.meta.env.VITE_PLAUSIBLE_DOMAIN) {
+  import('@plausible-analytics/tracker').then(({ init }) => {
+    init({ domain: import.meta.env.VITE_PLAUSIBLE_DOMAIN });
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ─── Native status bar theming (Android APK / iOS) ───────────────────────────
 // Keeps the OS top chrome in sync with the active app theme.
 // Runs before React so the very first paint matches the persisted theme.
