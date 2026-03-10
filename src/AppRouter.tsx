@@ -45,6 +45,7 @@ import { BlobbiPage } from "./pages/BlobbiPage";
 import { RelayPage } from "./pages/RelayPage";
 import { UserListsPage } from "./pages/UserListsPage";
 import { HelpPage } from "./pages/HelpPage";
+import { BadgesFeedPage } from "./pages/BadgesFeedPage";
 
 
 const pollsDef = getExtraKindDef('polls')!;
@@ -117,6 +118,7 @@ export function AppRouter() {
           <Route path="/ai-chat" element={<AIChatPage />} />
           <Route path="/blobbi" element={<BlobbiPage />} />
           <Route path="/world" element={<WorldPage />} />
+          <Route path="/badges" element={<BadgesFeedPage />} />
           <Route path="/books" element={<BooksPage />} />
           <Route path="/help" element={<HelpPage />} />
           <Route path="/r/*" element={<RelayPage />} />

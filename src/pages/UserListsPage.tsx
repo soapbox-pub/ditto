@@ -3,13 +3,13 @@
  *
  * Settings sub-page for managing NIP-51 Follow Sets (kind 30000).
  */
-import { useState, useMemo } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import {
   ArrowLeft, Plus, Trash2, Users, Pencil,
-  Check, X, Loader2,
+  Check, X,
 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -20,9 +20,6 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
 
 import { IntroImage } from '@/components/IntroImage';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -33,127 +30,6 @@ import { genUserName } from '@/lib/genUserName';
 import { toast } from '@/hooks/useToast';
 import type { UserList } from '@/hooks/useUserLists';
 
-// ─── Member Row ───────────────────────────────────────────────────────────────
-
-function MemberRow({ pubkey, onRemove, isRemoving = false, disabled = false }: {
-  pubkey: string;
-  onRemove?: () => void;
-  isRemoving?: boolean;
-  disabled?: boolean;
-}) {
-  const author = useAuthor(pubkey);
-  const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? genUserName(pubkey);
-  const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
-
-  return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors group">
-      <Link to={`/${npub}`} className="flex items-center gap-3 flex-1 min-w-0">
-        {author.isLoading ? (
-          <>
-            <Skeleton className="size-9 rounded-full shrink-0" />
-            <div className="space-y-1">
-              <Skeleton className="h-3.5 w-24" />
-              <Skeleton className="h-3 w-32" />
-            </div>
-          </>
-        ) : (
-          <>
-            <Avatar className="size-9 shrink-0">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                {displayName[0]?.toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold truncate">{displayName}</div>
-              {metadata?.nip05 && (
-                <div className="text-xs text-muted-foreground truncate">{metadata.nip05}</div>
-              )}
-            </div>
-          </>
-        )}
-      </Link>
-      {onRemove && (
-        <button
-          onClick={onRemove}
-          disabled={disabled}
-          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 disabled:pointer-events-none transition-all"
-          aria-label="Remove from list"
-        >
-          {isRemoving
-            ? <Loader2 className="size-4 animate-spin" />
-            : <X className="size-4" />}
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ─── List Detail Dialog ───────────────────────────────────────────────────────
-
-function ListDetailDialog({ list, open, onOpenChange }: {
-  list: UserList;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const { removeFromList } = useUserLists();
-  const [removingPubkey, setRemovingPubkey] = useState<string | null>(null);
-
-  const handleRemove = (pubkey: string) => {
-    if (removingPubkey) return;
-    setRemovingPubkey(pubkey);
-    removeFromList.mutate(
-      { listId: list.id, pubkey },
-      {
-        onSuccess: () => toast({ title: 'Removed from list' }),
-        onError: () => toast({ title: 'Failed to remove', variant: 'destructive' }),
-        onSettled: () => setRemovingPubkey(null),
-      },
-    );
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[80dvh] p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-          <DialogHeader className="p-0 space-y-0">
-            <DialogTitle className="text-base font-bold">{list.title}</DialogTitle>
-          </DialogHeader>
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground">{list.pubkeys.length} members</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full size-8 ml-2"
-              onClick={() => onOpenChange(false)}
-            >
-              <X className="size-4" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="overflow-y-auto flex-1">
-          {list.pubkeys.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">
-              No members yet. Add users from their profiles or notes.
-            </div>
-          ) : (
-            list.pubkeys.map((pk) => (
-              <MemberRow
-                key={pk}
-                pubkey={pk}
-                onRemove={() => handleRemove(pk)}
-                isRemoving={removingPubkey === pk}
-                disabled={!!removingPubkey}
-              />
-            ))
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ─── Mini Avatar ──────────────────────────────────────────────────────────────
 
@@ -174,7 +50,8 @@ function MiniAvatar({ pubkey }: { pubkey: string }) {
 // ─── List Row ─────────────────────────────────────────────────────────────────
 
 function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList) => void }) {
-  const [detailOpen, setDetailOpen] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useCurrentUser();
   const [editing, setEditing] = useState(false);
   const [renameValue, setRenameValue] = useState(list.title);
   const { renameList } = useUserLists();
@@ -200,10 +77,14 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
     <>
       <div
         className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer group"
-        onClick={() => !editing && setDetailOpen(true)}
+        onClick={() => {
+          if (editing || !user) return;
+          const addr = nip19.naddrEncode({ kind: 30000, pubkey: user.pubkey, identifier: list.id });
+          navigate(`/${addr}`);
+        }}
       >
         {/* Avatar stack */}
-        <div className="flex -space-x-1.5 shrink-0 w-10">
+        <div className="flex -space-x-1.5 shrink-0 w-16 overflow-hidden">
           {previewPubkeys.length > 0 ? previewPubkeys.map((pk) => (
             <MiniAvatar key={pk} pubkey={pk} />
           )) : (
@@ -269,7 +150,6 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
         )}
       </div>
 
-      <ListDetailDialog list={list} open={detailOpen} onOpenChange={setDetailOpen} />
     </>
   );
 }

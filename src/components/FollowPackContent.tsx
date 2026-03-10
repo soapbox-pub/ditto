@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Users, PartyPopper } from 'lucide-react';
+import { Users, PartyPopper, List } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuthors } from '@/hooks/useAuthors';
@@ -11,6 +11,7 @@ function getTag(tags: string[][], name: string): string | undefined {
 }
 
 export function FollowPackContent({ event }: { event: NostrEvent }) {
+  const isFollowSet = event.kind === 30000;
   const title = getTag(event.tags, 'title') || getTag(event.tags, 'name');
   const description = getTag(event.tags, 'description') || getTag(event.tags, 'summary');
   const image = getTag(event.tags, 'image');
@@ -28,7 +29,10 @@ export function FollowPackContent({ event }: { event: NostrEvent }) {
       {/* Title */}
       {title && (
         <div className="flex items-center gap-2 mb-2">
-          <PartyPopper className="size-4 text-primary shrink-0" />
+          {isFollowSet
+            ? <List className="size-4 text-primary shrink-0" />
+            : <PartyPopper className="size-4 text-primary shrink-0" />
+          }
           <span className="text-[15px] font-semibold leading-snug">{title}</span>
         </div>
       )}
