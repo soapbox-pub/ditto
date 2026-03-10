@@ -857,6 +857,7 @@ export function ProfilePage() {
   // All tabs as a flat ordered list for the drag UI — core tabs have isCore=true and can't be removed
   type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
+  const DEFAULT_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
   const [localTabs, setLocalTabs] = useState<EditableTab[]>([]);
   const [tabModalOpen, setTabModalOpen] = useState(false);
   const [editingTab, setEditingTab] = useState<ProfileTab | undefined>(undefined);
@@ -873,8 +874,8 @@ export function ProfilePage() {
   // - [...] (event with tabs) → show exactly those
   const viewTabs: EditableTab[] = useMemo(() => {
     if (profileTabsData === null) {
-      // No event yet — show defaults
-      return CORE_TAB_LABELS.map((label) => ({ label, isCore: true }));
+      // No event yet — show defaults (subset of core tabs)
+      return DEFAULT_TAB_LABELS.map((label) => ({ label, isCore: true }));
     }
     // Event exists — use its tab list (may be empty)
     return profileTabsData.tabs.map((t) =>
@@ -970,7 +971,7 @@ export function ProfilePage() {
 
   // Drop active tab if it was deleted
   useEffect(() => {
-    const isCoreTab = ['posts', 'replies', 'media', 'likes', 'wall'].includes(activeTab);
+    const isCoreTab = ['posts', 'replies', 'media', 'badges', 'likes', 'wall'].includes(activeTab);
     if (!isCoreTab && !profileSavedTabs.find((t) => t.label === activeTab)) {
       setActiveTab(firstTabId);
     }
