@@ -13,7 +13,10 @@ import '@fontsource-variable/inter';
 // Enabled only when VITE_PLAUSIBLE_DOMAIN is set at build time.
 if (import.meta.env.VITE_PLAUSIBLE_DOMAIN) {
   import('@plausible-analytics/tracker').then(({ init }) => {
-    init({ domain: import.meta.env.VITE_PLAUSIBLE_DOMAIN });
+    init({
+      domain: import.meta.env.VITE_PLAUSIBLE_DOMAIN,
+      ...(import.meta.env.VITE_PLAUSIBLE_ENDPOINT && { endpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT }),
+    });
   });
 }
 // ─────────────────────────────────────────────────────────────────────────────
