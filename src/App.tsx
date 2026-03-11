@@ -15,6 +15,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { NostrLoginProvider } from '@nostrify/react/login';
 import { AppProvider } from '@/components/AppProvider';
 import { SentryProvider } from '@/components/SentryProvider';
+import { PlausibleProvider } from '@/components/PlausibleProvider';
 import { NWCProvider } from '@/contexts/NWCContext';
 import { AppConfig } from '@/contexts/AppContext';
 import AppRouter from './AppRouter';
@@ -113,6 +114,8 @@ const hardcodedConfig: AppConfig = {
   contentWarningPolicy: 'blur',
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || '',
   sentryEnabled: true,
+  plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || '',
+  plausibleEndpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT || '',
   savedFeeds: [],
 };
 
@@ -142,22 +145,24 @@ export function App() {
     <UnheadProvider head={head}>
       <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
         <SentryProvider>
-          <QueryClientProvider client={queryClient}>
-            <NostrLoginProvider storageKey='nostr:login'>
-              <NostrProvider>
-                <NostrSync />
-                <NativeNotifications />
-                <NWCProvider>
-                  <TooltipProvider>
-                    <Toaster />
-                    <InitialSyncGate>
-                      <AppRouter />
-                    </InitialSyncGate>
-                  </TooltipProvider>
-                </NWCProvider>
-              </NostrProvider>
-            </NostrLoginProvider>
-          </QueryClientProvider>
+          <PlausibleProvider>
+            <QueryClientProvider client={queryClient}>
+              <NostrLoginProvider storageKey='nostr:login'>
+                <NostrProvider>
+                  <NostrSync />
+                  <NativeNotifications />
+                  <NWCProvider>
+                    <TooltipProvider>
+                      <Toaster />
+                      <InitialSyncGate>
+                        <AppRouter />
+                      </InitialSyncGate>
+                    </TooltipProvider>
+                  </NWCProvider>
+                </NostrProvider>
+              </NostrLoginProvider>
+            </QueryClientProvider>
+          </PlausibleProvider>
         </SentryProvider>
       </AppProvider>
     </UnheadProvider>

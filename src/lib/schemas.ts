@@ -226,6 +226,8 @@ export const AppConfigSchema = z.object({
   contentWarningPolicy: ContentWarningPolicySchema,
   sentryDsn: z.string(),
   sentryEnabled: z.boolean(),
+  plausibleDomain: z.string(),
+  plausibleEndpoint: z.string(),
   savedFeeds: z.array(z.unknown()).transform((arr) =>
     arr.flatMap((item) => {
       if (typeof item !== 'object' || item === null) return [];
