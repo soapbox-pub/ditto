@@ -15,10 +15,11 @@ services:
   vite:
     image: node:22-alpine
     working_dir: /app
+    # Use host node_modules (no anonymous volume) so new deps added after merge
+    # are picked up after a plain "npm install" on the host and container restart.
     command: sh -c "npm install && npm run dev"
     volumes:
       - .:/app
-      - /app/node_modules
     environment:
       - NODE_ENV=development
     networks:
