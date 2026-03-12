@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
-import { useQueryClient } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
 import { NoteCard } from '@/components/NoteCard';
@@ -11,16 +12,22 @@ import { Loader2 } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useFeed } from '@/hooks/useFeed';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useInfiniteHotFeed } from '@/hooks/useTrending';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
+import { useInterests } from '@/hooks/useInterests';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
+import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
+import { DITTO_RELAY } from '@/lib/appRelays';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
+import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
 
 type CoreFeedTab = 'follows' | 'global' | 'communities';
@@ -59,6 +66,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
   const { savedFeeds } = useSavedFeeds();
+  const { hashtags } = useInterests();
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
@@ -93,6 +101,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     () => savedFeeds.find((f) => f.id === activeTab) ?? null,
     [savedFeeds, activeTab],
   );
+
+  // Is the active tab a hashtag interest?
+  const activeHashtag = activeTab.startsWith('hashtag:') ? activeTab.slice(8) : null;
 
   // When logged out (and not on a kind-specific page), show the "hot" sorted
   // feed instead of the noisy global feed so new visitors see quality content.
@@ -206,6 +217,14 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               onClick={() => handleSetActiveTab(feed.id)}
             />
           ))}
+          {showSavedFeedTabs && hashtags.map((tag) => (
+            <TabButton
+              key={`hashtag:${tag}`}
+              label={`#${tag}`}
+              active={activeTab === `hashtag:${tag}`}
+              onClick={() => handleSetActiveTab(`hashtag:${tag}`)}
+            />
+          ))}
         </div>
       ) : !kinds && (
         <LandingHero
@@ -215,7 +234,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       )}
 
       {/* Feed content — saved feed tab gets its own stream */}
-      {activeSavedFeed ? (
+      {activeHashtag ? (
+        <HashtagFeedContent tag={activeHashtag} />
+      ) : activeSavedFeed ? (
         <SavedFeedContent feed={activeSavedFeed} />
       ) : (
         <PullToRefresh onRefresh={handleRefresh}>
@@ -329,6 +350,56 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
         <NoteCard key={event.id} event={event} />
       ))}
       <div ref={scrollRef} className="py-2" />
+    </div>
+  );
+}
+
+/** Renders a feed of posts tagged with a specific hashtag. */
+function HashtagFeedContent({ tag }: { tag: string }) {
+  const { nostr } = useNostr();
+  const { muteItems } = useMuteList();
+  const { feedSettings } = useFeedSettings();
+  const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
+  const kindsKey = [...kinds].sort().join(',');
+
+  const { data: events, isLoading } = useQuery<NostrEvent[]>({
+    queryKey: ['hashtag-feed', tag, kindsKey],
+    queryFn: async ({ signal }) => {
+      const ditto = nostr.relay(DITTO_RELAY);
+      return ditto.query(
+        [{ kinds, '#t': [tag.toLowerCase()], limit: 40 }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
+      );
+    },
+  });
+
+  const filteredEvents = useMemo((): NostrEvent[] => {
+    if (!events) return [];
+    if (muteItems.length === 0) return events;
+    return events.filter((e) => !isEventMuted(e, muteItems));
+  }, [events, muteItems]);
+
+  if (isLoading && filteredEvents.length === 0) {
+    return (
+      <div className="divide-y divide-border">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <NoteCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (filteredEvents.length === 0) {
+    return (
+      <FeedEmptyState message={`No posts found with #${tag}.`} />
+    );
+  }
+
+  return (
+    <div>
+      {filteredEvents.map((event) => (
+        <NoteCard key={event.id} event={event} />
+      ))}
     </div>
   );
 }

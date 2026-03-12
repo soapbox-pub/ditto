@@ -50,6 +50,7 @@
     "@nostrify/nostrify": "^0.50.4",
     "@nostrify/react": "^0.2.29",
     "@nostrify/types": "^0.36.9",
+    "@plausible-analytics/tracker": "^0.4.4",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-aspect-ratio": "^1.1.0",

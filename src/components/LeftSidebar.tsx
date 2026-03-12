@@ -98,7 +98,7 @@ export function LeftSidebar() {
     { value: 'light', label: 'Light', icon: <Sun className="size-4" /> },
     { value: 'dark', label: 'Dark', icon: <Moon className="size-4" /> },
   ];
-  const presetOptions = Object.entries(themePresets).filter(([, p]) => p.featured).map(([id, p]) => ({ id, label: p.label, emoji: p.emoji }));
+  const presetOptions = Object.entries(themePresets).filter(([, p]) => p.featured).slice(0, 5).map(([id, p]) => ({ id, label: p.label, emoji: p.emoji }));
   const activePreset = theme === 'custom' && customTheme ? Object.entries(themePresets).find(([, p]) => JSON.stringify(p.colors) === JSON.stringify(customTheme)) : undefined;
   const sidebarUserThemes = useUserThemes(user?.pubkey);
   const activeUserTheme = theme === 'custom' && customTheme && !activePreset ? sidebarUserThemes.data?.find(t => JSON.stringify(t.colors) === JSON.stringify(customTheme)) : undefined;
@@ -333,7 +333,7 @@ export function LeftSidebar() {
                       <div className="flex items-center gap-2 text-muted-foreground">{currentThemeIcon}<span className="text-xs">{currentThemeLabel}</span><ChevronDown className="size-4" /></div>
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" side="top" className="w-48">
+                  <DropdownMenuContent align="end" side="top" className="w-48 z-[270]">
                     {builtinThemeOptions.map((opt) => (
                       <DropdownMenuItem key={opt.value} onClick={() => setTheme(opt.value)} className="flex items-center justify-between cursor-pointer">
                         <div className="flex items-center gap-2">{opt.icon}<span>{opt.label}</span></div>

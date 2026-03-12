@@ -37,6 +37,7 @@ import { RepostIcon } from '@/components/icons/RepostIcon';
 import { useRepostStatus } from '@/hooks/useRepostStatus';
 import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { getRepostKind } from '@/lib/feedUtils';
+import { DITTO_RELAY } from '@/lib/appRelays';
 import { ZapDialog } from '@/components/ZapDialog';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -227,7 +228,7 @@ export function VineRepostButton({ event, label }: { event: NostrEvent; label?: 
       }
       queryClient.setQueryData(['user-repost', event.id], 'optimistic');
 
-      const tags: string[][] = [['e', event.id], ['p', event.pubkey]];
+      const tags: string[][] = [['e', event.id, DITTO_RELAY], ['p', event.pubkey]];
       if (repostKind === 16) {
         tags.push(['k', String(event.kind)]);
         if (event.kind >= 30000 && event.kind < 40000) {

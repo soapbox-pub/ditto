@@ -81,6 +81,11 @@ export function TestApp({ children }: TestAppProps) {
       showPodcasts: false,
       feedIncludePodcastEpisodes: false,
       feedIncludePodcastTrailers: false,
+      showBadges: false,
+      showBadgeDefinitions: true,
+      showProfileBadges: true,
+      feedIncludeBadgeDefinitions: false,
+      feedIncludeProfileBadges: false,
       followsFeedShowReplies: true,
     },
     sidebarOrder: [],
@@ -93,6 +98,8 @@ export function TestApp({ children }: TestAppProps) {
     contentWarningPolicy: 'blur',
     sentryDsn: '',
     sentryEnabled: false,
+    plausibleDomain: '',
+    plausibleEndpoint: '',
     savedFeeds: [],
   };
 

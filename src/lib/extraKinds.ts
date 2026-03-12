@@ -148,7 +148,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     addressable: false,
     section: 'media',
     blurb: 'Watch and discover videos and live streams in a YouTube/Twitch-style interface.',
-    sites: [{ url: 'https://zap.stream', name: 'zap.stream' }],
+    sites: [{ url: 'https://zap.stream', name: 'zap.stream' }, { url: 'https://vidstr.shakespeare.wtf', name: 'Vidstr' }],
     subKinds: [
       {
         kind: 21,
@@ -383,6 +383,35 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     addressable: true,
     section: 'social',
     blurb: 'Custom emoji packs for reactions, posts, and profiles. Browse, collect, and use custom emojis from the Nostr community.',
+  },
+  {
+    kind: 30009,
+    id: 'badges',
+    showKey: 'showBadges',
+    label: 'Badges',
+    description: 'Achievement badges and awards (NIP-58)',
+    route: 'badges',
+    addressable: true,
+    section: 'whimsy',
+    blurb: 'Discover achievement badges created on Nostr. Badge issuers award them for recognition, participation, or appreciation.',
+    subKinds: [
+      {
+        kind: 30009,
+        showKey: 'showBadgeDefinitions',
+        feedKey: 'feedIncludeBadgeDefinitions',
+        label: 'Badge Definitions',
+        description: 'Badge definitions (kind 30009)',
+        addressable: true,
+      },
+      {
+        kind: 30008,
+        showKey: 'showProfileBadges',
+        feedKey: 'feedIncludeProfileBadges',
+        label: 'Profile Badges',
+        description: 'Accepted profile badges (kind 30008)',
+        addressable: true,
+      },
+    ],
   },
   {
     kind: 37516,

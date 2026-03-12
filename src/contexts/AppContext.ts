@@ -126,6 +126,16 @@ export interface FeedSettings {
   feedIncludePodcastEpisodes: boolean;
   /** Include podcast trailers (kind 30055) in the follows/global feed */
   feedIncludePodcastTrailers: boolean;
+  /** Show Badges (NIP-58 kind 30009) link in sidebar */
+  showBadges: boolean;
+  /** Show badge definitions (kind 30009) on the Badges page */
+  showBadgeDefinitions: boolean;
+  /** Show profile badges (kind 30008) on the Badges page */
+  showProfileBadges: boolean;
+  /** Include badge definitions (kind 30009) in the follows/global feed */
+  feedIncludeBadgeDefinitions: boolean;
+  /** Include profile badges (kind 30008) in the follows/global feed */
+  feedIncludeProfileBadges: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }
@@ -219,6 +229,10 @@ export interface AppConfig {
   sentryDsn: string;
   /** Whether the user has enabled Sentry error reporting. */
   sentryEnabled: boolean;
+  /** Plausible Analytics domain (empty string = disabled). */
+  plausibleDomain: string;
+  /** Plausible Analytics API endpoint (empty string = use default). */
+  plausibleEndpoint: string;
   /** Saved home feed tabs. Cached locally so they appear instantly on load. */
   savedFeeds: SavedFeed[];
   /** Direct messaging user preferences. */
