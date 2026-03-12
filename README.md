@@ -29,14 +29,26 @@ Made by [Soapbox](https://soapbox.pub).
 
 ### Development
 
+You can run the app in one of two ways:
+
+**Option 1 — Direct (no Docker)**  
+Best for general development. From the repo root:
+
 ```sh
-git clone https://gitlab.com/soapbox-pub/ditto.git
-cd ditto
 npm install
 npm run dev
 ```
 
-The dev server starts at `http://localhost:8080`.
+Open **http://localhost:8080**.
+
+**Option 2 — Via Docker**  
+Required for full private messaging: decrypting sent and received media (images, files). From the repo root:
+
+```sh
+docker compose up
+```
+
+Open **http://localhost:8082**. The app runs behind nginx in this setup.
 
 ### Build
 
