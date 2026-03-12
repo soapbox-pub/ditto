@@ -29,6 +29,7 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { buildKindOptions, KindPicker, AuthorChip, AuthorFilterDropdown } from '@/components/SavedFeedFiltersEditor';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
@@ -97,6 +98,7 @@ export function SearchPage() {
 
   // Local input state for the search field (avoids trimming while typing)
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // ── Filter state — all derived from URL params ──────────────────────────
@@ -198,10 +200,10 @@ export function SearchPage() {
     }, { replace: true });
   }, [setSearchParams]);
 
-  // Sync search query state → URL
+  // Sync search query state → URL (debounced to avoid disrupting typing)
   useEffect(() => {
     const currentQ = searchParams.get('q') ?? '';
-    const trimmed = searchQuery.trim();
+    const trimmed = debouncedSearchQuery.trim();
     if (trimmed !== currentQ) {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
@@ -213,7 +215,7 @@ export function SearchPage() {
         return next;
       }, { replace: true });
     }
-  }, [searchQuery, searchParams, setSearchParams]);
+  }, [debouncedSearchQuery, searchParams, setSearchParams]);
 
   // Sync URL → search query state (e.g., sidebar search or browser navigation)
   useEffect(() => {
@@ -225,11 +227,11 @@ export function SearchPage() {
 
   // If the search query is a Nostr identifier, redirect immediately
   useEffect(() => {
-    const path = getNostrIdentifierPath(searchQuery);
+    const path = getNostrIdentifierPath(debouncedSearchQuery);
     if (path) {
       navigate(path, { replace: true });
     }
-  }, [searchQuery, navigate]);
+  }, [debouncedSearchQuery, navigate]);
 
   const protocols = useMemo(() => [platform], [platform]);
 
@@ -272,7 +274,7 @@ export function SearchPage() {
     const parts: string[] = bridged.length > 0
       ? bridged.map(p => `protocol:${p}`)
       : ['protocol:nostr'];
-    if (searchQuery.trim()) parts.push(searchQuery.trim());
+    if (debouncedSearchQuery.trim()) parts.push(debouncedSearchQuery.trim());
     if (language !== 'global') parts.push(`language:${language}`);
     const isDedicatedKindQuery = !kindsOverride && (mediaType === 'vines' || mediaType === 'images' || mediaType === 'videos');
     if (!isDedicatedKindQuery && !hasKindMediaConflict) {
@@ -283,7 +285,7 @@ export function SearchPage() {
     if (sort === 'hot') parts.push('sort:hot');
     else if (sort === 'trending') parts.push('sort:trending');
     return parts.join(' ');
-  }, [searchQuery, language, mediaType, protocols, kindsOverride, hasKindMediaConflict, sort]);
+  }, [debouncedSearchQuery, language, mediaType, protocols, kindsOverride, hasKindMediaConflict, sort]);
 
   // Active filter labels for the summary / empty state hints
   const activeFilterLabels = useMemo(() => {
@@ -331,11 +333,11 @@ export function SearchPage() {
   // Build a standard NIP-01 TabFilter from the current search state
   const currentFilter = useMemo<TabFilter>(() => {
     const filter: TabFilter = {};
-    if (searchQuery.trim()) filter.search = searchQuery.trim();
+    if (debouncedSearchQuery.trim()) filter.search = debouncedSearchQuery.trim();
     if (kindsOverride && kindsOverride.length > 0) filter.kinds = kindsOverride;
     if (authorScope === 'people' && authorPubkeys.length > 0) filter.authors = authorPubkeys;
     return filter;
-  }, [searchQuery, kindsOverride, authorScope, authorPubkeys]);
+  }, [debouncedSearchQuery, kindsOverride, authorScope, authorPubkeys]);
 
   const alreadySaved = savedFeeds.some(
     (f) => JSON.stringify(f.filter) === JSON.stringify(currentFilter),
@@ -373,7 +375,7 @@ export function SearchPage() {
       ? authorPubkeys
       : undefined;
 
-  const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, {
+  const { posts, isLoading: postsLoading } = useStreamPosts(debouncedSearchQuery, {
     includeReplies,
     mediaType,
     language,
@@ -382,7 +384,7 @@ export function SearchPage() {
     authorPubkeys: streamAuthorPubkeys,
     sort,
   });
-  const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
+  const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? debouncedSearchQuery : '');
 
   return (
     <main className="">
