@@ -12,7 +12,7 @@ import {
   Globe, Users, UserSearch,
   Clock, Flame, TrendingUp,
 } from 'lucide-react';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -200,11 +200,16 @@ export function SearchPage() {
     }, { replace: true });
   }, [setSearchParams]);
 
+  // Guard to prevent the URL→state sync from clobbering the input
+  // when we ourselves just wrote to the URL.
+  const internalUrlUpdate = useRef(false);
+
   // Sync search query state → URL (debounced to avoid disrupting typing)
   useEffect(() => {
     const currentQ = searchParams.get('q') ?? '';
     const trimmed = debouncedSearchQuery.trim();
     if (trimmed !== currentQ) {
+      internalUrlUpdate.current = true;
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         if (trimmed) {
@@ -219,6 +224,11 @@ export function SearchPage() {
 
   // Sync URL → search query state (e.g., sidebar search or browser navigation)
   useEffect(() => {
+    // Skip if we just wrote to the URL ourselves (avoids clobbering mid-typing input)
+    if (internalUrlUpdate.current) {
+      internalUrlUpdate.current = false;
+      return;
+    }
     const q = searchParams.get('q') ?? '';
     if (q !== searchQuery.trim()) {
       setSearchQuery(q);
