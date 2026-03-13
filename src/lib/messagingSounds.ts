@@ -5,6 +5,6 @@ export const APP_NEW_MESSAGE_SOUNDS: NewMessageSoundOption[] = [
   {
     id: 'ditto',
     label: 'Ditto',
-    url: '/sounds/ditto.mp3',
+    url: '/custom-sounds/ditto.mp3',
   },
 ];
