@@ -450,99 +450,84 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
               [1.5, 0.8, 1.2],
               [1, 1.3, 0.9],
               [0.75, 1.5, 1],
-            ].map((ratios, rowIdx) => {
-              const totalAR = ratios.reduce((s, r) => s + r, 0);
-              return (
-                <div key={rowIdx} className="flex gap-0.5">
-                  {ratios.map((ar, colIdx) => {
-                    const widthPercent = (ar / totalAR) * 100;
-                    return (
-                      <Skeleton
-                        key={colIdx}
-                        className="rounded-lg shrink-0"
-                        style={{
-                          width: `calc(${widthPercent}% - ${((ratios.length - 1) / ratios.length) * 2}px)`,
-                          paddingBottom: `${(1 / totalAR) * 100}%`,
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-              );
-            })}
+            ].map((ratios, rowIdx) => (
+              <div key={rowIdx} className="flex gap-0.5">
+                {ratios.map((ar, colIdx) => (
+                  <Skeleton
+                    key={colIdx}
+                    className="rounded-lg"
+                    style={{ flexGrow: ar, flexBasis: 0, aspectRatio: `${ar}` }}
+                  />
+                ))}
+              </div>
+            ))}
           </div>
         ) : media && media.length > 0 ? (
           <div className="flex flex-col gap-0.5">
-            {sidebarRows.map((row, rowIdx) => {
-              const totalAR = row.items.reduce((s, item) => s + parseDimToAspectRatio(item.dim), 0);
-              const gap = 2; // gap-0.5 = 2px
-              const gapCount = row.items.length - 1;
-              return (
-                <div key={rowIdx} className="flex gap-0.5">
-                  {row.items.map((item, i) => {
-                    const ar = parseDimToAspectRatio(item.dim);
-                    const widthFraction = ar / totalAR;
-                    const style: React.CSSProperties = {
-                      width: `calc(${widthFraction * 100}% - ${gapCount * gap * widthFraction}px)`,
-                      paddingBottom: `calc((${widthFraction * 100}% - ${gapCount * gap * widthFraction}px) / ${ar})`,
-                      position: 'relative',
-                      flexShrink: 0,
-                    };
+            {sidebarRows.map((row, rowIdx) => (
+              <div key={rowIdx} className="flex gap-0.5">
+                {row.items.map((item, i) => {
+                  const ar = parseDimToAspectRatio(item.dim);
+                  const cellStyle: React.CSSProperties = {
+                    flexGrow: ar,
+                    flexBasis: 0,
+                    aspectRatio: `${ar}`,
+                    position: 'relative',
+                  };
 
-                    // CW + blur: show a blurred placeholder instead of loading media
-                    if (item.hasContentWarning && config.contentWarningPolicy === 'blur') {
-                      const cwInner = (
-                        <>
-                          <div className="absolute inset-0 bg-muted/60 blur-lg" />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <ShieldAlert className="size-5 text-muted-foreground" />
-                          </div>
-                        </>
-                      );
-                      if (onMediaClick) {
-                        return (
-                          <div key={i} style={style}>
-                            <button className="absolute inset-0 rounded-lg overflow-hidden w-full h-full" onClick={() => onMediaClick(item.url)}>
-                              {cwInner}
-                            </button>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div key={i} style={style}>
-                          <Link to={eventLink(item)} className="absolute inset-0 rounded-lg overflow-hidden block">
-                            {cwInner}
-                          </Link>
+                  // CW + blur: show a blurred placeholder instead of loading media
+                  if (item.hasContentWarning && config.contentWarningPolicy === 'blur') {
+                    const cwInner = (
+                      <>
+                        <div className="absolute inset-0 bg-muted/60 blur-lg" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <ShieldAlert className="size-5 text-muted-foreground" />
                         </div>
-                      );
-                    }
-
+                      </>
+                    );
                     if (onMediaClick) {
                       return (
-                        <div key={i} style={style}>
-                          <button
-                            className="absolute inset-0 rounded-lg overflow-hidden hover:opacity-80 transition-opacity w-full h-full"
-                            onClick={() => onMediaClick(item.url)}
-                          >
-                            <MediaTile item={item} />
+                        <div key={i} style={cellStyle} className="rounded-lg overflow-hidden">
+                          <button className="absolute inset-0 w-full h-full" onClick={() => onMediaClick(item.url)}>
+                            {cwInner}
                           </button>
                         </div>
                       );
                     }
                     return (
-                      <div key={i} style={style}>
-                        <Link
-                          to={eventLink(item)}
-                          className="absolute inset-0 rounded-lg overflow-hidden hover:opacity-80 transition-opacity block"
-                        >
-                          <MediaTile item={item} />
+                      <div key={i} style={cellStyle} className="rounded-lg overflow-hidden">
+                        <Link to={eventLink(item)} className="absolute inset-0 block">
+                          {cwInner}
                         </Link>
                       </div>
                     );
-                  })}
-                </div>
-              );
-            })}
+                  }
+
+                  if (onMediaClick) {
+                    return (
+                      <div key={i} style={cellStyle} className="rounded-lg overflow-hidden">
+                        <button
+                          className="absolute inset-0 hover:opacity-80 transition-opacity w-full h-full"
+                          onClick={() => onMediaClick(item.url)}
+                        >
+                          <MediaTile item={item} />
+                        </button>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={i} style={cellStyle} className="rounded-lg overflow-hidden">
+                      <Link
+                        to={eventLink(item)}
+                        className="absolute inset-0 hover:opacity-80 transition-opacity block"
+                      >
+                        <MediaTile item={item} />
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">No media yet.</p>

@@ -301,18 +301,20 @@ export function MediaGridSkeleton({ count = 15 }: { count?: number }) {
     <div className="flex flex-col gap-0.5">
       {Array.from({ length: rowCount }).map((_, rowIdx) => {
         const ratios = SKELETON_ROWS[rowIdx % SKELETON_ROWS.length];
-        const totalAR = ratios.reduce((s, r) => s + r, 0);
         return (
-          <div key={rowIdx} className="flex gap-0.5" style={{ height: `calc(${(1 / totalAR) * 100}%)` }}>
+          <div key={rowIdx} className="flex gap-0.5">
             {ratios.map((ar, colIdx) => {
               const itemIdx = rowIdx * 3 + colIdx;
               if (itemIdx >= count) return null;
-              const widthPercent = (ar / totalAR) * 100;
               return (
                 <Skeleton
                   key={colIdx}
-                  className="rounded-none shrink-0"
-                  style={{ width: `calc(${widthPercent}% - ${((ratios.length - 1) / ratios.length) * 2}px)`, paddingBottom: `${(1 / totalAR) * 100}%` }}
+                  className="rounded-none"
+                  style={{
+                    flexGrow: ar,
+                    flexBasis: 0,
+                    aspectRatio: `${ar}`,
+                  }}
                 />
               );
             })}
@@ -445,36 +447,29 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
   return (
     <>
       <div className={cn('flex flex-col gap-0.5', className)}>
-        {rows.map((row, rowIdx) => {
-          const totalAR = row.items.reduce((s, { item }) => s + parseDimToAspectRatio(item.dim), 0);
-          const gap = 2; // gap-0.5 = 2px
-          const gapCount = row.items.length - 1;
-          return (
-            <div key={rowIdx} className="flex gap-0.5">
-              {row.items.map(({ item, index }) => {
-                const ar = parseDimToAspectRatio(item.dim);
-                // Each item's width is proportional to its aspect ratio
-                const widthFraction = ar / totalAR;
-                // Use calc to subtract the shared gap from each item proportionally
-                const style: React.CSSProperties = {
-                  width: `calc(${widthFraction * 100}% - ${gapCount * gap * widthFraction}px)`,
-                  // paddingBottom creates the height relative to the item's own width
-                  paddingBottom: `calc((${widthFraction * 100}% - ${gapCount * gap * widthFraction}px) / ${ar})`,
-                  position: 'relative',
-                  flexShrink: 0,
-                };
-                return (
-                  <div key={item.event.id} style={style}>
-                    <MediaThumb
-                      item={item}
-                      onClick={() => setFlatIndex(itemStartIndex[index])}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
+        {rows.map((row, rowIdx) => (
+          <div key={rowIdx} className="flex gap-0.5">
+            {row.items.map(({ item, index }) => {
+              const ar = parseDimToAspectRatio(item.dim);
+              return (
+                <div
+                  key={item.event.id}
+                  className="relative"
+                  style={{
+                    flexGrow: ar,
+                    flexBasis: 0,
+                    aspectRatio: `${ar}`,
+                  }}
+                >
+                  <MediaThumb
+                    item={item}
+                    onClick={() => setFlatIndex(itemStartIndex[index])}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       {flatIndex !== null && (
