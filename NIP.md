@@ -294,4 +294,4 @@ The `shape` field is added to the JSON content of a kind 0 event alongside stand
 
 ### Implementation Notes
 
-Non-circle shapes are best implemented using CSS `clip-path` with `polygon()` for straight-edged shapes and `path()` for curved shapes (e.g. heart). The `circle` shape should continue to use `border-radius: 50%` (or equivalent) for simplicity and compatibility.
+Non-circle shapes are best implemented using CSS `clip-path: polygon()`. Curved shapes like `heart` can be approximated by sampling a parametric curve into a polygon with enough vertices (e.g. 50 points). The `circle` shape should continue to use `border-radius: 50%` (or equivalent) for simplicity and compatibility.
