@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, ChevronsUpDown, RotateCcw, Type } from 'lucide-react';
+import { Check, ChevronsUpDown, Type } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
@@ -104,23 +104,10 @@ export function FontPicker({ value, onChange }: {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-          <Type className="size-3.5" />
-          Font
-        </span>
-        {currentFont && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleReset}
-            className="h-6 gap-1 text-xs text-muted-foreground hover:text-foreground px-2"
-          >
-            <RotateCcw className="size-3" />
-            Reset
-          </Button>
-        )}
-      </div>
+      <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+        <Type className="size-3.5" />
+        Font
+      </span>
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -135,7 +122,7 @@ export function FontPicker({ value, onChange }: {
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0 overflow-hidden" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
           <Command shouldFilter={true}>
             <CommandInput
               placeholder="Search fonts..."
