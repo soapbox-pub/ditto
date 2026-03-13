@@ -16,6 +16,7 @@ import { PhotoBottomBar } from '@/components/PhotoBottomBar';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 // ── Media type detection ──────────────────────────────────────────────────────
 
@@ -287,7 +288,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
 /** Pre-defined aspect ratios for skeleton rows to approximate a collage. */
-const SKELETON_ROWS = [
+const SKELETON_ROWS_DESKTOP = [
   [1.5, 0.8, 1.2],
   [1, 1.3, 0.9],
   [0.75, 1.5, 1],
@@ -295,16 +296,29 @@ const SKELETON_ROWS = [
   [1, 0.8, 1.5],
 ];
 
+const SKELETON_ROWS_MOBILE = [
+  [1.4, 0.9],
+  [0.8, 1.3],
+  [1.2, 1],
+  [1, 1.5],
+  [1.3, 0.7],
+  [0.9, 1.1],
+  [1.5, 0.8],
+];
+
 export function MediaGridSkeleton({ count = 15 }: { count?: number }) {
-  const rowCount = Math.ceil(count / 3);
+  const isMobile = useIsMobile();
+  const skeletonRows = isMobile ? SKELETON_ROWS_MOBILE : SKELETON_ROWS_DESKTOP;
+  const perRow = isMobile ? 2 : 3;
+  const rowCount = Math.ceil(count / perRow);
   return (
     <div className="flex flex-col gap-0.5">
       {Array.from({ length: rowCount }).map((_, rowIdx) => {
-        const ratios = SKELETON_ROWS[rowIdx % SKELETON_ROWS.length];
+        const ratios = skeletonRows[rowIdx % skeletonRows.length];
         return (
           <div key={rowIdx} className="flex gap-0.5">
             {ratios.map((ar, colIdx) => {
-              const itemIdx = rowIdx * 3 + colIdx;
+              const itemIdx = rowIdx * perRow + colIdx;
               if (itemIdx >= count) return null;
               return (
                 <Skeleton
@@ -342,6 +356,8 @@ interface MediaGridProps {
 }
 
 export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed, onNearEnd, hasNextPage }: MediaGridProps) {
+  const isMobile = useIsMobile();
+
   const items = useMemo(
     () => events.map(eventToMediaItem).filter((x): x is MediaItem => x !== null),
     [events],
@@ -374,15 +390,15 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
     return starts;
   }, [items]);
 
-  // Compute justified row layout
+  // Compute justified row layout — fewer items per row on mobile for larger thumbnails
   const rows = useMemo(
     () => justifiedLayout(
       items.map((item, i) => ({ item, index: i })),
       ({ item }) => parseDimToAspectRatio(item.dim),
-      0.3,
-      5,
+      isMobile ? 0.45 : 0.3,
+      isMobile ? 2 : 5,
     ),
-    [items],
+    [items, isMobile],
   );
 
   // Open at initialOpenUrl if provided
