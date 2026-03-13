@@ -7,6 +7,7 @@ export const AVATAR_SHAPES = [
   'star',
   'inverted-star',
   'hexagram',
+  'heart',
 ] as const;
 
 export type AvatarShape = (typeof AVATAR_SHAPES)[number];
@@ -28,6 +29,7 @@ export function getAvatarShapeLabel(shape: AvatarShape): string {
     case 'star': return 'Star';
     case 'inverted-star': return 'Inv. Star';
     case 'hexagram': return 'Hexagram';
+    case 'heart': return 'Heart';
   }
 }
 
@@ -95,5 +97,9 @@ export function getAvatarClipPath(shape: AvatarShape | undefined): string | unde
 
     case 'hexagram':
       return starPolygon(6, 0.577, -90);
+
+    case 'heart':
+      // SVG path normalized to a 1×1 viewBox. Uses cubic beziers for the curved lobes.
+      return 'path("M0.5 0.92 C0.28 0.75, 0 0.56, 0 0.34 C0 0.16, 0.13 0.04, 0.28 0.04 C0.37 0.04, 0.45 0.09, 0.5 0.17 C0.55 0.09, 0.63 0.04, 0.72 0.04 C0.87 0.04, 1 0.16, 1 0.34 C1 0.56, 0.72 0.75, 0.5 0.92 Z")';
   }
 }
