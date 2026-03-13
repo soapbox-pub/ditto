@@ -59,7 +59,7 @@ export function GeocacheContent({ event }: { event: NostrEvent }) {
   const size = getTag(event.tags, 'S') ?? 'other';
   const cacheType = getTag(event.tags, 't') ?? 'traditional';
   const hint = getTag(event.tags, 'hint');
-  const images = getAllTags(event.tags, 'image');
+  const images = getAllTags(event.tags, 'image').filter((url) => url.trim() !== '');
   const description = event.content;
 
   const [hintRevealed, setHintRevealed] = useState(false);

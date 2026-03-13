@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Paperclip, Smile, AlertTriangle, X, Loader2, ImagePlay, Mic, Square } from 'lucide-react';
+import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -9,8 +9,9 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
@@ -174,8 +175,8 @@ export function ComposeBox({
   const [expanded, setExpanded] = useState(false);
   const [cwEnabled, setCwEnabled] = useState(false);
   const [cwText, setCwText] = useState('');
-  const [emojiOpen, setEmojiOpen] = useState(false);
-  const [gifOpen, setGifOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerTab, setPickerTab] = useState<'emoji' | 'gif' | 'stickers'>('emoji');
   const [internalPreviewMode, setInternalPreviewMode] = useState(false);
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const [_uploadedFileTags, setUploadedFileTags] = useState<string[][]>([]);
@@ -322,7 +323,7 @@ export function ComposeBox({
   const hasCustomEmojis = useMemo(() => {
     if (customEmojis.length === 0 || !content) return false;
     const emojiSet = new Set(customEmojis.map((e) => e.shortcode));
-    const matches = content.matchAll(/:([a-zA-Z0-9_]+):/g);
+    const matches = content.matchAll(/:([a-zA-Z0-9_-]+):/g);
     for (const match of matches) {
       if (emojiSet.has(match[1])) return true;
     }
@@ -359,7 +360,7 @@ export function ComposeBox({
     // NIP-30: Add emoji tags for custom emojis referenced in content
     if (customEmojis.length > 0) {
       const emojiMap = new Map(customEmojis.map((e) => [e.shortcode, e.url]));
-      const shortcodeRegex = /:([a-zA-Z0-9_]+):/g;
+      const shortcodeRegex = /:([a-zA-Z0-9_-]+):/g;
       const usedEmojis = new Set<string>();
       let match;
       while ((match = shortcodeRegex.exec(content)) !== null) {
@@ -752,7 +753,7 @@ export function ComposeBox({
       // NIP-30: Add emoji tags for custom emojis referenced in content
       if (customEmojis.length > 0) {
         const emojiMap = new Map(customEmojis.map((e) => [e.shortcode, e.url]));
-        const shortcodeRegex = /:([a-zA-Z0-9_]+):/g;
+        const shortcodeRegex = /:([a-zA-Z0-9_-]+):/g;
         const usedEmojis = new Set<string>();
         let emojiMatch;
         while ((emojiMatch = shortcodeRegex.exec(finalContent)) !== null) {
@@ -1176,76 +1177,131 @@ export function ComposeBox({
                   </Tooltip>
                 )}
 
-                {/* Emoji picker */}
-                <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          className={cn(
-                            'p-2 rounded-full transition-colors',
-                            emojiOpen
-                              ? 'text-primary bg-primary/10'
-                              : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
-                          )}
-                        >
-                          <Smile className="size-[18px]" />
-                        </button>
-                      </PopoverTrigger>
-                    </TooltipTrigger>
-                    {!emojiOpen && <TooltipContent>Emoji</TooltipContent>}
-                  </Tooltip>
-                  <PopoverContent
-                    align="start"
-                    sideOffset={8}
-                    className="w-auto p-0 border-border"
-                  >
-                    <EmojiPicker
-                      customEmojis={customEmojis}
-                      onSelect={(selection) => {
-                        if (selection.type === 'native') {
-                          insertEmoji(selection.emoji);
-                        } else {
-                          insertEmoji(`:${selection.shortcode}:`);
-                        }
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-
-                {/* GIF picker */}
-                <Popover open={gifOpen} onOpenChange={setGifOpen}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          className={cn(
-                            'p-2 rounded-full transition-colors',
-                            gifOpen
-                              ? 'text-primary bg-primary/10'
-                              : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
-                          )}
-                        >
-                          <ImagePlay className="size-[18px]" />
-                        </button>
-                      </PopoverTrigger>
-                    </TooltipTrigger>
-                    {!gifOpen && <TooltipContent>GIF</TooltipContent>}
-                  </Tooltip>
-                  <PopoverContent
-                    align="start"
-                    sideOffset={8}
-                    className="w-auto p-0 border-border"
-                  >
-                    <GifPicker onSelect={(gif) => {
-                      setContent((prev) => (prev ? prev + '\n' + gif.url : gif.url));
-                      setGifOpen(false);
-                      expand();
-                    }} />
-                  </PopoverContent>
-                </Popover>
+                 {/* Emoji / GIF picker */}
+                 <Tooltip>
+                   <TooltipTrigger asChild>
+                     <button
+                       type="button"
+                       onClick={() => setPickerOpen(true)}
+                       className={cn(
+                         'p-2 rounded-full transition-colors',
+                         pickerOpen
+                           ? 'text-primary bg-primary/10'
+                           : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
+                       )}
+                     >
+                       <Smile className="size-[18px]" />
+                     </button>
+                   </TooltipTrigger>
+                   {!pickerOpen && <TooltipContent>Emoji / GIF</TooltipContent>}
+                 </Tooltip>
+                 <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+                   <DialogContent
+                     className="w-auto max-w-fit p-0 gap-0 border-border rounded-xl overflow-hidden [&>button]:hidden"
+                     onOpenAutoFocus={(e) => e.preventDefault()}
+                   >
+                     {/* Tab bar */}
+                     <div className="flex">
+                       <button
+                         type="button"
+                         onClick={() => setPickerTab('emoji')}
+                         className={cn(
+                           'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors border-b-2',
+                           pickerTab === 'emoji'
+                             ? 'text-primary border-primary'
+                             : 'text-muted-foreground hover:text-foreground border-border',
+                         )}
+                       >
+                         <Smile className="size-3.5" />
+                         Emoji
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => setPickerTab('gif')}
+                         className={cn(
+                           'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors border-b-2',
+                           pickerTab === 'gif'
+                             ? 'text-primary border-primary'
+                             : 'text-muted-foreground hover:text-foreground border-border',
+                         )}
+                       >
+                         <svg width="14" height="14" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                           <rect x="1" y="1" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                           <text x="9" y="9" textAnchor="middle" dominantBaseline="central" fontSize="7" fontWeight="700" fontFamily="system-ui,sans-serif" fill="currentColor" letterSpacing="0.5">GIF</text>
+                         </svg>
+                         GIF
+                       </button>
+                       {customEmojis.length > 0 && (
+                         <button
+                           type="button"
+                           onClick={() => setPickerTab('stickers')}
+                           className={cn(
+                             'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors border-b-2',
+                             pickerTab === 'stickers'
+                               ? 'text-primary border-primary'
+                               : 'text-muted-foreground hover:text-foreground border-border',
+                           )}
+                         >
+                           <Sticker className="size-3.5" />
+                           Stickers
+                         </button>
+                       )}
+                     </div>
+                     {/* Picker content */}
+                     {pickerTab === 'emoji' ? (
+                       <EmojiPicker
+                         customEmojis={customEmojis}
+                         onSelect={(selection) => {
+                           if (selection.type === 'native') {
+                             insertEmoji(selection.emoji);
+                           } else {
+                             insertEmoji(`:${selection.shortcode}:`);
+                           }
+                         }}
+                       />
+                     ) : pickerTab === 'stickers' ? (
+                       <div className="w-[316px] h-[435px]">
+                         {customEmojis.length === 0 ? (
+                           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+                             <Sticker className="size-8 opacity-40" />
+                             <p className="text-sm">No sticker packs yet</p>
+                             <p className="text-xs">Add emoji packs to your profile to use stickers</p>
+                           </div>
+                         ) : (
+                           <ScrollArea className="h-full">
+                             <div className="grid grid-cols-4 gap-1.5 p-2">
+                               {customEmojis.map((emoji) => (
+                                 <button
+                                   key={emoji.shortcode}
+                                   type="button"
+                                   title={emoji.shortcode}
+                                   onClick={() => {
+                                     setContent((prev) => (prev ? prev + '\n' + emoji.url : emoji.url));
+                                     setPickerOpen(false);
+                                     expand();
+                                   }}
+                                   className="aspect-square rounded-lg overflow-hidden hover:bg-muted transition-colors p-1 group"
+                                 >
+                                   <img
+                                     src={emoji.url}
+                                     alt={emoji.shortcode}
+                                     className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-150"
+                                   />
+                                 </button>
+                               ))}
+                             </div>
+                           </ScrollArea>
+                         )}
+                       </div>
+                     ) : (
+                       <GifPicker onSelect={(gif) => {
+                         setContent((prev) => (prev ? prev + '\n' + gif.url : gif.url));
+                         setPickerOpen(false);
+                         expand();
+                       }} />
+                     )}
+                   </DialogContent>
+                 </Dialog>
 
                 {/* Content warning (NIP-36) */}
                 <Tooltip>

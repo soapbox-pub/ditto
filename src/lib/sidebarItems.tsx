@@ -1,19 +1,46 @@
 import {
-  Bell, Search, TrendingUp, User, Bookmark, Settings, SwatchBook, Palette,
-  Clapperboard, BarChart3, PartyPopper, BookOpen, BookMarked, Sparkles, Blocks,
-  MessageSquare, Repeat2, MessageSquareMore, Mic, Smile, Bot, SmilePlus, Camera, Film, Earth, CalendarDays,
-  Music, Podcast, Code,
-} from 'lucide-react';
-import { PlanetIcon } from '@/components/icons/PlanetIcon';
-import { ChestIcon } from '@/components/icons/ChestIcon';
-import { CardsIcon } from '@/components/icons/CardsIcon';
+  Award,
+  BarChart3,
+  Bell,
+  Blocks,
+  BookMarked,
+  Bookmark,
+  BookOpen,
+  Bot,
+  CalendarDays,
+  Camera,
+  Clapperboard,
+  Code,
+  Earth,
+  Film,
+  HelpCircle,
+  MessageSquare,
+  MessageSquareMore,
+  Mic,
+  Music,
+  Palette,
+  PartyPopper,
+  Podcast,
+  Repeat2,
+  Scroll,
+  Search,
+  Settings,
+  Smile,
+  SmilePlus,
+  Sparkles,
+  TrendingUp,
+  User,
+} from "lucide-react";
+import { CardsIcon } from "@/components/icons/CardsIcon";
+import { ChestIcon } from "@/components/icons/ChestIcon";
+import { PlanetIcon } from "@/components/icons/PlanetIcon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type IconComponent = React.ComponentType<{ className?: string }>;
 
 /** Sentinel ID used to represent a visual divider in the sidebar order. */
-export const SIDEBAR_DIVIDER_ID = 'divider';
+export const SIDEBAR_DIVIDER_ID = "divider";
 
 /** Returns true if the given sidebar order ID is a divider sentinel. */
 export function isSidebarDivider(id: string): boolean {
@@ -26,7 +53,7 @@ export interface SidebarItemDef {
   id: string;
   /** Display label. */
   label: string;
-  /** Navigation path (e.g. '/', '/notifications', '/vines'). */
+  /** Navigation path (e.g. '/feed', '/notifications', '/vines'). */
   path: string;
   /** Icon component. */
   icon: IconComponent;
@@ -45,35 +72,67 @@ export interface SidebarItemDef {
  */
 export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   // System pages
-  { id: 'feed', label: 'Feed', path: '/', icon: PlanetIcon },
-  { id: 'notifications', label: 'Notifications', path: '/notifications', icon: Bell, requiresAuth: true },
-  { id: 'search', label: 'Search', path: '/search', icon: Search },
-  { id: 'trends', label: 'Trends', path: '/trends', icon: TrendingUp },
-  { id: 'bookmarks', label: 'Bookmarks', path: '/bookmarks', icon: Bookmark, requiresAuth: true },
-  { id: 'profile', label: 'Profile', path: '/profile', icon: User, requiresAuth: true },
-  { id: 'settings', label: 'Settings', path: '/settings', icon: Settings },
-  { id: 'theme', label: 'Vibe', path: '/settings/theme', icon: SwatchBook },
-  { id: 'ai-chat', label: 'AI Chat', path: '/ai-chat', icon: Bot, requiresAuth: true },
+  { id: "feed", label: "Feed", path: "/feed", icon: PlanetIcon },
+  {
+    id: "notifications",
+    label: "Notifications",
+    path: "/notifications",
+    icon: Bell,
+    requiresAuth: true,
+  },
+  { id: "search", label: "Search", path: "/search", icon: Search },
+  { id: "trends", label: "Trends", path: "/trends", icon: TrendingUp },
+  {
+    id: "bookmarks",
+    label: "Bookmarks",
+    path: "/bookmarks",
+    icon: Bookmark,
+    requiresAuth: true,
+  },
+  {
+    id: "profile",
+    label: "Profile",
+    path: "/profile",
+    icon: User,
+    requiresAuth: true,
+  },
+  {
+    id: "lists",
+    label: "Lists",
+    path: "/lists",
+    icon: Scroll,
+    requiresAuth: true,
+  },
+  { id: "settings", label: "Settings", path: "/settings", icon: Settings },
+  {
+    id: "ai-chat",
+    label: "AI Chat",
+    path: "/ai-chat",
+    icon: Bot,
+    requiresAuth: true,
+  },
+  { id: "help", label: "Help", path: "/help", icon: HelpCircle },
   // Content types
-  { id: 'events', label: 'Events', path: '/events', icon: CalendarDays },
-  { id: 'photos', label: 'Photos', path: '/photos', icon: Camera },
-  { id: 'videos', label: 'Videos', path: '/videos', icon: Film },
-  { id: 'articles', label: 'Articles', path: '/articles', icon: BookOpen },
-  { id: 'books', label: 'Books', path: '/books', icon: BookMarked },
-  { id: 'vines', label: 'Vines', path: '/vines', icon: Clapperboard },
-  { id: 'music', label: 'Music', path: '/music', icon: Music },
-  { id: 'podcasts', label: 'Podcasts', path: '/podcasts', icon: Podcast },
+  { id: "events", label: "Events", path: "/events", icon: CalendarDays },
+  { id: "photos", label: "Photos", path: "/photos", icon: Camera },
+  { id: "videos", label: "Videos", path: "/videos", icon: Film },
+  { id: "articles", label: "Articles", path: "/articles", icon: BookOpen },
+  { id: "books", label: "Books", path: "/books", icon: BookMarked },
+  { id: "vines", label: "Vines", path: "/vines", icon: Clapperboard },
+  { id: "music", label: "Music", path: "/music", icon: Music },
+  { id: "podcasts", label: "Podcasts", path: "/podcasts", icon: Podcast },
 
-  { id: 'webxdc', label: 'Webxdc', path: '/webxdc', icon: Blocks },
-  { id: 'themes', label: 'Themes', path: '/themes', icon: Sparkles },
-  { id: 'polls', label: 'Polls', path: '/polls', icon: BarChart3 },
-  { id: 'packs', label: 'Follow Packs', path: '/packs', icon: PartyPopper },
-  { id: 'colors', label: 'Color Moments', path: '/colors', icon: Palette },
-  { id: 'decks', label: 'Magic Decks', path: '/decks', icon: CardsIcon },
-  { id: 'treasures', label: 'Treasures', path: '/treasures', icon: ChestIcon },
-  { id: 'emoji-packs', label: 'Emoji Packs', path: '/emoji-packs', icon: SmilePlus },
-  { id: 'development', label: 'Development', path: '/development', icon: Code },
-  { id: 'world', label: 'World', path: '/world', icon: Earth },
+  { id: "webxdc", label: "Webxdc", path: "/webxdc", icon: Blocks },
+  { id: "themes", label: "Themes", path: "/themes", icon: Sparkles },
+  { id: "polls", label: "Polls", path: "/polls", icon: BarChart3 },
+  { id: "packs", label: "Follow Packs", path: "/packs", icon: PartyPopper },
+  { id: "colors", label: "Color Moments", path: "/colors", icon: Palette },
+  { id: "decks", label: "Magic Decks", path: "/decks", icon: CardsIcon },
+  { id: "treasures", label: "Treasures", path: "/treasures", icon: ChestIcon },
+  { id: "emojis", label: "Emojis", path: "/emojis", icon: SmilePlus },
+  { id: "development", label: "Development", path: "/development", icon: Code },
+  { id: "badges", label: "Badges", path: "/badges", icon: Award },
+  { id: "world", label: "World", path: "/world", icon: Earth },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */
@@ -90,11 +149,13 @@ export const CONTENT_KIND_ICONS: Record<string, IconComponent> = {
   posts: MessageSquare,
   comments: MessageSquareMore,
   reposts: Repeat2,
-  'generic-reposts': Repeat2,
+  "generic-reposts": Repeat2,
   voice: Mic,
-  'custom-emojis': Smile,
+  "custom-emojis": Smile,
   statuses: SmilePlus,
-  ...Object.fromEntries(SIDEBAR_ITEMS.filter((s) => s.icon).map((s) => [s.id, s.icon])),
+  ...Object.fromEntries(
+    SIDEBAR_ITEMS.filter((s) => s.icon).map((s) => [s.id, s.icon]),
+  ),
 };
 
 // ── Lookups ───────────────────────────────────────────────────────────────────
@@ -105,7 +166,10 @@ export function getSidebarItem(id: string): SidebarItemDef | undefined {
 }
 
 /** Returns the icon element for a sidebar item ID at the given size. */
-export function sidebarItemIcon(id: string, size = 'size-6'): React.ReactElement {
+export function sidebarItemIcon(
+  id: string,
+  size = "size-6",
+): React.ReactElement {
   const Icon = SIDEBAR_ITEM_MAP.get(id)?.icon ?? Palette;
   return <Icon className={size} />;
 }
@@ -116,18 +180,33 @@ export function itemLabel(id: string): string {
 }
 
 /** Lookup navigation path for a sidebar item ID. */
-export function itemPath(id: string, profilePath?: string): string {
-  if (id === 'profile' && profilePath) return profilePath;
+export function itemPath(
+  id: string,
+  profilePath?: string,
+  homePage?: string,
+): string {
+  if (id === "profile" && profilePath) return profilePath;
+  if (homePage && id === homePage) return "/";
   return SIDEBAR_ITEM_MAP.get(id)?.path ?? `/${id}`;
 }
 
 /** Check if a sidebar item is active given the current location. */
-export function isItemActive(id: string, pathname: string, _search: string, profilePath?: string): boolean {
-  if (id === 'profile') return !!profilePath && pathname === profilePath;
-  // Settings matches /settings/* but not /settings/theme (theme has its own item).
-  if (id === 'settings') return pathname.startsWith('/settings') && pathname !== '/settings/theme';
+export function isItemActive(
+  id: string,
+  pathname: string,
+  _search: string,
+  profilePath?: string,
+  homePage?: string,
+): boolean {
+  if (id === "profile") return !!profilePath && pathname === profilePath;
+  if (id === "settings") return pathname.startsWith("/settings");
 
-  const item = SIDEBAR_ITEM_MAP.get(id);
-  if (!item) return pathname === `/${id}`;
-  return pathname === item.path;
+  const itemDef = SIDEBAR_ITEM_MAP.get(id);
+  const itemPathname = itemDef?.path ?? `/${id}`;
+
+  // Homepage item is active at both "/" and its own path
+  if (homePage && id === homePage)
+    return pathname === "/" || pathname === itemPathname;
+
+  return pathname === itemPathname;
 }

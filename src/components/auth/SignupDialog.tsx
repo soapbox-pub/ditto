@@ -185,7 +185,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
                   type={showKey ? "text" : "password"}
                   value={nsec}
                   readOnly
-                  className="pr-10 font-mono text-sm"
+                  className="pr-10 font-mono"
                 />
                 <Button
                   type="button"

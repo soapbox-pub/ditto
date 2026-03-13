@@ -6,6 +6,7 @@
 |-------|----------------------|-------------------------------------------------------|
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
+| 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
 
 ---
 
@@ -154,3 +155,99 @@ Format: `["bg", "url <url>", "mode <mode>", "m <mime-type>", ...]`
 - At most one `bg` tag is allowed per event.
 - Clients MAY choose not to render video backgrounds for performance or bandwidth reasons.
 - Unknown keys SHOULD be ignored for forward compatibility.
+
+---
+
+## Kind 16769: Profile Tabs
+
+### Summary
+
+Replaceable event kind for publishing a user's custom profile page tabs. Exactly one event per user (no `d` tag). Each tab defines a Nostr filter (NIP-01) that clients execute to populate the tab's content.
+
+Visitors who load a profile fetch this event to display the custom tabs alongside the standard Posts / Media / Likes / Wall tabs.
+
+### Event Structure
+
+```json
+{
+  "kind": 16769,
+  "content": "",
+  "tags": [
+    ["var", "$follows", "p", "a:3:$me:"],
+    ["tab", "Bitcoin Posts", "{\"kinds\":[1],\"authors\":[\"$me\"],\"search\":\"bitcoin\"}"],
+    ["tab", "Feed", "{\"kinds\":[1,6],\"authors\":[\"$follows\"],\"limit\":40}"],
+    ["alt", "Custom profile tabs"]
+  ]
+}
+```
+
+### Content
+
+The `content` field is unused and MUST be an empty string (`""`).
+
+### Tags
+
+| Tag   | Format                                         | Description                                                    |
+|-------|------------------------------------------------|----------------------------------------------------------------|
+| `tab` | `["tab", "<label>", "<filterJSON>"]`           | One tag per custom tab. Order defines display order.           |
+| `var` | `["var", "<$name>", "<tag>", "<pointer>"]`     | Variable definition. See [Variable Tags](#variable-tags).      |
+| `alt` | `["alt", "Custom profile tabs"]`               | NIP-31 human-readable fallback. Required.                      |
+
+### Tab Filter JSON
+
+The third element of each `tab` tag is a JSON-encoded **NIP-01 filter object**, optionally extended with the NIP-50 `search` field. Variable placeholders (strings starting with `$`) may appear wherever a string value is expected.
+
+```json
+{
+  "kinds": [1],
+  "authors": ["$me"],
+  "search": "bitcoin",
+  "limit": 20
+}
+```
+
+Supported filter fields: `ids`, `authors`, `kinds`, `#<tag>` (e.g. `#t`, `#e`, `#p`), `since`, `until`, `limit`, `search`.
+
+### Variable Tags
+
+Variable tags define named placeholders that are resolved before the filter is executed. Each `var` tag extracts tag values from a referenced Nostr event.
+
+Format: `["var", "$name", "<tag-to-extract>", "<event-pointer>"]`
+
+| Index | Description                                                                                      |
+|-------|--------------------------------------------------------------------------------------------------|
+| 0     | Tag name: `"var"`                                                                                |
+| 1     | Variable name, starting with `$` (e.g. `"$follows"`)                                            |
+| 2     | Tag name to extract values from in the referenced event (e.g. `"p"`)                             |
+| 3     | Event pointer: `e:<event-id>` for a specific event, or `a:<kind>:<pubkey>:<d-tag>` for an addressable/replaceable event coordinate. Variables like `$me` may appear in the pubkey position. |
+
+Example — extract follow list pubkeys:
+```json
+["var", "$follows", "p", "a:3:$me:"]
+```
+
+This means: fetch the kind 3 event authored by `$me`, extract all `p` tag values, and bind them to `$follows`.
+
+### Reserved Variable: `$me`
+
+The `$me` variable is the only runtime-provided variable. It resolves to the **profile owner's pubkey** (the author of the kind 16769 event). It does not require a `var` tag definition.
+
+### Variable Resolution
+
+When a variable appears in a filter field that expects an array (e.g. `authors`, `ids`, `#p`), the variable is **expanded in-place** (spliced into the array). Literal values may be mixed with variables.
+
+```json
+["tab", "Mixed", "{\"authors\":[\"$follows\",\"abc123...\"],\"kinds\":[1]}"]
+```
+
+After resolution (assuming `$follows` = `["pk1", "pk2"]`):
+```json
+{"authors": ["pk1", "pk2", "abc123..."], "kinds": [1]}
+```
+
+### Behavior
+
+- To **add or update** tabs: publish a new kind 16769 event with all current `tab` and `var` tags.
+- To **clear** all tabs: publish a kind 16769 event with no `tab` tags (only `alt`).
+- Clients MUST filter by `authors: [pubkey]` when querying to prevent spoofing.
+- `var` tags are shared across all `tab` tags in the same event.

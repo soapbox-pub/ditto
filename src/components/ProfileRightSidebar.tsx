@@ -1,17 +1,57 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert } from 'lucide-react';
+import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
+import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { useToast } from '@/hooks/useToast';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
+import type { AddrCoords } from '@/hooks/useEvent';
 import QRCode from 'qrcode';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getContentWarning } from '@/lib/contentWarning';
+import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
+import { parseDimToAspectRatio } from '@/components/MediaCollage';
+
+/** Simple email regex for display purposes. */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Bech32 charset used by NIP-19 identifiers. */
+const B32 = '023456789acdefghjklmnpqrstuvwxyz';
+
+/** Regex that matches nostr:<nip19> URIs. */
+const NOSTR_URI_REGEX = new RegExp(`^nostr:(note1|nevent1|naddr1|npub1|nprofile1)[${B32}]+$`);
+
+/** Parse a nostr: URI value and return embed info, or null if not a valid nostr URI. */
+function parseNostrUri(value: string): { type: 'note'; eventId: string } | { type: 'nevent'; eventId: string; relays?: string[]; author?: string } | { type: 'naddr'; addr: AddrCoords } | { type: 'profile'; pubkey: string } | null {
+  const trimmed = value.trim();
+  if (!NOSTR_URI_REGEX.test(trimmed)) return null;
+  try {
+    const bech32 = trimmed.slice('nostr:'.length);
+    const decoded = nip19.decode(bech32);
+    switch (decoded.type) {
+      case 'note':
+        return { type: 'note', eventId: decoded.data as string };
+      case 'nevent':
+        return { type: 'nevent', eventId: decoded.data.id, relays: decoded.data.relays, author: decoded.data.author };
+      case 'naddr':
+        return { type: 'naddr', addr: decoded.data as AddrCoords };
+      case 'npub':
+        return { type: 'profile', pubkey: decoded.data as string };
+      case 'nprofile':
+        return { type: 'profile', pubkey: decoded.data.pubkey };
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
 
 interface ProfileField {
   label: string;
@@ -39,6 +79,8 @@ interface MediaItem {
   hasContentWarning: boolean;
   /** NIP-94 blurhash value from the imeta tag, if available. */
   blurhash?: string;
+  /** NIP-94 dim value from the imeta tag, e.g. "1280x720". */
+  dim?: string;
 }
 
 /** Extracts image URLs from content. */
@@ -53,8 +95,8 @@ function extractVideoUrls(content: string): string[] {
   return content.match(regex) || [];
 }
 
-/** Extract url and blurhash from the first matching imeta tag for a given URL (or the first tag if no URL given). */
-function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: string; blurhash?: string } {
+/** Extract url, blurhash, and dim from the first matching imeta tag for a given URL (or the first tag if no URL given). */
+function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: string; blurhash?: string; dim?: string } {
   const imetaTags = event.tags.filter(([name]) => name === 'imeta');
   for (const imetaTag of imetaTags) {
     const fields: Record<string, string> = {};
@@ -65,7 +107,7 @@ function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: strin
     }
     if (!fields.url) continue;
     if (matchUrl && fields.url !== matchUrl) continue;
-    return { url: fields.url, blurhash: fields.blurhash };
+    return { url: fields.url, blurhash: fields.blurhash, dim: fields.dim };
   }
   return {};
 }
@@ -83,23 +125,23 @@ function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
 
     // For media-native kinds (vines etc.), extract from imeta tags
     if (event.kind !== 1) {
-      const { url, blurhash } = extractImetaFields(event);
+      const { url, blurhash, dim } = extractImetaFields(event);
       if (url && !seen.has(url)) {
         seen.add(url);
         const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-        items.push({ url, blurhash, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
+        items.push({ url, blurhash, dim, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
       }
       continue;
     }
 
-    // For kind 1, extract URLs from content, then look up blurhash in imeta tags
+    // For kind 1, extract URLs from content, then look up blurhash/dim in imeta tags
     const images = extractImageUrls(event.content);
     const videos = extractVideoUrls(event.content);
     for (const url of [...images, ...videos]) {
       if (!seen.has(url)) {
         seen.add(url);
-        const { blurhash } = extractImetaFields(event, url);
-        items.push({ url, blurhash, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
+        const { blurhash, dim } = extractImetaFields(event, url);
+        items.push({ url, blurhash, dim, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
       }
     }
   }
@@ -285,9 +327,60 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
     );
   }
 
-  // Regular field: label + linked value with favicon
+  // Nostr URI: render embedded event
+  const nostrEmbed = parseNostrUri(field.value);
+  if (nostrEmbed) {
+    return (
+      <div>
+        <div className="font-semibold text-sm mb-1.5">{field.label}</div>
+        {nostrEmbed.type === 'note' && (
+          <EmbeddedNote eventId={nostrEmbed.eventId} />
+        )}
+        {nostrEmbed.type === 'nevent' && (
+          <EmbeddedNote eventId={nostrEmbed.eventId} relays={nostrEmbed.relays} authorHint={nostrEmbed.author} />
+        )}
+        {nostrEmbed.type === 'naddr' && (
+          <EmbeddedNaddr addr={nostrEmbed.addr} />
+        )}
+        {nostrEmbed.type === 'profile' && (
+          <Link to={`/${nip19.npubEncode(nostrEmbed.pubkey)}`} className="text-sm text-primary hover:underline">
+            {nip19.npubEncode(nostrEmbed.pubkey).slice(0, 16)}...
+          </Link>
+        )}
+      </div>
+    );
+  }
+
+  // Email field: render as mailto link
+  const isEmail = field.label.toLowerCase() === 'email' && EMAIL_REGEX.test(field.value);
+  if (isEmail) {
+    return (
+      <div>
+        <div className="font-semibold text-sm">{field.label}</div>
+        <a
+          href={`mailto:${field.value}`}
+          className="flex items-center gap-1.5 text-sm text-primary hover:underline truncate mt-0.5"
+        >
+          <Mail className="size-4 shrink-0 text-muted-foreground" />
+          <span className="truncate">{field.value}</span>
+        </a>
+      </div>
+    );
+  }
+
+  // Audio file: render mini player
   const isUrl = field.value.startsWith('http://') || field.value.startsWith('https://');
 
+  if (isUrl && isAudioUrl(field.value)) {
+    return (
+      <div>
+        <div className="font-semibold text-sm mb-1.5">{field.label}</div>
+        <MiniAudioPlayer src={field.value} />
+      </div>
+    );
+  }
+
+  // Regular field: label + linked value with favicon
   return (
     <div>
       <div className="font-semibold text-sm">{field.label}</div>
@@ -308,6 +401,35 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
   );
 }
 
+/** Compute justified rows for the sidebar collage. */
+function sidebarJustifiedLayout(items: MediaItem[]): { items: MediaItem[]; heightFraction: number }[] {
+  if (items.length === 0) return [];
+  const rows: { items: MediaItem[]; heightFraction: number }[] = [];
+  let currentRow: MediaItem[] = [];
+  let currentAspectSum = 0;
+  // Sidebar target row height as fraction of container width — ~33%
+  const targetRowHeight = 0.35;
+  const maxRowItems = 4;
+
+  for (const item of items) {
+    const ar = parseDimToAspectRatio(item.dim);
+    currentRow.push(item);
+    currentAspectSum += ar;
+    const rowHeightFraction = 1 / currentAspectSum;
+    if (rowHeightFraction <= targetRowHeight || currentRow.length >= maxRowItems) {
+      rows.push({ items: [...currentRow], heightFraction: rowHeightFraction });
+      currentRow = [];
+      currentAspectSum = 0;
+    }
+  }
+  // Drop orphan single-item trailing rows — they look oversized in the compact sidebar
+  if (currentRow.length > 1) {
+    const rowHeightFraction = 1 / currentAspectSum;
+    rows.push({ items: currentRow, heightFraction: Math.min(rowHeightFraction, targetRowHeight) });
+  }
+  return rows;
+}
+
 export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp, onMediaClick }: ProfileRightSidebarProps) {
   const { config } = useAppContext();
   const media = useMemo(
@@ -316,63 +438,100 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
   );
   const mediaLoading = mediaLoadingProp ?? false;
 
+  const sidebarRows = useMemo(() => sidebarJustifiedLayout(media), [media]);
+
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3">
       {/* Media Section */}
       <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <h2 className="text-xl font-bold mb-3">Media</h2>
         {mediaLoading ? (
-          <div className="grid grid-cols-3 gap-0.5">
-            {Array.from({ length: 9 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-square rounded-lg" />
-            ))}
+          <div className="flex flex-col gap-0.5">
+            {[
+              [1.5, 0.8, 1.2],
+              [1, 1.3, 0.9],
+              [0.75, 1.5, 1],
+            ].map((ratios, rowIdx) => {
+              const rowAR = ratios.reduce((s, r) => s + r, 0);
+              return (
+                <div key={rowIdx} className="flex gap-0.5" style={{ aspectRatio: `${rowAR}` }}>
+                  {ratios.map((ar, colIdx) => (
+                    <Skeleton
+                      key={colIdx}
+                      className="rounded-lg h-full"
+                      style={{ flexGrow: ar, flexBasis: 0 }}
+                    />
+                  ))}
+                </div>
+              );
+            })}
           </div>
         ) : media && media.length > 0 ? (
-          <div className="grid grid-cols-3 gap-0.5">
-            {media.map((item, i) => {
-              // CW + blur: show a blurred placeholder instead of loading media
-              if (item.hasContentWarning && config.contentWarningPolicy === 'blur') {
-                const cwInner = (
-                  <>
-                    <div className="w-full h-full bg-muted/60 blur-lg" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <ShieldAlert className="size-5 text-muted-foreground" />
-                    </div>
-                  </>
-                );
-                if (onMediaClick) {
-                  return (
-                    <button key={i} className="aspect-square rounded-lg overflow-hidden block relative w-full" onClick={() => onMediaClick(item.url)}>
-                      {cwInner}
-                    </button>
-                  );
-                }
-                return (
-                  <Link key={i} to={eventLink(item)} className="aspect-square rounded-lg overflow-hidden block relative">
-                    {cwInner}
-                  </Link>
-                );
-              }
-
-              if (onMediaClick) {
-                return (
-                  <button
-                    key={i}
-                    className="aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity block relative w-full"
-                    onClick={() => onMediaClick(item.url)}
-                  >
-                    <MediaTile item={item} />
-                  </button>
-                );
-              }
+          <div className="flex flex-col gap-0.5">
+            {sidebarRows.map((row, rowIdx) => {
+              const rowAR = row.items.reduce((s, item) => s + parseDimToAspectRatio(item.dim), 0);
               return (
-                <Link
-                  key={i}
-                  to={eventLink(item)}
-                  className="aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity block relative"
-                >
-                  <MediaTile item={item} />
-                </Link>
+                <div key={rowIdx} className="flex gap-0.5" style={{ aspectRatio: `${rowAR}` }}>
+                  {row.items.map((item, i) => {
+                    const ar = parseDimToAspectRatio(item.dim);
+                    const cellStyle: React.CSSProperties = {
+                      flexGrow: ar,
+                      flexBasis: 0,
+                      position: 'relative',
+                    };
+
+                    // CW + blur: show a blurred placeholder instead of loading media
+                    if (item.hasContentWarning && config.contentWarningPolicy === 'blur') {
+                      const cwInner = (
+                        <>
+                          <div className="absolute inset-0 bg-muted/60 blur-lg" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <ShieldAlert className="size-5 text-muted-foreground" />
+                          </div>
+                        </>
+                      );
+                      if (onMediaClick) {
+                        return (
+                          <div key={i} style={cellStyle} className="rounded-lg overflow-hidden h-full">
+                            <button className="absolute inset-0 w-full h-full" onClick={() => onMediaClick(item.url)}>
+                              {cwInner}
+                            </button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={i} style={cellStyle} className="rounded-lg overflow-hidden h-full">
+                          <Link to={eventLink(item)} className="absolute inset-0 block">
+                            {cwInner}
+                          </Link>
+                        </div>
+                      );
+                    }
+
+                    if (onMediaClick) {
+                      return (
+                        <div key={i} style={cellStyle} className="rounded-lg overflow-hidden h-full">
+                          <button
+                            className="absolute inset-0 hover:opacity-80 transition-opacity w-full h-full"
+                            onClick={() => onMediaClick(item.url)}
+                          >
+                            <MediaTile item={item} />
+                          </button>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={i} style={cellStyle} className="rounded-lg overflow-hidden h-full">
+                        <Link
+                          to={eventLink(item)}
+                          className="absolute inset-0 hover:opacity-80 transition-opacity block"
+                        >
+                          <MediaTile item={item} />
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
               );
             })}
           </div>

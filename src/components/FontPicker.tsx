@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, ChevronsUpDown, RotateCcw, Type } from 'lucide-react';
+import { Check, ChevronsUpDown, Type } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
@@ -46,21 +46,34 @@ function usePreloadFonts(open: boolean) {
 
 /**
  * Font picker component for selecting a single custom font.
- * Integrates with the theme system via useTheme().applyCustomTheme().
+ *
+ * Supports two modes:
+ * - **Uncontrolled** (default): reads/writes via `useTheme().applyCustomTheme()`
+ * - **Controlled**: pass `value` and `onChange` props to manage state externally
  */
-export function FontPicker() {
+export function FontPicker({ value, onChange }: {
+  /** Controlled value — overrides useTheme() when provided. */
+  value?: ThemeFont | undefined;
+  /** Controlled onChange — called instead of applyCustomTheme() when provided. */
+  onChange?: (font: ThemeFont | undefined) => void;
+} = {}) {
   const { theme, customTheme, applyCustomTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const controlled = onChange !== undefined;
 
   usePreloadFonts(open);
 
-  const currentFont: ThemeFont | undefined = theme === 'custom' ? customTheme?.font : undefined;
+  const currentFont: ThemeFont | undefined = controlled
+    ? value
+    : (theme === 'custom' ? customTheme?.font : undefined);
 
   const handleSelect = (family: string) => {
     if (currentFont?.family === family) {
       // Deselect
       handleReset();
+    } else if (controlled) {
+      onChange({ family });
     } else {
       const currentColors = customTheme?.colors ?? {
         background: '228 20% 10%',
@@ -78,6 +91,10 @@ export function FontPicker() {
   };
 
   const handleReset = () => {
+    if (controlled) {
+      onChange(undefined);
+      return;
+    }
     if (!customTheme) return;
     applyCustomTheme({
       ...customTheme,
@@ -87,23 +104,10 @@ export function FontPicker() {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-          <Type className="size-3.5" />
-          Font
-        </span>
-        {currentFont && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleReset}
-            className="h-6 gap-1 text-xs text-muted-foreground hover:text-foreground px-2"
-          >
-            <RotateCcw className="size-3" />
-            Reset
-          </Button>
-        )}
-      </div>
+      <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+        <Type className="size-3.5" />
+        Font
+      </span>
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -118,7 +122,7 @@ export function FontPicker() {
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0 overflow-hidden" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
           <Command shouldFilter={true}>
             <CommandInput
               placeholder="Search fonts..."

@@ -12,6 +12,7 @@ import { ThreadedReplyList } from '@/components/ThreadedReplyList';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { QuickReactMenu } from '@/components/QuickReactMenu';
+import { ReactionEmoji } from '@/components/CustomEmoji';
 import { BookReviewFormDialog } from '@/components/BookReviewForm';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import {
@@ -68,10 +69,12 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
   const { toast } = useToast();
   const identifier = content.value;
 
-  const userReaction = useExternalUserReaction(content);
+  const userReactionData = useExternalUserReaction(content);
   const reactionCount = useExternalReactionCount(content);
 
-  const hasReacted = !!userReaction;
+  const hasReacted = !!userReactionData;
+  const userEmoji = userReactionData?.emoji;
+  const userReactionTags = userReactionData?.tags;
 
   // Reaction popover state
   const [reactOpen, setReactOpen] = useState(false);
@@ -98,9 +101,16 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
   }, []);
 
   // Publish kind 17 reaction
-  const handleReact = useCallback((emoji: string) => {
+  const handleReact = useCallback((emoji: string, emojiTag?: string[]) => {
     if (!user) return;
-    queryClient.setQueryData(['external-user-reaction', identifier], emoji || '+');
+
+    const tags: string[][] = [
+      ['k', getExternalKTag(content)],
+      ['i', identifier],
+    ];
+    if (emojiTag) tags.push(emojiTag);
+
+    queryClient.setQueryData(['external-user-reaction', identifier], { emoji: emoji || '+', tags });
     queryClient.setQueryData(['external-reaction-count', identifier], (prev: number | undefined) => (prev ?? 0) + 1);
 
     publishEvent(
@@ -108,10 +118,7 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
         kind: 17,
         content: emoji,
         created_at: Math.floor(Date.now() / 1000),
-        tags: [
-          ['k', getExternalKTag(content)],
-          ['i', identifier],
-        ],
+        tags,
       },
       {
         onSuccess: () => {
@@ -154,9 +161,9 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
-            {hasReacted ? (
+            {hasReacted && userEmoji ? (
               <span className="size-5 flex items-center justify-center text-base leading-none">
-                {userReaction === '+' ? '👍' : userReaction}
+                <ReactionEmoji content={userEmoji} tags={userReactionTags} className="size-5" />
               </span>
             ) : (
               <Heart className="size-5" />
@@ -270,8 +277,12 @@ export function ExternalContentPage() {
       ? topLevel.filter((r) => !isEventMuted(r, muteItems))
       : topLevel;
 
-    // Sort oldest-first for threaded conversation view (useComments returns newest-first)
-    const sorted = [...filteredTopLevel].sort((a, b) => a.created_at - b.created_at);
+    // Country feeds are social feeds (newest-first); other types are threaded conversations (oldest-first)
+    const sorted = [...filteredTopLevel].sort((a, b) =>
+      content?.type === 'iso3166'
+        ? b.created_at - a.created_at
+        : a.created_at - b.created_at
+    );
 
     return sorted.map((reply) => {
       const directReplies = commentsData?.getDirectReplies(reply.id) ?? [];

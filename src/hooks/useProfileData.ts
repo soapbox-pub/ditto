@@ -14,9 +14,9 @@ export interface ProfileSupplementary {
 }
 
 /**
- * Fetch follow list (kind 3) and pinned notes list (kind 10001) for a pubkey.
- * Separated from kind 0 (handled by useAuthor) because kind 3 can be very
- * large and would otherwise block the profile header from rendering.
+ * Fetch follow list (kind 3) and pinned notes (kind 10001) for a pubkey.
+ * Profile tabs (kind 16769) are fetched separately by useProfileTabs to
+ * avoid stale-seed race conditions with usePublishProfileTabs.
  */
 export function useProfileSupplementary(pubkey: string | undefined) {
   const { nostr } = useNostr();

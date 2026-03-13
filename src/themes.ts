@@ -292,6 +292,228 @@ export const themePresets: Record<string, ThemePreset> = {
       mimeType: 'image/png',
     },
   },
+
+  // ─── Themes inspired by MySpace Windows93 ──────────────────────────
+
+  cottage: {
+    label: 'Cottage',
+    emoji: '🌿',
+    featured: true,
+    colors: {
+      background: '100 25% 92%',
+      text: '100 20% 12%',
+      primary: '43 80% 55%',
+    },
+    font: { family: 'Lora' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  midnight: {
+    label: 'Midnight',
+    emoji: '🌃',
+    featured: true,
+    colors: {
+      background: '0 0% 9%',
+      text: '0 0% 95%',
+      primary: '190 100% 50%',
+    },
+    font: { family: 'Inter' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  sky: {
+    label: 'Sky',
+    emoji: '☁️',
+    featured: true,
+    colors: {
+      background: '200 60% 88%',
+      text: '220 30% 15%',
+      primary: '280 55% 65%',
+    },
+    font: { family: 'Nunito' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1517483000871-1dbf64a6e1c6?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  motherboard: {
+    label: 'Motherboard',
+    emoji: '🪟',
+    featured: true,
+    colors: {
+      background: '0 0% 75%',
+      text: '0 0% 5%',
+      primary: '240 100% 30%',
+    },
+    font: { family: 'Courier Prime' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  plush: {
+    label: 'Plush',
+    emoji: '🧸',
+    colors: {
+      background: '265 55% 72%',
+      text: '55 100% 50%',
+      primary: '210 90% 55%',
+    },
+    font: { family: 'Comic Neue' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1550684376-efcbd6e3f031?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  galaxy: {
+    label: 'Galaxy',
+    emoji: '🌌',
+    featured: true,
+    colors: {
+      background: '260 40% 8%',
+      text: '220 30% 95%',
+      primary: '270 80% 65%',
+    },
+    font: { family: 'DM Sans' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  ocean: {
+    label: 'Ocean',
+    emoji: '🌊',
+    featured: true,
+    colors: {
+      background: '195 50% 12%',
+      text: '185 30% 92%',
+      primary: '175 70% 50%',
+    },
+    font: { family: 'Nunito' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  forest: {
+    label: 'Forest',
+    emoji: '🌲',
+    featured: true,
+    colors: {
+      background: '150 30% 10%',
+      text: '120 20% 90%',
+      primary: '150 60% 45%',
+    },
+    font: { family: 'Merriweather' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  clearsky: {
+    label: 'Clear Sky Vibes',
+    emoji: '✨',
+    featured: true,
+    colors: {
+      background: '228 37% 8%',
+      text: '185 100% 72%',
+      primary: '300 100% 60%',
+    },
+    font: { family: 'Comfortaa' },
+    background: {
+      url: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1920&q=80',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  silenttorii: {
+    label: 'Silent Torii',
+    emoji: '⛩️',
+    featured: true,
+    colors: {
+      primary: '3 62% 50%',
+      text: '0 0% 100%',
+      background: '0 7% 22%',
+    },
+    font: { family: 'DM Sans' },
+    background: {
+      url: 'https://blossom.ditto.pub/7a609544b62918264b6cfd1f05ae38f9ed9a7922465a4ecc2edbb1a769f887d0.jpeg',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  quiethorizon: {
+    label: 'Quiet Horizon',
+    emoji: '🌅',
+    featured: true,
+    colors: {
+      primary: '170 15% 39%',
+      text: '0 0% 100%',
+      background: '0 7% 22%',
+    },
+    font: { family: 'Lora' },
+    background: {
+      url: 'https://blossom.ditto.pub/3fc3800e0551340c000a0ac75496e642f6dbd5bddf17c5ba7f4c4ebfc8bae55f.jpeg',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  wherepathsmeet: {
+    label: 'Where Paths Meet',
+    emoji: '🌉',
+    featured: true,
+    colors: {
+      primary: '180 11% 78%',
+      text: '120 3% 81%',
+      background: '180 19% 15%',
+    },
+    font: { family: 'DM Sans' },
+    background: {
+      url: 'https://blossom.ditto.pub/a9f38f1bda2d7d984167f3b1197d3d2c7280a650ad609d24f97e35795f7cfd17.jpeg',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
+
+  once: {
+    label: 'Once',
+    emoji: '🎲',
+    featured: true,
+    colors: {
+      primary: '217 94% 72%',
+      text: '120 3% 81%',
+      background: '210 17% 7%',
+    },
+    font: { family: 'Outfit' },
+    background: {
+      url: 'https://picsum.photos/1920/1080',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
+  },
 };
 
 /** Converts a camelCase key to a CSS custom property name, e.g. primaryForeground → --primary-foreground */

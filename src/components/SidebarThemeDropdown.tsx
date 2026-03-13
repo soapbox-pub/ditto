@@ -29,6 +29,7 @@ export function SidebarThemeDropdown({ userPubkey, onNavigate, className }: Side
 
   const presetOptions = Object.entries(themePresets)
     .filter(([, p]) => p.featured)
+    .slice(0, 5)
     .map(([id, p]) => ({ id, label: p.label, emoji: p.emoji }));
 
   const activePreset = theme === 'custom' && customTheme
@@ -68,7 +69,7 @@ export function SidebarThemeDropdown({ userPubkey, onNavigate, className }: Side
           </div>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top" className="w-48">
+      <DropdownMenuContent align="end" side="top" className="w-48 z-[270]">
         {builtinOptions.map((opt) => (
           <DropdownMenuItem key={opt.value} onClick={() => setTheme(opt.value)} className="flex items-center justify-between cursor-pointer">
             <div className="flex items-center gap-2">{opt.icon}<span>{opt.label}</span></div>
@@ -107,7 +108,7 @@ export function SidebarThemeDropdown({ userPubkey, onNavigate, className }: Side
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => { onNavigate?.(); navigate('/settings/theme'); }} className="cursor-pointer text-muted-foreground">
+        <DropdownMenuItem onClick={() => { onNavigate?.(); navigate('/themes'); }} className="cursor-pointer text-muted-foreground">
           More...
         </DropdownMenuItem>
       </DropdownMenuContent>

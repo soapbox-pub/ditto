@@ -32,7 +32,7 @@ export function AdvancedSettingsPage() {
           <div>
             <h1 className="text-xl font-bold">Advanced</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Wallet, system, and power user settings
+              Wallet connections, system configuration, and other advanced options for power users.
             </p>
           </div>
         </div>

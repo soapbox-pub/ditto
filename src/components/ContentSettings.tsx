@@ -1,18 +1,36 @@
 import { useState } from 'react';
 import { IntroImage } from '@/components/IntroImage';
-import { ChevronDown, ChevronUp, Users, Download, Loader2, X } from 'lucide-react';
+import {
+  Users, Download, Loader2, X, Pencil, Home, Globe,
+  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink, ShieldAlert,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Link } from 'react-router-dom';
+import { nip19 } from 'nostr-tools';
 import { useToast } from '@/hooks/useToast';
+import { useSavedFeeds } from '@/hooks/useSavedFeeds';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppContext } from '@/hooks/useAppContext';
+import { useMuteList, type MuteListItem } from '@/hooks/useMuteList';
+import { useAuthor } from '@/hooks/useAuthor';
+import { FeedEditModal } from '@/components/FeedEditModal';
+import { buildKindOptions } from '@/components/SavedFeedFiltersEditor';
+import { genUserName } from '@/lib/genUserName';
+import { EXTRA_KINDS, FEED_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
+import { CONTENT_KIND_ICONS, SIDEBAR_ITEMS } from '@/lib/sidebarItems';
+import type { SavedFeed, TabFilter, ContentWarningPolicy } from '@/contexts/AppContext';
+import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 
 export function ContentSettings() {
-  const [notesOpen, setNotesOpen] = useState(true);
-  const [otherStuffOpen, setOtherStuffOpen] = useState(true);
-  const [feedTabsOpen, setFeedTabsOpen] = useState(false);
-
   return (
     <div>
       {/* Intro */}
@@ -23,121 +41,75 @@ export function ContentSettings() {
         </p>
       </div>
 
+      {/* Homepage Section */}
+      <HomePageSetting />
+
       {/* Feed Tabs Section */}
       <div>
-        <Collapsible open={feedTabsOpen} onOpenChange={setFeedTabsOpen}>
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-            >
-              <span className="text-base font-semibold">Feed Tabs</span>
-              {feedTabsOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="pb-4">
-              <FeedTabsSection />
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+        <div className="relative px-3 py-3.5">
+          <h2 className="text-base font-semibold">Home Feed Tabs</h2>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+        </div>
+        <div className="pb-4">
+          <FeedTabsSection />
+        </div>
       </div>
 
       {/* Notes Section */}
       <div>
-        <Collapsible open={notesOpen} onOpenChange={setNotesOpen}>
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-            >
-              <span className="text-base font-semibold">Notes</span>
-              {notesOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="pb-4">
-              <div className="px-3 pt-3 pb-4">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Core content types that appear in your feed.
-                </p>
-              </div>
+        <div className="relative px-3 py-3.5">
+          <h2 className="text-base font-semibold">Basic Home Feed Options</h2>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+        </div>
+        <div className="pb-4">
+          <div className="px-3 pt-3 pb-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Core content types that appear in your feed.
+            </p>
+          </div>
 
-              {/* Column headers */}
-              <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
-                <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
-              </div>
+          {/* Column headers */}
+          <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
+            <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
+          </div>
 
-              <NotesFeedSettings />
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+          <NotesFeedSettings />
+        </div>
       </div>
 
       {/* Other Stuff Section */}
       <div>
-        <Collapsible open={otherStuffOpen} onOpenChange={setOtherStuffOpen}>
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-            >
-              <span className="text-base font-semibold">Other Stuff</span>
-              {otherStuffOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="pb-4">
-              {/* Intro section for Other Stuff */}
-              <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-                <IntroImage src="/feed-intro.png" />
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold">Other Stuff</h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
-                  </p>
-                </div>
-              </div>
-
-              {/* Column headers */}
-              <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
-                <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
-              </div>
-
-              {/* Content type rows - reuse the internals from FeedSettingsForm */}
-              <FeedSettingsFormInternals />
+        <div className="relative px-3 py-3.5">
+          <h2 className="text-base font-semibold">Show More Content Types in Home Feed</h2>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+        </div>
+        <div className="pb-4">
+          {/* Intro section for Other Stuff */}
+          <div className="flex items-center gap-4 px-3 pt-3 pb-4">
+            <IntroImage src="/feed-intro.png" />
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold">Other Stuff</h3>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
+              </p>
             </div>
-          </CollapsibleContent>
-        </Collapsible>
+          </div>
+
+          {/* Column headers */}
+          <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
+            <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
+          </div>
+
+          {/* Content type rows - reuse the internals from FeedSettingsForm */}
+          <FeedSettingsFormInternals />
+        </div>
       </div>
 
     </div>
   );
 }
 
-// Import the internals from FeedSettingsForm (we'll need to export them)
-import { Palette } from 'lucide-react';
-import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { EXTRA_KINDS, FEED_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
-import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
-import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
+
 
 function KindBadge({ kind }: { kind: number }) {
   return (
@@ -550,15 +522,163 @@ function FeedTabsSection() {
         )}
       </div>
       </div>
+
+      {/* Saved Feeds */}
+      <SavedFeedsSection />
     </div>
   );
 }
 
-// Sensitive content settings section
-import { useAppContext } from '@/hooks/useAppContext';
-import type { ContentWarningPolicy } from '@/contexts/AppContext';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ShieldAlert } from 'lucide-react';
+// ─── Saved Feeds Section ─────────────────────────────────────────────────────
+
+function SavedFeedsSection() {
+  const { savedFeeds, addSavedFeed, removeSavedFeed, updateSavedFeed, isPending } = useSavedFeeds();
+  const { toast } = useToast();
+  const [addFeedModalOpen, setAddFeedModalOpen] = useState(false);
+  const [editingFeed, setEditingFeed] = useState<SavedFeed | null>(null);
+
+  const feedTabs = savedFeeds;
+
+  const handleAddFeed = async (label: string, filter: TabFilter, vars: SavedFeed['vars']) => {
+    await addSavedFeed(label, filter, vars);
+    toast({ title: `"${label}" added to home feed tabs` });
+  };
+
+  const handleEditFeed = async (label: string, filter: TabFilter, vars: SavedFeed['vars']) => {
+    if (!editingFeed) return;
+    await updateSavedFeed(editingFeed.id, { label, filter, vars });
+    toast({ title: 'Feed updated' });
+    setEditingFeed(null);
+  };
+
+  const handleRemove = async (feed: SavedFeed) => {
+    await removeSavedFeed(feed.id);
+    toast({ title: `"${feed.label}" removed` });
+  };
+
+  return (
+    <div className="px-3 py-4 space-y-3 border-t border-border">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Home Feed Tabs</h3>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 gap-1 text-xs"
+          onClick={() => setAddFeedModalOpen(true)}
+        >
+          <Plus className="size-3.5" />
+          Add tab
+        </Button>
+      </div>
+
+      {feedTabs.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No custom tabs yet. Save a search from the search page, or add one above.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {feedTabs.map((feed) => (
+            <SavedFeedRow
+              key={feed.id}
+              feed={feed}
+              onEdit={() => setEditingFeed(feed)}
+              onRemove={() => handleRemove(feed)}
+              isPending={isPending}
+            />
+          ))}
+        </div>
+      )}
+
+      <FeedEditModal
+        open={addFeedModalOpen}
+        onOpenChange={setAddFeedModalOpen}
+        onSave={handleAddFeed}
+        isPending={isPending}
+      />
+
+      <FeedEditModal
+        key={editingFeed?.id ?? 'edit'}
+        open={editingFeed !== null}
+        onOpenChange={(o) => { if (!o) setEditingFeed(null); }}
+        initialLabel={editingFeed?.label}
+        initialFilter={editingFeed?.filter}
+        onSave={handleEditFeed}
+        isPending={isPending}
+      />
+    </div>
+  );
+}
+
+const kindOptions = buildKindOptions();
+
+function SavedFeedRow({
+  feed,
+  onEdit,
+  onRemove,
+  isPending,
+}: {
+  feed: SavedFeed;
+  onEdit: () => void;
+  onRemove: () => void;
+  isPending: boolean;
+}) {
+  const search = typeof feed.filter.search === 'string' ? feed.filter.search : '';
+  const authors = Array.isArray(feed.filter.authors) ? feed.filter.authors as string[] : [];
+  const kinds = Array.isArray(feed.filter.kinds) ? feed.filter.kinds as number[] : [];
+
+  const scopeLabel = authors.includes('$follows')
+    ? 'Follows'
+    : authors.length > 0
+      ? `${authors.length} author${authors.length > 1 ? 's' : ''}`
+      : null;
+
+  const kindLabel = kinds.length === 0
+    ? null
+    : kinds.length === 1
+      ? (kindOptions.find((o) => o.value === String(kinds[0]))?.label ?? `Kind ${kinds[0]}`)
+      : `${kinds.length} kinds`;
+
+  return (
+    <div className="rounded-lg border border-border/50 bg-secondary/30 group">
+      <div className="flex items-center gap-2 py-2 px-2.5">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{feed.label}</p>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            {search && (
+              <span className="text-[10px] text-muted-foreground bg-secondary rounded px-1 py-0.5 truncate max-w-[140px]">"{search}"</span>
+            )}
+            {scopeLabel && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                <Globe className="size-2.5" />{scopeLabel}
+              </span>
+            )}
+            {kindLabel && (
+              <span className="text-[10px] text-muted-foreground bg-secondary rounded px-1 py-0.5">{kindLabel}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={onEdit}
+            className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            aria-label="Edit"
+          >
+            <Pencil className="size-3.5" />
+          </button>
+          <button
+            onClick={onRemove}
+            disabled={isPending}
+            className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
+            aria-label="Remove"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const CW_POLICY_OPTIONS: { value: ContentWarningPolicy; label: string; description: string }[] = [
   {
@@ -630,12 +750,6 @@ export function SensitiveContentSection() {
     </div>
   );
 }
-
-// Mute settings internals (without the intro/image)
-import { Trash2, Plus, UserX, Hash, MessageSquareOff } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useMuteList, type MuteListItem } from '@/hooks/useMuteList';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const MUTE_TYPE_CONFIG = {
   pubkey: {
@@ -817,6 +931,51 @@ export function MuteSettingsInternals() {
   );
 }
 
+/** Renders a muted user's avatar and display name instead of a raw hex pubkey. */
+function MutedUserProfile({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name ?? genUserName(pubkey);
+
+  if (author.isLoading) {
+    return (
+      <div className="flex items-center gap-2.5 min-w-0">
+        <Skeleton className="size-7 rounded-full shrink-0" />
+        <Skeleton className="h-3.5 w-24" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2.5 min-w-0">
+      <Avatar className="size-7 shrink-0">
+        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+          {displayName[0]?.toUpperCase() ?? '?'}
+        </AvatarFallback>
+      </Avatar>
+      <span className="text-sm truncate">{displayName}</span>
+    </div>
+  );
+}
+
+/** Renders a muted thread as a clickable link using the nevent identifier. */
+function MutedThreadLink({ eventId }: { eventId: string }) {
+  const nevent = nip19.neventEncode({ id: eventId });
+  const shortId = eventId.slice(0, 8) + '…' + eventId.slice(-8);
+
+  return (
+    <Link
+      to={`/${nevent}`}
+      className="flex items-center gap-1.5 text-xs font-mono text-primary hover:underline truncate"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <ExternalLink className="size-3 shrink-0" />
+      <span className="truncate">{shortId}</span>
+    </Link>
+  );
+}
+
 function MuteTypeSection({
   type: _type,
   config,
@@ -849,9 +1008,15 @@ function MuteTypeSection({
             className="flex items-center justify-between py-2.5 px-3 pl-12 hover:bg-muted/20 transition-colors"
           >
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <code className="text-xs truncate font-mono bg-muted px-2 py-1 rounded">
-                {item.value}
-              </code>
+              {item.type === 'pubkey' ? (
+                <MutedUserProfile pubkey={item.value} />
+              ) : item.type === 'thread' ? (
+                <MutedThreadLink eventId={item.value} />
+              ) : (
+                <code className="text-xs truncate font-mono bg-muted px-2 py-1 rounded">
+                  {item.value}
+                </code>
+              )}
             </div>
             <Button
               variant="ghost"
@@ -894,6 +1059,53 @@ export function ThemePreferencesSection() {
         checked={showOnProfiles}
         onCheckedChange={handleProfileThemeToggle}
       />
+    </div>
+  );
+}
+
+function HomePageSetting() {
+  const { config, updateConfig } = useAppContext();
+  const { user } = useCurrentUser();
+  const { updateSettings } = useEncryptedSettings();
+  const { toast } = useToast();
+
+  const handleHomePageChange = async (value: string) => {
+    updateConfig((c) => ({ ...c, homePage: value }));
+    if (user) {
+      await updateSettings.mutateAsync({ homePage: value });
+    }
+    const item = SIDEBAR_ITEMS.find((s) => s.id === value);
+    toast({ title: `Homepage set to ${item?.label ?? value}` });
+  };
+
+  return (
+    <div className="px-3 pb-4">
+      <div className="flex items-center justify-between py-3.5">
+        <div className="min-w-0 flex-1">
+          <Label className="text-sm font-medium flex items-center gap-2">
+            <Home className="size-4" />
+            Homepage
+          </Label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Choose which page to display when you open the app
+          </p>
+        </div>
+        <Select value={config.homePage} onValueChange={handleHomePageChange}>
+          <SelectTrigger className="w-[160px] shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SIDEBAR_ITEMS.map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                <span className="flex items-center gap-2">
+                  {item.label}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="h-px bg-border" />
     </div>
   );
 }

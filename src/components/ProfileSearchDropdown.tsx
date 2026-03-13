@@ -23,6 +23,8 @@ interface ProfileSearchDropdownProps {
   onSelect?: (profile: SearchProfile) => void;
   /** When true, pressing Enter without a profile selected navigates to the search page */
   enableTextSearch?: boolean;
+  /** When true, country suggestions are hidden from the dropdown */
+  hideCountry?: boolean;
 }
 
 export function ProfileSearchDropdown({
@@ -32,6 +34,7 @@ export function ProfileSearchDropdown({
   autoFocus,
   onSelect,
   enableTextSearch,
+  hideCountry = false,
 }: ProfileSearchDropdownProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -44,8 +47,9 @@ export function ProfileSearchDropdown({
 
   const { data: profiles, isFetching, followedPubkeys } = useSearchProfiles(query);
 
-  // Country suggestion (local, synchronous)
-  const countryMatch = useMemo(() => searchCountry(query), [query]);
+  // Country suggestion (local, synchronous) — suppressed when hideCountry is true
+  const countryMatchRaw = useMemo(() => searchCountry(query), [query]);
+  const countryMatch = hideCountry ? null : countryMatchRaw;
   const profileCount = profiles?.length ?? 0;
   // Show country at top only for exact matches; otherwise at bottom (after profiles)
   const countryAtTop = !!countryMatch && (countryMatch.exact || profileCount === 0);
