@@ -56,6 +56,12 @@ interface JustifiedRow<T> {
   heightFraction: number;
 }
 
+interface JustifiedLayoutResult<T> {
+  rows: JustifiedRow<T>[];
+  /** True when the last row was not fully packed (trailing/orphan row). */
+  lastRowIncomplete: boolean;
+}
+
 /**
  * Compute a justified (Google Photos–style) row layout.
  * Packs items into rows so each row fills the container width.
@@ -71,8 +77,8 @@ function justifiedLayout<T>(
   getAspectRatio: (item: T) => number,
   targetRowHeight: number = 0.3,
   maxRowItems: number = 5,
-): JustifiedRow<T>[] {
-  if (items.length === 0) return [];
+): JustifiedLayoutResult<T> {
+  if (items.length === 0) return { rows: [], lastRowIncomplete: false };
 
   const rows: JustifiedRow<T>[] = [];
   let currentRow: T[] = [];
@@ -102,9 +108,10 @@ function justifiedLayout<T>(
       items: currentRow,
       heightFraction: Math.min(rowHeightFraction, targetRowHeight),
     });
+    return { rows, lastRowIncomplete: true };
   }
 
-  return rows;
+  return { rows, lastRowIncomplete: false };
 }
 
 // ── Media extraction ──────────────────────────────────────────────────────────
@@ -391,7 +398,7 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
   }, [items]);
 
   // Compute justified row layout — fewer items per row on mobile for larger thumbnails
-  const rows = useMemo(
+  const { rows, lastRowIncomplete } = useMemo(
     () => justifiedLayout(
       items.map((item, i) => ({ item, index: i })),
       ({ item }) => parseDimToAspectRatio(item.dim),
@@ -400,6 +407,10 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
     ),
     [items, isMobile],
   );
+
+  // When more pages are coming, hide the trailing incomplete row to avoid
+  // oversized orphan thumbnails. Show a skeleton placeholder instead.
+  const visibleRows = hasNextPage && lastRowIncomplete ? rows.slice(0, -1) : rows;
 
   // Open at initialOpenUrl if provided
   const initialIndex = useMemo(() => {
@@ -463,7 +474,7 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
   return (
     <>
       <div className={cn('flex flex-col gap-1.5 p-1.5', className)}>
-        {rows.map((row, rowIdx) => {
+        {visibleRows.map((row, rowIdx) => {
           // The row's aspect ratio is the sum of all item aspect ratios
           // (at equal height, total width = sum of ARs * height)
           const rowAR = row.items.reduce((s, { item }) => s + parseDimToAspectRatio(item.dim), 0);
@@ -494,6 +505,26 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
             </div>
           );
         })}
+
+        {/* Skeleton placeholder while next page loads */}
+        {hasNextPage && (
+          <>
+            {(isMobile ? SKELETON_ROWS_MOBILE : SKELETON_ROWS_DESKTOP).slice(0, 2).map((ratios, i) => {
+              const rowAR = ratios.reduce((s, r) => s + r, 0);
+              return (
+                <div key={`skel-${i}`} className="flex gap-1.5" style={{ aspectRatio: `${rowAR}` }}>
+                  {ratios.map((ar, j) => (
+                    <Skeleton
+                      key={j}
+                      className="rounded-lg h-full animate-pulse"
+                      style={{ flexGrow: ar, flexBasis: 0 }}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </>
+        )}
       </div>
 
       {flatIndex !== null && (
