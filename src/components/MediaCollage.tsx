@@ -1,5 +1,5 @@
 /**
- * MediaGrid — justified row-based collage for Nostr media events (Google Photos style).
+ * MediaCollage — justified row-based collage for Nostr media events (Google Photos style).
  * Supports images, video, and audio. Images respect their aspect ratios from imeta `dim` tags.
  * All media across all events is flattened into one array so the Lightbox strip swipe
  * just advances through them in order.
@@ -313,7 +313,7 @@ const SKELETON_ROWS_MOBILE = [
   [1.5, 0.8],
 ];
 
-export function MediaGridSkeleton({ count = 15 }: { count?: number }) {
+export function MediaCollageSkeleton({ count = 15 }: { count?: number }) {
   const isMobile = useIsMobile();
   const skeletonRows = isMobile ? SKELETON_ROWS_MOBILE : SKELETON_ROWS_DESKTOP;
   const perRow = isMobile ? 2 : 3;
@@ -346,9 +346,9 @@ export function MediaGridSkeleton({ count = 15 }: { count?: number }) {
   );
 }
 
-// ── MediaGrid ─────────────────────────────────────────────────────────────────
+// ── MediaCollage ─────────────────────────────────────────────────────────────────
 
-interface MediaGridProps {
+interface MediaCollageProps {
   events: NostrEvent[];
   className?: string;
   /** If set, the lightbox opens at this URL on mount (used by sidebar click). */
@@ -362,7 +362,7 @@ interface MediaGridProps {
   isFetchingNextPage?: boolean;
 }
 
-export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed, onNearEnd, hasNextPage }: MediaGridProps) {
+export function MediaCollage({ events, className, initialOpenUrl, onInitialOpenConsumed, onNearEnd, hasNextPage }: MediaCollageProps) {
   const isMobile = useIsMobile();
 
   const items = useMemo(

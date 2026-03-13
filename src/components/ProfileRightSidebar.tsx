@@ -16,7 +16,7 @@ import QRCode from 'qrcode';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getContentWarning } from '@/lib/contentWarning';
 import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
-import { parseDimToAspectRatio } from '@/components/MediaGrid';
+import { parseDimToAspectRatio } from '@/components/MediaCollage';
 
 /** Simple email regex for display purposes. */
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
