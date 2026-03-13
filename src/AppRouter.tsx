@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes, useSearchParams } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { getExtraKindDef } from "./lib/extraKinds";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { ScrollToTop } from "./components/ScrollToTop";
@@ -62,11 +62,6 @@ function ProfileRedirect() {
   return <Navigate to={profileUrl} replace />;
 }
 
-/** Forces SearchPage to remount when ?q changes, preventing stale results from flickering. */
-function SearchPageKeyed() {
-  const [searchParams] = useSearchParams();
-  return <SearchPage key={searchParams.get('q') ?? ''} />;
-}
 
 export function AppRouter() {
   return (
@@ -81,7 +76,7 @@ export function AppRouter() {
           <Route path="/" element={<HomePage />} />
           <Route path="/feed" element={<Index />} />
           <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/search" element={<SearchPageKeyed />} />
+          <Route path="/search" element={<SearchPage />} />
           <Route path="/trends" element={<TrendsPage />} />
           <Route path="/profile" element={<ProfileRedirect />} />
           <Route path="/t/:tag" element={<HashtagPage />} />
