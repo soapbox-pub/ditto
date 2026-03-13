@@ -422,7 +422,8 @@ function sidebarJustifiedLayout(items: MediaItem[]): { items: MediaItem[]; heigh
       currentAspectSum = 0;
     }
   }
-  if (currentRow.length > 0) {
+  // Drop orphan single-item trailing rows — they look oversized in the compact sidebar
+  if (currentRow.length > 1) {
     const rowHeightFraction = 1 / currentAspectSum;
     rows.push({ items: currentRow, heightFraction: Math.min(rowHeightFraction, targetRowHeight) });
   }
