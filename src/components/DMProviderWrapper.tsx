@@ -1,6 +1,6 @@
 import { type ReactNode, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
-import { DMProvider, DEFAULT_NEW_MESSAGE_SOUNDS } from '@samthomson/nostr-messaging/core';
+import { DMProvider } from '@samthomson/nostr-messaging/core';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -12,6 +12,7 @@ import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { toast } from '@/hooks/useToast';
 import { getDisplayName } from '@/lib/getDisplayName';
+import { APP_NEW_MESSAGE_SOUNDS } from '@/lib/messagingSounds';
 
 interface DMProviderWrapperProps {
   children: ReactNode;
@@ -69,7 +70,7 @@ export function DMProviderWrapper({ children }: DMProviderWrapperProps) {
   const relayMode = messaging.relayMode ?? 'hybrid';
   const renderInlineMedia = messaging.renderInlineMedia ?? true;
   const soundEnabled = messaging.soundEnabled ?? false;
-  const soundId = messaging.soundId ?? DEFAULT_NEW_MESSAGE_SOUNDS[0]?.id ?? '';
+  const soundId = messaging.soundId ?? APP_NEW_MESSAGE_SOUNDS[0]?.id ?? '';
   const devMode = messaging.devMode ?? false;
 
   return (
@@ -84,7 +85,7 @@ export function DMProviderWrapper({ children }: DMProviderWrapperProps) {
         appName: config.appName,
         appDescription: `Direct messages on ${config.appName}`,
         soundPref: {
-          options: DEFAULT_NEW_MESSAGE_SOUNDS,
+          options: APP_NEW_MESSAGE_SOUNDS,
           value: { enabled: soundEnabled, soundId },
           onChange: () => {},
         },

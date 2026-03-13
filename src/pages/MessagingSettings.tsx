@@ -12,8 +12,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, AlertCircle, Play } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { DEFAULT_NEW_MESSAGE_SOUNDS, getMediaCacheStats, type RelayMode } from '@samthomson/nostr-messaging/core';
+import { getMediaCacheStats, type RelayMode } from '@samthomson/nostr-messaging/core';
 import { IntroImage } from '@/components/IntroImage';
+import { APP_NEW_MESSAGE_SOUNDS } from '@/lib/messagingSounds';
 
 export default function MessagingSettings() {
   const { config, updateConfig } = useAppContext();
@@ -42,7 +43,7 @@ export default function MessagingSettings() {
   const preloadedSoundsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   useEffect(() => {
     const map = new Map<string, HTMLAudioElement>();
-    DEFAULT_NEW_MESSAGE_SOUNDS.forEach((sound) => {
+    APP_NEW_MESSAGE_SOUNDS.forEach((sound) => {
       const audio = new Audio(sound.url);
       audio.volume = 0.5;
       audio.preload = 'auto';
@@ -57,7 +58,7 @@ export default function MessagingSettings() {
   const relayMode = messaging.relayMode ?? 'hybrid';
   const renderInlineMedia = messaging.renderInlineMedia ?? true;
   const soundEnabled = messaging.soundEnabled ?? false;
-  const soundId = messaging.soundId ?? DEFAULT_NEW_MESSAGE_SOUNDS[0]?.id ?? '';
+  const soundId = messaging.soundId ?? APP_NEW_MESSAGE_SOUNDS[0]?.id ?? '';
   const devMode = messaging.devMode ?? false;
 
   const handleRelayModeChange = (mode: string) => {
@@ -202,7 +203,7 @@ export default function MessagingSettings() {
                       </Label>
                     </div>
                   </div>
-                  {DEFAULT_NEW_MESSAGE_SOUNDS.map((sound) => (
+                  {APP_NEW_MESSAGE_SOUNDS.map((sound) => (
                     <div
                       key={sound.id}
                       className="flex items-center justify-between space-x-3 space-y-0 group"
