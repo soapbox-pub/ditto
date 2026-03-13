@@ -53,8 +53,10 @@ export function headerLabel(content: ExternalContent): string {
     }
     case 'isbn':
       return 'Books';
-    case 'iso3166':
-      return getCountryInfo(content.code)?.name ?? 'Country';
+    case 'iso3166': {
+      const info = getCountryInfo(content.code);
+      return info?.subdivisionName ?? info?.name ?? 'Country';
+    }
     default:
       return 'External Content';
   }
@@ -74,8 +76,9 @@ export function seoTitle(content: ExternalContent, appName: string): string {
       return `Book (ISBN ${isbn}) | ${appName}`;
     }
     case 'iso3166': {
-      const info = getCountryInfo(content.code);
-      return info ? `${info.name} | ${appName}` : `Country | ${appName}`;
+      const seoInfo = getCountryInfo(content.code);
+      const seoName = seoInfo?.subdivisionName ?? seoInfo?.name;
+      return seoName ? `${seoName} | ${appName}` : `Country | ${appName}`;
     }
     default:
       return `External Content | ${appName}`;

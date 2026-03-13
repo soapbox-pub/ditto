@@ -1,14 +1,17 @@
 import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus, Check, Loader2 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useInterests } from '@/hooks/useInterests';
 import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
@@ -20,8 +23,12 @@ export function HashtagPage() {
   const { config } = useAppContext();
   const { tag } = useParams<{ tag: string }>();
   const { nostr } = useNostr();
+  const { user } = useCurrentUser();
   const { feedSettings } = useFeedSettings();
   const { muteItems } = useMuteList();
+  const { hasInterest, addInterest, removeInterest } = useInterests();
+  const isFollowing = tag ? hasInterest(tag) : false;
+  const interestPending = addInterest.isPending || removeInterest.isPending;
 
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
   const kindsKey = [...kinds].sort().join(',');
@@ -56,7 +63,24 @@ export function HashtagPage() {
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <h1 className="text-xl font-bold">#{tag}</h1>
+          <h1 className="text-xl font-bold flex-1">#{tag}</h1>
+          {user && tag && (
+            <Button
+              size="sm"
+              variant={isFollowing ? 'outline' : 'default'}
+              className="rounded-full gap-1.5 shrink-0"
+              disabled={interestPending}
+              onClick={() => isFollowing ? removeInterest.mutate(tag) : addInterest.mutate(tag)}
+            >
+              {interestPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : isFollowing ? (
+                <><Check className="size-3.5" /> Following</>
+              ) : (
+                <><Plus className="size-3.5" /> Follow</>
+              )}
+            </Button>
+          )}
         </div>
 
         {isLoading ? (

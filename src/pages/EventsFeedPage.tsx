@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
@@ -13,6 +13,7 @@ import { KindInfoButton } from '@/components/KindInfoButton';
 import { NoteCard } from '@/components/NoteCard';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFeedTab } from '@/hooks/useFeedTab';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useMuteList } from '@/hooks/useMuteList';
@@ -38,11 +39,7 @@ export function EventsFeedPage() {
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
-
-  useEffect(() => {
-    if (user) setActiveTab('follows');
-  }, [user]);
+  const [activeTab, setActiveTab] = useFeedTab<FeedTab>('events', ['follows', 'global']);
 
   useSeoMeta({ title: `Events | ${config.appName}` });
   useLayoutOptions({ showFAB: true, fabKind: 31923 });

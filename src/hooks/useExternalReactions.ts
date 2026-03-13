@@ -3,21 +3,27 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { type ExternalContent } from '@/lib/externalContent';
 
+/** The user's reaction emoji string and the event tags (needed for custom emoji rendering). */
+export interface ExternalUserReaction {
+  emoji: string;
+  tags: string[][];
+}
+
 /**
  * Returns the current user's kind 17 reaction for a given external content identifier, if any.
- * Returns undefined while loading, null if no reaction, or the emoji string.
+ * Returns undefined while loading, null if no reaction, or an object with emoji + tags.
  */
-export function useExternalUserReaction(content: ExternalContent | null | undefined): string | null | undefined {
+export function useExternalUserReaction(content: ExternalContent | null | undefined): ExternalUserReaction | null | undefined {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const identifier = content?.value ?? '';
 
-  const optimistic = queryClient.getQueryData<string | null>(['external-user-reaction', identifier]);
+  const optimistic = queryClient.getQueryData<ExternalUserReaction | null>(['external-user-reaction', identifier]);
 
   const { data } = useQuery({
     queryKey: ['external-user-reaction', identifier],
-    queryFn: async ({ signal }): Promise<string | null> => {
+    queryFn: async ({ signal }): Promise<ExternalUserReaction | null> => {
       if (!identifier || !user) return null;
 
       const events = await nostr.query(
@@ -33,7 +39,7 @@ export function useExternalUserReaction(content: ExternalContent | null | undefi
       if (events.length === 0) return null;
       const c = events[0].content.trim();
       if (c === '-') return null;
-      return c || '+';
+      return { emoji: c || '+', tags: events[0].tags };
     },
     enabled: !!identifier && !!user && optimistic === undefined,
     staleTime: 5 * 60 * 1000,

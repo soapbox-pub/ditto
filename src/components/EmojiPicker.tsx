@@ -132,6 +132,16 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
     const picker = new Picker(pickerOptions);
     pickerRef.current = picker;
 
+    // Inject style into shadow DOM to remove backdrop-filter blur on the sticky category bar
+    requestAnimationFrame(() => {
+      const shadowRoot = (container.firstChild as HTMLElement)?.shadowRoot;
+      if (shadowRoot) {
+        const style = document.createElement('style');
+        style.textContent = '.sticky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background-color: var(--em-color-background) !important; }';
+        shadowRoot.appendChild(style);
+      }
+    });
+
     return () => {
       // Clean up: remove the picker's custom element from the DOM.
       pickerRef.current = null;
@@ -147,6 +157,7 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
     <div
       ref={containerRef}
       className="emoji-mart-wrapper"
+      style={{ isolation: 'isolate' }}
       onWheel={(e) => {
         // Prevent scroll from bubbling to the page
         e.stopPropagation();

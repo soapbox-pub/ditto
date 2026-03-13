@@ -19,6 +19,7 @@ import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useTheme } from '@/hooks/useTheme';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -46,6 +47,7 @@ export function LeftSidebar() {
   const {
     orderedItems, hiddenItems, updateSidebarOrder, addToSidebar, addDividerToSidebar, removeFromSidebar,
   } = useFeedSettings();
+  const { config } = useAppContext();
 
   const visibleItems = useMemo(() => {
     if (user) return orderedItems;
@@ -72,6 +74,8 @@ export function LeftSidebar() {
   const [statusEditing, setStatusEditing] = useState(false);
   const [statusDraft, setStatusDraft] = useState('');
 
+  const homePage = config.homePage;
+
   const scrollToTopIfCurrent = useCallback((to: string) => (e: React.MouseEvent) => {
     if (location.pathname === to) {
       e.preventDefault();
@@ -94,7 +98,7 @@ export function LeftSidebar() {
     { value: 'light', label: 'Light', icon: <Sun className="size-4" /> },
     { value: 'dark', label: 'Dark', icon: <Moon className="size-4" /> },
   ];
-  const presetOptions = Object.entries(themePresets).filter(([, p]) => p.featured).map(([id, p]) => ({ id, label: p.label, emoji: p.emoji }));
+  const presetOptions = Object.entries(themePresets).filter(([, p]) => p.featured).slice(0, 5).map(([id, p]) => ({ id, label: p.label, emoji: p.emoji }));
   const activePreset = theme === 'custom' && customTheme ? Object.entries(themePresets).find(([, p]) => JSON.stringify(p.colors) === JSON.stringify(customTheme)) : undefined;
   const sidebarUserThemes = useUserThemes(user?.pubkey);
   const activeUserTheme = theme === 'custom' && customTheme && !activePreset ? sidebarUserThemes.data?.find(t => JSON.stringify(t.colors) === JSON.stringify(customTheme)) : undefined;
@@ -134,10 +138,11 @@ export function LeftSidebar() {
           editing={editing}
           onRemove={removeFromSidebar}
           onReorder={updateSidebarOrder}
-          isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl)}
-          getOnClick={(id) => id === 'feed' ? scrollToTopIfCurrent('/') : undefined}
+          isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl, homePage)}
+          getOnClick={(id) => id === homePage ? scrollToTopIfCurrent('/') : undefined}
           getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
           getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
+          homePage={homePage}
         />
 
         <SidebarMoreMenu
@@ -149,6 +154,7 @@ export function LeftSidebar() {
           onAddDivider={addDividerToSidebar}
           open={moreMenuOpen}
           onOpenChange={setMoreMenuOpen}
+          homePage={homePage}
         />
       </nav>
 
@@ -323,11 +329,11 @@ export function LeftSidebar() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors">
-                      <div className="flex items-center gap-3"><Palette className="size-4 text-muted-foreground" /><span>Vibe</span></div>
+                      <div className="flex items-center gap-3"><Palette className="size-4 text-muted-foreground" /><span>Theme</span></div>
                       <div className="flex items-center gap-2 text-muted-foreground">{currentThemeIcon}<span className="text-xs">{currentThemeLabel}</span><ChevronDown className="size-4" /></div>
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" side="top" className="w-48">
+                  <DropdownMenuContent align="end" side="top" className="w-48 z-[270]">
                     {builtinThemeOptions.map((opt) => (
                       <DropdownMenuItem key={opt.value} onClick={() => setTheme(opt.value)} className="flex items-center justify-between cursor-pointer">
                         <div className="flex items-center gap-2">{opt.icon}<span>{opt.label}</span></div>
@@ -366,7 +372,7 @@ export function LeftSidebar() {
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => { setAccountPopoverOpen(false); navigate('/settings/theme'); }} className="cursor-pointer text-muted-foreground">More...</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setAccountPopoverOpen(false); navigate('/themes'); }} className="cursor-pointer text-muted-foreground">More...</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

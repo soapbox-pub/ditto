@@ -124,8 +124,43 @@ export interface FeedSettings {
   showDevelopment: boolean;
   /** Include Development content in the follows/global feed */
   feedIncludeDevelopment: boolean;
+  /** Show Badges (NIP-58 kind 30009) link in sidebar */
+  showBadges: boolean;
+  /** Show badge definitions (kind 30009) on the Badges page */
+  showBadgeDefinitions: boolean;
+  /** Show profile badges (kind 30008) on the Badges page */
+  showProfileBadges: boolean;
+  /** Include badge definitions (kind 30009) in the follows/global feed */
+  feedIncludeBadgeDefinitions: boolean;
+  /** Include profile badges (kind 30008) in the follows/global feed */
+  feedIncludeProfileBadges: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
+}
+
+/**
+ * A standard NIP-01 filter object that may contain variable placeholders
+ * (`$name`) in string positions. After resolution, becomes a `NostrFilter`.
+ */
+export type TabFilter = Record<string, unknown>;
+
+/** A variable definition for tab filters (extracted from `var` tags). */
+export interface TabVarDef {
+  /** Variable name including the `$` prefix, e.g. `"$follows"`. */
+  name: string;
+  /** Tag name to extract from the referenced event, e.g. `"p"`. */
+  tagName: string;
+  /** Event pointer: `e:<id>` or `a:<kind>:<pubkey>:<d-tag>`. May contain variables. */
+  pointer: string;
+}
+
+/** A named feed tab saved from the search page. */
+export interface SavedFeed {
+  id: string;
+  label: string;
+  filter: TabFilter;
+  vars: TabVarDef[];
+  createdAt: number;
 }
 
 export interface AppConfig {
@@ -133,6 +168,8 @@ export interface AppConfig {
   appName: string;
   /** Application identifier used as a prefix for application-specific metadata (NIP-78 d-tags, etc). Default: "ditto". */
   appId: string;
+  /** Sidebar item ID to display on the homepage ("/"). Default: "feed". */
+  homePage: string;
   /** NIP-89 addr (`31990:<pubkey>:<d-tag>`) identifying this client's handler event. Included as the third element of the "client" tag. */
   client?: string;
   /** Enable Magic Mouse mode: cursor/finger emanates magical fire in the primary color */
@@ -165,13 +202,25 @@ export interface AppConfig {
   corsProxy: string;
   /** How to handle NIP-36 content-warning events (blur, hide, or show). Default: "blur". */
   contentWarningPolicy: ContentWarningPolicy;
+  /** Sentry DSN for error reporting (empty string = disabled). */
+  sentryDsn: string;
+  /** Whether the user has enabled Sentry error reporting. */
+  sentryEnabled: boolean;
+  /** Plausible Analytics domain (empty string = disabled). */
+  plausibleDomain: string;
+  /** Plausible Analytics API endpoint (empty string = use default). */
+  plausibleEndpoint: string;
+  /** Saved home feed tabs. Cached locally so they appear instantly on load. */
+  savedFeeds: SavedFeed[];
 }
 
 export interface AppContextType {
   /** Current application configuration */
   config: AppConfig;
   /** Update configuration using a callback that receives current config and returns new config */
-  updateConfig: (updater: (currentConfig: Partial<AppConfig>) => Partial<AppConfig>) => void;
+  updateConfig: (
+    updater: (currentConfig: Partial<AppConfig>) => Partial<AppConfig>,
+  ) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);

@@ -17,7 +17,7 @@ interface ProfileFeedPage {
 
 const PAGE_SIZE = 15;
 
-export type ProfileTab = 'posts' | 'replies' | 'media' | 'likes' | 'wall';
+export type ProfileTab = 'posts' | 'replies' | 'media' | 'likes' | 'wall' | 'badges';
 
 /** Kinds that are inherently media (video/image) content. */
 const MEDIA_KINDS = new Set([34236]); // vines
@@ -53,7 +53,7 @@ export function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
  * Infinite-scroll hook for profile posts/replies/media.
  * Fetches paginated events for a given pubkey and tab.
  */
-export function useProfileFeed(pubkey: string | undefined) {
+export function useProfileFeed(pubkey: string | undefined, enabled = true) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { feedSettings } = useFeedSettings();
@@ -159,7 +159,7 @@ export function useProfileFeed(pubkey: string | undefined) {
       return lastPage.oldestQueryTimestamp - 1;
     },
     initialPageParam: undefined as number | undefined,
-    enabled: !!pubkey,
+    enabled: !!pubkey && enabled,
     staleTime: 30 * 1000,
   });
 }
@@ -208,7 +208,7 @@ export function useProfileLikes(pubkey: string | undefined, active: boolean) {
       // Extract the liked event IDs, preserving order
       const likedIds: string[] = [];
       for (const r of sortedReactions) {
-        const id = r.tags.find(([n]) => n === 'e')?.[1];
+        const id = r.tags.findLast(([n]) => n === 'e')?.[1];
         if (id && !likedIds.includes(id)) {
           likedIds.push(id);
         }

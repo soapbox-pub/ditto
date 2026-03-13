@@ -12,6 +12,7 @@ import { Lightbox, ImageGallery } from '@/components/ImageGallery';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { EmojifiedText, CustomEmojiImg } from '@/components/CustomEmoji';
 import { buildEmojiMap } from '@/lib/customEmoji';
+import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { COUNTRIES } from '@/lib/countries';
 import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX } from '@/lib/mediaUrls';
@@ -28,7 +29,7 @@ interface NoteContentProps {
 }
 
 /** Regex matching `:shortcode:` patterns in text. */
-const SHORTCODE_REGEX = /:([a-zA-Z0-9_]+):/g;
+const SHORTCODE_REGEX = /:([a-zA-Z0-9_-]+):/g;
 
 /**
  * Replaces `:shortcode:` patterns in text with inline custom emoji images.
@@ -174,7 +175,8 @@ type ContentToken =
   | { type: 'nevent-embed'; eventId: string; relays?: string[]; author?: string }
   | { type: 'naddr-embed'; addr: AddrCoords; url?: string }
   | { type: 'nostr-link'; id: string; raw: string }
-  | { type: 'hashtag'; tag: string; raw: string };
+  | { type: 'hashtag'; tag: string; raw: string }
+  | { type: 'relay-link'; url: string };
 
 /**
  * Regex segment matching a single visual emoji unit, including:
@@ -203,7 +205,7 @@ const EMOJI_UNIT = [
 ].join('|');
 
 /** NIP-30 custom emoji shortcode pattern. */
-const CUSTOM_EMOJI_SHORTCODE = ':([a-zA-Z0-9_]+):';
+const CUSTOM_EMOJI_SHORTCODE = ':([a-zA-Z0-9_-]+):';
 
 /** Regex matching a string of only NIP-30 custom emoji shortcodes and/or unicode emojis (with optional whitespace). Max 10 visual emojis. */
 const EMOJI_OR_CUSTOM_ONLY_REGEX = new RegExp(
@@ -215,7 +217,7 @@ const EMOJI_OR_CUSTOM_ONLY_REGEX = new RegExp(
 function isOnlyEmojisOrCustom(text: string, emojiMap: Map<string, string>): boolean {
   if (!EMOJI_OR_CUSTOM_ONLY_REGEX.test(text)) return false;
   // Verify all shortcodes in the text actually resolve to a custom emoji
-  const shortcodeMatches = text.matchAll(/:([a-zA-Z0-9_]+):/g);
+  const shortcodeMatches = text.matchAll(/:([a-zA-Z0-9_-]+):/g);
   for (const m of shortcodeMatches) {
     if (!emojiMap.has(m[1])) return false;
   }
@@ -234,7 +236,7 @@ export function NoteContent({
     const text = event.content;
     // Match: URLs | nostr:-prefixed NIP-19 ids | @-prefixed or bare NIP-19 ids | hashtags
     // NIP-19 ids can appear anywhere (with optional @ prefix that gets consumed)
-    const regex = /(https?:\/\/[^\s]+)|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|(#\w+)/g;
+    const regex = /((?:https?|wss?):\/\/[^\s]+)|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|(#\w+)/g;
 
     const result: ContentToken[] = [];
     let lastIndex = 0;
@@ -266,6 +268,14 @@ export function NoteContent({
             // The punctuation will be part of the next text token
           }
         }
+
+        // WebSocket relay URLs → link to internal relay page
+        if (/^wss?:\/\//i.test(url)) {
+          result.push({ type: 'relay-link', url });
+          lastIndex = index + fullMatch.length;
+          continue;
+        }
+
         // Image URLs → render inline at their position in the text
         if (IMAGE_URL_REGEX.test(url)) {
           if (result.length > 0) {
@@ -411,8 +421,20 @@ export function NoteContent({
     return result.filter((t) => !(t.type === 'text' && t.value === ''));
   }, [event]);
 
-  // Build emoji map for NIP-30 custom emoji rendering
-  const emojiMap = useMemo(() => buildEmojiMap(event.tags), [event.tags]);
+  // Build emoji map for NIP-30 custom emoji rendering.
+  // Merge the event's own emoji tags with the viewer's custom emoji collection
+  // so shortcodes render even when the published event omitted the tag.
+  const { emojis: viewerEmojis } = useCustomEmojis();
+  const emojiMap = useMemo(() => {
+    const map = buildEmojiMap(event.tags);
+    // Viewer's collection is a fallback — event tags take priority
+    for (const e of viewerEmojis) {
+      if (!map.has(e.shortcode)) {
+        map.set(e.shortcode, e.url);
+      }
+    }
+    return map;
+  }, [event.tags, viewerEmojis]);
 
   // Parse imeta tags for dim/blurhash to pass to ImageGallery
   const imetaMap = useMemo(() => {
@@ -607,6 +629,17 @@ export function NoteContent({
                 onClick={(e) => e.stopPropagation()}
               >
                 {token.raw}
+              </Link>
+            );
+          case 'relay-link':
+            return (
+              <Link
+                key={i}
+                to={`/r/${encodeURIComponent(token.url)}`}
+                className="text-primary hover:underline break-all"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {token.url}
               </Link>
             );
         }

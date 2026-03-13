@@ -31,7 +31,7 @@ function parseGeocacheAddr(tags: string[][]): AddrCoords | undefined {
 /** Renders the content of a found log event (kind 7516). */
 export function FoundLogContent({ event }: { event: NostrEvent }) {
   const text = event.content;
-  const images = getAllTags(event.tags, 'image');
+  const images = getAllTags(event.tags, 'image').filter((url) => url.trim() !== '');
   const hasVerification = !!getTag(event.tags, 'verification');
 
   const geocacheAddr = useMemo(() => parseGeocacheAddr(event.tags), [event.tags]);

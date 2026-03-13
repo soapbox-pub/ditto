@@ -109,7 +109,7 @@ export function ThemeContent({ event }: ThemeContentProps) {
       {/* Actions — only Edit for own theme definitions */}
       {isDefinition && identifier && isOwn && (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <Link to={`/settings/theme/edit?edit=${identifier}`}>
+          <Link to="/themes">
             <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-accent">
               <Pencil className="size-3.5 mr-1" />
               Edit Theme

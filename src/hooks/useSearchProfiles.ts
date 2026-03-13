@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { NSchema as n } from '@nostrify/nostrify';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export interface SearchProfile {
   pubkey: string;
@@ -63,14 +64,17 @@ export function useSearchProfiles(query: string) {
     [followData?.pubkeys],
   );
 
+  // Debounce the query so we don't hammer the relay on every keystroke
+  const debouncedQuery = useDebounce(query, 300);
+
   const relayResults = useQuery<SearchProfile[]>({
-    queryKey: ['search-profiles', query],
+    queryKey: ['search-profiles', debouncedQuery],
     queryFn: async ({ signal }) => {
-      if (!query.trim()) return [];
+      if (!debouncedQuery.trim()) return [];
 
       // NIP-50 profile search (uses pool, reuses existing connections)
       const events = await nostr.query(
-        [{ kinds: [0], search: query.trim(), limit: 10 }],
+        [{ kinds: [0], search: debouncedQuery.trim(), limit: 10 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
@@ -96,7 +100,7 @@ export function useSearchProfiles(query: string) {
 
       return Array.from(seen.values());
     },
-    enabled: query.trim().length >= 1,
+    enabled: debouncedQuery.trim().length >= 1,
     staleTime: 30 * 1000,
     placeholderData: (prev) => prev,
   });
@@ -115,12 +119,12 @@ export function useSearchProfiles(query: string) {
     }
 
     // Relay returned nothing — search the local cache instead
-    if (query.trim().length >= 1) {
-      return searchCachedProfiles(queryClient, query.trim(), followedPubkeys);
+    if (debouncedQuery.trim().length >= 1) {
+      return searchCachedProfiles(queryClient, debouncedQuery.trim(), followedPubkeys);
     }
 
     return relayData;
-  }, [relayResults.data, followedPubkeys, query, queryClient]);
+  }, [relayResults.data, followedPubkeys, debouncedQuery, queryClient]);
 
   return {
     ...relayResults,

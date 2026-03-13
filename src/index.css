@@ -40,9 +40,9 @@
     bottom: env(safe-area-inset-bottom, 0px);
   }
   
-  /* FAB bottom offset: clears the mobile bottom nav + safe area inset */
+  /* FAB bottom offset: clears safe area inset */
   .bottom-fab {
-    bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
   }
 
   /* Mobile top bar height (48px) + safe area inset for sticky elements */
@@ -50,20 +50,20 @@
     top: calc(3rem + env(safe-area-inset-top, 0px));
   }
 
-  /* AI chat height on mobile: full viewport minus top bar, bottom nav, and safe-area insets */
+  /* AI chat height on mobile: full viewport minus top bar and safe-area insets */
   .ai-chat-height {
-    height: calc(100dvh - 3rem - 3.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 3rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   }
 
-  /* Live stream page height on mobile: full viewport minus top bar, bottom nav, and safe-area insets */
+  /* Live stream page height on mobile: full viewport minus top bar and safe-area insets */
   .livestream-height {
-    height: calc(100dvh - 3rem - 3.5rem - env(safe-area-inset-bottom, 0px));
-    max-height: calc(100dvh - 3rem - 3.5rem - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 3rem - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 3rem - env(safe-area-inset-bottom, 0px));
   }
 
-  /* Vine feed slide height: full viewport minus top bar, tab bar, bottom nav, and safe-area insets */
+  /* Vine feed slide height: full viewport minus top bar, tab bar, and safe-area insets */
   .vine-slide-height {
-    height: calc(100dvh - env(safe-area-inset-top, 0px) - 3rem - 2.5rem - 3.5rem - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - 3rem - 2.5rem - env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -120,6 +120,23 @@
 
 .animate-eyelid-blink {
   animation: eyelid-blink 0.5s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+
+/* Landing hero staggered fade-in */
+@keyframes landing-hero-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-hero-fade {
+  opacity: 0;
+  animation: landing-hero-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 

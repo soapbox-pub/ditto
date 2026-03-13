@@ -135,14 +135,14 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
           </Button>
         </Link>
         {isOwn ? (
-          <Link to={`/settings/theme/edit?edit=${theme.identifier}`}>
+          <Link to="/themes">
             <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-accent">
               <Pencil className="size-3.5 mr-1" />
               Edit Theme
             </Button>
           </Link>
         ) : (
-          <Link to={`/settings/theme/edit?import=${event.pubkey}&theme=${theme.identifier}`}>
+          <Link to="/themes">
             <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-primary">
               <Copy className="size-3.5 mr-1" />
               Copy Theme

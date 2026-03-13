@@ -213,10 +213,10 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
           {/* Content with spoiler guard and truncation */}
           {isReview && review?.contentWarning ? (
             <SpoilerGuard warning={review.contentWarning}>
-              <TruncatedContent event={event} content={review.content} />
+              <TruncatedContent event={event} content={review.content} isReview />
             </SpoilerGuard>
           ) : isReview && review ? (
-            <TruncatedContent event={event} content={review.content} />
+            <TruncatedContent event={event} content={review.content} isReview />
           ) : (
             <TruncatedContent event={event} />
           )}
@@ -285,7 +285,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
 }
 
 /** Truncated content block with "Read more" fade and button. */
-function TruncatedContent({ event, content }: { event: NostrEvent; content?: string }) {
+function TruncatedContent({ event, content, isReview }: { event: NostrEvent; content?: string; isReview?: boolean }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -319,7 +319,7 @@ function TruncatedContent({ event, content }: { event: NostrEvent; content?: str
   }
 
   return (
-    <div className="mt-2 break-words overflow-hidden">
+    <div className={cn('mt-2 break-words overflow-hidden', isReview && 'pl-3 border-l-2 border-amber-300 dark:border-amber-700')}>
       <div
         ref={contentRef}
         style={!expanded && overflows ? { maxHeight: MAX_HEIGHT, overflow: 'hidden' } : undefined}

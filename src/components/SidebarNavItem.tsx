@@ -24,16 +24,18 @@ export interface SidebarNavItemProps {
   showIndicator?: boolean;
   /** Extra classes on the link. Defaults to 'text-lg' for desktop. */
   linkClassName?: string;
+  /** Sidebar item ID configured as the homepage. */
+  homePage?: string;
 }
 
 export function SidebarNavItem({
-  id, active, editing, onRemove, onClick, profilePath, showIndicator, linkClassName,
+  id, active, editing, onRemove, onClick, profilePath, showIndicator, linkClassName, homePage,
 }: SidebarNavItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !editing });
   const style = { transform: CSS.Transform.toString(transform), transition };
   const icon = sidebarItemIcon(id);
   const label = itemLabel(id);
-  const path = itemPath(id, profilePath);
+  const path = itemPath(id, profilePath, homePage);
 
   return (
     <div
@@ -99,7 +101,7 @@ function SidebarDividerItem({ sortableId, editing, onRemove }: SidebarDividerIte
     <div
       ref={setNodeRef}
       style={style}
-      className={cn('flex items-center rounded-full transition-colors relative bg-background/85', isDragging && 'z-10 opacity-80 shadow-lg')}
+      className={cn('flex items-center rounded-full transition-colors relative', editing && 'bg-background/85', isDragging && 'z-10 opacity-80 shadow-lg')}
     >
       {editing && (
         <button
@@ -138,10 +140,12 @@ export interface SidebarNavListProps {
   getProfilePath?: (id: string) => string | undefined;
   getShowIndicator?: (id: string) => boolean | undefined;
   linkClassName?: string;
+  /** Sidebar item ID configured as the homepage. */
+  homePage?: string;
 }
 
 export function SidebarNavList({
-  items, editing, onRemove, onReorder, isActive, getOnClick, getProfilePath, getShowIndicator, linkClassName,
+  items, editing, onRemove, onReorder, isActive, getOnClick, getProfilePath, getShowIndicator, linkClassName, homePage,
 }: SidebarNavListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -186,6 +190,7 @@ export function SidebarNavList({
               profilePath={getProfilePath?.(id)}
               showIndicator={getShowIndicator?.(id)}
               linkClassName={linkClassName}
+              homePage={homePage}
             />
           );
         })}

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, Loader2 } from 'lucide-react';
+import { Zap, AtSign, MessageSquare, Loader2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -88,7 +88,7 @@ export function NotificationsPage() {
       filtered = filtered.filter((item) => !isEventMuted(item.event, muteItems));
     }
     if (activeTab === 'mentions') {
-      filtered = filtered.filter((item) => item.event.kind === 1);
+      filtered = filtered.filter((item) => item.event.kind === 1 || item.event.kind === 1111);
     }
     return filtered;
   }, [items, activeTab, muteItems]);
@@ -172,6 +172,8 @@ function NotificationItemView({ item, isNew }: { item: NotificationItem; isNew: 
       return <ZapNotification item={item} isNew={isNew} />;
     case 1:
       return <MentionNotification item={item} isNew={isNew} />;
+    case 1111:
+      return <CommentNotification item={item} isNew={isNew} />;
     default:
       return null;
   }
@@ -201,7 +203,7 @@ function NotificationWrapper({ isNew, children }: { isNew: boolean; children: Re
  * Uses the pre-fetched event from the notification item, falling back to useEvent.
  */
 function ReferencedNoteCard({ item }: { item: NotificationItem }) {
-  const referencedEventId = item.event.tags.find(([name]) => name === 'e')?.[1];
+  const referencedEventId = item.event.tags.findLast(([name]) => name === 'e')?.[1];
   // Fall back to useEvent if the batch fetch didn't find it
   const { data: fetchedEvent } = useEvent(
     item.referencedEvent ? undefined : referencedEventId,
@@ -321,6 +323,29 @@ function MentionNotification({ item, isNew }: { item: NotificationItem; isNew: b
           actorPubkey={item.event.pubkey}
           icon={<AtSign className="size-4 text-primary" />}
           action="mentioned you"
+        />
+      </div>
+      <NoteCard event={item.event} className="border-0" />
+    </NotificationWrapper>
+  );
+}
+
+// ──────────────────────────────────────
+// Comment Notification (kind 1111)
+// ──────────────────────────────────────
+function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  // If the parent kind tag is "1111", this is a reply to a comment; otherwise it's a
+  // top-level comment on a piece of content the user authored.
+  const parentKind = item.event.tags.find(([name]) => name === 'k')?.[1];
+  const action = parentKind === '1111' ? 'replied to your comment' : 'commented on your post';
+
+  return (
+    <NotificationWrapper isNew={isNew}>
+      <div className="px-4 pt-3">
+        <NotificationHeader
+          actorPubkey={item.event.pubkey}
+          icon={<MessageSquare className="size-4 text-primary" />}
+          action={action}
         />
       </div>
       <NoteCard event={item.event} className="border-0" />

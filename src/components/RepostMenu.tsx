@@ -12,6 +12,7 @@ import { useRepostStatus } from '@/hooks/useRepostStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { getRepostKind } from '@/lib/feedUtils';
+import { DITTO_RELAY } from '@/lib/appRelays';
 import type { EventStats } from '@/hooks/useTrending';
 
 interface RepostMenuProps {
@@ -52,7 +53,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
     // Kind 6 for kind 1 notes, kind 16 (generic repost) for everything else
     const repostKind = getRepostKind(event.kind);
     const tags: string[][] = [
-      ['e', event.id],
+      ['e', event.id, DITTO_RELAY],
       ['p', event.pubkey],
     ];
     // Kind 16 generic reposts require a 'k' tag with the original event's kind

@@ -25,6 +25,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useStreamKind } from '@/hooks/useStreamKind';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFeedTab } from '@/hooks/useFeedTab';
 import { useEventStats, type EventStats } from '@/hooks/useTrending';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
@@ -36,6 +37,7 @@ import { RepostIcon } from '@/components/icons/RepostIcon';
 import { useRepostStatus } from '@/hooks/useRepostStatus';
 import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { getRepostKind } from '@/lib/feedUtils';
+import { DITTO_RELAY } from '@/lib/appRelays';
 import { ZapDialog } from '@/components/ZapDialog';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -226,7 +228,7 @@ export function VineRepostButton({ event, label }: { event: NostrEvent; label?: 
       }
       queryClient.setQueryData(['user-repost', event.id], 'optimistic');
 
-      const tags: string[][] = [['e', event.id], ['p', event.pubkey]];
+      const tags: string[][] = [['e', event.id, DITTO_RELAY], ['p', event.pubkey]];
       if (repostKind === 16) {
         tags.push(['k', String(event.kind)]);
         if (event.kind >= 30000 && event.kind < 40000) {
@@ -595,17 +597,7 @@ export function VinesFeedPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
 
-  // Default to follows when logged in, global when logged out
-  const [tab, setTab] = useState<FeedTab>(user ? 'follows' : 'global');
-
-  // Switch to follows when user logs in for the first time this session
-  const didSwitchRef = useRef(false);
-  useEffect(() => {
-    if (user && !didSwitchRef.current) {
-      didSwitchRef.current = true;
-      setTab('follows');
-    }
-  }, [user]);
+  const [tab, setTab] = useFeedTab<FeedTab>('vines', ['follows', 'global']);
 
   const { events, isLoading } = useVinesFeed(tab);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -636,7 +628,6 @@ export function VinesFeedPage() {
 
   useLayoutOptions({
     showFAB: false,
-    noBottomSpacer: true,
   });
 
   // Lock body scroll when mobile comments are open

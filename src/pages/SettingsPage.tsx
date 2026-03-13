@@ -27,16 +27,9 @@ const settingsSections: SettingsSection[] = [
     requiresAuth: true,
   },
   {
-    id: 'theme',
-    label: 'Vibe',
-    description: 'Choose a theme for the interface',
-    illustration: '/theme-intro.png',
-    path: '/settings/theme',
-  },
-  {
     id: 'feed',
-    label: 'Feed',
-    description: 'Choose what types of posts appear in your feed',
+    label: 'Home Feed',
+    description: 'Choose what types of posts appear in your home feed',
     illustration: '/community-intro.png',
     path: '/settings/feed',
   },

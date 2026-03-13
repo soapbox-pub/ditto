@@ -4,7 +4,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
  * Checks if a string is a NIP-30 custom emoji shortcode (`:shortcode:` format).
  */
 export function isCustomEmoji(content: string): boolean {
-  return /^:[a-zA-Z0-9_]+:$/.test(content);
+  return /^:[a-zA-Z0-9_-]+:$/.test(content);
 }
 
 /**

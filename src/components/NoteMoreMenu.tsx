@@ -5,21 +5,23 @@ import { useNavigate } from 'react-router-dom';
 import {
   Bookmark,
   ClipboardCopy,
-  ExternalLink,
   AtSign,
   BellOff,
   VolumeX,
   Flag,
   Pin,
   FileJson,
-  FileDigit,
   Trash2,
   StickyNote,
+  ListPlus,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogTitle,
+  DialogHeader,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -36,6 +38,9 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { NoteContent } from '@/components/NoteContent';
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
+import { ReportDialog } from '@/components/ReportDialog';
+import { AddToListDialog } from '@/components/AddToListDialog';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -76,12 +81,151 @@ function MenuItem({ icon, label, onClick, destructive }: MenuItemProps) {
   );
 }
 
-export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
-  if (!open) return null;
-  return <NoteMoreMenuContent event={event} open={open} onOpenChange={onOpenChange} />;
+/** Encode the NIP-19 identifier for an event — naddr for addressable events, nevent otherwise. */
+function encodeEventNip19(event: NostrEvent): string {
+  if (event.kind >= 30000 && event.kind < 40000) {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1];
+    if (dTag) {
+      return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+    }
+  }
+  return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
 
-function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
+interface EventJsonDialogProps {
+  event: NostrEvent;
+  nip19Id: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast({ title: `${label} copied to clipboard` });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={handleCopy}
+      className="size-6 shrink-0 text-muted-foreground hover:text-foreground"
+    >
+      {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+    </Button>
+  );
+}
+
+function EventJsonDialog({ event, nip19Id, open, onOpenChange }: EventJsonDialogProps) {
+  const jsonText = JSON.stringify(event, null, 2);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85dvh] flex flex-col gap-0 p-0 rounded-2xl overflow-hidden">
+        <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
+          <DialogTitle className="text-base font-semibold">Event Details</DialogTitle>
+        </DialogHeader>
+
+        <div className="px-5 pb-3 shrink-0">
+          <p className="text-xs font-medium text-muted-foreground mb-1">Event ID</p>
+          <div className="relative flex items-center bg-muted rounded-lg px-3 py-2">
+            <p className="font-mono text-xs break-all text-foreground/80 flex-1 pr-2 select-all">
+              {nip19Id}
+            </p>
+            <CopyButton text={nip19Id} label="Event ID" />
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 flex flex-col flex-1 min-h-0">
+          <p className="text-xs font-medium text-muted-foreground mb-1">Raw JSON</p>
+          <div className="relative flex-1 min-h-0 overflow-auto rounded-lg bg-muted border border-border">
+            <div className="sticky top-2 right-2 float-right mr-2">
+              <CopyButton text={jsonText} label="Event JSON" />
+            </div>
+            <pre className="p-4 text-xs font-mono text-foreground/80 whitespace-pre leading-relaxed">
+              {jsonText}
+            </pre>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
+  // These states live here (not in NoteMoreMenuContent) so they persist after the menu closes
+  const [reportOpen, setReportOpen] = useState(false);
+  const [mentionComposeOpen, setMentionComposeOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
+  const [eventJsonOpen, setEventJsonOpen] = useState(false);
+
+  const nip19Id = encodeEventNip19(event);
+  const mentionContent = `nostr:${nip19.npubEncode(event.pubkey)} `;
+
+  return (
+    <>
+      {open && (
+        <NoteMoreMenuContent
+          event={event}
+          open={open}
+          onOpenChange={onOpenChange}
+          onReport={() => {
+            onOpenChange(false);
+            setTimeout(() => setReportOpen(true), 150);
+          }}
+          onMention={() => {
+            onOpenChange(false);
+            setTimeout(() => setMentionComposeOpen(true), 150);
+          }}
+          onAddToList={() => {
+            onOpenChange(false);
+            setTimeout(() => setAddToListOpen(true), 150);
+          }}
+          onViewEventJson={() => {
+            onOpenChange(false);
+            setTimeout(() => setEventJsonOpen(true), 150);
+          }}
+        />
+      )}
+
+      <ReportDialog event={event} open={reportOpen} onOpenChange={setReportOpen} />
+
+      <ReplyComposeModal
+        open={mentionComposeOpen}
+        onOpenChange={setMentionComposeOpen}
+        initialContent={mentionContent}
+        title="New post"
+      />
+
+      <AddToListDialog
+        pubkey={event.pubkey}
+        open={addToListOpen}
+        onOpenChange={setAddToListOpen}
+      />
+
+      <EventJsonDialog
+        event={event}
+        nip19Id={nip19Id}
+        open={eventJsonOpen}
+        onOpenChange={setEventJsonOpen}
+      />
+    </>
+  );
+}
+
+interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
+  onReport: () => void;
+  onMention: () => void;
+  onAddToList: () => void;
+  onViewEventJson: () => void;
+}
+
+function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, onAddToList, onViewEventJson }: NoteMoreMenuContentProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const { isBookmarked, toggleBookmark } = useBookmarks();
@@ -97,24 +241,19 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey });
+  const nip19Id = encodeEventNip19(event);
 
   const close = () => onOpenChange(false);
 
   const handleViewPostDetails = () => {
-    navigate(`/${neventId}`);
+    navigate(`/${nip19Id}`);
     close();
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/${neventId}`;
+    const url = `${window.location.origin}/${nip19Id}`;
     navigator.clipboard.writeText(url);
     toast({ title: 'Link copied to clipboard' });
-    close();
-  };
-
-  const handleViewOnNjump = () => {
-    window.open(`https://njump.me/${neventId}`, '_blank', 'noopener,noreferrer');
     close();
   };
 
@@ -135,20 +274,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
     close();
   };
 
-  const handleCopyEventId = () => {
-    navigator.clipboard.writeText(event.id);
-    toast({ title: 'Event ID copied to clipboard' });
-    close();
-  };
-
-  const handleCopyEventJson = () => {
-    navigator.clipboard.writeText(JSON.stringify(event, null, 2));
-    toast({ title: 'Event JSON copied to clipboard' });
-    close();
-  };
-
   const handleMuteConversation = () => {
-    // Mute the root event of the thread, or this event if it's the root
     const rootTag = event.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
     const threadId = rootTag?.[1] ?? event.id;
     addMute.mutate(
@@ -165,11 +291,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
     close();
   };
 
-  const handleMention = () => {
-    toast({ title: 'Mention is not yet implemented' });
-    close();
-  };
-
   const handleMuteUser = () => {
     const muteItem = { type: 'pubkey' as const, value: event.pubkey };
     const mutation = userMuted ? removeMute : addMute;
@@ -181,11 +302,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
         toast({ title: userMuted ? 'Failed to unmute user' : 'Failed to mute user', variant: 'destructive' });
       },
     });
-    close();
-  };
-
-  const handleReport = () => {
-    toast({ title: 'Report is not yet implemented' });
     close();
   };
 
@@ -249,25 +365,22 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
             onClick={handleCopyLink}
           />
           <MenuItem
-            icon={<FileDigit className="size-5" />}
-            label="Copy Event ID"
-            onClick={handleCopyEventId}
-          />
-          <MenuItem
             icon={<FileJson className="size-5" />}
-            label="Copy Event JSON"
-            onClick={handleCopyEventJson}
-          />
-          <MenuItem
-            icon={<ExternalLink className="size-5" />}
-            label="View post on njump.me"
-            onClick={handleViewOnNjump}
+            label="View Event JSON"
+            onClick={onViewEventJson}
           />
           <MenuItem
             icon={<Bookmark className={cn("size-5", bookmarked && "fill-current")} />}
             label={bookmarked ? 'Remove Bookmark' : 'Bookmark'}
             onClick={handleBookmark}
           />
+          {user && (
+            <MenuItem
+              icon={<ListPlus className="size-5" />}
+              label="Add to list"
+              onClick={() => { onAddToList(); }}
+            />
+          )}
         </div>
 
         <Separator />
@@ -299,7 +412,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
             <MenuItem
               icon={<AtSign className="size-5" />}
               label={`Mention @${displayName}`}
-              onClick={handleMention}
+              onClick={onMention}
             />
           )}
         </div>
@@ -317,7 +430,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
               <MenuItem
                 icon={<Flag className="size-5" />}
                 label={`Report @${displayName}`}
-                onClick={handleReport}
+                onClick={onReport}
                 destructive
               />
             </div>
