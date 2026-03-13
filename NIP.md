@@ -251,3 +251,47 @@ After resolution (assuming `$follows` = `["pk1", "pk2"]`):
 - To **clear** all tabs: publish a kind 16769 event with no `tab` tags (only `alt`).
 - Clients MUST filter by `authors: [pubkey]` when querying to prevent spoofing.
 - `var` tags are shared across all `tab` tags in the same event.
+
+---
+
+## Kind 0 Extension: Avatar Shape
+
+### Summary
+
+An optional `shape` property on kind 0 (profile metadata) that controls how the user's avatar is masked/clipped when displayed. Clients that support this extension render the avatar using the specified geometric shape instead of the default circle.
+
+### Metadata Field
+
+The `shape` field is added to the JSON content of a kind 0 event alongside standard fields like `name`, `picture`, etc.
+
+```json
+{
+  "kind": 0,
+  "content": "{\"name\":\"Alice\",\"picture\":\"https://example.com/alice.jpg\",\"shape\":\"hexagon\"}"
+}
+```
+
+### Defined Shape Values
+
+| Value                | Description                                                    |
+|----------------------|----------------------------------------------------------------|
+| `circle`             | Standard circular avatar (the default when `shape` is absent)  |
+| `triangle`           | Equilateral triangle pointing up                               |
+| `inverted-triangle`  | Equilateral triangle pointing down                             |
+| `hexagon`            | Regular hexagon (6-sided polygon)                              |
+| `star`               | 5-pointed star                                                 |
+| `inverted-star`      | 5-pointed star pointing down                                   |
+| `hexagram`           | 6-pointed star (Star of David)                                 |
+| `heart`              | Heart shape with curved lobes                                  |
+
+### Client Behavior
+
+- When `shape` is absent or set to `"circle"`, clients SHOULD render the avatar as a circle (the current universal default).
+- When `shape` is set to a recognized value, clients SHOULD apply the corresponding geometric mask (e.g. via CSS `clip-path`) to the avatar image and fallback.
+- When `shape` is set to an **unrecognized** value, clients MUST fall back to `"circle"`. This ensures forward compatibility as new shapes are added.
+- The `shape` field is purely cosmetic and has no protocol-level significance.
+- Clients MAY choose not to support this extension, in which case avatars render as circles as usual.
+
+### Implementation Notes
+
+Non-circle shapes are best implemented using CSS `clip-path` with `polygon()` for straight-edged shapes and `path()` for curved shapes (e.g. heart). The `circle` shape should continue to use `border-radius: 50%` (or equivalent) for simplicity and compatibility.
