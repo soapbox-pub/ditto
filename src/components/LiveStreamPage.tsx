@@ -8,6 +8,7 @@ import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { LiveStreamChat } from '@/components/LiveStreamChat';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ZapDialog } from '@/components/ZapDialog';
@@ -283,6 +284,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
 function StreamAuthorRow({ event, participants }: { event: NostrEvent; participants: Participant[] }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
@@ -318,7 +320,7 @@ function StreamAuthorRow({ event, participants }: { event: NostrEvent; participa
     <div className="flex items-center gap-3">
       <ProfileHoverCard pubkey={showPubkey} asChild>
         <Link to={showProfileUrl}>
-          <Avatar className="size-10">
+          <Avatar shape={avatarShape} className="size-10">
             <AvatarImage src={showMetadata?.picture} alt={showName} />
             <AvatarFallback className="bg-primary/20 text-primary text-sm">
               {showName[0]?.toUpperCase()}
@@ -365,13 +367,14 @@ function ZapButton({ event }: { event: NostrEvent }) {
 function ParticipantRow({ pubkey, role }: { pubkey: string; role?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
   const displayName = getDisplayName(metadata, pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
   return (
     <div className="flex items-center gap-2.5">
       <Link to={profileUrl} className="shrink-0">
-        <Avatar className="size-7">
+        <Avatar shape={avatarShape} className="size-7">
           <AvatarImage src={metadata?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
             {displayName[0]?.toUpperCase()}

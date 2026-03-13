@@ -31,13 +31,16 @@ import {
 import { z } from 'zod';
 import { IntroImage } from '@/components/IntroImage';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
+import { AvatarShapePicker } from '@/components/AvatarShapePicker';
+import { type AvatarShape, AVATAR_SHAPES, isValidAvatarShape } from '@/lib/avatarShape';
 
-// Extended form schema that includes custom fields
+// Extended form schema that includes custom fields and avatar shape
 const formSchema = n.metadata().extend({
   fields: z.array(z.object({
     label: z.string(),
     value: z.string(),
   })).optional(),
+  shape: z.enum(AVATAR_SHAPES).optional(),
 });
 
 type ExtendedMetadata = z.infer<typeof formSchema>;
@@ -81,6 +84,16 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
     return [];
   };
 
+  // Parse existing shape from raw event content
+  const parseShape = (): AvatarShape => {
+    if (!event) return 'circle';
+    try {
+      const parsed = JSON.parse(event.content);
+      if (isValidAvatarShape(parsed.shape)) return parsed.shape;
+    } catch { /* ignore */ }
+    return 'circle';
+  };
+
   // Initialize the form with default values
   const form = useForm<ExtendedMetadata>({
     resolver: zodResolver(formSchema),
@@ -94,6 +107,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       lud16: '',
       bot: false,
       fields: [],
+      shape: 'circle' as AvatarShape,
     },
   });
 
@@ -114,6 +128,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
         lud16: metadata.lud16 || '',
         bot: metadata.bot || false,
         fields: existingFields,
+        shape: parseShape(),
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,7 +148,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       nip05: v.nip05,
       lud16: v.lud16,
       bot: v.bot,
-    });
+      shape: v.shape,
+    } as Partial<NostrMetadata>);
   }, [form, onValuesChange]);
 
   // Watch all fields and propagate
@@ -198,11 +214,18 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
     }
 
     try {
-      // Extract fields and other metadata
-      const { fields: customFields, ...standardMetadata } = values;
+      // Extract fields, shape, and other metadata
+      const { fields: customFields, shape, ...standardMetadata } = values;
 
       // Combine existing metadata with new values
       const data: Record<string, unknown> = { ...metadata, ...standardMetadata };
+
+      // Add shape only if non-default
+      if (shape && shape !== 'circle') {
+        data.shape = shape;
+      } else {
+        delete data.shape;
+      }
 
       // Clean up empty values in standard metadata
       for (const key in data) {
@@ -342,6 +365,20 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                     onPickFile={(file) => openCropDialog(file, 'banner')}
                   />
                 )}
+              />
+            </div>
+
+            {/* Avatar Shape */}
+            <div className="pt-3">
+              <FormLabel className="text-xs font-medium">Avatar Shape</FormLabel>
+              <FormDescription className="text-xs mt-1 mb-2">
+                Choose how your avatar appears across the app
+              </FormDescription>
+              <AvatarShapePicker
+                value={form.watch('shape') ?? 'circle'}
+                onChange={(shape) => form.setValue('shape', shape, { shouldDirty: true })}
+                pictureUrl={form.watch('picture') || undefined}
+                fallbackInitial={(form.watch('name')?.[0] || '?').toUpperCase()}
               />
             </div>
           </div>

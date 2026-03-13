@@ -56,6 +56,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { AvatarShapePicker } from '@/components/AvatarShapePicker';
+import { type AvatarShape, AVATAR_SHAPES, isValidAvatarShape } from '@/lib/avatarShape';
 
 const WALLET_TICKERS = [
   '$BTC', '$ETH', '$SOL', '$XMR', '$LTC', '$DOGE', '$ADA', '$DOT', '$XRP', '$MATIC',
@@ -81,6 +83,7 @@ const formSchema = n.metadata().extend({
     value: z.string(),
     type: z.enum(['text', 'wallet', 'media']),
   })).optional(),
+  shape: z.enum(AVATAR_SHAPES).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -255,11 +258,21 @@ export function ProfileSettings() {
     return [];
   };
 
+  const parseShape = (): AvatarShape => {
+    if (!event) return 'circle';
+    try {
+      const parsed = JSON.parse(event.content);
+      if (isValidAvatarShape(parsed.shape)) return parsed.shape;
+    } catch { /* ignore */ }
+    return 'circle';
+  };
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '', about: '', picture: '', banner: '',
       website: '', nip05: '', lud16: '', bot: false, fields: [],
+      shape: 'circle' as AvatarShape,
     },
   });
 
@@ -314,6 +327,7 @@ export function ProfileSettings() {
         lud16: metadata.lud16 ?? '',
         bot: metadata.bot ?? false,
         fields: parseFields(),
+        shape: parseShape(),
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,7 +335,7 @@ export function ProfileSettings() {
 
   // Live values for the card preview
   const watched = form.watch();
-  const cardMetadata: Partial<NostrMetadata> = {
+  const cardMetadata: Partial<NostrMetadata> & { shape?: AvatarShape } = {
     name: watched.name,
     about: watched.about,
     picture: watched.picture,
@@ -330,6 +344,7 @@ export function ProfileSettings() {
     nip05: watched.nip05,
     lud16: watched.lud16,
     bot: watched.bot,
+    shape: watched.shape,
   };
 
   // Card onChange: patch individual fields
@@ -384,8 +399,16 @@ export function ProfileSettings() {
   const onSubmit = async (values: FormValues) => {
     if (!user) return;
     try {
-      const { fields: customFields, ...standardMetadata } = values;
+      const { fields: customFields, shape, ...standardMetadata } = values;
       const data: Record<string, unknown> = { ...metadata, ...standardMetadata };
+
+      // Add shape only if non-default
+      if (shape && shape !== 'circle') {
+        data.shape = shape;
+      } else {
+        delete data.shape;
+      }
+
       for (const key in data) {
         if (data[key] === '') delete data[key];
       }
@@ -478,6 +501,18 @@ export function ProfileSettings() {
               Uploading image…
             </div>
           )}
+
+          {/* Avatar Shape */}
+          <div>
+            <h2 className="text-sm font-medium py-2">Avatar Shape</h2>
+            <p className="text-xs text-muted-foreground mb-2">Choose how your avatar appears across the app</p>
+            <AvatarShapePicker
+              value={form.watch('shape') ?? 'circle'}
+              onChange={(shape) => form.setValue('shape', shape, { shouldDirty: true })}
+              pictureUrl={watched.picture || undefined}
+              fallbackInitial={(watched.name?.[0] || '?').toUpperCase()}
+            />
+          </div>
 
           {/* Profile fields */}
           <div>

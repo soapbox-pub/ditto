@@ -6,6 +6,7 @@ import { encode as blurhashEncode } from 'blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
@@ -160,6 +161,7 @@ export function ComposeBox({
   initialContent = '',
 }: ComposeBoxProps) {
   const { user, metadata, isLoading: isProfileLoading } = useCurrentUser();
+  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
   const { mutateAsync: postComment, isPending: isCommentPending } = usePostComment();
@@ -972,7 +974,7 @@ export function ComposeBox({
             <Skeleton className="size-12 shrink-0 mt-0.5 rounded-full" />
           ) : (
             <Link to={userProfileUrl} className="shrink-0">
-              <Avatar className="size-12 shrink-0 mt-0.5">
+              <Avatar shape={avatarShape} className="size-12 shrink-0 mt-0.5">
                 <AvatarImage src={metadata?.picture} alt={metadata?.name} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
                   {(metadata?.name?.[0] || '?').toUpperCase()}

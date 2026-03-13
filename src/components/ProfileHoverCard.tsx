@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -29,6 +30,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
   const queryClient = useQueryClient();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
   const displayName = metadata?.name ?? genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
   const nip05 = metadata?.nip05;
@@ -64,7 +66,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
         {/* Avatar overlapping the banner */}
         <div className="-mt-8 mb-2">
           <Link to={profileUrl} onClick={(e) => e.stopPropagation()}>
-            <Avatar className="size-16 border-3 border-background">
+            <Avatar shape={avatarShape} className="size-16 border-3 border-background">
               <AvatarImage src={metadata?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-lg">
                 {displayName[0]?.toUpperCase()}

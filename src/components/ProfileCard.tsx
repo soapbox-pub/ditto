@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { type AvatarShape, isValidAvatarShape, getAvatarClipPath } from '@/lib/avatarShape';
 import { Camera, CheckCircle2, Pencil, Plus, Trash2, ChevronDown } from 'lucide-react';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
@@ -108,6 +109,10 @@ export function ProfileCard({
   const initial = displayName[0]?.toUpperCase() ?? '?';
   const patch = (key: keyof NostrMetadata) => (v: string) => onChange?.({ [key]: v });
 
+  // Read shape from metadata (it's a custom property passed through the loose schema)
+  const rawShape = (metadata as Record<string, unknown>).shape;
+  const shape: AvatarShape | undefined = isValidAvatarShape(rawShape) ? rawShape : undefined;
+
   const nip05 = metadata.nip05;
   const nip05Domain = nip05 ? getNip05Domain(nip05) : undefined;
 
@@ -158,7 +163,7 @@ export function ProfileCard({
             className={cn('relative shrink-0', editable && 'cursor-pointer group')}
             onClick={() => editable && onPickImage?.('picture')}
           >
-            <Avatar className="size-24 border-4 border-background shadow-sm">
+            <Avatar shape={shape} className="size-24 border-4 border-background shadow-sm">
               <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
               <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
                 {metadata.picture ? initial : editable ? <Plus className="size-8 text-muted-foreground" strokeWidth={4} /> : initial}
@@ -166,7 +171,13 @@ export function ProfileCard({
             </Avatar>
             {editable && (
               <>
-                <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/45 transition-colors flex items-center justify-center">
+                <div
+                  className={cn(
+                    'absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors flex items-center justify-center',
+                    (!shape || shape === 'circle') && 'rounded-full',
+                  )}
+                  style={getAvatarClipPath(shape) ? { clipPath: getAvatarClipPath(shape) } : undefined}
+                >
                   <Camera className="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
                 </div>
                 <div className="absolute bottom-0 right-0 size-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center group-hover:opacity-0 transition-opacity">

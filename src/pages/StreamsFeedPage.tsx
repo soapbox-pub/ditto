@@ -8,6 +8,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useAppContext } from '@/hooks/useAppContext';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
@@ -199,6 +200,7 @@ function StreamCard({ event }: { event: NostrEvent }) {
 function StreamCardAuthor({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
   const displayName = getDisplayName(metadata, pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
@@ -208,7 +210,7 @@ function StreamCardAuthor({ pubkey }: { pubkey: string }) {
 
   return (
     <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-      <Avatar className="size-9">
+      <Avatar shape={avatarShape} className="size-9">
         <AvatarImage src={metadata?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-xs">
           {displayName[0]?.toUpperCase()}

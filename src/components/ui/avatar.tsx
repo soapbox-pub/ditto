@@ -1,6 +1,7 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { type AvatarShape, getAvatarClipPath } from "@/lib/avatarShape"
 
 /**
  * Shared ref so AvatarFallback can check if a sibling AvatarImage
@@ -9,29 +10,43 @@ import { cn } from "@/lib/utils"
  */
 const AvatarHasSrcContext = React.createContext<React.MutableRefObject<boolean>>({ current: false })
 
-const Avatar = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, children, ...props }, ref) => {
-  const hasSrcRef = React.useRef(false)
-  // Reset per render so stale values don't persist
-  hasSrcRef.current = false
+/** Context so children can inherit the shape for their own styling. */
+const AvatarShapeContext = React.createContext<AvatarShape | undefined>(undefined)
 
-  return (
-    <AvatarHasSrcContext.Provider value={hasSrcRef}>
-      <div
-        ref={ref}
-        className={cn(
-          "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full bg-muted",
-          className
-        )}
-        {...props}
-      >
-        {children}
-      </div>
-    </AvatarHasSrcContext.Provider>
-  )
-})
+export interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
+  /** Avatar mask shape. Defaults to "circle" (the standard rounded-full). */
+  shape?: AvatarShape;
+}
+
+const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
+  ({ className, children, shape, style, ...props }, ref) => {
+    const hasSrcRef = React.useRef(false)
+    // Reset per render so stale values don't persist
+    hasSrcRef.current = false
+
+    const isCircle = !shape || shape === 'circle'
+    const clipPath = getAvatarClipPath(shape)
+
+    return (
+      <AvatarHasSrcContext.Provider value={hasSrcRef}>
+        <AvatarShapeContext.Provider value={shape}>
+          <div
+            ref={ref}
+            className={cn(
+              "relative flex h-10 w-10 shrink-0 overflow-hidden bg-muted",
+              isCircle && "rounded-full",
+              className
+            )}
+            style={clipPath ? { ...style, clipPath } : style}
+            {...props}
+          >
+            {children}
+          </div>
+        </AvatarShapeContext.Provider>
+      </AvatarHasSrcContext.Provider>
+    )
+  }
+)
 Avatar.displayName = "Avatar"
 
 /**
@@ -88,6 +103,9 @@ const AvatarFallback = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
   const hasSrcRef = React.useContext(AvatarHasSrcContext)
+  const shape = React.useContext(AvatarShapeContext)
+
+  const isCircle = !shape || shape === 'circle'
 
   // AvatarImage renders before AvatarFallback (DOM order), so hasSrcRef
   // is already set by the time we read it here in the same render frame.
@@ -97,7 +115,8 @@ const AvatarFallback = React.forwardRef<
     <div
       ref={ref}
       className={cn(
-        "flex h-full w-full items-center justify-center rounded-full",
+        "flex h-full w-full items-center justify-center",
+        isCircle && "rounded-full",
         className
       )}
       {...props}

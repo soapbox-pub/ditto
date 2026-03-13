@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, UserRoundCheck, X } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { genUserName } from '@/lib/genUserName';
@@ -267,7 +268,7 @@ function SearchProfileItem({
       onMouseDown={(e) => e.preventDefault()}
     >
       <div className="relative shrink-0">
-        <Avatar className="size-9">
+        <Avatar shape={getAvatarShape(metadata as Record<string, unknown>)} className="size-9">
           <AvatarImage src={metadata.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}

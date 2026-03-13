@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useToast } from '@/hooks/useToast';
@@ -935,6 +936,7 @@ export function MuteSettingsInternals() {
 function MutedUserProfile({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
   const displayName = metadata?.name ?? genUserName(pubkey);
 
   if (author.isLoading) {
@@ -948,7 +950,7 @@ function MutedUserProfile({ pubkey }: { pubkey: string }) {
 
   return (
     <div className="flex items-center gap-2.5 min-w-0">
-      <Avatar className="size-7 shrink-0">
+      <Avatar shape={avatarShape} className="size-7 shrink-0">
         <AvatarImage src={metadata?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
           {displayName[0]?.toUpperCase() ?? '?'}

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { NoteContent } from '@/components/NoteContent';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ProfilePreview } from '@/components/ExternalContentHeader';
@@ -161,6 +162,7 @@ function EmbeddedPost({ event }: { event: NostrEvent }) {
 function EmbeddedNote({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
   const displayName = metadata?.name || genUserName(event.pubkey);
   const nip05 = metadata?.nip05;
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
@@ -172,7 +174,7 @@ function EmbeddedNote({ event }: { event: NostrEvent }) {
         {/* Author row */}
         <div className="flex items-center gap-2 mb-1.5">
           <Link to={`/${npub}`} className="shrink-0">
-            <Avatar className="size-8">
+            <Avatar shape={avatarShape} className="size-8">
               <AvatarImage src={metadata?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-xs">
                 {displayName[0].toUpperCase()}
