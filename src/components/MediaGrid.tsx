@@ -315,19 +315,19 @@ export function MediaGridSkeleton({ count = 15 }: { count?: number }) {
     <div className="flex flex-col gap-1.5 p-1.5">
       {Array.from({ length: rowCount }).map((_, rowIdx) => {
         const ratios = skeletonRows[rowIdx % skeletonRows.length];
+        const rowAR = ratios.reduce((s, r) => s + r, 0);
         return (
-          <div key={rowIdx} className="flex gap-1.5">
+          <div key={rowIdx} className="flex gap-1.5" style={{ aspectRatio: `${rowAR}` }}>
             {ratios.map((ar, colIdx) => {
               const itemIdx = rowIdx * perRow + colIdx;
               if (itemIdx >= count) return null;
               return (
                 <Skeleton
                   key={colIdx}
-                  className="rounded-lg"
+                  className="rounded-lg h-full"
                   style={{
                     flexGrow: ar,
                     flexBasis: 0,
-                    aspectRatio: `${ar}`,
                   }}
                 />
               );
@@ -463,29 +463,37 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
   return (
     <>
       <div className={cn('flex flex-col gap-1.5 p-1.5', className)}>
-        {rows.map((row, rowIdx) => (
-          <div key={rowIdx} className="flex gap-1.5">
-            {row.items.map(({ item, index }) => {
-              const ar = parseDimToAspectRatio(item.dim);
-              return (
-                <div
-                  key={item.event.id}
-                  className="relative"
-                  style={{
-                    flexGrow: ar,
-                    flexBasis: 0,
-                    aspectRatio: `${ar}`,
-                  }}
-                >
-                  <MediaThumb
-                    item={item}
-                    onClick={() => setFlatIndex(itemStartIndex[index])}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        ))}
+        {rows.map((row, rowIdx) => {
+          // The row's aspect ratio is the sum of all item aspect ratios
+          // (at equal height, total width = sum of ARs * height)
+          const rowAR = row.items.reduce((s, { item }) => s + parseDimToAspectRatio(item.dim), 0);
+          return (
+            <div
+              key={rowIdx}
+              className="flex gap-1.5"
+              style={{ aspectRatio: `${rowAR}` }}
+            >
+              {row.items.map(({ item, index }) => {
+                const ar = parseDimToAspectRatio(item.dim);
+                return (
+                  <div
+                    key={item.event.id}
+                    className="relative h-full"
+                    style={{
+                      flexGrow: ar,
+                      flexBasis: 0,
+                    }}
+                  >
+                    <MediaThumb
+                      item={item}
+                      onClick={() => setFlatIndex(itemStartIndex[index])}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
 
       {flatIndex !== null && (
