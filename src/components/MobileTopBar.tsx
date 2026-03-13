@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu } from 'lucide-react';
 import { DittoLogo } from '@/components/DittoLogo';
+import { BarsStaggeredIcon } from '@/components/icons/BarsStaggeredIcon';
 
 interface MobileTopBarProps {
   onAvatarClick: () => void;
@@ -23,7 +23,7 @@ export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
         {/* Left: hamburger menu icon */}
         <div className="flex items-center justify-center w-7 shrink-0">
           <button onClick={onAvatarClick} className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background text-muted-foreground hover:text-foreground transition-colors">
-            <Menu className="size-5" />
+            <BarsStaggeredIcon className="size-5" />
           </button>
         </div>
 
