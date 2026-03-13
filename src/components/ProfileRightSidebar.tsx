@@ -16,6 +16,7 @@ import QRCode from 'qrcode';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getContentWarning } from '@/lib/contentWarning';
 import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
+import { parseDimToAspectRatio } from '@/components/MediaGrid';
 
 /** Simple email regex for display purposes. */
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -78,6 +79,8 @@ interface MediaItem {
   hasContentWarning: boolean;
   /** NIP-94 blurhash value from the imeta tag, if available. */
   blurhash?: string;
+  /** NIP-94 dim value from the imeta tag, e.g. "1280x720". */
+  dim?: string;
 }
 
 /** Extracts image URLs from content. */
@@ -92,8 +95,8 @@ function extractVideoUrls(content: string): string[] {
   return content.match(regex) || [];
 }
 
-/** Extract url and blurhash from the first matching imeta tag for a given URL (or the first tag if no URL given). */
-function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: string; blurhash?: string } {
+/** Extract url, blurhash, and dim from the first matching imeta tag for a given URL (or the first tag if no URL given). */
+function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: string; blurhash?: string; dim?: string } {
   const imetaTags = event.tags.filter(([name]) => name === 'imeta');
   for (const imetaTag of imetaTags) {
     const fields: Record<string, string> = {};
@@ -104,7 +107,7 @@ function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: strin
     }
     if (!fields.url) continue;
     if (matchUrl && fields.url !== matchUrl) continue;
-    return { url: fields.url, blurhash: fields.blurhash };
+    return { url: fields.url, blurhash: fields.blurhash, dim: fields.dim };
   }
   return {};
 }
@@ -122,23 +125,23 @@ function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
 
     // For media-native kinds (vines etc.), extract from imeta tags
     if (event.kind !== 1) {
-      const { url, blurhash } = extractImetaFields(event);
+      const { url, blurhash, dim } = extractImetaFields(event);
       if (url && !seen.has(url)) {
         seen.add(url);
         const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-        items.push({ url, blurhash, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
+        items.push({ url, blurhash, dim, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
       }
       continue;
     }
 
-    // For kind 1, extract URLs from content, then look up blurhash in imeta tags
+    // For kind 1, extract URLs from content, then look up blurhash/dim in imeta tags
     const images = extractImageUrls(event.content);
     const videos = extractVideoUrls(event.content);
     for (const url of [...images, ...videos]) {
       if (!seen.has(url)) {
         seen.add(url);
-        const { blurhash } = extractImetaFields(event, url);
-        items.push({ url, blurhash, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
+        const { blurhash, dim } = extractImetaFields(event, url);
+        items.push({ url, blurhash, dim, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
       }
     }
   }
@@ -398,6 +401,34 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
   );
 }
 
+/** Compute justified rows for the sidebar collage. */
+function sidebarJustifiedLayout(items: MediaItem[]): { items: MediaItem[]; heightFraction: number }[] {
+  if (items.length === 0) return [];
+  const rows: { items: MediaItem[]; heightFraction: number }[] = [];
+  let currentRow: MediaItem[] = [];
+  let currentAspectSum = 0;
+  // Sidebar target row height as fraction of container width — ~33%
+  const targetRowHeight = 0.35;
+  const maxRowItems = 4;
+
+  for (const item of items) {
+    const ar = parseDimToAspectRatio(item.dim);
+    currentRow.push(item);
+    currentAspectSum += ar;
+    const rowHeightFraction = 1 / currentAspectSum;
+    if (rowHeightFraction <= targetRowHeight || currentRow.length >= maxRowItems) {
+      rows.push({ items: [...currentRow], heightFraction: rowHeightFraction });
+      currentRow = [];
+      currentAspectSum = 0;
+    }
+  }
+  if (currentRow.length > 0) {
+    const rowHeightFraction = 1 / currentAspectSum;
+    rows.push({ items: currentRow, heightFraction: Math.min(rowHeightFraction, targetRowHeight) });
+  }
+  return rows;
+}
+
 export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp, onMediaClick }: ProfileRightSidebarProps) {
   const { config } = useAppContext();
   const media = useMemo(
@@ -406,63 +437,110 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
   );
   const mediaLoading = mediaLoadingProp ?? false;
 
+  const sidebarRows = useMemo(() => sidebarJustifiedLayout(media), [media]);
+
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3">
       {/* Media Section */}
       <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <h2 className="text-xl font-bold mb-3">Media</h2>
         {mediaLoading ? (
-          <div className="grid grid-cols-3 gap-0.5">
-            {Array.from({ length: 9 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-square rounded-lg" />
-            ))}
+          <div className="flex flex-col gap-0.5">
+            {[
+              [1.5, 0.8, 1.2],
+              [1, 1.3, 0.9],
+              [0.75, 1.5, 1],
+            ].map((ratios, rowIdx) => {
+              const totalAR = ratios.reduce((s, r) => s + r, 0);
+              return (
+                <div key={rowIdx} className="flex gap-0.5">
+                  {ratios.map((ar, colIdx) => {
+                    const widthPercent = (ar / totalAR) * 100;
+                    return (
+                      <Skeleton
+                        key={colIdx}
+                        className="rounded-lg shrink-0"
+                        style={{
+                          width: `calc(${widthPercent}% - ${((ratios.length - 1) / ratios.length) * 2}px)`,
+                          paddingBottom: `${(1 / totalAR) * 100}%`,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
         ) : media && media.length > 0 ? (
-          <div className="grid grid-cols-3 gap-0.5">
-            {media.map((item, i) => {
-              // CW + blur: show a blurred placeholder instead of loading media
-              if (item.hasContentWarning && config.contentWarningPolicy === 'blur') {
-                const cwInner = (
-                  <>
-                    <div className="w-full h-full bg-muted/60 blur-lg" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <ShieldAlert className="size-5 text-muted-foreground" />
-                    </div>
-                  </>
-                );
-                if (onMediaClick) {
-                  return (
-                    <button key={i} className="aspect-square rounded-lg overflow-hidden block relative w-full" onClick={() => onMediaClick(item.url)}>
-                      {cwInner}
-                    </button>
-                  );
-                }
-                return (
-                  <Link key={i} to={eventLink(item)} className="aspect-square rounded-lg overflow-hidden block relative">
-                    {cwInner}
-                  </Link>
-                );
-              }
-
-              if (onMediaClick) {
-                return (
-                  <button
-                    key={i}
-                    className="aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity block relative w-full"
-                    onClick={() => onMediaClick(item.url)}
-                  >
-                    <MediaTile item={item} />
-                  </button>
-                );
-              }
+          <div className="flex flex-col gap-0.5">
+            {sidebarRows.map((row, rowIdx) => {
+              const totalAR = row.items.reduce((s, item) => s + parseDimToAspectRatio(item.dim), 0);
+              const gap = 2; // gap-0.5 = 2px
+              const gapCount = row.items.length - 1;
               return (
-                <Link
-                  key={i}
-                  to={eventLink(item)}
-                  className="aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity block relative"
-                >
-                  <MediaTile item={item} />
-                </Link>
+                <div key={rowIdx} className="flex gap-0.5">
+                  {row.items.map((item, i) => {
+                    const ar = parseDimToAspectRatio(item.dim);
+                    const widthFraction = ar / totalAR;
+                    const style: React.CSSProperties = {
+                      width: `calc(${widthFraction * 100}% - ${gapCount * gap * widthFraction}px)`,
+                      paddingBottom: `calc((${widthFraction * 100}% - ${gapCount * gap * widthFraction}px) / ${ar})`,
+                      position: 'relative',
+                      flexShrink: 0,
+                    };
+
+                    // CW + blur: show a blurred placeholder instead of loading media
+                    if (item.hasContentWarning && config.contentWarningPolicy === 'blur') {
+                      const cwInner = (
+                        <>
+                          <div className="absolute inset-0 bg-muted/60 blur-lg" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <ShieldAlert className="size-5 text-muted-foreground" />
+                          </div>
+                        </>
+                      );
+                      if (onMediaClick) {
+                        return (
+                          <div key={i} style={style}>
+                            <button className="absolute inset-0 rounded-lg overflow-hidden w-full h-full" onClick={() => onMediaClick(item.url)}>
+                              {cwInner}
+                            </button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={i} style={style}>
+                          <Link to={eventLink(item)} className="absolute inset-0 rounded-lg overflow-hidden block">
+                            {cwInner}
+                          </Link>
+                        </div>
+                      );
+                    }
+
+                    if (onMediaClick) {
+                      return (
+                        <div key={i} style={style}>
+                          <button
+                            className="absolute inset-0 rounded-lg overflow-hidden hover:opacity-80 transition-opacity w-full h-full"
+                            onClick={() => onMediaClick(item.url)}
+                          >
+                            <MediaTile item={item} />
+                          </button>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={i} style={style}>
+                        <Link
+                          to={eventLink(item)}
+                          className="absolute inset-0 rounded-lg overflow-hidden hover:opacity-80 transition-opacity block"
+                        >
+                          <MediaTile item={item} />
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
               );
             })}
           </div>

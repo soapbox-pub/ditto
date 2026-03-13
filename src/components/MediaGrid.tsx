@@ -1,7 +1,8 @@
 /**
- * MediaGrid — generic 3-column square-thumbnail grid for Nostr media events.
- * Supports images, video, and audio. All media across all events is flattened
- * into one array so the Lightbox strip swipe just advances through them in order.
+ * MediaGrid — justified row-based collage for Nostr media events (Google Photos style).
+ * Supports images, video, and audio. Images respect their aspect ratios from imeta `dim` tags.
+ * All media across all events is flattened into one array so the Lightbox strip swipe
+ * just advances through them in order.
  */
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
@@ -31,6 +32,80 @@ function detectType(url: string, mime?: string): MediaType {
   return 'image';
 }
 
+// ── Aspect ratio helpers ──────────────────────────────────────────────────────
+
+/** Default aspect ratio when dim tag is missing or unparseable. */
+const DEFAULT_ASPECT_RATIO = 1;
+
+/** Parse a dim string like "1280x720" into a width/height aspect ratio number. */
+export function parseDimToAspectRatio(dim?: string): number {
+  if (!dim) return DEFAULT_ASPECT_RATIO;
+  const match = dim.match(/^(\d+)x(\d+)$/);
+  if (!match) return DEFAULT_ASPECT_RATIO;
+  const w = parseInt(match[1], 10);
+  const h = parseInt(match[2], 10);
+  if (!w || !h) return DEFAULT_ASPECT_RATIO;
+  return w / h;
+}
+
+/** A row of items in the justified layout. */
+interface JustifiedRow<T> {
+  items: T[];
+  /** The height of this row as a fraction of containerWidth. */
+  heightFraction: number;
+}
+
+/**
+ * Compute a justified (Google Photos–style) row layout.
+ * Packs items into rows so each row fills the container width.
+ * Each item's width in the row is proportional to its aspect ratio.
+ *
+ * @param items - Items with aspect ratios.
+ * @param getAspectRatio - Function to extract aspect ratio from an item.
+ * @param targetRowHeight - Ideal row height as a fraction of container width (e.g. 0.3 = 30% of width).
+ * @param maxRowItems - Maximum items per row.
+ */
+function justifiedLayout<T>(
+  items: T[],
+  getAspectRatio: (item: T) => number,
+  targetRowHeight: number = 0.3,
+  maxRowItems: number = 5,
+): JustifiedRow<T>[] {
+  if (items.length === 0) return [];
+
+  const rows: JustifiedRow<T>[] = [];
+  let currentRow: T[] = [];
+  let currentAspectSum = 0;
+
+  for (const item of items) {
+    const ar = getAspectRatio(item);
+    currentRow.push(item);
+    currentAspectSum += ar;
+
+    // The row height (as fraction of container width) = 1 / sum(aspect ratios)
+    const rowHeightFraction = 1 / currentAspectSum;
+
+    // If row is full enough (height is at or below target) or max items reached, finalize it
+    if (rowHeightFraction <= targetRowHeight || currentRow.length >= maxRowItems) {
+      rows.push({ items: [...currentRow], heightFraction: rowHeightFraction });
+      currentRow = [];
+      currentAspectSum = 0;
+    }
+  }
+
+  // Handle remaining items in the last incomplete row
+  if (currentRow.length > 0) {
+    const rowHeightFraction = 1 / currentAspectSum;
+    // Cap the last row height to target so items don't get too large
+    rows.push({
+      items: currentRow,
+      heightFraction: Math.min(rowHeightFraction, targetRowHeight),
+    });
+  }
+
+  return rows;
+}
+
 // ── Media extraction ──────────────────────────────────────────────────────────
 
 export interface MediaItem {
@@ -42,6 +117,7 @@ export interface MediaItem {
   mime?: string;
   allUrls: string[];
   allTypes: MediaType[];
+  allDims: (string | undefined)[];
   event: NostrEvent;
   hasMultiple: boolean;
 }
@@ -78,6 +154,7 @@ export function eventToMediaItem(event: NostrEvent): MediaItem | null {
       mime: first.mime,
       allUrls: imeta.map((e) => e.url),
       allTypes: imeta.map((e) => detectType(e.url, e.mime)),
+      allDims: imeta.map((e) => e.dim),
       event,
       hasMultiple: imeta.length > 1,
     };
@@ -91,6 +168,7 @@ export function eventToMediaItem(event: NostrEvent): MediaItem | null {
         type: types[0],
         allUrls: urls,
         allTypes: types,
+        allDims: urls.map(() => undefined),
         event,
         hasMultiple: urls.length > 1,
       };
@@ -142,7 +220,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
 
   return (
     <button
-      className="relative aspect-square overflow-hidden bg-muted group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="relative overflow-hidden bg-muted group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full h-full"
       onClick={onClick}
       aria-label="View media"
     >
@@ -208,12 +286,39 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
+/** Pre-defined aspect ratios for skeleton rows to approximate a collage. */
+const SKELETON_ROWS = [
+  [1.5, 0.8, 1.2],
+  [1, 1.3, 0.9],
+  [0.75, 1.5, 1],
+  [1.2, 1, 1.3],
+  [1, 0.8, 1.5],
+];
+
 export function MediaGridSkeleton({ count = 15 }: { count?: number }) {
+  const rowCount = Math.ceil(count / 3);
   return (
-    <div className="grid grid-cols-3 gap-0.5">
-      {Array.from({ length: count }).map((_, i) => (
-        <Skeleton key={i} className="aspect-square w-full rounded-none" />
-      ))}
+    <div className="flex flex-col gap-0.5">
+      {Array.from({ length: rowCount }).map((_, rowIdx) => {
+        const ratios = SKELETON_ROWS[rowIdx % SKELETON_ROWS.length];
+        const totalAR = ratios.reduce((s, r) => s + r, 0);
+        return (
+          <div key={rowIdx} className="flex gap-0.5" style={{ height: `calc(${(1 / totalAR) * 100}%)` }}>
+            {ratios.map((ar, colIdx) => {
+              const itemIdx = rowIdx * 3 + colIdx;
+              if (itemIdx >= count) return null;
+              const widthPercent = (ar / totalAR) * 100;
+              return (
+                <Skeleton
+                  key={colIdx}
+                  className="rounded-none shrink-0"
+                  style={{ width: `calc(${widthPercent}% - ${((ratios.length - 1) / ratios.length) * 2}px)`, paddingBottom: `${(1 / totalAR) * 100}%` }}
+                />
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -246,7 +351,7 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
         url,
         type: item.allTypes[indexInEvent] ?? item.type,
         mime: item.mime,
-        dim: item.dim,
+        dim: item.allDims[indexInEvent] ?? item.dim,
         blurhash: item.blurhash,
         pubkey: item.event.pubkey,
         event: item.event,
@@ -266,6 +371,17 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
     }
     return starts;
   }, [items]);
+
+  // Compute justified row layout
+  const rows = useMemo(
+    () => justifiedLayout(
+      items.map((item, i) => ({ item, index: i })),
+      ({ item }) => parseDimToAspectRatio(item.dim),
+      0.3,
+      5,
+    ),
+    [items],
+  );
 
   // Open at initialOpenUrl if provided
   const initialIndex = useMemo(() => {
@@ -328,14 +444,37 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
 
   return (
     <>
-      <div className={cn('grid grid-cols-3 gap-0.5', className)}>
-        {items.map((item, i) => (
-          <MediaThumb
-            key={item.event.id}
-            item={item}
-            onClick={() => setFlatIndex(itemStartIndex[i])}
-          />
-        ))}
+      <div className={cn('flex flex-col gap-0.5', className)}>
+        {rows.map((row, rowIdx) => {
+          const totalAR = row.items.reduce((s, { item }) => s + parseDimToAspectRatio(item.dim), 0);
+          const gap = 2; // gap-0.5 = 2px
+          const gapCount = row.items.length - 1;
+          return (
+            <div key={rowIdx} className="flex gap-0.5">
+              {row.items.map(({ item, index }) => {
+                const ar = parseDimToAspectRatio(item.dim);
+                // Each item's width is proportional to its aspect ratio
+                const widthFraction = ar / totalAR;
+                // Use calc to subtract the shared gap from each item proportionally
+                const style: React.CSSProperties = {
+                  width: `calc(${widthFraction * 100}% - ${gapCount * gap * widthFraction}px)`,
+                  // paddingBottom creates the height relative to the item's own width
+                  paddingBottom: `calc((${widthFraction * 100}% - ${gapCount * gap * widthFraction}px) / ${ar})`,
+                  position: 'relative',
+                  flexShrink: 0,
+                };
+                return (
+                  <div key={item.event.id} style={style}>
+                    <MediaThumb
+                      item={item}
+                      onClick={() => setFlatIndex(itemStartIndex[index])}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
 
       {flatIndex !== null && (
