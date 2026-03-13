@@ -42,6 +42,7 @@ import { ZapDialog } from '@/components/ZapDialog';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 
 
@@ -278,6 +279,7 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { data: stats } = useEventStats(event.id);
@@ -469,7 +471,7 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
               {author.isLoading ? (
                 <Skeleton className="size-11 rounded-full" />
               ) : (
-                <Avatar className="size-11 border-2 border-white shadow-lg">
+                <Avatar shape={avatarShape} className="size-11 border-2 border-white shadow-lg">
                   <AvatarImage src={metadata?.picture} alt={displayName} />
                   <AvatarFallback className="bg-primary/80 text-white text-sm font-bold">
                     {displayName[0]?.toUpperCase()}

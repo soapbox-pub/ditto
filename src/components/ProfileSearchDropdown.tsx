@@ -4,6 +4,7 @@ import { Search, UserRoundCheck } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { genUserName } from '@/lib/genUserName';
@@ -386,7 +387,7 @@ function ProfileItem({
       onMouseDown={(e) => e.preventDefault()} // Prevent input blur
     >
       <div className="relative shrink-0">
-        <Avatar className="size-10">
+        <Avatar shape={getAvatarShape(metadata as Record<string, unknown>)} className="size-10">
           <AvatarImage src={metadata.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}
