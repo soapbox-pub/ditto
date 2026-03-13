@@ -2200,11 +2200,7 @@ export function ProfilePage() {
                   onNearEnd={() => { if (hasNextMediaPage && !isFetchingNextMediaPage) fetchNextMediaPage(); }}
                 />
                 {hasNextMediaPage && (
-                  <div ref={scrollRef} className="flex justify-center py-6">
-                    {isFetchingNextMediaPage && (
-                      <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                    )}
-                  </div>
+                  <div ref={scrollRef} className="h-px" />
                 )}
               </>
             ) : (

@@ -8,7 +8,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Camera, Loader2 } from 'lucide-react';
+import { ArrowLeft, Camera } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import { useInView } from 'react-intersection-observer';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
@@ -148,13 +148,7 @@ export function PhotosFeedPage() {
             isFetchingNextPage={isFetchingNextPage}
             onNearEnd={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
           />
-          <div ref={scrollRef} className="py-4">
-            {isFetchingNextPage && (
-              <div className="flex justify-center">
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
-              </div>
-            )}
-          </div>
+          <div ref={scrollRef} className="h-px" />
         </>
       )}
     </main>
