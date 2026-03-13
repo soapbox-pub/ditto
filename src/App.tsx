@@ -1,31 +1,28 @@
 // NOTE: This file should normally not be modified unless you are adding a new provider.
 // To add new routes, edit the AppRouter.tsx file.
 
+import { Capacitor } from "@capacitor/core";
+import { StatusBar, Style } from "@capacitor/status-bar";
+import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createHead, UnheadProvider } from '@unhead/react/client';
-import { InferSeoMetaPlugin } from '@unhead/addons';
-import { useEffect } from 'react';
-import NostrProvider from '@/components/NostrProvider';
-import { NostrSync } from '@/components/NostrSync';
-import { NativeNotifications } from '@/components/NativeNotifications';
-
-import { InitialSyncGate } from '@/components/InitialSyncGate';
+import { InferSeoMetaPlugin } from "@unhead/addons";
+import { createHead, UnheadProvider } from "@unhead/react/client";
+import { useEffect } from "react";
+import { AppProvider } from "@/components/AppProvider";
+import { InitialSyncGate } from "@/components/InitialSyncGate";
+import { NativeNotifications } from "@/components/NativeNotifications";
+import NostrProvider from "@/components/NostrProvider";
+import { NostrSync } from "@/components/NostrSync";
+import { PlausibleProvider } from "@/components/PlausibleProvider";
+import { SentryProvider } from "@/components/SentryProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { NostrLoginProvider } from '@nostrify/react/login';
-import { AppProvider } from '@/components/AppProvider';
-import { SentryProvider } from '@/components/SentryProvider';
-import { PlausibleProvider } from '@/components/PlausibleProvider';
-import { NWCProvider } from '@/contexts/NWCContext';
-import { AppConfig } from '@/contexts/AppContext';
-import AppRouter from './AppRouter';
-import { StatusBar, Style } from '@capacitor/status-bar';
-import { Capacitor } from '@capacitor/core';
+import type { AppConfig } from "@/contexts/AppContext";
+import { NWCProvider } from "@/contexts/NWCContext";
+import AppRouter from "./AppRouter";
 
 const head = createHead({
-  plugins: [
-    InferSeoMetaPlugin(),
-  ],
+  plugins: [InferSeoMetaPlugin()],
 });
 
 const queryClient = new QueryClient({
@@ -40,9 +37,9 @@ const queryClient = new QueryClient({
 
 /** Hardcoded fallback values. Always provides every required field. */
 const hardcodedConfig: AppConfig = {
-  appName: 'Ditto',
-  appId: 'ditto',
-  homePage: 'feed',
+  appName: "Ditto",
+  appId: "ditto",
+  homePage: "feed",
   magicMouse: false,
   theme: "system",
   autoShareTheme: true,
@@ -98,6 +95,8 @@ const hardcodedConfig: AppConfig = {
     showPodcasts: false,
     feedIncludePodcastEpisodes: false,
     feedIncludePodcastTrailers: false,
+    showDevelopment: false,
+    feedIncludeDevelopment: false,
     showBadges: false,
     showBadgeDefinitions: true,
     showProfileBadges: true,
@@ -105,17 +104,34 @@ const hardcodedConfig: AppConfig = {
     feedIncludeProfileBadges: false,
     followsFeedShowReplies: true,
   },
-  sidebarOrder: ['feed', 'notifications', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings', 'help'],
-  nip85StatsPubkey: '5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea',
-  blossomServers: ['https://blossom.ditto.pub/', 'https://blossom.dreamith.to/', 'https://blossom.primal.net/'],
-  faviconUrl: 'https://fetch.ditto.pub/favicon/{hostname}',
-  linkPreviewUrl: 'https://fetch.ditto.pub/link/{url}',
-  corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
-  contentWarningPolicy: 'blur',
-  sentryDsn: import.meta.env.VITE_SENTRY_DSN || '',
+  sidebarOrder: [
+    "feed",
+    "notifications",
+    "search",
+    "bookmarks",
+    "profile",
+    "photos",
+    "videos",
+    "themes",
+    "theme",
+    "settings",
+    "help",
+  ],
+  nip85StatsPubkey:
+    "5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea",
+  blossomServers: [
+    "https://blossom.ditto.pub/",
+    "https://blossom.dreamith.to/",
+    "https://blossom.primal.net/",
+  ],
+  faviconUrl: "https://fetch.ditto.pub/favicon/{hostname}",
+  linkPreviewUrl: "https://fetch.ditto.pub/link/{url}",
+  corsProxy: "https://proxy.shakespeare.diy/?url={href}",
+  contentWarningPolicy: "blur",
+  sentryDsn: import.meta.env.VITE_SENTRY_DSN || "",
   sentryEnabled: true,
-  plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || '',
-  plausibleEndpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT || '',
+  plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || "",
+  plausibleEndpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT || "",
   savedFeeds: [],
 };
 
@@ -125,7 +141,9 @@ const hardcodedConfig: AppConfig = {
  */
 const defaultConfig: AppConfig = {
   ...hardcodedConfig,
-  ...(typeof __DITTO_CONFIG__ !== 'undefined' && __DITTO_CONFIG__ ? __DITTO_CONFIG__ : {}),
+  ...(typeof __DITTO_CONFIG__ !== "undefined" && __DITTO_CONFIG__
+    ? __DITTO_CONFIG__
+    : {}),
 };
 
 export function App() {
@@ -147,7 +165,7 @@ export function App() {
         <SentryProvider>
           <PlausibleProvider>
             <QueryClientProvider client={queryClient}>
-              <NostrLoginProvider storageKey='nostr:login'>
+              <NostrLoginProvider storageKey="nostr:login">
                 <NostrProvider>
                   <NostrSync />
                   <NativeNotifications />

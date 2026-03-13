@@ -1,43 +1,48 @@
-import { type ReactNode, useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { IntroImage } from '@/components/IntroImage';
-import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
-import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
-import { useNostr } from '@nostrify/react';
-import { ProfileCard } from '@/components/ProfileCard';
-import { ImageCropDialog } from '@/components/ImageCropDialog';
-import { DittoLogo } from '@/components/DittoLogo';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useAppContext } from '@/hooks/useAppContext';
-import { useTheme } from '@/hooks/useTheme';
-import { ThemeGrid } from '@/components/ThemeSelector';
-import { useInitialSync, type SyncPhase } from '@/hooks/useInitialSync';
-import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { useLoginActions } from '@/hooks/useLoginActions';
-import { useUploadFile } from '@/hooks/useUploadFile';
-import { useQueryClient } from '@tanstack/react-query';
-import { useAuthors } from '@/hooks/useAuthors';
-import { genUserName } from '@/lib/genUserName';
-import { toast } from '@/hooks/useToast';
-import { cn } from '@/lib/utils';
+import type { NostrEvent, NostrMetadata } from "@nostrify/nostrify";
+import { useNostr } from "@nostrify/react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   ChevronRight,
+  Download,
   Eye,
   EyeOff,
-  Users,
-  UserPlus,
-  Loader2,
   Heart,
-  Download,
-} from 'lucide-react';
-
-
-import { OnboardingContext } from '@/hooks/useOnboarding';
+  Loader2,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { DittoLogo } from "@/components/DittoLogo";
+import { ImageCropDialog } from "@/components/ImageCropDialog";
+import { IntroImage } from "@/components/IntroImage";
+import { ProfileCard } from "@/components/ProfileCard";
+import { ThemeGrid } from "@/components/ThemeSelector";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAppContext } from "@/hooks/useAppContext";
+import { useAuthors } from "@/hooks/useAuthors";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
+import { type SyncPhase, useInitialSync } from "@/hooks/useInitialSync";
+import { useLoginActions } from "@/hooks/useLoginActions";
+import { useNostrPublish } from "@/hooks/useNostrPublish";
+import { OnboardingContext } from "@/hooks/useOnboarding";
+import { useTheme } from "@/hooks/useTheme";
+import { toast } from "@/hooks/useToast";
+import { useUploadFile } from "@/hooks/useUploadFile";
+import { genUserName } from "@/lib/genUserName";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // InitialSyncGate
@@ -93,7 +98,7 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
   }
 
   // Normal logged-in sync flow
-  if (phase === 'syncing' || phase === 'found') {
+  if (phase === "syncing" || phase === "found") {
     return (
       <OnboardingContext.Provider value={contextValue}>
         <SyncScreen phase={phase} />
@@ -101,7 +106,7 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
     );
   }
 
-  if (phase === 'not-found') {
+  if (phase === "not-found") {
     return (
       <OnboardingContext.Provider value={contextValue}>
         {preloadApp && <div className="invisible">{children}</div>}
@@ -144,17 +149,19 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 
           <div className="space-y-1.5">
             <p className="text-sm font-medium text-foreground">
-              {phase === 'found' ? 'Settings restored' : 'Syncing your settings...'}
+              {phase === "found"
+                ? "Settings restored"
+                : "Syncing your settings..."}
             </p>
             <p className="text-xs text-muted-foreground">
-              {phase === 'found'
-                ? 'Welcome back! Loading your experience...'
-                : 'Checking for your preferences across devices'}
+              {phase === "found"
+                ? "Welcome back! Loading your experience..."
+                : "Checking for your preferences across devices"}
             </p>
           </div>
         </div>
 
-        {phase === 'syncing' && (
+        {phase === "syncing" && (
           <div className="flex gap-1.5">
             {[0, 1, 2].map((i) => (
               <div
@@ -166,7 +173,7 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
           </div>
         )}
 
-        {phase === 'found' && (
+        {phase === "found" && (
           <div className="flex items-center gap-2 text-primary">
             <Check className="w-4 h-4" />
             <span className="text-sm font-medium">All set</span>
@@ -182,19 +189,36 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // ---------------------------------------------------------------------------
 
 /** Suggested follow packs shown to new users with empty follow lists. */
-const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] = [
-  { kind: 39089, pubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d', identifier: 'k4p5w0n22suf' },
-];
+const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] =
+  [
+    {
+      kind: 39089,
+      pubkey:
+        "932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d",
+      identifier: "k4p5w0n22suf",
+    },
+  ];
 
 // Steps for signup (includes keygen + profile) vs. settings-only (existing login)
-type SignupStep = 'keygen' | 'download' | 'profile';
-type SettingsStep = 'theme' | 'follows' | 'outro';
+type SignupStep = "keygen" | "download" | "profile";
+type SettingsStep = "theme" | "follows" | "outro";
 type Step = SignupStep | SettingsStep;
 
-const SIGNUP_STEPS: Step[] = ['theme', 'keygen', 'download', 'profile', 'follows', 'outro'];
-const SETTINGS_STEPS: Step[] = ['theme', 'follows', 'outro'];
+const SIGNUP_STEPS: Step[] = [
+  "theme",
+  "keygen",
+  "download",
+  "profile",
+  "follows",
+  "outro",
+];
+const SETTINGS_STEPS: Step[] = ["theme", "follows", "outro"];
 
-function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
+function SetupQuestionnaire({
+  onComplete,
+  onPreload,
+  isSignup = false,
+}: {
   onComplete: () => void;
   onPreload: () => void;
   isSignup?: boolean;
@@ -212,10 +236,10 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
   const [hasFollows, setHasFollows] = useState<boolean | null>(null);
 
   // Signup-specific state
-  const [nsec, setNsec] = useState('');
+  const [nsec, setNsec] = useState("");
 
   const stepIndex = steps.indexOf(step);
-  const progress = ((stepIndex) / (steps.length - 1)) * 100;
+  const progress = (stepIndex / (steps.length - 1)) * 100;
 
   const goTo = useCallback((target: Step) => setStep(target), []);
 
@@ -233,8 +257,6 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
     }
   }, [step, steps]);
 
-
-
   // Keygen handler
   const handleGenerate = useCallback(() => {
     const sk = generateSecretKey();
@@ -247,18 +269,18 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
   const handleDownloadAndLogin = useCallback(() => {
     try {
       const decoded = nip19.decode(nsec);
-      if (decoded.type !== 'nsec') throw new Error('Invalid nsec');
+      if (decoded.type !== "nsec") throw new Error("Invalid nsec");
 
       const pubkey = getPublicKey(decoded.data);
       const npub = nip19.npubEncode(pubkey);
-      const filename = `nostr-${location.hostname.replaceAll(/\./g, '-')}-${npub.slice(5, 9)}.nsec.txt`;
+      const filename = `nostr-${location.hostname.replaceAll(/\./g, "-")}-${npub.slice(5, 9)}.nsec.txt`;
 
-      const blob = new Blob([nsec], { type: 'text/plain; charset=utf-8' });
+      const blob = new Blob([nsec], { type: "text/plain; charset=utf-8" });
       const url = globalThis.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = filename;
-      a.style.display = 'none';
+      a.style.display = "none";
       document.body.appendChild(a);
       a.click();
       globalThis.URL.revokeObjectURL(url);
@@ -269,9 +291,10 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       next();
     } catch {
       toast({
-        title: 'Download failed',
-        description: 'Could not download the key file. Please copy it manually.',
-        variant: 'destructive',
+        title: "Download failed",
+        description:
+          "Could not download the key file. Please copy it manually.",
+        variant: "destructive",
       });
     }
   }, [nsec, login, next]);
@@ -327,6 +350,8 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       showPodcasts: false,
       feedIncludePodcastEpisodes: false,
       feedIncludePodcastTrailers: false,
+      showDevelopment: false,
+      feedIncludeDevelopment: false,
       showBadges: false,
       showBadgeDefinitions: true,
       showProfileBadges: true,
@@ -338,17 +363,17 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
     updateConfig((current) => ({
       ...current,
       feedSettings,
-      contentWarningPolicy: 'blur',
+      contentWarningPolicy: "blur",
     }));
 
     if (user?.signer.nip44) {
       try {
         await updateSettings.mutateAsync({
           feedSettings,
-          contentWarningPolicy: 'blur',
+          contentWarningPolicy: "blur",
         });
       } catch (error) {
-        console.warn('Failed to save initial settings to Nostr:', error);
+        console.warn("Failed to save initial settings to Nostr:", error);
       }
     }
 
@@ -361,7 +386,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
           { signal: AbortSignal.timeout(5000) },
         );
         if (events.length > 0) {
-          const pTags = events[0].tags.filter(([n]) => n === 'p');
+          const pTags = events[0].tags.filter(([n]) => n === "p");
           userHasFollows = pTags.length > 0;
         }
       } catch {
@@ -373,9 +398,9 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
     setIsSaving(false);
 
     if (userHasFollows) {
-      goTo('outro');
+      goTo("outro");
     } else {
-      goTo('follows');
+      goTo("follows");
     }
   }, [updateConfig, updateSettings, user, nostr, goTo]);
 
@@ -393,41 +418,37 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       <div className="flex-1 flex flex-col overflow-y-auto">
         <div className="w-full max-w-md mx-auto my-auto px-6 py-12">
           {/* Signup steps */}
-          {step === 'keygen' && (
-            <KeygenStep onGenerate={handleGenerate} />
-          )}
+          {step === "keygen" && <KeygenStep onGenerate={handleGenerate} />}
 
-          {step === 'download' && (
+          {step === "download" && (
             <DownloadStep nsec={nsec} onDownload={handleDownloadAndLogin} />
           )}
 
-          {step === 'profile' && (
+          {step === "profile" && (
             <ProfileStep onNext={handleSaveAndContinue} isSaving={isSaving} />
           )}
 
           {/* Settings steps */}
-          {step === 'theme' && (
+          {step === "theme" && (
             <ThemeStep
               onNext={isSignup ? next : handleSaveAndContinue}
               onBack={back}
-              isFirst={isSignup && steps.indexOf('theme') === 0}
+              isFirst={isSignup && steps.indexOf("theme") === 0}
               isSaving={!isSignup && isSaving}
             />
           )}
 
-          {step === 'follows' && hasFollows === false && (
+          {step === "follows" && hasFollows === false && (
             <FollowsStep
               onNext={(didFollow) => {
                 if (didFollow) onPreload();
-                goTo('outro');
+                goTo("outro");
               }}
               onBack={back}
             />
           )}
 
-          {step === 'outro' && (
-            <OutroStep onComplete={onComplete} />
-          )}
+          {step === "outro" && <OutroStep onComplete={onComplete} />}
         </div>
       </div>
     </div>
@@ -448,7 +469,8 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
           Create your account
         </h1>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
-          Your identity on Nostr is a cryptographic key pair. We'll generate one for you now.
+          Your identity on Nostr is a cryptographic key pair. We'll generate one
+          for you now.
         </p>
       </div>
 
@@ -464,21 +486,30 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
   );
 }
 
-function DownloadStep({ nsec, onDownload }: { nsec: string; onDownload: () => void }) {
+function DownloadStep({
+  nsec,
+  onDownload,
+}: {
+  nsec: string;
+  onDownload: () => void;
+}) {
   const [showKey, setShowKey] = useState(false);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight">Save your secret key</h2>
+        <h2 className="text-xl font-semibold tracking-tight">
+          Save your secret key
+        </h2>
         <p className="text-sm text-muted-foreground">
-          This is your only way to access your account. Download it and keep it somewhere safe.
+          This is your only way to access your account. Download it and keep it
+          somewhere safe.
         </p>
       </div>
 
       <div className="relative">
         <Input
-          type={showKey ? 'text' : 'password'}
+          type={showKey ? "text" : "password"}
           value={nsec}
           readOnly
           className="pr-10 font-mono text-sm"
@@ -503,7 +534,8 @@ function DownloadStep({ nsec, onDownload }: { nsec: string; onDownload: () => vo
           Important
         </p>
         <p className="text-xs text-amber-900 dark:text-amber-300">
-          This key is your only means of accessing your account. If you lose it, there is no way to recover it. Download it now to continue.
+          This key is your only means of accessing your account. If you lose it,
+          there is no way to recover it. Download it now to continue.
         </p>
       </div>
 
@@ -519,46 +551,77 @@ function DownloadStep({ nsec, onDownload }: { nsec: string; onDownload: () => vo
   );
 }
 
-function ProfileStep({ onNext, isSaving = false }: { onNext: () => void; isSaving?: boolean }) {
+function ProfileStep({
+  onNext,
+  isSaving = false,
+}: {
+  onNext: () => void;
+  isSaving?: boolean;
+}) {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
-  const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
+  const { mutateAsync: publishEvent, isPending: isPublishing } =
+    useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const pickInputRef = useRef<HTMLInputElement>(null);
-  const pendingField = useRef<'picture' | 'banner'>('picture');
+  const pendingField = useRef<"picture" | "banner">("picture");
 
   const [profileData, setProfileData] = useState<Partial<NostrMetadata>>({
-    name: '', about: '', picture: '', banner: '', website: '',
+    name: "",
+    about: "",
+    picture: "",
+    banner: "",
+    website: "",
   });
-  const [extraFields, setExtraFields] = useState<Array<{ label: string; value: string }>>([]);
-  const [cropState, setCropState] = useState<{ imageSrc: string; aspect: number; field: 'picture' | 'banner' } | null>(null);
+  const [extraFields, setExtraFields] = useState<
+    Array<{ label: string; value: string }>
+  >([]);
+  const [cropState, setCropState] = useState<{
+    imageSrc: string;
+    aspect: number;
+    field: "picture" | "banner";
+  } | null>(null);
 
-  const handlePickImage = useCallback((field: 'picture' | 'banner') => {
+  const handlePickImage = useCallback((field: "picture" | "banner") => {
     pendingField.current = field;
     pickInputRef.current?.click();
   }, []);
 
-  const handleFileChosen = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-    const field = pendingField.current;
-    setCropState({ imageSrc: URL.createObjectURL(file), aspect: field === 'picture' ? 1 : 3, field });
-  }, []);
+  const handleFileChosen = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      e.target.value = "";
+      const field = pendingField.current;
+      setCropState({
+        imageSrc: URL.createObjectURL(file),
+        aspect: field === "picture" ? 1 : 3,
+        field,
+      });
+    },
+    [],
+  );
 
-  const handleCropConfirm = useCallback(async (blob: Blob) => {
-    if (!cropState) return;
-    const { field, imageSrc } = cropState;
-    URL.revokeObjectURL(imageSrc);
-    setCropState(null);
-    try {
-      const file = new File([blob], `${field}.jpg`, { type: 'image/jpeg' });
-      const [[, url]] = await uploadFile(file);
-      setProfileData((prev) => ({ ...prev, [field]: url }));
-    } catch {
-      toast({ title: 'Upload failed', description: 'Please try again.', variant: 'destructive' });
-    }
-  }, [cropState, uploadFile]);
+  const handleCropConfirm = useCallback(
+    async (blob: Blob) => {
+      if (!cropState) return;
+      const { field, imageSrc } = cropState;
+      URL.revokeObjectURL(imageSrc);
+      setCropState(null);
+      try {
+        const file = new File([blob], `${field}.jpg`, { type: "image/jpeg" });
+        const [[, url]] = await uploadFile(file);
+        setProfileData((prev) => ({ ...prev, [field]: url }));
+      } catch {
+        toast({
+          title: "Upload failed",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [cropState, uploadFile],
+  );
 
   const handleCropCancel = useCallback(() => {
     if (cropState) URL.revokeObjectURL(cropState.imageSrc);
@@ -567,17 +630,26 @@ function ProfileStep({ onNext, isSaving = false }: { onNext: () => void; isSavin
 
   const handlePublishProfile = useCallback(async () => {
     if (!user) return;
-    const hasData = Object.values(profileData).some((v) => v) || extraFields.length > 0;
+    const hasData =
+      Object.values(profileData).some((v) => v) || extraFields.length > 0;
     if (hasData) {
       try {
         const data: Record<string, unknown> = { ...profileData };
-        const validFields = extraFields.filter((f) => f.label.trim() && f.value.trim());
-        if (validFields.length > 0) data.fields = validFields.map((f) => [f.label, f.value]);
+        const validFields = extraFields.filter(
+          (f) => f.label.trim() && f.value.trim(),
+        );
+        if (validFields.length > 0)
+          data.fields = validFields.map((f) => [f.label, f.value]);
         await publishEvent({ kind: 0, content: JSON.stringify(data) });
-        queryClient.invalidateQueries({ queryKey: ['logins'] });
-        queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
+        queryClient.invalidateQueries({ queryKey: ["logins"] });
+        queryClient.invalidateQueries({ queryKey: ["author", user.pubkey] });
       } catch {
-        toast({ title: 'Profile failed', description: 'Your account was created but profile setup failed. You can update it later.', variant: 'destructive' });
+        toast({
+          title: "Profile failed",
+          description:
+            "Your account was created but profile setup failed. You can update it later.",
+          variant: "destructive",
+        });
       }
     }
     onNext();
@@ -588,29 +660,43 @@ function ProfileStep({ onNext, isSaving = false }: { onNext: () => void; isSavin
       <div className="flex items-center gap-4">
         <IntroImage src="/profile-intro.png" />
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight">Set up your profile</h2>
+          <h2 className="text-xl font-semibold tracking-tight">
+            Set up your profile
+          </h2>
           <p className="text-sm text-muted-foreground">
             Tell people a bit about yourself. You can always change this later.
           </p>
         </div>
       </div>
 
-      <input ref={pickInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChosen} />
+      <input
+        ref={pickInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChosen}
+      />
       {cropState && (
         <ImageCropDialog
           open
           imageSrc={cropState.imageSrc}
           aspect={cropState.aspect}
-          title={cropState.field === 'picture' ? 'Crop Profile Picture' : 'Crop Banner'}
+          title={
+            cropState.field === "picture"
+              ? "Crop Profile Picture"
+              : "Crop Banner"
+          }
           onCancel={handleCropCancel}
           onCrop={handleCropConfirm}
         />
       )}
 
-      <div className={cn(isPublishing && 'opacity-50 pointer-events-none')}>
+      <div className={cn(isPublishing && "opacity-50 pointer-events-none")}>
         <ProfileCard
           metadata={profileData}
-          onChange={(patch) => setProfileData((prev) => ({ ...prev, ...patch }))}
+          onChange={(patch) =>
+            setProfileData((prev) => ({ ...prev, ...patch }))
+          }
           onPickImage={handlePickImage}
           showNip05={false}
           extraFields={extraFields}
@@ -625,11 +711,28 @@ function ProfileStep({ onNext, isSaving = false }: { onNext: () => void; isSavin
       )}
 
       <div className="flex gap-3">
-        <Button variant="ghost" onClick={onNext} className="flex-1 rounded-full h-11" disabled={isPublishing || isSaving}>
+        <Button
+          variant="ghost"
+          onClick={onNext}
+          className="flex-1 rounded-full h-11"
+          disabled={isPublishing || isSaving}
+        >
           Skip
         </Button>
-        <Button onClick={handlePublishProfile} className="flex-1 rounded-full h-11 gap-1.5" disabled={isPublishing || isUploading || isSaving}>
-          {(isPublishing || isSaving) ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <>Continue <ChevronRight className="w-4 h-4" /></>}
+        <Button
+          onClick={handlePublishProfile}
+          className="flex-1 rounded-full h-11 gap-1.5"
+          disabled={isPublishing || isUploading || isSaving}
+        >
+          {isPublishing || isSaving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Saving…
+            </>
+          ) : (
+            <>
+              Continue <ChevronRight className="w-4 h-4" />
+            </>
+          )}
         </Button>
       </div>
     </div>
@@ -665,36 +768,65 @@ function ThemeStep({
       )}
 
       {/* Center content — semi-transparent on desktop when bg is active */}
-      <div className={cn(
-        'relative z-10 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400',
-        'sm:rounded-2xl sm:transition-[background-color,backdrop-filter] sm:duration-700',
-        bgUrl ? 'sm:bg-background/60 sm:backdrop-blur-md sm:-mx-4 sm:px-4 sm:py-4' : '',
-      )}>
+      <div
+        className={cn(
+          "relative z-10 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400",
+          "sm:rounded-2xl sm:transition-[background-color,backdrop-filter] sm:duration-700",
+          bgUrl
+            ? "sm:bg-background/60 sm:backdrop-blur-md sm:-mx-4 sm:px-4 sm:py-4"
+            : "",
+        )}
+      >
         <div className="space-y-2">
-          <h2 className="text-xl font-semibold tracking-tight">Choose your look</h2>
-          <p className="text-sm text-muted-foreground">Pick a theme that feels right.</p>
+          <h2 className="text-xl font-semibold tracking-tight">
+            Choose your look
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Pick a theme that feels right.
+          </p>
         </div>
 
         <ThemeGrid columns="scroll" limit={9} />
 
         {isFirst ? (
-          <Button onClick={onNext} className="w-full rounded-full h-11 gap-1.5" disabled={isSaving}>
+          <Button
+            onClick={onNext}
+            className="w-full rounded-full h-11 gap-1.5"
+            disabled={isSaving}
+          >
             {isSaving ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+              </>
             ) : (
-              <>Continue <ChevronRight className="w-4 h-4" /></>
+              <>
+                Continue <ChevronRight className="w-4 h-4" />
+              </>
             )}
           </Button>
         ) : (
           <div className="flex gap-3">
-            <Button variant="ghost" onClick={onBack} className="flex-1 rounded-full h-11" disabled={isSaving}>
+            <Button
+              variant="ghost"
+              onClick={onBack}
+              className="flex-1 rounded-full h-11"
+              disabled={isSaving}
+            >
               Back
             </Button>
-            <Button onClick={onNext} className="flex-1 rounded-full h-11 gap-1.5" disabled={isSaving}>
+            <Button
+              onClick={onNext}
+              className="flex-1 rounded-full h-11 gap-1.5"
+              disabled={isSaving}
+            >
               {isSaving ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                </>
               ) : (
-                <>Continue <ChevronRight className="w-4 h-4" /></>
+                <>
+                  Continue <ChevronRight className="w-4 h-4" />
+                </>
               )}
             </Button>
           </div>
@@ -711,15 +843,21 @@ function ThemeStep({
 /** Parse a follow pack event into structured data. */
 function parsePackEvent(event: NostrEvent) {
   const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
-  const title = getTag('title') || getTag('name') || 'Untitled Pack';
-  const description = getTag('description') || getTag('summary') || '';
-  const image = getTag('image') || getTag('thumb') || getTag('banner');
-  const pubkeys = event.tags.filter(([n]) => n === 'p').map(([, pk]) => pk);
+  const title = getTag("title") || getTag("name") || "Untitled Pack";
+  const description = getTag("description") || getTag("summary") || "";
+  const image = getTag("image") || getTag("thumb") || getTag("banner");
+  const pubkeys = event.tags.filter(([n]) => n === "p").map(([, pk]) => pk);
 
   return { title, description, image, pubkeys };
 }
 
-function FollowsStep({ onNext, onBack }: { onNext: (didFollow: boolean) => void; onBack: () => void }) {
+function FollowsStep({
+  onNext,
+  onBack,
+}: {
+  onNext: (didFollow: boolean) => void;
+  onBack: () => void;
+}) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -738,70 +876,88 @@ function FollowsStep({ onNext, onBack }: { onNext: (didFollow: boolean) => void;
         const filters = SUGGESTED_PACKS.map((p) => ({
           kinds: [p.kind],
           authors: [p.pubkey],
-          '#d': [p.identifier],
+          "#d": [p.identifier],
           limit: 1,
         }));
 
-        const events = await nostr.query(filters, { signal: AbortSignal.timeout(8000) });
+        const events = await nostr.query(filters, {
+          signal: AbortSignal.timeout(8000),
+        });
         if (!cancelled) {
           setPacks(events);
         }
       } catch (error) {
-        console.warn('Failed to fetch suggested follow packs:', error);
+        console.warn("Failed to fetch suggested follow packs:", error);
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
     fetchPacks();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [nostr]);
 
-  const handleFollowAll = useCallback(async (pack: NostrEvent) => {
-    if (!user) return;
+  const handleFollowAll = useCallback(
+    async (pack: NostrEvent) => {
+      if (!user) return;
 
-    const packId = pack.id;
-    setFollowingPack(packId);
+      const packId = pack.id;
+      setFollowingPack(packId);
 
-    try {
-      const packPubkeys = pack.tags.filter(([n]) => n === 'p').map(([, pk]) => pk);
+      try {
+        const packPubkeys = pack.tags
+          .filter(([n]) => n === "p")
+          .map(([, pk]) => pk);
 
-      // Fetch current follow list
-      const followEvents: NostrEvent[] = await nostr.query(
-        [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
-        { signal: AbortSignal.timeout(10_000) },
-      ).catch((): NostrEvent[] => []);
+        // Fetch current follow list
+        const followEvents: NostrEvent[] = await nostr
+          .query([{ kinds: [3], authors: [user.pubkey], limit: 1 }], {
+            signal: AbortSignal.timeout(10_000),
+          })
+          .catch((): NostrEvent[] => []);
 
-      const latestEvent = followEvents.length > 0
-        ? followEvents.reduce((latest, current) => current.created_at > latest.created_at ? current : latest)
-        : null;
+        const latestEvent =
+          followEvents.length > 0
+            ? followEvents.reduce((latest, current) =>
+                current.created_at > latest.created_at ? current : latest,
+              )
+            : null;
 
-      const existingFollows = latestEvent
-        ? latestEvent.tags.filter(([name]) => name === 'p').map(([, pk]) => pk)
-        : [];
+        const existingFollows = latestEvent
+          ? latestEvent.tags
+              .filter(([name]) => name === "p")
+              .map(([, pk]) => pk)
+          : [];
 
-      const allFollows = [...new Set([...existingFollows, ...packPubkeys])];
+        const allFollows = [...new Set([...existingFollows, ...packPubkeys])];
 
-      await publishEvent({
-        kind: 3,
-        content: latestEvent?.content ?? '',
-        tags: allFollows.map((pk) => ['p', pk]),
-      });
+        await publishEvent({
+          kind: 3,
+          content: latestEvent?.content ?? "",
+          tags: allFollows.map((pk) => ["p", pk]),
+        });
 
-      setFollowedPacks((prev) => new Set([...prev, packId]));
-    } catch (error) {
-      console.error('Failed to follow pack:', error);
-    } finally {
-      setFollowingPack(null);
-    }
-  }, [user, nostr, publishEvent]);
+        setFollowedPacks((prev) => new Set([...prev, packId]));
+      } catch (error) {
+        console.error("Failed to follow pack:", error);
+      } finally {
+        setFollowingPack(null);
+      }
+    },
+    [user, nostr, publishEvent],
+  );
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight">Find your people</h2>
+        <h2 className="text-xl font-semibold tracking-tight">
+          Find your people
+        </h2>
         <p className="text-sm text-muted-foreground">
-          Your feed is empty! Follow some people to get started. Here are some curated packs to help you find interesting voices.
+          Your feed is empty! Follow some people to get started. Here are some
+          curated packs to help you find interesting voices.
         </p>
       </div>
 
@@ -812,7 +968,8 @@ function FollowsStep({ onNext, onBack }: { onNext: (didFollow: boolean) => void;
           ))
         ) : packs.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">
-            Couldn't load suggestions right now. You can find follow packs later in the app.
+            Couldn't load suggestions right now. You can find follow packs later
+            in the app.
           </p>
         ) : (
           packs.map((pack) => (
@@ -839,7 +996,7 @@ function FollowsStep({ onNext, onBack }: { onNext: (didFollow: boolean) => void;
           onClick={() => onNext(followedPacks.size > 0)}
           className="flex-1 rounded-full h-11 gap-1.5"
         >
-          {followedPacks.size > 0 ? 'Continue' : 'Skip for now'}
+          {followedPacks.size > 0 ? "Continue" : "Skip for now"}
           <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
@@ -859,7 +1016,10 @@ function PackCard({
   isFollowing: boolean;
   onFollowAll: () => void;
 }) {
-  const { title, description, pubkeys } = useMemo(() => parsePackEvent(event), [event]);
+  const { title, description, pubkeys } = useMemo(
+    () => parsePackEvent(event),
+    [event],
+  );
 
   // Show first 6 member avatars
   const previewPubkeys = useMemo(() => pubkeys.slice(0, 6), [pubkeys]);
@@ -873,7 +1033,9 @@ function PackCard({
           <div className="min-w-0">
             <h3 className="font-semibold text-sm leading-snug">{title}</h3>
             {description && (
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{description}</p>
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                {description}
+              </p>
             )}
           </div>
           <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0 mt-0.5">
@@ -908,7 +1070,7 @@ function PackCard({
         <Button
           className="w-full gap-2"
           size="sm"
-          variant={isFollowed ? 'outline' : 'default'}
+          variant={isFollowed ? "outline" : "default"}
           onClick={onFollowAll}
           disabled={isFollowed || isFollowing}
         >
@@ -977,7 +1139,10 @@ function PackCardSkeleton() {
       </div>
       <div className="flex -space-x-2">
         {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="size-7 rounded-full ring-2 ring-background" />
+          <Skeleton
+            key={i}
+            className="size-7 rounded-full ring-2 ring-background"
+          />
         ))}
       </div>
       <Skeleton className="h-8 w-full rounded-md" />
@@ -1000,12 +1165,10 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
       </div>
 
       <div className="space-y-3 max-w-xs">
-        <h2 className="text-2xl font-bold tracking-tight">
-          You're all set
-        </h2>
+        <h2 className="text-2xl font-bold tracking-tight">You're all set</h2>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          That's it! Go find something wonderful, share something fun,
-          and make yourself at home.
+          That's it! Go find something wonderful, share something fun, and make
+          yourself at home.
         </p>
       </div>
 
@@ -1028,7 +1191,7 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
 function _StepNav({
   onBack,
   onNext,
-  nextLabel = 'Continue',
+  nextLabel = "Continue",
 }: {
   onBack: () => void;
   onNext: () => void;
@@ -1043,10 +1206,7 @@ function _StepNav({
       >
         Back
       </Button>
-      <Button
-        onClick={onNext}
-        className="flex-1 rounded-full h-11 gap-1.5"
-      >
+      <Button onClick={onNext} className="flex-1 rounded-full h-11 gap-1.5">
         {nextLabel}
         <ChevronRight className="w-4 h-4" />
       </Button>
