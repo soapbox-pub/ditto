@@ -62,6 +62,43 @@ function starPolygon(points: number, innerRatio: number, rotationDeg: number = -
 }
 
 /**
+ * Generates a heart shape as a polygon by sampling a parametric heart curve.
+ * Uses the parametric equations: x = sin(t)^3, y = cos(t) - cos(2t)/3 - cos(3t)/6
+ * Shifted and scaled to fit a 0-100% coordinate space.
+ */
+function heartPolygon(): string {
+  const points: string[] = [];
+  const steps = 50;
+  // Sample the parametric heart curve
+  const rawPoints: [number, number][] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = (i / steps) * 2 * Math.PI;
+    const x = Math.pow(Math.sin(t), 3);
+    const y = (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) / 16;
+    rawPoints.push([x, y]);
+  }
+  // Find bounds for normalization
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const [x, y] of rawPoints) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  const rangeX = maxX - minX;
+  const rangeY = maxY - minY;
+  // Normalize to 0-100% with a small margin (2%) and flip Y (heart curve has Y pointing up)
+  const margin = 2;
+  const usable = 100 - 2 * margin;
+  for (const [x, y] of rawPoints) {
+    const px = margin + ((x - minX) / rangeX) * usable;
+    const py = margin + ((1 - (y - minY) / rangeY)) * usable;
+    points.push(`${px.toFixed(2)}% ${py.toFixed(2)}%`);
+  }
+  return `polygon(${points.join(', ')})`;
+}
+
+/**
  * Extracts a valid AvatarShape from a NostrMetadata object (or any object with a `shape` property).
  * Returns `undefined` if the shape is missing or invalid (which means "circle" / default).
  */
@@ -99,7 +136,6 @@ export function getAvatarClipPath(shape: AvatarShape | undefined): string | unde
       return starPolygon(6, 0.577, -90);
 
     case 'heart':
-      // SVG path normalized to a 1×1 viewBox. Uses cubic beziers for the curved lobes.
-      return 'path("M0.5 0.92 C0.28 0.75, 0 0.56, 0 0.34 C0 0.16, 0.13 0.04, 0.28 0.04 C0.37 0.04, 0.45 0.09, 0.5 0.17 C0.55 0.09, 0.63 0.04, 0.72 0.04 C0.87 0.04, 1 0.16, 1 0.34 C1 0.56, 0.72 0.75, 0.5 0.92 Z")';
+      return heartPolygon();
   }
 }
