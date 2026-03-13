@@ -35,7 +35,7 @@ import { isEventMuted } from '@/lib/muteHelpers';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, filterByTab } from '@/hooks/useProfileFeed';
 import type { ProfileTab as CoreProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
-import { MediaGrid, MediaGridSkeleton } from '@/components/MediaGrid';
+import { MediaCollage, MediaCollageSkeleton } from '@/components/MediaCollage';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useWallComments } from '@/hooks/useWallComments';
 import { ThreadedReplyList } from '@/components/ThreadedReplyList';
@@ -2188,10 +2188,10 @@ export function ProfilePage() {
         {hasTabs && activeTab === 'media' && (
           <div>
             {mediaPending ? (
-              <MediaGridSkeleton count={15} />
+              <MediaCollageSkeleton count={15} />
             ) : mediaEvents.length > 0 ? (
               <>
-                <MediaGrid
+                <MediaCollage
                   events={mediaEvents}
                   initialOpenUrl={sidebarMediaUrl ?? undefined}
                   onInitialOpenConsumed={() => setSidebarMediaUrl(null)}
@@ -2200,11 +2200,7 @@ export function ProfilePage() {
                   onNearEnd={() => { if (hasNextMediaPage && !isFetchingNextMediaPage) fetchNextMediaPage(); }}
                 />
                 {hasNextMediaPage && (
-                  <div ref={scrollRef} className="flex justify-center py-6">
-                    {isFetchingNextMediaPage && (
-                      <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                    )}
-                  </div>
+                  <div ref={scrollRef} className="h-px" />
                 )}
               </>
             ) : (
