@@ -312,7 +312,7 @@ export function MediaGridSkeleton({ count = 15 }: { count?: number }) {
   const perRow = isMobile ? 2 : 3;
   const rowCount = Math.ceil(count / perRow);
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5 p-1.5">
       {Array.from({ length: rowCount }).map((_, rowIdx) => {
         const ratios = skeletonRows[rowIdx % skeletonRows.length];
         return (
@@ -462,7 +462,7 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
 
   return (
     <>
-      <div className={cn('flex flex-col gap-1.5', className)}>
+      <div className={cn('flex flex-col gap-1.5 p-1.5', className)}>
         {rows.map((row, rowIdx) => (
           <div key={rowIdx} className="flex gap-1.5">
             {row.items.map(({ item, index }) => {
