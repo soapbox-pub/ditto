@@ -3,12 +3,12 @@
  *
  * - Follows tab: useFeed (relay pool, chronological)
  * - Global tab: useInfiniteHotFeed (sort:hot via relay.ditto.pub)
- * - Infinite-scroll 3-column grid via the shared MediaGrid component
+ * - Infinite-scroll justified collage via the shared MediaCollage component
  */
 
 import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Camera, Loader2 } from 'lucide-react';
+import { ArrowLeft, Camera } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import { useInView } from 'react-intersection-observer';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
@@ -26,7 +26,7 @@ import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
-import { MediaGrid, MediaGridSkeleton, eventToMediaItem } from '@/components/MediaGrid';
+import { MediaCollage, MediaCollageSkeleton, eventToMediaItem } from '@/components/MediaCollage';
 
 const PHOTO_KIND = 20;
 const photosDef = getExtraKindDef('photos')!;
@@ -130,7 +130,7 @@ export function PhotosFeedPage() {
 
       {/* Grid */}
       {showSkeleton ? (
-        <MediaGridSkeleton count={15} />
+        <MediaCollageSkeleton count={15} />
       ) : photoEvents.length === 0 ? (
         <FeedEmptyState
           message={
@@ -142,19 +142,13 @@ export function PhotosFeedPage() {
         />
       ) : (
         <>
-          <MediaGrid
+          <MediaCollage
             events={photoEvents}
             hasNextPage={hasNextPage}
             isFetchingNextPage={isFetchingNextPage}
             onNearEnd={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
           />
-          <div ref={scrollRef} className="py-4">
-            {isFetchingNextPage && (
-              <div className="flex justify-center">
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
-              </div>
-            )}
-          </div>
+          <div ref={scrollRef} className="h-px" />
         </>
       )}
     </main>
