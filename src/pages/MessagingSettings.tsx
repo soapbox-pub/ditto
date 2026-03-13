@@ -185,7 +185,10 @@ export default function MessagingSettings() {
                 <p className="text-sm text-muted-foreground mb-3">
                   Play a sound when a DM arrives
                 </p>
-                <RadioGroup value={soundEnabled ? soundId : 'none'} onValueChange={(val) => {
+                <RadioGroup
+                  className="space-y-2"
+                  value={soundEnabled ? soundId : 'none'}
+                  onValueChange={(val) => {
                   if (val === 'none') {
                     updateConfig((prev) => ({
                       ...prev,
@@ -194,8 +197,9 @@ export default function MessagingSettings() {
                   } else {
                     handleSoundIdChange(val);
                   }
-                }}>
-                  <div className="flex items-center justify-between space-x-3 space-y-0 group">
+                }}
+                >
+                  <div className="flex min-h-9 items-center justify-between space-x-3">
                     <div className="flex items-center space-x-3">
                       <RadioGroupItem value="none" id="sound-none" />
                       <Label htmlFor="sound-none" className="font-normal cursor-pointer">
@@ -206,7 +210,7 @@ export default function MessagingSettings() {
                   {APP_NEW_MESSAGE_SOUNDS.map((sound) => (
                     <div
                       key={sound.id}
-                      className="flex items-center justify-between space-x-3 space-y-0 group"
+                      className="group flex min-h-9 items-center justify-between space-x-3"
                     >
                       <div className="flex items-center space-x-3">
                         <RadioGroupItem value={sound.id} id={`sound-${sound.id}`} />
