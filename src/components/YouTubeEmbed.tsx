@@ -12,6 +12,10 @@ interface YouTubeEmbedProps {
  *
  * Shows a thumbnail and play button instead of mounting the iframe immediately,
  * so no requests are made to YouTube until the user explicitly clicks play.
+ *
+ * Uses `sddefault.jpg` (640×480) which is the most reliable thumbnail size.
+ * Higher resolutions like `maxresdefault.jpg` 404 for many videos, and
+ * `hqdefault.jpg` can serve a gray placeholder from some YouTube CDN edges.
  */
 export function YouTubeEmbed({ videoId, className }: YouTubeEmbedProps) {
   const [activated, setActivated] = useState(false);
@@ -37,19 +41,13 @@ export function YouTubeEmbed({ videoId, className }: YouTubeEmbedProps) {
             onClick={() => setActivated(true)}
             aria-label="Play video"
           >
-            {/* YouTube thumbnail — maxresdefault with hqdefault fallback */}
-            <picture>
-              <source
-                srcSet={`https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`}
-                type="image/jpeg"
-              />
-              <img
-                src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`}
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover"
-                loading="lazy"
-              />
-            </picture>
+            {/* YouTube thumbnail — sddefault (640×480) is the most reliable size */}
+            <img
+              src={`https://i.ytimg.com/vi/${videoId}/sddefault.jpg`}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+              loading="lazy"
+            />
 
             {/* Play button — mimics the YouTube red pill shape */}
             <div className="absolute inset-0 flex items-center justify-center">
