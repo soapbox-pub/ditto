@@ -616,9 +616,11 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
   const mouseDrag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
   // If the image is already cached, onLoad may not fire — check on mount.
+  // Note: onLoad is intentionally omitted from deps to avoid infinite re-render
+  // loops when the parent passes an unstable callback reference.
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) onLoad();
-  }, [src, onLoad]);
+  }, [src]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset zoom when url changes
   useEffect(() => {
