@@ -30,6 +30,7 @@ import { useEventStats, type EventStats } from '@/hooks/useTrending';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUserReaction } from '@/hooks/useUserReaction';
@@ -640,6 +641,10 @@ export function VinesFeedPage() {
     scrollContainer,
   });
 
+  // Track scroll direction to expand vines when bottom nav hides
+  const { hidden: bottomNavHidden } = useScrollDirection(scrollContainer);
+  const vineHeightClass = bottomNavHidden ? 'vine-slide-height-expanded' : 'vine-slide-height';
+
   // Lock body scroll when mobile comments are open
   useEffect(() => {
     if (commentsOpen) {
@@ -748,13 +753,13 @@ export function VinesFeedPage() {
       {/* ── Scroll container ────────────────────────────────────────── */}
       <div
         ref={containerCallbackRef}
-        className="vine-slide-height sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory overflow-y-scroll"
+        className={cn(vineHeightClass, 'sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory overflow-y-scroll')}
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', overscrollBehavior: 'none' }}
       >
         {vines.map((event, i) => (
           <div
             key={event.id}
-            className="w-full vine-slide-height sidebar:h-[calc(100vh-3rem)] snap-start snap-always flex-shrink-0"
+            className={cn('w-full snap-start snap-always flex-shrink-0', vineHeightClass, 'sidebar:h-[calc(100vh-3rem)]')}
           >
             <VineCard
               event={event}
