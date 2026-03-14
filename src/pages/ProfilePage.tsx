@@ -84,6 +84,7 @@ import { ColorPicker } from '@/components/ui/color-picker';
 import { FontPicker } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -1882,7 +1883,7 @@ export function ProfilePage() {
                     title={`${profileFollowing.count} following`}
                   >
                     <Users className="size-4 text-primary" />
-                    <span className="text-sm font-bold tabular-nums text-primary">{profileFollowing.count}</span>
+                    <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(profileFollowing.count)}</span>
                     <span className="text-sm text-muted-foreground">following</span>
                   </button>
                 )}

@@ -51,18 +51,12 @@ import { CommentsSheet } from '@/components/CommentsSheet';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { canZap } from '@/lib/canZap';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 
 const VINE_KIND = 34236;
 
 type FeedTab = 'follows' | 'global';
-
-/** Formats a sats amount into a compact human-readable string. */
-function formatSats(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  return n.toString();
-}
 
 /** Parse imeta tags for a vine event → { url, thumbnail }. */
 function parseVineImeta(tags: string[][]): { url?: string; thumbnail?: string } {
@@ -483,12 +477,12 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
           </ProfileHoverCard>
 
           {/* React */}
-          <VineHeartButton event={event} label={stats?.reactions ? String(stats.reactions) : undefined} />
+          <VineHeartButton event={event} label={stats?.reactions ? formatNumber(stats.reactions) : undefined} />
 
           {/* Reply */}
           <VineActionButton
             icon={<MessageCircle className="size-6" />}
-            label={stats?.replies ? String(stats.replies) : undefined}
+            label={stats?.replies ? formatNumber(stats.replies) : undefined}
             onClick={(e) => { e.stopPropagation(); onCommentClick(); }}
             className="text-white hover:text-blue-400"
           />
@@ -496,7 +490,7 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
           {/* Repost */}
           <VineRepostButton
             event={event}
-            label={(stats?.reposts || stats?.quotes) ? String((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) : undefined}
+            label={(stats?.reposts || stats?.quotes) ? formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) : undefined}
           />
 
           {/* Zap */}
@@ -504,7 +498,7 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
             <ZapDialog target={event}>
               <VineActionButton
                 icon={<Zap className="size-6" />}
-                label={stats?.zapAmount ? formatSats(stats.zapAmount) : undefined}
+                label={stats?.zapAmount ? formatNumber(stats.zapAmount) : undefined}
                 className="text-white hover:text-amber-400"
               />
             </ZapDialog>

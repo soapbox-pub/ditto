@@ -20,6 +20,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 
 export type InteractionTab = 'reposts' | 'quotes' | 'reactions' | 'zaps';
@@ -30,13 +31,6 @@ interface InteractionsModalProps {
   onOpenChange: (open: boolean) => void;
   /** Which tab to show initially. */
   initialTab?: InteractionTab;
-}
-
-/** Formats a sats amount into a compact human-readable string. */
-function formatSats(sats: number): string {
-  if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  return sats.toString();
 }
 
 export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'reposts' }: InteractionsModalProps) {
@@ -96,7 +90,7 @@ export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'r
                   'text-xs tabular-nums',
                   activeTab === key ? 'text-foreground' : 'text-muted-foreground',
                 )}>
-                  {count}
+                  {formatNumber(count)}
                 </span>
               )}
               {activeTab === key && (
@@ -222,7 +216,7 @@ function ZapsTab({ zaps }: { zaps: ZapEntry[] }) {
       {/* Total */}
       <div className="flex items-center justify-center gap-2 px-4 py-3 bg-secondary/30 border-b border-border">
         <Zap className="size-4 text-amber-500 fill-amber-500" />
-        <span className="text-sm font-bold text-amber-500">{formatSats(totalSats)} sats</span>
+        <span className="text-sm font-bold text-amber-500">{formatNumber(totalSats)} sats</span>
         <span className="text-xs text-muted-foreground">from {zaps.length} zap{zaps.length !== 1 ? 's' : ''}</span>
       </div>
 
@@ -351,7 +345,7 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
       {/* Zap amount badge */}
       <div className="flex items-center gap-1 shrink-0 bg-amber-500/10 text-amber-500 rounded-full px-2.5 py-1">
         <Zap className="size-3.5 fill-amber-500" />
-        <span className="text-xs font-bold tabular-nums">{formatSats(zap.amountSats)}</span>
+        <span className="text-xs font-bold tabular-nums">{formatNumber(zap.amountSats)}</span>
       </div>
     </Link>
   );
