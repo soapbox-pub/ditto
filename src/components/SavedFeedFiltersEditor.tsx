@@ -445,15 +445,20 @@ export function ScopeToggle<T extends string>({
   /** 'sm' = xs text + py-1.5 (feed modal), 'md' = sm text + py-2 (profile modal) */
   size?: 'sm' | 'md';
 }) {
+  const useGrid = options.length > 3;
   return (
-    <div className="flex rounded-lg border border-border overflow-hidden">
+    <div className={cn(
+      'rounded-lg border border-border overflow-hidden',
+      useGrid ? 'grid grid-cols-2' : 'flex',
+    )}>
       {options.map(({ value: scope, label, icon: Icon }) => (
         <button
           key={scope}
           onClick={() => onChange(scope)}
           className={cn(
-            'flex-1 flex items-center justify-center font-medium transition-colors',
+            'flex items-center justify-center font-medium transition-colors',
             size === 'sm' ? 'py-1.5 gap-1 text-xs' : 'py-2 gap-1.5 text-sm',
+            !useGrid && 'flex-1',
             value === scope
               ? 'bg-primary text-primary-foreground'
               : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
