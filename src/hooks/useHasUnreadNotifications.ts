@@ -10,7 +10,7 @@ import { useEncryptedSettings } from './useEncryptedSettings';
  * Fetches at most 1 event (using `since` to filter at the relay level),
  * making it much cheaper than loading the full notification list.
  *
- * Use this in navigation components (sidebar, bottom nav) for the dot indicator.
+ * Use this in navigation components (sidebar, mobile bottom nav) for the dot indicator.
  * Use `useNotifications` on the actual notifications page where the full list is needed.
  */
 export function useHasUnreadNotifications(): boolean {
