@@ -13,6 +13,7 @@ import {
   Clock, Flame, TrendingUp,
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useInView } from 'react-intersection-observer';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -879,9 +880,22 @@ function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metad
   );
 }
 
+const FOLLOWS_PAGE_SIZE = 30;
+
 function FollowsList() {
   const { data: followData } = useFollowList();
   const pubkeys = followData?.pubkeys ?? [];
+  const [visibleCount, setVisibleCount] = useState(FOLLOWS_PAGE_SIZE);
+  const { ref: sentinelRef, inView } = useInView({ threshold: 0, rootMargin: '300px' });
+
+  const visiblePubkeys = useMemo(() => pubkeys.slice(0, visibleCount), [pubkeys, visibleCount]);
+  const hasMore = visibleCount < pubkeys.length;
+
+  useEffect(() => {
+    if (inView && hasMore) {
+      setVisibleCount((c) => Math.min(c + FOLLOWS_PAGE_SIZE, pubkeys.length));
+    }
+  }, [inView, hasMore, pubkeys.length]);
 
   if (pubkeys.length === 0) {
     return <EmptyState message="Search for people by name or NIP-05 address." />;
@@ -889,9 +903,16 @@ function FollowsList() {
 
   return (
     <div className="divide-y divide-border">
-      {pubkeys.map((pubkey) => (
+      {visiblePubkeys.map((pubkey) => (
         <FollowItem key={pubkey} pubkey={pubkey} />
       ))}
+      {hasMore && (
+        <div ref={sentinelRef} className="divide-y divide-border">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <AccountSkeleton key={i} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
