@@ -1922,169 +1922,149 @@ export function ProfilePage() {
 
         {/* Tabs */}
         <div className={cn(STICKY_HEADER_CLASS, 'border-b border-border backdrop-blur-md z-10')}>
-          <div className="flex">
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
-            <div className="flex gap-1 px-2 py-2 flex-1 min-w-0">
+            <div className="flex flex-wrap gap-2 px-3 py-2">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-8 w-16 rounded" />
+                <Skeleton key={i} className="h-9 w-16 rounded-md" />
               ))}
             </div>
           )}
-          {/* Core tabs in view mode */}
-          {!tabEditMode && profileTabsQuery.isFetched && viewTabs.filter((t) => t.isCore).map((tab) => {
-            const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
-            return (
-              <TabButton
-                key={tab.label}
-                label={tab.label}
-                active={activeTab === tabId}
-                onClick={() => {
-                  setActiveTab(tabId);
-                  if (tab.label === 'Media') setSidebarMediaUrl(null);
-                }}
-              />
-            );
-          })}
 
-          {/* Custom tabs — inline edit mode (draggable) */}
-          {tabEditMode && (
-            <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTabDragEnd}>
-              <SortableContext items={localTabs.map((t) => t.label)} strategy={rectSortingStrategy}>
-                <div className="flex flex-wrap items-center flex-1 min-w-0">
-                  {localTabs.length === 0 ? (
-                    <span className="px-4 text-sm text-muted-foreground italic">No custom tabs — use + to add one</span>
-                  ) : (
-                    localTabs.map((tab) => {
-                      const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
-                      return (
-                        <SortableTabChip
-                          key={tab.label}
-                          tab={tab}
-                          active={activeTab === tabId}
-                          onSelect={() => setActiveTab(tabId)}
-                          onRemove={() => handleRemoveLocalTab(tab.label)}
-                        />
-                      );
-                    })
-                  )}
-                </div>
-              </SortableContext>
-            </DndContext>
+          {/* All tabs in view mode */}
+          {!tabEditMode && profileTabsQuery.isFetched && viewTabs.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-3 py-2">
+              {viewTabs.map((tab) => {
+                const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
+                const isActive = activeTab === tabId;
+                return (
+                  <Button
+                    key={tab.label}
+                    variant={isActive ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setActiveTab(tabId);
+                      if (tab.label === 'Media') setSidebarMediaUrl(null);
+                    }}
+                  >
+                    {tab.label}
+                  </Button>
+                );
+              })}
+
+              {/* Visitor controls — show missing default tabs when profile has customised tab list */}
+              {!isOwnProfile && profileTabsQuery.data !== null && (() => {
+                const missingDefaults = CORE_TAB_LABELS.filter(
+                  (label) => !viewTabs.some((t) => t.label === label),
+                );
+                if (missingDefaults.length === 0) return null;
+                return (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      {missingDefaults.map((label) => {
+                        const tabId = CORE_TAB_IDS[label] ?? label;
+                        return (
+                          <DropdownMenuItem key={label} onClick={() => setActiveTab(tabId)}>
+                            {label}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              })()}
+
+              {/* Own-profile edit button */}
+              {isOwnProfile && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={enterTabEditMode}
+                  aria-label="Edit tabs"
+                >
+                  <Pencil className="size-3.5" />
+                </Button>
+              )}
+            </div>
           )}
 
-          {/* Visitor controls — show missing default tabs when profile has customised tab list */}
-          {!isOwnProfile && !tabEditMode && profileTabsQuery.isFetched && profileTabsQuery.data !== null && (() => {
-            const missingDefaults = CORE_TAB_LABELS.filter(
-              (label) => !viewTabs.some((t) => t.label === label),
-            );
-            if (missingDefaults.length === 0) return null;
-            return (
-              <div className="flex items-center shrink-0 ml-auto">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                      aria-label="More tabs"
-                    >
-                      <MoreHorizontal className="size-4" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    {missingDefaults.map((label) => {
-                      const tabId = CORE_TAB_IDS[label] ?? label;
-                      return (
-                        <DropdownMenuItem key={label} onClick={() => setActiveTab(tabId)}>
-                          {label}
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            );
-          })()}
+          {/* Inline edit mode (draggable) */}
+          {tabEditMode && (
+            <div className="flex items-center px-3 py-2 gap-2">
+              <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTabDragEnd}>
+                <SortableContext items={localTabs.map((t) => t.label)} strategy={rectSortingStrategy}>
+                  <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+                    {localTabs.length === 0 ? (
+                      <span className="text-sm text-muted-foreground italic">No tabs — use + to add one</span>
+                    ) : (
+                      localTabs.map((tab) => {
+                        const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
+                        return (
+                          <SortableTabChip
+                            key={tab.label}
+                            tab={tab}
+                            active={activeTab === tabId}
+                            onSelect={() => setActiveTab(tabId)}
+                            onRemove={() => handleRemoveLocalTab(tab.label)}
+                          />
+                        );
+                      })
+                    )}
+                  </div>
+                </SortableContext>
+              </DndContext>
 
-          {/* Own-profile controls */}
-          {isOwnProfile && (
-            <div className="flex items-center shrink-0 ml-auto">
-              {/* + dropdown — only visible in edit mode */}
-              {tabEditMode && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                      aria-label="Add tab"
-                    >
-                      <Plus className="size-4" strokeWidth={4} />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    {CORE_TAB_LABELS.map((name) => {
-                      const present = localTabs.some((t) => t.label === name);
-                      return (
-                        <DropdownMenuItem
-                          key={name}
-                          disabled={present}
-                          className={present ? 'text-muted-foreground' : undefined}
-                          onClick={present ? undefined : () => setLocalTabs((prev) => [...prev, { label: name, isCore: true }])}
-                        >
-                          {present
-                            ? <Check className="size-3.5 mr-2 opacity-60" strokeWidth={4} />
-                            : <Plus className="size-3.5 mr-2" strokeWidth={4} />}
-                          {name}
-                        </DropdownMenuItem>
-                      );
-                    })}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleOpenAddCustomTab}>
-                      <Plus className="size-3.5 mr-2" strokeWidth={4} />
-                      Add custom tab
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+              {/* + dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" aria-label="Add tab">
+                    <Plus className="size-4" strokeWidth={4} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {CORE_TAB_LABELS.map((name) => {
+                    const present = localTabs.some((t) => t.label === name);
+                    return (
+                      <DropdownMenuItem
+                        key={name}
+                        disabled={present}
+                        className={present ? 'text-muted-foreground' : undefined}
+                        onClick={present ? undefined : () => setLocalTabs((prev) => [...prev, { label: name, isCore: true }])}
+                      >
+                        {present
+                          ? <Check className="size-3.5 mr-2 opacity-60" strokeWidth={4} />
+                          : <Plus className="size-3.5 mr-2" strokeWidth={4} />}
+                        {name}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleOpenAddCustomTab}>
+                    <Plus className="size-3.5 mr-2" strokeWidth={4} />
+                    Add custom tab
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-              {/* Pencil → enters edit mode / Check → saves */}
-              <button
-                onClick={tabEditMode ? handleSaveTabEdit : enterTabEditMode}
-                disabled={tabEditMode && isPublishingTabs}
-                className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors disabled:opacity-50"
-                aria-label={tabEditMode ? 'Save tab order' : 'Edit tabs'}
+              {/* Save button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSaveTabEdit}
+                disabled={isPublishingTabs}
+                aria-label="Save tab order"
               >
                 {isPublishingTabs
                   ? <Loader2 className="size-4 animate-spin" />
-                  : tabEditMode
-                    ? <Check className="size-4 text-primary" strokeWidth={4} />
-                    : <Pencil className="size-3.5" />}
-              </button>
+                  : <Check className="size-4 text-primary" strokeWidth={4} />}
+              </Button>
             </div>
           )}
-          </div>
-
-          {/* Custom tabs in view mode — rendered as buttons below the core tab bar */}
-          {!tabEditMode && profileTabsQuery.isFetched && (() => {
-            const customTabs = viewTabs.filter((t) => !t.isCore);
-            if (customTabs.length === 0) return null;
-            return (
-              <div className="flex flex-wrap gap-2 px-3 py-2">
-                {customTabs.map((tab) => {
-                  const tabId = tab.label;
-                  const isActive = activeTab === tabId;
-                  return (
-                    <Button
-                      key={tab.label}
-                      variant={isActive ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setActiveTab(tabId)}
-                    >
-                      {tab.label}
-                    </Button>
-                  );
-                })}
-              </div>
-            );
-          })()}
         </div>
 
         {/* Add/edit single tab modal */}
