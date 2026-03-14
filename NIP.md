@@ -258,36 +258,11 @@ After resolution (assuming `$follows` = `["pk1", "pk2"]`):
 
 ### Summary
 
-An optional `shape` property on kind 0 (profile metadata) that controls how the user's avatar is masked/clipped when displayed. Clients that support this extension render the avatar using the specified geometric shape instead of the default circle.
+An optional `shape` property on kind 0 (profile metadata) that controls how the user's avatar is masked/clipped when displayed. The value is an emoji character whose silhouette is used as a mask over the avatar image. When absent, the avatar renders as the standard circle.
 
 ### Metadata Field
 
-The `shape` field is added to the JSON content of a kind 0 event alongside standard fields like `name`, `picture`, etc.
-
-```json
-{
-  "kind": 0,
-  "content": "{\"name\":\"Alice\",\"picture\":\"https://example.com/alice.jpg\",\"shape\":\"hexagon\"}"
-}
-```
-
-### Defined Shape Values
-
-| Value                | Description                                                    |
-|----------------------|----------------------------------------------------------------|
-| `circle`             | Standard circular avatar (the default when `shape` is absent)  |
-| `triangle`           | Equilateral triangle pointing up                               |
-| `inverted-triangle`  | Equilateral triangle pointing down                             |
-| `hexagon`            | Regular hexagon (6-sided polygon)                              |
-| `star`               | 5-pointed star                                                 |
-| `inverted-star`      | 5-pointed star pointing down                                   |
-| `hexagram`           | 6-pointed star (Star of David)                                 |
-| `heart`              | Heart shape with curved lobes                                  |
-| *(any emoji)*        | The emoji's silhouette is used as a mask over the avatar       |
-
-### Emoji Shapes
-
-In addition to the predefined geometric shapes above, the `shape` field accepts **any single emoji character** (including multi-codepoint emoji such as flags, ZWJ sequences, and skin-tone variants). When an emoji is specified, clients render the emoji's silhouette as a mask over the avatar image.
+The `shape` field is added to the JSON content of a kind 0 event alongside standard fields like `name`, `picture`, etc. Its value is a single emoji character (including multi-codepoint emoji such as flags, ZWJ sequences, and skin-tone variants).
 
 ```json
 {
@@ -298,15 +273,12 @@ In addition to the predefined geometric shapes above, the `shape` field accepts 
 
 ### Client Behavior
 
-- When `shape` is absent or set to `"circle"`, clients SHOULD render the avatar as a circle (the current universal default).
-- When `shape` is set to a recognized predefined value, clients SHOULD apply the corresponding geometric mask (e.g. via CSS `clip-path`) to the avatar image and fallback.
-- When `shape` is a single emoji, clients SHOULD render the emoji onto a canvas, extract its alpha channel, and use the result as a CSS `mask-image` over the avatar. Clients that do not support emoji masks SHOULD fall back to `"circle"`.
-- When `shape` is set to an **unrecognized** value that is neither a predefined shape nor a valid emoji, clients MUST fall back to `"circle"`. This ensures forward compatibility.
+- When `shape` is absent, clients SHOULD render the avatar as a circle (the current universal default).
+- When `shape` is a valid emoji, clients SHOULD render the emoji onto a canvas, extract its alpha channel, and use the result as a CSS `mask-image` over the avatar.
+- When `shape` is set to an unrecognized or invalid value, clients MUST fall back to a circle. This ensures forward compatibility.
 - The `shape` field is purely cosmetic and has no protocol-level significance.
 - Clients MAY choose not to support this extension, in which case avatars render as circles as usual.
 
 ### Implementation Notes
 
-Non-circle predefined shapes are best implemented using CSS `clip-path: polygon()`. Curved shapes like `heart` can be approximated by sampling a parametric curve into a polygon with enough vertices (e.g. 50 points). The `circle` shape should continue to use `border-radius: 50%` (or equivalent) for simplicity and compatibility.
-
-Emoji shapes are implemented by rendering the emoji to an off-screen `<canvas>`, converting the drawn pixels to a white-on-transparent alpha mask, exporting as a `data:image/png` URL, and applying it via CSS `mask-image` / `-webkit-mask-image`. The mask is cached in memory per emoji to avoid redundant canvas operations.
+Emoji shapes are implemented by rendering the emoji at a large font size to an off-screen `<canvas>`, finding the tight bounding box of non-transparent pixels, squaring the crop, redrawing onto a fixed-size output canvas, converting all pixels to white while preserving the original alpha channel, and exporting as a `data:image/png` URL. The result is applied via CSS `mask-image` / `-webkit-mask-image`. The mask is cached in memory per emoji string to avoid redundant canvas operations.
