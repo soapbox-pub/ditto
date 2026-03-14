@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type AvatarShape, isValidAvatarShape, isEmoji, getEmojiMaskUrl, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { CheckCircle2, Pencil, Plus, Trash2, ChevronDown, ImagePlus, SmilePlus, X as XIcon } from 'lucide-react';
 import { genUserName } from '@/lib/genUserName';
+import { BioContent } from '@/components/BioContent';
 import { cn } from '@/lib/utils';
 import { getNip05Domain, formatNip05Display } from '@/lib/nip05';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -328,7 +329,9 @@ export function ProfileCard({
               onChange={patch('about')}
             />
           ) : metadata.about ? (
-            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{metadata.about}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+              <BioContent>{metadata.about}</BioContent>
+            </p>
           ) : null}
         </div>
 

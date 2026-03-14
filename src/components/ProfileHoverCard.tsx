@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { BioContent } from '@/components/BioContent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useUserStatus } from '@/hooks/useUserStatus';
 import { genUserName } from '@/lib/genUserName';
@@ -105,9 +106,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
             'text-sm text-muted-foreground mt-2 whitespace-pre-wrap break-words',
             'line-clamp-3',
           )}>
-            {author.data?.event ? (
-              <EmojifiedText tags={author.data.event.tags}>{metadata.about}</EmojifiedText>
-            ) : metadata.about}
+            <BioContent tags={author.data?.event?.tags}>{metadata.about}</BioContent>
           </p>
         )}
 
