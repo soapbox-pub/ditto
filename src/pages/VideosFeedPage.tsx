@@ -37,6 +37,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { KindInfoButton } from '@/components/KindInfoButton';
@@ -223,6 +224,7 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
 
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
@@ -268,7 +270,7 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
           {author.isLoading ? (
             <Skeleton className="size-8 rounded-full" />
           ) : (
-            <Avatar className="size-8">
+            <Avatar shape={avatarShape} className="size-8">
               <AvatarImage src={metadata?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-[10px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>

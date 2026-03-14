@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ThreadedReplyList } from '@/components/ThreadedReplyList';
 import { ComposeBox } from '@/components/ComposeBox';
@@ -499,6 +500,7 @@ function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading }:
 function BookReviewCard({ event, review }: { event: NostrEvent; review: BookReview }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const [showSpoiler, setShowSpoiler] = useState(false);
@@ -515,7 +517,7 @@ function BookReviewCard({ event, review }: { event: NostrEvent; review: BookRevi
         ) : (
           <ProfileHoverCard pubkey={event.pubkey} asChild>
             <Link to={profileUrl} className="shrink-0">
-              <Avatar className="size-10">
+              <Avatar shape={avatarShape} className="size-10">
                 <AvatarImage src={metadata?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
                   {displayName[0]?.toUpperCase()}

@@ -56,6 +56,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { isValidAvatarShape } from '@/lib/avatarShape';
 
 const WALLET_TICKERS = [
   '$BTC', '$ETH', '$SOL', '$XMR', '$LTC', '$DOGE', '$ADA', '$DOT', '$XRP', '$MATIC',
@@ -81,6 +82,7 @@ const formSchema = n.metadata().extend({
     value: z.string(),
     type: z.enum(['text', 'wallet', 'media']),
   })).optional(),
+  shape: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -255,11 +257,21 @@ export function ProfileSettings() {
     return [];
   };
 
+  const parseShape = (): string => {
+    if (!event) return '';
+    try {
+      const parsed = JSON.parse(event.content);
+      if (isValidAvatarShape(parsed.shape)) return parsed.shape;
+    } catch { /* ignore */ }
+    return '';
+  };
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '', about: '', picture: '', banner: '',
       website: '', nip05: '', lud16: '', bot: false, fields: [],
+      shape: '',
     },
   });
 
@@ -314,6 +326,7 @@ export function ProfileSettings() {
         lud16: metadata.lud16 ?? '',
         bot: metadata.bot ?? false,
         fields: parseFields(),
+        shape: parseShape(),
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,7 +334,7 @@ export function ProfileSettings() {
 
   // Live values for the card preview
   const watched = form.watch();
-  const cardMetadata: Partial<NostrMetadata> = {
+  const cardMetadata: Partial<NostrMetadata> & { shape?: string } = {
     name: watched.name,
     about: watched.about,
     picture: watched.picture,
@@ -330,6 +343,7 @@ export function ProfileSettings() {
     nip05: watched.nip05,
     lud16: watched.lud16,
     bot: watched.bot,
+    shape: watched.shape,
   };
 
   // Card onChange: patch individual fields
@@ -384,8 +398,16 @@ export function ProfileSettings() {
   const onSubmit = async (values: FormValues) => {
     if (!user) return;
     try {
-      const { fields: customFields, ...standardMetadata } = values;
+      const { fields: customFields, shape, ...standardMetadata } = values;
       const data: Record<string, unknown> = { ...metadata, ...standardMetadata };
+
+      // Add shape only if set (an emoji string)
+      if (shape && isValidAvatarShape(shape)) {
+        data.shape = shape;
+      } else {
+        delete data.shape;
+      }
+
       for (const key in data) {
         if (data[key] === '') delete data[key];
       }
@@ -470,6 +492,8 @@ export function ProfileSettings() {
             metadata={cardMetadata}
             onChange={handleCardChange}
             onPickImage={handlePickImage}
+            onAvatarShape={(shape) => form.setValue('shape', shape, { shouldDirty: true })}
+            onRemoveAvatar={() => form.setValue('picture', '', { shouldDirty: true })}
           />
 
           {isUploading && (

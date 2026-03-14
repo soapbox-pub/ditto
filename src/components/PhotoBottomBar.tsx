@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { MessageCircle, Zap, MoreHorizontal } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { ZapDialog } from '@/components/ZapDialog';
@@ -38,6 +39,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey) ?? genUserName(event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { data: stats } = useEventStats(event.id);
@@ -56,7 +58,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
           {/* Avatar + name */}
           <ProfileHoverCard pubkey={event.pubkey} asChild>
             <Link to={profileUrl} className="shrink-0">
-              <Avatar className="size-7">
+              <Avatar shape={avatarShape} className="size-7">
                 <AvatarImage src={metadata?.picture} alt={displayName} />
                 <AvatarFallback className="bg-white/20 text-white text-xs">
                   {displayName[0]?.toUpperCase()}
