@@ -120,6 +120,10 @@ export interface FeedSettings {
   feedIncludePodcastEpisodes: boolean;
   /** Include podcast trailers (kind 30055) in the follows/global feed */
   feedIncludePodcastTrailers: boolean;
+  /** Show Development (NIP-34 repos, patches, PRs, custom NIPs, app submissions) link in sidebar */
+  showDevelopment: boolean;
+  /** Include Development content in the follows/global feed */
+  feedIncludeDevelopment: boolean;
   /** Show Badges (NIP-58 kind 30009) link in sidebar */
   showBadges: boolean;
   /** Show badge definitions (kind 30009) on the Badges page */
@@ -202,6 +206,10 @@ export interface AppConfig {
   sentryDsn: string;
   /** Whether the user has enabled Sentry error reporting. */
   sentryEnabled: boolean;
+  /** Plausible Analytics domain (empty string = disabled). */
+  plausibleDomain: string;
+  /** Plausible Analytics API endpoint (empty string = use default). */
+  plausibleEndpoint: string;
   /** Saved home feed tabs. Cached locally so they appear instantly on load. */
   savedFeeds: SavedFeed[];
 }
@@ -210,7 +218,9 @@ export interface AppContextType {
   /** Current application configuration */
   config: AppConfig;
   /** Update configuration using a callback that receives current config and returns new config */
-  updateConfig: (updater: (currentConfig: Partial<AppConfig>) => Partial<AppConfig>) => void;
+  updateConfig: (
+    updater: (currentConfig: Partial<AppConfig>) => Partial<AppConfig>,
+  ) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);

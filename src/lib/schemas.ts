@@ -171,6 +171,8 @@ export const FeedSettingsSchema = z.looseObject({
   showPodcasts: z.boolean().optional(),
   feedIncludePodcastEpisodes: z.boolean().optional(),
   feedIncludePodcastTrailers: z.boolean().optional(),
+  showDevelopment: z.boolean().optional(),
+  feedIncludeDevelopment: z.boolean().optional(),
 });
 
 /** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */
@@ -226,6 +228,8 @@ export const AppConfigSchema = z.object({
   contentWarningPolicy: ContentWarningPolicySchema,
   sentryDsn: z.string(),
   sentryEnabled: z.boolean(),
+  plausibleDomain: z.string(),
+  plausibleEndpoint: z.string(),
   savedFeeds: z.array(z.unknown()).transform((arr) =>
     arr.flatMap((item) => {
       if (typeof item !== 'object' || item === null) return [];
