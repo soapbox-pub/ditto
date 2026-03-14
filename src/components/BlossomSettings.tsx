@@ -83,16 +83,6 @@ export function BlossomSettings() {
       return;
     }
 
-    // Prevent adding an app server to the user list
-    if (APP_BLOSSOM_SERVERS.servers.some((s) => s === normalized)) {
-      toast({
-        title: 'App server',
-        description: 'This is an app default server. Enable "App Blossom Servers" to use it.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     const newServers = [...servers, normalized];
     setServers(newServers);
     setNewServerUrl('');
