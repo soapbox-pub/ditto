@@ -32,7 +32,7 @@ import { z } from 'zod';
 import { IntroImage } from '@/components/IntroImage';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { AvatarShapePicker } from '@/components/AvatarShapePicker';
-import { type AvatarShape, AVATAR_SHAPES, isValidAvatarShape } from '@/lib/avatarShape';
+import { isValidAvatarShape } from '@/lib/avatarShape';
 
 // Extended form schema that includes custom fields and avatar shape
 const formSchema = n.metadata().extend({
@@ -40,7 +40,7 @@ const formSchema = n.metadata().extend({
     label: z.string(),
     value: z.string(),
   })).optional(),
-  shape: z.enum(AVATAR_SHAPES).optional(),
+  shape: z.string().optional(),
 });
 
 type ExtendedMetadata = z.infer<typeof formSchema>;
@@ -85,7 +85,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
   };
 
   // Parse existing shape from raw event content
-  const parseShape = (): AvatarShape => {
+  const parseShape = (): string => {
     if (!event) return 'circle';
     try {
       const parsed = JSON.parse(event.content);
@@ -107,7 +107,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       lud16: '',
       bot: false,
       fields: [],
-      shape: 'circle' as AvatarShape,
+      shape: 'circle',
     },
   });
 

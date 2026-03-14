@@ -10,17 +10,52 @@ export const AVATAR_SHAPES = [
   'heart',
 ] as const;
 
-export type AvatarShape = (typeof AVATAR_SHAPES)[number];
+export type PredefinedAvatarShape = (typeof AVATAR_SHAPES)[number];
 
-/** Type guard for valid avatar shape values. */
-export function isValidAvatarShape(value: unknown): value is AvatarShape {
+/**
+ * An avatar shape is either a predefined geometric shape name or an emoji string.
+ * Emojis are rendered as mask images over the avatar.
+ */
+export type AvatarShape = PredefinedAvatarShape | (string & {});
+
+/** Type guard for valid predefined avatar shape values. */
+export function isPredefinedAvatarShape(value: unknown): value is PredefinedAvatarShape {
   return typeof value === 'string' && (AVATAR_SHAPES as readonly string[]).includes(value);
 }
 
+// ── Emoji detection ──────────────────────────────────────────────────────────
+
 /**
- * Returns a human-readable label for each shape.
+ * Checks whether a string could be an emoji shape value.
+ *
+ * Rather than trying to match specific Unicode emoji patterns (which is
+ * fragile and excludes valid emoji like keycap sequences, flags, and
+ * complex ZWJ families), we simply check that the value is a short
+ * non-ASCII string that isn't a predefined shape name.
  */
-export function getAvatarShapeLabel(shape: AvatarShape): string {
+export function isEmoji(value: string): boolean {
+  if (!value || value.length === 0) return false;
+  // Predefined shape names are handled separately
+  if (isPredefinedAvatarShape(value)) return false;
+  // Emoji are short (even complex ZWJ sequences are under ~20 JS chars)
+  // and contain non-ASCII characters. Reject long strings and pure ASCII
+  // to avoid treating arbitrary text as emoji.
+  if (value.length > 20) return false;
+  // Must contain at least one non-ASCII character
+  // eslint-disable-next-line no-control-regex
+  return /[^\x00-\x7F]/.test(value);
+}
+
+/** Type guard for valid avatar shape values (predefined name OR emoji). */
+export function isValidAvatarShape(value: unknown): value is AvatarShape {
+  if (typeof value !== 'string' || value.length === 0) return false;
+  return isPredefinedAvatarShape(value) || isEmoji(value);
+}
+
+/**
+ * Returns a human-readable label for each predefined shape.
+ */
+export function getAvatarShapeLabel(shape: PredefinedAvatarShape): string {
   switch (shape) {
     case 'circle': return 'Circle';
     case 'triangle': return 'Triangle';
@@ -109,14 +144,15 @@ export function getAvatarShape(metadata: Record<string, unknown> | undefined): A
 
 /**
  * Returns the CSS `clip-path` value for the given shape.
- * Returns `undefined` for `circle` (uses `rounded-full` instead).
+ * Returns `undefined` for `circle`, absent shapes, and emoji shapes
+ * (emojis use mask-image instead).
  */
 export function getAvatarClipPath(shape: AvatarShape | undefined): string | undefined {
-  switch (shape) {
-    case undefined:
-    case 'circle':
-      return undefined;
+  if (!shape || shape === 'circle') return undefined;
+  // Emoji shapes are handled via mask-image, not clip-path
+  if (!isPredefinedAvatarShape(shape)) return undefined;
 
+  switch (shape) {
     case 'triangle':
       return regularPolygon(3, -90);
 
@@ -138,4 +174,118 @@ export function getAvatarClipPath(shape: AvatarShape | undefined): string | unde
     case 'heart':
       return heartPolygon();
   }
+}
+
+// ── Emoji mask generation ──────────────────────────────────────────────────
+
+/** In-memory cache: emoji string → data-URL. */
+const emojiMaskCache = new Map<string, string>();
+
+/**
+ * Renders the user's native OS emoji onto a canvas and produces a PNG
+ * data-URL alpha mask suitable for use as a CSS `mask-image`.
+ *
+ * ### Algorithm
+ *
+ * 1. **Draw large.** Render the emoji at 512 px via `fillText` on an
+ *    oversized (768 × 768) scratch canvas so the entire glyph is captured
+ *    even if the OS renders it off-centre or larger than the em-box.
+ *
+ * 2. **Measure.** Scan every pixel to find the tight axis-aligned bounding
+ *    box of non-transparent pixels.
+ *
+ * 3. **Square the crop.** Expand the shorter axis of the bounding box so the
+ *    crop region is square (centred). This prevents non-square emoji from
+ *    being stretched when applied to a square avatar.
+ *
+ * 4. **Redraw.** Draw the squared crop onto a 256 × 256 output canvas so the
+ *    emoji fills it edge-to-edge.
+ *
+ * 5. **Convert to alpha mask.** Set every pixel to white; keep the original
+ *    alpha channel. Export as PNG data-URL.
+ *
+ * If `mask-image` is unsupported the avatar renders as a plain square
+ * (the emoji mask is simply ignored by the browser).
+ */
+export function getEmojiMaskUrl(emoji: string): string {
+  const cached = emojiMaskCache.get(emoji);
+  if (cached) return cached;
+
+  // ── Pass 1: draw emoji on oversized scratch canvas ──────────────────
+  const fontSize = 512;
+  const scratch = fontSize * 1.5;               // 768 – generous room
+  const c1 = document.createElement('canvas');
+  c1.width = scratch;
+  c1.height = scratch;
+  const ctx1 = c1.getContext('2d');
+  if (!ctx1) return '';
+
+  ctx1.textAlign = 'center';
+  ctx1.textBaseline = 'middle';
+  ctx1.font = `${fontSize}px serif`;
+  ctx1.fillText(emoji, scratch / 2, scratch / 2);
+
+  // ── Pass 2: find tight bounding box ─────────────────────────────────
+  // Use an alpha threshold to ignore semi-transparent shadows, glows, and
+  // anti-aliasing fringes that many emoji renderers add. Without this,
+  // faint pixels (e.g. a drop shadow) inflate the bounding box and push
+  // the actual emoji shape off-centre when the crop is squared.
+  const ALPHA_THRESHOLD = 25;                    // ~10% opacity
+  const { data: px, width: sw, height: sh } = ctx1.getImageData(0, 0, scratch, scratch);
+  let t = sh, b = 0, l = sw, r = 0;
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) {
+      if (px[(y * sw + x) * 4 + 3] > ALPHA_THRESHOLD) {
+        if (y < t) t = y;
+        if (y > b) b = y;
+        if (x < l) l = x;
+        if (x > r) r = x;
+      }
+    }
+  }
+  if (r < l || b < t) return '';                 // nothing drawn
+
+  // ── Pass 3: square the bounding box ─────────────────────────────────
+  let cropW = r - l + 1;
+  let cropH = b - t + 1;
+  if (cropW > cropH) {
+    const diff = cropW - cropH;
+    t -= Math.floor(diff / 2);
+    b = t + cropW - 1;
+    cropH = cropW;
+  } else if (cropH > cropW) {
+    const diff = cropH - cropW;
+    l -= Math.floor(diff / 2);
+    r = l + cropH - 1;
+    cropW = cropH;
+  }
+  // Clamp to canvas bounds (shouldn't be needed with oversized scratch,
+  // but be safe).
+  if (t < 0) t = 0;
+  if (l < 0) l = 0;
+
+  // ── Pass 4: redraw cropped region onto output canvas ────────────────
+  const out = 256;
+  const c2 = document.createElement('canvas');
+  c2.width = out;
+  c2.height = out;
+  const ctx2 = c2.getContext('2d');
+  if (!ctx2) return '';
+
+  ctx2.drawImage(c1, l, t, cropW, cropH, 0, 0, out, out);
+
+  // ── Pass 5: convert to alpha mask (white + original alpha) ──────────
+  const img = ctx2.getImageData(0, 0, out, out);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = 255;       // R
+    d[i + 1] = 255;   // G
+    d[i + 2] = 255;   // B
+    // d[i+3] (alpha) kept as-is
+  }
+  ctx2.putImageData(img, 0, 0);
+
+  const url = c2.toDataURL('image/png');
+  emojiMaskCache.set(emoji, url);
+  return url;
 }
