@@ -206,11 +206,11 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     } else if (options.mediaType === 'vines') {
       kinds = [22, 34236];           // shorts + vines
     } else if (options.mediaType === 'videos') {
-      kinds = [1, 21, 22, ...enabledKinds.filter((k) => !isRepostKind(k))];
+      kinds = [21, 22, ...enabledKinds.filter((k) => !isRepostKind(k))];
     } else if (options.mediaType === 'images') {
-      kinds = [1, 20, ...enabledKinds.filter((k) => !isRepostKind(k))];
+      kinds = [20, ...enabledKinds.filter((k) => !isRepostKind(k))];
     } else {
-      kinds = [1, ...enabledKinds.filter((k) => !isRepostKind(k))];
+      kinds = enabledKinds.filter((k) => !isRepostKind(k));
     }
     // Deduplicate
     kinds = [...new Set(kinds)];

@@ -255,14 +255,19 @@ export function SearchPage() {
 
   const kindOptions = useMemo(() => buildKindOptions(), []);
 
-  // Resolve kindsOverride from the current kind filter state
-  const kindsOverride = useMemo<number[] | undefined>(
-    () => parseKindFilter(kindFilter, customKindText),
-    [kindFilter, customKindText],
+  // All kind numbers available in the picker — used as the "all kinds" default.
+  const allKindNumbers = useMemo(() => kindOptions.map((o) => Number(o.value)), [kindOptions]);
+
+  // Resolve kindsOverride from the current kind filter state.
+  // "all" means every kind in the picker list, not undefined (which would let
+  // useStreamPosts fall back to only the user's enabled feed-settings kinds).
+  const kindsOverride = useMemo<number[]>(
+    () => kindFilter === 'all' ? allKindNumbers : (parseKindFilter(kindFilter, customKindText) ?? allKindNumbers),
+    [kindFilter, customKindText, allKindNumbers],
   );
 
   // Detect kind + media type conflict: a specific kind is selected AND a media type is set
-  const hasKindMediaConflict = kindsOverride !== undefined && mediaType !== 'all';
+  const hasKindMediaConflict = kindFilter !== 'all' && kindsOverride.length > 0 && mediaType !== 'all';
 
   // Determine if any filter differs from the default
   const hasActiveFilters = !includeReplies || mediaType !== DEFAULT_FILTERS.mediaType ||
@@ -294,7 +299,7 @@ export function SearchPage() {
       : ['protocol:nostr'];
     if (debouncedSearchQuery.trim()) parts.push(debouncedSearchQuery.trim());
     if (language !== 'global') parts.push(`language:${language}`);
-    const isDedicatedKindQuery = !kindsOverride && (mediaType === 'vines' || mediaType === 'images' || mediaType === 'videos');
+    const isDedicatedKindQuery = kindFilter === 'all' && (mediaType === 'vines' || mediaType === 'images' || mediaType === 'videos');
     if (!isDedicatedKindQuery && !hasKindMediaConflict) {
       if (mediaType === 'images') { parts.push('media:true'); parts.push('video:false'); }
       else if (mediaType === 'videos') parts.push('video:true');
