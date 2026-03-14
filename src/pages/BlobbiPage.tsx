@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, Sparkles, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles } from 'lucide-react';
 // Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
+// Note: Sparkles kept for BlobbiBottomBar center action button
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -24,13 +25,7 @@ import { cn } from '@/lib/utils';
 
 import {
   KIND_BLOBBI_STATE,
-  KIND_BLOBBONAUT_PROFILE,
-  buildBlobbonautTags,
-  buildEggTags,
-  generatePetId10,
-  getCanonicalBlobbiD,
   updateBlobbiTags,
-  updateBlobbonautTags,
   type BlobbiCompanion,
   type BlobbonautProfile,
 } from '@/lib/blobbi';
@@ -43,6 +38,7 @@ import {
   useBlobbiUseInventoryItem,
   type InventoryAction,
 } from '@/blobbi/actions';
+import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -218,84 +214,6 @@ function BlobbiContent() {
     });
   }, [companion, profile, ensureCanonicalBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent, setStoredSelectedD, invalidateCompanion, invalidateProfile]);
   
-  // ─── Initialize Blobbonaut Profile ───
-  const handleInitializeProfile = useCallback(async () => {
-    if (!user?.pubkey) return;
-    
-    setActionInProgress('init-profile');
-    try {
-      const tags = buildBlobbonautTags(user.pubkey);
-      const event = await publishEvent({
-        kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
-        tags,
-      });
-      
-      updateProfileEvent(event);
-      toast({ title: 'Profile initialized!', description: 'Welcome to Blobbi!' });
-      invalidateProfile();
-    } catch (error) {
-      console.error('Failed to initialize profile:', error);
-      toast({
-        title: 'Failed to initialize',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
-    } finally {
-      setActionInProgress(null);
-    }
-  }, [user?.pubkey, publishEvent, updateProfileEvent, invalidateProfile]);
-  
-  // ─── Create Egg ───
-  const handleCreateEgg = useCallback(async () => {
-    if (!user?.pubkey || !profile) return;
-    
-    setActionInProgress('create-egg');
-    try {
-      const petId = generatePetId10();
-      const createdAt = Math.floor(Date.now() / 1000);
-      const tags = buildEggTags(user.pubkey, petId, createdAt, 'Egg');
-      
-      const event = await publishEvent({
-        kind: KIND_BLOBBI_STATE,
-        content: 'A new Blobbi egg!',
-        tags,
-        created_at: createdAt,
-      });
-      
-      updateCompanionEvent(event);
-      
-      // Update profile with current_companion and has tag (with deduplication)
-      const newD = getCanonicalBlobbiD(user.pubkey, petId);
-      const updatedHas = [...profile.has, newD];
-      const profileTags = updateBlobbonautTags(profile.allTags, {
-        current_companion: newD,
-        has: updatedHas,
-      });
-      
-      const profileEvent = await publishEvent({
-        kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
-        tags: profileTags,
-      });
-      
-      updateProfileEvent(profileEvent);
-      
-      toast({ title: 'Egg created!', description: 'Your Blobbi journey begins!' });
-      invalidateProfile();
-      invalidateCompanion();
-    } catch (error) {
-      console.error('Failed to create egg:', error);
-      toast({
-        title: 'Failed to create egg',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
-    } finally {
-      setActionInProgress(null);
-    }
-  }, [user?.pubkey, profile, publishEvent, updateCompanionEvent, updateProfileEvent, invalidateProfile, invalidateCompanion]);
-  
   // ─── Rest Action (with automatic legacy migration) ───
   const handleRest = useCallback(async () => {
     if (!user?.pubkey || !companion) return;
@@ -375,74 +293,19 @@ function BlobbiContent() {
     return <DashboardLoadingState />;
   }
   
-  // Case D: No profile exists → show "Initialize Blobbonaut"
-  if (!profile) {
+  // Case D: No profile exists → show onboarding flow (profile creation step)
+  // Case C: Profile exists but no pets → show onboarding flow (adoption step)
+  if (!profile || !dList || dList.length === 0) {
     return (
       <DashboardShell>
-        <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
-          <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-            <div className="size-24 rounded-3xl bg-primary/10 flex items-center justify-center">
-              <Sparkles className="size-12 text-primary" />
-            </div>
-            <h1 className="text-2xl font-bold">Welcome to Blobbi!</h1>
-            <p className="text-muted-foreground">
-              Initialize your Blobbonaut profile to start caring for virtual pets on Nostr.
-            </p>
-            <Button
-              onClick={handleInitializeProfile}
-              disabled={isPublishing || actionInProgress !== null}
-              size="lg"
-              className="mt-2"
-            >
-              {actionInProgress === 'init-profile' ? (
-                <>
-                  <Loader2 className="size-4 mr-2 animate-spin" />
-                  Initializing...
-                </>
-              ) : (
-                'Initialize Blobbonaut'
-              )}
-            </Button>
-          </div>
-        </div>
-      </DashboardShell>
-    );
-  }
-  
-  // Profile exists, but dList is empty (no pets in profile.has and no currentCompanion)
-  // Case C: Profile exists but no pets → show "Create Egg"
-  if (!dList || dList.length === 0) {
-    return (
-      <DashboardShell>
-        <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
-          <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-            <div className="size-24 rounded-3xl bg-gradient-to-br from-amber-500/20 via-orange-500/10 to-yellow-500/5 flex items-center justify-center">
-              <Egg className="size-12 text-amber-500" />
-            </div>
-            <h1 className="text-2xl font-bold">Create Your First Blobbi!</h1>
-            <p className="text-muted-foreground">
-              Create an egg to begin your Blobbi journey. Watch it grow and care for it!
-            </p>
-            <Button
-              onClick={handleCreateEgg}
-              disabled={isPublishing || actionInProgress !== null}
-              size="lg"
-              className="mt-2"
-            >
-              {actionInProgress === 'create-egg' ? (
-                <>
-                  <Loader2 className="size-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Egg className="size-4 mr-2" />
-                  Create Egg
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
+        <BlobbiOnboardingFlow
+          profile={profile}
+          updateProfileEvent={updateProfileEvent}
+          updateCompanionEvent={updateCompanionEvent}
+          invalidateProfile={invalidateProfile}
+          invalidateCompanion={invalidateCompanion}
+          setStoredSelectedD={setStoredSelectedD}
+        />
       </DashboardShell>
     );
   }
@@ -469,45 +332,37 @@ function BlobbiContent() {
   
   // dList has items but collection is empty after loading
   // This could mean the pets don't exist on relays yet
+  // Show loading state while fetching, or redirect to onboarding flow if data couldn't be found
   if (!selectedD || companions.length === 0) {
+    if (companionFetching) {
+      return (
+        <DashboardShell>
+          <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
+            <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+              <div className="size-24 rounded-3xl bg-muted/50 flex items-center justify-center">
+                <RefreshCw className="size-12 text-muted-foreground animate-spin" />
+              </div>
+              <h1 className="text-2xl font-bold">Loading your Blobbi...</h1>
+              <p className="text-muted-foreground">
+                Fetching your pet data from relays...
+              </p>
+            </div>
+          </div>
+        </DashboardShell>
+      );
+    }
+    
+    // Pet data not found - redirect to onboarding to adopt a new Blobbi
     return (
       <DashboardShell>
-        <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
-          <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-            <div className="size-24 rounded-3xl bg-muted/50 flex items-center justify-center">
-              <RefreshCw className={cn(
-                "size-12 text-muted-foreground",
-                companionFetching && "animate-spin"
-              )} />
-            </div>
-            <h1 className="text-2xl font-bold">Loading your Blobbi...</h1>
-            <p className="text-muted-foreground">
-              {companionFetching 
-                ? 'Fetching your pet data from relays...'
-                : 'Your pet data could not be found. You can create a new egg.'}
-            </p>
-            {!companionFetching && (
-              <Button
-                onClick={handleCreateEgg}
-                disabled={isPublishing || actionInProgress !== null}
-                size="lg"
-                className="mt-2"
-              >
-                {actionInProgress === 'create-egg' ? (
-                  <>
-                    <Loader2 className="size-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Egg className="size-4 mr-2" />
-                    Create New Egg
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-        </div>
+        <BlobbiOnboardingFlow
+          profile={profile}
+          updateProfileEvent={updateProfileEvent}
+          updateCompanionEvent={updateCompanionEvent}
+          invalidateProfile={invalidateProfile}
+          invalidateCompanion={invalidateCompanion}
+          setStoredSelectedD={setStoredSelectedD}
+        />
       </DashboardShell>
     );
   }

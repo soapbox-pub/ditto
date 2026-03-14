@@ -23,6 +23,17 @@ export const DEFAULT_EGG_STATS = {
 // Default incubation time in seconds (4 days)
 export const DEFAULT_INCUBATION_TIME = 345600;
 
+// ─── Onboarding Constants ─────────────────────────────────────────────────────
+
+/** Initial coins given to new Blobbonauts */
+export const INITIAL_BLOBBONAUT_COINS = 200;
+
+/** Cost to reroll/generate another egg preview during onboarding */
+export const BLOBBI_PREVIEW_REROLL_COST = 10;
+
+/** Cost to adopt a Blobbi from the preview */
+export const BLOBBI_ADOPTION_COST = 100;
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type BlobbiStage = 'egg' | 'baby' | 'adult';
