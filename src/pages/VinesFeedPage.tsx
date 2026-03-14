@@ -604,10 +604,17 @@ export function VinesFeedPage() {
   const { events, isLoading } = useVinesFeed(tab);
   const [activeIndex, setActiveIndex] = useState(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const handleCommentClick = useCallback(() => {
     setCommentsOpen(true);
+  }, []);
+
+  // Callback ref that wires up both the mutable ref and state for layout context
+  const containerCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    containerRef.current = node;
+    setScrollContainer(node);
   }, []);
 
   useSeoMeta({
@@ -630,6 +637,7 @@ export function VinesFeedPage() {
 
   useLayoutOptions({
     showFAB: false,
+    scrollContainer,
   });
 
   // Lock body scroll when mobile comments are open
@@ -739,7 +747,7 @@ export function VinesFeedPage() {
 
       {/* ── Scroll container ────────────────────────────────────────── */}
       <div
-        ref={containerRef}
+        ref={containerCallbackRef}
         className="vine-slide-height sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory overflow-y-scroll"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', overscrollBehavior: 'none' }}
       >

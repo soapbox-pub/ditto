@@ -8,13 +8,15 @@ import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
 
 export function MobileBottomNav() {
   const location = useLocation();
   const { user, metadata } = useCurrentUser();
   const hasUnread = useHasUnreadNotifications();
-  const { hidden } = useScrollDirection();
+  const { scrollContainer } = useLayoutSnapshot();
+  const { hidden } = useScrollDirection(scrollContainer);
   const profileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
 
   const [searchOpen, setSearchOpen] = useState(false);
