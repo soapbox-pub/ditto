@@ -1934,11 +1934,8 @@ export function ProfilePage() {
           )}
         </div>
 
-        {/* Sentinel — becomes invisible once the sticky tabs reach the top */}
-        <div ref={tabsSentinelRef} className="h-0" />
-
-        {/* Tabs */}
-        <div className={cn(STICKY_HEADER_CLASS, 'border-b border-border backdrop-blur-md z-10')}>
+        {/* Inline tabs — always in flow, wrapped buttons */}
+        <div ref={tabsSentinelRef} className="border-b border-border">
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
             <div className="flex flex-wrap gap-2 px-3 py-2">
@@ -1950,10 +1947,7 @@ export function ProfilePage() {
 
           {/* All tabs in view mode */}
           {!tabEditMode && profileTabsQuery.isFetched && viewTabs.length > 0 && (
-            <div className={cn(
-              'gap-2 px-3 py-2',
-              tabsStuck ? 'flex overflow-x-auto scrollbar-none' : 'flex flex-wrap',
-            )}>
+            <div className="flex flex-wrap gap-2 px-3 py-2">
               {viewTabs.map((tab) => {
                 const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
                 const isActive = activeTab === tabId;
@@ -2086,6 +2080,31 @@ export function ProfilePage() {
             </div>
           )}
         </div>
+
+        {/* Sticky tabs — single-row horizontal scroll, only visible when stuck */}
+        {tabsStuck && !tabEditMode && profileTabsQuery.isFetched && viewTabs.length > 0 && (
+          <div className={cn(STICKY_HEADER_CLASS, 'border-b border-border backdrop-blur-md z-10')}>
+            <div className="flex overflow-x-auto scrollbar-none gap-2 px-3 py-2">
+              {viewTabs.map((tab) => {
+                const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
+                const isActive = activeTab === tabId;
+                return (
+                  <Button
+                    key={tab.label}
+                    variant={isActive ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setActiveTab(tabId);
+                      if (tab.label === 'Media') setSidebarMediaUrl(null);
+                    }}
+                  >
+                    {tab.label}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Add/edit single tab modal */}
         {pubkey && (
