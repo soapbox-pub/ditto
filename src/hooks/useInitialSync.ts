@@ -1,18 +1,23 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNostr } from '@nostrify/react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useCurrentUser } from './useCurrentUser';
-import { useAppContext } from './useAppContext';
-import type { EncryptedSettings } from './useEncryptedSettings';
-import { parseMuteTags, setCachedMuteItems, type MuteListItem } from './useMuteList';
-import { EncryptedSettingsSchema } from '@/lib/schemas';
+import { useNostr } from "@nostrify/react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { parseBlossomServerList } from "@/lib/appBlossom";
+import { EncryptedSettingsSchema } from "@/lib/schemas";
+import { useAppContext } from "./useAppContext";
+import { useCurrentUser } from "./useCurrentUser";
+import type { EncryptedSettings } from "./useEncryptedSettings";
+import {
+  type MuteListItem,
+  parseMuteTags,
+  setCachedMuteItems,
+} from "./useMuteList";
 
 export type SyncPhase =
-  | 'idle'         // No user logged in
-  | 'syncing'      // Actively fetching settings from relays
-  | 'found'        // Settings were found and applied, ready to proceed
-  | 'not-found'    // No settings found, show questionnaire
-  | 'complete';    // Sync + setup complete, show the app
+  | "idle" // No user logged in
+  | "syncing" // Actively fetching settings from relays
+  | "found" // Settings were found and applied, ready to proceed
+  | "not-found" // No settings found, show questionnaire
+  | "complete"; // Sync + setup complete, show the app
 
 const SYNC_TIMEOUT_MS = 8000;
 
@@ -31,7 +36,7 @@ const SYNC_TIMEOUT_MS = 8000;
  */
 export function isSyncDone(pubkey: string): boolean {
   try {
-    return localStorage.getItem(`ditto:sync-done:${pubkey}`) === '1';
+    return localStorage.getItem(`ditto:sync-done:${pubkey}`) === "1";
   } catch {
     return false;
   }
@@ -46,16 +51,16 @@ export function useInitialSync() {
   // Compute initial phase synchronously so we never flash sync/onboarding
   // for users who already completed it or who are logged out.
   const [phase, setPhase] = useState<SyncPhase>(() => {
-    if (!user) return 'idle';
-    if (isSyncDone(user.pubkey)) return 'complete';
-    return 'idle';
+    if (!user) return "idle";
+    if (isSyncDone(user.pubkey)) return "complete";
+    return "idle";
   });
   const syncAttempted = useRef(false);
 
   const markSyncComplete = useCallback(() => {
     if (!user) return;
     try {
-      localStorage.setItem(`ditto:sync-done:${user.pubkey}`, '1');
+      localStorage.setItem(`ditto:sync-done:${user.pubkey}`, "1");
     } catch {
       // localStorage may not be available
     }
@@ -64,14 +69,14 @@ export function useInitialSync() {
   // Reset when user changes
   useEffect(() => {
     if (!user) {
-      setPhase('idle');
+      setPhase("idle");
       syncAttempted.current = false;
       return;
     }
 
     // Skip sync if already completed for this user
     if (isSyncDone(user.pubkey)) {
-      setPhase('complete');
+      setPhase("complete");
       return;
     }
 
@@ -79,7 +84,7 @@ export function useInitialSync() {
     if (syncAttempted.current) return;
     syncAttempted.current = true;
 
-    setPhase('syncing');
+    setPhase("syncing");
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), SYNC_TIMEOUT_MS);
@@ -88,34 +93,51 @@ export function useInitialSync() {
       let foundSettings = false;
 
       try {
-        // Fetch relay list, encrypted settings, and mute list in parallel
-        const [relayEvents, settingsEvents, muteEvents] = await Promise.all([
-          nostr.query(
-            [{ kinds: [10002], authors: [user.pubkey], limit: 1 }],
-            { signal: controller.signal },
-          ).catch(() => []),
-          nostr.query(
-            [{ kinds: [30078], authors: [user.pubkey], '#d': [`${config.appId}/metadata`], limit: 1 }],
-            { signal: controller.signal },
-          ).catch(() => []),
-          nostr.query(
-            [{ kinds: [10000], authors: [user.pubkey], limit: 1 }],
-            { signal: controller.signal },
-          ).catch(() => []),
-        ]);
+        // Fetch relay list, Blossom server list, encrypted settings, and mute list in parallel
+        const [relayEvents, blossomServerEvents, settingsEvents, muteEvents] =
+          await Promise.all([
+            nostr
+              .query([{ kinds: [10002], authors: [user.pubkey], limit: 1 }], {
+                signal: controller.signal,
+              })
+              .catch(() => []),
+            nostr
+              .query([{ kinds: [10063], authors: [user.pubkey], limit: 1 }], {
+                signal: controller.signal,
+              })
+              .catch(() => []),
+            nostr
+              .query(
+                [
+                  {
+                    kinds: [30078],
+                    authors: [user.pubkey],
+                    "#d": [`${config.appId}/metadata`],
+                    limit: 1,
+                  },
+                ],
+                { signal: controller.signal },
+              )
+              .catch(() => []),
+            nostr
+              .query([{ kinds: [10000], authors: [user.pubkey], limit: 1 }], {
+                signal: controller.signal,
+              })
+              .catch(() => []),
+          ]);
 
         // Apply relay list if found
         if (relayEvents.length > 0) {
           const event = relayEvents[0];
           // Seed into cache so NostrSync can read it without re-fetching
-          queryClient.setQueryData(['relayList', user.pubkey], event);
+          queryClient.setQueryData(["relayList", user.pubkey], event);
           if (event.created_at > config.relayMetadata.updatedAt) {
             const fetchedRelays = event.tags
-              .filter(([name]) => name === 'r')
+              .filter(([name]) => name === "r")
               .map(([, url, marker]) => ({
-                url: url.replace(/\/+$/, ''),
-                read: !marker || marker === 'read',
-                write: !marker || marker === 'write',
+                url: url.replace(/\/+$/, ""),
+                read: !marker || marker === "read",
+                write: !marker || marker === "write",
               }));
 
             if (fetchedRelays.length > 0) {
@@ -131,18 +153,51 @@ export function useInitialSync() {
           }
         }
 
+        // Apply BUD-03 Blossom server list (kind 10063) if found
+        if (blossomServerEvents.length > 0) {
+          const event = blossomServerEvents[0];
+          // Seed into cache so NostrSync can read it without re-fetching
+          queryClient.setQueryData(["blossomServerList", user.pubkey], event);
+          if (event.created_at > config.blossomServerMetadata.updatedAt) {
+            const fetchedServers = parseBlossomServerList(event);
+
+            if (fetchedServers.length > 0) {
+              updateConfig((current) => ({
+                ...current,
+                blossomServerMetadata: {
+                  servers: fetchedServers,
+                  updatedAt: event.created_at,
+                },
+              }));
+              foundSettings = true;
+            }
+          }
+        }
+
         // Decrypt and apply encrypted settings if found
-        if (settingsEvents.length > 0 && settingsEvents[0].content && user.signer.nip44) {
+        if (
+          settingsEvents.length > 0 &&
+          settingsEvents[0].content &&
+          user.signer.nip44
+        ) {
           const settingsEvent = settingsEvents[0];
 
           try {
-            const decrypted = await user.signer.nip44.decrypt(user.pubkey, settingsEvent.content);
+            const decrypted = await user.signer.nip44.decrypt(
+              user.pubkey,
+              settingsEvent.content,
+            );
             const json = JSON.parse(decrypted);
             const result = EncryptedSettingsSchema.safeParse(json);
             if (!result.success) {
-              console.warn('Encrypted settings failed validation during initial sync:', result.error.issues);
+              console.warn(
+                "Encrypted settings failed validation during initial sync:",
+                result.error.issues,
+              );
             }
-            const parsed = (result.success ? result.data : {}) as EncryptedSettings;
+            const parsed = (
+              result.success ? result.data : {}
+            ) as EncryptedSettings;
 
             // Apply decrypted settings to local config (same logic as NostrSync)
             updateConfig((current) => {
@@ -158,7 +213,10 @@ export function useInitialSync() {
                 updates.useAppRelays = parsed.useAppRelays;
               }
               if (parsed.feedSettings) {
-                updates.feedSettings = { ...current.feedSettings, ...parsed.feedSettings };
+                updates.feedSettings = {
+                  ...current.feedSettings,
+                  ...parsed.feedSettings,
+                };
               }
               if (parsed.contentWarningPolicy) {
                 updates.contentWarningPolicy = parsed.contentWarningPolicy;
@@ -175,12 +233,21 @@ export function useInitialSync() {
 
             // Seed the TanStack query cache so useEncryptedSettings doesn't
             // re-fetch the same data and NostrSync sees it immediately.
-            queryClient.setQueryData(['encryptedSettings', user.pubkey], settingsEvent);
-            queryClient.setQueryData(['parsedSettings', settingsEvent.id], parsed);
+            queryClient.setQueryData(
+              ["encryptedSettings", user.pubkey],
+              settingsEvent,
+            );
+            queryClient.setQueryData(
+              ["parsedSettings", settingsEvent.id],
+              parsed,
+            );
 
             foundSettings = true;
           } catch (error) {
-            console.error('Failed to decrypt settings during initial sync:', error);
+            console.error(
+              "Failed to decrypt settings during initial sync:",
+              error,
+            );
             // Still count the event as found — NostrSync will retry decryption later
             foundSettings = true;
           }
@@ -190,7 +257,7 @@ export function useInitialSync() {
           const muteEvent = muteEvents[0];
 
           // Seed the raw event into the muteList query cache
-          queryClient.setQueryData(['muteList', user.pubkey], muteEvent);
+          queryClient.setQueryData(["muteList", user.pubkey], muteEvent);
 
           // Parse public tags from the event
           const publicItems = parseMuteTags(muteEvent.tags);
@@ -199,13 +266,19 @@ export function useInitialSync() {
           let privateItems: MuteListItem[] = [];
           if (muteEvent.content) {
             try {
-              const isNip04 = muteEvent.content.includes('?iv=');
+              const isNip04 = muteEvent.content.includes("?iv=");
               let decrypted: string | null = null;
 
               if (isNip04 && user.signer.nip04) {
-                decrypted = await user.signer.nip04.decrypt(user.pubkey, muteEvent.content);
+                decrypted = await user.signer.nip04.decrypt(
+                  user.pubkey,
+                  muteEvent.content,
+                );
               } else if (!isNip04 && user.signer.nip44) {
-                decrypted = await user.signer.nip44.decrypt(user.pubkey, muteEvent.content);
+                decrypted = await user.signer.nip44.decrypt(
+                  user.pubkey,
+                  muteEvent.content,
+                );
               }
 
               if (decrypted) {
@@ -213,7 +286,10 @@ export function useInitialSync() {
                 privateItems = parseMuteTags(tags);
               }
             } catch (error) {
-              console.error('Failed to decrypt mute list during initial sync:', error);
+              console.error(
+                "Failed to decrypt mute list during initial sync:",
+                error,
+              );
             }
           }
 
@@ -228,31 +304,31 @@ export function useInitialSync() {
             }
           }
 
-          queryClient.setQueryData(['muteItems', muteEvent.id], items);
+          queryClient.setQueryData(["muteItems", muteEvent.id], items);
           setCachedMuteItems(user.pubkey, items);
 
           foundSettings = true;
         }
       } catch (error) {
         // On timeout or error, treat as not found so the user can still proceed
-        if (error instanceof Error && error.name === 'AbortError') {
-          console.warn('Initial sync timed out');
+        if (error instanceof Error && error.name === "AbortError") {
+          console.warn("Initial sync timed out");
         } else {
-          console.error('Initial sync failed:', error);
+          console.error("Initial sync failed:", error);
         }
       }
 
       clearTimeout(timeout);
 
       if (foundSettings) {
-        setPhase('found');
+        setPhase("found");
         // Auto-complete after a brief moment so user sees the success state
         setTimeout(() => {
           markSyncComplete();
-          setPhase('complete');
+          setPhase("complete");
         }, 1200);
       } else {
-        setPhase('not-found');
+        setPhase("not-found");
       }
     };
 
@@ -262,11 +338,19 @@ export function useInitialSync() {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [user, nostr, config.appId, config.relayMetadata.updatedAt, updateConfig, queryClient, markSyncComplete]);
+  }, [
+    user,
+    nostr,
+    config.appId,
+    config.relayMetadata.updatedAt,
+    updateConfig,
+    queryClient,
+    markSyncComplete,
+  ]);
 
   const markComplete = useCallback(() => {
     markSyncComplete();
-    setPhase('complete');
+    setPhase("complete");
   }, [markSyncComplete]);
 
   return { phase, markComplete };
