@@ -1921,7 +1921,7 @@ export function ProfilePage() {
         </div>
 
         {/* Tabs */}
-        <div className={cn(STICKY_HEADER_CLASS, 'border-b border-border backdrop-blur-md z-10')}>
+        <div className="border-b border-border">
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
             <div className="flex flex-wrap gap-2 px-3 py-2">
