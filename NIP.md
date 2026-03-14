@@ -274,11 +274,15 @@ The `shape` field is added to the JSON content of a kind 0 event alongside stand
 ### Client Behavior
 
 - When `shape` is absent, clients SHOULD render the avatar as a circle (the current universal default).
-- When `shape` is a valid emoji, clients SHOULD render the emoji onto a canvas, extract its alpha channel, and use the result as a CSS `mask-image` over the avatar.
+- When `shape` is a valid emoji, clients SHOULD use the emoji's silhouette as an alpha mask over the avatar image. The specific rendering technique is platform-dependent (see below).
 - When `shape` is set to an unrecognized or invalid value, clients MUST fall back to a circle. This ensures forward compatibility.
 - The `shape` field is purely cosmetic and has no protocol-level significance.
 - Clients MAY choose not to support this extension, in which case avatars render as circles as usual.
 
 ### Implementation Notes
 
-Emoji shapes are implemented by rendering the emoji at a large font size to an off-screen `<canvas>`, finding the tight bounding box of non-transparent pixels, squaring the crop, redrawing onto a fixed-size output canvas, converting all pixels to white while preserving the original alpha channel, and exporting as a `data:image/png` URL. The result is applied via CSS `mask-image` / `-webkit-mask-image`. The mask is cached in memory per emoji string to avoid redundant canvas operations.
+The general approach is to render the emoji using the platform's native emoji font, extract its alpha channel, and apply it as a mask over the avatar. The mask should be cached per emoji string to avoid redundant rendering.
+
+- **Web**: Render the emoji via `<canvas>` `fillText`, convert to a white-on-transparent alpha mask, export as a data URL, and apply with CSS `mask-image`.
+- **iOS**: Render the emoji into a `UIImage` with `NSAttributedString`, extract the alpha channel with Core Graphics, and apply as a `CALayer` mask.
+- **Android**: Draw the emoji onto a `Bitmap` via `Canvas.drawText`, extract the alpha channel, and use it as a `BitmapShader` or `PorterDuff` mask on the avatar `ImageView`.
