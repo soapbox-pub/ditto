@@ -858,9 +858,11 @@ export function ProfilePage() {
   // Tab edit mode (inline reorder/remove/add)
   const [tabEditMode, setTabEditMode] = useState(false);
 
-  // Detect when tabs are stuck to the top via IntersectionObserver
+  // Detect when inline tabs scroll out of view via IntersectionObserver
   const tabsSentinelRef = useRef<HTMLDivElement>(null);
+  const stickyTabsRef = useRef<HTMLDivElement>(null);
   const [tabsStuck, setTabsStuck] = useState(false);
+  const [stickyTabsHeight, setStickyTabsHeight] = useState(0);
   useEffect(() => {
     const el = tabsSentinelRef.current;
     if (!el) return;
@@ -870,6 +872,13 @@ export function ProfilePage() {
     );
     observer.observe(el);
     return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    const el = stickyTabsRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setStickyTabsHeight(entry.borderBoxSize[0].blockSize));
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   // All tabs as a flat ordered list for the drag UI — core tabs have isCore=true and can't be removed
@@ -2081,33 +2090,36 @@ export function ProfilePage() {
           )}
         </div>
 
-        {/* Sticky tabs — single-row horizontal scroll, shown when inline tabs scroll out of view */}
+        {/* Sticky tabs — single-row horizontal scroll, shown when inline tabs scroll out of view.
+            Negative margin-top collapses its flow space so it doesn't create a gap when not stuck. */}
         {!tabEditMode && profileTabsQuery.isFetched && viewTabs.length > 0 && (
-          <div className="h-0 overflow-visible">
-            <div className={cn(
+          <div
+            ref={stickyTabsRef}
+            style={{ marginTop: -stickyTabsHeight }}
+            className={cn(
               STICKY_HEADER_CLASS,
-              'border-b border-border backdrop-blur-md z-10 transition-opacity duration-150',
+              'border-b border-border bg-background/80 backdrop-blur-md z-10 transition-opacity duration-150',
               tabsStuck ? 'opacity-100' : 'opacity-0 pointer-events-none',
-            )}>
-              <div className="flex overflow-x-auto scrollbar-none gap-2 px-3 py-2">
-                {viewTabs.map((tab) => {
-                  const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
-                  const isActive = activeTab === tabId;
-                  return (
-                    <Button
-                      key={tab.label}
-                      variant={isActive ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => {
-                        setActiveTab(tabId);
-                        if (tab.label === 'Media') setSidebarMediaUrl(null);
-                      }}
-                    >
-                      {tab.label}
-                    </Button>
-                  );
-                })}
-              </div>
+            )}
+          >
+            <div className="flex overflow-x-auto scrollbar-none gap-2 px-3 py-2">
+              {viewTabs.map((tab) => {
+                const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
+                const isActive = activeTab === tabId;
+                return (
+                  <Button
+                    key={tab.label}
+                    variant={isActive ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setActiveTab(tabId);
+                      if (tab.label === 'Media') setSidebarMediaUrl(null);
+                    }}
+                  >
+                    {tab.label}
+                  </Button>
+                );
+              })}
             </div>
           </div>
         )}
