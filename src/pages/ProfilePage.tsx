@@ -7,7 +7,7 @@ import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { getAvatarShape } from '@/lib/avatarShape';
+import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -998,6 +998,7 @@ export function ProfilePage() {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
+  const isEmojiShape = !!avatarShape && isEmoji(avatarShape);
   const profileStatus = useUserStatus(pubkey);
 
   // Refetch the author's profile whenever we navigate to this profile page.
@@ -1755,12 +1756,14 @@ export function ProfilePage() {
                     onClick={() => metadata?.picture && setLightboxImage(metadata.picture)}
                     disabled={!metadata?.picture}
                   >
-                    <Avatar shape={avatarShape} className={cn('size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
-                      <AvatarImage src={metadata?.picture} alt={displayName} />
-                      <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
-                        {displayName[0].toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div style={isEmojiShape ? emojiAvatarBorderStyle : undefined}>
+                      <Avatar shape={avatarShape} className={cn(isEmojiShape ? 'size-[88px] md:size-[120px]' : 'size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
+                        <AvatarImage src={metadata?.picture} alt={displayName} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
+                          {displayName[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
                   </button>
 
                   {/* NIP-38 thought bubble — floats beside the avatar over the banner */}
