@@ -1,7 +1,7 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { type AvatarShape, getAvatarClipPath } from "@/lib/avatarShape"
+import { type AvatarShape, getAvatarClipPath, isPredefinedAvatarShape, isEmoji, getEmojiMaskUrl } from "@/lib/avatarShape"
 
 /**
  * Shared ref so AvatarFallback can check if a sibling AvatarImage
@@ -25,7 +25,34 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
     hasSrcRef.current = false
 
     const isCircle = !shape || shape === 'circle'
-    const clipPath = getAvatarClipPath(shape)
+    const isGeometric = shape ? isPredefinedAvatarShape(shape) && shape !== 'circle' : false
+    const isEmojiShape = shape ? isEmoji(shape) : false
+
+    const clipPath = isGeometric ? getAvatarClipPath(shape) : undefined
+
+    // Build inline style: clip-path for geometric shapes, mask-image for emoji shapes
+    const mergedStyle = React.useMemo<React.CSSProperties>(() => {
+      if (clipPath) {
+        return { ...style, clipPath }
+      }
+      if (isEmojiShape && shape) {
+        const maskUrl = getEmojiMaskUrl(shape)
+        if (maskUrl) {
+          return {
+            ...style,
+            WebkitMaskImage: `url(${maskUrl})`,
+            maskImage: `url(${maskUrl})`,
+            WebkitMaskSize: 'contain',
+            maskSize: 'contain' as string,
+            WebkitMaskRepeat: 'no-repeat',
+            maskRepeat: 'no-repeat' as string,
+            WebkitMaskPosition: 'center',
+            maskPosition: 'center' as string,
+          }
+        }
+      }
+      return style ?? {}
+    }, [clipPath, isEmojiShape, shape, style])
 
     return (
       <AvatarHasSrcContext.Provider value={hasSrcRef}>
@@ -37,7 +64,7 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
               isCircle && "rounded-full",
               className
             )}
-            style={clipPath ? { ...style, clipPath } : style}
+            style={mergedStyle}
             {...props}
           >
             {children}

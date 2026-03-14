@@ -57,7 +57,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { AvatarShapePicker } from '@/components/AvatarShapePicker';
-import { type AvatarShape, AVATAR_SHAPES, isValidAvatarShape } from '@/lib/avatarShape';
+import { isValidAvatarShape } from '@/lib/avatarShape';
 
 const WALLET_TICKERS = [
   '$BTC', '$ETH', '$SOL', '$XMR', '$LTC', '$DOGE', '$ADA', '$DOT', '$XRP', '$MATIC',
@@ -83,7 +83,7 @@ const formSchema = n.metadata().extend({
     value: z.string(),
     type: z.enum(['text', 'wallet', 'media']),
   })).optional(),
-  shape: z.enum(AVATAR_SHAPES).optional(),
+  shape: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -258,7 +258,7 @@ export function ProfileSettings() {
     return [];
   };
 
-  const parseShape = (): AvatarShape => {
+  const parseShape = (): string => {
     if (!event) return 'circle';
     try {
       const parsed = JSON.parse(event.content);
@@ -272,7 +272,7 @@ export function ProfileSettings() {
     defaultValues: {
       name: '', about: '', picture: '', banner: '',
       website: '', nip05: '', lud16: '', bot: false, fields: [],
-      shape: 'circle' as AvatarShape,
+      shape: 'circle',
     },
   });
 
@@ -335,7 +335,7 @@ export function ProfileSettings() {
 
   // Live values for the card preview
   const watched = form.watch();
-  const cardMetadata: Partial<NostrMetadata> & { shape?: AvatarShape } = {
+  const cardMetadata: Partial<NostrMetadata> & { shape?: string } = {
     name: watched.name,
     about: watched.about,
     picture: watched.picture,

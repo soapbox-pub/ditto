@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { type AvatarShape, isValidAvatarShape, getAvatarClipPath } from '@/lib/avatarShape';
+import { type AvatarShape, isValidAvatarShape, getAvatarClipPath, isEmoji, getEmojiMaskUrl } from '@/lib/avatarShape';
 import { Camera, CheckCircle2, Pencil, Plus, Trash2, ChevronDown } from 'lucide-react';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
@@ -163,7 +163,7 @@ export function ProfileCard({
             className={cn('relative shrink-0', editable && 'cursor-pointer group')}
             onClick={() => editable && onPickImage?.('picture')}
           >
-            <Avatar shape={shape} className="size-24 border-4 border-background shadow-sm">
+            <Avatar shape={shape} className={cn("size-24 shadow-sm", shape && isEmoji(shape) ? "ring-4 ring-background" : "border-4 border-background")}>
               <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
               <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
                 {metadata.picture ? initial : editable ? <Plus className="size-8 text-muted-foreground" strokeWidth={4} /> : initial}
@@ -176,7 +176,24 @@ export function ProfileCard({
                     'absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors flex items-center justify-center',
                     (!shape || shape === 'circle') && 'rounded-full',
                   )}
-                  style={getAvatarClipPath(shape) ? { clipPath: getAvatarClipPath(shape) } : undefined}
+                  style={(() => {
+                    const clipPath = getAvatarClipPath(shape);
+                    if (clipPath) return { clipPath };
+                    if (shape && isEmoji(shape)) {
+                      const maskUrl = getEmojiMaskUrl(shape);
+                      if (maskUrl) return {
+                        WebkitMaskImage: `url(${maskUrl})`,
+                        maskImage: `url(${maskUrl})`,
+                        WebkitMaskSize: 'contain',
+                        maskSize: 'contain' as string,
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskRepeat: 'no-repeat' as string,
+                        WebkitMaskPosition: 'center',
+                        maskPosition: 'center' as string,
+                      };
+                    }
+                    return undefined;
+                  })()}
                 >
                   <Camera className="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
                 </div>
