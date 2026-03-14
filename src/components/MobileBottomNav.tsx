@@ -1,52 +1,34 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Bell, Search } from 'lucide-react';
-import { PlanetIcon } from '@/components/icons/PlanetIcon';
+import { Bell, Search, User } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useAppContext } from '@/hooks/useAppContext';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
-import { getSidebarItem } from '@/lib/sidebarItems';
 
 export function MobileBottomNav() {
   const location = useLocation();
-  const { user } = useCurrentUser();
-  const { config } = useAppContext();
-  const homePage = config.homePage;
+  const { user, metadata } = useCurrentUser();
   const hasUnread = useHasUnreadNotifications();
   const { hidden } = useScrollDirection();
+  const profileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
 
   const [searchOpen, setSearchOpen] = useState(false);
-
-  const homeItem = useMemo(() => getSidebarItem(homePage), [homePage]);
-  const HomeIcon = homeItem?.icon ?? PlanetIcon;
-  const homeLabel = homeItem?.label ?? 'Feed';
-
-  const handleHomeClick = useCallback((e: React.MouseEvent) => {
-    setSearchOpen(false);
-    if (location.pathname === '/') {
-      e.preventDefault();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [location.pathname]);
-
-  const handleNotificationsClick = useCallback(() => {
-    setSearchOpen(false);
-  }, []);
 
   const handleSearchClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setSearchOpen((v) => !v);
   }, []);
 
-  // Don't show notifications/search in bottom nav if they are the homepage
-  const showNotifications = homePage !== 'notifications';
-  const showSearch = homePage !== 'search';
-
   // Keep the nav visible while search is open regardless of scroll
   const isHidden = hidden && !searchOpen;
+
+  const displayName = metadata?.name || metadata?.display_name;
+  const isOnProfile = user && location.pathname === profileUrl;
 
   return (
     <>
@@ -61,22 +43,23 @@ export function MobileBottomNav() {
       >
         <div className="h-14 flex items-center">
 
-          <Link
-            to="/"
-            onClick={handleHomeClick}
+          {/* Search */}
+          <button
+            onClick={handleSearchClick}
             className={cn(
               'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-              location.pathname === '/' ? 'text-primary' : 'text-muted-foreground',
+              searchOpen ? 'text-primary' : 'text-muted-foreground',
             )}
           >
-            <HomeIcon className="size-5" />
-            <span className="text-[10px] font-medium">{homeLabel}</span>
-          </Link>
+            <Search className="size-5" />
+            <span className="text-[10px] font-medium">Search</span>
+          </button>
 
-          {user && showNotifications && (
+          {/* Notifications */}
+          {user && (
             <Link
               to="/notifications"
-              onClick={handleNotificationsClick}
+              onClick={() => setSearchOpen(false)}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
                 location.pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground',
@@ -92,17 +75,34 @@ export function MobileBottomNav() {
             </Link>
           )}
 
-          {showSearch && (
-            <button
-              onClick={handleSearchClick}
+          {/* Profile */}
+          {user ? (
+            <Link
+              to={profileUrl}
+              onClick={() => setSearchOpen(false)}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-                searchOpen ? 'text-primary' : 'text-muted-foreground',
+                isOnProfile ? 'text-primary' : 'text-muted-foreground',
               )}
             >
-              <Search className="size-5" />
-              <span className="text-[10px] font-medium">Search</span>
-            </button>
+              <Avatar shape={getAvatarShape(metadata)} className="size-5">
+                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                  {displayName?.[0]?.toUpperCase() || <User className="size-3" />}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-[10px] font-medium">Profile</span>
+            </Link>
+          ) : (
+            <Link
+              to="/profile"
+              className={cn(
+                'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors text-muted-foreground',
+              )}
+            >
+              <User className="size-5" />
+              <span className="text-[10px] font-medium">Profile</span>
+            </Link>
           )}
 
         </div>
