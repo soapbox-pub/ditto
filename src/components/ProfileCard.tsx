@@ -239,6 +239,20 @@ export function ProfileCard({
                       setEmojiPickerOpen(false);
                     }
                   }} />
+                  {shape && isEmoji(shape) && (
+                    <div className="px-4 pb-4 pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-destructive hover:text-destructive"
+                        onClick={() => { onAvatarShape?.('circle'); setEmojiPickerOpen(false); }}
+                      >
+                        <XIcon className="size-3.5 mr-1.5" />
+                        Remove avatar shape
+                      </Button>
+                    </div>
+                  )}
                 </DialogContent>
               </Dialog>
             </>
