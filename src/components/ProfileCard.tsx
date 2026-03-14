@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { EmojiPicker, type EmojiSelection } from '@/components/EmojiPicker';
 
 /** Shared classes for all editable fields — static muted bg when idle, border on hover/focus */
@@ -170,7 +170,7 @@ export function ProfileCard({
         {/* Avatar */}
         <div className="flex justify-between items-start -mt-12 mb-3">
           {editable ? (
-            <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+            <>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button type="button" className="relative shrink-0 cursor-pointer group outline-none">
@@ -214,12 +214,10 @@ export function ProfileCard({
                     <ImagePlus className="size-4 mr-2" />
                     Change avatar
                   </DropdownMenuItem>
-                  <PopoverTrigger asChild>
-                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setEmojiPickerOpen(true); }}>
-                      <SmilePlus className="size-4 mr-2" />
-                      Set avatar shape
-                    </DropdownMenuItem>
-                  </PopoverTrigger>
+                  <DropdownMenuItem onClick={() => setEmojiPickerOpen(true)}>
+                    <SmilePlus className="size-4 mr-2" />
+                    Set avatar shape
+                  </DropdownMenuItem>
                   {metadata.picture && (
                     <DropdownMenuItem onClick={() => onRemoveAvatar?.()} className="text-destructive focus:text-destructive">
                       <XIcon className="size-4 mr-2" />
@@ -228,20 +226,22 @@ export function ProfileCard({
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <PopoverContent
-                side="right"
-                align="start"
-                className="w-auto p-0 border-0 bg-transparent shadow-none"
-                sideOffset={8}
-              >
-                <EmojiPicker onSelect={(selection: EmojiSelection) => {
-                  if (selection.type === 'native') {
-                    onAvatarShape?.(selection.emoji);
-                    setEmojiPickerOpen(false);
-                  }
-                }} />
-              </PopoverContent>
-            </Popover>
+
+              <Dialog open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+                <DialogContent className="max-w-fit p-0 gap-0 overflow-hidden">
+                  <DialogHeader className="px-6 pt-5 pb-3">
+                    <DialogTitle className="text-base">Set avatar shape</DialogTitle>
+                    <DialogDescription>Pick an emoji to mask your avatar</DialogDescription>
+                  </DialogHeader>
+                  <EmojiPicker onSelect={(selection: EmojiSelection) => {
+                    if (selection.type === 'native') {
+                      onAvatarShape?.(selection.emoji);
+                      setEmojiPickerOpen(false);
+                    }
+                  }} />
+                </DialogContent>
+              </Dialog>
+            </>
           ) : (
             <div className="relative shrink-0">
               <Avatar shape={shape} className={cn("size-24 shadow-sm", shape && isEmoji(shape) ? "ring-4 ring-background" : "border-4 border-background")}>
