@@ -627,10 +627,10 @@ export function SearchPage() {
                   </div>
                   <Separator />
 
-                  {/* Media + Platform */}
+                  {/* Media + Protocol */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Media</span>
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Media</span>
                       <Select value={mediaType} onValueChange={(v) => setMediaType(v)}>
                         <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
                           <SelectValue />
@@ -645,7 +645,7 @@ export function SearchPage() {
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Platform <HelpTip faqId="vs-mastodon-bluesky" iconSize="size-3" /></span>
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Protocol <HelpTip faqId="vs-mastodon-bluesky" iconSize="size-3" /></span>
                       <Select value={platform} onValueChange={(v) => setPlatform(v)}>
                         <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
                           <SelectValue />
@@ -662,7 +662,7 @@ export function SearchPage() {
                   {/* Language + Kind */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Language</span>
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Language</span>
                       <Select value={language} onValueChange={(v) => setLanguage(v)}>
                         <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
                           <SelectValue />
@@ -679,7 +679,7 @@ export function SearchPage() {
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kind</span>
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Kind</span>
                       <KindPicker value={kindFilter} options={kindOptions} onChange={(v) => setKindFilter(v)} />
                     </div>
                   </div>
