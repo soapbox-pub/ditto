@@ -1,8 +1,24 @@
-import type { BlossomServerMetadata } from '@/contexts/AppContext';
+import type { NostrEvent } from "@nostrify/nostrify";
+import type { BlossomServerMetadata } from "@/contexts/AppContext";
 
 /** Normalize a Blossom server URL for deduplication (lowercase, ensure trailing slash). */
 function normalizeUrl(url: string): string {
-  return url.toLowerCase().replace(/\/+$/, '');
+  return url.toLowerCase().replace(/\/+$/, "");
+}
+
+/** Parse a kind 10063 Blossom server list event into validated server URLs. */
+export function parseBlossomServerList(event: NostrEvent): string[] {
+  return event.tags
+    .filter(([name]) => name === "server")
+    .map(([, url]) => url)
+    .filter((url) => {
+      try {
+        new URL(url);
+        return true;
+      } catch {
+        return false;
+      }
+    });
 }
 
 /**
@@ -11,9 +27,9 @@ function normalizeUrl(url: string): string {
  */
 export const APP_BLOSSOM_SERVERS: BlossomServerMetadata = {
   servers: [
-    'https://blossom.ditto.pub/',
-    'https://blossom.dreamith.to/',
-    'https://blossom.primal.net/',
+    "https://blossom.ditto.pub/",
+    "https://blossom.dreamith.to/",
+    "https://blossom.primal.net/",
   ],
   updatedAt: 0,
 };
