@@ -1,14 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useAppContext } from '@/hooks/useAppContext';
-import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { isSyncDone } from '@/hooks/useInitialSync';
-import { themePresets } from '@/themes';
-import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from '@/lib/themeEvent';
-import type { ThemeConfig } from '@/themes';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent } from "@nostrify/nostrify";
+import { useNostr } from "@nostrify/react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useAppContext } from "@/hooks/useAppContext";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
+import { isSyncDone } from "@/hooks/useInitialSync";
+import { parseBlossomServerList } from "@/lib/appBlossom";
+import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from "@/lib/themeEvent";
+import type { ThemeConfig } from "@/themes";
+import { themePresets } from "@/themes";
 
 /**
  * NostrSync - Syncs user's Nostr data
@@ -24,7 +25,11 @@ export function NostrSync() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
-  const { settings: encryptedSettings, isLoading: settingsLoading, recentlyWritten } = useEncryptedSettings();
+  const {
+    settings: encryptedSettings,
+    isLoading: settingsLoading,
+    recentlyWritten,
+  } = useEncryptedSettings();
 
   // Track the last synced settings timestamp to prevent re-syncing the same data.
   // Seeded to the remote lastSync on first load so that a stale relay event
@@ -59,7 +64,7 @@ export function NostrSync() {
   // so this query resolves from cache without a network round-trip in that case.
   // On subsequent page loads (after sync is done), it fetches once from the relay.
   const { data: relayListEvent } = useQuery<NostrEvent | null>({
-    queryKey: ['relayList', user?.pubkey ?? ''],
+    queryKey: ["relayList", user?.pubkey ?? ""],
     queryFn: async ({ signal }) => {
       if (!user) return null;
       const events = await nostr.query(
@@ -80,15 +85,15 @@ export function NostrSync() {
     // Only update if the event is newer than our stored data
     if (relayListEvent.created_at > config.relayMetadata.updatedAt) {
       const fetchedRelays = relayListEvent.tags
-        .filter(([name]) => name === 'r')
+        .filter(([name]) => name === "r")
         .map(([, url, marker]) => ({
-          url: url.replace(/\/+$/, ''),
-          read: !marker || marker === 'read',
-          write: !marker || marker === 'write',
+          url: url.replace(/\/+$/, ""),
+          read: !marker || marker === "read",
+          write: !marker || marker === "write",
         }));
 
       if (fetchedRelays.length > 0) {
-        console.log('Syncing relay list from Nostr:', fetchedRelays);
+        console.log("Syncing relay list from Nostr:", fetchedRelays);
         updateConfig((current) => ({
           ...current,
           relayMetadata: {
@@ -103,7 +108,7 @@ export function NostrSync() {
   // Fetch the user's BUD-03 Blossom server list (kind 10063).
   // useInitialSync seeds ['blossomServerList', pubkey] into the cache on first login.
   const { data: blossomServerListEvent } = useQuery<NostrEvent | null>({
-    queryKey: ['blossomServerList', user?.pubkey ?? ''],
+    queryKey: ["blossomServerList", user?.pubkey ?? ""],
     queryFn: async ({ signal }) => {
       if (!user) return null;
       const events = await nostr.query(
@@ -122,21 +127,16 @@ export function NostrSync() {
     if (!blossomServerListEvent) return;
 
     // Only update if the event is newer than our stored data
-    if (blossomServerListEvent.created_at > config.blossomServerMetadata.updatedAt) {
-      const fetchedServers = blossomServerListEvent.tags
-        .filter(([name]) => name === 'server')
-        .map(([, url]) => url)
-        .filter((url) => {
-          try {
-            new URL(url);
-            return true;
-          } catch {
-            return false;
-          }
-        });
+    if (
+      blossomServerListEvent.created_at > config.blossomServerMetadata.updatedAt
+    ) {
+      const fetchedServers = parseBlossomServerList(blossomServerListEvent);
 
       if (fetchedServers.length > 0) {
-        console.log('Syncing Blossom server list from Nostr (kind 10063):', fetchedServers);
+        console.log(
+          "Syncing Blossom server list from Nostr (kind 10063):",
+          fetchedServers,
+        );
         updateConfig((current) => ({
           ...current,
           blossomServerMetadata: {
@@ -146,7 +146,11 @@ export function NostrSync() {
         }));
       }
     }
-  }, [blossomServerListEvent, config.blossomServerMetadata.updatedAt, updateConfig]);
+  }, [
+    blossomServerListEvent,
+    config.blossomServerMetadata.updatedAt,
+    updateConfig,
+  ]);
 
   // Sync encrypted settings from Nostr on login
   useEffect(() => {
@@ -166,8 +170,8 @@ export function NostrSync() {
           updateConfig((current) => {
             let changed = false;
             const updates = { ...current };
-            if (current.theme !== 'system') {
-              updates.theme = 'system';
+            if (current.theme !== "system") {
+              updates.theme = "system";
               changed = true;
             }
             if (current.customTheme !== undefined) {
@@ -180,8 +184,8 @@ export function NostrSync() {
               updates.sidebarOrder = [];
               changed = true;
             }
-            if (current.homePage !== 'feed') {
-              updates.homePage = 'feed';
+            if (current.homePage !== "feed") {
+              updates.homePage = "feed";
               changed = true;
             }
             return changed ? updates : current;
@@ -210,7 +214,7 @@ export function NostrSync() {
     // Don't overwrite local config if we just saved settings (short-circuit for
     // the immediate write window, e.g. before the new event propagates back).
     if (recentlyWritten()) {
-      console.log('Skipping settings sync - recent write');
+      console.log("Skipping settings sync - recent write");
       // Advance the cursor so this snapshot is never re-applied once the write
       // window expires and the effect fires again.
       lastSyncedTimestamp.current = remoteSync;
@@ -222,7 +226,7 @@ export function NostrSync() {
       return;
     }
 
-    console.log('Syncing encrypted settings from Nostr', remoteSync);
+    console.log("Syncing encrypted settings from Nostr", remoteSync);
     lastSyncedTimestamp.current = remoteSync;
     const isSwitch = accountSwitched.current;
     accountSwitched.current = false;
@@ -237,8 +241,12 @@ export function NostrSync() {
         // Migrate legacy theme values ("black", "pink") from older encrypted settings
         const remoteTheme = encryptedSettings.theme as string;
         if (remoteTheme in themePresets) {
-          if (current.theme !== 'custom' || JSON.stringify(current.customTheme?.colors) !== JSON.stringify(themePresets[remoteTheme].colors)) {
-            updates.theme = 'custom';
+          if (
+            current.theme !== "custom" ||
+            JSON.stringify(current.customTheme?.colors) !==
+              JSON.stringify(themePresets[remoteTheme].colors)
+          ) {
+            updates.theme = "custom";
             updates.customTheme = { colors: themePresets[remoteTheme].colors };
             changed = true;
           }
@@ -249,8 +257,8 @@ export function NostrSync() {
       } else if (isSwitch) {
         // The new user never saved a theme — reset to app default so
         // the previous user's theme doesn't bleed through.
-        if (current.theme !== 'system') {
-          updates.theme = 'system';
+        if (current.theme !== "system") {
+          updates.theme = "system";
           changed = true;
         }
         if (current.customTheme !== undefined) {
@@ -259,21 +267,35 @@ export function NostrSync() {
         }
       }
 
-      if (encryptedSettings.customTheme && JSON.stringify(encryptedSettings.customTheme) !== JSON.stringify(current.customTheme)) {
+      if (
+        encryptedSettings.customTheme &&
+        JSON.stringify(encryptedSettings.customTheme) !==
+          JSON.stringify(current.customTheme)
+      ) {
         updates.customTheme = encryptedSettings.customTheme;
         changed = true;
-      } else if (isSwitch && !encryptedSettings.customTheme && current.customTheme !== undefined) {
+      } else if (
+        isSwitch &&
+        !encryptedSettings.customTheme &&
+        current.customTheme !== undefined
+      ) {
         // Clear stale custom theme from the previous account.
         updates.customTheme = undefined;
         changed = true;
       }
 
-      if (encryptedSettings.autoShareTheme !== undefined && encryptedSettings.autoShareTheme !== current.autoShareTheme) {
+      if (
+        encryptedSettings.autoShareTheme !== undefined &&
+        encryptedSettings.autoShareTheme !== current.autoShareTheme
+      ) {
         updates.autoShareTheme = encryptedSettings.autoShareTheme;
         changed = true;
       }
 
-      if (encryptedSettings.useAppRelays !== undefined && encryptedSettings.useAppRelays !== current.useAppRelays) {
+      if (
+        encryptedSettings.useAppRelays !== undefined &&
+        encryptedSettings.useAppRelays !== current.useAppRelays
+      ) {
         updates.useAppRelays = encryptedSettings.useAppRelays;
         changed = true;
       }
@@ -283,7 +305,9 @@ export function NostrSync() {
         const remoteFeed = encryptedSettings.feedSettings;
         // Check if any feed setting actually differs
         const feedChanged = Object.keys(remoteFeed).some(
-          (key) => remoteFeed[key as keyof typeof remoteFeed] !== currentFeed?.[key as keyof typeof currentFeed]
+          (key) =>
+            remoteFeed[key as keyof typeof remoteFeed] !==
+            currentFeed?.[key as keyof typeof currentFeed],
         );
         if (feedChanged) {
           updates.feedSettings = { ...currentFeed, ...remoteFeed };
@@ -291,32 +315,51 @@ export function NostrSync() {
         }
       }
 
-      if (encryptedSettings.contentWarningPolicy && encryptedSettings.contentWarningPolicy !== current.contentWarningPolicy) {
+      if (
+        encryptedSettings.contentWarningPolicy &&
+        encryptedSettings.contentWarningPolicy !== current.contentWarningPolicy
+      ) {
         updates.contentWarningPolicy = encryptedSettings.contentWarningPolicy;
         changed = true;
       }
 
-      if (encryptedSettings.sidebarOrder && JSON.stringify(encryptedSettings.sidebarOrder) !== JSON.stringify(current.sidebarOrder)) {
+      if (
+        encryptedSettings.sidebarOrder &&
+        JSON.stringify(encryptedSettings.sidebarOrder) !==
+          JSON.stringify(current.sidebarOrder)
+      ) {
         updates.sidebarOrder = encryptedSettings.sidebarOrder;
         changed = true;
       }
 
-      if (encryptedSettings.homePage && encryptedSettings.homePage !== current.homePage) {
+      if (
+        encryptedSettings.homePage &&
+        encryptedSettings.homePage !== current.homePage
+      ) {
         updates.homePage = encryptedSettings.homePage;
         changed = true;
       }
 
-      if (encryptedSettings.corsProxy && encryptedSettings.corsProxy !== current.corsProxy) {
+      if (
+        encryptedSettings.corsProxy &&
+        encryptedSettings.corsProxy !== current.corsProxy
+      ) {
         updates.corsProxy = encryptedSettings.corsProxy;
         changed = true;
       }
 
-      if (encryptedSettings.faviconUrl && encryptedSettings.faviconUrl !== current.faviconUrl) {
+      if (
+        encryptedSettings.faviconUrl &&
+        encryptedSettings.faviconUrl !== current.faviconUrl
+      ) {
         updates.faviconUrl = encryptedSettings.faviconUrl;
         changed = true;
       }
 
-      if (encryptedSettings.linkPreviewUrl && encryptedSettings.linkPreviewUrl !== current.linkPreviewUrl) {
+      if (
+        encryptedSettings.linkPreviewUrl &&
+        encryptedSettings.linkPreviewUrl !== current.linkPreviewUrl
+      ) {
         updates.linkPreviewUrl = encryptedSettings.linkPreviewUrl;
         changed = true;
       }
@@ -327,17 +370,17 @@ export function NostrSync() {
 
     // Sync feed tab settings (stored directly in localStorage, not AppConfig)
     if (encryptedSettings.showGlobalFeed !== undefined) {
-      const current = localStorage.getItem('ditto:showGlobalFeed');
+      const current = localStorage.getItem("ditto:showGlobalFeed");
       const incoming = String(encryptedSettings.showGlobalFeed);
       if (current !== incoming) {
-        localStorage.setItem('ditto:showGlobalFeed', incoming);
+        localStorage.setItem("ditto:showGlobalFeed", incoming);
       }
     }
     if (encryptedSettings.showCommunityFeed !== undefined) {
-      const current = localStorage.getItem('ditto:showCommunityFeed');
+      const current = localStorage.getItem("ditto:showCommunityFeed");
       const incoming = String(encryptedSettings.showCommunityFeed);
       if (current !== incoming) {
-        localStorage.setItem('ditto:showCommunityFeed', incoming);
+        localStorage.setItem("ditto:showCommunityFeed", incoming);
       }
     }
     if (encryptedSettings.communityData) {
@@ -346,14 +389,24 @@ export function NostrSync() {
         label: encryptedSettings.communityData.label,
         userCount: encryptedSettings.communityData.userCount,
       };
-      const currentRaw = localStorage.getItem('ditto:community');
+      const currentRaw = localStorage.getItem("ditto:community");
       const incoming = JSON.stringify(community);
       if (currentRaw !== incoming) {
-        localStorage.setItem('ditto:community', incoming);
-        localStorage.setItem('ditto:communityData', JSON.stringify({ names: encryptedSettings.communityData.nip05 }));
+        localStorage.setItem("ditto:community", incoming);
+        localStorage.setItem(
+          "ditto:communityData",
+          JSON.stringify({ names: encryptedSettings.communityData.nip05 }),
+        );
       }
     }
-  }, [user, encryptedSettings, settingsLoading, updateConfig, recentlyWritten, seededTimestamp]);
+  }, [
+    user,
+    encryptedSettings,
+    settingsLoading,
+    updateConfig,
+    recentlyWritten,
+    seededTimestamp,
+  ]);
 
   // Sync active profile theme (kind 16767) on pageload when autoShareTheme is enabled.
   // This pulls in the user's published theme and applies it as the customTheme
@@ -390,14 +443,16 @@ export function NostrSync() {
         // Update customTheme if it differs from what we have locally.
         // Do NOT change the `theme` value — leave it as light/dark/system/custom.
         updateConfig((current) => {
-          if (JSON.stringify(current.customTheme) === JSON.stringify(remoteTheme)) {
+          if (
+            JSON.stringify(current.customTheme) === JSON.stringify(remoteTheme)
+          ) {
             return current;
           }
           return { ...current, customTheme: remoteTheme };
         });
       } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') return;
-        console.error('Failed to sync active profile theme:', error);
+        if (error instanceof Error && error.name === "AbortError") return;
+        console.error("Failed to sync active profile theme:", error);
       }
     };
 
