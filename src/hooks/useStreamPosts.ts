@@ -81,20 +81,24 @@ function filterEvent(
     }
   }
 
-  // Non-text events (extra kinds) pass through without further content filtering
-  // Kind 1111 (NIP-22 comments) are treated like kind 1 for filtering purposes
-  if (event.kind !== 1 && event.kind !== 1111) return true;
-
-  // Filter replies
-  if (!options.includeReplies) {
-    if (isReplyEvent(event)) return false;
+  // Filter replies (kind 1 and 1111 only)
+  if (event.kind === 1 || event.kind === 1111) {
+    if (!options.includeReplies && isReplyEvent(event)) return false;
   }
 
-  // Client-side search (for streaming events only - initial query uses relay search)
+  // Client-side search — applied to all kinds for streamed events.
+  // The initial batch uses relay-level NIP-50 search; streamed events have no
+  // search filter at the relay, so we must enforce it here.
   if (searchQuery.trim()) {
-    const lowerContent = event.content.toLowerCase();
     const lowerQuery = searchQuery.toLowerCase();
-    if (!lowerContent.includes(lowerQuery)) return false;
+    const lowerContent = event.content.toLowerCase();
+    // For non-text events also check the title/summary/subject tags
+    const searchableTags = ['title', 'summary', 'subject', 'alt'];
+    const tagText = searchableTags
+      .flatMap((name) => event.tags.filter(([t]) => t === name).map(([, v]) => v ?? ''))
+      .join(' ')
+      .toLowerCase();
+    if (!lowerContent.includes(lowerQuery) && !tagText.includes(lowerQuery)) return false;
   }
 
   // Client-side media filtering (for streaming events only)
