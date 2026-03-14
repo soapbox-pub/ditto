@@ -30,7 +30,6 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { buildKindOptions, KindPicker, AuthorChip, AuthorFilterDropdown } from '@/components/SavedFeedFiltersEditor';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
-import { useDebounce } from '@/hooks/useDebounce';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
@@ -97,9 +96,9 @@ export function SearchPage() {
   // Derive tab directly from URL — single source of truth
   const activeTab = parseTab(searchParams.get('tab'));
 
-  // Local input state for the search field (avoids trimming while typing)
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  // SearchPage only tracks the debounced value — raw keystroke state lives in
+  // the SearchInput child component so typing doesn't re-render the whole page.
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchParams.get('q') ?? '');
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // ── Filter state — all derived from URL params ──────────────────────────
@@ -205,25 +204,33 @@ export function SearchPage() {
   // when we ourselves just wrote to the URL.
   const internalUrlUpdate = useRef(false);
 
-  // Sync search query state → URL (debounced to avoid disrupting typing)
+  // Sync search query state → URL (debounced to avoid disrupting typing).
+  // Intentionally omits `searchParams` from deps — including it causes a
+  // feedback loop: writing to the URL updates searchParams, which re-triggers
+  // this effect, forcing extra renders on every keystroke.
+  // The functional updater form of setSearchParams already receives the latest
+  // params, so we don't need searchParams in scope here.
   useEffect(() => {
-    const currentQ = searchParams.get('q') ?? '';
     const trimmed = debouncedSearchQuery.trim();
-    if (trimmed !== currentQ) {
-      internalUrlUpdate.current = true;
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        if (trimmed) {
-          next.set('q', trimmed);
-        } else {
-          next.delete('q');
-        }
-        return next;
-      }, { replace: true });
-    }
-  }, [debouncedSearchQuery, searchParams, setSearchParams]);
+    internalUrlUpdate.current = true;
+    setSearchParams((prev) => {
+      const currentQ = prev.get('q') ?? '';
+      if (trimmed === currentQ) {
+        // No change — return the same object so React Router skips a history update.
+        internalUrlUpdate.current = false;
+        return prev;
+      }
+      const next = new URLSearchParams(prev);
+      if (trimmed) {
+        next.set('q', trimmed);
+      } else {
+        next.delete('q');
+      }
+      return next;
+    }, { replace: true });
+  }, [debouncedSearchQuery, setSearchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync URL → search query state (e.g., sidebar search or browser navigation)
+  // Sync URL → debounced query state (e.g., sidebar search or browser navigation)
   useEffect(() => {
     // Skip if we just wrote to the URL ourselves (avoids clobbering mid-typing input)
     if (internalUrlUpdate.current) {
@@ -231,8 +238,8 @@ export function SearchPage() {
       return;
     }
     const q = searchParams.get('q') ?? '';
-    if (q !== searchQuery.trim()) {
-      setSearchQuery(q);
+    if (q !== debouncedSearchQuery.trim()) {
+      setDebouncedSearchQuery(q);
     }
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -413,25 +420,20 @@ export function SearchPage() {
           {/* Search input + filter icon */}
           <div className="px-4 pt-5 pb-3">
             <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Input
-                  type="text"
-                  placeholder="Search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
-                />
-                <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-              </div>
+              <SearchInput
+                initialValue={debouncedSearchQuery}
+                onDebouncedChange={setDebouncedSearchQuery}
+              />
 
                 {/* Add to feed button */}
-                {user && (searchQuery.trim() || hasActiveFilters) && (
+                {user && (
+                <div className={cn(!debouncedSearchQuery.trim() && !hasActiveFilters ? 'hidden' : undefined)}>
                   <Popover open={savePopoverOpen} onOpenChange={(o) => {
                     setSavePopoverOpen(o);
                     if (o && !saveFeedLabel) {
                       // Pre-fill with the search query, or a label derived from active filters
-                      if (searchQuery.trim()) {
-                        setSaveFeedLabel(searchQuery.trim());
+                      if (debouncedSearchQuery.trim()) {
+                        setSaveFeedLabel(debouncedSearchQuery.trim());
                       } else if (listPickerValue) {
                         const matched =
                           listPickerValue.startsWith('set:')
@@ -494,6 +496,7 @@ export function SearchPage() {
                       )}
                     </PopoverContent>
                   </Popover>
+                </div>
                 )}
 
                 {/* Filter popover */}
@@ -714,7 +717,7 @@ export function SearchPage() {
             )}
 
             {/* NIP-50 search query debug block */}
-            {searchQuery.trim() && (
+            {debouncedSearchQuery.trim() && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -746,7 +749,7 @@ export function SearchPage() {
                 <NoteCard key={event.id} event={event} />
               ))}
             </div>
-          ) : searchQuery.trim() ? (
+          ) : debouncedSearchQuery.trim() ? (
             <EmptyState
               message="No posts found matching your search."
               activeFilters={activeFilterLabels}
@@ -763,20 +766,14 @@ export function SearchPage() {
         <>
           {/* Search input for accounts */}
           <div className="px-4 pt-5 pb-2">
-            <div className="relative">
-              <Input
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
-              />
-              <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-            </div>
+            <SearchInput
+              initialValue={debouncedSearchQuery}
+              onDebouncedChange={setDebouncedSearchQuery}
+            />
           </div>
 
           <div>
-            {searchQuery.trim() ? (
+            {debouncedSearchQuery.trim() ? (
               profilesLoading ? (
                 <div className="divide-y divide-border">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -1018,6 +1015,49 @@ function AccountSkeleton() {
  *  - The user manually types a full npub1… / hex pubkey / NIP-05 and presses Enter or blurs
  */
 /** Small removable chip showing a single selected author. */
+
+/**
+ * Owns the raw keystroke state for the search box so that typing only
+ * re-renders this small component, not the entire SearchPage.
+ * Calls onDebouncedChange after 300 ms of inactivity.
+ */
+function SearchInput({
+  initialValue,
+  onDebouncedChange,
+  className,
+}: {
+  initialValue: string;
+  onDebouncedChange: (value: string) => void;
+  className?: string;
+}) {
+  const [value, setValue] = useState(initialValue);
+  const onDebouncedChangeRef = useRef(onDebouncedChange);
+  onDebouncedChangeRef.current = onDebouncedChange;
+
+  // Sync if the parent resets the value (e.g. browser back/forward)
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  // Debounce: call parent only after 300 ms of no typing
+  useEffect(() => {
+    const id = setTimeout(() => onDebouncedChangeRef.current(value), 300);
+    return () => clearTimeout(id);
+  }, [value]);
+
+  return (
+    <div className={cn('relative flex-1', className)}>
+      <Input
+        type="text"
+        placeholder="Search"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
+      />
+      <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+    </div>
+  );
+}
 
 function SaveDestinationRow({
   icon, label, description, onClick, disabled, loading,
