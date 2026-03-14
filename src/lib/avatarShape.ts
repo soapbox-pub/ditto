@@ -1,3 +1,5 @@
+import type React from 'react';
+
 /**
  * An avatar shape is an emoji string stored in kind-0 metadata as the `shape` property.
  * When absent or invalid, avatars render as circles (the default).
@@ -40,6 +42,21 @@ export function getAvatarShape(metadata: { [key: string]: unknown } | undefined)
   const raw = metadata?.shape;
   return isValidAvatarShape(raw) ? raw : undefined;
 }
+
+// ── Emoji border style ───────────────────────────────────────────────────
+
+/**
+ * CSS filter that creates a crisp, solid outline around an emoji-masked avatar,
+ * mimicking the appearance of `border-4 border-background` without clipping
+ * the mask shape. Apply this to a **wrapper** around the masked `<Avatar>`.
+ */
+export const emojiAvatarBorderStyle: React.CSSProperties = {
+  filter:
+    'drop-shadow(3px 0 0 hsl(var(--background)))' +
+    ' drop-shadow(-3px 0 0 hsl(var(--background)))' +
+    ' drop-shadow(0 3px 0 hsl(var(--background)))' +
+    ' drop-shadow(0 -3px 0 hsl(var(--background)))',
+};
 
 // ── Emoji mask generation ──────────────────────────────────────────────────
 

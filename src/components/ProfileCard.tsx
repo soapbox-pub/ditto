@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { type AvatarShape, isValidAvatarShape, isEmoji, getEmojiMaskUrl } from '@/lib/avatarShape';
+import { type AvatarShape, isValidAvatarShape, isEmoji, getEmojiMaskUrl, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { CheckCircle2, Pencil, Plus, Trash2, ChevronDown, ImagePlus, SmilePlus, X as XIcon } from 'lucide-react';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
@@ -192,12 +192,14 @@ export function ProfileCard({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button type="button" className="relative shrink-0 cursor-pointer group outline-none">
-                    <Avatar shape={shape} className={cn("size-24 shadow-sm", isEmojiShape ? "ring-4 ring-background" : "border-4 border-background")}>
-                      <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
-                      <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
-                        {metadata.picture ? initial : <Plus className="size-8 text-muted-foreground" strokeWidth={4} />}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div style={isEmojiShape ? emojiAvatarBorderStyle : undefined}>
+                      <Avatar shape={shape} className={cn("shadow-sm", isEmojiShape ? "size-[88px]" : "size-24 border-4 border-background")}>
+                        <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
+                        <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
+                          {metadata.picture ? initial : <Plus className="size-8 text-muted-foreground" strokeWidth={4} />}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
                     <div
                       className={cn(
                         'absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors flex items-center justify-center',
@@ -260,8 +262,8 @@ export function ProfileCard({
               </Dialog>
             </>
           ) : (
-            <div className="relative shrink-0">
-              <Avatar shape={shape} className={cn("size-24 shadow-sm", isEmojiShape ? "ring-4 ring-background" : "border-4 border-background")}>
+            <div className="relative shrink-0" style={isEmojiShape ? emojiAvatarBorderStyle : undefined}>
+              <Avatar shape={shape} className={cn("shadow-sm", isEmojiShape ? "size-[88px]" : "size-24 border-4 border-background")}>
                 <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
                 <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
                   {initial}
