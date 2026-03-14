@@ -74,7 +74,7 @@ import {
 } from '@dnd-kit/core';
 import {
   SortableContext, sortableKeyboardCoordinates, useSortable,
-  horizontalListSortingStrategy, arrayMove,
+  rectSortingStrategy, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS as DndCSS } from '@dnd-kit/utilities';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
@@ -380,7 +380,7 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
     <button
       onClick={onClick}
       className={cn(
-        'flex-1 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 whitespace-nowrap',
+        'flex-1 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
         active ? 'text-foreground' : 'text-muted-foreground',
       )}
     >
@@ -408,7 +408,7 @@ function SortableTabChip({
       ref={setNodeRef}
       style={{ transform: DndCSS.Transform.toString(transform), transition }}
       className={cn(
-        'shrink-0 relative flex items-stretch group/chip px-1 text-sm font-medium select-none whitespace-nowrap',
+        'shrink-0 relative flex items-stretch group/chip px-1 text-sm font-medium select-none',
         active ? 'text-foreground' : 'text-muted-foreground',
         isDragging && 'opacity-60 z-50',
       )}
@@ -1921,7 +1921,7 @@ export function ProfilePage() {
         </div>
 
         {/* Tabs */}
-        <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border backdrop-blur-md z-10 overflow-x-auto scrollbar-none')}>
+        <div className={cn(STICKY_HEADER_CLASS, 'flex flex-wrap border-b border-border backdrop-blur-md z-10')}>
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
             <div className="flex gap-1 px-2 py-2">
@@ -1949,8 +1949,8 @@ export function ProfilePage() {
           {/* Custom tabs — inline edit mode (draggable) */}
           {tabEditMode && (
             <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTabDragEnd}>
-              <SortableContext items={localTabs.map((t) => t.label)} strategy={horizontalListSortingStrategy}>
-                <div className="flex items-center flex-1 min-w-0 overflow-x-auto scrollbar-none">
+              <SortableContext items={localTabs.map((t) => t.label)} strategy={rectSortingStrategy}>
+                <div className="flex flex-wrap items-center flex-1 min-w-0">
                   {localTabs.length === 0 ? (
                     <span className="px-4 text-sm text-muted-foreground italic">No custom tabs — use + to add one</span>
                   ) : (
