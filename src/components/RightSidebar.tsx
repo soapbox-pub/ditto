@@ -11,6 +11,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
+import { formatNumber } from '@/lib/formatNumber';
 import { timeAgo } from '@/lib/timeAgo';
 import { NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
@@ -153,7 +154,7 @@ export function RightSidebar() {
                   <div className="font-bold text-sm">#{item.tag}</div>
                   {item.accounts > 0 && (
                     <div className="text-xs text-muted-foreground">
-                      <span className="text-primary font-semibold">{item.accounts.toLocaleString()}</span> people talking
+                      <span className="text-primary font-semibold">{formatNumber(item.accounts)}</span> people talking
                     </div>
                   )}
                 </div>

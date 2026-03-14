@@ -9,6 +9,7 @@ import { RenderResolvedEmoji } from '@/components/CustomEmoji';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserReaction } from '@/hooks/useUserReaction';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 import type { EventStats } from '@/hooks/useTrending';
 
@@ -154,7 +155,7 @@ export function ReactionButton({
             <Heart className="size-5" />
           )}
           {reactionCount > 0 && (
-            <span className={cn('text-sm tabular-nums', hasReacted && 'text-pink-500')}>{reactionCount}</span>
+            <span className={cn('text-sm tabular-nums', hasReacted && 'text-pink-500')}>{formatNumber(reactionCount)}</span>
           )}
         </button>
       </PopoverTrigger>

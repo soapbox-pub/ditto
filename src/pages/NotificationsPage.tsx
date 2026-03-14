@@ -18,6 +18,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
@@ -179,13 +180,6 @@ function NotificationItemView({ item, isNew }: { item: NotificationItem; isNew: 
   }
 }
 
-/** Formats a sats amount into a compact human-readable string. */
-function formatSats(sats: number): string {
-  if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  return sats.toString();
-}
-
 /** Wrapper that adds the new-notification indicator. */
 function NotificationWrapper({ isNew, children }: { isNew: boolean; children: React.ReactNode }) {
   return (
@@ -296,7 +290,7 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
     return event.pubkey;
   }, [event]);
 
-  const amountLabel = zapAmount > 0 ? ` ${formatSats(zapAmount)} sats` : '';
+  const amountLabel = zapAmount > 0 ? ` ${formatNumber(zapAmount)} sats` : '';
 
   return (
     <NotificationWrapper isNew={isNew}>

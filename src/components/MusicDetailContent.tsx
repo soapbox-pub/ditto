@@ -19,6 +19,7 @@ import { isEventMuted } from '@/lib/muteHelpers';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { formatTime } from '@/lib/formatTime';
 import { canZap } from '@/lib/canZap';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -39,13 +40,6 @@ function formatFullDate(ts: number): string {
   return new Date(ts * 1000).toLocaleDateString(undefined, {
     year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
   });
-}
-
-/** Format sats compactly. */
-function formatSats(sats: number): string {
-  if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  return sats.toString();
 }
 
 export function MusicDetailContent({ event }: { event: NostrEvent }) {
@@ -204,8 +198,8 @@ function TrackDetail({ event }: { event: NostrEvent }) {
             {/* Zap stats */}
             {zapAmount > 0 && (
               <button onClick={() => setInteractionsTab('zaps')} className="ml-1 text-right hover:opacity-80">
-                <p className="text-lg font-bold leading-tight">{formatSats(zapAmount)} sats</p>
-                <p className="text-xs text-muted-foreground">{stats.data?.zapCount ?? 0} zap{(stats.data?.zapCount ?? 0) !== 1 ? 's' : ''}</p>
+                <p className="text-lg font-bold leading-tight">{formatNumber(zapAmount)} sats</p>
+                <p className="text-xs text-muted-foreground">{formatNumber(stats.data?.zapCount ?? 0)} zap{(stats.data?.zapCount ?? 0) !== 1 ? 's' : ''}</p>
               </button>
             )}
           </div>
@@ -243,13 +237,13 @@ function TrackDetail({ event }: { event: NostrEvent }) {
           onClick={() => setReplyOpen(true)}
           className="flex-1 py-3 text-center text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
         >
-          Comments <span className="text-xs ml-1 opacity-70">{comments.length || 0}</span>
+          Comments <span className="text-xs ml-1 opacity-70">{formatNumber(comments.length || 0)}</span>
         </button>
         <button
           onClick={() => setInteractionsTab('reactions')}
           className="flex-1 py-3 text-center text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
         >
-          Reactions <span className="text-xs ml-1 opacity-70">{stats.data?.reactions || 0}</span>
+          Reactions <span className="text-xs ml-1 opacity-70">{formatNumber(stats.data?.reactions || 0)}</span>
         </button>
       </div>
 

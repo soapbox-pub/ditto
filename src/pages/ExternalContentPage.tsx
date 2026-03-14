@@ -37,6 +37,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { timeAgo } from '@/lib/timeAgo';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 import {
   useExternalUserReaction,
@@ -170,7 +171,7 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
               <Heart className="size-5" />
             )}
             {reactionCount > 0 && (
-              <span className="text-sm tabular-nums">{reactionCount}</span>
+              <span className="text-sm tabular-nums">{formatNumber(reactionCount)}</span>
             )}
           </button>
         </PopoverTrigger>

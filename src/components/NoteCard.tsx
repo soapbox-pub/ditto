@@ -82,6 +82,7 @@ import { getParentEventId, isReplyEvent } from "@/lib/nostrEvents";
 import { isSingleImagePost } from "@/lib/noteContent";
 import { shareOrCopy } from "@/lib/share";
 import { timeAgo } from "@/lib/timeAgo";
+import { formatNumber } from "@/lib/formatNumber";
 import { cn } from "@/lib/utils";
 
 interface NoteCardProps {
@@ -95,14 +96,6 @@ interface NoteCardProps {
   threaded?: boolean;
   /** Like threaded but without the connector line — used for the last item in a thread (e.g. sub-reply hint). */
   threadedLast?: boolean;
-}
-
-/** Formats a sats amount into a compact human-readable string. */
-function formatSats(sats: number): string {
-  if (sats >= 1_000_000)
-    return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
-  return sats.toString();
 }
 
 /** Gets a tag value by name. */
@@ -552,26 +545,26 @@ export function NoteCard({
         }}
       >
         <MessageCircle className="size-5" />
-        {stats?.replies ? (
-          <span className="text-sm tabular-nums">{stats.replies}</span>
-        ) : null}
-      </button>
-
-      <RepostMenu event={event}>
-        {(isReposted: boolean) => (
-          <button
-            className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
-            title={isReposted ? "Undo repost" : "Repost"}
-          >
-            <RepostIcon className="size-5" />
-            {stats?.reposts || stats?.quotes ? (
-              <span className="text-sm tabular-nums">
-                {(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}
-              </span>
+            {stats?.replies ? (
+              <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
             ) : null}
           </button>
-        )}
-      </RepostMenu>
+
+          <RepostMenu event={event}>
+            {(isReposted: boolean) => (
+              <button
+                className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
+                title={isReposted ? "Undo repost" : "Repost"}
+              >
+                <RepostIcon className="size-5" />
+                {stats?.reposts || stats?.quotes ? (
+                  <span className="text-sm tabular-nums">
+                    {formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0))}
+                  </span>
+                ) : null}
+              </button>
+            )}
+          </RepostMenu>
 
       <ReactionButton
         eventId={event.id}
@@ -589,7 +582,7 @@ export function NoteCard({
             <Zap className="size-5" />
             {stats?.zapAmount ? (
               <span className="text-sm tabular-nums">
-                {formatSats(stats.zapAmount)}
+                {formatNumber(stats.zapAmount)}
               </span>
             ) : null}
           </button>

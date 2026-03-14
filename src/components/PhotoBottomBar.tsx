@@ -24,12 +24,7 @@ import { useEventStats } from '@/hooks/useTrending';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
-
-function formatSats(sats: number): string {
-  if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  return sats.toString();
-}
+import { formatNumber } from '@/lib/formatNumber';
 
 interface PhotoBottomBarProps {
   event: NostrEvent;
@@ -88,7 +83,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
               onClick={() => setCommentsOpen(true)}
             >
               <MessageCircle className="size-5" />
-              {!!stats?.replies && <span className="text-sm tabular-nums drop-shadow">{stats.replies}</span>}
+              {!!stats?.replies && <span className="text-sm tabular-nums drop-shadow">{formatNumber(stats.replies)}</span>}
             </button>
 
             <RepostMenu event={event}>
@@ -96,7 +91,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
                 <button className={`flex items-center gap-1 p-2.5 transition-colors ${isReposted ? 'text-accent' : 'text-white hover:text-accent'}`}>
                   <RepostIcon className="size-5" />
                   {!!((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) && (
-                    <span className="text-sm tabular-nums drop-shadow">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span>
+                    <span className="text-sm tabular-nums drop-shadow">{formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0))}</span>
                   )}
                 </button>
               )}
@@ -106,7 +101,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
               <ZapDialog target={event}>
                 <button className="flex items-center gap-1 p-2.5 text-white hover:text-amber-400 transition-colors">
                   <Zap className="size-5" />
-                  {!!stats?.zapAmount && <span className="text-sm tabular-nums drop-shadow">{formatSats(stats.zapAmount)}</span>}
+                  {!!stats?.zapAmount && <span className="text-sm tabular-nums drop-shadow">{formatNumber(stats.zapAmount)}</span>}
                 </button>
               </ZapDialog>
             )}
