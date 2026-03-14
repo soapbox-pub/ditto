@@ -47,6 +47,7 @@ import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { cn, STICKY_HEADER_CLASS, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
+import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
 
 
@@ -750,9 +751,16 @@ export function SearchPage() {
             </div>
           ) : posts.length > 0 ? (
             <div>
-              {posts.map((event) => (
-                <NoteCard key={event.id} event={event} />
-              ))}
+              {posts.map((event) => {
+                if (isRepostKind(event.kind)) {
+                  const embedded = parseRepostContent(event);
+                  if (embedded) {
+                    return <NoteCard key={event.id} event={embedded} repostedBy={event.pubkey} />;
+                  }
+                  return null;
+                }
+                return <NoteCard key={event.id} event={event} />;
+              })}
             </div>
           ) : debouncedSearchQuery.trim() ? (
             <EmptyState
