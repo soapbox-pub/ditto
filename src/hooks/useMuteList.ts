@@ -76,24 +76,87 @@ async function fetchFreshMuteEvent(
 }
 
 /**
- * Decrypt a kind 10000 event's content and parse into MuteListItems.
- * Returns an empty array if the event has no encrypted content.
+ * Detect whether encrypted content uses NIP-04 (legacy) or NIP-44 encoding.
+ * NIP-51 says: "Clients can automatically discover if the encryption is NIP-04
+ * or NIP-44 by searching for 'iv' in the ciphertext."
  */
-async function decryptMuteItems(
+function isNip04Encrypted(content: string): boolean {
+  return content.includes('?iv=');
+}
+
+/**
+ * Decrypt encrypted content from a kind 10000 event, handling both NIP-44 and
+ * legacy NIP-04 formats for backward compatibility per NIP-51.
+ */
+async function decryptContent(
+  content: string,
+  signer: NostrSigner,
+  pubkey: string,
+): Promise<string | null> {
+  if (!content) return null;
+
+  try {
+    if (isNip04Encrypted(content)) {
+      // NIP-04 legacy encryption
+      if (signer.nip04) {
+        return await signer.nip04.decrypt(pubkey, content);
+      }
+      console.warn('Mute list uses NIP-04 encryption but signer does not support nip04');
+      return null;
+    } else {
+      // NIP-44 encryption
+      if (signer.nip44) {
+        return await signer.nip44.decrypt(pubkey, content);
+      }
+      console.warn('Mute list uses NIP-44 encryption but signer does not support nip44');
+      return null;
+    }
+  } catch (error) {
+    console.error('Failed to decrypt mute list content:', error);
+    return null;
+  }
+}
+
+/**
+ * Parse all mute items from a kind 10000 event, combining both public tags
+ * and encrypted (private) content per NIP-51.
+ */
+async function getAllMuteItems(
   event: NostrEvent | null,
   signer: NostrSigner,
   pubkey: string,
 ): Promise<MuteListItem[]> {
-  if (!event?.content || !signer.nip44) return [];
+  if (!event) return [];
 
-  try {
-    const decrypted = await signer.nip44.decrypt(pubkey, event.content);
-    const tags = JSON.parse(decrypted) as string[][];
-    return parseMuteTags(tags);
-  } catch (error) {
-    console.error('Failed to decrypt mute items:', error);
-    return [];
+  // Parse public tags from the event
+  const publicItems = parseMuteTags(event.tags);
+
+  // Parse private (encrypted) items from the content
+  let privateItems: MuteListItem[] = [];
+  if (event.content) {
+    const decrypted = await decryptContent(event.content, signer, pubkey);
+    if (decrypted) {
+      try {
+        const tags = JSON.parse(decrypted) as string[][];
+        privateItems = parseMuteTags(tags);
+      } catch (error) {
+        console.error('Failed to parse decrypted mute list content:', error);
+      }
+    }
   }
+
+  // Deduplicate: combine public + private, removing duplicates
+  const seen = new Set<string>();
+  const combined: MuteListItem[] = [];
+  for (const item of [...publicItems, ...privateItems]) {
+    const key = `${item.type}:${item.value}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      combined.push(item);
+    }
+  }
+
+  return combined;
 }
 
 /**
@@ -130,31 +193,19 @@ export function useMuteList() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Parse mute list into structured items
+  // Parse mute list into structured items (public tags + encrypted content)
   const muteItems = useQuery({
     queryKey: ['muteItems', query.data?.id],
     queryFn: async () => {
       const event = query.data;
       if (!event || !user) return [];
 
-      // All mutes are encrypted in content field
-      if (!event.content || !user.signer.nip44) {
-        return [];
-      }
+      const items = await getAllMuteItems(event, user.signer, user.pubkey);
 
-      try {
-        const decrypted = await user.signer.nip44.decrypt(user.pubkey, event.content);
-        const tags = JSON.parse(decrypted) as string[][];
-        const items = parseMuteTags(tags);
+      // Persist to localStorage for next page load
+      setCachedMuteItems(user.pubkey, items);
 
-        // Persist to localStorage for next page load
-        setCachedMuteItems(user.pubkey, items);
-
-        return items;
-      } catch (error) {
-        console.error('Failed to decrypt mute items:', error);
-        return [];
-      }
+      return items;
     },
     enabled: !!query.data && !!user,
     placeholderData: cachedItems,
@@ -176,7 +227,7 @@ export function useMuteList() {
 
       // ① Fetch the freshest kind 10000 from relays before mutating
       const freshEvent = await fetchFreshMuteEvent(nostr, user.pubkey);
-      const currentItems = await decryptMuteItems(freshEvent, user.signer, user.pubkey);
+      const currentItems = await getAllMuteItems(freshEvent, user.signer, user.pubkey);
 
       // ② Add only if not already present (dedup)
       const alreadyMuted = currentItems.some(
@@ -203,7 +254,7 @@ export function useMuteList() {
 
       // ① Fetch the freshest kind 10000 from relays before mutating
       const freshEvent = await fetchFreshMuteEvent(nostr, user.pubkey);
-      const currentItems = await decryptMuteItems(freshEvent, user.signer, user.pubkey);
+      const currentItems = await getAllMuteItems(freshEvent, user.signer, user.pubkey);
 
       // ② Remove the target item
       const newItems = currentItems.filter(
