@@ -8,8 +8,12 @@ import { useEffect, useRef, useState } from 'react';
  *  - Hidden when the user scrolls DOWN past a small threshold.
  *  - Revealed when the user scrolls UP by the same threshold.
  *  - Always revealed when the page is scrolled near the very top.
+ *
+ * @param scrollContainer - Optional element whose scroll events should be
+ *   tracked instead of `window`. Useful for pages that scroll an internal
+ *   container (e.g. the Vines snap-scroll feed).
  */
-export function useScrollDirection(): { hidden: boolean } {
+export function useScrollDirection(scrollContainer?: HTMLElement | null): { hidden: boolean } {
   const [hidden, setHidden] = useState(false);
   const lastScrollY = useRef(0);
   const accumulated = useRef(0);
@@ -18,8 +22,15 @@ export function useScrollDirection(): { hidden: boolean } {
     const THRESHOLD = 8; // px of continuous movement before toggling
     const NEAR_TOP = 60; // px from top where chrome is always visible
 
+    const target: HTMLElement | Window = scrollContainer ?? window;
+
+    // Reset state when the scroll target changes
+    lastScrollY.current = 0;
+    accumulated.current = 0;
+    setHidden(false);
+
     const onScroll = () => {
-      const currentY = window.scrollY;
+      const currentY = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
 
       if (currentY <= NEAR_TOP) {
         // Always show chrome near the top of the page
@@ -48,9 +59,9 @@ export function useScrollDirection(): { hidden: boolean } {
       }
     };
 
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+    target.addEventListener('scroll', onScroll, { passive: true });
+    return () => target.removeEventListener('scroll', onScroll);
+  }, [scrollContainer]);
 
   return { hidden };
 }
