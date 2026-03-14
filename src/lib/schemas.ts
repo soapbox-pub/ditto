@@ -120,6 +120,12 @@ export const RelayMetadataSchema = z.object({
   updatedAt: z.number(),
 });
 
+/** Zod schema for BlossomServerMetadata (BUD-03 kind 10063 server list). */
+export const BlossomServerMetadataSchema = z.object({
+  servers: z.array(z.string().url()),
+  updatedAt: z.number(),
+});
+
 /**
  * Zod schema for FeedSettings validation.
  * All fields use .optional() so data with missing keys
@@ -221,7 +227,8 @@ export const AppConfigSchema = z.object({
     (val) => val.length === 0 || (val.length === 64 && /^[0-9a-f]{64}$/i.test(val)),
     { message: 'Must be empty or a valid 64-character hex pubkey' }
   ),
-  blossomServers: z.array(z.string().url()),
+  blossomServerMetadata: BlossomServerMetadataSchema,
+  useAppBlossomServers: z.boolean(),
   faviconUrl: z.string(),
   linkPreviewUrl: z.string(),
   corsProxy: z.string(),

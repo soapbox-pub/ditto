@@ -16,6 +16,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
  * This component runs globally to sync various Nostr data when the user logs in.
  * Currently syncs:
  * - NIP-65 relay list (kind 10002)
+ * - BUD-03 Blossom server list (kind 10063)
  * - Encrypted app settings (kind 30078) - theme, feed settings, relay toggle
  * - Active profile theme (kind 16767) - when autoShareTheme is enabled
  */
@@ -98,6 +99,54 @@ export function NostrSync() {
       }
     }
   }, [relayListEvent, config.relayMetadata.updatedAt, updateConfig]);
+
+  // Fetch the user's BUD-03 Blossom server list (kind 10063).
+  // useInitialSync seeds ['blossomServerList', pubkey] into the cache on first login.
+  const { data: blossomServerListEvent } = useQuery<NostrEvent | null>({
+    queryKey: ['blossomServerList', user?.pubkey ?? ''],
+    queryFn: async ({ signal }) => {
+      if (!user) return null;
+      const events = await nostr.query(
+        [{ kinds: [10063], authors: [user.pubkey], limit: 1 }],
+        { signal },
+      );
+      return events[0] ?? null;
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 1,
+  });
+
+  useEffect(() => {
+    if (!blossomServerListEvent) return;
+
+    // Only update if the event is newer than our stored data
+    if (blossomServerListEvent.created_at > config.blossomServerMetadata.updatedAt) {
+      const fetchedServers = blossomServerListEvent.tags
+        .filter(([name]) => name === 'server')
+        .map(([, url]) => url)
+        .filter((url) => {
+          try {
+            new URL(url);
+            return true;
+          } catch {
+            return false;
+          }
+        });
+
+      if (fetchedServers.length > 0) {
+        console.log('Syncing Blossom server list from Nostr (kind 10063):', fetchedServers);
+        updateConfig((current) => ({
+          ...current,
+          blossomServerMetadata: {
+            servers: fetchedServers,
+            updatedAt: blossomServerListEvent.created_at,
+          },
+        }));
+      }
+    }
+  }, [blossomServerListEvent, config.blossomServerMetadata.updatedAt, updateConfig]);
 
   // Sync encrypted settings from Nostr on login
   useEffect(() => {
