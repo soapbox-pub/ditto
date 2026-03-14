@@ -88,10 +88,14 @@ export function useInitialSync() {
       let foundSettings = false;
 
       try {
-        // Fetch relay list, encrypted settings, and mute list in parallel
-        const [relayEvents, settingsEvents, muteEvents] = await Promise.all([
+        // Fetch relay list, Blossom server list, encrypted settings, and mute list in parallel
+        const [relayEvents, blossomServerEvents, settingsEvents, muteEvents] = await Promise.all([
           nostr.query(
             [{ kinds: [10002], authors: [user.pubkey], limit: 1 }],
+            { signal: controller.signal },
+          ).catch(() => []),
+          nostr.query(
+            [{ kinds: [10063], authors: [user.pubkey], limit: 1 }],
             { signal: controller.signal },
           ).catch(() => []),
           nostr.query(
@@ -123,6 +127,37 @@ export function useInitialSync() {
                 ...current,
                 relayMetadata: {
                   relays: fetchedRelays,
+                  updatedAt: event.created_at,
+                },
+              }));
+              foundSettings = true;
+            }
+          }
+        }
+
+        // Apply BUD-03 Blossom server list (kind 10063) if found
+        if (blossomServerEvents.length > 0) {
+          const event = blossomServerEvents[0];
+          // Seed into cache so NostrSync can read it without re-fetching
+          queryClient.setQueryData(['blossomServerList', user.pubkey], event);
+          if (event.created_at > config.blossomServerMetadata.updatedAt) {
+            const fetchedServers = event.tags
+              .filter(([name]) => name === 'server')
+              .map(([, url]) => url)
+              .filter((url) => {
+                try {
+                  new URL(url);
+                  return true;
+                } catch {
+                  return false;
+                }
+              });
+
+            if (fetchedServers.length > 0) {
+              updateConfig((current) => ({
+                ...current,
+                blossomServerMetadata: {
+                  servers: fetchedServers,
                   updatedAt: event.created_at,
                 },
               }));

@@ -5,6 +5,7 @@ import { builtinThemes, themePresets, buildThemeCssFromCore, resolveTheme, resol
 import { AppConfigSchema } from '@/lib/schemas';
 import { loadAndApplyFont } from '@/lib/fontLoader';
 import { hslToRgb, parseHsl, rgbToHex } from '@/lib/colorUtils';
+import { z } from 'zod';
 
 interface AppProviderProps {
   children: ReactNode;
@@ -51,6 +52,20 @@ export function AppProvider(props: AppProviderProps) {
         if (legacyTheme && legacyTheme in themePresets) {
           result.theme = 'custom';
           result.customTheme = { colors: themePresets[legacyTheme].colors };
+        }
+
+        // Migrate legacy blossomServers (string[]) to blossomServerMetadata
+        if (!result.blossomServerMetadata) {
+          const legacyServers = parsed.blossomServers;
+          if (Array.isArray(legacyServers)) {
+            const parsed2 = z.array(z.string().url()).safeParse(legacyServers);
+            if (parsed2.success && parsed2.data.length > 0) {
+              result.blossomServerMetadata = {
+                servers: parsed2.data,
+                updatedAt: 0,
+              };
+            }
+          }
         }
 
         return result;
