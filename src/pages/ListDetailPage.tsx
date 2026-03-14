@@ -14,6 +14,7 @@ import {
   ArrowLeft, Users, UserPlus, Loader2, X, Rss, Share2, Check, Copy,
 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteCard } from '@/components/NoteCard';
@@ -57,6 +58,7 @@ function MemberCard({ pubkey, isOwner, listId, onRemoved }: {
 }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.display_name || metadata?.name || genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
   const { data: followData } = useFollowList();
@@ -97,7 +99,7 @@ function MemberCard({ pubkey, isOwner, listId, onRemoved }: {
           </>
         ) : (
           <>
-            <Avatar className="size-10 shrink-0">
+            <Avatar shape={avatarShape} className="size-10 shrink-0">
               <AvatarImage src={metadata?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-sm">
                 {displayName[0]?.toUpperCase()}

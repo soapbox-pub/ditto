@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Users, PartyPopper, List } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
 import { useAuthors } from '@/hooks/useAuthors';
 import { genUserName } from '@/lib/genUserName';
@@ -70,8 +71,9 @@ export function FollowPackContent({ event }: { event: NostrEvent }) {
             {previewPubkeys.map((pk) => {
               const member = membersMap?.get(pk);
               const name = member?.metadata?.name || genUserName(pk);
+              const shape = getAvatarShape(member?.metadata);
               return (
-                <Avatar key={pk} className="size-7">
+                <Avatar key={pk} shape={shape} className="size-7">
                   <AvatarImage src={member?.metadata?.picture} alt={name} />
                   <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                     {name[0]?.toUpperCase()}

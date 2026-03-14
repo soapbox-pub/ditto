@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CustomEmojiImg, EmojifiedText } from '@/components/CustomEmoji';
@@ -239,6 +240,7 @@ function ZapsTab({ zaps }: { zaps: ZapEntry[] }) {
 function ReactionRow({ entry }: { entry: ReactionEntry }) {
   const author = useAuthor(entry.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(entry.pubkey);
   const nevent = useMemo(() => nip19.neventEncode({ id: entry.eventId, author: entry.pubkey }), [entry.eventId, entry.pubkey]);
 
@@ -247,7 +249,7 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
       to={`/${nevent}`}
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
-      <Avatar className="size-10 shrink-0">
+      <Avatar shape={avatarShape} className="size-10 shrink-0">
         <AvatarImage src={metadata?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0].toUpperCase()}
@@ -276,6 +278,7 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
 function UserRow({ pubkey, subtitle }: { pubkey: string; subtitle?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(pubkey);
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
@@ -284,7 +287,7 @@ function UserRow({ pubkey, subtitle }: { pubkey: string; subtitle?: string }) {
       to={`/${npub}`}
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
-      <Avatar className="size-10 shrink-0">
+      <Avatar shape={avatarShape} className="size-10 shrink-0">
         <AvatarImage src={metadata?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0].toUpperCase()}
@@ -313,6 +316,7 @@ function UserRow({ pubkey, subtitle }: { pubkey: string; subtitle?: string }) {
 function ZapRow({ zap }: { zap: ZapEntry }) {
   const author = useAuthor(zap.senderPubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(zap.senderPubkey);
   const npub = useMemo(() => nip19.npubEncode(zap.senderPubkey), [zap.senderPubkey]);
 
@@ -321,7 +325,7 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
       to={`/${npub}`}
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
-      <Avatar className="size-10 shrink-0">
+      <Avatar shape={avatarShape} className="size-10 shrink-0">
         <AvatarImage src={metadata?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0].toUpperCase()}
@@ -356,6 +360,7 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
 function QuoteRow({ quote }: { quote: QuoteEntry }) {
   const author = useAuthor(quote.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(quote.pubkey);
   const nevent = useMemo(() => nip19.neventEncode({ id: quote.eventId, author: quote.pubkey }), [quote.eventId, quote.pubkey]);
 
@@ -364,7 +369,7 @@ function QuoteRow({ quote }: { quote: QuoteEntry }) {
       to={`/${nevent}`}
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
-      <Avatar className="size-10 shrink-0">
+      <Avatar shape={avatarShape} className="size-10 shrink-0">
         <AvatarImage src={metadata?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0].toUpperCase()}

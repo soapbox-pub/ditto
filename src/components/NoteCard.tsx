@@ -58,6 +58,7 @@ import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarShape } from "@/lib/avatarShape";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoPlayer } from "@/components/VideoPlayer";
@@ -170,6 +171,7 @@ export function NoteCard({
   const author = useAuthor(event.pubkey);
 
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const nip05 = metadata?.nip05;
   const { data: nip05Verified, isPending: nip05Pending } = useNip05Verify(
@@ -528,7 +530,7 @@ export function NoteCard({
         className="shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <Avatar className={threaded || threadedLast ? "size-10" : "size-11"}>
+        <Avatar shape={avatarShape} className={threaded || threadedLast ? "size-10" : "size-11"}>
           <AvatarImage src={metadata?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase()}
@@ -664,7 +666,7 @@ export function NoteCard({
                       className="shrink-0"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <Avatar className="size-6">
+                      <Avatar shape={avatarShape} className="size-6">
                         <AvatarImage
                           src={metadata?.picture}
                           alt={displayName}
@@ -741,7 +743,7 @@ export function NoteCard({
                     className="shrink-0"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Avatar className="size-6">
+                    <Avatar shape={avatarShape} className="size-6">
                       <AvatarImage src={metadata?.picture} alt={displayName} />
                       <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
                         {displayName[0]?.toUpperCase()}

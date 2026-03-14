@@ -251,3 +251,31 @@ After resolution (assuming `$follows` = `["pk1", "pk2"]`):
 - To **clear** all tabs: publish a kind 16769 event with no `tab` tags (only `alt`).
 - Clients MUST filter by `authors: [pubkey]` when querying to prevent spoofing.
 - `var` tags are shared across all `tab` tags in the same event.
+
+---
+
+## Kind 0 Extension: Avatar Shape
+
+### Summary
+
+An optional `shape` property on kind 0 (profile metadata) that controls how the user's avatar is masked/clipped when displayed. The value is an emoji character whose silhouette is used as a mask over the avatar image. When absent, the avatar renders as the standard circle.
+
+### Metadata Field
+
+The `shape` field is added to the JSON content of a kind 0 event alongside standard fields like `name`, `picture`, etc. Its value is a single emoji character (including multi-codepoint emoji such as flags, ZWJ sequences, and skin-tone variants).
+
+```json
+{
+  "kind": 0,
+  "content": "{\"name\":\"Luna\",\"picture\":\"https://example.com/luna.jpg\",\"shape\":\"🌙\"}"
+}
+```
+
+### Client Behavior
+
+- When `shape` is absent, clients SHOULD render the avatar as a circle (the current universal default).
+- When `shape` is a valid emoji, clients SHOULD use the emoji's silhouette as an alpha mask over the avatar image. The specific rendering technique is platform-dependent (see below).
+- When `shape` is set to an unrecognized or invalid value, clients MUST fall back to a circle. This ensures forward compatibility.
+- The `shape` field is purely cosmetic and has no protocol-level significance.
+- Clients MAY choose not to support this extension, in which case avatars render as circles as usual.
+

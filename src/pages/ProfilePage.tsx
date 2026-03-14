@@ -7,6 +7,7 @@ import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -288,6 +289,7 @@ function MenuRow({ icon, label, onClick, destructive }: { icon: React.ReactNode;
 function FollowingUserRow({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
@@ -306,7 +308,7 @@ function FollowingUserRow({ pubkey }: { pubkey: string }) {
         </>
       ) : (
         <>
-          <Avatar className="size-10 shrink-0">
+          <Avatar shape={avatarShape} className="size-10 shrink-0">
             <AvatarImage src={metadata?.picture} alt={displayName} />
             <AvatarFallback className="bg-primary/20 text-primary text-sm">
               {displayName[0]?.toUpperCase()}
@@ -995,6 +997,7 @@ export function ProfilePage() {
   // Kind 0 — resolved from the author cache (seeded by the feed query above).
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const profileStatus = useUserStatus(pubkey);
 
   // Refetch the author's profile whenever we navigate to this profile page.
@@ -1752,7 +1755,7 @@ export function ProfilePage() {
                     onClick={() => metadata?.picture && setLightboxImage(metadata.picture)}
                     disabled={!metadata?.picture}
                   >
-                    <Avatar className={cn('size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
+                    <Avatar shape={avatarShape} className={cn('size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
                       <AvatarImage src={metadata?.picture} alt={displayName} />
                       <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
                         {displayName[0].toUpperCase()}

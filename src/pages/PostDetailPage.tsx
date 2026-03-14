@@ -60,6 +60,7 @@ import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
 import { ThreadedReplyList } from "@/components/ThreadedReplyList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarShape } from "@/lib/avatarShape";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -420,6 +421,7 @@ function CopyableHex({ value }: { value: string }) {
 function AuthorHintRow({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
@@ -436,7 +438,7 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
           </>
         ) : (
           <>
-            <Avatar className="size-6 shrink-0">
+            <Avatar shape={avatarShape} className="size-6 shrink-0">
               <AvatarImage src={metadata?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                 {displayName[0]?.toUpperCase()}
@@ -762,6 +764,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const queryClient = useQueryClient();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
 
   // Refetch the author's profile whenever we navigate to a post by this author.
@@ -1213,7 +1216,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <>
                   <ProfileHoverCard pubkey={event.pubkey} asChild>
                     <Link to={profileUrl} className="shrink-0">
-                      <Avatar className="size-6">
+                      <Avatar shape={avatarShape} className="size-6">
                         <AvatarImage
                           src={metadata?.picture}
                           alt={displayName}
@@ -1328,7 +1331,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <>
                 <ProfileHoverCard pubkey={event.pubkey} asChild>
                   <Link to={profileUrl}>
-                    <Avatar className="size-11">
+                    <Avatar shape={avatarShape} className="size-11">
                       <AvatarImage src={metadata?.picture} alt={displayName} />
                       <AvatarFallback className="bg-primary/20 text-primary text-sm">
                         {displayName[0].toUpperCase()}

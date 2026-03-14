@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { NoteCard } from '@/components/NoteCard';
@@ -85,6 +86,7 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
   const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(event.pubkey);
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
@@ -153,7 +155,7 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
                 className="shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
-                <Avatar className="size-5">
+                <Avatar shape={avatarShape} className="size-5">
                   <AvatarImage src={metadata?.picture} alt={displayName} />
                   <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                     {displayName[0]?.toUpperCase()}

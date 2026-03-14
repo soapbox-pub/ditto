@@ -4,6 +4,7 @@ import { BookOpen, MessageCircle, MessageSquare, MoreHorizontal, Star, Zap, Aler
 import { nip19 } from 'nostr-tools';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -58,6 +59,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { data: stats } = useEventStats(event.id);
@@ -130,7 +132,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
         ) : (
           <ProfileHoverCard pubkey={event.pubkey} asChild>
             <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-              <Avatar className="size-11">
+              <Avatar shape={avatarShape} className="size-11">
                 <AvatarImage src={metadata?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
                   {displayName[0]?.toUpperCase()}

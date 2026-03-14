@@ -11,6 +11,7 @@ import { Blurhash } from 'react-blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Lightbox, LOADING_SENTINEL } from '@/components/ImageGallery';
 import { PhotoBottomBar } from '@/components/PhotoBottomBar';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -204,6 +205,7 @@ interface FlatEntry {
 function AudioThumb({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const name = metadata?.name ?? genUserName(pubkey);
 
   return (
@@ -213,7 +215,7 @@ function AudioThumb({ pubkey }: { pubkey: string }) {
         <div className="size-24 rounded-full border border-primary animate-ping" style={{ animationDuration: '3s' }} />
         <div className="absolute size-16 rounded-full border border-primary animate-ping" style={{ animationDuration: '2.3s', animationDelay: '0.5s' }} />
       </div>
-      <Avatar className="size-12 relative ring-2 ring-primary/40">
+      <Avatar shape={avatarShape} className="size-12 relative ring-2 ring-primary/40">
         <AvatarImage src={metadata?.picture} alt={name} />
         <AvatarFallback className="text-base">{name[0]?.toUpperCase()}</AvatarFallback>
       </Avatar>

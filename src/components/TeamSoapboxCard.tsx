@@ -5,6 +5,7 @@ import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNostr } from '@nostrify/react';
@@ -158,8 +159,9 @@ export function TeamSoapboxCard({ className }: { className?: string }) {
                 {previewPubkeys.map((pk) => {
                   const member = membersMap?.get(pk);
                   const name = member?.metadata?.name || genUserName(pk);
+                  const shape = getAvatarShape(member?.metadata);
                   return (
-                    <Avatar key={pk} className="size-8 ring-2 ring-background">
+                    <Avatar key={pk} shape={shape} className="size-8 ring-2 ring-background">
                       <AvatarImage src={member?.metadata?.picture} alt={name} />
                       <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                         {name[0]?.toUpperCase()}

@@ -21,6 +21,7 @@ import { formatTime } from '@/lib/formatTime';
 import { canZap } from '@/lib/canZap';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 
 import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
@@ -61,6 +62,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
 
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { user } = useCurrentUser();
@@ -127,7 +129,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
           {parsed?.artist && <p className="text-base text-muted-foreground">{parsed.artist}</p>}
           {!parsed?.artist && (
             <Link to={profileUrl} className="flex items-center gap-2 group" onClick={(e) => e.stopPropagation()}>
-              <Avatar className="size-6">
+              <Avatar shape={avatarShape} className="size-6">
                 <AvatarImage src={metadata?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-[10px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
               </Avatar>
@@ -288,6 +290,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
   const parsed = useMemo(() => parseMusicPlaylist(event), [event]);
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
@@ -319,7 +322,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
           <h2 className="text-xl sm:text-2xl font-bold leading-tight">{parsed?.title ?? 'Untitled'}</h2>
 
           <Link to={profileUrl} className="flex items-center gap-2 group">
-            <Avatar className="size-6">
+            <Avatar shape={avatarShape} className="size-6">
               <AvatarImage src={metadata?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-[10px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>
