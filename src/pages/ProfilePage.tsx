@@ -46,6 +46,7 @@ import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
 import { shareOrCopy } from '@/lib/share';
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { BioContent } from '@/components/BioContent';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -1900,9 +1901,7 @@ export function ProfilePage() {
 
               {metadata?.about && (
                 <p className="mt-3 text-sm whitespace-pre-wrap break-words overflow-hidden">
-                  {metadataEvent ? (
-                    <EmojifiedText tags={metadataEvent.tags}>{metadata.about}</EmojifiedText>
-                  ) : metadata.about}
+                  <BioContent tags={metadataEvent?.tags}>{metadata.about}</BioContent>
                 </p>
               )}
 
