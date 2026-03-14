@@ -1,9 +1,9 @@
 /**
  * Format a number into a compact human-readable string.
  *
- * - **Below 1K**: exact number (e.g. `42`, `999`)
- * - **1K–9.9K**: one decimal place (e.g. `1.7K`, `5.3K`); round thousands drop the decimal (e.g. `2K` not `2.0K`)
- * - **10K+**: whole thousands (e.g. `314K`)
+ * - **Below 1k**: exact number (e.g. `42`, `999`)
+ * - **1k–9.9k**: one decimal place (e.g. `1.7k`, `5.3k`); round thousands drop the decimal (e.g. `2k` not `2.0k`)
+ * - **10k+**: whole thousands (e.g. `314k`)
  * - **Same logic around 1M**: e.g. `1.7M`, `2M`, `314M`
  */
 export function formatNumber(n: number): string {
@@ -12,8 +12,8 @@ export function formatNumber(n: number): string {
     return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
   }
   if (n >= 1_000) {
-    if (n >= 10_000) return `${Math.floor(n / 1_000)}K`;
-    return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+    if (n >= 10_000) return `${Math.floor(n / 1_000)}k`;
+    return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}k`;
   }
   return String(n);
 }
