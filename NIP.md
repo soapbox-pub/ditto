@@ -279,10 +279,3 @@ The `shape` field is added to the JSON content of a kind 0 event alongside stand
 - The `shape` field is purely cosmetic and has no protocol-level significance.
 - Clients MAY choose not to support this extension, in which case avatars render as circles as usual.
 
-### Implementation Notes
-
-The general approach is to render the emoji using the platform's native emoji font, extract its alpha channel, and apply it as a mask over the avatar. The mask should be cached per emoji string to avoid redundant rendering.
-
-- **Web**: Render the emoji via `<canvas>` `fillText`, convert to a white-on-transparent alpha mask, export as a data URL, and apply with CSS `mask-image`.
-- **iOS**: Render the emoji into a `UIImage` with `NSAttributedString`, extract the alpha channel with Core Graphics, and apply as a `CALayer` mask.
-- **Android**: Draw the emoji onto a `Bitmap` via `Canvas.drawText`, extract the alpha channel, and use it as a `BitmapShader` or `PorterDuff` mask on the avatar `ImageView`.
