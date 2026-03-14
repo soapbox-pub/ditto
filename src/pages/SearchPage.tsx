@@ -229,7 +229,7 @@ export function SearchPage() {
       }
       return next;
     }, { replace: true });
-  }, [debouncedSearchQuery, setSearchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [debouncedSearchQuery, setSearchParams]);
 
   // Sync URL → debounced query state (e.g., sidebar search or browser navigation)
   useEffect(() => {
