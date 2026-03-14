@@ -4,6 +4,7 @@ import { LeftSidebar } from '@/components/LeftSidebar';
 import { RightSidebar } from '@/components/RightSidebar';
 import { MobileTopBar } from '@/components/MobileTopBar';
 import { MobileDrawer } from '@/components/MobileDrawer';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -101,7 +102,8 @@ function MainLayoutInner() {
         </Suspense>
       </div>
 
-
+      {/* Mobile bottom nav - only on small screens, slides out on scroll */}
+      <MobileBottomNav />
     </>
   );
 }
