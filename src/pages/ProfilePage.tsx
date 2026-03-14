@@ -33,7 +33,7 @@ import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, filterByTab } from '@/hooks/useProfileFeed';
+import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, useTabFeed, filterByTab } from '@/hooks/useProfileFeed';
 import type { ProfileTab as CoreProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { MediaCollage, MediaCollageSkeleton } from '@/components/MediaCollage';
@@ -65,7 +65,6 @@ import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
-import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
 import {
@@ -2681,21 +2680,30 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
 }) {
   const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(feed.filter, vars, ownerPubkey);
 
-  // Extract search query and kinds from the resolved filter for useStreamPosts
-  const search = typeof resolvedFilter?.search === 'string' ? resolvedFilter.search : '';
-  const kindsOverride = Array.isArray(resolvedFilter?.kinds) ? resolvedFilter.kinds as number[] : undefined;
-  const authorPubkeys = Array.isArray(resolvedFilter?.authors) ? resolvedFilter.authors as string[] : undefined;
+  const {
+    data,
+    isPending,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTabFeed(resolvedFilter, feed.label, !isResolving);
 
-  const { posts, isLoading: isStreamLoading } = useStreamPosts(search, {
-    includeReplies: true,
-    mediaType: 'all',
-    kindsOverride,
-    authorPubkeys: authorPubkeys && authorPubkeys.length > 0 ? authorPubkeys : undefined,
-  });
+  const { ref: tabScrollRef, inView: tabInView } = useInView({ threshold: 0 });
 
-  const isLoading = isResolving || isStreamLoading;
+  useEffect(() => {
+    if (tabInView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [tabInView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isLoading && posts.length === 0) {
+  const items = useMemo(
+    () => data?.pages.flatMap((p) => p.items) ?? [],
+    [data],
+  );
+
+  const isLoading = isResolving || isPending;
+
+  if (isLoading && items.length === 0) {
     return (
       <div className="space-y-0">
         {Array.from({ length: 3 }).map((_, i) => (
@@ -2714,7 +2722,7 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
     );
   }
 
-  if (posts.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="py-12 text-center text-muted-foreground text-sm">
         No posts found for "{feed.label}".
@@ -2724,9 +2732,21 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
 
   return (
     <div>
-      {posts.map((event) => (
-        <NoteCard key={event.id} event={event} />
+      {items.map((item) => (
+        <NoteCard
+          key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+          event={item.event}
+          repostedBy={item.repostedBy}
+        />
       ))}
+
+      {hasNextPage && (
+        <div ref={tabScrollRef} className="flex justify-center py-6">
+          {isFetchingNextPage && (
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          )}
+        </div>
+      )}
     </div>
   );
 }
