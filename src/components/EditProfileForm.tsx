@@ -31,7 +31,6 @@ import {
 import { z } from 'zod';
 import { IntroImage } from '@/components/IntroImage';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
-import { AvatarShapePicker } from '@/components/AvatarShapePicker';
 import { isValidAvatarShape } from '@/lib/avatarShape';
 
 // Extended form schema that includes custom fields and avatar shape
@@ -365,20 +364,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                     onPickFile={(file) => openCropDialog(file, 'banner')}
                   />
                 )}
-              />
-            </div>
-
-            {/* Avatar Shape */}
-            <div className="pt-3">
-              <FormLabel className="text-xs font-medium">Avatar Shape</FormLabel>
-              <FormDescription className="text-xs mt-1 mb-2">
-                Choose how your avatar appears across the app
-              </FormDescription>
-              <AvatarShapePicker
-                value={form.watch('shape') ?? 'circle'}
-                onChange={(shape) => form.setValue('shape', shape, { shouldDirty: true })}
-                pictureUrl={form.watch('picture') || undefined}
-                fallbackInitial={(form.watch('name')?.[0] || '?').toUpperCase()}
               />
             </div>
           </div>

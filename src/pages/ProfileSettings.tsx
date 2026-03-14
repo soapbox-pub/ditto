@@ -56,7 +56,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { AvatarShapePicker } from '@/components/AvatarShapePicker';
 import { isValidAvatarShape } from '@/lib/avatarShape';
 
 const WALLET_TICKERS = [
@@ -493,6 +492,8 @@ export function ProfileSettings() {
             metadata={cardMetadata}
             onChange={handleCardChange}
             onPickImage={handlePickImage}
+            onAvatarShape={(shape) => form.setValue('shape', shape, { shouldDirty: true })}
+            onRemoveAvatar={() => form.setValue('picture', '', { shouldDirty: true })}
           />
 
           {isUploading && (
@@ -501,18 +502,6 @@ export function ProfileSettings() {
               Uploading image…
             </div>
           )}
-
-          {/* Avatar Shape */}
-          <div>
-            <h2 className="text-sm font-medium py-2">Avatar Shape</h2>
-            <p className="text-xs text-muted-foreground mb-2">Choose how your avatar appears across the app</p>
-            <AvatarShapePicker
-              value={form.watch('shape') ?? 'circle'}
-              onChange={(shape) => form.setValue('shape', shape, { shouldDirty: true })}
-              pictureUrl={watched.picture || undefined}
-              fallbackInitial={(watched.name?.[0] || '?').toUpperCase()}
-            />
-          </div>
 
           {/* Profile fields */}
           <div>

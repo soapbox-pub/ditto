@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { type AvatarShape, isValidAvatarShape, getAvatarClipPath, isEmoji, getEmojiMaskUrl } from '@/lib/avatarShape';
-import { Camera, CheckCircle2, Pencil, Plus, Trash2, ChevronDown } from 'lucide-react';
+import { type AvatarShape, isValidAvatarShape, isEmoji, getEmojiMaskUrl } from '@/lib/avatarShape';
+import { Camera, CheckCircle2, Pencil, Plus, Trash2, ChevronDown, ImagePlus, SmilePlus, X as XIcon } from 'lucide-react';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import { getNip05Domain, formatNip05Display } from '@/lib/nip05';
@@ -10,6 +10,9 @@ import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { EmojiPicker, type EmojiSelection } from '@/components/EmojiPicker';
 
 /** Shared classes for all editable fields — static muted bg when idle, border on hover/focus */
 const editableBase = [
@@ -85,6 +88,10 @@ export interface ProfileCardProps {
   metadata: Partial<NostrMetadata>;
   onChange?: (patch: Partial<NostrMetadata>) => void;
   onPickImage?: (field: 'picture' | 'banner') => void;
+  /** Called when user picks an avatar shape (emoji string, or empty to clear). */
+  onAvatarShape?: (shape: string) => void;
+  /** Called when user removes their avatar picture. */
+  onRemoveAvatar?: () => void;
   /** Show NIP-05 row (default true) */
   showNip05?: boolean;
   /** When provided, render an editable profile fields section below bio */
@@ -97,6 +104,8 @@ export function ProfileCard({
   metadata,
   onChange,
   onPickImage,
+  onAvatarShape,
+  onRemoveAvatar,
   showNip05 = true,
   extraFields,
   onExtraFieldsChange,
@@ -104,6 +113,7 @@ export function ProfileCard({
   const editable = !!onChange;
   const [nip05Focused, setNip05Focused] = useState(false);
   const [fieldsOpen, setFieldsOpen] = useState(false);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
   const displayName = metadata.display_name || metadata.name || genUserName(pubkey);
   const initial = displayName[0]?.toUpperCase() ?? '?';
@@ -159,50 +169,89 @@ export function ProfileCard({
 
         {/* Avatar */}
         <div className="flex justify-between items-start -mt-12 mb-3">
-          <div
-            className={cn('relative shrink-0', editable && 'cursor-pointer group')}
-            onClick={() => editable && onPickImage?.('picture')}
-          >
-            <Avatar shape={shape} className={cn("size-24 shadow-sm", shape && isEmoji(shape) ? "ring-4 ring-background" : "border-4 border-background")}>
-              <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
-              <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
-                {metadata.picture ? initial : editable ? <Plus className="size-8 text-muted-foreground" strokeWidth={4} /> : initial}
-              </AvatarFallback>
-            </Avatar>
-            {editable && (
-              <>
-                <div
-                  className={cn(
-                    'absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors flex items-center justify-center',
-                    (!shape || shape === 'circle') && 'rounded-full',
+          {editable ? (
+            <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="relative shrink-0 cursor-pointer group outline-none">
+                    <Avatar shape={shape} className={cn("size-24 shadow-sm", shape && isEmoji(shape) ? "ring-4 ring-background" : "border-4 border-background")}>
+                      <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
+                      <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
+                        {metadata.picture ? initial : <Plus className="size-8 text-muted-foreground" strokeWidth={4} />}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div
+                      className={cn(
+                        'absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors flex items-center justify-center',
+                        (!shape || shape === 'circle') && 'rounded-full',
+                      )}
+                      style={(() => {
+                        if (shape && isEmoji(shape)) {
+                          const maskUrl = getEmojiMaskUrl(shape);
+                          if (maskUrl) return {
+                            WebkitMaskImage: `url(${maskUrl})`,
+                            maskImage: `url(${maskUrl})`,
+                            WebkitMaskSize: 'contain',
+                            maskSize: 'contain' as string,
+                            WebkitMaskRepeat: 'no-repeat',
+                            maskRepeat: 'no-repeat' as string,
+                            WebkitMaskPosition: 'center',
+                            maskPosition: 'center' as string,
+                          };
+                        }
+                        return undefined;
+                      })()}
+                    >
+                      <Camera className="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                    </div>
+                    <div className="absolute bottom-0 right-0 size-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center group-hover:opacity-0 transition-opacity">
+                      <Pencil className="size-3.5 text-muted-foreground" />
+                    </div>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" sideOffset={6}>
+                  <DropdownMenuItem onClick={() => onPickImage?.('picture')}>
+                    <ImagePlus className="size-4 mr-2" />
+                    Change avatar
+                  </DropdownMenuItem>
+                  <PopoverTrigger asChild>
+                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setEmojiPickerOpen(true); }}>
+                      <SmilePlus className="size-4 mr-2" />
+                      Set avatar shape
+                    </DropdownMenuItem>
+                  </PopoverTrigger>
+                  {metadata.picture && (
+                    <DropdownMenuItem onClick={() => onRemoveAvatar?.()} className="text-destructive focus:text-destructive">
+                      <XIcon className="size-4 mr-2" />
+                      Remove avatar
+                    </DropdownMenuItem>
                   )}
-                  style={(() => {
-                    const clipPath = getAvatarClipPath(shape);
-                    if (clipPath) return { clipPath };
-                    if (shape && isEmoji(shape)) {
-                      const maskUrl = getEmojiMaskUrl(shape);
-                      if (maskUrl) return {
-                        WebkitMaskImage: `url(${maskUrl})`,
-                        maskImage: `url(${maskUrl})`,
-                        WebkitMaskSize: 'contain',
-                        maskSize: 'contain' as string,
-                        WebkitMaskRepeat: 'no-repeat',
-                        maskRepeat: 'no-repeat' as string,
-                        WebkitMaskPosition: 'center',
-                        maskPosition: 'center' as string,
-                      };
-                    }
-                    return undefined;
-                  })()}
-                >
-                  <Camera className="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
-                </div>
-                <div className="absolute bottom-0 right-0 size-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center group-hover:opacity-0 transition-opacity">
-                  <Pencil className="size-3.5 text-muted-foreground" />
-                </div>
-              </>
-            )}
-          </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <PopoverContent
+                side="right"
+                align="start"
+                className="w-auto p-0 border-0 bg-transparent shadow-none"
+                sideOffset={8}
+              >
+                <EmojiPicker onSelect={(selection: EmojiSelection) => {
+                  if (selection.type === 'native') {
+                    onAvatarShape?.(selection.emoji);
+                    setEmojiPickerOpen(false);
+                  }
+                }} />
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <div className="relative shrink-0">
+              <Avatar shape={shape} className={cn("size-24 shadow-sm", shape && isEmoji(shape) ? "ring-4 ring-background" : "border-4 border-background")}>
+                <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
+                <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
+                  {initial}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+          )}
         </div>
 
         {/* Name */}
