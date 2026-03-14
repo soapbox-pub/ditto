@@ -1,7 +1,7 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { type AvatarShape, getAvatarClipPath, isPredefinedAvatarShape, isEmoji, getEmojiMaskUrl } from "@/lib/avatarShape"
+import { type AvatarShape, isEmoji, getEmojiMaskUrl } from "@/lib/avatarShape"
 
 /**
  * Shared ref so AvatarFallback can check if a sibling AvatarImage
@@ -24,17 +24,11 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
     // Reset per render so stale values don't persist
     hasSrcRef.current = false
 
-    const isCircle = !shape || shape === 'circle'
-    const isGeometric = shape ? isPredefinedAvatarShape(shape) && shape !== 'circle' : false
+    const isCircle = !shape || !isEmoji(shape)
     const isEmojiShape = shape ? isEmoji(shape) : false
 
-    const clipPath = isGeometric ? getAvatarClipPath(shape) : undefined
-
-    // Build inline style: clip-path for geometric shapes, mask-image for emoji shapes
+    // Build inline style: mask-image for emoji shapes
     const mergedStyle = React.useMemo<React.CSSProperties>(() => {
-      if (clipPath) {
-        return { ...style, clipPath }
-      }
       if (isEmojiShape && shape) {
         const maskUrl = getEmojiMaskUrl(shape)
         if (maskUrl) {
@@ -52,7 +46,7 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
         }
       }
       return style ?? {}
-    }, [clipPath, isEmojiShape, shape, style])
+    }, [isEmojiShape, shape, style])
 
     return (
       <AvatarHasSrcContext.Provider value={hasSrcRef}>
