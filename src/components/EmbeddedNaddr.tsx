@@ -86,7 +86,7 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
   const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(event.pubkey);
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 

@@ -161,7 +161,7 @@ export function ComposeBox({
   initialContent = '',
 }: ComposeBoxProps) {
   const { user, metadata, isLoading: isProfileLoading } = useCurrentUser();
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
   const { mutateAsync: postComment, isPending: isCommentPending } = usePostComment();

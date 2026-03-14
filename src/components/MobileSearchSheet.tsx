@@ -268,7 +268,7 @@ function SearchProfileItem({
       onMouseDown={(e) => e.preventDefault()}
     >
       <div className="relative shrink-0">
-        <Avatar shape={getAvatarShape(metadata as Record<string, unknown>)} className="size-9">
+        <Avatar shape={getAvatarShape(metadata)} className="size-9">
           <AvatarImage src={metadata.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}

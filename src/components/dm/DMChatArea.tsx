@@ -162,7 +162,7 @@ MessageBubble.displayName = 'MessageBubble';
 const ChatHeader = ({ pubkey, onBack }: { pubkey: string; onBack?: () => void }) => {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
 
   const displayName = metadata?.name || genUserName(pubkey);
   const avatarUrl = metadata?.picture;

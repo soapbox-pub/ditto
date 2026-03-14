@@ -284,7 +284,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
 function StreamAuthorRow({ event, participants }: { event: NostrEvent; participants: Participant[] }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
@@ -367,7 +367,7 @@ function ZapButton({ event }: { event: NostrEvent }) {
 function ParticipantRow({ pubkey, role }: { pubkey: string; role?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 

@@ -43,7 +43,7 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
 
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(event.pubkey);
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
@@ -270,7 +270,7 @@ function MemberCard({
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
   const about = metadata?.about;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const { follow, unfollow, isPending } = useFollowActions();
 
   const handleFollowToggle = useCallback(

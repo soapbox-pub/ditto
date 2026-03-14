@@ -159,7 +159,7 @@ export function TeamSoapboxCard({ className }: { className?: string }) {
                 {previewPubkeys.map((pk) => {
                   const member = membersMap?.get(pk);
                   const name = member?.metadata?.name || genUserName(pk);
-                  const shape = getAvatarShape(member?.metadata as Record<string, unknown>);
+                  const shape = getAvatarShape(member?.metadata);
                   return (
                     <Avatar key={pk} shape={shape} className="size-8 ring-2 ring-background">
                       <AvatarImage src={member?.metadata?.picture} alt={name} />

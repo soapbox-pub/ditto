@@ -387,7 +387,7 @@ function ProfileItem({
       onMouseDown={(e) => e.preventDefault()} // Prevent input blur
     >
       <div className="relative shrink-0">
-        <Avatar shape={getAvatarShape(metadata as Record<string, unknown>)} className="size-10">
+        <Avatar shape={getAvatarShape(metadata)} className="size-10">
           <AvatarImage src={metadata.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}

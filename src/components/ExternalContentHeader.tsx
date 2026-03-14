@@ -525,7 +525,7 @@ export function CommunityPreview({ addr }: { addr: { kind: number; pubkey: strin
 export function ProfilePreview({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name ?? genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 

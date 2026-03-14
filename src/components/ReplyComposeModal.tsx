@@ -162,7 +162,7 @@ function EmbeddedPost({ event }: { event: NostrEvent }) {
 function EmbeddedNote({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(event.pubkey);
   const nip05 = metadata?.nip05;
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
