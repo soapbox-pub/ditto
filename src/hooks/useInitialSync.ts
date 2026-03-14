@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useAppContext } from './useAppContext';
 import type { EncryptedSettings } from './useEncryptedSettings';
-import { parseMuteTags, setCachedMuteItems } from './useMuteList';
+import { parseMuteTags, setCachedMuteItems, type MuteListItem } from './useMuteList';
 import { EncryptedSettingsSchema } from '@/lib/schemas';
 
 export type SyncPhase =
@@ -192,19 +192,44 @@ export function useInitialSync() {
           // Seed the raw event into the muteList query cache
           queryClient.setQueryData(['muteList', user.pubkey], muteEvent);
 
-          // Decrypt and seed the parsed mute items + localStorage
-          if (muteEvent.content && user.signer.nip44) {
-            try {
-              const decrypted = await user.signer.nip44.decrypt(user.pubkey, muteEvent.content);
-              const tags = JSON.parse(decrypted) as string[][];
-              const items = parseMuteTags(tags);
+          // Parse public tags from the event
+          const publicItems = parseMuteTags(muteEvent.tags);
 
-              queryClient.setQueryData(['muteItems', muteEvent.id], items);
-              setCachedMuteItems(user.pubkey, items);
+          // Decrypt private items from the content (supports NIP-44 and NIP-04)
+          let privateItems: MuteListItem[] = [];
+          if (muteEvent.content) {
+            try {
+              const isNip04 = muteEvent.content.includes('?iv=');
+              let decrypted: string | null = null;
+
+              if (isNip04 && user.signer.nip04) {
+                decrypted = await user.signer.nip04.decrypt(user.pubkey, muteEvent.content);
+              } else if (!isNip04 && user.signer.nip44) {
+                decrypted = await user.signer.nip44.decrypt(user.pubkey, muteEvent.content);
+              }
+
+              if (decrypted) {
+                const tags = JSON.parse(decrypted) as string[][];
+                privateItems = parseMuteTags(tags);
+              }
             } catch (error) {
               console.error('Failed to decrypt mute list during initial sync:', error);
             }
           }
+
+          // Combine and deduplicate public + private items
+          const seen = new Set<string>();
+          const items: MuteListItem[] = [];
+          for (const item of [...publicItems, ...privateItems]) {
+            const key = `${item.type}:${item.value}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              items.push(item);
+            }
+          }
+
+          queryClient.setQueryData(['muteItems', muteEvent.id], items);
+          setCachedMuteItems(user.pubkey, items);
 
           foundSettings = true;
         }
