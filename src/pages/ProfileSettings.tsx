@@ -258,12 +258,12 @@ export function ProfileSettings() {
   };
 
   const parseShape = (): string => {
-    if (!event) return 'circle';
+    if (!event) return '';
     try {
       const parsed = JSON.parse(event.content);
       if (isValidAvatarShape(parsed.shape)) return parsed.shape;
     } catch { /* ignore */ }
-    return 'circle';
+    return '';
   };
 
   const form = useForm<FormValues>({
@@ -271,7 +271,7 @@ export function ProfileSettings() {
     defaultValues: {
       name: '', about: '', picture: '', banner: '',
       website: '', nip05: '', lud16: '', bot: false, fields: [],
-      shape: 'circle',
+      shape: '',
     },
   });
 
@@ -401,8 +401,8 @@ export function ProfileSettings() {
       const { fields: customFields, shape, ...standardMetadata } = values;
       const data: Record<string, unknown> = { ...metadata, ...standardMetadata };
 
-      // Add shape only if non-default
-      if (shape && shape !== 'circle') {
+      // Add shape only if set (an emoji string)
+      if (shape && isValidAvatarShape(shape)) {
         data.shape = shape;
       } else {
         delete data.shape;

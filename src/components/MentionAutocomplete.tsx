@@ -304,7 +304,7 @@ function MentionItem({
       onMouseDown={(e) => e.preventDefault()}
     >
       <div className="relative shrink-0">
-        <Avatar shape={getAvatarShape(metadata as Record<string, unknown>)} className="size-8">
+        <Avatar shape={getAvatarShape(metadata)} className="size-8">
           <AvatarImage src={metadata.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-xs">
             {displayName[0]?.toUpperCase() || '?'}

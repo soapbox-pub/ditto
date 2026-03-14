@@ -200,7 +200,7 @@ function StreamCard({ event }: { event: NostrEvent }) {
 function StreamCardAuthor({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 

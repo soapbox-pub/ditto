@@ -121,7 +121,7 @@ function roleSort(a: string, b: string): number {
 function PersonRow({ pubkey, label, size = 'md' }: { pubkey: string; label?: string; size?: 'sm' | 'md' }) {
   const { data } = useAuthor(pubkey);
   const metadata: NostrMetadata | undefined = data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const name = metadata?.display_name || metadata?.name || genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
   const avatarCls = size === 'sm' ? 'size-8' : 'size-11';

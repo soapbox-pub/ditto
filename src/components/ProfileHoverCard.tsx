@@ -30,7 +30,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
   const queryClient = useQueryClient();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name ?? genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
   const nip05 = metadata?.nip05;

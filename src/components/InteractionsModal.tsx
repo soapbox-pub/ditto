@@ -240,7 +240,7 @@ function ZapsTab({ zaps }: { zaps: ZapEntry[] }) {
 function ReactionRow({ entry }: { entry: ReactionEntry }) {
   const author = useAuthor(entry.pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(entry.pubkey);
   const nevent = useMemo(() => nip19.neventEncode({ id: entry.eventId, author: entry.pubkey }), [entry.eventId, entry.pubkey]);
 
@@ -278,7 +278,7 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
 function UserRow({ pubkey, subtitle }: { pubkey: string; subtitle?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(pubkey);
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
@@ -316,7 +316,7 @@ function UserRow({ pubkey, subtitle }: { pubkey: string; subtitle?: string }) {
 function ZapRow({ zap }: { zap: ZapEntry }) {
   const author = useAuthor(zap.senderPubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(zap.senderPubkey);
   const npub = useMemo(() => nip19.npubEncode(zap.senderPubkey), [zap.senderPubkey]);
 
@@ -360,7 +360,7 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
 function QuoteRow({ quote }: { quote: QuoteEntry }) {
   const author = useAuthor(quote.pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(quote.pubkey);
   const nevent = useMemo(() => nip19.neventEncode({ id: quote.eventId, author: quote.pubkey }), [quote.eventId, quote.pubkey]);
 

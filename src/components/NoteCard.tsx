@@ -171,7 +171,7 @@ export function NoteCard({
   const author = useAuthor(event.pubkey);
 
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const nip05 = metadata?.nip05;
   const { data: nip05Verified, isPending: nip05Pending } = useNip05Verify(

@@ -85,12 +85,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
 
   // Parse existing shape from raw event content
   const parseShape = (): string => {
-    if (!event) return 'circle';
+    if (!event) return '';
     try {
       const parsed = JSON.parse(event.content);
       if (isValidAvatarShape(parsed.shape)) return parsed.shape;
     } catch { /* ignore */ }
-    return 'circle';
+    return '';
   };
 
   // Initialize the form with default values
@@ -106,7 +106,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       lud16: '',
       bot: false,
       fields: [],
-      shape: 'circle',
+      shape: '',
     },
   });
 
@@ -219,8 +219,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       // Combine existing metadata with new values
       const data: Record<string, unknown> = { ...metadata, ...standardMetadata };
 
-      // Add shape only if non-default
-      if (shape && shape !== 'circle') {
+      // Add shape only if set (an emoji string)
+      if (shape && isValidAvatarShape(shape)) {
         data.shape = shape;
       } else {
         delete data.shape;

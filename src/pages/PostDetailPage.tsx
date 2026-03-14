@@ -421,7 +421,7 @@ function CopyableHex({ value }: { value: string }) {
 function AuthorHintRow({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
@@ -764,7 +764,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const queryClient = useQueryClient();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
 
   // Refetch the author's profile whenever we navigate to a post by this author.

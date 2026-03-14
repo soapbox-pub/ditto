@@ -32,10 +32,11 @@ export function isValidAvatarShape(value: unknown): value is AvatarShape {
 }
 
 /**
- * Extracts a valid AvatarShape from a NostrMetadata object (or any object with a `shape` property).
+ * Extracts a valid AvatarShape from a metadata object (or any object with a `shape` property).
+ * Accepts `NostrMetadata` directly — no type cast needed at call sites.
  * Returns `undefined` if the shape is missing or invalid (which means "circle" / default).
  */
-export function getAvatarShape(metadata: Record<string, unknown> | undefined): AvatarShape | undefined {
+export function getAvatarShape(metadata: { [key: string]: unknown } | undefined): AvatarShape | undefined {
   const raw = metadata?.shape;
   return isValidAvatarShape(raw) ? raw : undefined;
 }

@@ -58,7 +58,7 @@ function MemberCard({ pubkey, isOwner, listId, onRemoved }: {
 }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.display_name || metadata?.name || genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
   const { data: followData } = useFollowList();

@@ -42,7 +42,7 @@ export function LeftSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, metadata, event: currentUserEvent, isLoading: isProfileLoading } = useCurrentUser();
-  const currentUserAvatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const currentUserAvatarShape = getAvatarShape(metadata);
   const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
   const { logout } = useLoginActions();
   const { theme, setTheme, applyCustomTheme, customTheme } = useTheme();
@@ -311,7 +311,7 @@ export function LeftSidebar() {
                 <div className="border-b border-border">
                   {otherUsers.map((account) => (
                     <button key={account.id} onClick={() => { setLogin(account.id); setAccountPopoverOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 hover:bg-secondary/60 transition-colors">
-                      <Avatar shape={getAvatarShape(account.metadata as Record<string, unknown>)} className="size-9 shrink-0">
+                      <Avatar shape={getAvatarShape(account.metadata)} className="size-9 shrink-0">
                         <AvatarImage src={account.metadata.picture} alt={getDisplayName(account)} />
                         <AvatarFallback className="bg-primary/20 text-primary text-xs">{getDisplayName(account).charAt(0).toUpperCase()}</AvatarFallback>
                       </Avatar>

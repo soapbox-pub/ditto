@@ -156,7 +156,7 @@ export function AddMembersDialog({ open, onOpenChange, listId, listPubkeys }: Ad
                   onClick={() => handleAdd(profile)}
                   onMouseEnter={() => setSelectedIdx(idx)}
                 >
-                  <Avatar shape={getAvatarShape(profile.metadata as Record<string, unknown>)} className="size-9 shrink-0">
+                  <Avatar shape={getAvatarShape(profile.metadata)} className="size-9 shrink-0">
                     <AvatarImage src={profile.metadata.picture} alt={name} />
                     <AvatarFallback className="bg-primary/20 text-primary text-xs">
                       {name[0]?.toUpperCase()}

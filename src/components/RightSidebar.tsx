@@ -244,7 +244,7 @@ export function RightSidebar() {
 function HotPostCard({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(event.pubkey);
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
   const { onClick: openPost, onAuxClick } = useOpenPost(`/${encodedId}`);
@@ -291,7 +291,7 @@ function LatestAccountCard({ event, onDismiss }: { event: NostrEvent; onDismiss:
   }
 
   const displayName = metadata.name || genUserName(event.pubkey);
-  const latestAvatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const latestAvatarShape = getAvatarShape(metadata);
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
   return (

@@ -236,7 +236,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   const isOwnPost = user?.pubkey === event.pubkey;
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(event.pubkey);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', event.pubkey);

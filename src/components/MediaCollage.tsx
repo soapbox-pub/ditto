@@ -205,7 +205,7 @@ interface FlatEntry {
 function AudioThumb({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const name = metadata?.name ?? genUserName(pubkey);
 
   return (

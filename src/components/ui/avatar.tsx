@@ -24,12 +24,11 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
     // Reset per render so stale values don't persist
     hasSrcRef.current = false
 
-    const isCircle = !shape || !isEmoji(shape)
-    const isEmojiShape = shape ? isEmoji(shape) : false
+    const isEmojiShape = !!shape && isEmoji(shape)
 
     // Build inline style: mask-image for emoji shapes
     const mergedStyle = React.useMemo<React.CSSProperties>(() => {
-      if (isEmojiShape && shape) {
+      if (isEmojiShape) {
         const maskUrl = getEmojiMaskUrl(shape)
         if (maskUrl) {
           return {
@@ -55,7 +54,7 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
             ref={ref}
             className={cn(
               "relative flex h-10 w-10 shrink-0 overflow-hidden bg-muted",
-              isCircle && "rounded-full",
+              !isEmojiShape && "rounded-full",
               className
             )}
             style={mergedStyle}
@@ -126,7 +125,7 @@ const AvatarFallback = React.forwardRef<
   const hasSrcRef = React.useContext(AvatarHasSrcContext)
   const shape = React.useContext(AvatarShapeContext)
 
-  const isCircle = !shape || shape === 'circle'
+  const isEmojiShape = !!shape && isEmoji(shape)
 
   // AvatarImage renders before AvatarFallback (DOM order), so hasSrcRef
   // is already set by the time we read it here in the same render frame.
@@ -137,7 +136,7 @@ const AvatarFallback = React.forwardRef<
       ref={ref}
       className={cn(
         "flex h-full w-full items-center justify-center",
-        isCircle && "rounded-full",
+        !isEmojiShape && "rounded-full",
         className
       )}
       {...props}

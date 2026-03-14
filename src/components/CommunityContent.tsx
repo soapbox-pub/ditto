@@ -47,7 +47,7 @@ function parseCommunityEvent(event: NostrEvent) {
 function ModeratorRow({ pubkey }: { pubkey: string }) {
   const { data } = useAuthor(pubkey);
   const metadata: NostrMetadata | undefined = data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const name = metadata?.display_name || metadata?.name || genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
@@ -85,7 +85,7 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
   // Owner
   const ownerAuthor = useAuthor(event.pubkey);
   const ownerMetadata = ownerAuthor.data?.metadata;
-  const ownerAvatarShape = getAvatarShape(ownerMetadata as Record<string, unknown>);
+  const ownerAvatarShape = getAvatarShape(ownerMetadata);
   const ownerName = ownerMetadata?.display_name || ownerMetadata?.name || genUserName(event.pubkey);
   const ownerProfileUrl = useProfileUrl(event.pubkey, ownerMetadata);
 

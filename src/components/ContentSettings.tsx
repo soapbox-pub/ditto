@@ -936,7 +936,7 @@ export function MuteSettingsInternals() {
 function MutedUserProfile({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name ?? genUserName(pubkey);
 
   if (author.isLoading) {

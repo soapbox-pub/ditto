@@ -289,7 +289,7 @@ function MenuRow({ icon, label, onClick, destructive }: { icon: React.ReactNode;
 function FollowingUserRow({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
@@ -997,7 +997,7 @@ export function ProfilePage() {
   // Kind 0 — resolved from the author cache (seeded by the feed query above).
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const profileStatus = useUserStatus(pubkey);
 
   // Refetch the author's profile whenever we navigate to this profile page.

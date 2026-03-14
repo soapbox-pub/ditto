@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type AvatarShape, isValidAvatarShape, isEmoji, getEmojiMaskUrl } from '@/lib/avatarShape';
@@ -120,8 +120,26 @@ export function ProfileCard({
   const patch = (key: keyof NostrMetadata) => (v: string) => onChange?.({ [key]: v });
 
   // Read shape from metadata (it's a custom property passed through the loose schema)
-  const rawShape = (metadata as Record<string, unknown>).shape;
+  const rawShape = metadata.shape;
   const shape: AvatarShape | undefined = isValidAvatarShape(rawShape) ? rawShape : undefined;
+  const isEmojiShape = !!shape && isEmoji(shape);
+
+  // Memoized mask style for the hover overlay on emoji-shaped avatars
+  const overlayMaskStyle = useMemo<React.CSSProperties | undefined>(() => {
+    if (!isEmojiShape) return undefined;
+    const maskUrl = getEmojiMaskUrl(shape);
+    if (!maskUrl) return undefined;
+    return {
+      WebkitMaskImage: `url(${maskUrl})`,
+      maskImage: `url(${maskUrl})`,
+      WebkitMaskSize: 'contain',
+      maskSize: 'contain' as string,
+      WebkitMaskRepeat: 'no-repeat',
+      maskRepeat: 'no-repeat' as string,
+      WebkitMaskPosition: 'center',
+      maskPosition: 'center' as string,
+    };
+  }, [isEmojiShape, shape]);
 
   const nip05 = metadata.nip05;
   const nip05Domain = nip05 ? getNip05Domain(nip05) : undefined;
@@ -174,7 +192,7 @@ export function ProfileCard({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button type="button" className="relative shrink-0 cursor-pointer group outline-none">
-                    <Avatar shape={shape} className={cn("size-24 shadow-sm", shape && isEmoji(shape) ? "ring-4 ring-background" : "border-4 border-background")}>
+                    <Avatar shape={shape} className={cn("size-24 shadow-sm", isEmojiShape ? "ring-4 ring-background" : "border-4 border-background")}>
                       <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
                       <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
                         {metadata.picture ? initial : <Plus className="size-8 text-muted-foreground" strokeWidth={4} />}
@@ -183,24 +201,9 @@ export function ProfileCard({
                     <div
                       className={cn(
                         'absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors flex items-center justify-center',
-                        (!shape || shape === 'circle') && 'rounded-full',
+                        !isEmojiShape && 'rounded-full',
                       )}
-                      style={(() => {
-                        if (shape && isEmoji(shape)) {
-                          const maskUrl = getEmojiMaskUrl(shape);
-                          if (maskUrl) return {
-                            WebkitMaskImage: `url(${maskUrl})`,
-                            maskImage: `url(${maskUrl})`,
-                            WebkitMaskSize: 'contain',
-                            maskSize: 'contain' as string,
-                            WebkitMaskRepeat: 'no-repeat',
-                            maskRepeat: 'no-repeat' as string,
-                            WebkitMaskPosition: 'center',
-                            maskPosition: 'center' as string,
-                          };
-                        }
-                        return undefined;
-                      })()}
+                      style={overlayMaskStyle}
                     >
                       <Camera className="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
                     </div>
@@ -239,14 +242,14 @@ export function ProfileCard({
                       setEmojiPickerOpen(false);
                     }
                   }} />
-                  {shape && isEmoji(shape) && (
+                  {isEmojiShape && (
                     <div className="px-4 pb-4 pt-2">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         className="w-full text-destructive hover:text-destructive"
-                        onClick={() => { onAvatarShape?.('circle'); setEmojiPickerOpen(false); }}
+                        onClick={() => { onAvatarShape?.(''); setEmojiPickerOpen(false); }}
                       >
                         <XIcon className="size-3.5 mr-1.5" />
                         Remove avatar shape
@@ -258,7 +261,7 @@ export function ProfileCard({
             </>
           ) : (
             <div className="relative shrink-0">
-              <Avatar shape={shape} className={cn("size-24 shadow-sm", shape && isEmoji(shape) ? "ring-4 ring-background" : "border-4 border-background")}>
+              <Avatar shape={shape} className={cn("size-24 shadow-sm", isEmojiShape ? "ring-4 ring-background" : "border-4 border-background")}>
                 <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
                 <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
                   {initial}

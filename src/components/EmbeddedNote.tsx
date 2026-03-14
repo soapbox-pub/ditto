@@ -105,7 +105,7 @@ function EmbeddedNoteCard({
   const author = useAuthor(event.pubkey);
 
   const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata as Record<string, unknown>);
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const neventId = useMemo(
