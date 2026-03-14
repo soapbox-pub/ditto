@@ -858,6 +858,20 @@ export function ProfilePage() {
   // Tab edit mode (inline reorder/remove/add)
   const [tabEditMode, setTabEditMode] = useState(false);
 
+  // Detect when tabs are stuck to the top via IntersectionObserver
+  const tabsSentinelRef = useRef<HTMLDivElement>(null);
+  const [tabsStuck, setTabsStuck] = useState(false);
+  useEffect(() => {
+    const el = tabsSentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setTabsStuck(!entry.isIntersecting),
+      { threshold: 0 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   // All tabs as a flat ordered list for the drag UI — core tabs have isCore=true and can't be removed
   type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
@@ -1920,8 +1934,11 @@ export function ProfilePage() {
           )}
         </div>
 
+        {/* Sentinel — becomes invisible once the sticky tabs reach the top */}
+        <div ref={tabsSentinelRef} className="h-0" />
+
         {/* Tabs */}
-        <div className="border-b border-border">
+        <div className={cn(STICKY_HEADER_CLASS, 'border-b border-border backdrop-blur-md z-10')}>
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
             <div className="flex flex-wrap gap-2 px-3 py-2">
@@ -1933,7 +1950,10 @@ export function ProfilePage() {
 
           {/* All tabs in view mode */}
           {!tabEditMode && profileTabsQuery.isFetched && viewTabs.length > 0 && (
-            <div className="flex flex-wrap gap-2 px-3 py-2">
+            <div className={cn(
+              'gap-2 px-3 py-2',
+              tabsStuck ? 'flex overflow-x-auto scrollbar-none' : 'flex flex-wrap',
+            )}>
               {viewTabs.map((tab) => {
                 const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
                 const isActive = activeTab === tabId;
