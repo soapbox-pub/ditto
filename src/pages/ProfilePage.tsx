@@ -2081,27 +2081,33 @@ export function ProfilePage() {
           )}
         </div>
 
-        {/* Sticky tabs — single-row horizontal scroll, only visible when stuck */}
-        {tabsStuck && !tabEditMode && profileTabsQuery.isFetched && viewTabs.length > 0 && (
-          <div className={cn(STICKY_HEADER_CLASS, 'border-b border-border backdrop-blur-md z-10')}>
-            <div className="flex overflow-x-auto scrollbar-none gap-2 px-3 py-2">
-              {viewTabs.map((tab) => {
-                const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
-                const isActive = activeTab === tabId;
-                return (
-                  <Button
-                    key={tab.label}
-                    variant={isActive ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setActiveTab(tabId);
-                      if (tab.label === 'Media') setSidebarMediaUrl(null);
-                    }}
-                  >
-                    {tab.label}
-                  </Button>
-                );
-              })}
+        {/* Sticky tabs — single-row horizontal scroll, shown when inline tabs scroll out of view */}
+        {!tabEditMode && profileTabsQuery.isFetched && viewTabs.length > 0 && (
+          <div className="h-0 overflow-visible">
+            <div className={cn(
+              STICKY_HEADER_CLASS,
+              'border-b border-border backdrop-blur-md z-10 transition-opacity duration-150',
+              tabsStuck ? 'opacity-100' : 'opacity-0 pointer-events-none',
+            )}>
+              <div className="flex overflow-x-auto scrollbar-none gap-2 px-3 py-2">
+                {viewTabs.map((tab) => {
+                  const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
+                  const isActive = activeTab === tabId;
+                  return (
+                    <Button
+                      key={tab.label}
+                      variant={isActive ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setActiveTab(tabId);
+                        if (tab.label === 'Media') setSidebarMediaUrl(null);
+                      }}
+                    >
+                      {tab.label}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
