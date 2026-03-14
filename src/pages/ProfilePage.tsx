@@ -1921,17 +1921,18 @@ export function ProfilePage() {
         </div>
 
         {/* Tabs */}
-        <div className={cn(STICKY_HEADER_CLASS, 'flex flex-wrap border-b border-border backdrop-blur-md z-10')}>
+        <div className={cn(STICKY_HEADER_CLASS, 'border-b border-border backdrop-blur-md z-10')}>
+          <div className="flex">
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
-            <div className="flex gap-1 px-2 py-2">
+            <div className="flex gap-1 px-2 py-2 flex-1 min-w-0">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="h-8 w-16 rounded" />
               ))}
             </div>
           )}
-          {/* All tabs in view mode — ordered by kind 16769, fallback to defaults */}
-          {!tabEditMode && profileTabsQuery.isFetched && viewTabs.map((tab) => {
+          {/* Core tabs in view mode */}
+          {!tabEditMode && profileTabsQuery.isFetched && viewTabs.filter((t) => t.isCore).map((tab) => {
             const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
             return (
               <TabButton
@@ -2059,6 +2060,31 @@ export function ProfilePage() {
               </button>
             </div>
           )}
+          </div>
+
+          {/* Custom tabs in view mode — rendered as buttons below the core tab bar */}
+          {!tabEditMode && profileTabsQuery.isFetched && (() => {
+            const customTabs = viewTabs.filter((t) => !t.isCore);
+            if (customTabs.length === 0) return null;
+            return (
+              <div className="flex flex-wrap gap-2 px-3 py-2">
+                {customTabs.map((tab) => {
+                  const tabId = tab.label;
+                  const isActive = activeTab === tabId;
+                  return (
+                    <Button
+                      key={tab.label}
+                      variant={isActive ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setActiveTab(tabId)}
+                    >
+                      {tab.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Add/edit single tab modal */}
