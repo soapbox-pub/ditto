@@ -6,14 +6,52 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
+import { useFollowList } from './useFollowActions';
 
 const PAGE_SIZE = 20;
+
+/** All kinds that can appear as notifications. */
+const ALL_NOTIFICATION_KINDS = [1, 6, 16, 7, 9735, 1111, 1222, 1244] as const;
 
 export interface NotificationItem {
   /** The notification event (kind 1, 6, 16, 7, 9735, 1111, 1222, or 1244). */
   event: NostrEvent;
   /** The referenced event (the post that was liked/reposted/zapped), if available. */
   referencedEvent?: NostrEvent;
+}
+
+/**
+ * A group of notification events that all refer to the same post/content and
+ * have the same interaction type (e.g. 5 people liking the same note).
+ *
+ * When `actors` has more than one entry the UI should condense them into a
+ * single row rather than repeating the referenced post card for each actor.
+ */
+export interface GroupedNotificationItem {
+  /**
+   * Stable key for React lists.  For multi-actor groups this is
+   * `<kind>:<referencedEventId>`.  For standalone items it's the event ID.
+   */
+  key: string;
+  /**
+   * The kind that describes this group.
+   * 7 = reaction, 6/16 = repost, 9735 = zap, 1 = mention, 1111 = comment.
+   */
+  kind: number;
+  /** All notification events that belong to this group, newest-first. */
+  actors: NotificationItem[];
+  /**
+   * The post/content being acted upon (same for every actor in the group).
+   * Undefined for mentions and comments where the event IS the content.
+   */
+  referencedEvent?: NostrEvent;
+  /**
+   * True if ANY actor event in this group is newer than the read cursor
+   * (i.e. at least one event is unread).
+   */
+  isNew: boolean;
+  /** The timestamp of the newest actor event, used for ordering. */
+  newestAt: number;
 }
 
 interface NotificationPage {
@@ -25,6 +63,8 @@ interface NotificationPage {
 export interface NotificationData {
   /** All notification items (paginated, flattened). */
   items: NotificationItem[];
+  /** Grouped / condensed notification items for rendering. */
+  groupedItems: GroupedNotificationItem[];
   /** IDs of notifications newer than cursor (unread). */
   newNotificationIds: Set<string>;
   /** Whether there are any unread notifications. */
@@ -50,31 +90,145 @@ function getReferencedEventId(event: NostrEvent): string | undefined {
 }
 
 /**
+ * Returns a stable "group key" for a notification item.
+ * Events that share the same group key will be condensed into one row.
+ *
+ * Reactions, reposts, and zaps group by (kind-bucket, referencedEventId).
+ * Mentions and comments each stand alone (group key == event id).
+ */
+function groupKey(item: NotificationItem): string {
+  const { event } = item;
+  const refId = item.referencedEvent?.id ?? getReferencedEventId(event);
+
+  if ((event.kind === 7 || event.kind === 6 || event.kind === 16 || event.kind === 9735) && refId) {
+    // Use a canonical kind bucket so kind-6 and kind-16 reposts merge together
+    const bucket = event.kind === 6 || event.kind === 16 ? 'repost' : String(event.kind);
+    return `${bucket}:${refId}`;
+  }
+
+  // Mentions (kind 1) and comments (kind 1111) are always standalone
+  return event.id;
+}
+
+/**
+ * Build condensed groups from a flat, newest-first list of notification items.
+ * Groups preserve the order of the first (newest) item that seeds each group.
+ */
+function buildGroups(
+  items: NotificationItem[],
+  newNotificationIds: Set<string>,
+): GroupedNotificationItem[] {
+  const groupMap = new Map<string, GroupedNotificationItem>();
+  const groupOrder: string[] = [];
+
+  for (const item of items) {
+    const key = groupKey(item);
+
+    if (!groupMap.has(key)) {
+      groupOrder.push(key);
+      groupMap.set(key, {
+        key,
+        kind: item.event.kind,
+        actors: [],
+        referencedEvent: item.referencedEvent,
+        isNew: false,
+        newestAt: item.event.created_at,
+      });
+    }
+
+    const group = groupMap.get(key)!;
+    // Skip if this pubkey is already represented in the group
+    if (group.actors.some((a) => a.event.pubkey === item.event.pubkey)) continue;
+    group.actors.push(item);
+
+    if (newNotificationIds.has(item.event.id)) {
+      group.isNew = true;
+    }
+
+    // Keep the newest timestamp in sync
+    if (item.event.created_at > group.newestAt) {
+      group.newestAt = item.event.created_at;
+    }
+
+    // If the first actor already had the referenced event, prefer that; otherwise
+    // use whichever actor first provided a referencedEvent.
+    if (!group.referencedEvent && item.referencedEvent) {
+      group.referencedEvent = item.referencedEvent;
+    }
+  }
+
+  return groupOrder.map((k) => groupMap.get(k)!);
+}
+
+/**
+ * Derives the set of Nostr kinds to request based on per-type preferences.
+ * Kinds default to enabled when the preference is absent.
+ */
+function getEnabledNotificationKinds(
+  prefs: NonNullable<ReturnType<typeof useEncryptedSettings>['settings']>['notificationPreferences'],
+): number[] {
+  const p = prefs ?? {};
+  const kinds: number[] = [];
+
+  if (p.reactions !== false)  kinds.push(7);
+  if (p.reposts !== false)    kinds.push(6, 16);
+  if (p.zaps !== false)       kinds.push(9735);
+  if (p.mentions !== false)   kinds.push(1);
+  if (p.comments !== false)   kinds.push(1111, 1222, 1244);
+
+  // Always fall back to all kinds so the query never sends an empty kinds array
+  return kinds.length > 0 ? kinds : [...ALL_NOTIFICATION_KINDS];
+}
+
+/**
  * Hook to query notifications with infinite scroll pagination and track unread status.
- * Uses encrypted settings to persist the last-viewed timestamp.
+ * Per-type preferences and the "only from people I follow" filter are applied at
+ * query time (relay-level), not client-side.
  */
 export function useNotifications(): NotificationData {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
   const { settings, updateSettings } = useEncryptedSettings();
+  const { data: followData } = useFollowList();
+
+  const prefs = settings?.notificationPreferences;
+
+  // Derive kinds from per-type prefs — changes cause a new relay query
+  const enabledKinds = useMemo(() => getEnabledNotificationKinds(prefs), [prefs]);
+  const kindsKey = [...enabledKinds].sort().join(',');
+
+  // Authors filter: when onlyFollowing is set, restrict to followed pubkeys
+  const followedPubkeys = useMemo(
+    () => followData?.pubkeys ?? [],
+    [followData?.pubkeys],
+  );
+  const onlyFollowing = prefs?.onlyFollowing === true;
+  // Only gate on the follow list when it's actually loaded (non-empty or follow list fetch done)
+  const authorsFilter = onlyFollowing && followedPubkeys.length > 0
+    ? followedPubkeys
+    : undefined;
+  const authorsKey = authorsFilter ? authorsFilter.slice().sort().join(',') : 'all';
 
   const infiniteQuery = useInfiniteQuery<NotificationPage, Error>({
-    queryKey: ['notifications', user?.pubkey ?? ''],
+    queryKey: ['notifications', user?.pubkey ?? '', kindsKey, authorsKey],
     queryFn: async ({ pageParam, signal }) => {
       if (!user) return { items: [], oldestTimestamp: Math.floor(Date.now() / 1000) };
 
       const filter: Record<string, unknown> = {
-        kinds: [1, 6, 16, 7, 9735, 1111, 1222, 1244],
+        kinds: enabledKinds,
         '#p': [user.pubkey],
         limit: PAGE_SIZE,
       };
+      if (authorsFilter) {
+        filter.authors = authorsFilter;
+      }
       if (pageParam) {
         filter.until = pageParam;
       }
 
       const events = await nostr.query(
-        [filter as { kinds: number[]; '#p': string[]; limit: number; until?: number }],
+        [filter as { kinds: number[]; '#p': string[]; limit: number; authors?: string[]; until?: number }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
@@ -136,7 +290,6 @@ export function useNotifications(): NotificationData {
 
       // Build notification items
       const items: NotificationItem[] = filtered.map((ev) => {
-        // kind 1111 has a referenced parent event via lowercase 'e' tag
         const refId = (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244) ? getReferencedEventId(ev) : undefined;
         return {
           event: ev,
@@ -201,6 +354,12 @@ export function useNotifications(): NotificationData {
 
   const hasUnread = notificationsCursor !== null && newNotificationIds.size > 0;
 
+  // Build grouped items for condensed display
+  const groupedItems = useMemo(
+    () => buildGroups(items, newNotificationIds),
+    [items, newNotificationIds],
+  );
+
   // Mark all current notifications as read by updating the cursor
   const markAsRead = useCallback(async () => {
     if (!user || items.length === 0 || notificationsCursor === null) return;
@@ -217,13 +376,11 @@ export function useNotifications(): NotificationData {
       await updateSettings.mutateAsync({
         notificationsCursor: newestTimestamp,
       });
-      // Immediately clear the nav dot — set to false so it disappears before
-      // the relay re-fetch runs (which would use the old cursor from a stale closure).
+      // Immediately clear the nav dot
       queryClient.setQueryData(['notifications-unread', user.pubkey], false);
       queryClient.invalidateQueries({ queryKey: ['notifications-unread', user.pubkey] });
     } catch (error) {
       console.error('Failed to mark notifications as read:', error);
-      // Roll back optimistic cursor on failure
       optimisticCursor.current = null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -231,6 +388,7 @@ export function useNotifications(): NotificationData {
 
   return {
     items,
+    groupedItems,
     newNotificationIds,
     hasUnread,
     markAsRead,

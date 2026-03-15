@@ -1,15 +1,120 @@
 import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Bell, BellOff, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, AlertTriangle, Heart, Repeat2, Zap, AtSign, MessageSquare, Users } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { IntroImage } from '@/components/IntroImage';
-import { HelpTip } from '@/components/HelpTip';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+
+type NotificationPrefKey = 'reactions' | 'reposts' | 'zaps' | 'mentions' | 'comments';
+
+interface NotificationTypeRow {
+  key: NotificationPrefKey;
+  label: string;
+  kinds: number[];
+  description: string;
+  icon: React.ReactNode;
+}
+
+const NOTIFICATION_TYPES: NotificationTypeRow[] = [
+  {
+    key: 'reactions',
+    label: 'Reactions',
+    kinds: [7],
+    description: 'When someone reacts to your posts',
+    icon: <Heart className="size-5" />,
+  },
+  {
+    key: 'reposts',
+    label: 'Reposts',
+    kinds: [6, 16],
+    description: 'When someone reposts your notes',
+    icon: <Repeat2 className="size-5" />,
+  },
+  {
+    key: 'zaps',
+    label: 'Zaps',
+    kinds: [9735],
+    description: 'When someone sends you a zap',
+    icon: <Zap className="size-5" />,
+  },
+  {
+    key: 'mentions',
+    label: 'Mentions',
+    kinds: [1],
+    description: 'When someone mentions you in a note',
+    icon: <AtSign className="size-5" />,
+  },
+  {
+    key: 'comments',
+    label: 'Comments & Replies',
+    kinds: [1111],
+    description: 'When someone comments on or replies to your posts',
+    icon: <MessageSquare className="size-5" />,
+  },
+];
+
+function KindBadge({ kind }: { kind: number }) {
+  return (
+    <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0">
+      [{kind}]
+    </span>
+  );
+}
+
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <div className="relative px-3 py-3.5">
+      <h2 className="text-base font-semibold">{title}</h2>
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+    </div>
+  );
+}
+
+function NotifRow({
+  icon,
+  label,
+  kinds,
+  description,
+  checked,
+  onCheckedChange,
+  disabled,
+  noBorder,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  kinds?: number[];
+  description: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+  disabled?: boolean;
+  noBorder?: boolean;
+}) {
+  return (
+    <div className={noBorder ? '' : 'border-b border-border last:border-b-0'}>
+      <div className="flex items-center justify-between py-3.5 px-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-muted-foreground shrink-0">{icon}</span>
+          <div className="min-w-0">
+            <span className="text-sm font-medium">{label}</span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {kinds?.map((k, i) => (
+                <span key={k}>
+                  <KindBadge kind={k} />{i < kinds.length - 1 ? ' ' : ' '}
+                </span>
+              ))}{description}
+            </p>
+          </div>
+        </div>
+        <div className="w-[52px] flex justify-center shrink-0">
+          <Switch checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function NotificationSettings() {
   const { user } = useCurrentUser();
@@ -22,45 +127,47 @@ export function NotificationSettings() {
     description: 'Configure your notification preferences',
   });
 
-  // Check current browser permission state on mount
   useEffect(() => {
     if ('Notification' in window) {
       setPermission(Notification.permission);
     }
   }, []);
 
-  // Persisted preference from encrypted settings
-  const pushEnabled = settings?.notificationsEnabled ?? false;
+  const pushEnabled = settings?.notificationsEnabled ?? true;
+  const prefs = settings?.notificationPreferences ?? {};
 
   const handleTogglePush = async (enabled: boolean) => {
     if (enabled && !Capacitor.isNativePlatform()) {
       if (!('Notification' in window)) return;
-
-      // Request browser permission first (no-op if already granted/denied)
       const result = await Notification.requestPermission();
       setPermission(result);
-
-      // Don't save enabled=true if the browser blocked permission
       if (result !== 'granted') return;
     }
-
-    // Persist the user's preference to encrypted settings (synced across devices)
     await updateSettings.mutateAsync({ notificationsEnabled: enabled });
+  };
+
+  const handleToggleType = async (key: NotificationPrefKey, enabled: boolean) => {
+    await updateSettings.mutateAsync({
+      notificationPreferences: { ...prefs, [key]: enabled },
+    });
+  };
+
+  const handleToggleOnlyFollowing = async (enabled: boolean) => {
+    await updateSettings.mutateAsync({
+      notificationPreferences: { ...prefs, onlyFollowing: enabled },
+    });
   };
 
   if (!user) {
     return <Navigate to="/settings" replace />;
   }
 
-  // Native platforms use the Java foreground service for notifications,
-  // not the browser Notification API — always supported.
   const isNative = Capacitor.isNativePlatform();
   const isSupported = isNative || 'Notification' in window;
   const isDenied = !isNative && permission === 'denied';
 
   return (
     <main className="">
-      {/* Header with back link */}
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-center gap-4">
           <Link to="/settings" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
@@ -69,63 +176,75 @@ export function NotificationSettings() {
           <div>
             <h1 className="text-xl font-bold">Notifications</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Get push notifications for mentions, replies, and other activity.
+              Customize which notifications you receive.
             </p>
           </div>
         </div>
       </div>
 
       <div className="p-4">
-        {/* Intro */}
-        <div className="flex items-center gap-4 px-3 pt-2 pb-4">
-          <IntroImage src="/notification-intro.png" />
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold">Stay in the Loop</h2>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Get notified for mentions, replies, and zaps — synced across all your devices.
-            </p>
-          </div>
-        </div>
-
-        {/* Push notifications row */}
-        <div className="border-b border-border last:border-b-0">
-          <div className="flex items-center justify-between py-3.5 px-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="text-muted-foreground shrink-0">
-                {pushEnabled ? <Bell className="size-5" /> : <BellOff className="size-5" />}
-              </span>
-              <div className="min-w-0">
-                <Label htmlFor="push-notifications" className="text-sm font-medium cursor-pointer">
-                  Push Notifications
-                </Label>
-                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                  Receive notifications for mentions, replies, and zaps <HelpTip faqId="what-are-zaps" iconSize="size-3.5" />
-                </p>
-              </div>
-            </div>
-            <Switch
-              id="push-notifications"
-              checked={pushEnabled}
-              onCheckedChange={handleTogglePush}
-              disabled={!isSupported || isDenied || updateSettings.isPending}
-              className="shrink-0"
-            />
-          </div>
-
-          {/* Status banners */}
+        {/* Push Notifications */}
+        <SectionHeader title="Push Notifications" />
+        <div className="pb-4">
+          <NotifRow
+            icon={pushEnabled ? <Bell className="size-5" /> : <BellOff className="size-5" />}
+            label="Enable Push Notifications"
+            description="Receive notifications for activity on your posts"
+            checked={pushEnabled}
+            onCheckedChange={handleTogglePush}
+            disabled={!isSupported || isDenied || updateSettings.isPending}
+          />
           {!isSupported && (
             <div className="flex items-center gap-2 px-3 pb-3 text-muted-foreground">
               <AlertTriangle className="size-3.5 shrink-0" />
               <p className="text-xs">Your browser does not support push notifications.</p>
             </div>
           )}
-
           {isDenied && (
             <div className="flex items-center gap-2 px-3 pb-3 text-destructive">
               <AlertTriangle className="size-3.5 shrink-0" />
               <p className="text-xs">Notifications are blocked. Update your browser settings to allow notifications from this site.</p>
             </div>
           )}
+        </div>
+
+        {/* Filter + Notify Me About — one continuous block */}
+        <SectionHeader title="Notify Me About" />
+        <div className="pb-4">
+          {/* Filter sub-section */}
+          <div className="px-3 pt-4 pb-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Filter
+            </span>
+          </div>
+          <NotifRow
+            icon={<Users className="size-5" />}
+            label="Only from people I follow"
+            description="Hide notifications from accounts you don't follow"
+            checked={prefs.onlyFollowing === true}
+            onCheckedChange={handleToggleOnlyFollowing}
+            disabled={updateSettings.isPending}
+            noBorder
+          />
+
+          {/* Types sub-section */}
+          <div className="px-3 pt-4 pb-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Types
+            </span>
+          </div>
+          {NOTIFICATION_TYPES.map((type) => (
+            <NotifRow
+              key={type.key}
+              icon={type.icon}
+              label={type.label}
+              kinds={type.kinds}
+              description={type.description}
+              checked={prefs[type.key] !== false}
+              onCheckedChange={(enabled) => handleToggleType(type.key, enabled)}
+              disabled={updateSettings.isPending}
+            />
+          ))}
         </div>
       </div>
     </main>
