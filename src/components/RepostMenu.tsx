@@ -62,7 +62,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
       // Addressable events (30000–39999) should include an 'a' tag per NIP-18
       if (event.kind >= 30000 && event.kind < 40000) {
         const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
-        tags.push(['a', `${event.kind}:${event.pubkey}:${dTag}`]);
+        tags.push(['a', `${event.kind}:${event.pubkey}:${dTag}`, DITTO_RELAY]);
       }
     }
 
