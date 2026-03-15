@@ -113,12 +113,38 @@ export const ALL_VALID_EYE_COLORS = [
 ] as const;
 
 // Validation functions
-export function isValidBaseColor(color: string): boolean {
-  return (ALL_VALID_BASE_COLORS as readonly string[]).includes(color);
+
+/**
+ * Validates if a color is a valid CSS hex color.
+ * 
+ * NOTE: We accept any valid hex color format, not just the hardcoded palette.
+ * The palette enforcement happens at the domain level (deriveVisualTraits in blobbi.ts).
+ * The EggGraphic module should render whatever valid hex color is provided.
+ * 
+ * Accepts:
+ * - 3-digit hex: #RGB
+ * - 6-digit hex: #RRGGBB
+ * 
+ * Case insensitive.
+ */
+function isValidHexColor(color: string): boolean {
+  return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(color);
 }
 
+/**
+ * Validates a base color.
+ * Accepts any valid hex color (palette enforcement is at the domain level).
+ */
+export function isValidBaseColor(color: string): boolean {
+  return isValidHexColor(color);
+}
+
+/**
+ * Validates a secondary color.
+ * Accepts any valid hex color (palette enforcement is at the domain level).
+ */
 export function isValidSecondaryColor(color: string): boolean {
-  return (ALL_VALID_SECONDARY_COLORS as readonly string[]).includes(color);
+  return isValidHexColor(color);
 }
 
 export function isValidSize(size: string): boolean {
