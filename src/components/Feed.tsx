@@ -30,7 +30,7 @@ import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
 
-type CoreFeedTab = 'follows' | 'global' | 'communities';
+type CoreFeedTab = 'follows' | 'global' | 'communities' | 'ditto';
 type FeedTab = CoreFeedTab | string; // string = saved feed id
 
 /** Curated kinds for the logged-out homepage: unique Ditto content types. */
@@ -71,6 +71,11 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
     const stored = localStorage.getItem('ditto:showGlobalFeed');
+    return stored !== null ? stored === 'true' : false;
+  })();
+
+  const showDittoFeed = (() => {
+    const stored = localStorage.getItem('ditto:showDittoFeed');
     return stored !== null ? stored === 'true' : true;
   })();
 
@@ -109,23 +114,37 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   // feed instead of the noisy global feed so new visitors see quality content.
   const useTopFeedForLoggedOut = !user && !kinds;
 
+  // When the Ditto tab is active (logged in), show the same hot-sorted curated feed.
+  const useDittoTab = user && activeTab === 'ditto';
+
   // Standard feed query (used when logged in, or on kind-specific pages, or core tabs)
-  const isCoreFeedTab = activeTab === 'follows' || activeTab === 'global' || activeTab === 'communities';
+  const isCoreFeedTab = activeTab === 'follows' || activeTab === 'global' || activeTab === 'communities' || activeTab === 'ditto';
+  type UseFeedTab = 'follows' | 'global' | 'communities';
+  const feedTabForQuery: UseFeedTab =
+    activeTab === 'follows' || activeTab === 'global' || activeTab === 'communities'
+      ? (activeTab as UseFeedTab)
+      : 'global';
   const feedQuery = useFeed(
-    isCoreFeedTab ? (activeTab as CoreFeedTab) : 'global',
+    isCoreFeedTab ? feedTabForQuery : 'global',
     (kinds || tagFilters) ? { kinds, tagFilters } : undefined,
   );
 
-  // "Hot" sorted feed query (used when logged out on the home page)
+  // "Hot" sorted feed query (used when logged out on the home page, or on the Ditto tab)
   // Shows curated "otherstuff" kinds instead of kind 1. Webxdc needs a
   // separate filter with a MIME-type tag constraint.
-  const topQuery = useInfiniteHotFeed(LANDING_KINDS, useTopFeedForLoggedOut, undefined, [LANDING_WEBXDC_FILTER]);
+  const topQuery = useInfiniteHotFeed(
+    LANDING_KINDS,
+    useTopFeedForLoggedOut || !!useDittoTab,
+    undefined,
+    [LANDING_WEBXDC_FILTER],
+  );
 
   // Unify the two query shapes behind a single interface
-  const activeQuery = useTopFeedForLoggedOut ? topQuery : feedQuery;
+  const useDittoQuery = useTopFeedForLoggedOut || useDittoTab;
+  const activeQuery = useDittoQuery ? topQuery : feedQuery;
   const queryKey = useMemo(
-    () => useTopFeedForLoggedOut ? ['infinite-hot-feed', LANDING_KINDS.join(',')] : ['feed', activeTab],
-    [useTopFeedForLoggedOut, activeTab],
+    () => useDittoQuery ? ['infinite-hot-feed', LANDING_KINDS.join(',')] : ['feed', activeTab],
+    [useDittoQuery, activeTab],
   );
 
   const handleRefresh = useCallback(async () => {
@@ -165,7 +184,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     if (!rawData?.pages) return [];
     const seen = new Set<string>();
 
-    if (useTopFeedForLoggedOut) {
+    if (useDittoQuery) {
       return (rawData.pages as unknown as import('@nostrify/nostrify').NostrEvent[][])
         .flat()
         .filter((event) => {
@@ -186,7 +205,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
         return true;
       });
-  }, [rawData?.pages, muteItems, useTopFeedForLoggedOut]);
+  }, [rawData?.pages, muteItems, useDittoQuery]);
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
@@ -203,6 +222,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       {user ? (
         <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none">
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
+          {showDittoFeed && (
+            <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
+          )}
           {showCommunityFeed && (
             <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
           )}
