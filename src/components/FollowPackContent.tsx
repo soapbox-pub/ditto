@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Users, PartyPopper, List } from 'lucide-react';
+import { Users, PartyPopper } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
@@ -30,10 +30,7 @@ export function FollowPackContent({ event }: { event: NostrEvent }) {
       {/* Title */}
       {title && (
         <div className="flex items-center gap-2 mb-2">
-          {isFollowSet
-            ? <List className="size-4 text-primary shrink-0" />
-            : <PartyPopper className="size-4 text-primary shrink-0" />
-          }
+          {!isFollowSet && <PartyPopper className="size-4 text-primary shrink-0" />}
           <span className="text-[15px] font-semibold leading-snug">{title}</span>
         </div>
       )}
