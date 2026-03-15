@@ -162,6 +162,13 @@ publish-zapstore:
     SIGN_WITH: $ZAPSTORE_BUNKER_URL
   script:
     - go install github.com/zapstore/zsp@latest
+
+    # Restore the persistent NIP-46 client key so the bunker recognizes us across CI runs.
+    # zsp stores client keys at ~/.config/zsp/bunker-keys/<bunker-pubkey>.key
+    - BUNKER_PUBKEY=$(echo "$ZAPSTORE_BUNKER_URL" | sed 's|bunker://||;s|?.*||')
+    - mkdir -p ~/.config/zsp/bunker-keys
+    - echo "$ZAPSTORE_CLIENT_KEY" > ~/.config/zsp/bunker-keys/${BUNKER_PUBKEY}.key
+
     - APK_PATH="artifacts/Ditto-${CI_COMMIT_TAG}.apk"
     - 'sed -i "2i release_source: ./${APK_PATH}" zapstore.yaml'
     - zsp publish -y --skip-metadata --skip-preview zapstore.yaml
