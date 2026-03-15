@@ -18,6 +18,7 @@ import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { GifPicker } from '@/components/GifPicker';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { MentionAutocomplete } from '@/components/MentionAutocomplete';
 import { EmojiShortcodeAutocomplete } from '@/components/EmojiShortcodeAutocomplete';
 
@@ -347,9 +348,23 @@ export function ComposeBox({
     }
   }, [hasPreviewableContent, onHasPreviewableContentChange]);
 
-  // Include quoted event if provided and not removed
-  const quotedEventId = quotedEvent ? nip19.neventEncode({ id: quotedEvent.id, author: quotedEvent.pubkey }) : null;
-  const quotedEventKey = quotedEventId ? `nostr:${quotedEventId}` : null;
+  // Include quoted event if provided and not removed.
+  // Use naddr for addressable events (kinds 30000-39999) so the reference
+  // stays stable across event updates; use nevent for everything else.
+  const quotedEventNip19 = useMemo(() => {
+    if (!quotedEvent) return null;
+    if (quotedEvent.kind >= 30000 && quotedEvent.kind < 40000) {
+      const dTag = quotedEvent.tags.find(([name]) => name === 'd')?.[1] ?? '';
+      return nip19.naddrEncode({
+        kind: quotedEvent.kind,
+        pubkey: quotedEvent.pubkey,
+        identifier: dTag,
+        relays: [DITTO_RELAY],
+      });
+    }
+    return nip19.neventEncode({ id: quotedEvent.id, author: quotedEvent.pubkey, relays: [DITTO_RELAY] });
+  }, [quotedEvent]);
+  const quotedEventKey = quotedEventNip19 ? `nostr:${quotedEventNip19}` : null;
   const showQuotedEvent = quotedEvent && quotedEventKey && !removedEmbeds.has(quotedEventKey);
 
   // Create mock event for preview
@@ -732,14 +747,21 @@ export function ComposeBox({
       }
 
       // Quote tags (if quoted event and not removed)
-      // Per NIP-18, quotes should use the q tag and include the nostr: URI in content
+      // Per NIP-18, quotes should use the q tag and include the nostr: URI in content.
+      // For addressable events (kinds 30000-39999), use event address coordinates
+      // so the reference stays stable across event updates.
       let finalContent = content.trim();
-      if (showQuotedEvent && quotedEvent) {
-        tags.push(['q', quotedEvent.id, DITTO_RELAY, quotedEvent.pubkey]);
+      if (showQuotedEvent && quotedEvent && quotedEventNip19) {
+        if (quotedEvent.kind >= 30000 && quotedEvent.kind < 40000) {
+          const dTag = quotedEvent.tags.find(([name]) => name === 'd')?.[1] ?? '';
+          tags.push(['q', `${quotedEvent.kind}:${quotedEvent.pubkey}:${dTag}`, DITTO_RELAY]);
+        } else {
+          tags.push(['q', quotedEvent.id, DITTO_RELAY, quotedEvent.pubkey]);
+        }
         // Add the nostr: URI to the content if not already present
-        const neventUri = `nostr:${nip19.neventEncode({ id: quotedEvent.id, author: quotedEvent.pubkey, relays: [DITTO_RELAY] })}`;
-        if (!finalContent.includes(neventUri)) {
-          finalContent = finalContent + '\n\n' + neventUri;
+        const quoteUri = `nostr:${quotedEventNip19}`;
+        if (!finalContent.includes(quoteUri)) {
+          finalContent = finalContent + '\n\n' + quoteUri;
         }
       }
 
@@ -1069,7 +1091,15 @@ export function ComposeBox({
         {/* Quoted event preview */}
         {showQuotedEvent && quotedEvent && quotedEventKey && (
           <div className="mt-4 mb-3">
-            <EmbeddedNote eventId={quotedEvent.id} />
+            {quotedEvent.kind >= 30000 && quotedEvent.kind < 40000 ? (
+              <EmbeddedNaddr addr={{
+                kind: quotedEvent.kind,
+                pubkey: quotedEvent.pubkey,
+                identifier: quotedEvent.tags.find(([name]) => name === 'd')?.[1] ?? '',
+              }} />
+            ) : (
+              <EmbeddedNote eventId={quotedEvent.id} />
+            )}
           </div>
         )}
 
