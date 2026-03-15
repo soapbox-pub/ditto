@@ -87,7 +87,7 @@ export function BlobbiEggPreviewCard({
           </p>
         </div>
         
-        {/* Name Input - styled with egg's base color */}
+        {/* Name Input */}
         <div className="w-full max-w-xs space-y-2">
           <Label htmlFor="blobbi-name" className="text-sm font-medium flex items-center gap-1">
             <Pencil className="size-3" />
@@ -100,16 +100,23 @@ export function BlobbiEggPreviewCard({
             onChange={(e) => onNameChange(e.target.value)}
             placeholder="Enter a name..."
             disabled={isProcessing}
-            className="text-center font-semibold text-lg"
+            className="text-center font-medium"
             maxLength={32}
-            style={{
-              color: preview.visualTraits.baseColor,
-            }}
           />
           {!isValidName && preview.name.length > 0 && (
             <p className="text-xs text-destructive">Name cannot be empty</p>
           )}
         </div>
+        
+        {/* Visible colored name display above egg */}
+        {trimmedName && (
+          <p
+            className="text-xl font-semibold text-center"
+            style={{ color: preview.visualTraits.baseColor }}
+          >
+            {trimmedName}
+          </p>
+        )}
         
         {/* Egg Preview Visual */}
         <div className="relative">
