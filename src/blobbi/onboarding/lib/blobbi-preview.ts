@@ -92,6 +92,23 @@ export function generateEggPreview(
   };
 }
 
+// ─── Update Preview ───────────────────────────────────────────────────────────
+
+/**
+ * Update the name in an existing preview.
+ * Returns a new preview object with the updated name.
+ * All other data (petId, d, seed, visualTraits) remains unchanged.
+ */
+export function updatePreviewName(
+  preview: BlobbiEggPreview,
+  name: string
+): BlobbiEggPreview {
+  return {
+    ...preview,
+    name: name.trim() || 'Egg', // Fallback to 'Egg' if empty
+  };
+}
+
 // ─── Conversion ───────────────────────────────────────────────────────────────
 
 /**

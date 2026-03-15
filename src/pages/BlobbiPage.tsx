@@ -286,16 +286,65 @@ function BlobbiContent() {
   
   
   // ─── Determine UI State ───
-  // Priority: Wait for queries to settle before showing "create" states
+  // Clear separation of cases based on profile and pet data
   
-  // Still loading profile? Show loading
+  // Derive page state for debugging
+  const pageState = useMemo(() => {
+    if (profileLoading) return 'loading-profile';
+    if (!profile) return 'no-profile';
+    if (!dList || dList.length === 0) return 'profile-no-pets';
+    if (companionLoading) return 'loading-companions';
+    if (companionFetching && companions.length === 0) return 'fetching-companions';
+    if (companions.length === 0) return 'pets-not-found';
+    if (!selectedD) return 'no-selection';
+    if (!companion) return 'companion-not-resolved';
+    return 'dashboard';
+  }, [profileLoading, profile, dList, companionLoading, companionFetching, companions.length, selectedD, companion]);
+  
+  // Debug log page state decisions
+  if (DEBUG_BLOBBI) {
+    console.log('[BlobbiPage] State decision:', {
+      pageState,
+      profileLoading,
+      hasProfile: !!profile,
+      profileName: profile?.name,
+      profileHas: profile?.has?.length ?? 0,
+      dListLength: dList?.length ?? 0,
+      companionLoading,
+      companionFetching,
+      companionsLoaded: companions.length,
+      selectedD,
+      hasCompanion: !!companion,
+    });
+  }
+  
+  // ─── CASE A: Profile still loading ───
   if (profileLoading) {
     return <DashboardLoadingState />;
   }
   
-  // Case D: No profile exists → show onboarding flow (profile creation step)
-  // Case C: Profile exists but no pets → show onboarding flow (adoption step)
-  if (!profile || !dList || dList.length === 0) {
+  // ─── CASE B: No profile exists ───
+  // Show profile creation onboarding
+  if (!profile) {
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: profile creation onboarding');
+    return (
+      <DashboardShell>
+        <BlobbiOnboardingFlow
+          profile={null}
+          updateProfileEvent={updateProfileEvent}
+          updateCompanionEvent={updateCompanionEvent}
+          invalidateProfile={invalidateProfile}
+          invalidateCompanion={invalidateCompanion}
+          setStoredSelectedD={setStoredSelectedD}
+        />
+      </DashboardShell>
+    );
+  }
+  
+  // ─── CASE C: Profile exists but has no pets (empty has[] and no current_companion) ───
+  // Show adoption onboarding
+  if (!dList || dList.length === 0) {
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: adoption onboarding (profile exists, no pets)');
     return (
       <DashboardShell>
         <BlobbiOnboardingFlow
@@ -310,65 +359,68 @@ function BlobbiContent() {
     );
   }
   
-  // We have dList, wait for collection to load
+  // ─── CASE D: Profile has pet references, but companions still loading ───
   if (companionLoading) {
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: loading companions');
     return <DashboardLoadingState />;
   }
   
-  // STEP 7: No valid selection but we have pets → show Blobbi Selector
-  // This happens when:
-  // - localStorage selection doesn't exist in companionsByD
-  // - No item from profile.has exists in companionsByD
-  // - But we have loaded companions available
-  if (!selectedD && companions.length > 0) {
-    return (
-      <BlobbiSelectorPage
-        companions={companions}
-        onSelect={handleSelectBlobbi}
-        isLoading={companionFetching}
-      />
-    );
-  }
-  
-  // dList has items but collection is empty after loading
-  // This could mean the pets don't exist on relays yet
-  // Show loading state while fetching, or redirect to onboarding flow if data couldn't be found
-  if (!selectedD || companions.length === 0) {
-    if (companionFetching) {
-      return (
-        <DashboardShell>
-          <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
-            <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-              <div className="size-24 rounded-3xl bg-muted/50 flex items-center justify-center">
-                <RefreshCw className="size-12 text-muted-foreground animate-spin" />
-              </div>
-              <h1 className="text-2xl font-bold">Loading your Blobbi...</h1>
-              <p className="text-muted-foreground">
-                Fetching your pet data from relays...
-              </p>
-            </div>
-          </div>
-        </DashboardShell>
-      );
-    }
-    
-    // Pet data not found - redirect to onboarding to adopt a new Blobbi
+  // ─── CASE E: Profile has pet references, but companions not yet resolved (fetching) ───
+  if (companionFetching && companions.length === 0) {
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: syncing pets from relays');
     return (
       <DashboardShell>
-        <BlobbiOnboardingFlow
-          profile={profile}
-          updateProfileEvent={updateProfileEvent}
-          updateCompanionEvent={updateCompanionEvent}
-          invalidateProfile={invalidateProfile}
-          invalidateCompanion={invalidateCompanion}
-          setStoredSelectedD={setStoredSelectedD}
-        />
+        <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
+          <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+            <div className="size-24 rounded-3xl bg-muted/50 flex items-center justify-center">
+              <RefreshCw className="size-12 text-muted-foreground animate-spin" />
+            </div>
+            <h1 className="text-2xl font-bold">Syncing your Blobbi...</h1>
+            <p className="text-muted-foreground">
+              Fetching your pet data from relays...
+            </p>
+          </div>
+        </div>
       </DashboardShell>
     );
   }
   
-  // Selected companion not found in collection (shouldn't happen, but safety check)
-  if (!companion) {
+  // ─── CASE F: Profile has pet references, but pets not found on relays ───
+  // This is a data sync issue - show error state, NOT onboarding
+  if (companions.length === 0) {
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: pets not found error');
+    return (
+      <DashboardShell>
+        <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
+          <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+            <div className="size-24 rounded-3xl bg-amber-500/10 flex items-center justify-center">
+              <RefreshCw className="size-12 text-amber-500" />
+            </div>
+            <h1 className="text-2xl font-bold">Pet Data Not Found</h1>
+            <p className="text-muted-foreground">
+              Your profile references {dList.length} pet(s), but the data couldn't be loaded from relays.
+              This may be a sync issue - try refreshing the page.
+            </p>
+            <Button
+              onClick={() => {
+                invalidateProfile();
+                invalidateCompanion();
+              }}
+              variant="outline"
+            >
+              <RefreshCw className="size-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      </DashboardShell>
+    );
+  }
+  
+  // ─── CASE G: Companions loaded, but no valid selection ───
+  // Show selector to pick which pet to display
+  if (!selectedD && companions.length > 0) {
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: pet selector');
     return (
       <BlobbiSelectorPage
         companions={companions}
@@ -378,7 +430,21 @@ function BlobbiContent() {
     );
   }
   
-  // Case A: Profile exists and companion exists → Render the Blobbi Dashboard
+  // ─── CASE H: Selection exists but companion not resolved (edge case) ───
+  if (!companion || !selectedD) {
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: selector (companion not resolved)');
+    return (
+      <BlobbiSelectorPage
+        companions={companions}
+        onSelect={handleSelectBlobbi}
+        isLoading={companionFetching}
+      />
+    );
+  }
+  
+  // ─── CASE I: Everything ready - show dashboard ───
+  // At this point: companion is BlobbiCompanion, selectedD is string (narrowed by Case H guard)
+  if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: dashboard');
   return (
     <BlobbiDashboard
       companion={companion}

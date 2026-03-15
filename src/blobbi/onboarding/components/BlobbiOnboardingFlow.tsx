@@ -1,8 +1,15 @@
 /**
  * BlobbiOnboardingFlow - Main component that orchestrates the onboarding steps
  * 
- * This component renders the appropriate onboarding step based on state and
- * integrates the confirmation dialog for adoption.
+ * This component renders the appropriate onboarding step based on the user's
+ * actual profile state. The initial step is derived from whether the profile
+ * exists - not hardcoded.
+ * 
+ * IMPORTANT: This component should only be rendered when:
+ * - User has no profile (shows profile creation)
+ * - User has profile but no pets (shows adoption)
+ * 
+ * If user has profile AND pets, the dashboard should be shown instead.
  */
 
 import { useState } from 'react';
@@ -59,6 +66,14 @@ export function BlobbiOnboardingFlow({
     onComplete,
   });
   
+  // Debug logging
+  console.log('[BlobbiOnboardingFlow] Rendering:', {
+    hasProfile: !!profile,
+    profileName: profile?.name,
+    step: state.step,
+    hasPreview: !!state.preview,
+  });
+  
   // Handle adopt button click - show confirmation dialog
   const handleAdoptClick = () => {
     setShowAdoptConfirmDialog(true);
@@ -71,6 +86,7 @@ export function BlobbiOnboardingFlow({
   };
   
   // ─── Step: Profile Creation ───────────────────────────────────────────────────
+  // Only shown when user has no profile at all
   if (state.step === 'profile') {
     return (
       <BlobbiProfileOnboarding
@@ -82,17 +98,18 @@ export function BlobbiOnboardingFlow({
   }
   
   // ─── Step: Adoption Question ──────────────────────────────────────────────────
+  // Shown when profile exists but user has no pets yet
   if (state.step === 'adoption-question') {
     return (
       <BlobbiAdoptionStep
         blobbonautName={state.blobbonautName || profile?.name}
         onStartAdoption={actions.startAdoptionPreview}
-        onSkip={actions.skipAdoption}
       />
     );
   }
   
   // ─── Step: Egg Preview ────────────────────────────────────────────────────────
+  // Shown when user is previewing/choosing an egg to adopt
   if (state.step === 'preview' && state.preview) {
     return (
       <>
@@ -104,6 +121,7 @@ export function BlobbiOnboardingFlow({
           actionInProgress={state.actionInProgress === 'reroll' ? 'reroll' : state.actionInProgress === 'adopt' ? 'adopt' : null}
           onReroll={actions.rerollPreview}
           onAdopt={handleAdoptClick}
+          onNameChange={actions.setPreviewName}
         />
         
         <BlobbiAdoptionConfirmDialog
@@ -118,6 +136,7 @@ export function BlobbiOnboardingFlow({
     );
   }
   
-  // Fallback (shouldn't happen)
+  // Fallback (shouldn't happen if parent logic is correct)
+  console.warn('[BlobbiOnboardingFlow] Unexpected state - no matching step');
   return null;
 }

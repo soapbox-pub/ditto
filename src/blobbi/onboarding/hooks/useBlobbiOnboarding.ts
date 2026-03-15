@@ -2,18 +2,15 @@
  * useBlobbiOnboarding - Hook to manage Blobbi onboarding flow
  * 
  * This hook orchestrates the entire onboarding process:
- * 1. Profile creation with name
- * 2. Adoption question
+ * 1. Profile creation with name (only if no profile exists)
+ * 2. Adoption question (if profile exists but no pets)
  * 3. Egg preview with reroll/adopt
  * 
- * It manages:
- * - Onboarding step state
- * - Preview data (source of truth for adoption)
- * - Coins (from profile)
- * - Publishing profile and egg events
+ * CRITICAL: The initial step is derived from the profile state, not hardcoded.
+ * This ensures correct behavior on page refresh.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -33,6 +30,7 @@ import {
 
 import {
   generateEggPreview,
+  updatePreviewName,
   previewToEventTags,
   type BlobbiEggPreview,
 } from '../lib/blobbi-preview';
@@ -63,10 +61,10 @@ export interface OnboardingActions {
   createProfile: (name: string) => Promise<void>;
   /** Start the adoption preview flow */
   startAdoptionPreview: () => void;
-  /** Skip adoption for now */
-  skipAdoption: () => void;
   /** Generate a new preview (reroll) */
   rerollPreview: () => Promise<void>;
+  /** Update the name in the current preview */
+  setPreviewName: (name: string) => void;
   /** Adopt the current preview */
   adoptPreview: () => Promise<void>;
 }
@@ -80,6 +78,23 @@ export interface UseBlobbiOnboardingResult {
   suggestedName: string | undefined;
   /** Current coin balance (from profile or preview state) */
   coins: number;
+}
+
+// ─── Helper: Derive Initial Step ──────────────────────────────────────────────
+
+/**
+ * Derive the correct initial onboarding step based on profile state.
+ * 
+ * - No profile → 'profile'
+ * - Profile exists, no pets → 'adoption-question'
+ * - Profile exists with pets → should not be in onboarding at all
+ */
+function deriveInitialStep(profile: BlobbonautProfile | null): OnboardingStep {
+  if (!profile) {
+    return 'profile';
+  }
+  // Profile exists but no pets
+  return 'adoption-question';
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -124,13 +139,39 @@ export function useBlobbiOnboarding({
   
   // ─── State ────────────────────────────────────────────────────────────────────
   
-  const [step, setStep] = useState<OnboardingStep>('profile');
+  // Derive initial step from profile - this is the key fix
+  const initialStep = deriveInitialStep(profile);
+  
+  const [step, setStep] = useState<OnboardingStep>(initialStep);
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<'create-profile' | 'reroll' | 'adopt' | null>(null);
   const [preview, setPreview] = useState<BlobbiEggPreview | null>(null);
   const [isFirstPreview, setIsFirstPreview] = useState(true);
   const [previewCoins] = useState(INITIAL_BLOBBONAUT_COINS);
-  const [blobbonautName, setBlobbonautName] = useState<string | undefined>(undefined);
+  const [blobbonautName, setBlobbonautName] = useState<string | undefined>(profile?.name);
+  
+  // ─── Sync step with profile changes ─────────────────────────────────────────
+  // If profile becomes available (e.g., from cache or fetch), update step accordingly
+  useEffect(() => {
+    const correctStep = deriveInitialStep(profile);
+    
+    // Only update if we're in profile step and profile now exists
+    // This handles the case where profile loads from cache/relay
+    if (step === 'profile' && profile) {
+      console.log('[useBlobbiOnboarding] Profile loaded, moving to adoption-question');
+      setStep('adoption-question');
+      setBlobbonautName(profile.name);
+    }
+    
+    // Debug log
+    console.log('[useBlobbiOnboarding] State sync:', {
+      hasProfile: !!profile,
+      profileName: profile?.name,
+      profileHasLength: profile?.has?.length ?? 0,
+      currentStep: step,
+      derivedStep: correctStep,
+    });
+  }, [profile, step]);
   
   // ─── Derived State ──────────────────────────────────────────────────────────
   
@@ -193,19 +234,20 @@ export function useBlobbiOnboarding({
   const startAdoptionPreview = useCallback(() => {
     if (!user?.pubkey) return;
     
-    // Generate first free preview
-    const newPreview = generateEggPreview(user.pubkey);
+    // Generate first free preview with a default name
+    const newPreview = generateEggPreview(user.pubkey, 'Egg');
     setPreview(newPreview);
     setIsFirstPreview(true);
     setStep('preview');
   }, [user?.pubkey]);
   
   /**
-   * Skip adoption for now
+   * Update the name in the current preview
    */
-  const skipAdoption = useCallback(() => {
-    onComplete?.();
-  }, [onComplete]);
+  const setPreviewName = useCallback((name: string) => {
+    if (!preview) return;
+    setPreview(updatePreviewName(preview, name));
+  }, [preview]);
   
   /**
    * Generate a new preview (reroll) - costs coins
@@ -241,8 +283,11 @@ export function useBlobbiOnboarding({
       
       updateProfileEvent(profileEvent);
       
-      // Then generate new preview
-      const newPreview = generateEggPreview(user.pubkey);
+      // Preserve the current name when rerolling
+      const currentName = preview?.name ?? 'Egg';
+      
+      // Then generate new preview with the same name
+      const newPreview = generateEggPreview(user.pubkey, currentName);
       setPreview(newPreview);
       setIsFirstPreview(false);
       
@@ -258,7 +303,7 @@ export function useBlobbiOnboarding({
       setIsProcessing(false);
       setActionInProgress(null);
     }
-  }, [user?.pubkey, profile, coins, publishEvent, updateProfileEvent, invalidateProfile]);
+  }, [user?.pubkey, profile, coins, preview?.name, publishEvent, updateProfileEvent, invalidateProfile]);
   
   /**
    * Adopt the current preview - costs coins and creates the Blobbi event
@@ -322,7 +367,7 @@ export function useBlobbiOnboarding({
       
       toast({
         title: 'Congratulations!',
-        description: 'You adopted your first Blobbi!',
+        description: `You adopted ${preview.name}!`,
       });
       
       // 5. Complete onboarding
@@ -355,8 +400,8 @@ export function useBlobbiOnboarding({
     actions: {
       createProfile,
       startAdoptionPreview,
-      skipAdoption,
       rerollPreview,
+      setPreviewName,
       adoptPreview,
     },
     suggestedName,

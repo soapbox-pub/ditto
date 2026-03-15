@@ -3,12 +3,17 @@
  * 
  * Shows the preview egg with visual traits and action buttons for
  * rerolling (generating another) or adopting.
+ * 
+ * Includes a name input so users can customize their Blobbi's name
+ * before adoption. The name in the preview becomes the final name.
  */
 
-import { Loader2, RefreshCw, Heart, Coins, Sparkles } from 'lucide-react';
+import { Loader2, RefreshCw, Heart, Coins, Sparkles, Pencil } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { cn } from '@/lib/utils';
 import {
@@ -34,6 +39,8 @@ interface BlobbiEggPreviewCardProps {
   onReroll: () => void;
   /** Called when user wants to adopt this egg */
   onAdopt: () => void;
+  /** Called when user changes the name */
+  onNameChange: (name: string) => void;
 }
 
 export function BlobbiEggPreviewCard({
@@ -44,12 +51,17 @@ export function BlobbiEggPreviewCard({
   actionInProgress,
   onReroll,
   onAdopt,
+  onNameChange,
 }: BlobbiEggPreviewCardProps) {
   // Convert preview to companion for visual rendering
   const companionForVisual = previewToBlobbiCompanion(preview);
   
   const canAffordReroll = coins >= BLOBBI_PREVIEW_REROLL_COST;
   const canAffordAdopt = coins >= BLOBBI_ADOPTION_COST;
+  
+  // Validate name - must not be empty after trim
+  const trimmedName = preview.name.trim();
+  const isValidName = trimmedName.length > 0;
   
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
@@ -73,6 +85,27 @@ export function BlobbiEggPreviewCard({
               : "Here's another egg to consider adopting."
             }
           </p>
+        </div>
+        
+        {/* Name Input */}
+        <div className="w-full max-w-xs space-y-2">
+          <Label htmlFor="blobbi-name" className="text-sm font-medium flex items-center gap-1">
+            <Pencil className="size-3" />
+            Name Your Blobbi
+          </Label>
+          <Input
+            id="blobbi-name"
+            type="text"
+            value={preview.name}
+            onChange={(e) => onNameChange(e.target.value)}
+            placeholder="Enter a name..."
+            disabled={isProcessing}
+            className="text-center font-medium"
+            maxLength={32}
+          />
+          {!isValidName && preview.name.length > 0 && (
+            <p className="text-xs text-destructive">Name cannot be empty</p>
+          )}
         </div>
         
         {/* Egg Preview Visual */}
@@ -123,7 +156,7 @@ export function BlobbiEggPreviewCard({
           <Button
             size="lg"
             onClick={onAdopt}
-            disabled={!canAffordAdopt || isProcessing}
+            disabled={!canAffordAdopt || isProcessing || !isValidName}
             className="w-full"
           >
             {actionInProgress === 'adopt' ? (
@@ -134,7 +167,7 @@ export function BlobbiEggPreviewCard({
             ) : (
               <>
                 <Heart className="size-4 mr-2" />
-                Adopt This Blobbi ({BLOBBI_ADOPTION_COST} coins)
+                Adopt {trimmedName || 'This Blobbi'} ({BLOBBI_ADOPTION_COST} coins)
               </>
             )}
           </Button>
