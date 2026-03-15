@@ -29,7 +29,7 @@ function detectType(url: string, mime?: string): MediaType {
     if (mime.startsWith('audio/')) return 'audio';
     if (mime.startsWith('image/')) return 'image';
   }
-  if (/\.(mp4|webm|mov|m3u8)(\?.*)?$/i.test(url)) return 'video';
+  if (/\.(mp4|webm|mov|qt|m3u8)(\?.*)?$/i.test(url)) return 'video';
   if (/\.(mp3|ogg|flac|wav|aac|opus)(\?.*)?$/i.test(url)) return 'audio';
   return 'image';
 }
@@ -146,7 +146,7 @@ function parseImeta(tags: string[][]): { url: string; blurhash?: string; dim?: s
 }
 
 function extractMediaUrls(content: string): string[] {
-  return content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|flac|wav|aac|opus)(\?[^\s]*)?/gi) ?? [];
+  return content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|qt|mp3|ogg|flac|wav|aac|opus)(\?[^\s]*)?/gi) ?? [];
 }
 
 export function eventToMediaItem(event: NostrEvent): MediaItem | null {
