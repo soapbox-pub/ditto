@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft, Bell, BellOff, AlertTriangle, Heart, Repeat2, Zap, AtSign, MessageSquare, Users } from 'lucide-react';
@@ -122,9 +122,19 @@ export function NotificationSettings() {
   const { settings, updateSettings } = useEncryptedSettings();
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
-  // Optimistic local state — updates instantly on toggle, persisted async
-  const [localPushEnabled, setLocalPushEnabled] = useState<boolean | null>(null);
-  const [localPrefs, setLocalPrefs] = useState<NonNullable<typeof settings>['notificationPreferences'] | null>(null);
+  // Local UI state — initialized from settings once loaded, then updated
+  // synchronously on every toggle (fire-and-forget persist in background).
+  const [pushEnabled, setPushEnabled] = useState<boolean>(true);
+  const [prefs, setPrefs] = useState<NonNullable<NonNullable<typeof settings>['notificationPreferences']>>({});
+  const initializedRef = useRef(false);
+
+  // Populate local state from settings on first load
+  useEffect(() => {
+    if (initializedRef.current || settings === null || settings === undefined) return;
+    initializedRef.current = true;
+    setPushEnabled(settings.notificationsEnabled ?? true);
+    setPrefs(settings.notificationPreferences ?? {});
+  }, [settings]);
 
   useSeoMeta({
     title: `Notifications | Settings | ${config.appName}`,
@@ -137,23 +147,6 @@ export function NotificationSettings() {
     }
   }, []);
 
-  // Clear local state once the persisted settings have caught up
-  useEffect(() => {
-    if (localPushEnabled !== null && settings?.notificationsEnabled === localPushEnabled) {
-      setLocalPushEnabled(null);
-    }
-  }, [settings?.notificationsEnabled, localPushEnabled]);
-
-  useEffect(() => {
-    if (localPrefs !== null && settings?.notificationPreferences === localPrefs) {
-      setLocalPrefs(null);
-    }
-  }, [settings?.notificationPreferences, localPrefs]);
-
-  // Use local optimistic value while it exists, fall back to persisted settings
-  const pushEnabled = localPushEnabled ?? settings?.notificationsEnabled ?? true;
-  const prefs = localPrefs ?? settings?.notificationPreferences ?? {};
-
   const handleTogglePush = async (enabled: boolean) => {
     if (enabled && !Capacitor.isNativePlatform()) {
       if (!('Notification' in window)) return;
@@ -161,25 +154,25 @@ export function NotificationSettings() {
       setPermission(result);
       if (result !== 'granted') return;
     }
-    setLocalPushEnabled(enabled);
+    setPushEnabled(enabled);
     updateSettings.mutateAsync({ notificationsEnabled: enabled }).catch(() => {
-      setLocalPushEnabled(null); // roll back on failure
+      setPushEnabled(!enabled); // roll back on failure
     });
   };
 
-  const handleToggleType = async (key: NotificationPrefKey, enabled: boolean) => {
+  const handleToggleType = (key: NotificationPrefKey, enabled: boolean) => {
     const next = { ...prefs, [key]: enabled };
-    setLocalPrefs(next);
+    setPrefs(next);
     updateSettings.mutateAsync({ notificationPreferences: next }).catch(() => {
-      setLocalPrefs(null); // roll back on failure
+      setPrefs((p) => ({ ...p, [key]: !enabled })); // roll back on failure
     });
   };
 
-  const handleToggleOnlyFollowing = async (enabled: boolean) => {
+  const handleToggleOnlyFollowing = (enabled: boolean) => {
     const next = { ...prefs, onlyFollowing: enabled };
-    setLocalPrefs(next);
+    setPrefs(next);
     updateSettings.mutateAsync({ notificationPreferences: next }).catch(() => {
-      setLocalPrefs(null); // roll back on failure
+      setPrefs((p) => ({ ...p, onlyFollowing: !enabled })); // roll back on failure
     });
   };
 
