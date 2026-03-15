@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, Plus } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, Plus, Settings, Heart, Camera, PictureInPicture2, Zap, ArrowLeft } from 'lucide-react';
 // Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
 // Note: Sparkles kept for BlobbiBottomBar center action button
 // Note: Plus kept for AdoptAnotherBlobbiCard
@@ -675,15 +675,15 @@ function BlobbiDashboard({
       
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:px-6">
-        {/* Floating Quick Actions - positioned lower for visual balance */}
-        <div className="absolute top-28 sm:top-32 right-4 sm:right-6 flex flex-col gap-2 z-20">
-          <QuickActionButton
-            tooltip="Blobbi Info"
-            onClick={() => setShowInfoModal(true)}
-          >
-            <Info className="size-4" />
-          </QuickActionButton>
-        </div>
+        {/* Floating Dashboard Controls */}
+        <BlobbiDashboardFloatingControls
+          onSettings={() => console.log('TODO: settings')}
+          onSetAsCompanion={() => console.log('TODO: set as companion')}
+          onTakePhoto={() => console.log('TODO: take photo')}
+          onOpenPiP={() => console.log('TODO: open PiP')}
+          onEvolve={() => console.log('TODO: evolve')}
+          onInfo={() => setShowInfoModal(true)}
+        />
         
         {/* Blobbi Name */}
         <div className="flex items-center gap-2 mb-6">
@@ -869,6 +869,143 @@ function QuickActionButton({ children, tooltip, onClick, disabled, loading }: Qu
         <p>{tooltip}</p>
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+// ─── Dashboard Floating Controls ──────────────────────────────────────────────
+
+/** Button definition for floating action buttons */
+interface FloatingActionDef {
+  id: string;
+  icon: React.ReactNode;
+  tooltip: string;
+  onClick: () => void;
+  variant?: 'default' | 'accent';
+}
+
+interface BlobbiDashboardFloatingControlsProps {
+  onBack?: () => void;
+  onSettings: () => void;
+  onSetAsCompanion: () => void;
+  onTakePhoto: () => void;
+  onOpenPiP: () => void;
+  onEvolve: () => void;
+  onInfo: () => void;
+}
+
+/**
+ * Floating action controls for the Blobbi dashboard.
+ * Renders top-left and top-right button clusters.
+ */
+function BlobbiDashboardFloatingControls({
+  onBack,
+  onSettings,
+  onSetAsCompanion,
+  onTakePhoto,
+  onOpenPiP,
+  onEvolve,
+  onInfo,
+}: BlobbiDashboardFloatingControlsProps) {
+  // Left-side buttons
+  const leftButtons: FloatingActionDef[] = [
+    ...(onBack ? [{
+      id: 'back',
+      icon: <ArrowLeft className="size-4" />,
+      tooltip: 'Go Back',
+      onClick: onBack,
+    }] : []),
+  ];
+
+  // Right-side buttons (top cluster)
+  const rightButtons: FloatingActionDef[] = [
+    {
+      id: 'settings',
+      icon: <Settings className="size-4" />,
+      tooltip: 'Settings',
+      onClick: onSettings,
+    },
+    {
+      id: 'set-companion',
+      icon: <Heart className="size-4" />,
+      tooltip: 'Set as Companion',
+      onClick: onSetAsCompanion,
+    },
+    {
+      id: 'photo',
+      icon: <Camera className="size-4" />,
+      tooltip: 'Take a Photo',
+      onClick: onTakePhoto,
+    },
+    {
+      id: 'pip',
+      icon: <PictureInPicture2 className="size-4" />,
+      tooltip: 'Open PiP',
+      onClick: onOpenPiP,
+    },
+    {
+      id: 'info',
+      icon: <Info className="size-4" />,
+      tooltip: 'Blobbi Info',
+      onClick: onInfo,
+    },
+  ];
+
+  // Evolve button (emphasized, at the bottom of right cluster)
+  const evolveButton: FloatingActionDef = {
+    id: 'evolve',
+    icon: <Zap className="size-4" />,
+    tooltip: 'Evolve',
+    onClick: onEvolve,
+    variant: 'accent',
+  };
+
+  return (
+    <>
+      {/* Left-side floating buttons */}
+      {leftButtons.length > 0 && (
+        <div className="absolute top-28 sm:top-32 left-4 sm:left-6 flex flex-col gap-2 z-20">
+          {leftButtons.map((btn) => (
+            <QuickActionButton
+              key={btn.id}
+              tooltip={btn.tooltip}
+              onClick={btn.onClick}
+            >
+              {btn.icon}
+            </QuickActionButton>
+          ))}
+        </div>
+      )}
+
+      {/* Right-side floating buttons */}
+      <div className="absolute top-28 sm:top-32 right-4 sm:right-6 flex flex-col gap-2 z-20">
+        {rightButtons.map((btn) => (
+          <QuickActionButton
+            key={btn.id}
+            tooltip={btn.tooltip}
+            onClick={btn.onClick}
+          >
+            {btn.icon}
+          </QuickActionButton>
+        ))}
+        
+        {/* Evolve button with accent styling */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={evolveButton.onClick}
+              className="size-10 rounded-full bg-primary/10 backdrop-blur-sm border-primary/30 hover:bg-primary/20 hover:border-primary/50 transition-all shadow-sm text-primary"
+            >
+              {evolveButton.icon}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            <p>{evolveButton.tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </>
   );
 }
 
