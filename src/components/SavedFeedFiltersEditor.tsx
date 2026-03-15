@@ -509,7 +509,7 @@ export function ListPackPicker({ lists, followPacks, value, onSelectPubkeys, cla
       <SelectContent>
         {lists.length > 0 && (
           <SelectGroup>
-            {followPacks.length > 0 && <SelectLabel>Follow Sets</SelectLabel>}
+            {followPacks.length > 0 && <SelectLabel>Lists</SelectLabel>}
             {lists.map((l) => (
               <SelectItem key={`set:${l.id}`} value={`set:${l.id}`}>
                 {l.title} ({l.pubkeys.length})

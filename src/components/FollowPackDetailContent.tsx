@@ -163,7 +163,7 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
 
           <Badge variant="secondary" className="shrink-0 gap-1">
             <Users className="size-3" />
-            {isStarterPack ? 'Starter Pack' : 'Follow Set'}
+            {isStarterPack ? 'Starter Pack' : 'List'}
           </Badge>
         </div>
 
