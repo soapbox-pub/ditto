@@ -687,7 +687,12 @@ function BlobbiDashboard({
         
         {/* Blobbi Name */}
         <div className="flex items-center gap-2 mb-6">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center">{companion.name}</h2>
+          <h2
+            className="text-2xl sm:text-3xl font-bold text-center"
+            style={{ color: companion.visualTraits.baseColor }}
+          >
+            {companion.name}
+          </h2>
         </div>
         
         {/* Main Blobbi Visual */}
@@ -1281,7 +1286,9 @@ function BlobbiInfoModal({ open, onOpenChange, companion }: BlobbiInfoModalProps
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>{companion.name}</DialogTitle>
+          <DialogTitle style={{ color: companion.visualTraits.baseColor }}>
+            {companion.name}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           {/* Blobbi Visual */}
