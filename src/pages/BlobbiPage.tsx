@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, Plus } from 'lucide-react';
 // Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
 // Note: Sparkles kept for BlobbiBottomBar center action button
+// Note: Plus kept for AdoptAnotherBlobbiCard
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -146,6 +147,9 @@ function BlobbiContent() {
   
   // State for showing the Blobbi selector modal
   const [showSelector, setShowSelector] = useState(false);
+  
+  // State for showing the adoption flow (for "Adopt another Blobbi")
+  const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
   
   // STEP 6: Selection Priority
   // 1) localStorage selection (if valid and exists in collection)
@@ -430,11 +434,30 @@ function BlobbiContent() {
   if (!selectedD && companions.length > 0) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: pet selector');
     return (
-      <BlobbiSelectorPage
-        companions={companions}
-        onSelect={handleSelectBlobbi}
-        isLoading={companionFetching}
-      />
+      <>
+        <BlobbiSelectorPage
+          companions={companions}
+          onSelect={handleSelectBlobbi}
+          isLoading={companionFetching}
+          onAdopt={() => setShowAdoptionFlow(true)}
+        />
+        
+        {/* Adoption Flow Modal */}
+        <Dialog open={showAdoptionFlow} onOpenChange={setShowAdoptionFlow}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
+            <BlobbiOnboardingFlow
+              profile={profile}
+              updateProfileEvent={updateProfileEvent}
+              updateCompanionEvent={updateCompanionEvent}
+              invalidateProfile={invalidateProfile}
+              invalidateCompanion={invalidateCompanion}
+              setStoredSelectedD={setStoredSelectedD}
+              adoptionOnly={true}
+              onComplete={() => setShowAdoptionFlow(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
   
@@ -442,11 +465,30 @@ function BlobbiContent() {
   if (!companion || !selectedD) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: selector (companion not resolved)');
     return (
-      <BlobbiSelectorPage
-        companions={companions}
-        onSelect={handleSelectBlobbi}
-        isLoading={companionFetching}
-      />
+      <>
+        <BlobbiSelectorPage
+          companions={companions}
+          onSelect={handleSelectBlobbi}
+          isLoading={companionFetching}
+          onAdopt={() => setShowAdoptionFlow(true)}
+        />
+        
+        {/* Adoption Flow Modal */}
+        <Dialog open={showAdoptionFlow} onOpenChange={setShowAdoptionFlow}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
+            <BlobbiOnboardingFlow
+              profile={profile}
+              updateProfileEvent={updateProfileEvent}
+              updateCompanionEvent={updateCompanionEvent}
+              invalidateProfile={invalidateProfile}
+              invalidateCompanion={invalidateCompanion}
+              setStoredSelectedD={setStoredSelectedD}
+              adoptionOnly={true}
+              onComplete={() => setShowAdoptionFlow(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
   
@@ -468,6 +510,11 @@ function BlobbiContent() {
       isPublishing={isPublishing}
       isFetching={profileFetching || companionFetching}
       profile={profile}
+      updateProfileEvent={updateProfileEvent}
+      updateCompanionEvent={updateCompanionEvent}
+      invalidateProfile={invalidateProfile}
+      invalidateCompanion={invalidateCompanion}
+      setStoredSelectedD={setStoredSelectedD}
     />
   );
 }
@@ -513,6 +560,12 @@ interface BlobbiDashboardProps {
   isPublishing: boolean;
   isFetching: boolean;
   profile: BlobbonautProfile | null;
+  // Adoption flow props
+  updateProfileEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
+  updateCompanionEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
+  invalidateProfile: () => void;
+  invalidateCompanion: () => void;
+  setStoredSelectedD: (d: string) => void;
 }
 
 function BlobbiDashboard({
@@ -529,6 +582,11 @@ function BlobbiDashboard({
   isPublishing,
   isFetching,
   profile,
+  updateProfileEvent,
+  updateCompanionEvent,
+  invalidateProfile,
+  invalidateCompanion,
+  setStoredSelectedD,
 }: BlobbiDashboardProps) {
   const isSleeping = companion.state === 'sleeping';
   
@@ -538,6 +596,9 @@ function BlobbiDashboard({
   const [showShopModal, setShowShopModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  
+  // Adoption flow modal state
+  const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
   
   // Inventory action modal state
   const [inventoryAction, setInventoryAction] = useState<InventoryAction | null>(null);
@@ -688,7 +749,31 @@ function BlobbiDashboard({
                 isSelected={c.d === selectedD}
               />
             ))}
+            
+            {/* Adopt Another Blobbi CTA */}
+            <AdoptAnotherBlobbiCard
+              onAdopt={() => {
+                setShowSelector(false);
+                setShowAdoptionFlow(true);
+              }}
+            />
           </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Adoption Flow Modal */}
+      <Dialog open={showAdoptionFlow} onOpenChange={setShowAdoptionFlow}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
+          <BlobbiOnboardingFlow
+            profile={profile}
+            updateProfileEvent={updateProfileEvent}
+            updateCompanionEvent={updateCompanionEvent}
+            invalidateProfile={invalidateProfile}
+            invalidateCompanion={invalidateCompanion}
+            setStoredSelectedD={setStoredSelectedD}
+            adoptionOnly={true}
+            onComplete={() => setShowAdoptionFlow(false)}
+          />
         </DialogContent>
       </Dialog>
       
@@ -852,9 +937,10 @@ interface BlobbiSelectorPageProps {
   companions: BlobbiCompanion[];
   onSelect: (d: string) => void;
   isLoading?: boolean;
+  onAdopt?: () => void;
 }
 
-function BlobbiSelectorPage({ companions, onSelect, isLoading }: BlobbiSelectorPageProps) {
+function BlobbiSelectorPage({ companions, onSelect, isLoading, onAdopt }: BlobbiSelectorPageProps) {
   return (
     <DashboardShell>
       {/* Header */}
@@ -883,6 +969,11 @@ function BlobbiSelectorPage({ companions, onSelect, isLoading }: BlobbiSelectorP
               onSelect={() => onSelect(companion.d)}
             />
           ))}
+          
+          {/* Adopt Another Blobbi CTA */}
+          {onAdopt && (
+            <AdoptAnotherBlobbiCard onAdopt={onAdopt} />
+          )}
         </div>
       </div>
     </DashboardShell>
@@ -963,6 +1054,61 @@ function BlobbiSelectorCard({ companion, onSelect, isSelected }: BlobbiSelectorC
         </div>
       </div>
     </button>
+  );
+}
+
+// ─── Adopt Another Blobbi CTA Card ────────────────────────────────────────────
+
+interface AdoptAnotherBlobbiCardProps {
+  onAdopt: () => void;
+}
+
+/**
+ * CTA card for adopting another Blobbi.
+ * Appears at the bottom of the Blobbi selector list.
+ */
+function AdoptAnotherBlobbiCard({ onAdopt }: AdoptAnotherBlobbiCardProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={onAdopt}
+          className={cn(
+            'w-full p-4 rounded-xl text-center transition-all',
+            'bg-primary/5 backdrop-blur-sm',
+            'border-2 border-dashed border-primary/20',
+            'hover:border-primary/40 hover:bg-primary/10',
+            'hover:shadow-md',
+            'group'
+          )}
+        >
+          <div className="flex flex-col items-center gap-3 py-2">
+            {/* Plus icon in circle */}
+            <div className={cn(
+              'size-12 rounded-full flex items-center justify-center',
+              'bg-primary/10 border border-primary/20',
+              'group-hover:bg-primary/20 group-hover:border-primary/30',
+              'transition-colors'
+            )}>
+              <Plus className="size-6 text-primary" />
+            </div>
+            
+            {/* Title */}
+            <div className="space-y-1">
+              <h3 className="font-semibold text-foreground">
+                Adopt Another Blobbi
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Preview and adopt a new companion
+              </p>
+            </div>
+          </div>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        <p>Click to preview and adopt a new Blobbi egg to add to your collection!</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

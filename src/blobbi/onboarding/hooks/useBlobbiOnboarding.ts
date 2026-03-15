@@ -83,17 +83,31 @@ export interface UseBlobbiOnboardingResult {
 // ─── Helper: Derive Initial Step ──────────────────────────────────────────────
 
 /**
- * Derive the correct initial onboarding step based on profile state.
+ * Derive the correct initial onboarding step based on profile state and mode.
  * 
+ * Normal mode:
  * - No profile → 'profile'
  * - Profile exists, no pets → 'adoption-question'
  * - Profile exists with pets → should not be in onboarding at all
+ * 
+ * Adoption-only mode (for "Adopt another Blobbi"):
+ * - Profile must exist → 'preview' (skip straight to egg preview)
+ * - No profile → error case, should not happen
  */
-function deriveInitialStep(profile: BlobbonautProfile | null): OnboardingStep {
+function deriveInitialStep(
+  profile: BlobbonautProfile | null, 
+  adoptionOnly: boolean
+): OnboardingStep {
+  // Adoption-only mode: skip to preview if profile exists
+  if (adoptionOnly && profile) {
+    return 'preview';
+  }
+  
   if (!profile) {
     return 'profile';
   }
-  // Profile exists but no pets
+  
+  // Profile exists but no pets (normal onboarding)
   return 'adoption-question';
 }
 
@@ -114,6 +128,12 @@ interface UseBlobbiOnboardingOptions {
   setStoredSelectedD: (d: string) => void;
   /** Called when onboarding is complete */
   onComplete?: () => void;
+  /** 
+   * If true, skip profile creation and adoption question, go directly to preview.
+   * Use this for "Adopt another Blobbi" flow for existing users.
+   * Requires profile to be non-null.
+   */
+  adoptionOnly?: boolean;
 }
 
 export function useBlobbiOnboarding({
@@ -124,6 +144,7 @@ export function useBlobbiOnboarding({
   invalidateCompanion,
   setStoredSelectedD,
   onComplete,
+  adoptionOnly = false,
 }: UseBlobbiOnboardingOptions): UseBlobbiOnboardingResult {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -139,13 +160,21 @@ export function useBlobbiOnboarding({
   
   // ─── State ────────────────────────────────────────────────────────────────────
   
-  // Derive initial step from profile - this is the key fix
-  const initialStep = deriveInitialStep(profile);
+  // Derive initial step from profile and adoptionOnly mode
+  const initialStep = deriveInitialStep(profile, adoptionOnly);
   
   const [step, setStep] = useState<OnboardingStep>(initialStep);
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<'create-profile' | 'reroll' | 'adopt' | null>(null);
-  const [preview, setPreview] = useState<BlobbiEggPreview | null>(null);
+  
+  // For adoption-only mode, generate preview immediately
+  const [preview, setPreview] = useState<BlobbiEggPreview | null>(() => {
+    if (adoptionOnly && profile && user?.pubkey) {
+      // Generate initial preview for adoption-only mode
+      return generateEggPreview(user.pubkey, 'Egg');
+    }
+    return null;
+  });
   const [isFirstPreview, setIsFirstPreview] = useState(true);
   const [previewCoins] = useState(INITIAL_BLOBBONAUT_COINS);
   const [blobbonautName, setBlobbonautName] = useState<string | undefined>(profile?.name);
@@ -153,8 +182,15 @@ export function useBlobbiOnboarding({
   // ─── Sync step with profile changes ─────────────────────────────────────────
   // Ensure step is ALWAYS correct based on profile state.
   // This handles all cases: initial mount, cache load, relay fetch, profile creation.
+  // NOTE: In adoptionOnly mode, we don't auto-transition based on profile state changes.
   useEffect(() => {
-    const correctStep = deriveInitialStep(profile);
+    // Skip sync logic in adoptionOnly mode - step is explicitly controlled
+    if (adoptionOnly) {
+      console.log('[useBlobbiOnboarding] adoptionOnly mode - skipping auto-sync');
+      return;
+    }
+    
+    const correctStep = deriveInitialStep(profile, false);
     
     // Debug log
     console.log('[useBlobbiOnboarding] State sync check:', {
@@ -192,7 +228,7 @@ export function useBlobbiOnboarding({
       setBlobbonautName(undefined);
       return;
     }
-  }, [profile, step]);
+  }, [profile, step, adoptionOnly]);
   
   // ─── Derived State ──────────────────────────────────────────────────────────
   
