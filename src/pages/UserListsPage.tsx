@@ -165,7 +165,7 @@ export function UserListsPage() {
 
   useSeoMeta({
     title: `Lists | Settings | ${config.appName}`,
-    description: 'Manage your follow sets on Nostr.',
+    description: 'Manage your lists on Nostr.',
   });
 
   const [newListName, setNewListName] = useState('');
@@ -217,7 +217,7 @@ export function UserListsPage() {
           <div>
             <h1 className="text-xl font-bold">Lists</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Organize people into follow sets. Lists are stored on Nostr so they follow you across clients.
+              Organize people into lists. Lists are stored on Nostr so they follow you across clients.
             </p>
           </div>
         </div>
@@ -228,7 +228,7 @@ export function UserListsPage() {
         <div className="flex items-center gap-4 px-3 pt-2 pb-4">
           <IntroImage src="/lists-intro.png" />
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold">Follow Sets</h2>
+            <h2 className="text-sm font-semibold">Lists</h2>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               Group people into named lists. Use any list as the source for a custom feed, or filter searches by list members.
             </p>
@@ -298,7 +298,7 @@ export function UserListsPage() {
         </div>
 
         <p className="text-xs text-muted-foreground px-3 pt-4 leading-relaxed">
-          Lists are stored as Follow Sets (NIP-51) on Nostr and sync across clients.
+          Lists are stored on Nostr (NIP-51) and sync across clients.
         </p>
       </div>
 
