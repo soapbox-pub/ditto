@@ -108,6 +108,19 @@ export function BlobbiEggPreviewCard({
           )}
         </div>
         
+        {/* Styled Name Display - uses egg's base color */}
+        {trimmedName && (
+          <div
+            className="px-3 py-1 rounded-full bg-black/20 backdrop-blur-sm font-semibold"
+            style={{
+              color: preview.visualTraits.baseColor,
+              textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+            }}
+          >
+            {trimmedName}
+          </div>
+        )}
+        
         {/* Egg Preview Visual */}
         <div className="relative">
           {/* Glow effect */}
