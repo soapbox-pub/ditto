@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, Plus, Settings, Heart, Camera, PictureInPicture2, Zap, ArrowLeft } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, Plus, Footprints, Camera, PictureInPicture2, ArrowLeft } from 'lucide-react';
 // Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
 // Note: Sparkles kept for BlobbiBottomBar center action button
 // Note: Plus kept for AdoptAnotherBlobbiCard
@@ -677,7 +677,7 @@ function BlobbiDashboard({
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:px-6">
         {/* Floating Dashboard Controls */}
         <BlobbiDashboardFloatingControls
-          onSettings={() => console.log('TODO: settings')}
+          stage={companion.stage}
           onSetAsCompanion={() => console.log('TODO: set as companion')}
           onTakePhoto={() => console.log('TODO: take photo')}
           onOpenPiP={() => console.log('TODO: open PiP')}
@@ -884,8 +884,9 @@ interface FloatingActionDef {
 }
 
 interface BlobbiDashboardFloatingControlsProps {
+  /** Current Blobbi's life stage - affects evolve button icon */
+  stage: 'egg' | 'baby' | 'adult';
   onBack?: () => void;
-  onSettings: () => void;
   onSetAsCompanion: () => void;
   onTakePhoto: () => void;
   onOpenPiP: () => void;
@@ -894,12 +895,35 @@ interface BlobbiDashboardFloatingControlsProps {
 }
 
 /**
+ * Get the appropriate icon for the evolve/hatch button based on stage.
+ * - egg stage: Egg icon (hatching action)
+ * - baby/adult stages: Sparkles icon (evolution/transformation)
+ */
+function getEvolveIcon(stage: 'egg' | 'baby' | 'adult'): React.ReactNode {
+  if (stage === 'egg') {
+    return <Egg className="size-4" />;
+  }
+  // Sparkles communicates magical transformation, fitting the Blobbi theme
+  return <Sparkles className="size-4" />;
+}
+
+/**
+ * Get the appropriate tooltip for the evolve/hatch button based on stage.
+ */
+function getEvolveTooltip(stage: 'egg' | 'baby' | 'adult'): string {
+  if (stage === 'egg') {
+    return 'Hatch';
+  }
+  return 'Evolve';
+}
+
+/**
  * Floating action controls for the Blobbi dashboard.
  * Renders top-left and top-right button clusters.
  */
 function BlobbiDashboardFloatingControls({
+  stage,
   onBack,
-  onSettings,
   onSetAsCompanion,
   onTakePhoto,
   onOpenPiP,
@@ -919,14 +943,8 @@ function BlobbiDashboardFloatingControls({
   // Right-side buttons (top cluster)
   const rightButtons: FloatingActionDef[] = [
     {
-      id: 'settings',
-      icon: <Settings className="size-4" />,
-      tooltip: 'Settings',
-      onClick: onSettings,
-    },
-    {
       id: 'set-companion',
-      icon: <Heart className="size-4" />,
+      icon: <Footprints className="size-4" />,
       tooltip: 'Set as Companion',
       onClick: onSetAsCompanion,
     },
@@ -950,11 +968,12 @@ function BlobbiDashboardFloatingControls({
     },
   ];
 
-  // Evolve button (emphasized, at the bottom of right cluster)
+  // Evolve/Hatch button (emphasized, at the bottom of right cluster)
+  // Icon and tooltip are stage-aware
   const evolveButton: FloatingActionDef = {
     id: 'evolve',
-    icon: <Zap className="size-4" />,
-    tooltip: 'Evolve',
+    icon: getEvolveIcon(stage),
+    tooltip: getEvolveTooltip(stage),
     onClick: onEvolve,
     variant: 'accent',
   };
