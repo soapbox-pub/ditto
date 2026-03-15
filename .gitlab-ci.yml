@@ -14,6 +14,7 @@ stages:
   - deploy
   - build
   - release
+  - publish
 
 test:
   stage: test
@@ -149,3 +150,18 @@ release:
         - name: "Ditto-${CI_COMMIT_TAG}.apk"
           url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/artifacts/Ditto-${CI_COMMIT_TAG}.apk?job=build-apk"
           link_type: package
+
+publish-zapstore:
+  stage: publish
+  image: golang:1.24
+  needs:
+    - build-apk
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+  variables:
+    SIGN_WITH: $ZAPSTORE_BUNKER_URL
+  script:
+    - go install github.com/zapstore/zsp@latest
+    - APK_PATH="artifacts/Ditto-${CI_COMMIT_TAG}.apk"
+    - 'sed -i "2i release_source: ./${APK_PATH}" zapstore.yaml'
+    - zsp publish -y --skip-metadata --skip-preview zapstore.yaml
