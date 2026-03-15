@@ -122,6 +122,10 @@ export function NotificationSettings() {
   const { settings, updateSettings } = useEncryptedSettings();
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
+  // Optimistic local state — updates instantly on toggle, persisted async
+  const [localPushEnabled, setLocalPushEnabled] = useState<boolean | null>(null);
+  const [localPrefs, setLocalPrefs] = useState<NonNullable<typeof settings>['notificationPreferences'] | null>(null);
+
   useSeoMeta({
     title: `Notifications | Settings | ${config.appName}`,
     description: 'Configure your notification preferences',
@@ -133,8 +137,22 @@ export function NotificationSettings() {
     }
   }, []);
 
-  const pushEnabled = settings?.notificationsEnabled ?? true;
-  const prefs = settings?.notificationPreferences ?? {};
+  // Clear local state once the persisted settings have caught up
+  useEffect(() => {
+    if (localPushEnabled !== null && settings?.notificationsEnabled === localPushEnabled) {
+      setLocalPushEnabled(null);
+    }
+  }, [settings?.notificationsEnabled, localPushEnabled]);
+
+  useEffect(() => {
+    if (localPrefs !== null && settings?.notificationPreferences === localPrefs) {
+      setLocalPrefs(null);
+    }
+  }, [settings?.notificationPreferences, localPrefs]);
+
+  // Use local optimistic value while it exists, fall back to persisted settings
+  const pushEnabled = localPushEnabled ?? settings?.notificationsEnabled ?? true;
+  const prefs = localPrefs ?? settings?.notificationPreferences ?? {};
 
   const handleTogglePush = async (enabled: boolean) => {
     if (enabled && !Capacitor.isNativePlatform()) {
@@ -143,18 +161,25 @@ export function NotificationSettings() {
       setPermission(result);
       if (result !== 'granted') return;
     }
-    await updateSettings.mutateAsync({ notificationsEnabled: enabled });
+    setLocalPushEnabled(enabled);
+    updateSettings.mutateAsync({ notificationsEnabled: enabled }).catch(() => {
+      setLocalPushEnabled(null); // roll back on failure
+    });
   };
 
   const handleToggleType = async (key: NotificationPrefKey, enabled: boolean) => {
-    await updateSettings.mutateAsync({
-      notificationPreferences: { ...prefs, [key]: enabled },
+    const next = { ...prefs, [key]: enabled };
+    setLocalPrefs(next);
+    updateSettings.mutateAsync({ notificationPreferences: next }).catch(() => {
+      setLocalPrefs(null); // roll back on failure
     });
   };
 
   const handleToggleOnlyFollowing = async (enabled: boolean) => {
-    await updateSettings.mutateAsync({
-      notificationPreferences: { ...prefs, onlyFollowing: enabled },
+    const next = { ...prefs, onlyFollowing: enabled };
+    setLocalPrefs(next);
+    updateSettings.mutateAsync({ notificationPreferences: next }).catch(() => {
+      setLocalPrefs(null); // roll back on failure
     });
   };
 
