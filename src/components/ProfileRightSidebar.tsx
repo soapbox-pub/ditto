@@ -91,7 +91,7 @@ function extractImageUrls(content: string): string[] {
 
 /** Extracts video URLs from content. */
 function extractVideoUrls(content: string): string[] {
-  const regex = /https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi;
+  const regex = /https?:\/\/[^\s]+\.(mp4|webm|mov|qt)(\?[^\s]*)?/gi;
   return content.match(regex) || [];
 }
 
@@ -153,7 +153,7 @@ function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
 function MediaTile({ item }: { item: MediaItem }) {
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
-  const isVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(item.url);
+  const isVideo = /\.(mp4|webm|mov|qt)(\?.*)?$/i.test(item.url);
 
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
