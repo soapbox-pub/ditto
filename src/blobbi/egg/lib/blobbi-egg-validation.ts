@@ -34,8 +34,8 @@ export const VALID_SIZES = {
   legendary: ['tiny'],
 } as const;
 
-// Pattern options from the specification
-export const VALID_PATTERNS = ['gradient', 'solid', 'speckled', 'striped'] as const;
+// Pattern options - must match domain model (BlobbiPattern in blobbi.ts)
+export const VALID_PATTERNS = ['solid', 'spotted', 'striped', 'gradient'] as const;
 
 // Egg status options from the specification
 export const VALID_EGG_STATUSES = ['cracking', 'warm', 'glowing', 'pulsing'] as const;

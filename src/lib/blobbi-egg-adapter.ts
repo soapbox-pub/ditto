@@ -125,7 +125,7 @@ export function toEggGraphicVisualBlobbi(
   companion: BlobbiCompanion,
   themeVariant: EggThemeVariant = DEFAULT_THEME_VARIANT
 ): EggVisualBlobbi {
-  const { visualTraits, stage, name, allTags } = companion;
+  const { visualTraits, stage, allTags } = companion;
   
   return {
     // Colors pass through directly (already CSS hex values)
@@ -137,8 +137,7 @@ export function toEggGraphicVisualBlobbi(
     specialMark: SPECIAL_MARK_MAP[visualTraits.specialMark] ?? DEFAULT_SPECIAL_MARK,
     lifeStage: LIFE_STAGE_MAP[stage] ?? DEFAULT_LIFE_STAGE,
     
-    // Direct values
-    title: name,
+    // Theme variant
     themeVariant,
     
     // Pass through full tags for EggGraphic metadata lookups
@@ -147,6 +146,10 @@ export function toEggGraphicVisualBlobbi(
     // Extracted convenience values
     eggTemperature: extractEggTemperature(allTags),
     crossoverApp: extractCrossoverApp(allTags),
+    
+    // NOTE: We intentionally do NOT pass companion.name as title here.
+    // The EggGraphic 'title' field is for special designations (e.g., "Divine"),
+    // not the pet's name. The pet name is displayed separately by the parent component.
   };
 }
 
