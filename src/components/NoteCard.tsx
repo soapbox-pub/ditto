@@ -783,29 +783,39 @@ export function NoteCard({
         onClick={handleCardClick}
         onAuxClick={handleAuxClick}
       >
-        <div className="flex gap-3">
-          <div className="flex flex-col items-center">
-            {avatarElement}
-            {threaded && (
-              <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
-            )}
-          </div>
-          <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
-            {authorInfo}
+        {isFollowPack ? (
+          <div className={cn("min-w-0", threaded && "pb-3")}>
             {contentBlock}
+            <FollowPackAuthorLine pubkey={event.pubkey} createdAt={event.created_at} />
             {actionButtons}
-            <NoteMoreMenu
-              event={event}
-              open={moreMenuOpen}
-              onOpenChange={setMoreMenuOpen}
-            />
-            <ReplyComposeModal
-              event={event}
-              open={replyOpen}
-              onOpenChange={setReplyOpen}
-            />
+            <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+            <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
           </div>
-        </div>
+        ) : (
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {avatarElement}
+              {threaded && (
+                <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
+              )}
+            </div>
+            <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
+              {authorInfo}
+              {contentBlock}
+              {actionButtons}
+              <NoteMoreMenu
+                event={event}
+                open={moreMenuOpen}
+                onOpenChange={setMoreMenuOpen}
+              />
+              <ReplyComposeModal
+                event={event}
+                open={replyOpen}
+                onOpenChange={setReplyOpen}
+              />
+            </div>
+          </div>
+        )}
       </article>
     );
   }
@@ -857,29 +867,46 @@ export function NoteCard({
         })()
       )}
 
-      {/* Header: avatar + name/handle stacked */}
-      <div className="flex items-center gap-3">
-        {avatarElement}
-        {authorInfo}
-        {isColor && <ColorMomentEyeButton event={event} />}
-      </div>
-
-      {contentBlock}
-
-      {/* Action buttons — hidden in compact/embed mode */}
-      {!compact && (
+      {/* For follow packs / lists: content-first layout with subtle author attribution */}
+      {isFollowPack ? (
         <>
-          {actionButtons}
-          <NoteMoreMenu
-            event={event}
-            open={moreMenuOpen}
-            onOpenChange={setMoreMenuOpen}
-          />
-          <ReplyComposeModal
-            event={event}
-            open={replyOpen}
-            onOpenChange={setReplyOpen}
-          />
+          {contentBlock}
+          <FollowPackAuthorLine pubkey={event.pubkey} createdAt={event.created_at} />
+          {!compact && (
+            <>
+              {actionButtons}
+              <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+              <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+            </>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Header: avatar + name/handle stacked */}
+          <div className="flex items-center gap-3">
+            {avatarElement}
+            {authorInfo}
+            {isColor && <ColorMomentEyeButton event={event} />}
+          </div>
+
+          {contentBlock}
+
+          {/* Action buttons — hidden in compact/embed mode */}
+          {!compact && (
+            <>
+              {actionButtons}
+              <NoteMoreMenu
+                event={event}
+                open={moreMenuOpen}
+                onOpenChange={setMoreMenuOpen}
+              />
+              <ReplyComposeModal
+                event={event}
+                open={replyOpen}
+                onOpenChange={setReplyOpen}
+              />
+            </>
+          )}
         </>
       )}
     </article>
@@ -1395,6 +1422,52 @@ function StreamContent({ event }: { event: NostrEvent }) {
           )}
         </div>
       </button>
+    </div>
+  );
+}
+
+/** Subtle author attribution line for follow pack / list cards. */
+function FollowPackAuthorLine({ pubkey, createdAt }: { pubkey: string; createdAt: number }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
+  const displayName = getDisplayName(metadata, pubkey);
+  const profileUrl = useProfileUrl(pubkey, metadata);
+
+  return (
+    <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+      {author.isLoading ? (
+        <>
+          <Skeleton className="size-4 rounded-full shrink-0" />
+          <Skeleton className="h-3 w-20" />
+        </>
+      ) : (
+        <>
+          <ProfileHoverCard pubkey={pubkey} asChild>
+            <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+              <Avatar shape={avatarShape} className="size-4">
+                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-[7px]">
+                  {displayName[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          </ProfileHoverCard>
+          <ProfileHoverCard pubkey={pubkey} asChild>
+            <Link
+              to={profileUrl}
+              className="hover:underline truncate"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {author.data?.event ? (
+                <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+              ) : displayName}
+            </Link>
+          </ProfileHoverCard>
+          <span className="shrink-0">·</span>
+          <span className="shrink-0">{timeAgo(createdAt)}</span>
+        </>
+      )}
     </div>
   );
 }
