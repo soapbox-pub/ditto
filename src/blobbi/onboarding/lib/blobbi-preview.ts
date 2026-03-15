@@ -117,11 +117,18 @@ export function updatePreviewName(
  * CRITICAL: This uses the exact preview data - no regeneration occurs.
  * The preview is the source of truth for the final adopted event.
  * 
+ * Includes all visual trait tags to ensure deterministic rendering.
+ * While these can be derived from the seed, including them explicitly:
+ * 1. Makes the event self-describing
+ * 2. Enables relay-level filtering by visual traits
+ * 3. Ensures consistent rendering even if derivation logic changes
+ * 
  * @param preview - The preview to convert
  * @returns Tags array for Kind 31124 event
  */
 export function previewToEventTags(preview: BlobbiEggPreview): string[][] {
   const now = preview.createdAt.toString();
+  const { visualTraits } = preview;
   
   return [
     ['d', preview.d],
@@ -145,6 +152,13 @@ export function previewToEventTags(preview: BlobbiEggPreview): string[][] {
     ['last_interaction', now],
     ['last_decay_at', now],
     ['incubation_time', preview.incubationTime.toString()],
+    // Visual trait tags - ensures deterministic rendering
+    ['base_color', visualTraits.baseColor],
+    ['secondary_color', visualTraits.secondaryColor],
+    ['eye_color', visualTraits.eyeColor],
+    ['pattern', visualTraits.pattern],
+    ['special_mark', visualTraits.specialMark],
+    ['size', visualTraits.size],
   ];
 }
 

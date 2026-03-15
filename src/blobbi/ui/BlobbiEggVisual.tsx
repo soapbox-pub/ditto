@@ -64,9 +64,11 @@ export function BlobbiEggVisual({
   className,
 }: BlobbiEggVisualProps) {
   // Memoize adapter output to avoid unnecessary re-renders
+  // Use companion.d and visual traits as dependencies to ensure re-render on preview change
   const eggVisual = useMemo(
     () => toEggGraphicVisualBlobbi(companion),
-    [companion]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- d and visual traits are the stable identity
+    [companion.d, companion.visualTraits.baseColor, companion.visualTraits.secondaryColor]
   );
   
   const config = SIZE_CONFIG[size];
