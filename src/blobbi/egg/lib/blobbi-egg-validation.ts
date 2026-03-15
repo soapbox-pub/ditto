@@ -172,16 +172,37 @@ export function isValidEyeColor(color: string): boolean {
 }
 
 // Rarity determination functions
+
+/** Rarity levels for egg properties */
+type Rarity = 'common' | 'uncommon' | 'rare' | 'legendary';
+
+/**
+ * Merged base color palettes for rarity lookup.
+ * Combines VALID_BASE_COLORS and ALTERNATIVE_BASE_COLORS by rarity tier.
+ */
+const MERGED_BASE_COLORS_BY_RARITY: Record<Rarity, readonly string[]> = {
+  common: [...VALID_BASE_COLORS.common, ...ALTERNATIVE_BASE_COLORS.common],
+  uncommon: [...VALID_BASE_COLORS.uncommon, ...ALTERNATIVE_BASE_COLORS.uncommon],
+  rare: [...VALID_BASE_COLORS.rare, ...ALTERNATIVE_BASE_COLORS.rare],
+  legendary: [...VALID_BASE_COLORS.legendary, ...ALTERNATIVE_BASE_COLORS.legendary],
+};
+
+/**
+ * Get the rarity tier of a color from a known palette.
+ * Returns null if the color is not in the palette (e.g., custom domain colors).
+ * 
+ * NOTE: This only works for colors in the legacy specification palettes.
+ * Colors from the domain model (BLOBBI_BASE_COLORS in blobbi.ts) will return null.
+ */
 export function getColorRarity(
   color: string,
   type: 'base' | 'secondary'
-): 'common' | 'uncommon' | 'rare' | 'legendary' | null {
-  const colorSets =
-    type === 'base' ? { ...VALID_BASE_COLORS, ...ALTERNATIVE_BASE_COLORS } : VALID_SECONDARY_COLORS;
+): Rarity | null {
+  const colorSets = type === 'base' ? MERGED_BASE_COLORS_BY_RARITY : VALID_SECONDARY_COLORS;
 
   for (const [rarity, colors] of Object.entries(colorSets)) {
     if ((colors as readonly string[]).includes(color)) {
-      return rarity as 'common' | 'uncommon' | 'rare' | 'legendary';
+      return rarity as Rarity;
     }
   }
   return null;
@@ -248,13 +269,13 @@ export function validateEggProperties(properties: {
 
   if (properties.base_color && !isValidBaseColor(properties.base_color)) {
     errors.push(
-      `Invalid base color: ${properties.base_color}. Must be one of the specification-approved colors.`
+      `Invalid base color: ${properties.base_color}. Must be a valid hex color (e.g., #RRGGBB or #RGB).`
     );
   }
 
   if (properties.secondary_color && !isValidSecondaryColor(properties.secondary_color)) {
     errors.push(
-      `Invalid secondary color: ${properties.secondary_color}. Must be one of the specification-approved colors.`
+      `Invalid secondary color: ${properties.secondary_color}. Must be a valid hex color (e.g., #RRGGBB or #RGB).`
     );
   }
 
@@ -276,13 +297,13 @@ export function validateEggProperties(properties: {
 
   if (properties.special_mark && !isValidSpecialMark(properties.special_mark)) {
     errors.push(
-      `Invalid special mark: ${properties.special_mark}. Must be one of the specification-approved marks.`
+      `Invalid special mark: ${properties.special_mark}. Must be one of: ${ALL_VALID_SPECIAL_MARKS.join(', ')}.`
     );
   }
 
   if (properties.title && !isValidTitle(properties.title)) {
     errors.push(
-      `Invalid title: ${properties.title}. Must be one of the specification-approved titles.`
+      `Invalid title: ${properties.title}. Must be one of: ${ALL_VALID_TITLES.join(', ')}.`
     );
   }
 
