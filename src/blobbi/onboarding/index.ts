@@ -26,6 +26,7 @@ export type {
 // Utilities
 export {
   generateEggPreview,
+  updatePreviewName,
   previewToEventTags,
   previewToBlobbiCompanion,
 } from './lib/blobbi-preview';

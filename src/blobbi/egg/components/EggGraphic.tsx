@@ -56,7 +56,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
   animated = false,
   cracking = false,
   warmth = 50,
-  forceInlineSvg = false,
+  forceInlineSvg: _forceInlineSvg = false,
 }) => {
   // sizeVariant controls ONLY internal scaling/details, NOT layout dimensions
   // Parent container controls actual rendered width/height via slot
@@ -93,8 +93,8 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
 
   // Divine color constants
   const DIVINE_PRIMARY_GREEN = '#55C4A2';
-  const DIVINE_HIGHLIGHT_GREEN = '#7AD9B9';
-  const DIVINE_SHADOW_GREEN = '#2F8B77';
+  const _DIVINE_HIGHLIGHT_GREEN = '#7AD9B9';
+  const _DIVINE_SHADOW_GREEN = '#2F8B77';
 
   // Helper functions to create color variations for 3D effect
   const hexToHsl = (hex: string): [number, number, number] => {
@@ -181,7 +181,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
         base: baseColor,
         highlight: hslToHex(h, highlightS, highlightL),
       };
-    } catch (error) {
+    } catch {
       // Fallback to a simple brightness adjustment if HSL conversion fails
       return {
         shadow: baseColor,
@@ -278,7 +278,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
   };
 
   // Create pattern overlay based on blobbi.pattern
-  const createPatternOverlay = () => {
+  const _createPatternOverlay = () => {
     if (!blobbi?.pattern) return null;
 
     const patternStyle = {

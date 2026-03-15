@@ -2,6 +2,7 @@
  * BlobbiAdoptionStep - "Ready to adopt?" step of onboarding
  * 
  * Shows after profile creation, asking if the user wants to adopt their first Blobbi.
+ * This is shown when the user has a profile but no pets yet.
  */
 
 import { Egg, ArrowRight } from 'lucide-react';
@@ -13,14 +14,11 @@ interface BlobbiAdoptionStepProps {
   blobbonautName: string | undefined;
   /** Called when user wants to start the adoption preview */
   onStartAdoption: () => void;
-  /** Called if user wants to skip for now */
-  onSkip?: () => void;
 }
 
 export function BlobbiAdoptionStep({
   blobbonautName,
   onStartAdoption,
-  onSkip,
 }: BlobbiAdoptionStepProps) {
   const displayName = blobbonautName || 'Blobbonaut';
   
@@ -46,7 +44,7 @@ export function BlobbiAdoptionStep({
         {/* Call to Action */}
         <div className="space-y-3 w-full mt-4">
           <p className="text-lg font-medium">
-            Are you ready to adopt your first Blobbi?
+            Ready to adopt your first Blobbi?
           </p>
           
           <Button
@@ -58,21 +56,11 @@ export function BlobbiAdoptionStep({
             Let's Go!
             <ArrowRight className="size-4 ml-2" />
           </Button>
-          
-          {onSkip && (
-            <Button
-              variant="ghost"
-              onClick={onSkip}
-              className="w-full text-muted-foreground"
-            >
-              Maybe Later
-            </Button>
-          )}
         </div>
         
         {/* Info Note */}
         <p className="text-xs text-muted-foreground mt-2">
-          You'll be able to preview your egg before committing to adopt.
+          You'll be able to preview your egg and choose its name before adopting.
         </p>
       </div>
     </div>
