@@ -737,7 +737,7 @@ export function ComposeBox({
       if (showQuotedEvent && quotedEvent) {
         tags.push(['q', quotedEvent.id, DITTO_RELAY, quotedEvent.pubkey]);
         // Add the nostr: URI to the content if not already present
-        const neventUri = `nostr:${nip19.neventEncode({ id: quotedEvent.id, author: quotedEvent.pubkey })}`;
+        const neventUri = `nostr:${nip19.neventEncode({ id: quotedEvent.id, author: quotedEvent.pubkey, relays: [DITTO_RELAY] })}`;
         if (!finalContent.includes(neventUri)) {
           finalContent = finalContent + '\n\n' + neventUri;
         }
