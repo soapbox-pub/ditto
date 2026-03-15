@@ -253,15 +253,31 @@ function FeedTabsSection() {
     return stored ? JSON.parse(stored) : null;
   });
 
+  const [showDittoFeed, setShowDittoFeed] = useState(() => {
+    const stored = localStorage.getItem('ditto:showDittoFeed');
+    return stored !== null ? stored === 'true' : true; // Default to true
+  });
+
   const [showGlobalFeed, setShowGlobalFeed] = useState(() => {
     const stored = localStorage.getItem('ditto:showGlobalFeed');
-    return stored !== null ? stored === 'true' : true; // Default to true
+    return stored !== null ? stored === 'true' : false; // Default to false
   });
 
   const [showCommunityFeed, setShowCommunityFeed] = useState(() => {
     const stored = localStorage.getItem('ditto:showCommunityFeed');
     return stored !== null ? stored === 'true' : false; // Default to false
   });
+
+  const handleToggleDittoFeed = async (checked: boolean) => {
+    setShowDittoFeed(checked);
+    localStorage.setItem('ditto:showDittoFeed', String(checked));
+    toast({
+      title: checked ? 'Ditto feed enabled' : 'Ditto feed disabled',
+      description: checked
+        ? 'The Ditto feed tab will appear in your navigation'
+        : 'The Ditto feed tab will be hidden',
+    });
+  };
 
   const handleToggleGlobalFeed = async (checked: boolean) => {
     setShowGlobalFeed(checked);
@@ -422,6 +438,20 @@ function FeedTabsSection() {
                   : 'Only top-level posts will appear in your follows feed',
               });
             }}
+            className="shrink-0"
+          />
+        </div>
+      </div>
+
+      <div className="border-b border-border">
+        <div className="flex items-center justify-between py-3.5 px-3">
+          <div className="min-w-0">
+            <Label className="text-sm font-medium">Ditto Feed</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Show trending and curated content from the Ditto relay</p>
+          </div>
+          <Switch
+            checked={showDittoFeed}
+            onCheckedChange={handleToggleDittoFeed}
             className="shrink-0"
           />
         </div>

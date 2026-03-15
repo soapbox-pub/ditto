@@ -21,7 +21,7 @@ export function useFeedTab<T extends string = string>(
   const key = STORAGE_PREFIX + feedId;
 
   const [activeTab, setActiveTab] = useState<T>(() => {
-    const defaultTab = (user ? 'follows' : 'global') as T;
+    const defaultTab = (user ? 'follows' : 'ditto') as T;
     try {
       const stored = sessionStorage.getItem(key);
       if (stored) {
