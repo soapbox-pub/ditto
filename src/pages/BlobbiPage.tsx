@@ -7,6 +7,7 @@ import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Ta
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
+import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
 import { useBlobbisCollection } from '@/hooks/useBlobbisCollection';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
@@ -102,6 +103,13 @@ function BlobbiContent() {
     invalidate: invalidateProfile,
     updateProfileEvent,
   } = useBlobbonautProfile();
+  
+  // Auto-normalize profiles missing pettingLevel tag
+  useBlobbonautProfileNormalization({
+    profile,
+    updateProfileEvent,
+    invalidateProfile,
+  });
   
   // STEP 1: Build dList from profile.has[] + currentCompanion
   const dList = useMemo(() => {

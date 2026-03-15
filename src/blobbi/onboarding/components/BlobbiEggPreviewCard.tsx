@@ -113,18 +113,19 @@ export function BlobbiEggPreviewCard({
           {/* Glow effect */}
           <div className="absolute inset-0 -m-8 bg-primary/5 rounded-full blur-3xl" />
           
-          {/* Main visual */}
-          <div className={cn(
-            "relative transition-all duration-300",
-            isProcessing && "opacity-50"
-          )}>
-            <BlobbiStageVisual
-              companion={companionForVisual}
-              size="lg"
-              animated={!isProcessing}
-              className="size-48 sm:size-56"
-            />
-          </div>
+        {/* Main visual - key forces remount on preview change */}
+            <div className={cn(
+              "relative transition-all duration-300",
+              isProcessing && "opacity-50"
+            )}>
+              <BlobbiStageVisual
+                key={preview.d}
+                companion={companionForVisual}
+                size="lg"
+                animated={!isProcessing}
+                className="size-48 sm:size-56"
+              />
+            </div>
           
           {/* Processing overlay */}
           {isProcessing && (
