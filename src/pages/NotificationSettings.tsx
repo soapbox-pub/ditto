@@ -210,7 +210,7 @@ export function NotificationSettings() {
             description="Receive notifications for activity on your posts"
             checked={pushEnabled}
             onCheckedChange={handleTogglePush}
-            disabled={!isSupported || isDenied || updateSettings.isPending}
+            disabled={!isSupported || isDenied}
           />
           {!isSupported && (
             <div className="flex items-center gap-2 px-3 pb-3 text-muted-foreground">
@@ -241,7 +241,6 @@ export function NotificationSettings() {
             description="Hide notifications from accounts you don't follow"
             checked={prefs.onlyFollowing === true}
             onCheckedChange={handleToggleOnlyFollowing}
-            disabled={updateSettings.isPending}
             noBorder
           />
 
@@ -260,7 +259,6 @@ export function NotificationSettings() {
               description={type.description}
               checked={prefs[type.key] !== false}
               onCheckedChange={(enabled) => handleToggleType(type.key, enabled)}
-              disabled={updateSettings.isPending}
             />
           ))}
         </div>
