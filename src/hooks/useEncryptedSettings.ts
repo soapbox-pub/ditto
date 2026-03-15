@@ -38,6 +38,15 @@ export interface EncryptedSettings {
   notificationsEnabled?: boolean;
   /** Timestamp of last viewed notification (Unix timestamp in seconds) */
   notificationsCursor?: number;
+  /** Per-type notification preferences (all default to true/enabled) */
+  notificationPreferences?: {
+    reactions?: boolean;
+    reposts?: boolean;
+    zaps?: boolean;
+    mentions?: boolean;
+    comments?: boolean;
+    onlyFollowing?: boolean;
+  };
   /** Last sync timestamp */
   lastSync?: number;
   /** Ordered list of sidebar item IDs (built-in + extra-kind) */
