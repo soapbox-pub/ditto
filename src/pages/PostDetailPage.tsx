@@ -77,7 +77,7 @@ import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
 import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
 import { formatNumber } from "@/lib/formatNumber";
-import { extractAudioUrls } from "@/lib/mediaUrls";
+import { extractAudioUrls, extractVideoUrls } from "@/lib/mediaUrls";
 
 /** Kinds that get the full follow-pack detail view. */
 const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
@@ -155,12 +155,6 @@ interface PostDetailPageProps {
 interface AddrPostDetailPageProps {
   addr: AddrCoords;
   relays?: string[];
-}
-
-/** Extracts video URLs from note content. */
-function extractVideos(content: string): string[] {
-  const urlRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi;
-  return content.match(urlRegex) || [];
 }
 
 /** Get the first value for a tag name. */
@@ -827,7 +821,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isDevKind;
 
   const videos = useMemo(
-    () => (isTextNote ? extractVideos(event.content) : []),
+    () => (isTextNote ? extractVideoUrls(event.content) : []),
     [event.content, isTextNote],
   );
   const imetaMap = useMemo(
