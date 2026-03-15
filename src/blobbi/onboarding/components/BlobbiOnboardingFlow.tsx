@@ -5,11 +5,14 @@
  * actual profile state. The initial step is derived from whether the profile
  * exists - not hardcoded.
  * 
+ * MODES:
+ * 1. Full onboarding (default): Profile creation → Adoption question → Preview
+ * 2. Adoption only (adoptionOnly=true): Skip directly to Preview for existing profiles
+ * 
  * IMPORTANT: This component should only be rendered when:
  * - User has no profile (shows profile creation)
  * - User has profile but no pets (shows adoption)
- * 
- * If user has profile AND pets, the dashboard should be shown instead.
+ * - User wants to adopt another Blobbi (adoptionOnly mode)
  */
 
 import { useState } from 'react';
@@ -38,6 +41,11 @@ interface BlobbiOnboardingFlowProps {
   setStoredSelectedD: (d: string) => void;
   /** Called when onboarding is complete */
   onComplete?: () => void;
+  /** 
+   * If true, skip profile creation and adoption question, go directly to preview.
+   * Use this for "Adopt another Blobbi" flow for existing users.
+   */
+  adoptionOnly?: boolean;
 }
 
 export function BlobbiOnboardingFlow({
@@ -48,6 +56,7 @@ export function BlobbiOnboardingFlow({
   invalidateCompanion,
   setStoredSelectedD,
   onComplete,
+  adoptionOnly = false,
 }: BlobbiOnboardingFlowProps) {
   const [showAdoptConfirmDialog, setShowAdoptConfirmDialog] = useState(false);
   
@@ -64,6 +73,7 @@ export function BlobbiOnboardingFlow({
     invalidateCompanion,
     setStoredSelectedD,
     onComplete,
+    adoptionOnly,
   });
   
   // Debug logging
@@ -72,6 +82,7 @@ export function BlobbiOnboardingFlow({
     profileName: profile?.name,
     step: state.step,
     hasPreview: !!state.preview,
+    adoptionOnly,
   });
   
   // Handle adopt button click - show confirmation dialog
