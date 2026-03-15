@@ -151,26 +151,47 @@ export function useBlobbiOnboarding({
   const [blobbonautName, setBlobbonautName] = useState<string | undefined>(profile?.name);
   
   // ─── Sync step with profile changes ─────────────────────────────────────────
-  // If profile becomes available (e.g., from cache or fetch), update step accordingly
+  // Ensure step is ALWAYS correct based on profile state.
+  // This handles all cases: initial mount, cache load, relay fetch, profile creation.
   useEffect(() => {
     const correctStep = deriveInitialStep(profile);
     
-    // Only update if we're in profile step and profile now exists
-    // This handles the case where profile loads from cache/relay
-    if (step === 'profile' && profile) {
-      console.log('[useBlobbiOnboarding] Profile loaded, moving to adoption-question');
-      setStep('adoption-question');
-      setBlobbonautName(profile.name);
-    }
-    
     // Debug log
-    console.log('[useBlobbiOnboarding] State sync:', {
+    console.log('[useBlobbiOnboarding] State sync check:', {
       hasProfile: !!profile,
       profileName: profile?.name,
       profileHasLength: profile?.has?.length ?? 0,
       currentStep: step,
       derivedStep: correctStep,
     });
+    
+    // Case 1: Step is 'profile' but profile exists → move to 'adoption-question'
+    // This handles profile loading from cache/relay after initial render
+    if (step === 'profile' && profile) {
+      console.log('[useBlobbiOnboarding] Profile loaded, moving to adoption-question');
+      setStep('adoption-question');
+      setBlobbonautName(profile.name);
+      return;
+    }
+    
+    // Case 2: Step is 'adoption-question' but no profile → move back to 'profile'
+    // This handles edge cases where profile becomes null (shouldn't happen normally)
+    if (step === 'adoption-question' && !profile) {
+      console.log('[useBlobbiOnboarding] Profile lost, moving back to profile creation');
+      setStep('profile');
+      setBlobbonautName(undefined);
+      return;
+    }
+    
+    // Case 3: Step is 'preview' but no profile → move back to 'profile'
+    // User somehow got to preview without a profile (shouldn't happen)
+    if (step === 'preview' && !profile) {
+      console.log('[useBlobbiOnboarding] No profile in preview step, moving back to profile creation');
+      setStep('profile');
+      setPreview(null);
+      setBlobbonautName(undefined);
+      return;
+    }
   }, [profile, step]);
   
   // ─── Derived State ──────────────────────────────────────────────────────────
@@ -286,8 +307,27 @@ export function useBlobbiOnboarding({
       // Preserve the current name when rerolling
       const currentName = preview?.name ?? 'Egg';
       
+      // Debug: log previous preview identity
+      console.log('[Reroll] Previous preview:', {
+        d: preview?.d,
+        seed: preview?.seed?.slice(0, 16) + '...',
+        petId: preview?.petId,
+      });
+      
       // Then generate new preview with the same name
       const newPreview = generateEggPreview(user.pubkey, currentName);
+      
+      // Debug: log new preview identity
+      console.log('[Reroll] New preview:', {
+        d: newPreview.d,
+        seed: newPreview.seed.slice(0, 16) + '...',
+        petId: newPreview.petId,
+        visualTraits: {
+          baseColor: newPreview.visualTraits.baseColor,
+          pattern: newPreview.visualTraits.pattern,
+        },
+      });
+      
       setPreview(newPreview);
       setIsFirstPreview(false);
       
@@ -303,6 +343,7 @@ export function useBlobbiOnboarding({
       setIsProcessing(false);
       setActionInProgress(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- preview identity (d/seed/petId) only used for debug logs
   }, [user?.pubkey, profile, coins, preview?.name, publishEvent, updateProfileEvent, invalidateProfile]);
   
   /**

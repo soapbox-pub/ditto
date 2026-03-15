@@ -231,6 +231,8 @@ export interface BlobbonautProfile {
   has: string[];
   /** In-game currency balance */
   coins: number;
+  /** Petting level (interaction counter) */
+  pettingLevel: number;
   /** Purchased items inventory */
   storage: StorageItem[];
   /** All tags preserved for republishing */
@@ -839,12 +841,20 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
 /**
  * Parse a Kind 31125 Blobbonaut Profile event into a structured object.
  * Returns undefined if the event is invalid.
+ * 
+ * Note: pettingLevel is parsed from both 'pettingLevel' and 'petting_level' tags
+ * for backwards compatibility with legacy profiles.
  */
 export function parseBlobbonautEvent(event: NostrEvent): BlobbonautProfile | undefined {
   if (!isValidBlobbonautEvent(event)) return undefined;
   
   const tags = event.tags;
   const d = getTagValue(tags, 'd')!;
+  
+  // Parse pettingLevel from either camelCase or snake_case tag
+  const pettingLevelValue = parseNumericTag(tags, 'pettingLevel') 
+    ?? parseNumericTag(tags, 'petting_level') 
+    ?? 0;
   
   return {
     event,
@@ -854,6 +864,7 @@ export function parseBlobbonautEvent(event: NostrEvent): BlobbonautProfile | und
     name: getTagValue(tags, 'name'),
     has: getTagValues(tags, 'has'),
     coins: parseNumericTag(tags, 'coins') ?? 0,
+    pettingLevel: pettingLevelValue,
     storage: parseStorageTags(tags),
     allTags: tags,
   };
@@ -863,6 +874,7 @@ export function parseBlobbonautEvent(event: NostrEvent): BlobbonautProfile | und
 
 /**
  * Build tags for a new Blobbonaut Profile (Kind 31125).
+ * Includes pettingLevel: 0 by default.
  */
 export function buildBlobbonautTags(pubkey: string): string[][] {
   return [
@@ -871,6 +883,7 @@ export function buildBlobbonautTags(pubkey: string): string[][] {
     ['t', BLOBBI_TOPIC_TAG],
     ['client', BLOBBI_CLIENT_TAG],
     ['onboarding_done', 'false'],
+    ['pettingLevel', '0'],
   ];
 }
 
@@ -1115,6 +1128,34 @@ export function updateBlobbonautTags(
   updates: Record<string, string | string[]>
 ): string[][] {
   return mergeBlobbonautTagsForRepublish(existingTags, updates);
+}
+
+// ─── Profile Normalization ────────────────────────────────────────────────────
+
+/**
+ * Check if a Blobbonaut profile is missing the pettingLevel tag.
+ * This helps determine if normalization is needed.
+ */
+export function profileNeedsPettingLevelNormalization(profile: BlobbonautProfile): boolean {
+  // Check if either pettingLevel or petting_level tag exists in allTags
+  const hasPettingLevelTag = profile.allTags.some(
+    ([name]) => name === 'pettingLevel' || name === 'petting_level'
+  );
+  return !hasPettingLevelTag;
+}
+
+/**
+ * Build updated tags for normalizing a profile to include pettingLevel.
+ * Preserves all existing tags and adds pettingLevel: 0 if missing.
+ */
+export function buildNormalizedProfileTags(profile: BlobbonautProfile): string[][] {
+  if (!profileNeedsPettingLevelNormalization(profile)) {
+    return profile.allTags;
+  }
+  
+  return updateBlobbonautTags(profile.allTags, {
+    pettingLevel: '0',
+  });
 }
 
 // ─── Query Helpers ────────────────────────────────────────────────────────────
