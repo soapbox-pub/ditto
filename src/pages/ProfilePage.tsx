@@ -166,11 +166,6 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     close();
   };
 
-  const handleViewOnNjump = () => {
-    window.open(`https://njump.me/${npubEncoded}`, '_blank', 'noopener,noreferrer');
-    close();
-  };
-
   const handleMuteUser = () => {
     const muteItem = { type: 'pubkey' as const, value: pubkey };
     const mutation = userMuted ? removeMute : addMute;
@@ -211,11 +206,6 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             icon={<ClipboardCopy className="size-5" />}
             label="Copy profile link"
             onClick={handleCopyLink}
-          />
-          <MenuRow
-            icon={<ExternalLink className="size-5" />}
-            label="View on njump.me"
-            onClick={handleViewOnNjump}
           />
           <MenuRow
             icon={<ListPlus className="size-5" />}
