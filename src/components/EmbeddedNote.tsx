@@ -1,7 +1,7 @@
 import { type ReactNode, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
-import { Image, Film, Music, ExternalLink, Blocks } from 'lucide-react';
+import { Image, Film, Music, ExternalLink, Blocks, MessageSquareOff } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -88,7 +88,7 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
   }
 
   if (isError || !event) {
-    return null;
+    return <EmbeddedNoteTombstone className={className} />;
   }
 
   // For follow packs / lists, render the same rich NoteCard used in feeds
@@ -345,6 +345,23 @@ function MaybeProfileHoverCard({ pubkey, disabled, children }: { pubkey: string;
     <ProfileHoverCard pubkey={pubkey} asChild>
       {children}
     </ProfileHoverCard>
+  );
+}
+
+/** Tombstone shown when a quoted note could not be loaded. */
+function EmbeddedNoteTombstone({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'rounded-2xl border border-dashed border-border overflow-hidden',
+        className,
+      )}
+    >
+      <div className="px-3.5 py-4 flex items-center gap-2 text-muted-foreground">
+        <MessageSquareOff className="size-4 shrink-0" />
+        <span className="text-sm">This post could not be loaded</span>
+      </div>
+    </div>
   );
 }
 

@@ -6,6 +6,7 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { NoteCard } from '@/components/NoteCard';
+import { MessageSquareOff } from 'lucide-react';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -67,7 +68,7 @@ export function EmbeddedNaddr({ addr, className }: EmbeddedNaddrProps) {
   }
 
   if (isError || !event) {
-    return null;
+    return <EmbeddedNaddrTombstone className={className} />;
   }
 
   // For follow packs / starter packs, render the same NoteCard used in feeds (without actions)
@@ -194,6 +195,23 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
           </p>
         )}
 
+      </div>
+    </div>
+  );
+}
+
+/** Tombstone shown when an addressable event could not be loaded. */
+function EmbeddedNaddrTombstone({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'rounded-2xl border border-dashed border-border overflow-hidden',
+        className,
+      )}
+    >
+      <div className="px-3.5 py-4 flex items-center gap-2 text-muted-foreground">
+        <MessageSquareOff className="size-4 shrink-0" />
+        <span className="text-sm">This post could not be loaded</span>
       </div>
     </div>
   );
