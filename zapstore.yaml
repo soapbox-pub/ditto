@@ -1,0 +1,26 @@
+repository: https://gitlab.com/soapbox-pub/ditto
+
+name: Ditto
+summary: A Nostr client for Android
+
+tags:
+  - nostr
+  - social
+  - messaging
+
+icon: ./public/logo.png
+
+metadata_sources:
+  - gitlab
+
+supported_nips:
+  - "01"
+  - "05"
+  - "07"
+  - "10"
+  - "19"
+  - "25"
+  - "46"
+  - "50"
+  - "57"
+  - "65"
