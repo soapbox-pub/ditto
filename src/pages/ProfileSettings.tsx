@@ -132,15 +132,6 @@ const FIELD_PRESETS: FieldPreset[] = [
     valuePlaceholder: 'you@example.com',
   },
   {
-    id: 'link',
-    label: 'Link',
-    description: 'Link to any website or profile',
-    icon: Link2,
-    defaultLabel: '',
-    type: 'text',
-    valuePlaceholder: 'https://...',
-  },
-  {
     id: 'wallet',
     label: 'Wallet',
     description: 'Cryptocurrency wallet address',
@@ -148,6 +139,15 @@ const FIELD_PRESETS: FieldPreset[] = [
     defaultLabel: '$BTC',
     type: 'wallet',
     valuePlaceholder: 'Address',
+  },
+  {
+    id: 'link',
+    label: 'Link',
+    description: 'Link to any website or profile',
+    icon: Link2,
+    defaultLabel: '',
+    type: 'text',
+    valuePlaceholder: 'https://...',
   },
 ];
 
@@ -876,27 +876,19 @@ export function ProfileSettings() {
                 <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
                   <span className="text-sm font-medium flex items-center gap-1.5">
                     <Eye className="size-3.5" />
-                    Sidebar Preview
+                    Profile Fields Preview
                   </span>
                   <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-3">
-                <div className="rounded-xl border bg-card/50 overflow-hidden p-3">
-                  {previewFields.length > 0 ? (
-                    <div className="space-y-4">
-                      {previewFields.map((field, i) => (
-                        <div key={i}>
-                          <div className="font-semibold text-sm">{field.label}</div>
-                          <p className="text-sm text-muted-foreground truncate">{field.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Add fields above to see a preview here.
-                    </p>
-                  )}
+                <div className="rounded-xl border bg-card/50 overflow-hidden">
+                  <ProfileRightSidebar
+                    fields={previewFields}
+                    mediaEvents={mediaEvents}
+                    mediaLoading={mediaPending}
+                    className="relative w-full flex flex-col h-auto max-h-[60vh] overflow-y-auto"
+                  />
                 </div>
               </CollapsibleContent>
             </Collapsible>

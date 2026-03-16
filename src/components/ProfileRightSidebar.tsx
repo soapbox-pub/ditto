@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -67,6 +68,8 @@ interface ProfileRightSidebarProps {
   mediaLoading?: boolean;
   /** Called when a media tile is clicked. If provided, tiles don't navigate. */
   onMediaClick?: (url: string) => void;
+  /** Override the root element's className (e.g. to show on mobile). */
+  className?: string;
 }
 
 interface MediaItem {
@@ -458,7 +461,7 @@ function sidebarJustifiedLayout(items: MediaItem[]): { items: MediaItem[]; heigh
   return rows;
 }
 
-export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp, onMediaClick }: ProfileRightSidebarProps) {
+export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp, onMediaClick, className }: ProfileRightSidebarProps) {
   const { config } = useAppContext();
   const media = useMemo(
     () => extractMedia(mediaEvents ?? [], config.contentWarningPolicy),
@@ -469,7 +472,7 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
   const sidebarRows = useMemo(() => sidebarJustifiedLayout(media), [media]);
 
   return (
-    <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3">
+    <aside className={cn("w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3", className)}>
       {/* Media Section */}
       <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <h2 className="text-xl font-bold mb-3">Media</h2>
