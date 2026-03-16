@@ -22,16 +22,20 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+/**
+ * Audio source for the music player
+ */
+export type AudioSource = 
+  | { type: 'builtin'; track: BuiltInTrack; url: string }
+  | { type: 'uploaded'; file: File; url: string };
+
 interface PlayMusicModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
+  /** Called with the selected audio source when user confirms */
+  onConfirm: (source: AudioSource) => void;
   isLoading: boolean;
 }
-
-type AudioSource = 
-  | { type: 'builtin'; track: BuiltInTrack }
-  | { type: 'uploaded'; file: File; url: string };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -88,7 +92,7 @@ export function PlayMusicModal({
       URL.revokeObjectURL(selectedSource.url);
     }
     
-    setSelectedSource({ type: 'builtin', track });
+    setSelectedSource({ type: 'builtin', track, url: track.path });
     setBuiltInError(null);
   }, [selectedSource]);
   
@@ -180,13 +184,15 @@ export function PlayMusicModal({
   
   // Handle confirm
   const handleConfirm = useCallback(() => {
+    if (!selectedSource) return;
+    
     // Stop playback
     if (audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
     }
-    onConfirm();
-  }, [onConfirm]);
+    onConfirm(selectedSource);
+  }, [selectedSource, onConfirm]);
   
   // Handle close
   const handleClose = useCallback((isOpen: boolean) => {
