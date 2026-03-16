@@ -1,12 +1,33 @@
 repository: https://gitlab.com/soapbox-pub/ditto
 
 name: Ditto
-summary: A Nostr client for Android
+
+summary: Your social media, your way
+
+description: |
+  Ditto is an open-source, decentralized social media client built on the Nostr
+  protocol. Designed for people who want to have fun online without feeding the
+  Big Tech machine.
+
+  Features:
+  - Theming — 9 built-in presets, full CSS token customization, shareable themes
+  - Infinite content types — notes, articles, short videos (Vines), live streams,
+    polls, follow packs, color moments, magic decks, geocaching, Webxdc mini-apps
+  - Lightning payments — zap posts and profiles via NWC or WebLN
+  - Private messaging — end-to-end encrypted DMs (NIP-04 and NIP-17)
+  - Comments on anything — posts, URLs, profiles, hashtags, books, and more
+  - Deep linking — open ditto.pub links directly in the app
 
 tags:
   - nostr
   - social
   - messaging
+  - lightning
+  - decentralized
+
+license: AGPL-3.0
+
+website: https://ditto.pub
 
 icon: ./public/logo.png
 
@@ -14,13 +35,46 @@ metadata_sources:
   - gitlab
 
 supported_nips:
-  - "01"
-  - "05"
-  - "07"
-  - "10"
-  - "19"
-  - "25"
-  - "46"
-  - "50"
-  - "57"
-  - "65"
+  - "01"  # Basic protocol — events, filters, subscriptions
+  - "02"  # Follow list (kind 3)
+  - "04"  # Encrypted direct messages (kind 4)
+  - "05"  # DNS-based identifiers (NIP-05 verification badges)
+  - "07"  # Browser extension signing (window.nostr)
+  - "09"  # Event deletion (kind 5)
+  - "10"  # Text note threading (reply/root e-tag conventions)
+  - "11"  # Relay information document
+  - "17"  # Private direct messages (kind 14/15/1059 gift wrap)
+  - "18"  # Reposts (kind 6 / kind 16 generic repost)
+  - "19"  # Bech32 identifiers (npub, note, nevent, naddr, nprofile)
+  - "22"  # Comments on any event or external content (kind 1111)
+  - "23"  # Long-form content / articles (kind 30023)
+  - "25"  # Reactions (kind 7)
+  - "27"  # Text note references (nostr: URI mentions)
+  - "31"  # Alt tag for non-standard event kinds
+  - "32"  # Labeling (kind 1985, used for trending and content warnings)
+  - "34"  # Git repositories (kind 30617, patches, pull requests)
+  - "36"  # Sensitive content (content-warning tag)
+  - "38"  # User statuses (kind 30315)
+  - "40"  # Expiration timestamp
+  - "44"  # Versioned encryption (NIP-44, used for DMs and encrypted settings)
+  - "46"  # Nostr remote signing / bunker
+  - "47"  # Nostr Wallet Connect (NWC) for Lightning payments
+  - "50"  # Search (used for profiles, trending, hashtags, media filter)
+  - "51"  # Lists — mute (10000), pins (10001), bookmarks (10003), interests (10015), emoji (10030), follow sets (30000)
+  - "52"  # Calendar events (kind 31922/31923) and RSVPs (kind 31925)
+  - "53"  # Live activities and live chat (kind 30311/1311)
+  - "55"  # Android signing via Amber
+  - "56"  # Reporting (kind 1984)
+  - "57"  # Lightning zaps (kind 9734/9735)
+  - "58"  # Badges (kind 30009/8/30008)
+  - "59"  # Gift wrap (kind 1059, used inside NIP-17)
+  - "65"  # Relay list metadata (kind 10002)
+  - "68"  # Photos (kind 20)
+  - "71"  # Videos (kind 21/22)
+  - "72"  # Moderated communities (kind 34550)
+  - "78"  # Application-specific data (kind 30078, encrypted settings)
+  - "85"  # Trusted assertions — user/event stats (kind 30382/30383/30384)
+  - "89"  # Application handler metadata (client tag on published events)
+  - "92"  # Inline file metadata (imeta tag)
+  - "94"  # File metadata (kind 1063)
+  - "98"  # HTTP authentication (kind 27235, used for AI API calls)
