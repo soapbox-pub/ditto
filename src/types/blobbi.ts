@@ -79,7 +79,6 @@ export interface BlobbiStats {
 export interface BlobbiEggData {
   incubationTime?: number;
   incubationProgress?: number;
-  eggTemperature?: number;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type

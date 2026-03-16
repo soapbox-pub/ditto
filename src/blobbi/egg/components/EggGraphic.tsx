@@ -191,10 +191,10 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
     }
   };
 
-  // Get actual warmth from blobbi or use prop
   // Check if this is a divine egg
   const isDivine = blobbi ? isDivineEgg(blobbi) : false;
-  const actualWarmth = blobbi?.eggTemperature ?? warmth;
+  // Use warmth prop directly (eggTemperature is deprecated)
+  const actualWarmth = warmth;
 
   // Get base color from blobbi or use warmth-based fallback
   const getBaseColor = () => {

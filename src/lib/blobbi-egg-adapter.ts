@@ -82,21 +82,6 @@ const DEFAULT_THEME_VARIANT: EggThemeVariant = 'default';
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
 /**
- * Extract egg temperature from companion tags.
- * Returns undefined if not present or invalid.
- */
-function extractEggTemperature(allTags: string[][]): number | undefined {
-  const tempValue = getTagValue(allTags, 'egg_temperature');
-  if (!tempValue) return undefined;
-  
-  const temp = parseFloat(tempValue);
-  if (isNaN(temp)) return undefined;
-  
-  // Clamp to valid range
-  return Math.max(0, Math.min(100, temp));
-}
-
-/**
  * Extract crossover app identifier from companion tags.
  */
 function extractCrossoverApp(allTags: string[][]): string | undefined {
@@ -144,7 +129,6 @@ export function toEggGraphicVisualBlobbi(
     tags: allTags,
     
     // Extracted convenience values
-    eggTemperature: extractEggTemperature(allTags),
     crossoverApp: extractCrossoverApp(allTags),
     
     // NOTE: We intentionally do NOT pass companion.name as title here.
