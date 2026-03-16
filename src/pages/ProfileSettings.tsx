@@ -97,13 +97,13 @@ const FIELD_PRESETS: FieldPreset[] = [
   {
     id: 'music',
     label: 'Music',
-    description: 'Add a song or audio clip',
+    description: 'Upload a song or audio clip',
     icon: Music,
     defaultLabel: '\u{1F3B6}',
     type: 'media',
     accept: 'audio/*',
     formatHint: 'MP3, OGG, WAV, FLAC, AAC, M4A, Opus',
-    valuePlaceholder: 'Audio URL',
+    valuePlaceholder: 'Upload audio or paste direct file link',
   },
   {
     id: 'photo',
@@ -114,7 +114,7 @@ const FIELD_PRESETS: FieldPreset[] = [
     type: 'media',
     accept: 'image/*',
     formatHint: 'JPG, PNG, GIF, WebP, SVG, AVIF',
-    valuePlaceholder: 'Image URL',
+    valuePlaceholder: 'Upload image or paste direct file link',
   },
   {
     id: 'video',
@@ -125,7 +125,7 @@ const FIELD_PRESETS: FieldPreset[] = [
     type: 'media',
     accept: 'video/*',
     formatHint: 'MP4, WebM, MOV',
-    valuePlaceholder: 'Video URL',
+    valuePlaceholder: 'Upload video or paste direct file link',
   },
   {
     id: 'email',
@@ -204,6 +204,8 @@ const formSchema = n.metadata().extend({
     type: z.enum(['text', 'wallet', 'media']),
     /** Client-side only — file accept filter for the file picker (not persisted). */
     accept: z.string().optional(),
+    /** Client-side only — placeholder text for the value input (not persisted). */
+    placeholder: z.string().optional(),
   })).optional(),
   shape: z.string().optional(),
 });
@@ -224,6 +226,7 @@ interface SortableFieldRowProps {
   index: number;
   type: 'text' | 'wallet' | 'media';
   accept?: string;
+  valuePlaceholder?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control: any;
   onRemove: () => void;
@@ -231,7 +234,7 @@ interface SortableFieldRowProps {
   onTickerChange: (ticker: string) => void;
 }
 
-function SortableFieldRow({ id, index, type, accept, control, onRemove, onMediaPick, onTickerChange }: SortableFieldRowProps) {
+function SortableFieldRow({ id, index, type, accept, valuePlaceholder, control, onRemove, onMediaPick, onTickerChange }: SortableFieldRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
@@ -300,7 +303,7 @@ function SortableFieldRow({ id, index, type, accept, control, onRemove, onMediaP
             <FormItem>
               <div className="flex gap-1.5">
                 <FormControl>
-                  <Input placeholder="URL" {...field} className="h-9 flex-1 min-w-0" readOnly={false} />
+                  <Input placeholder={valuePlaceholder || 'Upload file or paste direct file link'} {...field} className="h-9 flex-1 min-w-0" readOnly={false} />
                 </FormControl>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -316,9 +319,9 @@ function SortableFieldRow({ id, index, type, accept, control, onRemove, onMediaP
                   </TooltipTrigger>
                   <TooltipContent side="top" className="text-xs max-w-52">
                     {formatHint ? (
-                      <span>Upload file<br /><span className="text-muted-foreground">{formatHint}</span></span>
+                      <span>Choose file to upload<br /><span className="text-muted-foreground">{formatHint}</span></span>
                     ) : (
-                      <span>Upload a media file</span>
+                      <span>Choose a media file to upload</span>
                     )}
                   </TooltipContent>
                 </Tooltip>
@@ -564,6 +567,7 @@ export function ProfileSettings() {
       value: '',
       type: preset.type,
       accept: preset.accept,
+      placeholder: preset.valuePlaceholder,
     });
   };
 
@@ -732,6 +736,7 @@ export function ProfileSettings() {
                       index={index}
                       type={form.watch(`fields.${index}.type`) ?? 'text'}
                       accept={form.watch(`fields.${index}.accept`)}
+                      valuePlaceholder={form.watch(`fields.${index}.placeholder`)}
                       control={form.control}
                       onRemove={() => remove(index)}
                       onMediaPick={() => handleMediaPick(index)}
