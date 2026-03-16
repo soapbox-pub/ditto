@@ -123,6 +123,13 @@ build-apk:
     - mkdir -p artifacts
     - cp android/app/build/outputs/apk/release/app-release.apk "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
     - ls -lh "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
+
+    # Upload to Generic Packages registry for a stable public download URL
+    # URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${VERSION_NAME}/Ditto-${CI_COMMIT_TAG}.apk
+    - |
+      curl --fail --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+        --upload-file "artifacts/Ditto-${CI_COMMIT_TAG}.apk" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${VERSION_NAME}/Ditto-${CI_COMMIT_TAG}.apk"
   artifacts:
     paths:
       - "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
@@ -146,6 +153,11 @@ release:
     tag_name: $CI_COMMIT_TAG
     name: $CI_COMMIT_TAG
     description: "Ditto $CI_COMMIT_TAG"
+    assets:
+      links:
+        - name: "Ditto-${CI_COMMIT_TAG}.apk"
+          url: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${CI_COMMIT_TAG#v}/Ditto-${CI_COMMIT_TAG}.apk"
+          link_type: package
 
 publish-zapstore:
   stage: publish
