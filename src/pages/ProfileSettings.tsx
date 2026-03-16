@@ -460,7 +460,7 @@ export function ProfileSettings() {
       )}
 
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md px-4 pt-4 pb-3">
+      <div className="sticky top-mobile-bar sidebar:top-0 z-10 bg-background/80 backdrop-blur-md px-4 pt-4 pb-3">
         <div className="flex items-center gap-3">
           <Link to="/settings" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors shrink-0">
             <ArrowLeft className="size-5" />
