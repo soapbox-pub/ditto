@@ -29,6 +29,10 @@ interface InlineSingCardProps {
   onConfirm: () => Promise<void>;
   /** Called when user closes the sing card */
   onClose: () => void;
+  /** Called when recording starts (for Blobbi reaction) */
+  onRecordingStart?: () => void;
+  /** Called when recording stops (for Blobbi reaction) */
+  onRecordingStop?: () => void;
   /** Whether publishing is in progress */
   isPublishing: boolean;
 }
@@ -62,6 +66,8 @@ function getSupportedAudioMimeType(): string | undefined {
 export function InlineSingCard({
   onConfirm,
   onClose,
+  onRecordingStart,
+  onRecordingStop,
   isPublishing,
 }: InlineSingCardProps) {
   // Recording state
@@ -218,6 +224,9 @@ export function InlineSingCard({
       setRecordingState('recording');
       setRecordingDuration(0);
       
+      // Notify parent that recording started (for Blobbi reaction)
+      onRecordingStart?.();
+      
       timerRef.current = setInterval(() => {
         setRecordingDuration(prev => prev + 1);
       }, 1000);
@@ -236,7 +245,7 @@ export function InlineSingCard({
       }
       setRecordingState('error');
     }
-  }, []);
+  }, [onRecordingStart]);
   
   // Stop recording
   const stopRecording = useCallback(() => {
@@ -248,7 +257,10 @@ export function InlineSingCard({
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
-  }, []);
+    
+    // Notify parent that recording stopped (for Blobbi reaction)
+    onRecordingStop?.();
+  }, [onRecordingStop]);
   
   // Handle preview playback
   const handlePreview = useCallback(() => {
@@ -384,7 +396,7 @@ export function InlineSingCard({
                 className="rounded-full px-6 bg-purple-500 hover:bg-purple-600"
               >
                 <Mic className="size-4 mr-2" />
-                Record
+                Sing
               </Button>
             )}
             
