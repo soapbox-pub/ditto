@@ -131,12 +131,6 @@ export function QuickReactMenu({
         tags,
       },
       {
-        onSuccess: () => {
-          setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
-            queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
-          }, 3000);
-        },
         onError: () => {
           setSelectedEmoji(null);
           if (prevStats) {

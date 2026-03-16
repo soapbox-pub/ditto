@@ -80,13 +80,6 @@ export function ReactionButton({
     publishEvent(
       { kind: 5, content: '', tags: [['e', reactionEventId], ['k', '7']] },
       {
-        onSuccess: () => {
-          setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
-            queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
-            queryClient.invalidateQueries({ queryKey: ['user-reaction', eventId] });
-          }, 3000);
-        },
         onError: () => {
           // Rollback
           queryClient.setQueryData(['user-reaction', eventId], prevReaction);
@@ -141,16 +134,9 @@ export function ReactionButton({
               handleUnreact(e);
               return;
             }
-            if (justClosedRef.current) return;
-            setMenuOpen((prev) => !prev);
-          }}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            if (!user) return;
-            if (hasReacted) return;
             setMenuOpen(false);
             const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
-            queryClient.setQueryData(['user-reaction', eventId], '❤️');
+            queryClient.setQueryData(['user-reaction', eventId], { content: '❤️' });
             if (prevStats) {
               queryClient.setQueryData<EventStats>(['event-stats', eventId], {
                 ...prevStats,
@@ -164,13 +150,6 @@ export function ReactionButton({
                 tags: [['e', eventId], ['p', eventPubkey], ['k', String(eventKind)]],
               },
               {
-                onSuccess: () => {
-                  setTimeout(() => {
-                    queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
-                    queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
-                    queryClient.invalidateQueries({ queryKey: ['user-reaction', eventId] });
-                  }, 3000);
-                },
                 onError: () => {
                   queryClient.setQueryData(['user-reaction', eventId], null);
                   if (prevStats) {
