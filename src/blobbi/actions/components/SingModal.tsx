@@ -1,7 +1,7 @@
 // src/blobbi/actions/components/SingModal.tsx
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Mic, MicOff, Play, Pause, Square, Loader2, AlertCircle, RotateCcw } from 'lucide-react';
+import { Mic, MicOff, Play, Pause, Square, Loader2, AlertCircle, RotateCcw, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 
 import {
   Dialog,
@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+import { getRandomLyrics, type LyricsEntry } from '../lib/blobbi-random-lyrics';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,12 +37,14 @@ export function SingModal({
   const [error, setError] = useState<string | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [currentLyrics, setCurrentLyrics] = useState<LyricsEntry | null>(null);
+  const [showLyrics, setShowLyrics] = useState(false);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -96,7 +100,16 @@ export function SingModal({
     setRecordingDuration(0);
     setAudioUrl(null);
     chunksRef.current = [];
+    currentPlaybackUrlRef.current = null;
+    // Keep lyrics when re-recording so user can sing the same song
   }, [cleanup]);
+  
+  // Handle getting random lyrics
+  const handleRandomLyrics = useCallback(() => {
+    const lyrics = getRandomLyrics();
+    setCurrentLyrics(lyrics);
+    setShowLyrics(true);
+  }, []);
   
   // Check if browser supports media recording
   const checkRecordingSupport = (): boolean => {
@@ -203,6 +216,9 @@ export function SingModal({
     }
   }, []);
   
+  // Track the current audio URL to detect changes
+  const currentPlaybackUrlRef = useRef<string | null>(null);
+  
   // Play/pause preview
   const togglePlayback = useCallback(() => {
     if (!audioUrl) return;
@@ -213,11 +229,26 @@ export function SingModal({
       }
       setRecordingState('recorded');
     } else {
-      if (!audioRef.current) {
+      // Check if we need to create a new Audio instance (URL changed or first time)
+      const needsNewAudio = !audioRef.current || currentPlaybackUrlRef.current !== audioUrl;
+      
+      if (needsNewAudio) {
+        // Cleanup old audio if exists
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.onended = null;
+        }
+        
+        // Create new Audio instance with the recorded audio URL
         audioRef.current = new Audio(audioUrl);
+        currentPlaybackUrlRef.current = audioUrl;
         audioRef.current.onended = () => setRecordingState('recorded');
       }
-      audioRef.current.play();
+      
+      audioRef.current?.play().catch((err) => {
+        console.error('Failed to play recording:', err);
+        setRecordingState('recorded');
+      });
       setRecordingState('playing');
     }
   }, [audioUrl, recordingState]);
@@ -351,6 +382,55 @@ export function SingModal({
                 </div>
               </div>
             )}
+            
+            {/* Lyrics Helper */}
+            <div className="w-full">
+              {!currentLyrics ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRandomLyrics}
+                  className="w-full gap-2"
+                >
+                  <Sparkles className="size-4" />
+                  Need lyrics? Get random lyrics
+                </Button>
+              ) : (
+                <div className="rounded-lg border bg-card/60">
+                  <button
+                    type="button"
+                    onClick={() => setShowLyrics(!showLyrics)}
+                    className="w-full flex items-center justify-between p-3 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="size-4 text-purple-500" />
+                      <span className="font-medium text-sm">{currentLyrics.title}</span>
+                    </div>
+                    {showLyrics ? (
+                      <ChevronUp className="size-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="size-4 text-muted-foreground" />
+                    )}
+                  </button>
+                  {showLyrics && (
+                    <div className="px-3 pb-3 pt-0">
+                      <div className="p-3 rounded-md bg-muted/50 text-sm leading-relaxed whitespace-pre-line">
+                        {currentLyrics.lines.join('\n')}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRandomLyrics}
+                        className="w-full mt-2 gap-2 text-muted-foreground"
+                      >
+                        <RotateCcw className="size-3" />
+                        Get different lyrics
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             
             {/* Recording Controls */}
             <div className="flex items-center gap-3">

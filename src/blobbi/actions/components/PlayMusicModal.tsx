@@ -70,6 +70,7 @@ export function PlayMusicModal({
       setIsPlaying(false);
       setUploadError(null);
       setBuiltInError(null);
+      currentAudioUrlRef.current = null;
     }
   }, [open]);
   
@@ -125,6 +126,9 @@ export function PlayMusicModal({
     setUploadError(null);
   }, [selectedSource]);
   
+  // Track the current audio source URL to detect changes
+  const currentAudioUrlRef = useRef<string | null>(null);
+  
   // Handle play/pause preview
   const handleTogglePlay = useCallback(() => {
     if (!selectedSource) return;
@@ -133,8 +137,21 @@ export function PlayMusicModal({
       ? selectedSource.track.path 
       : selectedSource.url;
     
-    if (!audioRef.current) {
+    // Check if we need to create a new Audio instance (source changed or first time)
+    const needsNewAudio = !audioRef.current || currentAudioUrlRef.current !== audioUrl;
+    
+    if (needsNewAudio) {
+      // Stop and cleanup old audio if exists
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.onended = null;
+        audioRef.current.onerror = null;
+      }
+      
+      // Create new Audio instance with the correct source
       audioRef.current = new Audio(audioUrl);
+      currentAudioUrlRef.current = audioUrl;
+      
       audioRef.current.onended = () => setIsPlaying(false);
       audioRef.current.onerror = () => {
         if (selectedSource.type === 'builtin') {
@@ -144,11 +161,13 @@ export function PlayMusicModal({
       };
     }
     
-    if (isPlaying) {
-      audioRef.current.pause();
+    if (isPlaying && !needsNewAudio) {
+      // Pause current playback
+      audioRef.current?.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current.play().catch(() => {
+      // Start playback (either new source or resuming)
+      audioRef.current?.play().catch(() => {
         if (selectedSource.type === 'builtin') {
           setBuiltInError('This track is not available yet. Try uploading your own music!');
         }

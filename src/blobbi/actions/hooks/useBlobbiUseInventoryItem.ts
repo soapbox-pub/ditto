@@ -156,12 +156,13 @@ export function useBlobbiUseInventoryItem({
       // ─── Apply Accumulated Decay First ───
       // Per decay-system.md: Always apply accumulated decay from persisted state
       // before any user interaction updates stats.
+      // CRITICAL: Use canonical.companion for decay calculations, not the stale outer companion
       const now = Math.floor(Date.now() / 1000);
       const decayResult = applyBlobbiDecay({
-        stage: companion.stage,
-        state: companion.state,
-        stats: companion.stats,
-        lastDecayAt: companion.lastDecayAt,
+        stage: canonical.companion.stage,
+        state: canonical.companion.state,
+        stats: canonical.companion.stats,
+        lastDecayAt: canonical.companion.lastDecayAt,
         now,
       });
       
@@ -169,10 +170,12 @@ export function useBlobbiUseInventoryItem({
       const statsAfterDecay = decayResult.stats;
       
       // ─── Apply Item Effects ───
+      // Use canonical companion stage for egg checks
+      const isEggCompanion = canonical.companion.stage === 'egg';
       const statsUpdate: Record<string, string> = {};
       const statsChanged: Record<string, number> = {};
 
-      if (isEgg && action === 'medicine') {
+      if (isEggCompanion && action === 'medicine') {
         // Egg medicine handling:
         // Eggs use the 3-stat model: health, hygiene, happiness
         // Medicine with health effect directly affects the egg's health stat
@@ -190,7 +193,7 @@ export function useBlobbiUseInventoryItem({
         // hunger and energy stay at 100 for eggs
         statsUpdate.hunger = '100';
         statsUpdate.energy = '100';
-      } else if (isEgg && action === 'clean') {
+      } else if (isEggCompanion && action === 'clean') {
         // Egg clean/hygiene handling:
         // Hygiene items affect the egg's hygiene stat
         // Some hygiene items also give happiness (e.g., bubble bath)

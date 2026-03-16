@@ -116,7 +116,7 @@ export function BlobbiActionsModal({
               <p className="font-medium">Medicine</p>
               <p className="text-xs text-muted-foreground">
                 {isEgg 
-                  ? 'Strengthen your egg\'s shell' 
+                  ? 'Keep your egg healthy' 
                   : 'Heal your Blobbi'}
               </p>
             </div>

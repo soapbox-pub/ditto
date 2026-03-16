@@ -107,12 +107,13 @@ export function useBlobbiDirectAction({
       }
 
       // ─── Apply Accumulated Decay First ───
+      // CRITICAL: Use canonical.companion for decay calculations, not the stale outer companion
       const now = Math.floor(Date.now() / 1000);
       const decayResult = applyBlobbiDecay({
-        stage: companion.stage,
-        state: companion.state,
-        stats: companion.stats,
-        lastDecayAt: companion.lastDecayAt,
+        stage: canonical.companion.stage,
+        state: canonical.companion.state,
+        stats: canonical.companion.stats,
+        lastDecayAt: canonical.companion.lastDecayAt,
         now,
       });
       
@@ -123,7 +124,7 @@ export function useBlobbiDirectAction({
       const newHappiness = applyStat(statsAfterDecay.happiness, happinessDelta);
       
       // Build stats update
-      const isEgg = companion.stage === 'egg';
+      const isEgg = canonical.companion.stage === 'egg';
       const statsUpdate: Record<string, string> = {
         happiness: newHappiness.toString(),
         health: statsAfterDecay.health.toString(),
