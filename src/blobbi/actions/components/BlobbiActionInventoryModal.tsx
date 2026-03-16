@@ -19,6 +19,7 @@ import {
   filterInventoryByAction,
   previewStatChanges,
   previewMedicineForEgg,
+  previewCleanForEgg,
   canUseAction,
   getStageRestrictionMessage,
   ACTION_METADATA,
@@ -167,8 +168,9 @@ function BlobbiInventoryUseRow({
 }: BlobbiInventoryUseRowProps) {
   const isEgg = companion.stage === 'egg';
   const isMedicine = action === 'medicine';
+  const isClean = action === 'clean';
 
-  // Preview stat changes - handle egg-specific preview for medicine
+  // Preview stat changes - handle egg-specific preview for medicine and clean
   const { normalStatChanges, eggStatChanges } = useMemo(() => {
     if (isEgg && isMedicine) {
       // For eggs using medicine, show health preview
@@ -178,12 +180,22 @@ function BlobbiInventoryUseRow({
         eggStatChanges: previewMedicineForEgg(companion.stats.health, item.effect),
       };
     }
+    if (isEgg && isClean) {
+      // For eggs using hygiene items, show hygiene (and possibly happiness) preview
+      return {
+        normalStatChanges: [],
+        eggStatChanges: previewCleanForEgg(
+          { hygiene: companion.stats.hygiene, happiness: companion.stats.happiness },
+          item.effect
+        ),
+      };
+    }
     // Normal stats preview
     return {
       normalStatChanges: previewStatChanges(companion.stats, item.effect),
       eggStatChanges: [] as EggStatPreview[],
     };
-  }, [companion.stats, item.effect, isEgg, isMedicine]);
+  }, [companion.stats, item.effect, isEgg, isMedicine, isClean]);
 
   const hasChanges = normalStatChanges.length > 0 || eggStatChanges.length > 0;
 

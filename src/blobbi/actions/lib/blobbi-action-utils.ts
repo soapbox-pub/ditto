@@ -12,6 +12,17 @@ import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 export type InventoryAction = 'feed' | 'play' | 'clean' | 'medicine';
 
 /**
+ * Non-inventory actions that don't consume items
+ * These actions affect stats directly without using shop items.
+ */
+export type DirectAction = 'play_music' | 'sing';
+
+/**
+ * All Blobbi actions (inventory + direct)
+ */
+export type BlobbiAction = InventoryAction | DirectAction;
+
+/**
  * Mapping from action type to allowed item categories
  */
 export const ACTION_TO_ITEM_TYPE: Record<InventoryAction, ShopItemCategory> = {
@@ -22,7 +33,7 @@ export const ACTION_TO_ITEM_TYPE: Record<InventoryAction, ShopItemCategory> = {
 };
 
 /**
- * Action metadata for UI display
+ * Action metadata for UI display (inventory actions)
  */
 export const ACTION_METADATA: Record<InventoryAction, { label: string; description: string; icon: string }> = {
   feed: {
@@ -45,6 +56,30 @@ export const ACTION_METADATA: Record<InventoryAction, { label: string; descripti
     description: 'Heal your Blobbi',
     icon: '💊',
   },
+};
+
+/**
+ * Action metadata for direct actions (non-inventory)
+ */
+export const DIRECT_ACTION_METADATA: Record<DirectAction, { label: string; description: string; icon: string }> = {
+  play_music: {
+    label: 'Play Music',
+    description: 'Play music for your Blobbi',
+    icon: '🎵',
+  },
+  sing: {
+    label: 'Sing',
+    description: 'Sing to your Blobbi',
+    icon: '🎤',
+  },
+};
+
+/**
+ * Combined action metadata for all action types
+ */
+export const ALL_ACTION_METADATA: Record<BlobbiAction, { label: string; description: string; icon: string }> = {
+  ...ACTION_METADATA,
+  ...DIRECT_ACTION_METADATA,
 };
 
 // ─── Stat Helpers ─────────────────────────────────────────────────────────────
@@ -96,7 +131,7 @@ export function applyItemEffects(
   return newStats;
 }
 
-// ─── Egg-Specific Medicine Helpers ────────────────────────────────────────────
+// ─── Egg-Specific Item Helpers ────────────────────────────────────────────────
 
 /**
  * Check if a medicine item has any effect on an egg.
@@ -111,6 +146,15 @@ export function applyItemEffects(
 export function hasMedicineEffectForEgg(effects: ItemEffect | undefined): boolean {
   if (!effects) return false;
   return effects.health !== undefined && effects.health !== 0;
+}
+
+/**
+ * Check if a hygiene item has any effect on an egg.
+ * Hygiene items with a hygiene effect will directly affect the egg's hygiene stat.
+ */
+export function hasHygieneEffectForEgg(effects: ItemEffect | undefined): boolean {
+  if (!effects) return false;
+  return effects.hygiene !== undefined && effects.hygiene !== 0;
 }
 
 // ─── Inventory Helpers ────────────────────────────────────────────────────────
@@ -192,22 +236,65 @@ export function decrementStorageItem(
 export const GENERAL_ITEM_USABLE_STAGES = ['baby', 'adult'] as const;
 
 /**
- * Actions that are allowed for eggs
+ * Inventory actions that are allowed for eggs.
+ * Eggs can use: medicine (health), clean (hygiene)
  */
-export const EGG_ALLOWED_ACTIONS: InventoryAction[] = ['medicine'];
+export const EGG_ALLOWED_INVENTORY_ACTIONS: InventoryAction[] = ['medicine', 'clean'];
 
 /**
- * Check if a companion can use a specific action.
+ * Direct actions that are allowed for eggs.
+ * All direct actions work on eggs.
+ */
+export const EGG_ALLOWED_DIRECT_ACTIONS: DirectAction[] = ['play_music', 'sing'];
+
+/**
+ * Inventory actions visible in the egg UI.
+ * Note: feed, play, sleep are hidden in the UI for eggs but not hard-blocked.
+ */
+export const EGG_VISIBLE_INVENTORY_ACTIONS: InventoryAction[] = ['clean', 'medicine'];
+
+/**
+ * All actions visible in the egg UI.
+ */
+export const EGG_VISIBLE_ACTIONS: BlobbiAction[] = ['clean', 'medicine', 'play_music', 'sing'];
+
+/**
+ * @deprecated Use EGG_ALLOWED_INVENTORY_ACTIONS instead
+ */
+export const EGG_ALLOWED_ACTIONS = EGG_ALLOWED_INVENTORY_ACTIONS;
+
+/**
+ * Check if a companion can use a specific inventory action.
  * 
  * Rules:
- * - Eggs can only use medicine
- * - Baby and adult can use all actions (feed, play, clean, medicine)
+ * - Eggs can use medicine and clean
+ * - Baby and adult can use all inventory actions (feed, play, clean, medicine)
  */
 export function canUseAction(companion: BlobbiCompanion, action: InventoryAction): boolean {
   if (companion.stage === 'egg') {
-    return EGG_ALLOWED_ACTIONS.includes(action);
+    return EGG_ALLOWED_INVENTORY_ACTIONS.includes(action);
   }
   return true; // baby and adult can use all actions
+}
+
+/**
+ * Check if a companion can use a specific direct action.
+ * Direct actions (play_music, sing) are available for all stages.
+ */
+export function canUseDirectAction(_companion: BlobbiCompanion, _action: DirectAction): boolean {
+  // All stages can use direct actions
+  return true;
+}
+
+/**
+ * Check if an action should be visible in the UI for a given stage.
+ * This is for UI filtering only - some actions are hidden but not blocked.
+ */
+export function isActionVisibleForStage(stage: 'egg' | 'baby' | 'adult', action: BlobbiAction): boolean {
+  if (stage === 'egg') {
+    return EGG_VISIBLE_ACTIONS.includes(action);
+  }
+  return true; // baby and adult see all actions
 }
 
 /**
@@ -224,8 +311,8 @@ export function canUseInventoryItems(companion: BlobbiCompanion): boolean {
  */
 export function getStageRestrictionMessage(companion: BlobbiCompanion, action?: InventoryAction): string | null {
   if (companion.stage === 'egg') {
-    if (action && EGG_ALLOWED_ACTIONS.includes(action)) {
-      return null; // Medicine is allowed for eggs
+    if (action && EGG_ALLOWED_INVENTORY_ACTIONS.includes(action)) {
+      return null; // Medicine and clean are allowed for eggs
     }
     return 'Eggs cannot use this item. Wait for your Blobbi to hatch!';
   }
@@ -282,4 +369,36 @@ export function previewMedicineForEgg(
   const after = clampStat(current + delta);
 
   return [{ stat: 'health', current, after, delta }];
+}
+
+/**
+ * Preview clean (hygiene) effects for an egg.
+ * Hygiene items directly affect the egg's hygiene stat.
+ * May also include happiness bonus if the item has one.
+ */
+export function previewCleanForEgg(
+  currentStats: { hygiene?: number; happiness?: number },
+  effects: ItemEffect | undefined
+): EggStatPreview[] {
+  if (!effects) return [];
+  
+  const results: EggStatPreview[] = [];
+  
+  // Hygiene effect
+  if (effects.hygiene !== undefined && effects.hygiene !== 0) {
+    const current = currentStats.hygiene ?? 100;
+    const delta = effects.hygiene;
+    const after = clampStat(current + delta);
+    results.push({ stat: 'hygiene', current, after, delta });
+  }
+  
+  // Happiness bonus (some hygiene items like bubble bath give happiness)
+  if (effects.happiness !== undefined && effects.happiness !== 0) {
+    const current = currentStats.happiness ?? 100;
+    const delta = effects.happiness;
+    const after = clampStat(current + delta);
+    results.push({ stat: 'happiness', current, after, delta });
+  }
+  
+  return results;
 }
