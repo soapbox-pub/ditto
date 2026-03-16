@@ -191,6 +191,7 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     careStreak: 0,
     incubationTime: preview.incubationTime,
     startIncubation: undefined,
+    adultType: undefined, // Eggs don't have adult type
     
     // We need allTags for the adapter, but preview has no extra tags
     allTags: previewToEventTags(preview),

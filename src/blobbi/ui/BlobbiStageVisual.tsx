@@ -86,6 +86,8 @@ function toBlobbiForVisual(companion: BlobbiCompanion): Blobbi {
     // Metadata
     seed: companion.seed,
     tags: companion.allTags,
+    // Adult-specific data (for adult form resolution)
+    adult: companion.adultType ? { evolutionForm: companion.adultType } : undefined,
   };
 }
 
