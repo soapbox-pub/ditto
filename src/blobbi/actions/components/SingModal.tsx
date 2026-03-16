@@ -25,6 +25,39 @@ interface SingModalProps {
 
 type RecordingState = 'idle' | 'requesting' | 'recording' | 'recorded' | 'playing' | 'error';
 
+// ─── MIME Type Selection Helper ───────────────────────────────────────────────
+
+/**
+ * Ordered list of MIME types to try for audio recording.
+ * The first supported type will be used.
+ */
+const AUDIO_MIME_CANDIDATES = [
+  'audio/webm;codecs=opus',
+  'audio/webm',
+  'audio/mp4',
+  'audio/ogg;codecs=opus',
+  'audio/ogg',
+] as const;
+
+/**
+ * Get the first supported MIME type for MediaRecorder.
+ * Returns undefined if no explicit MIME type is supported (let browser decide).
+ */
+function getSupportedAudioMimeType(): string | undefined {
+  if (typeof MediaRecorder === 'undefined') {
+    return undefined;
+  }
+  
+  for (const mimeType of AUDIO_MIME_CANDIDATES) {
+    if (MediaRecorder.isTypeSupported(mimeType)) {
+      return mimeType;
+    }
+  }
+  
+  // No explicit MIME type supported, let browser use default
+  return undefined;
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function SingModal({
@@ -35,6 +68,7 @@ export function SingModal({
 }: SingModalProps) {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [currentLyrics, setCurrentLyrics] = useState<LyricsEntry | null>(null);
@@ -45,6 +79,8 @@ export function SingModal({
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Track the actual MIME type used by the recorder
+  const actualMimeTypeRef = useRef<string | undefined>(undefined);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -97,10 +133,12 @@ export function SingModal({
     cleanup();
     setRecordingState('idle');
     setError(null);
+    setPlaybackError(null);
     setRecordingDuration(0);
     setAudioUrl(null);
     chunksRef.current = [];
     currentPlaybackUrlRef.current = null;
+    actualMimeTypeRef.current = undefined;
     // Keep lyrics when re-recording so user can sing the same song
   }, [cleanup]);
   
@@ -130,6 +168,7 @@ export function SingModal({
     
     setRecordingState('requesting');
     setError(null);
+    setPlaybackError(null);
     
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -143,14 +182,20 @@ export function SingModal({
       streamRef.current = stream;
       chunksRef.current = [];
       
-      // Determine supported MIME type
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm') 
-        ? 'audio/webm' 
-        : MediaRecorder.isTypeSupported('audio/mp4')
-        ? 'audio/mp4'
-        : 'audio/ogg';
+      // Get the first supported MIME type using our helper
+      const supportedMimeType = getSupportedAudioMimeType();
       
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      // Create MediaRecorder with or without explicit MIME type
+      let mediaRecorder: MediaRecorder;
+      if (supportedMimeType) {
+        mediaRecorder = new MediaRecorder(stream, { mimeType: supportedMimeType });
+      } else {
+        // Let browser choose default MIME type
+        mediaRecorder = new MediaRecorder(stream);
+      }
+      
+      // Store the actual MIME type being used (may differ from what we requested)
+      actualMimeTypeRef.current = mediaRecorder.mimeType || supportedMimeType;
       mediaRecorderRef.current = mediaRecorder;
       
       mediaRecorder.ondataavailable = (event) => {
@@ -160,8 +205,9 @@ export function SingModal({
       };
       
       mediaRecorder.onstop = () => {
-        // Create blob from chunks
-        const blob = new Blob(chunksRef.current, { type: mimeType });
+        // Create blob from chunks using the actual MIME type used by the recorder
+        const blobMimeType = actualMimeTypeRef.current || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type: blobMimeType });
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
         setRecordingState('recorded');
@@ -223,6 +269,9 @@ export function SingModal({
   const togglePlayback = useCallback(() => {
     if (!audioUrl) return;
     
+    // Clear previous playback error when attempting to play
+    setPlaybackError(null);
+    
     if (recordingState === 'playing') {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -237,19 +286,37 @@ export function SingModal({
         if (audioRef.current) {
           audioRef.current.pause();
           audioRef.current.onended = null;
+          audioRef.current.onerror = null;
         }
         
         // Create new Audio instance with the recorded audio URL
         audioRef.current = new Audio(audioUrl);
         currentPlaybackUrlRef.current = audioUrl;
         audioRef.current.onended = () => setRecordingState('recorded');
+        
+        // Handle playback errors with user-visible message
+        audioRef.current.onerror = () => {
+          setPlaybackError('This browser could not play the recorded audio preview. Your recording was still created successfully.');
+          setRecordingState('recorded');
+        };
       }
       
-      audioRef.current?.play().catch((err) => {
-        console.error('Failed to play recording:', err);
-        setRecordingState('recorded');
-      });
-      setRecordingState('playing');
+      audioRef.current?.play()
+        .then(() => {
+          setRecordingState('playing');
+        })
+        .catch((err) => {
+          console.error('Failed to play recording:', err);
+          // Provide user-friendly error message
+          if (err.name === 'NotSupportedError') {
+            setPlaybackError('Recording was created, but playback preview is not supported in this browser.');
+          } else if (err.name === 'NotAllowedError') {
+            setPlaybackError('Playback was blocked. Try interacting with the page first.');
+          } else {
+            setPlaybackError('Could not play the recording preview. Your recording was still created successfully.');
+          }
+          setRecordingState('recorded');
+        });
     }
   }, [audioUrl, recordingState]);
   
@@ -379,6 +446,16 @@ export function SingModal({
                 <div className="flex items-start gap-2">
                   <AlertCircle className="size-4 text-destructive mt-0.5 shrink-0" />
                   <p className="text-sm text-destructive">{error}</p>
+                </div>
+              </div>
+            )}
+            
+            {/* Playback Error Message (non-fatal, recording still works) */}
+            {playbackError && (
+              <div className="w-full p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="size-4 text-amber-500 mt-0.5 shrink-0" />
+                  <p className="text-sm text-amber-600 dark:text-amber-400">{playbackError}</p>
                 </div>
               </div>
             )}
