@@ -460,20 +460,23 @@ export function ProfileSettings() {
       )}
 
       {/* Header */}
-      <div className="px-4 pt-4 pb-3">
-        <div className="flex items-center gap-4">
-          <Link to="/settings" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
+      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border px-4 pt-4 pb-3">
+        <div className="flex items-center gap-3">
+          <Link to="/settings" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors shrink-0">
             <ArrowLeft className="size-5" />
           </Link>
-          <div>
-            <h1 className="text-xl font-bold">Profile</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Your Nostr identity is portable — it goes wherever you go. Edit your display name, bio, and avatar.</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold leading-tight">Profile</h1>
+            <p className="text-sm text-muted-foreground truncate">Your Nostr identity is portable — it goes wherever you go.</p>
           </div>
+          <Button type="submit" form="profile-settings-form" size="sm" className="shrink-0 rounded-full font-bold px-5" disabled={busy}>
+            {busy ? <Loader2 className="size-3.5 animate-spin" /> : 'Save'}
+          </Button>
         </div>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl mx-auto px-4 pb-10 space-y-6">
+        <form id="profile-settings-form" onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl mx-auto px-4 pb-10 space-y-6">
 
           {/* Intro */}
           <div className="flex items-center gap-4 px-3 pt-2 pb-2">
@@ -613,12 +616,6 @@ export function ProfileSettings() {
               />
             </CollapsibleContent>
           </Collapsible>
-
-          {/* Save */}
-          <Button type="submit" className="w-full" disabled={busy}>
-            {busy && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Save Profile
-          </Button>
 
         </form>
       </Form>
