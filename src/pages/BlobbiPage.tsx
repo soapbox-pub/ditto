@@ -708,7 +708,8 @@ function BlobbiDashboard({
   const [inlineActivity, setInlineActivity] = useState<InlineActivityState>(createNoActivity());
   
   // Blobbi reaction state - drives visual reactions to activities
-  const [blobbiReaction, setBlobbiReaction] = useState<BlobbiReactionState>('idle');
+  // TODO: Pass _blobbiReaction to BlobbiStageVisual for animated reactions
+  const [_blobbiReaction, setBlobbiReaction] = useState<BlobbiReactionState>('idle');
   
   // Handle opening an inventory action modal
   const handleInventoryAction = (action: InventoryAction) => {
@@ -940,28 +941,32 @@ function BlobbiDashboard({
             />
           </div>
         )}
+        
+        {/* Inline Activity Area - inside padded container for proper spacing above bottom bar */}
+        {inlineActivity.type === 'music' && (
+          <div className="mt-6">
+            <InlineMusicPlayer
+              source={inlineActivity.source}
+              onChangeTrack={handleChangeTrack}
+              onClose={handleCloseInlineActivity}
+              onPlaybackStart={handleMusicPlaybackStart}
+              onPlaybackStop={handleMusicPlaybackStop}
+              isPublished={inlineActivity.isPublished}
+              isPublishing={isDirectActionPending}
+            />
+          </div>
+        )}
+        
+        {inlineActivity.type === 'sing' && (
+          <div className="mt-6">
+            <InlineSingCard
+              onConfirm={handleConfirmSing}
+              onClose={handleCloseInlineActivity}
+              isPublishing={isDirectActionPending}
+            />
+          </div>
+        )}
       </div>
-      
-      {/* Inline Activity Area - positioned between stats and bottom bar */}
-      {inlineActivity.type === 'music' && (
-        <InlineMusicPlayer
-          source={inlineActivity.source}
-          onChangeTrack={handleChangeTrack}
-          onClose={handleCloseInlineActivity}
-          onPlaybackStart={handleMusicPlaybackStart}
-          onPlaybackStop={handleMusicPlaybackStop}
-          isPublished={inlineActivity.isPublished}
-          isPublishing={isDirectActionPending}
-        />
-      )}
-      
-      {inlineActivity.type === 'sing' && (
-        <InlineSingCard
-          onConfirm={handleConfirmSing}
-          onClose={handleCloseInlineActivity}
-          isPublishing={isDirectActionPending}
-        />
-      )}
       
       {/* Bottom Action Bar */}
       <BlobbiBottomBar

@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { 
   Mic, 
-  MicOff, 
   Play, 
   Pause, 
   Square, 
