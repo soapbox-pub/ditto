@@ -1,0 +1,329 @@
+// src/blobbi/actions/hooks/useBlobbiStageTransition.ts
+
+/**
+ * Hooks for Blobbi stage transitions (hatch, evolve).
+ * 
+ * Both transitions follow the same decay pattern:
+ * 1. Apply accumulated decay from `last_decay_at` to `now`
+ * 2. Use decayed stats as the source of truth for the transition
+ * 3. Publish new event with decayed stats + new stage
+ * 4. Reset `last_decay_at` to current timestamp
+ * 
+ * @see docs/blobbi/decay-system.md
+ */
+
+import { useMutation } from '@tanstack/react-query';
+import type { NostrEvent } from '@nostrify/nostrify';
+
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { toast } from '@/hooks/useToast';
+
+import type { BlobbiCompanion, BlobbonautProfile, BlobbiStage } from '@/lib/blobbi';
+import {
+  KIND_BLOBBI_STATE,
+  updateBlobbiTags,
+  DEFAULT_EGG_STATS,
+} from '@/lib/blobbi';
+import { applyBlobbiDecay } from '@/lib/blobbi-decay';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/**
+ * Result of ensuring canonical companion before action.
+ * This is the same interface used by useBlobbiUseInventoryItem.
+ */
+export interface CanonicalActionResult {
+  companion: BlobbiCompanion;
+  content: string;
+  allTags: string[][];
+  wasMigrated: boolean;
+  /** Latest profile tags after migration */
+  profileAllTags: string[][];
+  /** Latest profile storage after migration */
+  profileStorage: import('@/lib/blobbi').StorageItem[];
+}
+
+/**
+ * Parameters for stage transition hooks.
+ */
+export interface UseBlobbiStageTransitionParams {
+  companion: BlobbiCompanion | null;
+  profile: BlobbonautProfile | null;
+  /** Called to ensure companion is canonical (from migration helper) */
+  ensureCanonicalBeforeAction: () => Promise<CanonicalActionResult | null>;
+  /** Update companion event in local cache */
+  updateCompanionEvent: (event: NostrEvent) => void;
+  /** Invalidate companion queries */
+  invalidateCompanion: () => void;
+  /** Invalidate profile queries (needed if migration occurred) */
+  invalidateProfile: () => void;
+}
+
+/**
+ * Result of a stage transition.
+ */
+export interface StageTransitionResult {
+  /** Previous stage before transition */
+  previousStage: BlobbiStage;
+  /** New stage after transition */
+  newStage: BlobbiStage;
+  /** The Blobbi's name */
+  name: string;
+  /** Stats after decay was applied (before any transition bonuses) */
+  decayedStats: {
+    hunger: number;
+    happiness: number;
+    health: number;
+    hygiene: number;
+    energy: number;
+  };
+}
+
+// ─── Hatch Hook ───────────────────────────────────────────────────────────────
+
+/**
+ * Hook to hatch an egg into a baby Blobbi.
+ * 
+ * Transition: egg -> baby
+ * 
+ * Requirements:
+ * - Blobbi must be in egg stage
+ * - Applies accumulated decay before transition
+ * - Resets stats to healthy baby defaults (inherits health from egg)
+ * - Sets last_decay_at to current timestamp
+ */
+export function useBlobbiHatch({
+  companion,
+  profile,
+  ensureCanonicalBeforeAction,
+  updateCompanionEvent,
+  invalidateCompanion,
+  invalidateProfile,
+}: UseBlobbiStageTransitionParams) {
+  const { user } = useCurrentUser();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+
+  return useMutation({
+    mutationFn: async (): Promise<StageTransitionResult> => {
+      // ─── Validation ───
+      if (!user?.pubkey) {
+        throw new Error('You must be logged in to hatch');
+      }
+
+      if (!companion) {
+        throw new Error('No companion selected');
+      }
+
+      if (!profile) {
+        throw new Error('Profile not found');
+      }
+
+      if (companion.stage !== 'egg') {
+        throw new Error('Only eggs can be hatched');
+      }
+
+      // ─── Ensure Canonical Before Action ───
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) {
+        throw new Error('Failed to prepare companion for hatching');
+      }
+
+      // ─── Apply Accumulated Decay First ───
+      // Per decay-system.md: Always apply accumulated decay from persisted state
+      // before any stage transition.
+      const now = Math.floor(Date.now() / 1000);
+      const decayResult = applyBlobbiDecay({
+        stage: canonical.companion.stage,
+        state: canonical.companion.state,
+        stats: canonical.companion.stats,
+        lastDecayAt: canonical.companion.lastDecayAt,
+        now,
+      });
+
+      // ─── Calculate Baby Stats ───
+      // Baby inherits the decayed health from the egg
+      // Other stats start fresh at 100 for the new life stage
+      const babyStats = {
+        hunger: DEFAULT_EGG_STATS.hunger,      // Start full
+        happiness: DEFAULT_EGG_STATS.happiness, // Start happy
+        health: decayResult.stats.health,       // Inherit from egg
+        hygiene: DEFAULT_EGG_STATS.hygiene,    // Start clean
+        energy: DEFAULT_EGG_STATS.energy,      // Start energized
+      };
+
+      // ─── Build Updated Tags ───
+      const nowStr = now.toString();
+      const newTags = updateBlobbiTags(canonical.allTags, {
+        stage: 'baby',
+        state: 'active', // Newly hatched babies are awake
+        hunger: babyStats.hunger.toString(),
+        happiness: babyStats.happiness.toString(),
+        health: babyStats.health.toString(),
+        hygiene: babyStats.hygiene.toString(),
+        energy: babyStats.energy.toString(),
+        last_interaction: nowStr,
+        last_decay_at: nowStr,
+      });
+
+      // ─── Publish Event ───
+      const event = await publishEvent({
+        kind: KIND_BLOBBI_STATE,
+        content: canonical.content,
+        tags: newTags,
+      });
+
+      updateCompanionEvent(event);
+      invalidateCompanion();
+      
+      // Invalidate profile if migration occurred
+      if (canonical.wasMigrated) {
+        invalidateProfile();
+      }
+
+      return {
+        previousStage: 'egg',
+        newStage: 'baby',
+        name: canonical.companion.name,
+        decayedStats: decayResult.stats,
+      };
+    },
+    onSuccess: ({ name }) => {
+      toast({
+        title: 'Your egg hatched!',
+        description: `${name} is now a baby Blobbi! Take good care of them.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to hatch',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// ─── Evolve Hook ──────────────────────────────────────────────────────────────
+
+/**
+ * Hook to evolve a baby Blobbi into an adult.
+ * 
+ * Transition: baby -> adult
+ * 
+ * Requirements:
+ * - Blobbi must be in baby stage
+ * - Applies accumulated decay before transition
+ * - Preserves all stats (decay already applied)
+ * - Sets last_decay_at to current timestamp
+ */
+export function useBlobbiEvolve({
+  companion,
+  profile,
+  ensureCanonicalBeforeAction,
+  updateCompanionEvent,
+  invalidateCompanion,
+  invalidateProfile,
+}: UseBlobbiStageTransitionParams) {
+  const { user } = useCurrentUser();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+
+  return useMutation({
+    mutationFn: async (): Promise<StageTransitionResult> => {
+      // ─── Validation ───
+      if (!user?.pubkey) {
+        throw new Error('You must be logged in to evolve');
+      }
+
+      if (!companion) {
+        throw new Error('No companion selected');
+      }
+
+      if (!profile) {
+        throw new Error('Profile not found');
+      }
+
+      if (companion.stage !== 'baby') {
+        if (companion.stage === 'egg') {
+          throw new Error('Eggs must hatch before they can evolve');
+        }
+        if (companion.stage === 'adult') {
+          throw new Error('This Blobbi is already fully evolved');
+        }
+        throw new Error('Only baby Blobbis can evolve');
+      }
+
+      // ─── Ensure Canonical Before Action ───
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) {
+        throw new Error('Failed to prepare companion for evolution');
+      }
+
+      // ─── Apply Accumulated Decay First ───
+      // Per decay-system.md: Always apply accumulated decay from persisted state
+      // before any stage transition.
+      const now = Math.floor(Date.now() / 1000);
+      const decayResult = applyBlobbiDecay({
+        stage: canonical.companion.stage,
+        state: canonical.companion.state,
+        stats: canonical.companion.stats,
+        lastDecayAt: canonical.companion.lastDecayAt,
+        now,
+      });
+
+      // ─── Adult Stats ───
+      // Adult inherits all decayed stats from baby
+      // No stat reset - evolution preserves current condition
+      const adultStats = decayResult.stats;
+
+      // ─── Build Updated Tags ───
+      const nowStr = now.toString();
+      const newTags = updateBlobbiTags(canonical.allTags, {
+        stage: 'adult',
+        // State is preserved (sleeping/active)
+        hunger: adultStats.hunger.toString(),
+        happiness: adultStats.happiness.toString(),
+        health: adultStats.health.toString(),
+        hygiene: adultStats.hygiene.toString(),
+        energy: adultStats.energy.toString(),
+        last_interaction: nowStr,
+        last_decay_at: nowStr,
+      });
+
+      // ─── Publish Event ───
+      const event = await publishEvent({
+        kind: KIND_BLOBBI_STATE,
+        content: canonical.content,
+        tags: newTags,
+      });
+
+      updateCompanionEvent(event);
+      invalidateCompanion();
+      
+      // Invalidate profile if migration occurred
+      if (canonical.wasMigrated) {
+        invalidateProfile();
+      }
+
+      return {
+        previousStage: 'baby',
+        newStage: 'adult',
+        name: canonical.companion.name,
+        decayedStats: decayResult.stats,
+      };
+    },
+    onSuccess: ({ name }) => {
+      toast({
+        title: 'Evolution complete!',
+        description: `${name} has evolved into an adult Blobbi!`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to evolve',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
