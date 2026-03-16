@@ -1,7 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, Loader2, Trash2, ChevronDown, GripVertical,
+  ArrowLeft, Loader2, Plus, Trash2, ChevronDown, GripVertical,
   Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye, AlertTriangle,
 } from 'lucide-react';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -799,6 +799,7 @@ export function ProfileSettings() {
                         className="h-7 rounded-full px-3 text-xs gap-1.5"
                         onClick={() => handleAddPreset(preset)}
                       >
+                        <Plus className="size-3 text-muted-foreground" />
                         <Icon className="size-3.5 text-muted-foreground" />
                         {preset.label}
                       </Button>
