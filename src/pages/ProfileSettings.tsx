@@ -30,6 +30,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
+import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -433,6 +434,27 @@ export function ProfileSettings() {
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
+
+  // Fetch media events for the sidebar preview (same query as profile page)
+  const {
+    data: mediaData,
+    isPending: mediaPending,
+  } = useProfileMedia(user?.pubkey);
+  const mediaEvents = useMemo(() => {
+    if (!mediaData?.pages) return [];
+    const seen = new Set<string>();
+    const events: import('@nostrify/nostrify').NostrEvent[] = [];
+    for (const page of mediaData.pages) {
+      for (const event of page.events) {
+        if (!seen.has(event.id)) {
+          seen.add(event.id);
+          events.push(event);
+        }
+      }
+    }
+    return events;
+  }, [mediaData?.pages]);
+
   const [cropState, setCropState] = useState<CropState | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showMobilePreview, setShowMobilePreview] = useState(false);
@@ -671,7 +693,7 @@ export function ProfileSettings() {
 
   // Inject live sidebar preview into the app's right sidebar slot
   useLayoutOptions({
-    rightSidebar: <ProfileRightSidebar fields={previewFields} />,
+    rightSidebar: <ProfileRightSidebar fields={previewFields} mediaEvents={mediaEvents} mediaLoading={mediaPending} />,
   });
 
   if (!user) return <Navigate to="/settings" replace />;
