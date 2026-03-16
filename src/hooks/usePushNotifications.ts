@@ -35,7 +35,6 @@ const RPC_RELAYS = [
 
 // localStorage keys
 const VAPID_KEY_CACHE = 'ditto-push-vapid-key';
-const REGISTERED_KEY = 'ditto-push-registered';
 const SUBSCRIPTION_ID_KEY = 'ditto-push-subscription-id';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -95,9 +94,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       .then(async (reg) => {
         // If permission was already granted and a push subscription exists,
         // restore the enabled state silently (no RPC needed — server already has it).
+        // We check only the browser's actual subscription state, not localStorage,
+        // because localStorage can get out of sync (cleared independently, etc.).
         if (Notification.permission === 'granted') {
           const existing = await reg.pushManager.getSubscription();
-          if (existing && localStorage.getItem(REGISTERED_KEY) === 'true') {
+          if (existing) {
             pushSubRef.current = existing;
             setPermission('granted');
             setEnabled(true);
@@ -168,7 +169,6 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       }),
     ));
 
-    localStorage.setItem(REGISTERED_KEY, 'true');
     setEnabled(true);
   }, [supported]);
 
@@ -199,7 +199,6 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       pushSubRef.current = null;
     }
 
-    localStorage.removeItem(REGISTERED_KEY);
     setEnabled(false);
   }, []);
 

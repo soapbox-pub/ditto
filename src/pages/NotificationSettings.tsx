@@ -122,24 +122,37 @@ export function NotificationSettings() {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { settings, updateSettings } = useEncryptedSettings();
-  const { enable: enablePush, disable: disablePush } = usePushNotifications();
+  const {
+    enabled: pushHookEnabled,
+    enable: enablePush,
+    disable: disablePush,
+  } = usePushNotifications();
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
   const isNative = Capacitor.isNativePlatform();
 
-  // Local UI state — initialized from settings once loaded, then updated
-  // synchronously on every toggle (fire-and-forget persist in background).
-  const [pushEnabled, setPushEnabled] = useState<boolean>(() => isNative);
+  // ── Push toggle state ───────────────────────────────────────────────────
+  // On web: derive from the hook's `enabled` (actual browser push subscription
+  // state). This avoids stale NIP-78 settings showing the toggle as "on" when
+  // no real subscription exists (e.g. different device, cleared browser data).
+  // On native: derive from NIP-78 settings (Capacitor manages its own service).
+  const [nativePushEnabled, setNativePushEnabled] = useState<boolean>(() => isNative);
   const [prefs, setPrefs] = useState<NonNullable<NonNullable<typeof settings>['notificationPreferences']>>({});
   const initializedRef = useRef(false);
 
-  // Populate local state from settings on first load
+  // Populate local state from settings on first load (native toggle + prefs)
   useEffect(() => {
     if (initializedRef.current || settings === null || settings === undefined) return;
     initializedRef.current = true;
-    setPushEnabled(settings.notificationsEnabled ?? isNative);
+    if (isNative) {
+      setNativePushEnabled(settings.notificationsEnabled ?? true);
+    }
     setPrefs(settings.notificationPreferences ?? {});
   }, [settings]);
+
+  // On web, the toggle reflects the actual browser subscription state.
+  // On native, it reflects the NIP-78 persisted preference.
+  const pushEnabled = isNative ? nativePushEnabled : pushHookEnabled;
 
   useSeoMeta({
     title: `Notifications | Settings | ${config.appName}`,
@@ -172,15 +185,21 @@ export function NotificationSettings() {
           return; // Don't persist enabled=true if registration failed
         }
       }
+      // NIP-78 updated for record-keeping, but web toggle is driven by hook state.
+      updateSettings.mutateAsync({ notificationsEnabled: true }).catch(() => {});
+      return;
     }
 
     if (!enabled && !isNative) {
       await disablePush().catch((err) => console.error('[push] Failed to disable:', err));
+      updateSettings.mutateAsync({ notificationsEnabled: false }).catch(() => {});
+      return;
     }
 
-    setPushEnabled(enabled);
+    // Native path — toggle drives NIP-78 setting directly.
+    setNativePushEnabled(enabled);
     updateSettings.mutateAsync({ notificationsEnabled: enabled }).catch(() => {
-      setPushEnabled(!enabled); // roll back on failure
+      setNativePushEnabled(!enabled); // roll back on failure
     });
   };
 
