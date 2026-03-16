@@ -4,7 +4,7 @@
  * Routes to the appropriate visual component based on the Blobbi's life stage:
  * - egg   → BlobbiEggVisual
  * - baby  → BlobbiBabyVisual
- * - adult → Placeholder (not yet implemented)
+ * - adult → BlobbiAdultVisual
  *
  * This component is the single entry point for rendering any Blobbi visually.
  */
@@ -13,6 +13,7 @@ import { useMemo } from 'react';
 
 import { BlobbiEggVisual, type BlobbiEggSize } from './BlobbiEggVisual';
 import { BlobbiBabyVisual } from './BlobbiBabyVisual';
+import { BlobbiAdultVisual } from './BlobbiAdultVisual';
 import { FloatingMusicNotes } from './FloatingMusicNotes';
 import { cn } from '@/lib/utils';
 import type { BlobbiCompanion } from '@/lib/blobbi';
@@ -56,12 +57,12 @@ const SIZE_CONFIG: Record<BlobbiVisualSize, string> = {
 // ─── Adapter ──────────────────────────────────────────────────────────────────
 
 /**
- * Converts BlobbiCompanion to the Blobbi type for baby rendering.
+ * Converts BlobbiCompanion to the Blobbi type for baby/adult rendering.
  *
  * This is a minimal adapter that extracts only the fields needed
- * by BlobbiBabyVisual. It does not perform a full conversion.
+ * by BlobbiBabyVisual and BlobbiAdultVisual. It does not perform a full conversion.
  */
-function toBlobbiForBabyVisual(companion: BlobbiCompanion): Blobbi {
+function toBlobbiForVisual(companion: BlobbiCompanion): Blobbi {
   return {
     id: companion.d,
     name: companion.name,
@@ -113,9 +114,9 @@ export function BlobbiStageVisual({
   // Disable reactions when sleeping
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
-  // Convert to Blobbi for baby rendering (memoized)
-  const blobbiForBaby = useMemo(
-    () => (stage === 'baby' ? toBlobbiForBabyVisual(companion) : null),
+  // Convert to Blobbi for baby/adult rendering (memoized)
+  const blobbiForVisual = useMemo(
+    () => (stage === 'baby' || stage === 'adult' ? toBlobbiForVisual(companion) : null),
     [companion, stage]
   );
 
@@ -142,17 +143,17 @@ export function BlobbiStageVisual({
   }
 
   // Baby stage
-  if (stage === 'baby' && blobbiForBaby) {
+  if (stage === 'baby' && blobbiForVisual) {
     console.log('[BlobbiStageVisual][baby]', {
       companion,
-      blobbiForBaby,
+      blobbiForVisual,
       visualTraits: companion.visualTraits,
     });
 
     return (
       <div className={cn('relative', containerClass, className)}>
         <BlobbiBabyVisual
-          blobbi={blobbiForBaby}
+          blobbi={blobbiForVisual}
           reaction={effectiveReaction}
           className="size-full"
         />
@@ -161,24 +162,21 @@ export function BlobbiStageVisual({
     );
   }
 
-  // Adult stage - placeholder with reaction support
-  if (stage === 'adult') {
+  // Adult stage
+  if (stage === 'adult' && blobbiForVisual) {
+    console.log('[BlobbiStageVisual][adult]', {
+      companion,
+      blobbiForVisual,
+      visualTraits: companion.visualTraits,
+    });
+
     return (
       <div className={cn('relative', containerClass, className)}>
-        <div
-          className={cn(
-            'size-full flex items-center justify-center',
-            'rounded-2xl bg-primary/10 border-2 border-dashed border-primary/30',
-            isSleeping && 'opacity-70',
-            // Reaction animations for adult placeholder
-            (effectiveReaction === 'listening' || effectiveReaction === 'swaying' || effectiveReaction === 'happy') && 'animate-blobbi-sway',
-            effectiveReaction === 'singing' && 'animate-blobbi-bounce',
-          )}
-        >
-          <span className="text-xs text-muted-foreground font-medium">
-            Adult
-          </span>
-        </div>
+        <BlobbiAdultVisual
+          blobbi={blobbiForVisual}
+          reaction={effectiveReaction}
+          className="size-full"
+        />
         <FloatingMusicNotes active={showMusicNotes} />
       </div>
     );

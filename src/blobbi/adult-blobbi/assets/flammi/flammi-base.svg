@@ -1,0 +1,74 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <!-- Flame gradients -->
+    <radialGradient id="flammiBody" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="30%" stop-color="#f97316" />
+      <stop offset="70%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#dc2626" />
+    </radialGradient>
+    <radialGradient id="flammiInner" cx="0.4" cy="0.3">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="50%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f97316" />
+    </radialGradient>
+    <radialGradient id="flammiCore" cx="0.5" cy="0.4">
+      <stop offset="0%" stop-color="#fef3c7" />
+      <stop offset="100%" stop-color="#fde047" />
+    </radialGradient>
+    <radialGradient id="flammiArm" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#dc2626" />
+    </radialGradient>
+    <radialGradient id="flammiLeg" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#b91c1c" />
+    </radialGradient>
+    <radialGradient id="flammiEmber" cx="0.5" cy="0.5">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#f97316" />
+    </radialGradient>
+  </defs>
+
+  <!-- Larger rotating flames -->
+  <g transform="rotate(0 100 110)">
+    <path d="M45 80 Q50 65 55 80 Q50 90 45 80 Z" fill="url(#flammiEmber)" opacity="0.8" />
+    <animateTransform attributeName="transform" type="rotate" from="0 100 110" to="360 100 110" dur="4s" repeatCount="indefinite" />
+  </g>
+  <g transform="rotate(0 100 110)">
+    <path d="M155 85 Q160 70 165 85 Q160 95 155 85 Z" fill="url(#flammiEmber)" opacity="0.6" />
+    <animateTransform attributeName="transform" type="rotate" from="0 100 110" to="-360 100 110" dur="6s" repeatCount="indefinite" />
+  </g>
+  <g transform="rotate(0 100 110)">
+    <path d="M40 130 Q45 115 50 130 Q45 140 40 130 Z" fill="url(#flammiEmber)" opacity="0.7" />
+    <animateTransform attributeName="transform" type="rotate" from="0 100 110" to="360 100 110" dur="7s" repeatCount="indefinite" />
+  </g>
+  <g transform="rotate(0 100 110)">
+    <path d="M160 125 Q165 110 170 125 Q165 135 160 125 Z" fill="url(#flammiEmber)" opacity="0.5" />
+    <animateTransform attributeName="transform" type="rotate" from="0 100 110" to="-360 100 110" dur="5s" repeatCount="indefinite" />
+  </g>
+
+  <!-- Flammy Body -->
+  <path d="M 100 160 Q 60 140 50 110 Q 45 80 70 60 Q 80 40 100 25 Q 120 40 130 60 Q 155 80 150 110 Q 140 140 100 160 Z" fill="url(#flammiBody)" />
+  <path d="M 100 155 Q 65 138 58 115 Q 55 90 75 70 Q 82 50 100 35 Q 118 50 125 70 Q 145 90 142 115 Q 135 138 100 155 Z" fill="url(#flammiInner)" opacity="0.8" />
+  <path d="M 100 145 Q 70 130 65 110 Q 62 95 80 80 Q 85 65 100 55 Q 115 65 120 80 Q 138 95 135 110 Q 130 130 100 145 Z" fill="url(#flammiCore)" opacity="0.9" />
+
+  <!-- Eyes -->
+  <circle cx="88" cy="100" r="10" fill="white" />
+  <circle cx="112" cy="100" r="10" fill="white" />
+  <circle cx="88" cy="100" r="6" fill="#1f2937" />
+  <circle cx="112" cy="100" r="6" fill="#1f2937" />
+  <circle cx="90" cy="98" r="3" fill="white" />
+  <circle cx="114" cy="98" r="3" fill="white" />
+
+  <!-- Smile -->
+  <path d="M 88 115 Q 100 125 112 115" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+
+  <!-- Arms -->
+  <ellipse cx="55" cy="110" rx="8" ry="15" fill="url(#flammiArm)" transform="rotate(-30 55 110)" />
+  <ellipse cx="145" cy="110" rx="8" ry="15" fill="url(#flammiArm)" transform="rotate(30 145 110)" />
+
+  <!-- Legs -->
+  <ellipse cx="90" cy="155" rx="10" ry="8" fill="url(#flammiLeg)" />
+  <ellipse cx="110" cy="155" rx="10" ry="8" fill="url(#flammiLeg)" />
+</svg>
