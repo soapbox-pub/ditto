@@ -146,11 +146,6 @@ release:
     tag_name: $CI_COMMIT_TAG
     name: $CI_COMMIT_TAG
     description: "Ditto $CI_COMMIT_TAG"
-    assets:
-      links:
-        - name: "Ditto-${CI_COMMIT_TAG}.apk"
-          url: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/artifacts/${CI_COMMIT_TAG}/raw/artifacts/Ditto-${CI_COMMIT_TAG}.apk?job=build-apk"
-          link_type: package
 
 publish-zapstore:
   stage: publish
