@@ -46,7 +46,7 @@ build-apk:
   timeout: 15 minutes
   needs: []
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+-/
   variables:
     ANDROID_SDK_ROOT: /opt/android-sdk
     ANDROID_HOME: /opt/android-sdk
@@ -124,12 +124,7 @@ build-apk:
     - cp android/app/build/outputs/apk/release/app-release.apk "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
     - ls -lh "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
 
-    # Upload to Generic Packages registry for a stable public download URL
-    # URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${VERSION_NAME}/Ditto-${CI_COMMIT_TAG}.apk
-    - |
-      curl --fail --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-        --upload-file "artifacts/Ditto-${CI_COMMIT_TAG}.apk" \
-        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${VERSION_NAME}/Ditto-${CI_COMMIT_TAG}.apk"
+
   artifacts:
     paths:
       - "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
@@ -146,7 +141,7 @@ release:
   needs:
     - build-apk
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+-/
   script:
     - echo "Creating release for $CI_COMMIT_TAG"
   release:
@@ -156,7 +151,7 @@ release:
     assets:
       links:
         - name: "Ditto-${CI_COMMIT_TAG}.apk"
-          url: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${CI_COMMIT_TAG#v}/Ditto-${CI_COMMIT_TAG}.apk"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/artifacts/Ditto-${CI_COMMIT_TAG}.apk?job=build-apk"
           link_type: package
 
 publish-zapstore:
@@ -165,7 +160,7 @@ publish-zapstore:
   needs:
     - build-apk
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+-/
   variables:
     SIGN_WITH: $ZAPSTORE_BUNKER_URL
   script:
