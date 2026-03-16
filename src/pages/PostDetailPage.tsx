@@ -1442,6 +1442,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     mime={imetaMap.get(url)?.mime}
                     avatarUrl={metadata?.picture}
                     avatarFallback={displayName[0]?.toUpperCase() ?? "?"}
+                    avatarShape={getAvatarShape(metadata)}
                   />
                 ))}
                 {webxdcApps.map((app) => (
