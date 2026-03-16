@@ -17,9 +17,16 @@ import { isBlobbiSleeping } from '@/types/blobbi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+/**
+ * Reaction states for baby Blobbi animations
+ */
+export type BabyReactionState = 'idle' | 'listening' | 'swaying' | 'singing' | 'happy';
+
 export interface BlobbiBabyVisualProps {
   /** The Blobbi data */
   blobbi: Blobbi;
+  /** Reaction state for music/sing animations */
+  reaction?: BabyReactionState;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -33,8 +40,11 @@ export interface BlobbiBabyVisualProps {
  * - Applies color customization from Blobbi traits
  * - Renders safely using dangerouslySetInnerHTML
  */
-export function BlobbiBabyVisual({ blobbi, className }: BlobbiBabyVisualProps) {
+export function BlobbiBabyVisual({ blobbi, reaction = 'idle', className }: BlobbiBabyVisualProps) {
   const isSleeping = isBlobbiSleeping(blobbi);
+  
+  // Disable reactions when sleeping
+  const effectiveReaction = isSleeping ? 'idle' : reaction;
 
   // Memoize the customized SVG to avoid unnecessary processing
   const customizedSvg = useMemo(() => {
@@ -57,6 +67,9 @@ export function BlobbiBabyVisual({ blobbi, className }: BlobbiBabyVisualProps) {
         'relative flex items-center justify-center',
         // Reduced opacity when sleeping for visual feedback
         isSleeping && 'opacity-70',
+        // Reaction animations for baby
+        (effectiveReaction === 'listening' || effectiveReaction === 'swaying' || effectiveReaction === 'happy') && 'animate-blobbi-sway',
+        effectiveReaction === 'singing' && 'animate-blobbi-bounce',
         className
       )}
       // Safe: SVG content comes from our own trusted module

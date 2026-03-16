@@ -164,4 +164,47 @@
   animation: landing-hero-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* ==========================================
+   Blobbi Reaction Animations
+   Shared animations for all Blobbi stages (egg, baby, adult)
+   ========================================== */
+
+@keyframes blobbi-gentle-sway {
+  0%, 100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes blobbi-bounce {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-6px) rotate(3deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-6px) rotate(-3deg);
+  }
+}
+
+.animate-blobbi-sway {
+  animation: blobbi-gentle-sway 2s ease-in-out infinite;
+}
+
+.animate-blobbi-bounce {
+  animation: blobbi-bounce 0.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-blobbi-sway,
+  .animate-blobbi-bounce {
+    animation: none !important;
+  }
+}
 
