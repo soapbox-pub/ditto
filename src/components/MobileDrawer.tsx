@@ -98,18 +98,16 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     <>
         <Sheet open={open} onOpenChange={(v) => { if (!v) setMoreMenuOpen(false); onOpenChange(v); }}>
         <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col" style={bgStyle}>
+          {hasBgImage && <div className="absolute inset-0 bg-background/70 pointer-events-none" />}
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
 
           {user ? (
-            <div
-              className={`flex flex-col h-full ${hasBgImage ? 'py-2 px-2 gap-1' : ''}`}
-              style={hasBgImage ? { paddingTop: `calc(0.5rem + env(safe-area-inset-top, 0px))`, paddingBottom: `calc(0.5rem + env(safe-area-inset-bottom, 0px))` } : undefined}
-            >
+            <div className="flex flex-col h-full relative">
               {/* User row with caret */}
               <button
                 onClick={() => setAccountExpanded((v) => !v)}
-                className={`flex items-center gap-3 px-3 hover:bg-secondary/60 transition-colors w-full text-left ${hasBgImage ? 'bg-background rounded-xl' : ''}`}
-                style={hasBgImage ? { minHeight: '3rem' } : { minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
+                className="flex items-center gap-3 px-3 hover:bg-secondary/60 transition-colors w-full text-left"
+                style={{ minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
               >
                 <Avatar shape={currentUserAvatarShape} className="size-7 shrink-0">
                   <AvatarImage src={metadata?.picture} alt={displayName} />
@@ -135,7 +133,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
               {/* Expanded account actions */}
               {accountExpanded && (
-                <div className={hasBgImage ? 'bg-background rounded-xl overflow-hidden' : ''}>
+                <div>
                   {/* Status editor */}
                   <div className="border-b border-border">
                     {statusEditing ? (
@@ -261,7 +259,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               <nav
                 className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-1"
               >
-                <div className={hasBgImage ? 'bg-background rounded-xl p-0.5' : 'contents'}>
+                <div className="contents">
                   <SidebarNavList
                     items={visibleItems}
                     editing={editing}
@@ -291,28 +289,25 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
               {/* Theme */}
               <div
-                className={`flex items-center ${hasBgImage ? 'bg-background rounded-xl' : 'border-t border-border'}`}
-                style={{ minHeight: '3.5rem', paddingBottom: hasBgImage ? undefined : 'env(safe-area-inset-bottom, 0px)' }}
+                className="flex items-center border-t border-border"
+                style={{ minHeight: '3.5rem', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
               >
                 <SidebarThemeDropdown userPubkey={user.pubkey} onNavigate={handleClose} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 rounded-full transition-colors" />
               </div>
             </div>
           ) : (
-            <div
-              className={`flex flex-col h-full ${hasBgImage ? 'py-2 px-2 gap-1' : ''}`}
-              style={hasBgImage ? { paddingTop: `calc(0.5rem + env(safe-area-inset-top, 0px))`, paddingBottom: `calc(0.5rem + env(safe-area-inset-bottom, 0px))` } : undefined}
-            >
+            <div className="flex flex-col h-full relative">
               {/* Login prompt */}
               <div
-                className={`flex items-center gap-3 px-4 border-b border-border ${hasBgImage ? 'bg-background rounded-xl' : ''}`}
-                style={hasBgImage ? { minHeight: '3rem' } : { minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
+                className="flex items-center gap-3 px-4 border-b border-border"
+                style={{ minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
               >
                 <LoginArea className="w-full flex" />
               </div>
 
               {/* Nav items — scrollable */}
               <nav className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-1">
-                <div className={hasBgImage ? 'bg-background rounded-xl p-0.5' : 'contents'}>
+                <div className="contents">
                   <SidebarNavList
                     items={visibleItems}
                     editing={false}
@@ -342,8 +337,8 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
               {/* Theme */}
               <div
-                className={`flex items-center ${hasBgImage ? 'bg-background rounded-xl' : 'border-t border-border'}`}
-                style={{ minHeight: '3.5rem', paddingBottom: hasBgImage ? undefined : 'env(safe-area-inset-bottom, 0px)' }}
+                className="flex items-center border-t border-border"
+                style={{ minHeight: '3.5rem', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
               >
                 <SidebarThemeDropdown onNavigate={handleClose} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 rounded-full transition-colors" />
               </div>
