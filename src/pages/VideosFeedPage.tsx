@@ -46,6 +46,7 @@ import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
+import { getEffectiveStreamStatus } from '@/lib/streamStatus';
 import type { FeedItem } from '@/lib/feedUtils';
 
 // Reuse the real VineCard — no re-implementation
@@ -312,38 +313,128 @@ function VideoSkeleton() {
   );
 }
 
-// ── Live streams — targeted query: status=live only, limit 10 ─────────────────
+// ── Live streams — fetch all statuses, classify with NIP-53 staleness heuristic ─
 
-function useLiveStreams(tab: FeedTab) {
+type StreamTab = 'live' | 'planned' | 'past';
+
+interface ClassifiedStreams {
+  live: NostrEvent[];
+  planned: NostrEvent[];
+  past: NostrEvent[];
+}
+
+/**
+ * Fetch ALL streams globally (no author filter) so every tab sees the same
+ * event versions from the relay.  The follows tab filters client-side.
+ *
+ * We use a large limit because kind 30311 is addressable — relays store at
+ * most one event per pubkey+d-tag, so 200 means ~200 unique streams.
+ * Not all relays support filtering by custom tags like `#status`, so we
+ * fetch broadly and classify entirely client-side.
+ */
+function useAllStreams(): { data: NostrEvent[]; isLoading: boolean } {
   const { nostr } = useNostr();
-  const { user } = useCurrentUser();
-  const { data: followData } = useFollowList();
-  const followedPubkeys = followData?.pubkeys ?? [];
 
-  return useQuery<NostrEvent[]>({
-    queryKey: ['live-streams', tab, user?.pubkey, followedPubkeys.join(',')],
+  const query = useQuery<NostrEvent[]>({
+    queryKey: ['all-streams'],
     queryFn: async ({ signal }) => {
-      if (tab === 'follows' && followedPubkeys.length === 0 && !user) return [];
-      const base: Record<string, unknown> = { kinds: [30311], '#status': ['live'], limit: 10 };
-      if (tab === 'follows') {
-        const authors = user ? [...followedPubkeys, user.pubkey] : followedPubkeys;
-        base.authors = authors;
-      }
       const events = await nostr.query(
-        [base as { kinds: number[]; limit: number }],
+        [{ kinds: [30311], limit: 200 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) },
       );
-      return events.filter((e) => getTag(e.tags, 'status') === 'live');
+
+      // Deduplicate addressable events: keep the newest per pubkey+d-tag.
+      const best = new Map<string, NostrEvent>();
+      for (const e of events) {
+        const d = e.tags.find(([n]) => n === 'd')?.[1] ?? '';
+        const key = `${e.pubkey}:${d}`;
+        const existing = best.get(key);
+        if (!existing || e.created_at > existing.created_at) {
+          best.set(key, e);
+        }
+      }
+      return Array.from(best.values());
     },
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
   });
+
+  return { data: query.data ?? [], isLoading: query.isLoading };
+}
+
+/** Classify a list of stream events into live / planned / past buckets. */
+function classifyStreams(events: NostrEvent[]): ClassifiedStreams {
+  const buckets: ClassifiedStreams = { live: [], planned: [], past: [] };
+  const byNewest = (a: NostrEvent, b: NostrEvent) => b.created_at - a.created_at;
+  for (const e of events) {
+    const status = getEffectiveStreamStatus(e);
+    if (status === 'live') buckets.live.push(e);
+    else if (status === 'planned') buckets.planned.push(e);
+    else buckets.past.push(e);
+  }
+  buckets.live.sort(byNewest);
+  buckets.planned.sort(byNewest);
+  buckets.past.sort(byNewest);
+  return buckets;
+}
+
+/**
+ * Returns classified streams for the given tab.
+ * Global: all streams.  Follows: only streams from followed authors.
+ */
+function useClassifiedStreams(tab: FeedTab): { data: ClassifiedStreams; isLoading: boolean } {
+  const { user } = useCurrentUser();
+  const { data: followData } = useFollowList();
+  const followedPubkeys = followData?.pubkeys;
+
+  const { data: allEvents, isLoading } = useAllStreams();
+
+  const classified = useMemo<ClassifiedStreams>(() => {
+    if (tab === 'global') return classifyStreams(allEvents);
+
+    // Follows tab — filter to followed authors + self, client-side.
+    // Check both the event publisher AND p-tag participants, because
+    // streaming services (e.g. streamstr.net) publish kind 30311 on behalf
+    // of the streamer, who appears in a p tag with role "host".
+    if (!followedPubkeys || !user) return { live: [], planned: [], past: [] };
+    const authorSet = new Set([...followedPubkeys, user.pubkey]);
+    return classifyStreams(allEvents.filter((e) => {
+      if (authorSet.has(e.pubkey)) return true;
+      return e.tags.some(([name, pk]) => name === 'p' && authorSet.has(pk));
+    }));
+  }, [allEvents, tab, followedPubkeys, user]);
+
+  return { data: classified, isLoading };
+}
+
+function StreamBadge({ status }: { status: string }) {
+  switch (status) {
+    case 'live':
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-red-600 text-white px-1.5 py-0.5 rounded">
+          <span className="size-1.5 rounded-full bg-white animate-pulse" />LIVE
+        </span>
+      );
+    case 'planned':
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-blue-600/90 text-white px-1.5 py-0.5 rounded">
+          PLANNED
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-black/60 text-white/80 px-1.5 py-0.5 rounded">
+          ENDED
+        </span>
+      );
+  }
 }
 
 function LiveStreamCard({ event }: { event: NostrEvent }) {
   const title = getTag(event.tags, 'title') || 'Untitled Stream';
   const imageUrl = getTag(event.tags, 'image');
   const viewers = getTag(event.tags, 'current_participants');
+  const effectiveStatus = getEffectiveStreamStatus(event);
 
   const naddrId = useMemo(() => {
     const d = getTag(event.tags, 'd') || '';
@@ -368,16 +459,17 @@ function LiveStreamCard({ event }: { event: NostrEvent }) {
         {imageUrl ? (
           <img src={imageUrl} alt={title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-950/40 to-muted">
-            <Radio className="size-5 text-red-400/60" />
+          <div className={cn(
+            'w-full h-full flex items-center justify-center bg-gradient-to-br to-muted',
+            effectiveStatus === 'live' ? 'from-red-950/40' : effectiveStatus === 'planned' ? 'from-blue-950/40' : 'from-muted-foreground/10',
+          )}>
+            <Radio className={cn('size-5', effectiveStatus === 'live' ? 'text-red-400/60' : 'text-muted-foreground/40')} />
           </div>
         )}
         <div className="absolute top-1.5 left-1.5">
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-red-600 text-white px-1.5 py-0.5 rounded">
-            <span className="size-1.5 rounded-full bg-white animate-pulse" />LIVE
-          </span>
+          <StreamBadge status={effectiveStatus} />
         </div>
-        {viewers && (
+        {viewers && effectiveStatus === 'live' && (
           <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 bg-black/70 text-white text-[10px] px-1 py-0.5 rounded">
             <Eye className="size-2.5" />{viewers}
           </div>
@@ -390,16 +482,69 @@ function LiveStreamCard({ event }: { event: NostrEvent }) {
 }
 
 function LiveStreamsStrip({ tab }: { tab: FeedTab }) {
-  const { data: liveEvents = [] } = useLiveStreams(tab);
+  const { data: streams } = useClassifiedStreams(tab);
+  const [streamTab, setStreamTab] = useState<StreamTab>('live');
   const drag = useDragScroll<HTMLDivElement>();
-  if (liveEvents.length === 0) return null;
+
+  const totalCount = streams.live.length + streams.planned.length + streams.past.length;
+  if (totalCount === 0) return null;
+
+  // Auto-select first non-empty tab if current tab is empty
+  const activeTab = streams[streamTab].length > 0
+    ? streamTab
+    : streams.live.length > 0 ? 'live'
+    : streams.planned.length > 0 ? 'planned'
+    : 'past';
+
+  const activeEvents = streams[activeTab];
 
   return (
     <div className="px-4 pt-3 pb-4">
-      <p className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2.5">
-        <span className="size-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-        Live now
-      </p>
+      {/* Stream tab pills */}
+      <div className="flex items-center gap-1.5 mb-2.5">
+        {streams.live.length > 0 && (
+          <button
+            onClick={() => setStreamTab('live')}
+            className={cn(
+              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors',
+              activeTab === 'live'
+                ? 'bg-red-600 text-white'
+                : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground',
+            )}
+          >
+            <span className="size-1.5 rounded-full bg-current animate-pulse shrink-0" />
+            Live ({streams.live.length})
+          </button>
+        )}
+        {streams.planned.length > 0 && (
+          <button
+            onClick={() => setStreamTab('planned')}
+            className={cn(
+              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors',
+              activeTab === 'planned'
+                ? 'bg-blue-600 text-white'
+                : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground',
+            )}
+          >
+            Planned ({streams.planned.length})
+          </button>
+        )}
+        {streams.past.length > 0 && (
+          <button
+            onClick={() => setStreamTab('past')}
+            className={cn(
+              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors',
+              activeTab === 'past'
+                ? 'bg-muted text-foreground'
+                : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground',
+            )}
+          >
+            Past ({streams.past.length})
+          </button>
+        )}
+      </div>
+
+      {/* Horizontal scroll of stream cards */}
       <div
         ref={drag.ref}
         className="flex gap-3 overflow-x-auto pb-1 cursor-grab"
@@ -409,7 +554,7 @@ function LiveStreamsStrip({ tab }: { tab: FeedTab }) {
         onMouseUp={drag.onMouseUp}
         onMouseLeave={drag.onMouseLeave}
       >
-        {liveEvents.map((e) => <LiveStreamCard key={e.id} event={e} />)}
+        {activeEvents.map((e) => <LiveStreamCard key={e.id} event={e} />)}
       </div>
     </div>
   );
@@ -629,8 +774,9 @@ export function VideosFeedPage() {
 
   const [shortsPlayerIndex, setShortsPlayerIndex] = useState<number | null>(null);
   const [showAllVideos, setShowAllVideos] = useState(false);
-  const { data: liveEvents = [] } = useLiveStreams(feedTab);
-  const initialVideoCount = liveEvents.length > 0 ? 4 : 6;
+  const { data: streams } = useClassifiedStreams(feedTab);
+  const hasStreams = streams.live.length + streams.planned.length + streams.past.length > 0;
+  const initialVideoCount = hasStreams ? 4 : 6;
   const visibleVideos = showAllVideos ? normalVideos : normalVideos.slice(0, initialVideoCount);
 
   const showSkeleton = isPending || (isLoading && !rawData);

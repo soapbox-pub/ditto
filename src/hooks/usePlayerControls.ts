@@ -73,6 +73,15 @@ export function usePlayerControls({
   const [volume, setVolume] = useState(1);
   const prevVolumeRef = useRef(1);
 
+  // Sync initial muted/volume state from the media element (e.g. when the
+  // <video> has a `muted` attribute for autoplay).
+  useEffect(() => {
+    const media = mediaRef.current;
+    if (!media) return;
+    setIsMuted(media.muted);
+    setVolume(media.muted ? 0 : media.volume);
+  }, [mediaRef]);
+
   const toggleMute = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     const media = mediaRef.current;
