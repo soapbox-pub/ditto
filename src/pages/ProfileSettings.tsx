@@ -2,7 +2,7 @@ import { useSeoMeta } from '@unhead/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, Loader2, Plus, Trash2, ChevronDown, GripVertical,
-  Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye,
+  Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye, AlertTriangle,
 } from 'lucide-react';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { Link, Navigate } from 'react-router-dom';
@@ -187,6 +187,61 @@ function inferFieldType(label: string, value: string): 'text' | 'wallet' | 'medi
   return 'text';
 }
 
+/** Extension patterns for each media accept category. */
+const AUDIO_EXT = /\.(mp3|mpga|ogg|oga|wav|flac|aac|m4a|opus|weba|webm|spx|caf)(\?.*)?$/i;
+const IMAGE_EXT = /\.(jpe?g|png|gif|webp|svg|avif)(\?.*)?$/i;
+const VIDEO_EXT = /\.(mp4|webm|mov|qt)(\?.*)?$/i;
+
+/**
+ * Check whether a pasted URL matches the expected file type for a media field.
+ * Returns a warning message if the URL looks wrong, or undefined if it's fine.
+ * Only warns when the value looks like a URL — empty/non-URL values return undefined.
+ */
+function getMediaMismatchWarning(value: string, accept: string | undefined): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  // Only check if it looks like a URL
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return undefined;
+
+  // Blossom-style URLs (hex hash path) are always fine — type can't be determined from URL
+  if (/^https?:\/\/.+\/[0-9a-f]{64}(\.\w+)?$/i.test(trimmed)) return undefined;
+
+  // Check if URL has a recognizable file extension at all
+  const hasAudioExt = AUDIO_EXT.test(trimmed);
+  const hasImageExt = IMAGE_EXT.test(trimmed);
+  const hasVideoExt = VIDEO_EXT.test(trimmed);
+  const hasKnownExt = hasAudioExt || hasImageExt || hasVideoExt;
+
+  if (accept === 'audio/*') {
+    if (hasKnownExt && !hasAudioExt) {
+      return 'This URL doesn\u2019t point to an audio file. Upload an audio file or use a direct link ending in .mp3, .ogg, .wav, etc.';
+    }
+    if (!hasKnownExt) {
+      return 'This URL may not work as an audio player. For best results, upload a file using the button or paste a direct link to an audio file.';
+    }
+  }
+
+  if (accept === 'image/*') {
+    if (hasKnownExt && !hasImageExt) {
+      return 'This URL doesn\u2019t point to an image. Upload an image or use a direct link ending in .jpg, .png, .webp, etc.';
+    }
+    if (!hasKnownExt) {
+      return 'This URL may not display as an image. For best results, upload a file using the button or paste a direct link to an image file.';
+    }
+  }
+
+  if (accept === 'video/*') {
+    if (hasKnownExt && !hasVideoExt) {
+      return 'This URL doesn\u2019t point to a video. Upload a video or use a direct link ending in .mp4, .webm, .mov, etc.';
+    }
+    if (!hasKnownExt) {
+      return 'This URL may not display as a video. For best results, upload a file using the button or paste a direct link to a video file.';
+    }
+  }
+
+  return undefined;
+}
+
 /** Infer a file-accept filter from an existing field's value URL. */
 function inferAcceptFromValue(value: string): string | undefined {
   if (/\.(mp3|mpga|ogg|oga|wav|flac|aac|m4a|opus|weba|webm|spx|caf)(\?.*)?$/i.test(value)) return 'audio/*';
@@ -299,36 +354,45 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, control, 
         <FormField
           control={control}
           name={`fields.${index}.value`}
-          render={({ field }) => (
-            <FormItem>
-              <div className="flex gap-1.5">
-                <FormControl>
-                  <Input placeholder={valuePlaceholder || 'Upload file or paste direct file link'} {...field} className="h-9 flex-1 min-w-0" readOnly={false} />
-                </FormControl>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-9 w-9 shrink-0"
-                      onClick={onMediaPick}
-                    >
-                      <Upload className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs max-w-52">
-                    {formatHint ? (
-                      <span>Choose file to upload<br /><span className="text-muted-foreground">{formatHint}</span></span>
-                    ) : (
-                      <span>Choose a media file to upload</span>
-                    )}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
+          render={({ field }) => {
+            const mismatchWarning = getMediaMismatchWarning(field.value, accept);
+            return (
+              <FormItem>
+                <div className="flex gap-1.5">
+                  <FormControl>
+                    <Input placeholder={valuePlaceholder || 'Upload file or paste direct file link'} {...field} className="h-9 flex-1 min-w-0" readOnly={false} />
+                  </FormControl>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 shrink-0"
+                        onClick={onMediaPick}
+                      >
+                        <Upload className="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs max-w-52">
+                      {formatHint ? (
+                        <span>Choose file to upload<br /><span className="text-muted-foreground">{formatHint}</span></span>
+                      ) : (
+                        <span>Choose a media file to upload</span>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                {mismatchWarning && (
+                  <p className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-500 mt-1 leading-snug">
+                    <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
+                    <span>{mismatchWarning}</span>
+                  </p>
+                )}
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
       ) : (
         <FormField
