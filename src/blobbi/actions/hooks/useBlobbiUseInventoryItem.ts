@@ -15,6 +15,7 @@ import {
   createStorageTags,
   getTagValue,
 } from '@/lib/blobbi';
+import { applyBlobbiDecay } from '@/lib/blobbi-decay';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,
@@ -149,6 +150,21 @@ export function useBlobbiUseInventoryItem({
         throw new Error('Failed to prepare companion for action');
       }
 
+      // ─── Apply Accumulated Decay First ───
+      // Per decay-system.md: Always apply accumulated decay from persisted state
+      // before any user interaction updates stats.
+      const now = Math.floor(Date.now() / 1000);
+      const decayResult = applyBlobbiDecay({
+        stage: companion.stage,
+        state: companion.state,
+        stats: companion.stats,
+        lastDecayAt: companion.lastDecayAt,
+        now,
+      });
+      
+      // Start with decayed stats as the base
+      const statsAfterDecay = decayResult.stats;
+      
       // ─── Apply Item Effects ───
       const statsUpdate: Record<string, string> = {};
       const statsChanged: Record<string, number> = {};
@@ -165,39 +181,41 @@ export function useBlobbiUseInventoryItem({
           statsUpdate.shell_integrity = result.shellIntegrity.toString();
           statsChanged.shell_integrity = result.shellIntegrityDelta;
         }
+        
+        // Also update stats with decay values for eggs
+        statsUpdate.health = statsAfterDecay.health.toString();
+        statsUpdate.hygiene = statsAfterDecay.hygiene.toString();
+        statsUpdate.happiness = statsAfterDecay.happiness.toString();
+        // hunger and energy stay at 100 for eggs
+        statsUpdate.hunger = '100';
+        statsUpdate.energy = '100';
       } else {
         // Normal stats application for baby/adult
-        const currentStats = companion.stats;
-        const newStats = applyItemEffects(currentStats, shopItem.effect);
+        // Apply item effects ON TOP of decayed stats
+        const newStats = applyItemEffects(statsAfterDecay, shopItem.effect);
 
-        if (newStats.hunger !== undefined) {
-          statsUpdate.hunger = clampStat(newStats.hunger).toString();
-          statsChanged.hunger = (newStats.hunger ?? 0) - (currentStats.hunger ?? 0);
-        }
-        if (newStats.happiness !== undefined) {
-          statsUpdate.happiness = clampStat(newStats.happiness).toString();
-          statsChanged.happiness = (newStats.happiness ?? 0) - (currentStats.happiness ?? 0);
-        }
-        if (newStats.energy !== undefined) {
-          statsUpdate.energy = clampStat(newStats.energy).toString();
-          statsChanged.energy = (newStats.energy ?? 0) - (currentStats.energy ?? 0);
-        }
-        if (newStats.hygiene !== undefined) {
-          statsUpdate.hygiene = clampStat(newStats.hygiene).toString();
-          statsChanged.hygiene = (newStats.hygiene ?? 0) - (currentStats.hygiene ?? 0);
-        }
-        if (newStats.health !== undefined) {
-          statsUpdate.health = clampStat(newStats.health).toString();
-          statsChanged.health = (newStats.health ?? 0) - (currentStats.health ?? 0);
-        }
+        statsUpdate.hunger = clampStat(newStats.hunger).toString();
+        statsChanged.hunger = (newStats.hunger ?? 0) - (statsAfterDecay.hunger ?? 0);
+        
+        statsUpdate.happiness = clampStat(newStats.happiness).toString();
+        statsChanged.happiness = (newStats.happiness ?? 0) - (statsAfterDecay.happiness ?? 0);
+        
+        statsUpdate.energy = clampStat(newStats.energy).toString();
+        statsChanged.energy = (newStats.energy ?? 0) - (statsAfterDecay.energy ?? 0);
+        
+        statsUpdate.hygiene = clampStat(newStats.hygiene).toString();
+        statsChanged.hygiene = (newStats.hygiene ?? 0) - (statsAfterDecay.hygiene ?? 0);
+        
+        statsUpdate.health = clampStat(newStats.health).toString();
+        statsChanged.health = (newStats.health ?? 0) - (statsAfterDecay.health ?? 0);
       }
 
       // ─── Update Blobbi State Event (kind 31124) ───
-      const now = Math.floor(Date.now() / 1000).toString();
+      const nowStr = now.toString();
       const blobbiTags = updateBlobbiTags(canonical.allTags, {
         ...statsUpdate,
-        last_interaction: now,
-        last_decay_at: now,
+        last_interaction: nowStr,
+        last_decay_at: nowStr,
       });
 
       const blobbiEvent = await publishEvent({

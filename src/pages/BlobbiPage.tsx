@@ -1,11 +1,13 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, Plus, Footprints, Camera, PictureInPicture2, ArrowLeft } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Footprints, Camera, PictureInPicture2, ArrowLeft, AlertTriangle } from 'lucide-react';
 // Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
 // Note: Sparkles kept for BlobbiBottomBar center action button
 // Note: Plus kept for AdoptAnotherBlobbiCard
+// Note: AlertTriangle kept for stat warning indicators
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useProjectedBlobbiState } from '@/hooks/useProjectedBlobbiState';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
@@ -589,6 +591,10 @@ function BlobbiDashboard({
   setStoredSelectedD,
 }: BlobbiDashboardProps) {
   const isSleeping = companion.state === 'sleeping';
+  const isEgg = companion.stage === 'egg';
+  
+  // Projected state with decay applied (UI-only, recalculates every 60s)
+  const projectedState = useProjectedBlobbiState(companion);
   
   // Modal states for bottom bar
   const [showActionsModal, setShowActionsModal] = useState(false);
@@ -719,14 +725,63 @@ function BlobbiDashboard({
       
       {/* Stats Section */}
       <div className="px-4 pb-24 sm:px-6">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-5 gap-2 sm:gap-4">
-          <StatIndicator label="Hunger" value={companion.stats.hunger} color="orange" />
-          <StatIndicator label="Happy" value={companion.stats.happiness} color="yellow" />
-          <StatIndicator label="Health" value={companion.stats.health} color="green" />
-          <StatIndicator label="Hygiene" value={companion.stats.hygiene} color="blue" />
-          <StatIndicator label="Energy" value={companion.stats.energy} color="violet" />
-        </div>
+        {/* Stats Grid - shows projected decay state */}
+        {/* Egg stage shows only 3 stats, baby/adult shows all 5 */}
+        {isEgg ? (
+          <div className="grid grid-cols-3 gap-3 sm:gap-4 max-w-xs mx-auto">
+            <StatIndicator 
+              label="Health" 
+              value={projectedState?.stats.health ?? companion.stats.health} 
+              color="green"
+              status={projectedState?.visibleStats.find(s => s.stat === 'health')?.status}
+            />
+            <StatIndicator 
+              label="Hygiene" 
+              value={projectedState?.stats.hygiene ?? companion.stats.hygiene} 
+              color="blue"
+              status={projectedState?.visibleStats.find(s => s.stat === 'hygiene')?.status}
+            />
+            <StatIndicator 
+              label="Happy" 
+              value={projectedState?.stats.happiness ?? companion.stats.happiness} 
+              color="yellow"
+              status={projectedState?.visibleStats.find(s => s.stat === 'happiness')?.status}
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-5 gap-2 sm:gap-4">
+            <StatIndicator 
+              label="Hunger" 
+              value={projectedState?.stats.hunger ?? companion.stats.hunger} 
+              color="orange"
+              status={projectedState?.visibleStats.find(s => s.stat === 'hunger')?.status}
+            />
+            <StatIndicator 
+              label="Happy" 
+              value={projectedState?.stats.happiness ?? companion.stats.happiness} 
+              color="yellow"
+              status={projectedState?.visibleStats.find(s => s.stat === 'happiness')?.status}
+            />
+            <StatIndicator 
+              label="Health" 
+              value={projectedState?.stats.health ?? companion.stats.health} 
+              color="green"
+              status={projectedState?.visibleStats.find(s => s.stat === 'health')?.status}
+            />
+            <StatIndicator 
+              label="Hygiene" 
+              value={projectedState?.stats.hygiene ?? companion.stats.hygiene} 
+              color="blue"
+              status={projectedState?.visibleStats.find(s => s.stat === 'hygiene')?.status}
+            />
+            <StatIndicator 
+              label="Energy" 
+              value={projectedState?.stats.energy ?? companion.stats.energy} 
+              color="violet"
+              status={projectedState?.visibleStats.find(s => s.stat === 'energy')?.status}
+            />
+          </div>
+        )}
       </div>
       
       {/* Bottom Action Bar */}
@@ -1034,6 +1089,8 @@ interface StatIndicatorProps {
   label: string;
   value: number | undefined;
   color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
+  /** Optional status for warning/critical indicators */
+  status?: 'normal' | 'warning' | 'critical';
 }
 
 // Semantic colors for stats - these represent the stat type, not brand colors
@@ -1053,14 +1110,24 @@ const STAT_BG_COLORS = {
   violet: 'bg-violet-500/10',
 };
 
-function StatIndicator({ label, value, color }: StatIndicatorProps) {
+// Status-based ring colors for warning/critical states
+const STATUS_RING_COLORS = {
+  normal: '', // Use default color
+  warning: 'text-amber-500',
+  critical: 'text-red-500',
+};
+
+function StatIndicator({ label, value, color, status = 'normal' }: StatIndicatorProps) {
   const displayValue = value ?? 0;
+  const ringColor = status !== 'normal' ? STATUS_RING_COLORS[status] : STAT_COLORS[color];
+  const showWarningIcon = status === 'critical';
   
   return (
     <div className="flex flex-col items-center gap-1">
       <div className={cn(
         "relative size-12 sm:size-14 rounded-full flex items-center justify-center",
-        STAT_BG_COLORS[color]
+        STAT_BG_COLORS[color],
+        status === 'critical' && "animate-pulse"
       )}>
         {/* Progress ring */}
         <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
@@ -1082,12 +1149,23 @@ function StatIndicator({ label, value, color }: StatIndicatorProps) {
             strokeWidth="3"
             strokeLinecap="round"
             strokeDasharray={`${displayValue * 0.94} 100`}
-            className={cn("transition-all duration-500", STAT_COLORS[color])}
+            className={cn("transition-all duration-500", ringColor)}
           />
         </svg>
-        <span className="text-xs sm:text-sm font-semibold">{displayValue}</span>
+        {showWarningIcon ? (
+          <AlertTriangle className="size-4 text-red-500" />
+        ) : (
+          <span className="text-xs sm:text-sm font-semibold">{displayValue}</span>
+        )}
       </div>
-      <span className="text-[10px] sm:text-xs text-muted-foreground">{label}</span>
+      <span className={cn(
+        "text-[10px] sm:text-xs",
+        status === 'critical' ? "text-red-500 font-medium" : 
+        status === 'warning' ? "text-amber-500" : 
+        "text-muted-foreground"
+      )}>
+        {label}
+      </span>
     </div>
   );
 }
@@ -1348,7 +1426,7 @@ function BlobbiBottomBar({
               onClick={onActionsClick}
               className="flex items-center justify-center size-12 -mt-4 mx-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all border-4 border-background"
             >
-              <Sparkles className="size-5" />
+              <HeartHandshake className="size-5" />
             </button>
             
             {/* Right Group - aligned to start (closer to center) */}
