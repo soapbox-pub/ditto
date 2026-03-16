@@ -50,6 +50,19 @@
     bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
   }
 
+  /* Bottom overscroll padding for the center column:
+     clears the mobile bottom nav + safe area + generous extra space
+     so content can be scrolled well past the bottom bar */
+  .pb-overscroll {
+    padding-bottom: calc(50vh + 3.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (min-width: 900px) {
+    .pb-overscroll {
+      padding-bottom: 50vh;
+    }
+  }
+
   /* Mobile top bar height (48px) + safe area inset for sticky elements */
   .top-mobile-bar {
     top: calc(3rem + env(safe-area-inset-top, 0px));

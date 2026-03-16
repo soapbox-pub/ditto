@@ -633,6 +633,7 @@ export function VinesFeedPage() {
   useLayoutOptions({
     showFAB: false,
     scrollContainer,
+    noOverscroll: true,
   });
 
   // Track scroll direction to expand vines when bottom nav hides
