@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { Users, PartyPopper, List } from 'lucide-react';
+import { Users, PartyPopper } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
 import { useAuthors } from '@/hooks/useAuthors';
 import { genUserName } from '@/lib/genUserName';
@@ -29,10 +30,7 @@ export function FollowPackContent({ event }: { event: NostrEvent }) {
       {/* Title */}
       {title && (
         <div className="flex items-center gap-2 mb-2">
-          {isFollowSet
-            ? <List className="size-4 text-primary shrink-0" />
-            : <PartyPopper className="size-4 text-primary shrink-0" />
-          }
+          {!isFollowSet && <PartyPopper className="size-4 text-primary shrink-0" />}
           <span className="text-[15px] font-semibold leading-snug">{title}</span>
         </div>
       )}
@@ -70,8 +68,9 @@ export function FollowPackContent({ event }: { event: NostrEvent }) {
             {previewPubkeys.map((pk) => {
               const member = membersMap?.get(pk);
               const name = member?.metadata?.name || genUserName(pk);
+              const shape = getAvatarShape(member?.metadata);
               return (
-                <Avatar key={pk} className="size-7">
+                <Avatar key={pk} shape={shape} className="size-7">
                   <AvatarImage src={member?.metadata?.picture} alt={name} />
                   <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                     {name[0]?.toUpperCase()}

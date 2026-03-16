@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useOpenPost } from '@/hooks/useOpenPost';
 import { X } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useTrendingTags, useLatestAccounts, useSortedPosts, useTagSparklines } from '@/hooks/useTrending';
@@ -10,6 +11,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
+import { formatNumber } from '@/lib/formatNumber';
 import { timeAgo } from '@/lib/timeAgo';
 import { NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
@@ -152,7 +154,7 @@ export function RightSidebar() {
                   <div className="font-bold text-sm">#{item.tag}</div>
                   {item.accounts > 0 && (
                     <div className="text-xs text-muted-foreground">
-                      <span className="text-primary font-semibold">{item.accounts.toLocaleString()}</span> people talking
+                      <span className="text-primary font-semibold">{formatNumber(item.accounts)}</span> people talking
                     </div>
                   )}
                 </div>
@@ -243,6 +245,7 @@ export function RightSidebar() {
 function HotPostCard({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(event.pubkey);
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
   const { onClick: openPost, onAuxClick } = useOpenPost(`/${encodedId}`);
@@ -262,7 +265,7 @@ function HotPostCard({ event }: { event: NostrEvent }) {
       className="block w-full text-left hover:bg-secondary/40 -mx-2 px-2 py-2 rounded-lg transition-colors"
     >
       <div className="flex items-center gap-1.5 mb-0.5">
-        <Avatar className="size-4">
+        <Avatar shape={avatarShape} className="size-4">
           <AvatarImage src={metadata?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
             {displayName[0]?.toUpperCase()}
@@ -289,12 +292,13 @@ function LatestAccountCard({ event, onDismiss }: { event: NostrEvent; onDismiss:
   }
 
   const displayName = metadata.name || genUserName(event.pubkey);
+  const latestAvatarShape = getAvatarShape(metadata);
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
   return (
     <div className="flex items-center gap-3 group hover:bg-secondary/40 -mx-2 px-2 py-2 rounded-lg transition-colors">
       <Link to={`/${npub}`} className="shrink-0">
-        <Avatar className="size-10">
+        <Avatar shape={latestAvatarShape} className="size-10">
           <AvatarImage src={metadata.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0].toUpperCase()}

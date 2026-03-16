@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { MessageCircle, Zap, MoreHorizontal } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { ZapDialog } from '@/components/ZapDialog';
@@ -23,12 +24,7 @@ import { useEventStats } from '@/hooks/useTrending';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
-
-function formatSats(sats: number): string {
-  if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  return sats.toString();
-}
+import { formatNumber } from '@/lib/formatNumber';
 
 interface PhotoBottomBarProps {
   event: NostrEvent;
@@ -38,6 +34,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey) ?? genUserName(event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { data: stats } = useEventStats(event.id);
@@ -56,7 +53,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
           {/* Avatar + name */}
           <ProfileHoverCard pubkey={event.pubkey} asChild>
             <Link to={profileUrl} className="shrink-0">
-              <Avatar className="size-7">
+              <Avatar shape={avatarShape} className="size-7">
                 <AvatarImage src={metadata?.picture} alt={displayName} />
                 <AvatarFallback className="bg-white/20 text-white text-xs">
                   {displayName[0]?.toUpperCase()}
@@ -86,7 +83,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
               onClick={() => setCommentsOpen(true)}
             >
               <MessageCircle className="size-5" />
-              {!!stats?.replies && <span className="text-sm tabular-nums drop-shadow">{stats.replies}</span>}
+              {!!stats?.replies && <span className="text-sm tabular-nums drop-shadow">{formatNumber(stats.replies)}</span>}
             </button>
 
             <RepostMenu event={event}>
@@ -94,7 +91,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
                 <button className={`flex items-center gap-1 p-2.5 transition-colors ${isReposted ? 'text-accent' : 'text-white hover:text-accent'}`}>
                   <RepostIcon className="size-5" />
                   {!!((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) && (
-                    <span className="text-sm tabular-nums drop-shadow">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span>
+                    <span className="text-sm tabular-nums drop-shadow">{formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0))}</span>
                   )}
                 </button>
               )}
@@ -104,7 +101,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
               <ZapDialog target={event}>
                 <button className="flex items-center gap-1 p-2.5 text-white hover:text-amber-400 transition-colors">
                   <Zap className="size-5" />
-                  {!!stats?.zapAmount && <span className="text-sm tabular-nums drop-shadow">{formatSats(stats.zapAmount)}</span>}
+                  {!!stats?.zapAmount && <span className="text-sm tabular-nums drop-shadow">{formatNumber(stats.zapAmount)}</span>}
                 </button>
               </ZapDialog>
             )}

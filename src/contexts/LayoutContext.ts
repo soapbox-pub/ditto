@@ -16,6 +16,18 @@ export interface LayoutOptions {
   fabIcon?: React.ReactNode;
   /** Additional classes for the wrapper div */
   wrapperClassName?: string;
+  /**
+   * Optional scroll container element for the MobileBottomNav hide-on-scroll
+   * behavior. Pages that scroll an internal container (e.g. Vines snap-scroll)
+   * should set this so the bottom nav detects scroll direction correctly.
+   */
+  scrollContainer?: HTMLElement | null;
+  /**
+   * If true, disables the bottom overscroll padding on the center column.
+   * Use for pages with fixed-height layouts (chat, vines, livestream, etc.)
+   * that manage their own scroll containers.
+   */
+  noOverscroll?: boolean;
 }
 
 type Listener = () => void;
@@ -81,7 +93,9 @@ export function useLayoutOptions(options: LayoutOptions): void {
     prev.current.onFabClick !== options.onFabClick ||
     prev.current.fabIcon !== options.fabIcon ||
     prev.current.wrapperClassName !== options.wrapperClassName ||
-    prev.current.rightSidebar !== options.rightSidebar;
+    prev.current.rightSidebar !== options.rightSidebar ||
+    prev.current.scrollContainer !== options.scrollContainer ||
+    prev.current.noOverscroll !== options.noOverscroll;
 
   if (changed) {
     prev.current = options;

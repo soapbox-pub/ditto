@@ -4,6 +4,7 @@ import { BookOpen, MessageCircle, MessageSquare, MoreHorizontal, Star, Zap, Aler
 import { nip19 } from 'nostr-tools';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,6 +25,7 @@ import { useBookSummary } from '@/hooks/useBookSummary';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { timeAgo } from '@/lib/timeAgo';
 import { canZap } from '@/lib/canZap';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 import { BOOKSTR_KINDS, extractISBNFromEvent, parseBookReview, ratingToStars } from '@/lib/bookstr';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -35,13 +37,6 @@ interface BookFeedItemProps {
 
 /** Max height in px before truncation kicks in. */
 const MAX_HEIGHT = 300;
-
-/** Formats a sats amount into a compact human-readable string. */
-function formatSats(sats: number): string {
-  if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  return sats.toString();
-}
 
 /** Encodes the NIP-19 identifier for navigating to an event. */
 function encodeEventId(event: NostrEvent): string {
@@ -58,6 +53,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { data: stats } = useEventStats(event.id);
@@ -130,7 +126,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
         ) : (
           <ProfileHoverCard pubkey={event.pubkey} asChild>
             <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-              <Avatar className="size-11">
+              <Avatar shape={avatarShape} className="size-11">
                 <AvatarImage src={metadata?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
                   {displayName[0]?.toUpperCase()}
@@ -232,7 +228,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
               onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
             >
               <MessageCircle className="size-5" />
-              {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
+              {stats?.replies ? <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span> : null}
             </button>
 
             <RepostMenu event={event}>
@@ -242,7 +238,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
                   title={isReposted ? 'Undo repost' : 'Repost'}
                 >
                   <RepostIcon className="size-5" />
-                  {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
+                  {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0))}</span> : null}
                 </button>
               )}
             </RepostMenu>
@@ -261,7 +257,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
                   title="Zap"
                 >
                   <Zap className="size-5" />
-                  {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
+                  {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatNumber(stats.zapAmount)}</span> : null}
                 </button>
               </ZapDialog>
             )}

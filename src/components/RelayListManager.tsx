@@ -102,16 +102,6 @@ export function RelayListManager() {
       return;
     }
 
-    // Check if it's an app relay
-    if (APP_RELAYS.relays.some(r => r.url === normalized)) {
-      toast({
-        title: 'App relay',
-        description: 'This is an app default relay. Enable "App Relays" to use it.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     const newRelays = [...relays, { url: normalized, read: true, write: true }];
     setRelays(newRelays);
     setNewRelayUrl('');

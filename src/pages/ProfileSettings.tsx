@@ -56,6 +56,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { isValidAvatarShape } from '@/lib/avatarShape';
 
 const WALLET_TICKERS = [
   '$BTC', '$ETH', '$SOL', '$XMR', '$LTC', '$DOGE', '$ADA', '$DOT', '$XRP', '$MATIC',
@@ -81,6 +82,7 @@ const formSchema = n.metadata().extend({
     value: z.string(),
     type: z.enum(['text', 'wallet', 'media']),
   })).optional(),
+  shape: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -255,11 +257,21 @@ export function ProfileSettings() {
     return [];
   };
 
+  const parseShape = (): string => {
+    if (!event) return '';
+    try {
+      const parsed = JSON.parse(event.content);
+      if (isValidAvatarShape(parsed.shape)) return parsed.shape;
+    } catch { /* ignore */ }
+    return '';
+  };
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '', about: '', picture: '', banner: '',
       website: '', nip05: '', lud16: '', bot: false, fields: [],
+      shape: '',
     },
   });
 
@@ -314,6 +326,7 @@ export function ProfileSettings() {
         lud16: metadata.lud16 ?? '',
         bot: metadata.bot ?? false,
         fields: parseFields(),
+        shape: parseShape(),
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,7 +334,7 @@ export function ProfileSettings() {
 
   // Live values for the card preview
   const watched = form.watch();
-  const cardMetadata: Partial<NostrMetadata> = {
+  const cardMetadata: Partial<NostrMetadata> & { shape?: string } = {
     name: watched.name,
     about: watched.about,
     picture: watched.picture,
@@ -330,6 +343,7 @@ export function ProfileSettings() {
     nip05: watched.nip05,
     lud16: watched.lud16,
     bot: watched.bot,
+    shape: watched.shape,
   };
 
   // Card onChange: patch individual fields
@@ -384,8 +398,16 @@ export function ProfileSettings() {
   const onSubmit = async (values: FormValues) => {
     if (!user) return;
     try {
-      const { fields: customFields, ...standardMetadata } = values;
+      const { fields: customFields, shape, ...standardMetadata } = values;
       const data: Record<string, unknown> = { ...metadata, ...standardMetadata };
+
+      // Add shape only if set (an emoji string)
+      if (shape && isValidAvatarShape(shape)) {
+        data.shape = shape;
+      } else {
+        delete data.shape;
+      }
+
       for (const key in data) {
         if (data[key] === '') delete data[key];
       }
@@ -438,20 +460,23 @@ export function ProfileSettings() {
       )}
 
       {/* Header */}
-      <div className="px-4 pt-4 pb-3">
-        <div className="flex items-center gap-4">
-          <Link to="/settings" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
+      <div className="sticky top-mobile-bar sidebar:top-0 z-10 bg-background/80 backdrop-blur-md px-4 pt-4 pb-3">
+        <div className="flex items-center gap-3">
+          <Link to="/settings" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors shrink-0">
             <ArrowLeft className="size-5" />
           </Link>
-          <div>
-            <h1 className="text-xl font-bold">Profile</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Your Nostr identity is portable — it goes wherever you go. Edit your display name, bio, and avatar.</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold leading-tight">Profile</h1>
+            <p className="text-sm text-muted-foreground truncate">Your Nostr identity is portable — it goes wherever you go.</p>
           </div>
+          <Button type="submit" form="profile-settings-form" size="sm" className="shrink-0 rounded-full font-bold px-5" disabled={busy}>
+            {busy ? <Loader2 className="size-3.5 animate-spin" /> : 'Save'}
+          </Button>
         </div>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl mx-auto px-4 pb-10 space-y-6">
+        <form id="profile-settings-form" onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl mx-auto px-4 pb-10 space-y-6">
 
           {/* Intro */}
           <div className="flex items-center gap-4 px-3 pt-2 pb-2">
@@ -470,6 +495,8 @@ export function ProfileSettings() {
             metadata={cardMetadata}
             onChange={handleCardChange}
             onPickImage={handlePickImage}
+            onAvatarShape={(shape) => form.setValue('shape', shape, { shouldDirty: true })}
+            onRemoveAvatar={() => form.setValue('picture', '', { shouldDirty: true })}
           />
 
           {isUploading && (
@@ -589,12 +616,6 @@ export function ProfileSettings() {
               />
             </CollapsibleContent>
           </Collapsible>
-
-          {/* Save */}
-          <Button type="submit" className="w-full" disabled={busy}>
-            {busy && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Save Profile
-          </Button>
 
         </form>
       </Form>

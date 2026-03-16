@@ -1,10 +1,12 @@
 import { type ReactNode, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
-import { Image, Film, Music, ExternalLink, Blocks } from 'lucide-react';
+import { Image, Film, Music, ExternalLink, Blocks, MessageSquareOff } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { NoteCard } from '@/components/NoteCard';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -14,6 +16,9 @@ import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
 import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
+
+/** Kinds that render as a full NoteCard instead of the generic embed card. */
+const NOTECARD_KINDS = new Set([30000, 39089]);
 
 /** Bech32 charset used by NIP-19 identifiers. */
 const B32 = '023456789acdefghjklmnpqrstuvwxyz';
@@ -83,7 +88,16 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
   }
 
   if (isError || !event) {
-    return null;
+    return <EmbeddedNoteTombstone className={className} />;
+  }
+
+  // For follow packs / lists, render the same rich NoteCard used in feeds
+  if (NOTECARD_KINDS.has(event.kind)) {
+    return (
+      <div className={className} onClick={(e) => e.stopPropagation()}>
+        <NoteCard event={event} compact className="rounded-2xl border border-border !border-b overflow-hidden" />
+      </div>
+    );
   }
 
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} />;
@@ -104,6 +118,7 @@ function EmbeddedNoteCard({
   const author = useAuthor(event.pubkey);
 
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const neventId = useMemo(
@@ -203,7 +218,7 @@ function EmbeddedNoteCard({
                   className="shrink-0"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <Avatar className="size-5">
+                  <Avatar shape={avatarShape} className="size-5">
                     <AvatarImage src={metadata?.picture} alt={displayName} />
                     <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                       {displayName[0]?.toUpperCase()}
@@ -330,6 +345,23 @@ function MaybeProfileHoverCard({ pubkey, disabled, children }: { pubkey: string;
     <ProfileHoverCard pubkey={pubkey} asChild>
       {children}
     </ProfileHoverCard>
+  );
+}
+
+/** Tombstone shown when a quoted note could not be loaded. */
+function EmbeddedNoteTombstone({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'rounded-2xl border border-dashed border-border overflow-hidden',
+        className,
+      )}
+    >
+      <div className="px-3.5 py-4 flex items-center gap-2 text-muted-foreground">
+        <MessageSquareOff className="size-4 shrink-0" />
+        <span className="text-sm">This post could not be loaded</span>
+      </div>
+    </div>
   );
 }
 

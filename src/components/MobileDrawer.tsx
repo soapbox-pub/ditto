@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronUp, LogOut, UserPlus, Loader2 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { SidebarNavList } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
@@ -36,6 +37,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, metadata, event: currentUserEvent } = useCurrentUser();
+  const currentUserAvatarShape = getAvatarShape(metadata);
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const { logout } = useLoginActions();
   const { otherUsers, setLogin } = useLoggedInAccounts();
@@ -96,17 +98,18 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     <>
         <Sheet open={open} onOpenChange={(v) => { if (!v) setMoreMenuOpen(false); onOpenChange(v); }}>
         <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col" style={bgStyle}>
+          {hasBgImage && <div className="absolute inset-0 bg-background/70 pointer-events-none" />}
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
 
           {user ? (
-            <div className={`flex flex-col h-full ${hasBgImage ? 'py-2 px-2 gap-1' : ''}`}>
+            <div className="flex flex-col h-full relative">
               {/* User row with caret */}
               <button
                 onClick={() => setAccountExpanded((v) => !v)}
-                className={`flex items-center gap-3 px-3 hover:bg-secondary/60 transition-colors w-full text-left ${hasBgImage ? 'bg-background rounded-xl' : ''}`}
+                className="flex items-center gap-3 px-3 hover:bg-secondary/60 transition-colors w-full text-left"
                 style={{ minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
               >
-                <Avatar className="size-7 shrink-0">
+                <Avatar shape={currentUserAvatarShape} className="size-7 shrink-0">
                   <AvatarImage src={metadata?.picture} alt={displayName} />
                   <AvatarFallback className="bg-primary/20 text-primary text-xs">
                     {displayName[0].toUpperCase()}
@@ -130,14 +133,94 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
               {/* Expanded account actions */}
               {accountExpanded && (
-                <div className={hasBgImage ? 'bg-background rounded-xl overflow-hidden' : ''}>
+                <div>
+                  {/* Status editor */}
+                  <div className="border-b border-border">
+                    {statusEditing ? (
+                      <div className="px-3 py-2 space-y-2">
+                        <Input
+                          value={statusDraft}
+                          onChange={(e) => setStatusDraft(e.target.value.slice(0, 80))}
+                          placeholder="What are you up to?"
+                          className="h-8 text-sm"
+                          maxLength={80}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const text = statusDraft.trim();
+                              publishStatus.mutateAsync({ status: text }).then(() => {
+                                setStatusEditing(false);
+                                setStatusDraft('');
+                                toast({ title: text ? 'Status updated' : 'Status cleared' });
+                              });
+                            } else if (e.key === 'Escape') {
+                              setStatusEditing(false);
+                              setStatusDraft('');
+                            }
+                          }}
+                        />
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => {
+                              const text = statusDraft.trim();
+                              publishStatus.mutateAsync({ status: text }).then(() => {
+                                setStatusEditing(false);
+                                setStatusDraft('');
+                                toast({ title: text ? 'Status updated' : 'Status cleared' });
+                              });
+                            }}
+                            disabled={publishStatus.isPending}
+                            className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                          >
+                            {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : 'Save'}
+                          </button>
+                          {userStatus.status && (
+                            <button
+                              onClick={() => {
+                                publishStatus.mutateAsync({ status: '' }).then(() => {
+                                  setStatusEditing(false);
+                                  setStatusDraft('');
+                                  toast({ title: 'Status cleared' });
+                                });
+                              }}
+                              disabled={publishStatus.isPending}
+                              className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
+                            >
+                              Clear
+                            </button>
+                          )}
+                          <button
+                            onClick={() => { setStatusEditing(false); setStatusDraft(''); }}
+                            className="text-xs text-muted-foreground hover:underline ml-auto"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setStatusEditing(true);
+                          setStatusDraft(userStatus.status ?? '');
+                        }}
+                        className="flex items-center gap-3 w-full px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors"
+                      >
+                        {userStatus.status ? (
+                          <span className="truncate text-muted-foreground italic text-xs">{userStatus.status}</span>
+                        ) : (
+                          <span className="text-muted-foreground">Set a status</span>
+                        )}
+                      </button>
+                    )}
+                  </div>
                   {otherUsers.map((account) => (
                     <button
                       key={account.id}
                       onClick={() => { setLogin(account.id); handleClose(); }}
                       className="flex items-center gap-3 w-full px-3 py-2 hover:bg-secondary/60 transition-colors"
                     >
-                      <Avatar className="size-7 shrink-0">
+                      <Avatar shape={getAvatarShape(account.metadata)} className="size-7 shrink-0">
                         <AvatarImage src={account.metadata.picture} alt={getDisplayName(account)} />
                         <AvatarFallback className="bg-primary/20 text-primary text-xs">
                           {getDisplayName(account).charAt(0).toUpperCase()}
@@ -172,92 +255,11 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 </div>
               )}
 
-              {/* Status editor */}
-              <div className={`${hasBgImage ? 'bg-background rounded-xl' : ''} border-b border-border`}>
-                {statusEditing ? (
-                  <div className="px-3 py-2 space-y-2">
-                    <Input
-                      value={statusDraft}
-                      onChange={(e) => setStatusDraft(e.target.value.slice(0, 80))}
-                      placeholder="What are you up to?"
-                      className="h-8 text-sm"
-                      maxLength={80}
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const text = statusDraft.trim();
-                          publishStatus.mutateAsync({ status: text }).then(() => {
-                            setStatusEditing(false);
-                            setStatusDraft('');
-                            toast({ title: text ? 'Status updated' : 'Status cleared' });
-                          });
-                        } else if (e.key === 'Escape') {
-                          setStatusEditing(false);
-                          setStatusDraft('');
-                        }
-                      }}
-                    />
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => {
-                          const text = statusDraft.trim();
-                          publishStatus.mutateAsync({ status: text }).then(() => {
-                            setStatusEditing(false);
-                            setStatusDraft('');
-                            toast({ title: text ? 'Status updated' : 'Status cleared' });
-                          });
-                        }}
-                        disabled={publishStatus.isPending}
-                        className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
-                      >
-                        {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : 'Save'}
-                      </button>
-                      {userStatus.status && (
-                        <button
-                          onClick={() => {
-                            publishStatus.mutateAsync({ status: '' }).then(() => {
-                              setStatusEditing(false);
-                              setStatusDraft('');
-                              toast({ title: 'Status cleared' });
-                            });
-                          }}
-                          disabled={publishStatus.isPending}
-                          className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
-                        >
-                          Clear
-                        </button>
-                      )}
-                      <button
-                        onClick={() => { setStatusEditing(false); setStatusDraft(''); }}
-                        className="text-xs text-muted-foreground hover:underline ml-auto"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setStatusEditing(true);
-                      setStatusDraft(userStatus.status ?? '');
-                    }}
-                    className="flex items-center gap-3 w-full px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors"
-                  >
-                    {userStatus.status ? (
-                      <span className="truncate text-muted-foreground italic text-xs">{userStatus.status}</span>
-                    ) : (
-                      <span className="text-muted-foreground">Set a status</span>
-                    )}
-                  </button>
-                )}
-              </div>
-
               {/* Nav items — scrollable */}
               <nav
                 className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-1"
               >
-                <div className={hasBgImage ? 'bg-background rounded-xl p-0.5' : 'contents'}>
+                <div className="contents">
                   <SidebarNavList
                     items={visibleItems}
                     editing={editing}
@@ -287,17 +289,17 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
               {/* Theme */}
               <div
-                className={`flex items-center ${hasBgImage ? 'bg-background rounded-xl' : 'border-t border-border'}`}
+                className="flex items-center border-t border-border"
                 style={{ minHeight: '3.5rem', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
               >
                 <SidebarThemeDropdown userPubkey={user.pubkey} onNavigate={handleClose} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 rounded-full transition-colors" />
               </div>
             </div>
           ) : (
-            <div className={`flex flex-col h-full ${hasBgImage ? 'py-2 px-2 gap-1' : ''}`}>
+            <div className="flex flex-col h-full relative">
               {/* Login prompt */}
               <div
-                className={`flex items-center gap-3 px-4 border-b border-border ${hasBgImage ? 'bg-background rounded-xl' : ''}`}
+                className="flex items-center gap-3 px-4 border-b border-border"
                 style={{ minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
               >
                 <LoginArea className="w-full flex" />
@@ -305,7 +307,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
               {/* Nav items — scrollable */}
               <nav className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-1">
-                <div className={hasBgImage ? 'bg-background rounded-xl p-0.5' : 'contents'}>
+                <div className="contents">
                   <SidebarNavList
                     items={visibleItems}
                     editing={false}
@@ -335,7 +337,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
               {/* Theme */}
               <div
-                className={`flex items-center ${hasBgImage ? 'bg-background rounded-xl' : 'border-t border-border'}`}
+                className="flex items-center border-t border-border"
                 style={{ minHeight: '3.5rem', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
               >
                 <SidebarThemeDropdown onNavigate={handleClose} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 rounded-full transition-colors" />

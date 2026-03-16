@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { BookOpen, ExternalLink, FileText, Globe, MapPin, Play, User, Users } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { LinkEmbed } from '@/components/LinkEmbed';
@@ -524,6 +525,7 @@ export function CommunityPreview({ addr }: { addr: { kind: number; pubkey: strin
 export function ProfilePreview({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name ?? genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
@@ -546,7 +548,7 @@ export function ProfilePreview({ pubkey }: { pubkey: string }) {
       to={profileUrl}
       className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors"
     >
-      <Avatar className="size-12 shrink-0">
+      <Avatar shape={avatarShape} className="size-12 shrink-0">
         <AvatarImage src={metadata?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary">
           <User className="size-5" />

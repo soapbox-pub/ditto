@@ -162,6 +162,11 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
         // Prevent scroll from bubbling to the page
         e.stopPropagation();
       }}
+      onTouchMove={(e) => {
+        // Prevent Radix Dialog's scroll-lock from blocking touch scrolling
+        // inside the emoji-mart shadow DOM on mobile devices
+        e.stopPropagation();
+      }}
     />
   );
 }

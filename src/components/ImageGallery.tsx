@@ -8,6 +8,7 @@ import { VideoPlayer } from '@/components/VideoPlayer';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { getAvatarShape } from '@/lib/avatarShape';
 
 /** Minimal imeta fields needed for pre-load sizing. */
 interface ImetaDimensions {
@@ -862,6 +863,7 @@ function LightboxSlot({
           mime={meta?.mime}
           avatarUrl={authorMeta?.picture}
           avatarFallback={fallback[0]?.toUpperCase()}
+          avatarShape={getAvatarShape(authorMeta)}
           className="w-full max-w-lg"
         />
       </div>

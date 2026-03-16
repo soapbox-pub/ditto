@@ -4,6 +4,7 @@ import { Heart, MessageCircle, Repeat2 } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 
 /** A single image attachment. */
@@ -49,13 +50,6 @@ export interface ExternalPostData {
   external?: ExternalExternal;
   /** Small branding icon rendered in the bottom-right. */
   brandIcon?: ReactNode;
-}
-
-/** Format a count for display (e.g. 1234 → "1.2K"). */
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  return String(n);
 }
 
 /** Format an ISO date string into a relative or short date. */
@@ -205,15 +199,15 @@ export function ExternalPostCard({ post, className }: ExternalPostCardProps) {
         <div className="flex items-center gap-4 pt-0.5">
           <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
             <MessageCircle className="size-3.5" />
-            {formatCount(post.replyCount)}
+            {formatNumber(post.replyCount)}
           </span>
           <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
             <Repeat2 className="size-3.5" />
-            {formatCount(post.repostCount)}
+            {formatNumber(post.repostCount)}
           </span>
           <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
             <Heart className="size-3.5" />
-            {formatCount(post.likeCount)}
+            {formatNumber(post.likeCount)}
           </span>
 
           {/* Platform branding — links to the original post */}

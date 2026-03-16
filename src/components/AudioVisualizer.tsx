@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Play, Pause, Volume1, Volume2, VolumeX } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import type { AvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { formatTime } from '@/lib/formatTime';
@@ -12,6 +13,8 @@ interface AudioVisualizerProps {
   avatarUrl?: string;
   /** Fallback display letter for the avatar */
   avatarFallback?: string;
+  /** Avatar mask shape, forwarded from the author's profile metadata */
+  avatarShape?: AvatarShape;
   className?: string;
 }
 
@@ -26,6 +29,7 @@ export function AudioVisualizer({
   mime,
   avatarUrl,
   avatarFallback = '?',
+  avatarShape,
   className,
 }: AudioVisualizerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -262,7 +266,7 @@ export function AudioVisualizer({
               : 'ring-border',
           )}
         >
-          <Avatar className="size-20 border-2 border-white/20">
+          <Avatar className="size-20 border-2 border-white/20" shape={avatarShape}>
             <AvatarImage src={avatarUrl} alt={avatarFallback} />
             <AvatarFallback className="bg-primary/20 text-primary text-2xl font-semibold">
               {avatarFallback}

@@ -30,6 +30,7 @@ import { useEventStats, type EventStats } from '@/hooks/useTrending';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUserReaction } from '@/hooks/useUserReaction';
@@ -42,6 +43,7 @@ import { ZapDialog } from '@/components/ZapDialog';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 
 
@@ -49,18 +51,12 @@ import { CommentsSheet } from '@/components/CommentsSheet';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { canZap } from '@/lib/canZap';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 
 const VINE_KIND = 34236;
 
 type FeedTab = 'follows' | 'global';
-
-/** Formats a sats amount into a compact human-readable string. */
-function formatSats(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  return n.toString();
-}
 
 /** Parse imeta tags for a vine event → { url, thumbnail }. */
 function parseVineImeta(tags: string[][]): { url?: string; thumbnail?: string } {
@@ -278,6 +274,7 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { data: stats } = useEventStats(event.id);
@@ -469,7 +466,7 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
               {author.isLoading ? (
                 <Skeleton className="size-11 rounded-full" />
               ) : (
-                <Avatar className="size-11 border-2 border-white shadow-lg">
+                <Avatar shape={avatarShape} className="size-11 border-2 border-white shadow-lg">
                   <AvatarImage src={metadata?.picture} alt={displayName} />
                   <AvatarFallback className="bg-primary/80 text-white text-sm font-bold">
                     {displayName[0]?.toUpperCase()}
@@ -480,12 +477,12 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
           </ProfileHoverCard>
 
           {/* React */}
-          <VineHeartButton event={event} label={stats?.reactions ? String(stats.reactions) : undefined} />
+          <VineHeartButton event={event} label={stats?.reactions ? formatNumber(stats.reactions) : undefined} />
 
           {/* Reply */}
           <VineActionButton
             icon={<MessageCircle className="size-6" />}
-            label={stats?.replies ? String(stats.replies) : undefined}
+            label={stats?.replies ? formatNumber(stats.replies) : undefined}
             onClick={(e) => { e.stopPropagation(); onCommentClick(); }}
             className="text-white hover:text-blue-400"
           />
@@ -493,7 +490,7 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
           {/* Repost */}
           <VineRepostButton
             event={event}
-            label={(stats?.reposts || stats?.quotes) ? String((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) : undefined}
+            label={(stats?.reposts || stats?.quotes) ? formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) : undefined}
           />
 
           {/* Zap */}
@@ -501,7 +498,7 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
             <ZapDialog target={event}>
               <VineActionButton
                 icon={<Zap className="size-6" />}
-                label={stats?.zapAmount ? formatSats(stats.zapAmount) : undefined}
+                label={stats?.zapAmount ? formatNumber(stats.zapAmount) : undefined}
                 className="text-white hover:text-amber-400"
               />
             </ZapDialog>
@@ -602,10 +599,17 @@ export function VinesFeedPage() {
   const { events, isLoading } = useVinesFeed(tab);
   const [activeIndex, setActiveIndex] = useState(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const handleCommentClick = useCallback(() => {
     setCommentsOpen(true);
+  }, []);
+
+  // Callback ref that wires up both the mutable ref and state for layout context
+  const containerCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    containerRef.current = node;
+    setScrollContainer(node);
   }, []);
 
   useSeoMeta({
@@ -628,7 +632,13 @@ export function VinesFeedPage() {
 
   useLayoutOptions({
     showFAB: false,
+    scrollContainer,
+    noOverscroll: true,
   });
+
+  // Track scroll direction to expand vines when bottom nav hides
+  const { hidden: bottomNavHidden } = useScrollDirection(scrollContainer);
+  const vineHeightClass = bottomNavHidden ? 'vine-slide-height-expanded' : 'vine-slide-height';
 
   // Lock body scroll when mobile comments are open
   useEffect(() => {
@@ -737,14 +747,14 @@ export function VinesFeedPage() {
 
       {/* ── Scroll container ────────────────────────────────────────── */}
       <div
-        ref={containerRef}
-        className="vine-slide-height sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory overflow-y-scroll"
+        ref={containerCallbackRef}
+        className={cn(vineHeightClass, 'sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory overflow-y-scroll')}
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', overscrollBehavior: 'none' }}
       >
         {vines.map((event, i) => (
           <div
             key={event.id}
-            className="w-full vine-slide-height sidebar:h-[calc(100vh-3rem)] snap-start snap-always flex-shrink-0"
+            className={cn('w-full snap-start snap-always flex-shrink-0', vineHeightClass, 'sidebar:h-[calc(100vh-3rem)]')}
           >
             <VineCard
               event={event}

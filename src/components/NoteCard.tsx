@@ -58,6 +58,7 @@ import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarShape } from "@/lib/avatarShape";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoPlayer } from "@/components/VideoPlayer";
@@ -81,6 +82,7 @@ import { getParentEventId, isReplyEvent } from "@/lib/nostrEvents";
 import { isSingleImagePost } from "@/lib/noteContent";
 import { shareOrCopy } from "@/lib/share";
 import { timeAgo } from "@/lib/timeAgo";
+import { formatNumber } from "@/lib/formatNumber";
 import { cn } from "@/lib/utils";
 
 interface NoteCardProps {
@@ -94,14 +96,6 @@ interface NoteCardProps {
   threaded?: boolean;
   /** Like threaded but without the connector line — used for the last item in a thread (e.g. sub-reply hint). */
   threadedLast?: boolean;
-}
-
-/** Formats a sats amount into a compact human-readable string. */
-function formatSats(sats: number): string {
-  if (sats >= 1_000_000)
-    return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
-  return sats.toString();
 }
 
 /** Gets a tag value by name. */
@@ -170,6 +164,7 @@ export function NoteCard({
   const author = useAuthor(event.pubkey);
 
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const nip05 = metadata?.nip05;
   const { data: nip05Verified, isPending: nip05Pending } = useNip05Verify(
@@ -528,7 +523,7 @@ export function NoteCard({
         className="shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <Avatar className={threaded || threadedLast ? "size-10" : "size-11"}>
+        <Avatar shape={avatarShape} className={threaded || threadedLast ? "size-10" : "size-11"}>
           <AvatarImage src={metadata?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase()}
@@ -550,26 +545,26 @@ export function NoteCard({
         }}
       >
         <MessageCircle className="size-5" />
-        {stats?.replies ? (
-          <span className="text-sm tabular-nums">{stats.replies}</span>
-        ) : null}
-      </button>
-
-      <RepostMenu event={event}>
-        {(isReposted: boolean) => (
-          <button
-            className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
-            title={isReposted ? "Undo repost" : "Repost"}
-          >
-            <RepostIcon className="size-5" />
-            {stats?.reposts || stats?.quotes ? (
-              <span className="text-sm tabular-nums">
-                {(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}
-              </span>
+            {stats?.replies ? (
+              <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
             ) : null}
           </button>
-        )}
-      </RepostMenu>
+
+          <RepostMenu event={event}>
+            {(isReposted: boolean) => (
+              <button
+                className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
+                title={isReposted ? "Undo repost" : "Repost"}
+              >
+                <RepostIcon className="size-5" />
+                {stats?.reposts || stats?.quotes ? (
+                  <span className="text-sm tabular-nums">
+                    {formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0))}
+                  </span>
+                ) : null}
+              </button>
+            )}
+          </RepostMenu>
 
       <ReactionButton
         eventId={event.id}
@@ -587,7 +582,7 @@ export function NoteCard({
             <Zap className="size-5" />
             {stats?.zapAmount ? (
               <span className="text-sm tabular-nums">
-                {formatSats(stats.zapAmount)}
+                {formatNumber(stats.zapAmount)}
               </span>
             ) : null}
           </button>
@@ -664,7 +659,7 @@ export function NoteCard({
                       className="shrink-0"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <Avatar className="size-6">
+                      <Avatar shape={avatarShape} className="size-6">
                         <AvatarImage
                           src={metadata?.picture}
                           alt={displayName}
@@ -741,7 +736,7 @@ export function NoteCard({
                     className="shrink-0"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Avatar className="size-6">
+                    <Avatar shape={avatarShape} className="size-6">
                       <AvatarImage src={metadata?.picture} alt={displayName} />
                       <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
                         {displayName[0]?.toUpperCase()}
@@ -788,29 +783,39 @@ export function NoteCard({
         onClick={handleCardClick}
         onAuxClick={handleAuxClick}
       >
-        <div className="flex gap-3">
-          <div className="flex flex-col items-center">
-            {avatarElement}
-            {threaded && (
-              <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
-            )}
-          </div>
-          <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
-            {authorInfo}
+        {isFollowPack ? (
+          <div className={cn("min-w-0", threaded && "pb-3")}>
             {contentBlock}
+            <FollowPackAuthorLine pubkey={event.pubkey} createdAt={event.created_at} />
             {actionButtons}
-            <NoteMoreMenu
-              event={event}
-              open={moreMenuOpen}
-              onOpenChange={setMoreMenuOpen}
-            />
-            <ReplyComposeModal
-              event={event}
-              open={replyOpen}
-              onOpenChange={setReplyOpen}
-            />
+            <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+            <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
           </div>
-        </div>
+        ) : (
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {avatarElement}
+              {threaded && (
+                <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
+              )}
+            </div>
+            <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
+              {authorInfo}
+              {contentBlock}
+              {actionButtons}
+              <NoteMoreMenu
+                event={event}
+                open={moreMenuOpen}
+                onOpenChange={setMoreMenuOpen}
+              />
+              <ReplyComposeModal
+                event={event}
+                open={replyOpen}
+                onOpenChange={setReplyOpen}
+              />
+            </div>
+          </div>
+        )}
       </article>
     );
   }
@@ -862,29 +867,46 @@ export function NoteCard({
         })()
       )}
 
-      {/* Header: avatar + name/handle stacked */}
-      <div className="flex items-center gap-3">
-        {avatarElement}
-        {authorInfo}
-        {isColor && <ColorMomentEyeButton event={event} />}
-      </div>
-
-      {contentBlock}
-
-      {/* Action buttons — hidden in compact/embed mode */}
-      {!compact && (
+      {/* For follow packs / lists: content-first layout with subtle author attribution */}
+      {isFollowPack ? (
         <>
-          {actionButtons}
-          <NoteMoreMenu
-            event={event}
-            open={moreMenuOpen}
-            onOpenChange={setMoreMenuOpen}
-          />
-          <ReplyComposeModal
-            event={event}
-            open={replyOpen}
-            onOpenChange={setReplyOpen}
-          />
+          {contentBlock}
+          <FollowPackAuthorLine pubkey={event.pubkey} createdAt={event.created_at} />
+          {!compact && (
+            <>
+              {actionButtons}
+              <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+              <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+            </>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Header: avatar + name/handle stacked */}
+          <div className="flex items-center gap-3">
+            {avatarElement}
+            {authorInfo}
+            {isColor && <ColorMomentEyeButton event={event} />}
+          </div>
+
+          {contentBlock}
+
+          {/* Action buttons — hidden in compact/embed mode */}
+          {!compact && (
+            <>
+              {actionButtons}
+              <NoteMoreMenu
+                event={event}
+                open={moreMenuOpen}
+                onOpenChange={setMoreMenuOpen}
+              />
+              <ReplyComposeModal
+                event={event}
+                open={replyOpen}
+                onOpenChange={setReplyOpen}
+              />
+            </>
+          )}
         </>
       )}
     </article>
@@ -1400,6 +1422,52 @@ function StreamContent({ event }: { event: NostrEvent }) {
           )}
         </div>
       </button>
+    </div>
+  );
+}
+
+/** Subtle author attribution line for follow pack / list cards. */
+function FollowPackAuthorLine({ pubkey, createdAt }: { pubkey: string; createdAt: number }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
+  const displayName = getDisplayName(metadata, pubkey);
+  const profileUrl = useProfileUrl(pubkey, metadata);
+
+  return (
+    <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+      {author.isLoading ? (
+        <>
+          <Skeleton className="size-4 rounded-full shrink-0" />
+          <Skeleton className="h-3 w-20" />
+        </>
+      ) : (
+        <>
+          <ProfileHoverCard pubkey={pubkey} asChild>
+            <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+              <Avatar shape={avatarShape} className="size-4">
+                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-[7px]">
+                  {displayName[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          </ProfileHoverCard>
+          <ProfileHoverCard pubkey={pubkey} asChild>
+            <Link
+              to={profileUrl}
+              className="hover:underline truncate"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {author.data?.event ? (
+                <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+              ) : displayName}
+            </Link>
+          </ProfileHoverCard>
+          <span className="shrink-0">·</span>
+          <span className="shrink-0">{timeAgo(createdAt)}</span>
+        </>
+      )}
     </div>
   );
 }
