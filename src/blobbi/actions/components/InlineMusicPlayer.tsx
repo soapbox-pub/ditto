@@ -1,7 +1,7 @@
 // src/blobbi/actions/components/InlineMusicPlayer.tsx
 
 import { useCallback, useEffect } from 'react';
-import { Music, Play, Pause, Square, MoreHorizontal, Loader2, AlertCircle, X } from 'lucide-react';
+import { Music, Play, Pause, RotateCcw, MoreHorizontal, Loader2, AlertCircle, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -45,6 +45,7 @@ export function InlineMusicPlayer({
     error: playbackError,
     load,
     toggle,
+    restart,
     stop,
     isPlaying,
     cleanup,
@@ -166,18 +167,18 @@ export function InlineMusicPlayer({
               )}
             </Button>
             
-            {/* Stop button - only show when actively playing or paused */}
+            {/* Restart button - only show when actively playing or paused */}
             {isPublished && (playbackState === 'playing' || playbackState === 'paused') && (
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={() => {
-                  stop();
-                  onPlaybackStop?.();
+                  restart();
                 }}
                 className="size-9 rounded-full"
+                title="Restart from beginning"
               >
-                <Square className="size-3.5" />
+                <RotateCcw className="size-3.5" />
               </Button>
             )}
             

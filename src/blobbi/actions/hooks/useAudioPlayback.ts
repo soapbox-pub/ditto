@@ -49,6 +49,8 @@ export interface UseAudioPlaybackReturn {
   pause: () => void;
   /** Stop playback and reset */
   stop: () => void;
+  /** Restart playback from the beginning */
+  restart: () => Promise<void>;
   /** Toggle play/pause */
   toggle: () => Promise<void>;
   /** Whether audio is currently playing */
@@ -202,6 +204,24 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
     setState('stopped');
   }, []);
   
+  // Restart playback from the beginning
+  const restart = useCallback(async () => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = 0;
+    try {
+      await audioRef.current.play();
+      setState('playing');
+    } catch (err) {
+      const playbackError: PlaybackError = {
+        message: getPlaybackErrorMessage(err),
+        code: err instanceof Error ? err.name : 'UNKNOWN',
+      };
+      setError(playbackError);
+      setState('error');
+      onError?.(playbackError);
+    }
+  }, [onError]);
+  
   // Toggle play/pause
   const toggle = useCallback(async () => {
     if (state === 'playing') {
@@ -219,6 +239,7 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
     play,
     pause,
     stop,
+    restart,
     toggle,
     isPlaying: state === 'playing',
     cleanup,
