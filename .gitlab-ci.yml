@@ -104,10 +104,9 @@ build-apk:
     - VERSION_CODE="${CI_PIPELINE_IID}"
     - echo "Building version $VERSION_NAME (code $VERSION_CODE) from tag $CI_COMMIT_TAG"
 
-    # Stamp version into build.gradle and zapstore.yaml
+    # Stamp version into build.gradle
     - sed -i "s/versionCode [0-9]*/versionCode ${VERSION_CODE}/" android/app/build.gradle
     - sed -i "s/versionName \"[^\"]*\"/versionName \"${VERSION_NAME}\"/" android/app/build.gradle
-    - sed -i "s|^version: .*|version: ${VERSION_NAME}|" zapstore.yaml
 
     # Build web assets
     - npm ci
