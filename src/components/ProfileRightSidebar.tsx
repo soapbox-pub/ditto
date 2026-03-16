@@ -15,7 +15,8 @@ import type { AddrCoords } from '@/hooks/useEvent';
 import QRCode from 'qrcode';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getContentWarning } from '@/lib/contentWarning';
-import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
+import { MiniAudioPlayer, isAudioUrl, isImageUrl, isVideoUrl } from '@/components/MiniAudioPlayer';
+import { VideoPlayer } from '@/components/VideoPlayer';
 import { parseDimToAspectRatio } from '@/components/MediaCollage';
 
 /** Simple email regex for display purposes. */
@@ -368,7 +369,7 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
     );
   }
 
-  // Audio file: render mini player
+  // Media fields: render inline players/previews based on file extension
   const isUrl = field.value.startsWith('http://') || field.value.startsWith('https://');
 
   if (isUrl && isAudioUrl(field.value)) {
@@ -376,6 +377,33 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
       <div>
         <div className="font-semibold text-sm mb-1.5">{field.label}</div>
         <MiniAudioPlayer src={field.value} />
+      </div>
+    );
+  }
+
+  if (isUrl && isImageUrl(field.value)) {
+    return (
+      <div>
+        {field.label && <div className="font-semibold text-sm mb-1.5">{field.label}</div>}
+        <a href={field.value} target="_blank" rel="noopener noreferrer" className="block">
+          <img
+            src={field.value}
+            alt={field.label || 'Profile image'}
+            className="w-full rounded-lg object-cover"
+            loading="lazy"
+          />
+        </a>
+      </div>
+    );
+  }
+
+  if (isUrl && isVideoUrl(field.value)) {
+    return (
+      <div>
+        {field.label && <div className="font-semibold text-sm mb-1.5">{field.label}</div>}
+        <div className="rounded-lg overflow-hidden">
+          <VideoPlayer src={field.value} />
+        </div>
       </div>
     );
   }
