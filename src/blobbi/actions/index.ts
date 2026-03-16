@@ -8,6 +8,13 @@ export { BlobbiActionInventoryModal } from './components/BlobbiActionInventoryMo
 export { useBlobbiUseInventoryItem } from './hooks/useBlobbiUseInventoryItem';
 export type { UseItemRequest, UseItemResult, UseBlobbiUseInventoryItemParams } from './hooks/useBlobbiUseInventoryItem';
 
+export { useBlobbiHatch, useBlobbiEvolve } from './hooks/useBlobbiStageTransition';
+export type { 
+  UseBlobbiStageTransitionParams, 
+  StageTransitionResult,
+  CanonicalActionResult,
+} from './hooks/useBlobbiStageTransition';
+
 // Utilities
 export {
   // Types

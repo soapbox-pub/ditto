@@ -42,6 +42,8 @@ import {
   BlobbiActionsModal, 
   BlobbiActionInventoryModal,
   useBlobbiUseInventoryItem,
+  useBlobbiHatch,
+  useBlobbiEvolve,
   type InventoryAction,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
@@ -315,6 +317,34 @@ function BlobbiContent() {
     await executeUseItem({ itemId, action });
   }, [executeUseItem]);
   
+  // ─── Stage Transition Hooks ───
+  const { mutateAsync: executeHatch, isPending: isHatching } = useBlobbiHatch({
+    companion,
+    profile,
+    ensureCanonicalBeforeAction,
+    updateCompanionEvent,
+    invalidateCompanion,
+    invalidateProfile,
+  });
+  
+  const { mutateAsync: executeEvolve, isPending: isEvolving } = useBlobbiEvolve({
+    companion,
+    profile,
+    ensureCanonicalBeforeAction,
+    updateCompanionEvent,
+    invalidateCompanion,
+    invalidateProfile,
+  });
+  
+  // Handler for hatching (egg -> baby)
+  const handleHatch = useCallback(async () => {
+    await executeHatch();
+  }, [executeHatch]);
+  
+  // Handler for evolution (baby -> adult)
+  const handleEvolve = useCallback(async () => {
+    await executeEvolve();
+  }, [executeEvolve]);
   
   // ─── Determine UI State ───
   // Clear separation of cases based on profile and pet data
@@ -529,6 +559,10 @@ function BlobbiContent() {
       isPublishing={isPublishing}
       isFetching={profileFetching || companionFetching}
       profile={profile}
+      onHatch={handleHatch}
+      onEvolve={handleEvolve}
+      isHatching={isHatching}
+      isEvolving={isEvolving}
       updateProfileEvent={updateProfileEvent}
       updateCompanionEvent={updateCompanionEvent}
       invalidateProfile={invalidateProfile}
@@ -579,6 +613,11 @@ interface BlobbiDashboardProps {
   isPublishing: boolean;
   isFetching: boolean;
   profile: BlobbonautProfile | null;
+  // Stage transition handlers
+  onHatch: () => Promise<void>;
+  onEvolve: () => Promise<void>;
+  isHatching: boolean;
+  isEvolving: boolean;
   // Adoption flow props
   updateProfileEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   updateCompanionEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
@@ -601,6 +640,10 @@ function BlobbiDashboard({
   isPublishing,
   isFetching,
   profile,
+  onHatch,
+  onEvolve,
+  isHatching,
+  isEvolving,
   updateProfileEvent,
   updateCompanionEvent,
   invalidateProfile,
@@ -704,7 +747,8 @@ function BlobbiDashboard({
           onSetAsCompanion={() => console.log('TODO: set as companion')}
           onTakePhoto={() => console.log('TODO: take photo')}
           onOpenPiP={() => console.log('TODO: open PiP')}
-          onEvolve={() => console.log('TODO: evolve')}
+          onEvolve={isEgg ? onHatch : onEvolve}
+          isTransitioning={isHatching || isEvolving}
           onInfo={() => setShowInfoModal(true)}
         />
         
@@ -963,6 +1007,8 @@ interface BlobbiDashboardFloatingControlsProps {
   onTakePhoto: () => void;
   onOpenPiP: () => void;
   onEvolve: () => void;
+  /** Whether a stage transition is in progress (hatch or evolve) */
+  isTransitioning?: boolean;
   onInfo: () => void;
 }
 
@@ -1000,6 +1046,7 @@ function BlobbiDashboardFloatingControls({
   onTakePhoto,
   onOpenPiP,
   onEvolve,
+  isTransitioning = false,
   onInfo,
 }: BlobbiDashboardFloatingControlsProps) {
   // Left-side buttons
@@ -1079,22 +1126,30 @@ function BlobbiDashboardFloatingControls({
           </QuickActionButton>
         ))}
         
-        {/* Evolve button with accent styling */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={evolveButton.onClick}
-              className="size-10 rounded-full bg-primary/10 backdrop-blur-sm border-primary/30 hover:bg-primary/20 hover:border-primary/50 transition-all shadow-sm text-primary"
-            >
-              {evolveButton.icon}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="left">
-            <p>{evolveButton.tooltip}</p>
-          </TooltipContent>
-        </Tooltip>
+        {/* Evolve/Hatch button with accent styling */}
+        {/* Adults can't evolve further, so hide the button */}
+        {stage !== 'adult' && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={evolveButton.onClick}
+                disabled={isTransitioning}
+                className="size-10 rounded-full bg-primary/10 backdrop-blur-sm border-primary/30 hover:bg-primary/20 hover:border-primary/50 transition-all shadow-sm text-primary disabled:opacity-50"
+              >
+                {isTransitioning ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  evolveButton.icon
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>{isTransitioning ? 'Transitioning...' : evolveButton.tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
     </>
   );
