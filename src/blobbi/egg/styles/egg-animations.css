@@ -65,11 +65,13 @@
 }
 
 .animate-egg-sway {
-  animation: egg-gentle-sway 3s ease-in-out infinite;
+  /* Egg sway is gentler/slower than baby/adult (2.5s vs 1.6s) */
+  animation: egg-gentle-sway 2.5s ease-in-out infinite;
 }
 
 .animate-egg-bounce {
-  animation: egg-bounce 0.6s ease-in-out infinite;
+  /* Egg bounce is gentler/slower than baby/adult (0.55s vs 0.45s) */
+  animation: egg-bounce 0.55s ease-in-out infinite;
 }
 
 .animate-egg-warmth {

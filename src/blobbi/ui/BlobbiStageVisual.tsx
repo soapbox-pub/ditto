@@ -13,6 +13,7 @@ import { useMemo } from 'react';
 
 import { BlobbiEggVisual, type BlobbiEggSize } from './BlobbiEggVisual';
 import { BlobbiBabyVisual } from './BlobbiBabyVisual';
+import { FloatingMusicNotes } from './FloatingMusicNotes';
 import { cn } from '@/lib/utils';
 import type { BlobbiCompanion } from '@/lib/blobbi';
 import type { Blobbi } from '@/types/blobbi';
@@ -118,16 +119,21 @@ export function BlobbiStageVisual({
     [companion, stage]
   );
 
+  // Show music notes when listening to music
+  const showMusicNotes = effectiveReaction === 'listening';
+
   // Egg stage
   if (stage === 'egg') {
     return (
-      <BlobbiEggVisual
-        companion={companion}
-        size={size as BlobbiEggSize}
-        animated={animated}
-        reaction={effectiveReaction}
-        className={className}
-      />
+      <div className={cn('relative', className)}>
+        <BlobbiEggVisual
+          companion={companion}
+          size={size as BlobbiEggSize}
+          animated={animated}
+          reaction={effectiveReaction}
+        />
+        <FloatingMusicNotes active={showMusicNotes} />
+      </div>
     );
   }
 
@@ -141,11 +147,14 @@ export function BlobbiStageVisual({
     const containerClass = SIZE_CONFIG[size];
 
     return (
-      <BlobbiBabyVisual
-        blobbi={blobbiForBaby}
-        reaction={effectiveReaction}
-        className={cn(containerClass, className)}
-      />
+      <div className={cn('relative', containerClass, className)}>
+        <BlobbiBabyVisual
+          blobbi={blobbiForBaby}
+          reaction={effectiveReaction}
+          className="size-full"
+        />
+        <FloatingMusicNotes active={showMusicNotes} />
+      </div>
     );
   }
 
@@ -154,21 +163,22 @@ export function BlobbiStageVisual({
     const containerClass = SIZE_CONFIG[size];
 
     return (
-      <div
-        className={cn(
-          containerClass,
-          'relative flex items-center justify-center',
-          'rounded-2xl bg-primary/10 border-2 border-dashed border-primary/30',
-          isSleeping && 'opacity-70',
-          // Reaction animations for adult placeholder
-          (effectiveReaction === 'listening' || effectiveReaction === 'swaying' || effectiveReaction === 'happy') && 'animate-blobbi-sway',
-          effectiveReaction === 'singing' && 'animate-blobbi-bounce',
-          className
-        )}
-      >
-        <span className="text-xs text-muted-foreground font-medium">
-          Adult
-        </span>
+      <div className={cn('relative', containerClass, className)}>
+        <div
+          className={cn(
+            'size-full flex items-center justify-center',
+            'rounded-2xl bg-primary/10 border-2 border-dashed border-primary/30',
+            isSleeping && 'opacity-70',
+            // Reaction animations for adult placeholder
+            (effectiveReaction === 'listening' || effectiveReaction === 'swaying' || effectiveReaction === 'happy') && 'animate-blobbi-sway',
+            effectiveReaction === 'singing' && 'animate-blobbi-bounce',
+          )}
+        >
+          <span className="text-xs text-muted-foreground font-medium">
+            Adult
+          </span>
+        </div>
+        <FloatingMusicNotes active={showMusicNotes} />
       </div>
     );
   }
