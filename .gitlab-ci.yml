@@ -121,13 +121,13 @@ build-apk:
 
     # Copy APK to a predictable artifact path
     - mkdir -p artifacts
-    - cp android/app/build/outputs/apk/release/app-release.apk "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
-    - ls -lh "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
+    - cp android/app/build/outputs/apk/release/app-release.apk "artifacts/Ditto.apk"
+    - ls -lh "artifacts/Ditto.apk"
 
 
   artifacts:
     paths:
-      - "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
+      - artifacts/Ditto.apk
     expire_in: 90 days
   cache:
     key: android-gradle
@@ -151,7 +151,7 @@ release:
     assets:
       links:
         - name: "Ditto-${CI_COMMIT_TAG}.apk"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/artifacts/Ditto-${CI_COMMIT_TAG}.apk?job=build-apk"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/artifacts/Ditto.apk?job=build-apk"
           link_type: package
 
 publish-zapstore:
@@ -172,7 +172,7 @@ publish-zapstore:
     - mkdir -p ~/.config/zsp/bunker-keys
     - echo "$ZAPSTORE_CLIENT_KEY" > ~/.config/zsp/bunker-keys/${BUNKER_PUBKEY}.key
 
-    - APK_PATH="artifacts/Ditto-${CI_COMMIT_TAG}.apk"
+    - APK_PATH="artifacts/Ditto.apk"
     - VERSION="${CI_COMMIT_TAG#v}"
     - sed -i "2i release_source:\ ./${APK_PATH}" zapstore.yaml
     - sed -i "2i version:\ ${VERSION}" zapstore.yaml
