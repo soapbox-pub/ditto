@@ -83,6 +83,7 @@ import { isSingleImagePost } from "@/lib/noteContent";
 import { shareOrCopy } from "@/lib/share";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
+import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
 
 interface NoteCardProps {
@@ -843,7 +844,7 @@ export function NoteCard({
         (() => {
           const cfg = KIND_HEADER_MAP[event.kind];
           const isLive =
-            event.kind === 30311 && getTag(event.tags, "status") === "live";
+            event.kind === 30311 && getEffectiveStreamStatus(event) === "live";
           return (
             <EventActionHeader
               pubkey={event.pubkey}
@@ -857,7 +858,7 @@ export function NoteCard({
               }
               action={
                 typeof cfg.action === "function"
-                  ? cfg.action(event.tags)
+                  ? cfg.action(event.tags, event)
                   : cfg.action
               }
               noun={cfg.noun}
@@ -1305,7 +1306,7 @@ function StreamContent({ event }: { event: NostrEvent }) {
   const summary = getTag(event.tags, "summary");
   const imageUrl = getTag(event.tags, "image");
   const streamingUrl = getTag(event.tags, "streaming");
-  const status = getTag(event.tags, "status");
+  const status = getEffectiveStreamStatus(event);
   const currentParticipants = getTag(event.tags, "current_participants");
   const statusConfig = getStreamStatusConfig(status);
 
@@ -1491,8 +1492,8 @@ interface EventActionHeaderProps {
 interface KindHeaderConfig {
   icon: React.ComponentType<{ className?: string }>;
   iconClassName?: string;
-  /** Static action string, or a function that computes it from the event's tags. */
-  action: string | ((tags: string[][]) => string);
+  /** Static action string, or a function that computes it from the event's tags (and optionally the full event). */
+  action: string | ((tags: string[][], event?: NostrEvent) => string);
   noun?: string;
   nounRoute?: string;
 }
@@ -1549,8 +1550,8 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   30311: {
     icon: Radio,
     iconClassName: undefined, // computed dynamically below
-    action: (tags) =>
-      tags.find(([n]) => n === "status")?.[1] === "live"
+    action: (_tags, event) =>
+      event && getEffectiveStreamStatus(event) === "live"
         ? "is streaming"
         : "streamed",
   },
