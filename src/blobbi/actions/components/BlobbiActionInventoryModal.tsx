@@ -53,11 +53,11 @@ export function BlobbiActionInventoryModal({
 }: BlobbiActionInventoryModalProps) {
   const actionMeta = ACTION_METADATA[action];
 
-  // Filter inventory by action type
+  // Filter inventory by action type, respecting egg-compatible effects
   const availableItems = useMemo(() => {
     if (!profile) return [];
-    return filterInventoryByAction(profile.storage, action);
-  }, [profile, action]);
+    return filterInventoryByAction(profile.storage, action, { stage: companion.stage });
+  }, [profile, action, companion.stage]);
 
   // Check stage restrictions for this specific action
   const canUse = canUseAction(companion, action);

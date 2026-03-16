@@ -157,6 +157,15 @@ export function hasHygieneEffectForEgg(effects: ItemEffect | undefined): boolean
   return effects.hygiene !== undefined && effects.hygiene !== 0;
 }
 
+/**
+ * Check if an item has a happiness effect for an egg.
+ * Some items (like bubble bath) give happiness bonus in addition to primary effects.
+ */
+export function hasHappinessEffectForEgg(effects: ItemEffect | undefined): boolean {
+  if (!effects) return false;
+  return effects.happiness !== undefined && effects.happiness !== 0;
+}
+
 // ─── Inventory Helpers ────────────────────────────────────────────────────────
 
 /**
@@ -172,21 +181,45 @@ export interface ResolvedInventoryItem {
 }
 
 /**
+ * Options for filtering inventory by action
+ */
+export interface FilterInventoryOptions {
+  /** Companion stage - used to filter items by egg-compatible effects */
+  stage?: 'egg' | 'baby' | 'adult';
+}
+
+/**
  * Filter inventory items by action type.
  * Returns resolved items with shop metadata.
+ * 
+ * When stage is 'egg', only items with egg-compatible effects are returned:
+ * - medicine action: only items with health effect
+ * - clean action: only items with hygiene or happiness effect
  */
 export function filterInventoryByAction(
   storage: StorageItem[],
-  action: InventoryAction
+  action: InventoryAction,
+  options: FilterInventoryOptions = {}
 ): ResolvedInventoryItem[] {
   const allowedType = ACTION_TO_ITEM_TYPE[action];
   const result: ResolvedInventoryItem[] = [];
+  const isEgg = options.stage === 'egg';
 
   for (const storageItem of storage) {
     const shopItem = getShopItemById(storageItem.itemId);
     if (!shopItem) continue;
     if (shopItem.type !== allowedType) continue;
     if (storageItem.quantity <= 0) continue;
+
+    // For eggs, filter items by egg-compatible effects
+    if (isEgg) {
+      if (action === 'medicine' && !hasMedicineEffectForEgg(shopItem.effect)) {
+        continue; // Skip medicine without health effect
+      }
+      if (action === 'clean' && !hasHygieneEffectForEgg(shopItem.effect) && !hasHappinessEffectForEgg(shopItem.effect)) {
+        continue; // Skip hygiene items without hygiene or happiness effect
+      }
+    }
 
     result.push({
       itemId: storageItem.itemId,
@@ -266,15 +299,14 @@ export const EGG_ALLOWED_ACTIONS = EGG_ALLOWED_INVENTORY_ACTIONS;
 /**
  * Check if a companion can use a specific inventory action.
  * 
- * Rules:
- * - Eggs can use medicine and clean
- * - Baby and adult can use all inventory actions (feed, play, clean, medicine)
+ * Note: This function no longer hard-blocks egg actions at the domain layer.
+ * UI visibility is handled separately by `isActionVisibleForStage()`.
+ * The domain layer allows all actions - UI chooses what to show.
  */
-export function canUseAction(companion: BlobbiCompanion, action: InventoryAction): boolean {
-  if (companion.stage === 'egg') {
-    return EGG_ALLOWED_INVENTORY_ACTIONS.includes(action);
-  }
-  return true; // baby and adult can use all actions
+export function canUseAction(_companion: BlobbiCompanion, _action: InventoryAction): boolean {
+  // All stages can technically use all inventory actions at the domain layer.
+  // UI filtering determines what actions are shown to users.
+  return true;
 }
 
 /**
