@@ -12,6 +12,9 @@ export type ShopItemCategory =
 
 /**
  * Stat effects that items can apply to Blobbi
+ * 
+ * All stages use the same 5 stats: hunger, happiness, energy, hygiene, health
+ * For eggs, only health, hygiene, happiness are active (hunger/energy fixed at 100)
  */
 export interface ItemEffect {
   hunger?: number;
@@ -19,9 +22,6 @@ export interface ItemEffect {
   energy?: number;
   hygiene?: number;
   health?: number;
-  // Egg-specific effects
-  egg_temperature?: number;
-  shell_integrity?: number;
 }
 
 /**

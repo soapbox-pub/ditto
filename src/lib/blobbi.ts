@@ -956,6 +956,16 @@ export const LEGACY_VISUAL_TAG_NAMES = [
 ] as const;
 
 /**
+ * Deprecated tags that should be removed when republishing events.
+ * These tags were part of earlier designs but are no longer used.
+ * 
+ * - shell_integrity: Eggs now use the standard health stat instead
+ */
+export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
+  'shell_integrity',
+]);
+
+/**
  * Tags managed by the client for Kind 31125 (Blobbonaut Profile).
  * These tags are controlled by the application and may be overwritten.
  */
@@ -1053,8 +1063,11 @@ export function mergeBlobbiStateTagsForRepublish(
     }
   }
   
-  // Preserve unknown tags (tags not managed by us)
-  const unknownTags = existingTags.filter(tag => !MANAGED_BLOBBI_STATE_TAG_NAMES.has(tag[0]));
+  // Preserve unknown tags (tags not managed by us), excluding deprecated tags
+  const unknownTags = existingTags.filter(tag => 
+    !MANAGED_BLOBBI_STATE_TAG_NAMES.has(tag[0]) && 
+    !DEPRECATED_BLOBBI_TAG_NAMES.has(tag[0])
+  );
   
   return [...newTags, ...unknownTags];
 }

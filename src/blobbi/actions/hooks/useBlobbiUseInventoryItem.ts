@@ -13,17 +13,16 @@ import {
   updateBlobbiTags,
   updateBlobbonautTags,
   createStorageTags,
-  getTagValue,
 } from '@/lib/blobbi';
 import { applyBlobbiDecay } from '@/lib/blobbi-decay';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,
-  applyMedicineToEgg,
   decrementStorageItem,
   canUseAction,
   getStageRestrictionMessage,
   clampStat,
+  applyStat,
   hasMedicineEffectForEgg,
   type InventoryAction,
   ACTION_METADATA,
@@ -170,20 +169,18 @@ export function useBlobbiUseInventoryItem({
       const statsChanged: Record<string, number> = {};
 
       if (isEgg && action === 'medicine') {
-        // Egg-specific medicine handling:
-        // - health effect → shell_integrity
-        // - other effects are ignored
-        const shellIntegrityStr = getTagValue(canonical.allTags, 'shell_integrity');
-        const currentShellIntegrity = shellIntegrityStr ? parseInt(shellIntegrityStr, 10) : undefined;
-        const result = applyMedicineToEgg(currentShellIntegrity, shopItem.effect);
+        // Egg medicine handling:
+        // Eggs use the 3-stat model: health, hygiene, happiness
+        // Medicine with health effect directly affects the egg's health stat
+        // hunger and energy remain fixed at 100 for eggs
         
-        if (result.shellIntegrityDelta !== 0) {
-          statsUpdate.shell_integrity = result.shellIntegrity.toString();
-          statsChanged.shell_integrity = result.shellIntegrityDelta;
-        }
+        const healthDelta = shopItem.effect.health ?? 0;
+        const newHealth = applyStat(statsAfterDecay.health, healthDelta);
         
-        // Also update stats with decay values for eggs
-        statsUpdate.health = statsAfterDecay.health.toString();
+        statsUpdate.health = newHealth.toString();
+        statsChanged.health = healthDelta;
+        
+        // Apply decayed values for other egg stats
         statsUpdate.hygiene = statsAfterDecay.hygiene.toString();
         statsUpdate.happiness = statsAfterDecay.happiness.toString();
         // hunger and energy stay at 100 for eggs

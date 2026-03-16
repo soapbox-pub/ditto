@@ -99,50 +99,14 @@ export function applyItemEffects(
 // ─── Egg-Specific Medicine Helpers ────────────────────────────────────────────
 
 /**
- * Egg-specific stats that can be modified by medicine
- */
-export interface EggStats {
-  shell_integrity: number;
-}
-
-/**
- * Result of applying medicine to an egg
- */
-export interface EggMedicineResult {
-  shellIntegrity: number;
-  shellIntegrityDelta: number;
-}
-
-/**
- * Apply medicine effects to an egg.
- * 
- * Rules for eggs:
- * - `health` effect is converted to `shell_integrity`
- * - Other effects (energy, happiness, etc.) are ignored for eggs
- * 
- * @param currentShellIntegrity - Current shell_integrity value (from tags or default 100)
- * @param effects - Item effects from the medicine
- * @returns The new shell_integrity value and delta
- */
-export function applyMedicineToEgg(
-  currentShellIntegrity: number | undefined,
-  effects: ItemEffect
-): EggMedicineResult {
-  const current = currentShellIntegrity ?? 100;
-  
-  // Convert health effect to shell_integrity
-  const healthDelta = effects.health ?? 0;
-  const newShellIntegrity = clampStat(current + healthDelta);
-  
-  return {
-    shellIntegrity: newShellIntegrity,
-    shellIntegrityDelta: healthDelta,
-  };
-}
-
-/**
  * Check if a medicine item has any effect on an egg.
- * Only health effects are applicable to eggs.
+ * 
+ * Eggs use the standard 3-stat model:
+ * - health
+ * - hygiene  
+ * - happiness
+ * 
+ * Medicine with a health effect will directly affect the egg's health stat.
  */
 export function hasMedicineEffectForEgg(effects: ItemEffect | undefined): boolean {
   if (!effects) return false;
@@ -297,25 +261,25 @@ export function previewStatChanges(
 
 /**
  * Preview stat change for an egg.
- * Type alias for egg preview results.
+ * Eggs use the 3-stat model: health, hygiene, happiness.
  */
-export type EggStatPreview = { stat: 'shell_integrity'; current: number; after: number; delta: number };
+export type EggStatPreview = { stat: 'health' | 'hygiene' | 'happiness'; current: number; after: number; delta: number };
 
 /**
  * Preview medicine effects for an egg.
- * Only shows shell_integrity changes (from health effect).
+ * Medicine directly affects the egg's health stat.
  */
 export function previewMedicineForEgg(
-  currentShellIntegrity: number | undefined,
+  currentHealth: number | undefined,
   effects: ItemEffect | undefined
 ): EggStatPreview[] {
   if (!effects || effects.health === undefined || effects.health === 0) {
     return [];
   }
 
-  const current = currentShellIntegrity ?? 100;
+  const current = currentHealth ?? 100;
   const delta = effects.health;
   const after = clampStat(current + delta);
 
-  return [{ stat: 'shell_integrity', current, after, delta }];
+  return [{ stat: 'health', current, after, delta }];
 }

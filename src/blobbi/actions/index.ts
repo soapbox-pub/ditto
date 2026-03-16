@@ -20,8 +20,6 @@ export {
   // Types
   type InventoryAction,
   type ResolvedInventoryItem,
-  type EggStats,
-  type EggMedicineResult,
   type EggStatPreview,
   // Constants
   ACTION_TO_ITEM_TYPE,
@@ -32,7 +30,6 @@ export {
   clampStat,
   applyStat,
   applyItemEffects,
-  applyMedicineToEgg,
   filterInventoryByAction,
   decrementStorageItem,
   canUseAction,
