@@ -97,6 +97,8 @@ build-apk:
       storeFile=my-upload-key.keystore
       EOF
   script:
+    # Extract version from git tag (e.g., v2026.03.16+974041a)
+    # versionName: full calver+sha string (e.g., 2026.03.16+974041a)
     - TAG="${CI_COMMIT_TAG#v}"
     - VERSION_NAME="${TAG}"
     - VERSION_CODE="${CI_PIPELINE_IID}"
