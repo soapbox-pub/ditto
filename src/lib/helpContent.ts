@@ -113,7 +113,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'Can I download this on the App Store or Google Play?',
         answer: [
           'This site works as a web app right from your browser \u2014 no download needed! You can also "Add to Home Screen" on your phone to get an app-like experience.',
-          'Native app store releases are planned for the future \u2014 stay tuned!',
+          'On Android, you can download Ditto from [Zap Store](https://zapstore.dev/apps/pub.ditto.app), a community-driven app store for the Nostr ecosystem. iOS support is planned for the future \u2014 stay tuned!',
         ],
       },
       {
@@ -128,7 +128,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         id: 'nostr-app-store',
         question: 'Is there a Nostr-specific app store?',
         answer: [
-          'Yes! [Zap Store](https://zapstore.dev/) is a community-driven app store built specifically for the Nostr ecosystem. You can discover and download Nostr apps, and the apps are verified by the community rather than a corporation.',
+          'Yes! [Zap Store](https://zapstore.dev/) is a community-driven app store built specifically for the Nostr ecosystem. You can discover and download Nostr apps, and the apps are verified by the community rather than a corporation. Ditto is listed there \u2014 [get it on Zap Store](https://zapstore.dev/apps/pub.ditto.app).',
           'You can also browse a directory of Nostr apps at [nostrapps.com](https://nostrapps.com/).',
         ],
       },
