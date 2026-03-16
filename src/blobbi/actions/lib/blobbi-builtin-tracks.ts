@@ -1,80 +1,98 @@
 // src/blobbi/actions/lib/blobbi-builtin-tracks.ts
 
 /**
- * Built-in music tracks for the Play Music action.
+ * Built-in music tracks for the Blobbi "Play Music" action.
  * 
- * PLACEHOLDER DATA - Replace with real tracks when available.
+ * ## Asset Location
  * 
- * To replace these tracks:
- * 1. Place audio files in /public/audio/blobbi/ directory
- * 2. Update the `path` field to point to the new files
- * 3. Update metadata (title, artist, duration) as needed
+ * Audio files live in: `public/blobbi/audio/`
  * 
- * Supported formats: MP3, WAV, OGG, M4A (browser-dependent)
+ * In Vite, files in `public/` are served at root paths, so:
+ * - `public/blobbi/audio/foo.mp3` → accessible at `/blobbi/audio/foo.mp3`
+ * 
+ * ## Adding New Tracks
+ * 
+ * 1. Place the MP3 file in `public/blobbi/audio/`
+ * 2. Add a new entry to `BLOBBI_BUILTIN_TRACKS` below
+ * 3. Set `path` to `/blobbi/audio/<filename>.mp3`
+ * 4. Get the duration: `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 <file>`
+ * 
+ * ## Supported Formats
+ * 
+ * MP3 is recommended for maximum browser compatibility.
+ * WAV, OGG, and M4A may work but are browser-dependent.
  */
 
 export interface BuiltInTrack {
-  /** Unique identifier for the track */
+  /** Unique identifier for the track (used in state/events) */
   id: string;
-  /** Display title */
+  /** Display title shown in the UI */
   title: string;
   /** Artist or source attribution */
   artist: string;
-  /** Path to the audio file (relative to public directory) */
+  /** Path to audio file (relative to public directory root) */
   path: string;
-  /** Duration in seconds (approximate, for display) */
+  /** Duration in seconds (for display, get via ffprobe) */
   durationSeconds: number;
-  /** Optional cover art path */
+  /** Optional cover art path (relative to public directory root) */
   coverArt?: string;
-  /** Optional tags for categorization */
+  /** Optional tags for categorization/filtering */
   tags?: string[];
 }
 
 /**
- * Built-in track catalog.
+ * Built-in track catalog for Blobbi music player.
  * 
- * NOTE: These are placeholder entries. The audio files don't exist yet.
- * When real tracks are added, update the paths to point to actual files.
+ * All tracks are royalty-free/Creative Commons licensed.
+ * Audio files located at: public/blobbi/audio/
  */
 export const BLOBBI_BUILTIN_TRACKS: BuiltInTrack[] = [
   {
-    id: 'calm_meadow',
-    title: 'Calm Meadow',
-    artist: 'Blobbi Tunes',
-    path: '/audio/blobbi/calm-meadow.mp3',
-    durationSeconds: 120,
+    id: 'nap_in_the_meadow',
+    title: 'Nap in the Meadow',
+    artist: 'Chilltape FM',
+    path: '/blobbi/audio/chilltapefm-nap-in-the-meadow.mp3',
+    durationSeconds: 240, // 4:00
     tags: ['relaxing', 'nature'],
   },
   {
-    id: 'happy_dance',
-    title: 'Happy Dance',
-    artist: 'Blobbi Tunes',
-    path: '/audio/blobbi/happy-dance.mp3',
-    durationSeconds: 90,
+    id: 'happy_kids',
+    title: 'Happy Kids',
+    artist: 'Dmitrii Kolesnikov',
+    path: '/blobbi/audio/happy-kids.mp3',
+    durationSeconds: 129, // 2:09
     tags: ['upbeat', 'fun'],
   },
   {
-    id: 'sleepy_lullaby',
-    title: 'Sleepy Lullaby',
-    artist: 'Blobbi Tunes',
-    path: '/audio/blobbi/sleepy-lullaby.mp3',
-    durationSeconds: 180,
+    id: 'soft_piano',
+    title: 'Soft Piano',
+    artist: 'Dmitrii Kolesnikov',
+    path: '/blobbi/audio/soft-piano.mp3',
+    durationSeconds: 124, // 2:04
     tags: ['calming', 'sleep'],
   },
   {
-    id: 'adventure_theme',
-    title: 'Adventure Theme',
-    artist: 'Blobbi Tunes',
-    path: '/audio/blobbi/adventure-theme.mp3',
-    durationSeconds: 150,
+    id: 'epic_sacred_light',
+    title: 'Epic Sacred Light',
+    artist: 'Ura Megis',
+    path: '/blobbi/audio/epic-sacred-light.mp3',
+    durationSeconds: 223, // 3:43
     tags: ['energetic', 'adventure'],
   },
   {
-    id: 'cozy_fireplace',
-    title: 'Cozy Fireplace',
-    artist: 'Blobbi Tunes',
-    path: '/audio/blobbi/cozy-fireplace.mp3',
-    durationSeconds: 240,
+    id: 'split_memmories',
+    title: 'Split Memmories',
+    artist: 'ido berg',
+    path: '/blobbi/audio/split-memmories.mp3',
+    durationSeconds: 153, // 2:33
+    tags: ['ambient', 'relaxing'],
+  },
+  {
+    id: 'minhas_mensagens',
+    title: 'Minhas Mensagens',
+    artist: 'PReis',
+    path: '/blobbi/audio/minhas-mensagens-preis.mp3',
+    durationSeconds: 248, // 4:08
     tags: ['ambient', 'relaxing'],
   },
 ];
