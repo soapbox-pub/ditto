@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { Heart } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
@@ -44,7 +44,11 @@ export function ReactionButton({
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const justClosedRef = useRef(false);
   const pickerExpandedRef = useRef(false);
+  const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
   const userReaction = useUserReaction(eventId);
+
+  // True on touch devices (phones, tablets, APK). Detected once at mount.
+  const isTouch = useMemo(() => navigator.maxTouchPoints > 0, []);
 
   const hasReacted = !!userReaction;
 
@@ -91,6 +95,33 @@ export function ReactionButton({
     );
   }, [user, nostr, eventId, publishEvent, queryClient]);
 
+  const publishInstantHeart = useCallback(() => {
+    setMenuOpen(false);
+    const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
+    queryClient.setQueryData(['user-reaction', eventId], { content: '❤️' });
+    if (prevStats) {
+      queryClient.setQueryData<EventStats>(['event-stats', eventId], {
+        ...prevStats,
+        reactions: prevStats.reactions + 1,
+      });
+    }
+    publishEvent(
+      {
+        kind: 7,
+        content: '❤️',
+        tags: [['e', eventId], ['p', eventPubkey], ['k', String(eventKind)]],
+      },
+      {
+        onError: () => {
+          queryClient.setQueryData(['user-reaction', eventId], null);
+          if (prevStats) {
+            queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
+          }
+        },
+      },
+    );
+  }, [eventId, eventKind, eventPubkey, publishEvent, queryClient]);
+
   const handleMouseEnter = useCallback(() => {
     if (!user) return;
     if (hasReacted) return;
@@ -134,30 +165,25 @@ export function ReactionButton({
               handleUnreact(e);
               return;
             }
-            setMenuOpen(false);
-            const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
-            queryClient.setQueryData(['user-reaction', eventId], { content: '❤️' });
-            if (prevStats) {
-              queryClient.setQueryData<EventStats>(['event-stats', eventId], {
-                ...prevStats,
-                reactions: prevStats.reactions + 1,
-              });
+            if (isTouch) {
+              // On touch: single tap opens the emoji picker; double tap reacts instantly.
+              // We defer the single-tap action so a quick second tap can cancel it.
+              if (tapTimerRef.current) {
+                // Second tap arrived before timer fired — treat as double-tap.
+                clearTimeout(tapTimerRef.current);
+                tapTimerRef.current = null;
+                publishInstantHeart();
+              } else {
+                tapTimerRef.current = setTimeout(() => {
+                  tapTimerRef.current = null;
+                  if (justClosedRef.current) return;
+                  setMenuOpen((prev) => !prev);
+                }, 300);
+              }
+            } else {
+              // On desktop: single click reacts instantly (hover already opens picker).
+              publishInstantHeart();
             }
-            publishEvent(
-              {
-                kind: 7,
-                content: '❤️',
-                tags: [['e', eventId], ['p', eventPubkey], ['k', String(eventKind)]],
-              },
-              {
-                onError: () => {
-                  queryClient.setQueryData(['user-reaction', eventId], null);
-                  if (prevStats) {
-                    queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
-                  }
-                },
-              },
-            );
           }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
