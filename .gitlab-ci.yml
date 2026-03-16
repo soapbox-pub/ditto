@@ -97,10 +97,13 @@ build-apk:
       storeFile=my-upload-key.keystore
       EOF
   script:
-    # Extract version from git tag (e.g., v2026.02.24+abc1234 -> 20260224 / 2026.02.24)
+    # Extract version from git tag (e.g., v2026.03.16+974041a)
+    # versionName: full calver+sha string (e.g., 2026.03.16+974041a)
+    # versionCode: monotonically increasing commit count — guaranteed unique per build,
+    #              never collides across same-day releases, fits in int32 for millennia
     - TAG="${CI_COMMIT_TAG#v}"
-    - VERSION_NAME="${TAG%%+*}"
-    - VERSION_CODE=$(echo "$VERSION_NAME" | tr -d '.')
+    - VERSION_NAME="${TAG}"
+    - VERSION_CODE=$(git rev-list --count HEAD)
     - echo "Building version $VERSION_NAME (code $VERSION_CODE) from tag $CI_COMMIT_TAG"
 
     # Stamp version into build.gradle
