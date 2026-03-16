@@ -54,9 +54,11 @@ export function InlineMusicPlayer({
     },
   });
   
-  // Auto-start playback when published or when source changes
+  // Auto-start playback when first published (idle -> playing)
+  // Note: 'stopped' state is NOT included here - stop is a terminal state
+  // that requires explicit user action (play button) to restart
   useEffect(() => {
-    if (isPublished && (playbackState === 'idle' || playbackState === 'stopped')) {
+    if (isPublished && playbackState === 'idle') {
       load(source.url, true);
       onPlaybackStart?.();
     }
@@ -76,7 +78,7 @@ export function InlineMusicPlayer({
   useEffect(() => {
     if (isPlaying) {
       onPlaybackStart?.();
-    } else if (playbackState === 'paused') {
+    } else if (playbackState === 'paused' || playbackState === 'stopped') {
       onPlaybackStop?.();
     }
   }, [isPlaying, playbackState, onPlaybackStart, onPlaybackStop]);
