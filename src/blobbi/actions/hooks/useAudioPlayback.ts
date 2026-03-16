@@ -21,6 +21,9 @@ export interface PlaybackError {
   code?: string;
 }
 
+/** Default volume level (0-1) */
+const DEFAULT_VOLUME = 0.8;
+
 /**
  * Options for the useAudioPlayback hook
  */
@@ -29,6 +32,8 @@ export interface UseAudioPlaybackOptions {
   onEnded?: () => void;
   /** Called when an error occurs */
   onError?: (error: PlaybackError) => void;
+  /** Initial volume level (0-1), defaults to 0.8 */
+  initialVolume?: number;
 }
 
 /**
@@ -55,6 +60,10 @@ export interface UseAudioPlaybackReturn {
   toggle: () => Promise<void>;
   /** Whether audio is currently playing */
   isPlaying: boolean;
+  /** Current volume level (0-1) */
+  volume: number;
+  /** Set volume level (0-1) */
+  setVolume: (volume: number) => void;
   /** Cleanup function to release resources */
   cleanup: () => void;
 }
@@ -64,14 +73,16 @@ export interface UseAudioPlaybackReturn {
  * Handles Audio element lifecycle, error handling, and state management.
  */
 export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudioPlaybackReturn {
-  const { onEnded, onError } = options;
+  const { onEnded, onError, initialVolume = DEFAULT_VOLUME } = options;
   
   const [state, setState] = useState<PlaybackState>('idle');
   const [error, setError] = useState<PlaybackError | null>(null);
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
+  const [volume, setVolumeState] = useState<number>(initialVolume);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentUrlRef = useRef<string | null>(null);
+  const volumeRef = useRef<number>(initialVolume);
   
   // Cleanup audio element
   const cleanup = useCallback(() => {
@@ -121,6 +132,7 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
     currentUrlRef.current = url;
     
     const audio = new Audio(url);
+    audio.volume = volumeRef.current; // Apply current volume to new audio
     audioRef.current = audio;
     
     audio.oncanplay = () => {
@@ -231,6 +243,16 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
     }
   }, [state, play, pause]);
   
+  // Set volume (0-1)
+  const setVolume = useCallback((newVolume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, newVolume));
+    volumeRef.current = clampedVolume;
+    setVolumeState(clampedVolume);
+    if (audioRef.current) {
+      audioRef.current.volume = clampedVolume;
+    }
+  }, []);
+  
   return {
     state,
     error,
@@ -242,6 +264,8 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
     restart,
     toggle,
     isPlaying: state === 'playing',
+    volume,
+    setVolume,
     cleanup,
   };
 }
