@@ -1,0 +1,74 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  
+  <!-- Main cactus body -->
+  <rect x="85" y="80" width="30" height="80" rx="15" fill="url(#cactiBody)" />
+  
+  <!-- Cactus arms -->
+  <rect x="60" y="100" width="20" height="40" rx="10" fill="url(#cactiArm)" />
+  <rect x="120" y="110" width="20" height="35" rx="10" fill="url(#cactiArm)" />
+  
+  <!-- Cactus ridges -->
+  <line x1="92" y1="85" x2="92" y2="155" stroke="#65a30d" stroke-width="2" opacity="0.5" />
+  <line x1="100" y1="85" x2="100" y2="155" stroke="#65a30d" stroke-width="2" opacity="0.5" />
+  <line x1="108" y1="85" x2="108" y2="155" stroke="#65a30d" stroke-width="2" opacity="0.5" />
+  
+  <!-- Sleeping eyes -->
+  <path d="M 82 105 Q 90 108 98 105" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M 102 105 Q 110 108 118 105" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+  
+  <!-- Peaceful mouth -->
+  <circle cx="100" cy="120" r="2" fill="#1f2937" />
+  
+  <!-- Tiny spines -->
+  <circle cx="88" cy="90" r="1" fill="#65a30d" />
+  <circle cx="95" cy="95" r="1" fill="#65a30d" />
+  <circle cx="105" cy="92" r="1" fill="#65a30d" />
+  <circle cx="112" cy="88" r="1" fill="#65a30d" />
+  <circle cx="65" cy="110" r="1" fill="#65a30d" />
+  <circle cx="70" cy="120" r="1" fill="#65a30d" />
+  <circle cx="125" cy="115" r="1" fill="#65a30d" />
+  <circle cx="130" cy="125" r="1" fill="#65a30d" />
+  
+  <!-- Little legs in pot -->
+  <path d="M 75 160 L 80 175 L 120 175 L 125 160 Z" fill="url(#cactiPot)" />
+  <rect x="75" y="160" width="50" height="5" fill="url(#cactiPotRim)" rx="2" />
+  
+  <!-- Blooming flower -->
+  <circle cx="100" cy="75" r="12" fill="url(#cactiFlower)" />
+  <circle cx="100" cy="75" r="8" fill="url(#cactiFlowerCenter)" />
+  <circle cx="100" cy="75" r="4" fill="#fbbf24" />
+
+  <!-- "Zzz" sleeping -->
+  <text x="150" y="60" font-size="10" fill="#666" opacity="0.8">Z</text>
+  <text x="157" y="55" font-size="8" fill="#666" opacity="0.6">z</text>
+  <text x="162" y="51" font-size="6" fill="#666" opacity="0.4">z</text>
+  
+  <defs>
+    <radialGradient id="cactiBody" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#a3e635" />
+      <stop offset="30%" stop-color="#84cc16" />
+      <stop offset="70%" stop-color="#65a30d" />
+      <stop offset="100%" stop-color="#4d7c0f" />
+    </radialGradient>
+    <radialGradient id="cactiArm" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#84cc16" />
+      <stop offset="100%" stop-color="#65a30d" />
+    </radialGradient>
+    <radialGradient id="cactiPot" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#dc2626" />
+      <stop offset="100%" stop-color="#991b1b" />
+    </radialGradient>
+    <radialGradient id="cactiPotRim" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#dc2626" />
+    </radialGradient>
+    <radialGradient id="cactiFlower" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#fce7f3" />
+      <stop offset="100%" stop-color="#f472b6" />
+    </radialGradient>
+    <radialGradient id="cactiFlowerCenter" cx="0.5" cy="0.5">
+      <stop offset="0%" stop-color="#fef3c7" />
+      <stop offset="100%" stop-color="#fbbf24" />
+    </radialGradient>
+  </defs>
+</svg>

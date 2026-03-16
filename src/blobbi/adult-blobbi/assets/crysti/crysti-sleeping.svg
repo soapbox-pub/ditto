@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Crystal gradients -->
+    <radialGradient id="crystiBody" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#f3e8ff;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#e9d5ff;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#c084fc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="crystiInner" cx="0.4" cy="0.3">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:rgba(255,255,255,0.3);stop-opacity:1" />
+    </radialGradient>
+    <linearGradient id="crystiFacet1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="crystiFacet2" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" style="stop-color:#f472b6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="crystiFacet3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" style="stop-color:#34d399;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="crystiFacet4" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0891b2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="crystiFacet5" x1="1" y1="1" x2="0" y2="0">
+      <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="crystiFacet6" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" style="stop-color:#fb7185;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e11d48;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="crystiEye" cx="0.3" cy="0.3">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e9d5ff;stop-opacity:1" />
+    </radialGradient>
+    <linearGradient id="crystiSmile" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#c084fc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Main crystal body - rounded hexagon shape -->
+  <path d="M 100 50 L 140 80 L 140 130 L 100 160 L 60 130 L 60 80 Z" fill="url(#crystiBody)" />
+  <path d="M 100 55 L 135 82 L 135 128 L 100 155 L 65 128 L 65 82 Z" fill="url(#crystiInner)" opacity="0.7" />
+  
+  <!-- Crystal segments with rounded edges -->
+  <path d="M 100 50 L 125 70 L 100 105 L 75 70 Z" fill="url(#crystiFacet1)" opacity="0.6" />
+  <path d="M 75 70 L 100 105 L 60 80 L 60 105 Z" fill="url(#crystiFacet2)" opacity="0.5" />
+  <path d="M 125 70 L 140 80 L 140 105 L 100 105 Z" fill="url(#crystiFacet3)" opacity="0.5" />
+  <path d="M 60 105 L 100 105 L 75 140 L 60 130 Z" fill="url(#crystiFacet4)" opacity="0.4" />
+  <path d="M 100 105 L 140 105 L 125 140 L 100 105 Z" fill="url(#crystiFacet5)" opacity="0.4" />
+  <path d="M 75 140 L 100 105 L 125 140 L 100 160 Z" fill="url(#crystiFacet6)" opacity="0.6" />
+  
+  <!-- Sleeping eyes -->
+  <path d="M 78 95 Q 88 98 98 95" stroke="#1e1b4b" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M 102 95 Q 112 98 122 95" stroke="#1e1b4b" stroke-width="3" fill="none" stroke-linecap="round" />
+  
+  <!-- Peaceful mouth -->
+  <circle cx="100" cy="115" r="2" fill="#8b5cf6" />
+  
+  <!-- Floating sparkles with gentle animation -->
+  <g>
+    <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="360 100 100" dur="15s" repeatCount="indefinite" />
+    <circle cx="65" cy="65" r="2" fill="#fbbf24" opacity="0.6" />
+    <circle cx="135" cy="70" r="1.5" fill="#f472b6" opacity="0.5" />
+    <circle cx="70" cy="140" r="1" fill="#06b6d4" opacity="0.4" />
+    <circle cx="130" cy="135" r="2" fill="#fbbf24" opacity="0.3" />
+  </g>
+  <g>
+    <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="-360 100 100" dur="20s" repeatCount="indefinite" />
+    <circle cx="50" cy="105" r="1.5" fill="#f472b6" opacity="0.5" />
+    <circle cx="150" cy="110" r="1" fill="#06b6d4" opacity="0.6" />
+    <circle cx="100" cy="40" r="1.5" fill="#fbbf24" opacity="0.4" />
+    <circle cx="100" cy="170" r="1" fill="#f472b6" opacity="0.5" />
+  </g>
+
+  <!-- "Zzz" sleeping -->
+  <text x="150" y="60" font-size="10" fill="#666" opacity="0.8">Z</text>
+  <text x="157" y="55" font-size="8" fill="#666" opacity="0.6">z</text>
+  <text x="162" y="51" font-size="6" fill="#666" opacity="0.4">z</text>
+</svg>

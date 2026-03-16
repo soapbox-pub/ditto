@@ -1,0 +1,113 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">  
+  <!-- Sunflower stem -->
+  <rect x="96" y="120" width="8" height="55" fill="url(#leafyStem)" rx="4" />
+  <rect x="98" y="125" width="4" height="50" fill="url(#leafyStemHighlight)" rx="2" opacity="0.6" />
+  
+  <!-- Stem leaves -->
+  <ellipse cx="85" cy="140" rx="15" ry="8" fill="url(#leafyStemLeaf)" transform="rotate(-30 85 140)" />
+  <ellipse cx="115" cy="150" rx="15" ry="8" fill="url(#leafyStemLeaf)" transform="rotate(30 115 150)" />
+  <ellipse cx="87" cy="140" rx="10" ry="5" fill="url(#leafyStemLeafHighlight)" transform="rotate(-30 87 140)" opacity="0.7" />
+  <ellipse cx="113" cy="150" rx="10" ry="5" fill="url(#leafyStemLeafHighlight)" transform="rotate(30 113 150)" opacity="0.7" />
+  
+  <!-- Sunflower petals - outer ring -->
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(0 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(22.5 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(45 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(67.5 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(90 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(112.5 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(135 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(157.5 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(180 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(202.5 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(225 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(247.5 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(270 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(292.5 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(315 100 85)" />
+  <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(337.5 100 85)" />
+  
+  <!-- Sunflower center - outer ring -->
+  <circle cx="100" cy="85" r="30" fill="url(#leafyCenter)" />
+  <circle cx="100" cy="85" r="25" fill="url(#leafyCenterInner)" />
+  
+  <!-- Sleeping eyes -->
+  <path d="M 82 82 Q 90 85 98 82" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M 102 82 Q 110 85 118 82" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+  
+  <!-- Peaceful mouth -->
+  <circle cx="100" cy="92" r="2" fill="#1f2937" />
+  
+  <!-- Little arms - small leaves -->
+  <ellipse cx="60" cy="85" rx="12" ry="6" fill="url(#leafyArm)" transform="rotate(-20 60 85)" />
+  <ellipse cx="140" cy="85" rx="12" ry="6" fill="url(#leafyArm)" transform="rotate(20 140 85)" />
+  
+  <!-- Base/roots -->
+  <ellipse cx="95" cy="170" rx="8" ry="6" fill="url(#leafyRoot)" />
+  <ellipse cx="105" cy="170" rx="8" ry="6" fill="url(#leafyRoot)" />
+  
+  <!-- Floating pollen with gentle animation -->
+  <g>
+    <animateTransform attributeName="transform" type="translate" values="0,0; 2,3; 0,0" dur="4s" repeatCount="indefinite" />
+    <circle cx="55" cy="60" r="2" fill="url(#leafyPollen)" opacity="0.5" />
+    <circle cx="145" cy="65" r="1.5" fill="url(#leafyPollen)" opacity="0.4" />
+    <circle cx="50" cy="110" r="1" fill="url(#leafyPollen)" opacity="0.4" />
+    <circle cx="150" cy="105" r="2" fill="url(#leafyPollen)" opacity="0.3" />
+    <circle cx="75" cy="45" r="1.5" fill="url(#leafyPollen)" opacity="0.6" />
+    <circle cx="125" cy="50" r="1" fill="url(#leafyPollen)" opacity="0.5" />
+  </g>
+
+  <!-- "Zzz" sleeping -->
+  <text x="150" y="60" font-size="10" fill="#666" opacity="0.8">Z</text>
+  <text x="157" y="55" font-size="8" fill="#666" opacity="0.6">z</text>
+  <text x="162" y="51" font-size="6" fill="#666" opacity="0.4">z</text>
+  
+  <defs>
+    <radialGradient id="leafyStem" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#15803d" />
+    </radialGradient>
+    <radialGradient id="leafyStemHighlight" cx="0.4" cy="0.3">
+      <stop offset="0%" stop-color="#4ade80" />
+      <stop offset="100%" stop-color="#22c55e" />
+    </radialGradient>
+    <radialGradient id="leafyStemLeaf" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#4ade80" />
+      <stop offset="100%" stop-color="#16a34a" />
+    </radialGradient>
+    <radialGradient id="leafyStemLeafHighlight" cx="0.4" cy="0.3">
+      <stop offset="0%" stop-color="#86efac" />
+      <stop offset="100%" stop-color="#4ade80" />
+    </radialGradient>
+    <radialGradient id="leafyPetal" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#fef3c7" />
+      <stop offset="30%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#eab308" />
+    </radialGradient>
+    <radialGradient id="leafyCenter" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#a16207" />
+      <stop offset="50%" stop-color="#92400e" />
+      <stop offset="100%" stop-color="#78350f" />
+    </radialGradient>
+    <radialGradient id="leafyCenterInner" cx="0.4" cy="0.3">
+      <stop offset="0%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#a16207" />
+    </radialGradient>
+    <radialGradient id="leafySeed" cx="0.5" cy="0.5">
+      <stop offset="0%" stop-color="#451a03" />
+      <stop offset="100%" stop-color="#292524" />
+    </radialGradient>
+    <radialGradient id="leafyArm" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#4ade80" />
+      <stop offset="100%" stop-color="#16a34a" />
+    </radialGradient>
+    <radialGradient id="leafyRoot" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#a16207" />
+      <stop offset="100%" stop-color="#78350f" />
+    </radialGradient>
+    <radialGradient id="leafyPollen" cx="0.5" cy="0.5">
+      <stop offset="0%" stop-color="#fef3c7" />
+      <stop offset="100%" stop-color="#fde047" />
+    </radialGradient>
+  </defs>
+</svg>

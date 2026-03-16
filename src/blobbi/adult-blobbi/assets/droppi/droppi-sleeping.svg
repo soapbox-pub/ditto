@@ -1,0 +1,88 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Water gradients -->
+    <radialGradient id="droppiBody" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#67e8f9;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#22d3ee;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0891b2;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="droppiInner" cx="0.4" cy="0.3">
+      <stop offset="0%" style="stop-color:#e0f2fe;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7dd3fc;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="droppiHighlight" cx="0.3" cy="0.3">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:rgba(255,255,255,0.3);stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="droppiArm" cx="0.3" cy="0.3">
+      <stop offset="0%" style="stop-color:#22d3ee;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0891b2;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="droppiLeg" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0284c7;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="droppiDroplet" cx="0.5" cy="0.5">
+      <stop offset="0%" style="stop-color:#7dd3fc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Main water drop body -->
+  <path d="M 100 40 Q 100 30 100 40 Q 135 60 140 110 Q 140 150 100 165 Q 60 150 60 110 Q 65 60 100 40" 
+        fill="url(#droppiBody)" />
+  
+  <!-- Inner water reflection -->
+  <ellipse cx="100" cy="100" rx="35" ry="45" fill="url(#droppiInner)" opacity="0.6" />
+  <ellipse cx="90" cy="80" rx="20" ry="25" fill="url(#droppiHighlight)" opacity="0.7" />
+  
+  <!-- Sleeping eyes -->
+  <path d="M 73 95 Q 85 98 97 95" stroke="#0891b2" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M 103 95 Q 115 98 127 95" stroke="#0891b2" stroke-width="3" fill="none" stroke-linecap="round" />
+  
+  <!-- Peaceful mouth -->
+  <circle cx="100" cy="115" r="2" fill="#0891b2" />
+  
+  <!-- Little arms -->
+  <ellipse cx="60" cy="110" rx="10" ry="18" fill="url(#droppiArm)" transform="rotate(-25 60 110)" />
+  <ellipse cx="140" cy="110" rx="10" ry="18" fill="url(#droppiArm)" transform="rotate(25 140 110)" />
+  
+  <!-- Little legs -->
+  <ellipse cx="85" cy="160" rx="12" ry="10" fill="url(#droppiLeg)" />
+  <ellipse cx="115" cy="160" rx="12" ry="10" fill="url(#droppiLeg)" />
+  
+  <!-- Water droplets floating around - grouped with slower rotation -->
+  <g transform="translate(100 110)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="12s" repeatCount="indefinite" />
+      <circle cx="-45" cy="-35" r="3" fill="url(#droppiDroplet)" opacity="0.5" />
+    </g>
+  </g>
+  
+  <g transform="translate(100 110)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0" to="-360" dur="15s" repeatCount="indefinite" />
+      <circle cx="45" cy="-30" r="2.5" fill="url(#droppiDroplet)" opacity="0.4" />
+    </g>
+  </g>
+  
+  <g transform="translate(100 110)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="10s" repeatCount="indefinite" />
+      <circle cx="-50" cy="25" r="2" fill="url(#droppiDroplet)" opacity="0.4" />
+    </g>
+  </g>
+  
+  <g transform="translate(100 110)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0" to="-360" dur="18s" repeatCount="indefinite" />
+      <circle cx="50" cy="20" r="2.5" fill="url(#droppiDroplet)" opacity="0.3" />
+    </g>
+  </g>
+
+  <!-- "Zzz" sleeping -->
+  <text x="150" y="60" font-size="10" fill="#666" opacity="0.8">Z</text>
+  <text x="157" y="55" font-size="8" fill="#666" opacity="0.6">z</text>
+  <text x="162" y="51" font-size="6" fill="#666" opacity="0.4">z</text>
+</svg>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradients for 3D effect -->
+    <radialGradient id="pandiEyeWhite3D" cx="0.3" cy="0.3">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#f5f5f4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e7e5e4;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="pandiPupil3D" cx="0.3" cy="0.3">
+      <stop offset="0%" style="stop-color:#374151;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e293b;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="pandiNose3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#1f2937;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#374151;stop-opacity:1" />
+    </radialGradient>
+    <linearGradient id="pandiMouth3D" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" style="stop-color:#374151;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#374151;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="pandiArm3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#1f2937;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#374151;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="pandiLeg3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#1f2937;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#374151;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Main body - perfect circle -->
+  <circle cx="100" cy="120" r="55" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2" />
+  
+  <!-- Head - perfect circle -->
+  <circle cx="100" cy="85" r="45" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2" />
+  
+  <!-- Black ear patches -->
+  <circle cx="70" cy="45" r="18" fill="#1f2937" />
+  <circle cx="130" cy="45" r="18" fill="#1f2937" />
+  
+  <!-- Inner ears -->
+  <circle cx="70" cy="45" r="12" fill="#374151" />
+  <circle cx="130" cy="45" r="12" fill="#374151" />
+  
+  <!-- Eyes -->
+  <circle cx="85" cy="82" r="20" fill="#1f2937" />
+  <circle cx="115" cy="82" r="20" fill="#1f2937" />
+  <circle cx="85" cy="82" r="12" fill="url(#pandiEyeWhite3D)" />
+  <circle cx="115" cy="82" r="12" fill="url(#pandiEyeWhite3D)" />
+  <circle cx="85" cy="82" r="8" fill="url(#pandiPupil3D)" />
+  <circle cx="115" cy="82" r="8" fill="url(#pandiPupil3D)" />
+  <circle cx="88" cy="79" r="3" fill="white" />
+  <circle cx="118" cy="79" r="3" fill="white" />
+  
+  <!-- Nose -->
+  <path d="M 100 95 L 95 105 L 105 105 Z" fill="url(#pandiNose3D)" />
+  
+  <!-- Happy mouth -->
+  <path d="M 90 110 Q 100 118 110 110" stroke="url(#pandiMouth3D)" stroke-width="3" fill="none" stroke-linecap="round" />
+  
+  <!-- Arms -->
+  <circle cx="55" cy="120" r="15" fill="url(#pandiArm3D)" />
+  <circle cx="145" cy="120" r="15" fill="url(#pandiArm3D)" />
+  
+  <!-- Legs -->
+  <circle cx="80" cy="165" r="18" fill="url(#pandiLeg3D)" />
+  <circle cx="120" cy="165" r="18" fill="url(#pandiLeg3D)" />
+</svg>
