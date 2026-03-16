@@ -34,6 +34,8 @@ import {
   type BlobbonautProfile,
 } from '@/lib/blobbi';
 
+import { applyBlobbiDecay } from '@/lib/blobbi-decay';
+
 import { BlobbiShopModal } from '@/blobbi/shop/components/BlobbiShopModal';
 import { BlobbiInventoryModal } from '@/blobbi/shop/components/BlobbiInventoryModal';
 import { 
@@ -244,12 +246,27 @@ function BlobbiContent() {
         return;
       }
       
-      // Perform the action using the canonical companion
-      const now = Math.floor(Date.now() / 1000).toString();
+      // Apply accumulated decay before the state change
+      const now = Math.floor(Date.now() / 1000);
+      const decayResult = applyBlobbiDecay({
+        stage: canonical.companion.stage,
+        state: canonical.companion.state,
+        stats: canonical.companion.stats,
+        lastDecayAt: canonical.companion.lastDecayAt,
+        now,
+      });
+      
+      // Build the new tags with decayed stats + new state
+      const nowStr = now.toString();
       const newTags = updateBlobbiTags(canonical.allTags, {
         state: newState,
-        last_interaction: now,
-        last_decay_at: now,
+        hunger: decayResult.stats.hunger.toString(),
+        happiness: decayResult.stats.happiness.toString(),
+        health: decayResult.stats.health.toString(),
+        hygiene: decayResult.stats.hygiene.toString(),
+        energy: decayResult.stats.energy.toString(),
+        last_interaction: nowStr,
+        last_decay_at: nowStr,
       });
       
       const event = await publishEvent({
