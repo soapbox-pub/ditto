@@ -17,6 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { cn } from '@/lib/utils';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 import type { ThemeConfig } from '@/themes';
 
@@ -207,6 +208,8 @@ export function AIChatPage() {
     title: `AI Chat | ${config.appName}`,
     description: 'Chat with AI assistant',
   });
+
+  useLayoutOptions({ noOverscroll: true });
 
   // Scroll to bottom on new messages
   const scrollToBottom = useCallback(() => {

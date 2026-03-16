@@ -126,7 +126,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   const hasDetails = !!(summary || hashtags.length > 0 || participants.length > 0);
   const hasExpandable = hasDescription || hasDetails;
 
-  useLayoutOptions({ rightSidebar: chatSidebar });
+  useLayoutOptions({ rightSidebar: chatSidebar, noOverscroll: true });
 
   /** Details block — always visible on desktop, expandable on mobile.
    *  On mobile this also includes the author row.
