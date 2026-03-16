@@ -5,18 +5,16 @@ name: Ditto
 summary: Your content. Your vibe. Your rules.
 
 description: |
-  Ditto is an open-source, decentralized social media client built on the Nostr
-  protocol. Designed for people who want to have fun online without feeding the
-  Big Tech machine.
+  Ditto is an open-source Nostr client. Your content. Your vibe. Your rules,
+  and all the other stuff: games, treasure hunts, magic decks, live streams,
+  color moments, and more.
 
   Features:
-  - Theming — 9 built-in presets, full CSS token customization, shareable themes
+  - Theming — 9 built-in presets, shareable themes
   - Infinite content types — notes, articles, short videos (Vines), live streams,
     polls, follow packs, color moments, magic decks, geocaching, Webxdc mini-apps
   - Lightning payments — zap posts and profiles via NWC or WebLN
-  - Private messaging — end-to-end encrypted DMs (NIP-04 and NIP-17)
   - Comments on anything — posts, URLs, profiles, hashtags, books, and more
-  - Deep linking — open ditto.pub links directly in the app
 
 tags:
   - nostr
