@@ -26,7 +26,6 @@ import {
   type ResolvedInventoryItem,
   type EggStatPreview,
 } from '../lib/blobbi-action-utils';
-import { getTagValue } from '@/lib/blobbi';
 
 interface BlobbiActionInventoryModalProps {
   open: boolean;
@@ -172,12 +171,11 @@ function BlobbiInventoryUseRow({
   // Preview stat changes - handle egg-specific preview for medicine
   const { normalStatChanges, eggStatChanges } = useMemo(() => {
     if (isEgg && isMedicine) {
-      // For eggs using medicine, show shell_integrity preview
-      const shellIntegrityStr = getTagValue(companion.event.tags, 'shell_integrity');
-      const currentShellIntegrity = shellIntegrityStr ? parseInt(shellIntegrityStr, 10) : undefined;
+      // For eggs using medicine, show health preview
+      // Eggs use the 3-stat model: health, hygiene, happiness
       return {
         normalStatChanges: [],
-        eggStatChanges: previewMedicineForEgg(currentShellIntegrity, item.effect),
+        eggStatChanges: previewMedicineForEgg(companion.stats.health, item.effect),
       };
     }
     // Normal stats preview
@@ -185,7 +183,7 @@ function BlobbiInventoryUseRow({
       normalStatChanges: previewStatChanges(companion.stats, item.effect),
       eggStatChanges: [] as EggStatPreview[],
     };
-  }, [companion.stats, companion.event.tags, item.effect, isEgg, isMedicine]);
+  }, [companion.stats, item.effect, isEgg, isMedicine]);
 
   const hasChanges = normalStatChanges.length > 0 || eggStatChanges.length > 0;
 
@@ -230,7 +228,7 @@ function BlobbiInventoryUseRow({
                 </span>
               </span>
             ))}
-            {/* Egg stat changes (shell_integrity) */}
+            {/* Egg stat changes (health for medicine) */}
             {eggStatChanges.map(({ stat, delta }) => (
               <span key={stat} className="text-xs">
                 <span
