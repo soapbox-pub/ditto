@@ -1,17 +1,21 @@
-import { useState, useRef, useCallback } from 'react';
-import { Heart } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useNostr } from '@nostrify/react';
-
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { QuickReactMenu } from '@/components/QuickReactMenu';
-import { RenderResolvedEmoji } from '@/components/CustomEmoji';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useUserReaction } from '@/hooks/useUserReaction';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { formatNumber } from '@/lib/formatNumber';
-import { cn } from '@/lib/utils';
-import type { EventStats } from '@/hooks/useTrending';
+import { useNostr } from "@nostrify/react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Heart } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { RenderResolvedEmoji } from "@/components/CustomEmoji";
+import { InteractionsModal } from "@/components/InteractionsModal";
+import { QuickReactMenu } from "@/components/QuickReactMenu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useNostrPublish } from "@/hooks/useNostrPublish";
+import type { EventStats } from "@/hooks/useTrending";
+import { useUserReaction } from "@/hooks/useUserReaction";
+import { formatNumber } from "@/lib/formatNumber";
+import { cn } from "@/lib/utils";
 
 interface ReactionButtonProps {
   /** The event ID being reacted to. */
@@ -41,6 +45,7 @@ export function ReactionButton({
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [interactionsOpen, setInteractionsOpen] = useState(false);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const justClosedRef = useRef(false);
   const pickerExpandedRef = useRef(false);
@@ -48,55 +53,79 @@ export function ReactionButton({
 
   const hasReacted = !!userReaction;
 
-  const handleUnreact = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!user) return;
+  const handleUnreact = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!user) return;
 
-    // Find the user's kind 7 event ID to delete
-    const events = await nostr.query([{
-      kinds: [7],
-      authors: [user.pubkey],
-      '#e': [eventId],
-      limit: 1,
-    }]);
-
-    if (events.length === 0) return;
-
-    const reactionEventId = events[0].id;
-
-    // Snapshot for rollback
-    const prevReaction = queryClient.getQueryData(['user-reaction', eventId]);
-    const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
-
-    // Optimistic update: clear reaction and decrement count
-    queryClient.setQueryData(['user-reaction', eventId], null);
-    if (prevStats) {
-      queryClient.setQueryData<EventStats>(['event-stats', eventId], {
-        ...prevStats,
-        reactions: Math.max(0, prevStats.reactions - 1),
-      });
-    }
-
-    publishEvent(
-      { kind: 5, content: '', tags: [['e', reactionEventId], ['k', '7']] },
-      {
-        onSuccess: () => {
-          setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
-            queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
-            queryClient.invalidateQueries({ queryKey: ['user-reaction', eventId] });
-          }, 3000);
+      // Find the user's kind 7 event ID to delete
+      const events = await nostr.query([
+        {
+          kinds: [7],
+          authors: [user.pubkey],
+          "#e": [eventId],
+          limit: 1,
         },
-        onError: () => {
-          // Rollback
-          queryClient.setQueryData(['user-reaction', eventId], prevReaction);
-          if (prevStats) {
-            queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
-          }
+      ]);
+
+      if (events.length === 0) return;
+
+      const reactionEventId = events[0].id;
+
+      // Snapshot for rollback
+      const prevReaction = queryClient.getQueryData(["user-reaction", eventId]);
+      const prevStats = queryClient.getQueryData<EventStats>([
+        "event-stats",
+        eventId,
+      ]);
+
+      // Optimistic update: clear reaction and decrement count
+      queryClient.setQueryData(["user-reaction", eventId], null);
+      if (prevStats) {
+        queryClient.setQueryData<EventStats>(["event-stats", eventId], {
+          ...prevStats,
+          reactions: Math.max(0, prevStats.reactions - 1),
+        });
+      }
+
+      publishEvent(
+        {
+          kind: 5,
+          content: "",
+          tags: [
+            ["e", reactionEventId],
+            ["k", "7"],
+          ],
         },
-      },
-    );
-  }, [user, nostr, eventId, publishEvent, queryClient]);
+        {
+          onSuccess: () => {
+            setTimeout(() => {
+              queryClient.invalidateQueries({
+                queryKey: ["event-stats", eventId],
+              });
+              queryClient.invalidateQueries({
+                queryKey: ["event-interactions", eventId],
+              });
+              queryClient.invalidateQueries({
+                queryKey: ["user-reaction", eventId],
+              });
+            }, 3000);
+          },
+          onError: () => {
+            // Rollback
+            queryClient.setQueryData(["user-reaction", eventId], prevReaction);
+            if (prevStats) {
+              queryClient.setQueryData<EventStats>(
+                ["event-stats", eventId],
+                prevStats,
+              );
+            }
+          },
+        },
+      );
+    },
+    [user, nostr, eventId, publishEvent, queryClient],
+  );
 
   const handleMouseEnter = useCallback(() => {
     if (!user) return;
@@ -120,107 +149,156 @@ export function ReactionButton({
   }, []);
 
   return (
-    <Popover open={menuOpen} onOpenChange={(open) => {
-      if (open && justClosedRef.current) return;
-      if (!open) pickerExpandedRef.current = false;
-      setMenuOpen(open);
-    }}>
-      <PopoverTrigger asChild>
-        <button
-          className={cn(
-            'flex items-center gap-1.5 p-2 rounded-full transition-colors focus:outline-none',
-            'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
-            className,
-            hasReacted && 'text-pink-500',
-          )}
-          title="React"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!user) return;
-            if (hasReacted) {
-              handleUnreact(e);
-              return;
-            }
-            if (justClosedRef.current) return;
-            setMenuOpen((prev) => !prev);
-          }}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            if (!user) return;
-            if (hasReacted) return;
-            setMenuOpen(false);
-            const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
-            queryClient.setQueryData(['user-reaction', eventId], '❤️');
-            if (prevStats) {
-              queryClient.setQueryData<EventStats>(['event-stats', eventId], {
-                ...prevStats,
-                reactions: prevStats.reactions + 1,
-              });
-            }
-            publishEvent(
-              {
-                kind: 7,
-                content: '❤️',
-                tags: [['e', eventId], ['p', eventPubkey], ['k', String(eventKind)]],
-              },
-              {
-                onSuccess: () => {
-                  setTimeout(() => {
-                    queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
-                    queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
-                    queryClient.invalidateQueries({ queryKey: ['user-reaction', eventId] });
-                  }, 3000);
+    <>
+      <Popover
+        open={menuOpen}
+        onOpenChange={(open) => {
+          if (open && justClosedRef.current) return;
+          if (!open) pickerExpandedRef.current = false;
+          setMenuOpen(open);
+        }}
+      >
+        <PopoverTrigger asChild>
+          <button
+            className={cn(
+              "flex items-center gap-1.5 p-2 rounded-full transition-colors focus:outline-none",
+              "text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10",
+              className,
+              hasReacted && "text-pink-500",
+            )}
+            title="React"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!user) return;
+              if (hasReacted) {
+                handleUnreact(e);
+                return;
+              }
+              if (justClosedRef.current) return;
+              setMenuOpen((prev) => !prev);
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              if (!user) return;
+              if (hasReacted) return;
+              setMenuOpen(false);
+              const prevStats = queryClient.getQueryData<EventStats>([
+                "event-stats",
+                eventId,
+              ]);
+              queryClient.setQueryData(["user-reaction", eventId], "❤️");
+              if (prevStats) {
+                queryClient.setQueryData<EventStats>(["event-stats", eventId], {
+                  ...prevStats,
+                  reactions: prevStats.reactions + 1,
+                });
+              }
+              publishEvent(
+                {
+                  kind: 7,
+                  content: "❤️",
+                  tags: [
+                    ["e", eventId],
+                    ["p", eventPubkey],
+                    ["k", String(eventKind)],
+                  ],
                 },
-                onError: () => {
-                  queryClient.setQueryData(['user-reaction', eventId], null);
-                  if (prevStats) {
-                    queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
-                  }
+                {
+                  onSuccess: () => {
+                    setTimeout(() => {
+                      queryClient.invalidateQueries({
+                        queryKey: ["event-stats", eventId],
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ["event-interactions", eventId],
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ["user-reaction", eventId],
+                      });
+                    }, 3000);
+                  },
+                  onError: () => {
+                    queryClient.setQueryData(["user-reaction", eventId], null);
+                    if (prevStats) {
+                      queryClient.setQueryData<EventStats>(
+                        ["event-stats", eventId],
+                        prevStats,
+                      );
+                    }
+                  },
                 },
-              },
-            );
-          }}
+              );
+            }}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            {filledHeart ? (
+              <Heart
+                className="size-6"
+                fill={hasReacted ? "currentColor" : "none"}
+              />
+            ) : hasReacted && userReaction ? (
+              <RenderResolvedEmoji
+                emoji={userReaction}
+                className="size-5 leading-none translate-y-px"
+              />
+            ) : (
+              <Heart className="size-5" />
+            )}
+            {reactionCount > 0 && (
+              <span
+                className={cn(
+                  "text-sm tabular-nums hover:underline",
+                  hasReacted && "text-pink-500",
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setInteractionsOpen(true);
+                }}
+                role="button"
+                tabIndex={0}
+                title="View reactions"
+              >
+                {formatNumber(reactionCount)}
+              </span>
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-auto p-0 border-0 bg-transparent shadow-none"
+          side="top"
+          align="start"
+          onClick={(e) => e.stopPropagation()}
+          onOpenAutoFocus={(e) => e.preventDefault()}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          {filledHeart ? (
-            <Heart className="size-6" fill={hasReacted ? 'currentColor' : 'none'} />
-          ) : hasReacted && userReaction ? (
-            <RenderResolvedEmoji emoji={userReaction} className="size-5 leading-none translate-y-px" />
-          ) : (
-            <Heart className="size-5" />
-          )}
-          {reactionCount > 0 && (
-            <span className={cn('text-sm tabular-nums', hasReacted && 'text-pink-500')}>{formatNumber(reactionCount)}</span>
-          )}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-auto p-0 border-0 bg-transparent shadow-none"
-        side="top"
-        align="start"
-        onClick={(e) => e.stopPropagation()}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
-        <QuickReactMenu
-          eventId={eventId}
-          eventPubkey={eventPubkey}
-          eventKind={eventKind}
-          onExpandChange={(expanded) => {
-            pickerExpandedRef.current = expanded;
-          }}
-          onClose={() => {
-            pickerExpandedRef.current = false;
-            justClosedRef.current = true;
-            setMenuOpen(false);
-            setTimeout(() => {
-              justClosedRef.current = false;
-            }, 300);
-          }}
-        />
-      </PopoverContent>
-    </Popover>
+          <QuickReactMenu
+            eventId={eventId}
+            eventPubkey={eventPubkey}
+            eventKind={eventKind}
+            onExpandChange={(expanded) => {
+              pickerExpandedRef.current = expanded;
+            }}
+            onClose={() => {
+              pickerExpandedRef.current = false;
+              justClosedRef.current = true;
+              setMenuOpen(false);
+              setTimeout(() => {
+                justClosedRef.current = false;
+              }, 300);
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+
+      <InteractionsModal
+        eventId={eventId}
+        open={interactionsOpen}
+        onOpenChange={setInteractionsOpen}
+        initialTab="reactions"
+      />
+    </>
   );
 }
