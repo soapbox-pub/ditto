@@ -7,6 +7,8 @@ import { Switch } from '@/components/ui/switch';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { toast } from '@/hooks/useToast';
 
 type NotificationPrefKey = 'reactions' | 'reposts' | 'zaps' | 'mentions' | 'comments';
 
@@ -120,11 +122,14 @@ export function NotificationSettings() {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { settings, updateSettings } = useEncryptedSettings();
+  const { enable: enablePush, disable: disablePush } = usePushNotifications();
   const [permission, setPermission] = useState<NotificationPermission>('default');
+
+  const isNative = Capacitor.isNativePlatform();
 
   // Local UI state — initialized from settings once loaded, then updated
   // synchronously on every toggle (fire-and-forget persist in background).
-  const [pushEnabled, setPushEnabled] = useState<boolean>(true);
+  const [pushEnabled, setPushEnabled] = useState<boolean>(() => isNative);
   const [prefs, setPrefs] = useState<NonNullable<NonNullable<typeof settings>['notificationPreferences']>>({});
   const initializedRef = useRef(false);
 
@@ -132,7 +137,7 @@ export function NotificationSettings() {
   useEffect(() => {
     if (initializedRef.current || settings === null || settings === undefined) return;
     initializedRef.current = true;
-    setPushEnabled(settings.notificationsEnabled ?? true);
+    setPushEnabled(settings.notificationsEnabled ?? isNative);
     setPrefs(settings.notificationPreferences ?? {});
   }, [settings]);
 
@@ -148,12 +153,31 @@ export function NotificationSettings() {
   }, []);
 
   const handleTogglePush = async (enabled: boolean) => {
-    if (enabled && !Capacitor.isNativePlatform()) {
+    if (enabled && !isNative) {
       if (!('Notification' in window)) return;
+
       const result = await Notification.requestPermission();
       setPermission(result);
       if (result !== 'granted') return;
+
+      // Register with nostr-push from this click handler (user gesture).
+      // Must happen here — iOS requires requestPermission + pushManager.subscribe
+      // to originate from a direct user interaction, not a useEffect.
+      if (user) {
+        try {
+          await enablePush(user.pubkey);
+        } catch (err) {
+          console.error('[push] Registration failed:', err);
+          toast({ title: 'Failed to enable notifications', description: 'Please try again.' });
+          return; // Don't persist enabled=true if registration failed
+        }
+      }
     }
+
+    if (!enabled && !isNative) {
+      await disablePush().catch((err) => console.error('[push] Failed to disable:', err));
+    }
+
     setPushEnabled(enabled);
     updateSettings.mutateAsync({ notificationsEnabled: enabled }).catch(() => {
       setPushEnabled(!enabled); // roll back on failure
@@ -180,7 +204,6 @@ export function NotificationSettings() {
     return <Navigate to="/settings" replace />;
   }
 
-  const isNative = Capacitor.isNativePlatform();
   const isSupported = isNative || 'Notification' in window;
   const isDenied = !isNative && permission === 'denied';
 

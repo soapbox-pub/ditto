@@ -1,12 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect } from 'react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { useNostr } from '@nostrify/react';
-import type { NostrEvent, NPool } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useAppContext } from './useAppContext';
 import { useEncryptedSettings } from './useEncryptedSettings';
+import { usePushNotifications } from './usePushNotifications';
 import { getEffectiveRelays } from '@/lib/appRelays';
 
 /** Interface for the native DittoNotification Capacitor plugin. */
@@ -16,54 +15,26 @@ interface DittoNotificationPlugin {
 
 const DittoNotification = registerPlugin<DittoNotificationPlugin>('DittoNotification');
 
-/** Human-readable label for a notification event kind. */
-function notificationTitle(event: NostrEvent): string {
-  switch (event.kind) {
-    case 7:   return 'New reaction';
-    case 6:
-    case 16:  return 'New repost';
-    case 9735: return 'New zap';
-    case 1111: return 'New comment';
-    case 1222:
-    case 1244: return 'New voice message';
-    default:  return 'New mention';
-  }
-}
-
 /**
  * Hook that manages device/browser notifications for the Nostr app.
  *
  * Capacitor (native): passes user pubkey + relay URLs to the native Android
- * notification service. Respects the user's notificationsEnabled setting.
+ * notification service. Defaults to on. Respects the user's notificationsEnabled setting.
  *
- * Web/PWA: subscribes to Nostr events via a live relay subscription and
- * fires browser Notification API notifications when the user has both
- * granted browser permission and enabled notifications in their settings.
+ * Web/PWA: handles only the disable path — unregisters from nostr-push when
+ * the user turns off notifications or logs out. The enable path is triggered
+ * exclusively from NotificationSettings.tsx (a user gesture / click handler)
+ * because iOS requires Notification.requestPermission() to be called from
+ * a direct user interaction.
  */
 export function useNativeNotifications(): void {
-  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { settings } = useEncryptedSettings();
+  const { supported: pushSupported, enabled: pushEnabled, disable: disablePush } = usePushNotifications();
 
-  const notificationsEnabled = settings?.notificationsEnabled ?? true;
-  const notifPrefs = useMemo(() => settings?.notificationPreferences ?? {}, [settings?.notificationPreferences]);
-
-  // Track the subscription start time so we only surface events that arrive
-  // after the subscription is opened (avoids replaying historical events).
-  const subStartRef = useRef<number>(Math.floor(Date.now() / 1000));
-
-  // Keep a stable ref to the nostr object to avoid re-subscribing on every render.
-  const nostrRef = useRef<NPool>(nostr);
-  useEffect(() => { nostrRef.current = nostr; }, [nostr]);
-
-  // Keep a stable ref to per-type prefs so the async loop reads the latest
-  // values without triggering a reconnect on every preference change.
-  const notifPrefsRef = useRef(notifPrefs);
-  useEffect(() => { notifPrefsRef.current = notifPrefs; }, [notifPrefs]);
-
-  // Deduplicate: track event IDs that have already triggered a notification.
-  const seenIdsRef = useRef<Set<string>>(new Set());
+  // Web defaults to false (opt-in); native defaults to true (foreground service).
+  const notificationsEnabled = settings?.notificationsEnabled ?? Capacitor.isNativePlatform();
 
   // ── Capacitor path ────────────────────────────────────────────────────────
 
@@ -106,64 +77,16 @@ export function useNativeNotifications(): void {
     });
   }, [user, config.relayMetadata, config.useAppRelays, notificationsEnabled]);
 
-  // ── Web / PWA path ────────────────────────────────────────────────────────
+  // ── Web Push path (nostr-push) — disable only ─────────────────────────────
+  // Enable is handled by NotificationSettings.tsx click handler.
 
   useEffect(() => {
-    // Only run on web (not native Capacitor).
     if (Capacitor.isNativePlatform()) return;
-    // Need a logged-in user, notifications enabled in settings, and browser permission.
-    if (!user || !notificationsEnabled) return;
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (!pushSupported) return;
 
-    // Record when we opened the subscription so old events are ignored.
-    subStartRef.current = Math.floor(Date.now() / 1000);
-
-    const controller = new AbortController();
-
-    (async () => {
-      try {
-        const stream = nostrRef.current.req(
-          [{
-            kinds: [1, 6, 7, 16, 9735, 1111, 1222, 1244],
-            '#p': [user.pubkey],
-            since: subStartRef.current,
-          }],
-          { signal: controller.signal },
-        );
-
-        for await (const msg of stream) {
-          if (msg[0] !== 'EVENT') continue;
-          const event: NostrEvent = msg[2];
-
-          // Skip own events
-          if (event.pubkey === user.pubkey) continue;
-          // Skip events older than when the sub opened (relay may send a burst)
-          if (event.created_at < subStartRef.current) continue;
-          // Deduplicate: skip if we've already shown a notification for this event
-          if (seenIdsRef.current.has(event.id)) continue;
-          seenIdsRef.current.add(event.id);
-
-          // Respect per-type preferences (default = enabled when not explicitly false)
-          const prefs = notifPrefsRef.current;
-          if (event.kind === 7 && prefs.reactions === false) continue;
-          if ((event.kind === 6 || event.kind === 16) && prefs.reposts === false) continue;
-          if (event.kind === 9735 && prefs.zaps === false) continue;
-          if (event.kind === 1 && prefs.mentions === false) continue;
-          if (event.kind === 1111 && prefs.comments === false) continue;
-
-          new Notification(notificationTitle(event), {
-            body: event.content.slice(0, 120) || undefined,
-            tag: event.id,
-            icon: '/favicon.ico',
-          });
-        }
-      } catch {
-        // Subscription closed or errored — ignore
-      }
-    })();
-
-    return () => {
-      controller.abort();
-    };
-  }, [user, notificationsEnabled]);
+    // User logged out or disabled notifications — unregister from nostr-push.
+    if ((!user || !notificationsEnabled) && pushEnabled) {
+      disablePush().catch((err) => console.error('[push] Failed to disable:', err));
+    }
+  }, [user, notificationsEnabled, pushSupported, pushEnabled]);
 }
