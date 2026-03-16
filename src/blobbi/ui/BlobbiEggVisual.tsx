@@ -86,12 +86,12 @@ export function BlobbiEggVisual({
   return (
     <div
       className={cn(
-        // Square container for proper egg aspect ratio
-        config.container,
+        // Use passed className if provided (e.g., "size-full" from parent),
+        // otherwise use default container size
+        className ?? config.container,
         'relative flex items-center justify-center',
         // Reduced opacity when sleeping
         isSleeping && 'opacity-70',
-        className
       )}
     >
       <EggGraphic

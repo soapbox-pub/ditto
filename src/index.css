@@ -194,13 +194,13 @@
 }
 
 .animate-blobbi-sway {
-  /* Baby/adult sway is livelier than egg (1.6s vs 2.5s) */
-  animation: blobbi-gentle-sway 1.6s ease-in-out infinite;
+  /* Baby/adult sway is livelier than egg (1.2s vs 1.8s) */
+  animation: blobbi-gentle-sway 1.2s ease-in-out infinite;
 }
 
 .animate-blobbi-bounce {
-  /* Baby/adult bounce is livelier than egg (0.45s vs 0.55s) */
-  animation: blobbi-bounce 0.45s ease-in-out infinite;
+  /* Baby/adult bounce is livelier than egg (0.4s vs 0.5s) */
+  animation: blobbi-bounce 0.4s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
