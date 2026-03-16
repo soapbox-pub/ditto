@@ -109,7 +109,7 @@ build-apk:
     - sed -i "s/versionName \"[^\"]*\"/versionName \"${VERSION_NAME}\"/" android/app/build.gradle
 
     # Build web assets
-    - npm ci --silent
+    - npm ci
     - npx vite build -l error
     - cp dist/index.html dist/404.html
 
