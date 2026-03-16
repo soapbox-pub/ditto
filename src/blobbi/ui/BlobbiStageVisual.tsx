@@ -21,13 +21,21 @@ import type { Blobbi } from '@/types/blobbi';
 
 export type BlobbiVisualSize = 'sm' | 'md' | 'lg';
 
+/**
+ * Reaction states for all Blobbi stages.
+ * Controls music/sing dance animations.
+ */
+export type BlobbiReaction = 'idle' | 'listening' | 'swaying' | 'singing' | 'happy';
+
 export interface BlobbiStageVisualProps {
   /** The Blobbi companion data from parseBlobbiEvent */
   companion: BlobbiCompanion;
   /** Size variant: sm (48px), md (96px), lg (160px) */
   size?: BlobbiVisualSize;
-  /** Enable animations (egg only) */
+  /** Enable ambient animations (glow, particles) */
   animated?: boolean;
+  /** Reaction state for music/sing animations */
+  reaction?: BlobbiReaction;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -95,9 +103,14 @@ export function BlobbiStageVisual({
   companion,
   size = 'md',
   animated = false,
+  reaction = 'idle',
   className,
 }: BlobbiStageVisualProps) {
   const { stage } = companion;
+  const isSleeping = companion.state === 'sleeping';
+  
+  // Disable reactions when sleeping
+  const effectiveReaction = isSleeping ? 'idle' : reaction;
 
   // Convert to Blobbi for baby rendering (memoized)
   const blobbiForBaby = useMemo(
@@ -112,6 +125,7 @@ export function BlobbiStageVisual({
         companion={companion}
         size={size as BlobbiEggSize}
         animated={animated}
+        reaction={effectiveReaction}
         className={className}
       />
     );
@@ -129,15 +143,15 @@ export function BlobbiStageVisual({
     return (
       <BlobbiBabyVisual
         blobbi={blobbiForBaby}
+        reaction={effectiveReaction}
         className={cn(containerClass, className)}
       />
     );
   }
 
-  // Adult stage - placeholder
+  // Adult stage - placeholder with reaction support
   if (stage === 'adult') {
     const containerClass = SIZE_CONFIG[size];
-    const isSleeping = companion.state === 'sleeping';
 
     return (
       <div
@@ -146,6 +160,9 @@ export function BlobbiStageVisual({
           'relative flex items-center justify-center',
           'rounded-2xl bg-primary/10 border-2 border-dashed border-primary/30',
           isSleeping && 'opacity-70',
+          // Reaction animations for adult placeholder
+          (effectiveReaction === 'listening' || effectiveReaction === 'swaying' || effectiveReaction === 'happy') && 'animate-blobbi-sway',
+          effectiveReaction === 'singing' && 'animate-blobbi-bounce',
           className
         )}
       >

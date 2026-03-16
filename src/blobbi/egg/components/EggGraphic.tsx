@@ -7,11 +7,17 @@ import { useSpecialMark } from '../hooks/useSpecialMark';
 import { isDivineEgg } from '../lib/blobbi-divine-utils';
 import { cn } from '../lib/cn';
 
+/**
+ * Reaction states that trigger different animations
+ */
+export type EggReactionState = 'idle' | 'listening' | 'swaying' | 'singing' | 'happy';
+
 interface EggGraphicProps {
   blobbi?: EggVisualBlobbi; // Visual blobbi object for visual properties
   sizeVariant?: 'tiny' | 'small' | 'medium' | 'large'; // Internal scaling only, NOT layout size
   className?: string;
-  animated?: boolean;
+  animated?: boolean; // Enable ambient effects (glow pulse, particles) but NOT sway
+  reaction?: EggReactionState; // Reaction state for music/sing animations
   cracking?: boolean;
   warmth?: number; // 0-100, affects the glow (fallback if no blobbi)
   forceInlineSvg?: boolean; // New prop to guarantee inline SVG
@@ -54,6 +60,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
   sizeVariant = 'medium',
   className,
   animated = false,
+  reaction = 'idle',
   cracking = false,
   warmth = 50,
   forceInlineSvg: _forceInlineSvg = false,
@@ -388,8 +395,12 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
         <div
           className={cn(
             'relative transition-all duration-500 z-10',
-            animated && !cracking && 'animate-egg-sway',
+            // Reaction-based animations (music/sing)
+            (reaction === 'listening' || reaction === 'swaying' || reaction === 'happy') && 'animate-egg-sway',
+            reaction === 'singing' && 'animate-egg-bounce',
+            // Warmth effect only when animated AND warm
             animated && actualWarmth > 60 && 'animate-egg-warmth',
+            // Cracking overrides other animations
             cracking && 'animate-egg-crack'
           )}
           style={{

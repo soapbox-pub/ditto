@@ -47,8 +47,29 @@
   }
 }
 
+/* Bouncy animation for singing - more energetic than sway */
+@keyframes egg-bounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-4px) rotate(2deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-4px) rotate(-2deg);
+  }
+}
+
 .animate-egg-sway {
   animation: egg-gentle-sway 3s ease-in-out infinite;
+}
+
+.animate-egg-bounce {
+  animation: egg-bounce 0.6s ease-in-out infinite;
 }
 
 .animate-egg-warmth {
@@ -209,6 +230,7 @@
   .animate-mystical-float,
   .animate-crack-energy,
   .animate-egg-sway,
+  .animate-egg-bounce,
   .animate-egg-warmth,
   .animate-egg-crack {
     animation: none !important;

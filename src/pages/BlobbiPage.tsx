@@ -708,8 +708,8 @@ function BlobbiDashboard({
   const [inlineActivity, setInlineActivity] = useState<InlineActivityState>(createNoActivity());
   
   // Blobbi reaction state - drives visual reactions to activities
-  // TODO: Pass _blobbiReaction to BlobbiStageVisual for animated reactions
-  const [_blobbiReaction, setBlobbiReaction] = useState<BlobbiReactionState>('idle');
+  // This is passed to BlobbiStageVisual to trigger dance/sway animations
+  const [blobbiReaction, setBlobbiReaction] = useState<BlobbiReactionState>('idle');
   
   // Handle opening an inventory action modal
   const handleInventoryAction = (action: InventoryAction) => {
@@ -726,6 +726,8 @@ function BlobbiDashboard({
     } else if (action === 'sing') {
       // Open the inline sing card directly
       setInlineActivity(createSingActivity());
+      // Start singing reaction animation
+      setBlobbiReaction('singing');
     }
   };
   
@@ -883,6 +885,7 @@ function BlobbiDashboard({
             companion={companion}
             size="lg"
             animated={!isSleeping}
+            reaction={blobbiReaction}
             className="size-48 sm:size-56"
           />
         </div>
