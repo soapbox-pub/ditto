@@ -1,7 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, Loader2, Plus, Trash2, ChevronDown, GripVertical,
+  ArrowLeft, Loader2, Trash2, ChevronDown, GripVertical,
   Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye, AlertTriangle,
 } from 'lucide-react';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -34,13 +34,7 @@ import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+
 import {
   Select,
   SelectContent,
@@ -822,41 +816,31 @@ export function ProfileSettings() {
                 </SortableContext>
               </DndContext>
 
-              {/* Add field dropdown with presets */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs w-full"
-                  >
-                    <Plus className="size-3 mr-1" /> Add Field
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="w-56">
-                  {FIELD_PRESETS.map((preset) => {
-                    const Icon = preset.icon;
-                    return (
-                      <DropdownMenuItem key={preset.id} onClick={() => handleAddPreset(preset)} className="flex items-start gap-2.5 py-2">
-                        <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium leading-tight">{preset.label}</div>
-                          <div className="text-xs text-muted-foreground leading-snug">{preset.description}</div>
-                        </div>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleAddPreset(CUSTOM_PRESET)} className="flex items-start gap-2.5 py-2">
-                    <CUSTOM_PRESET.icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium leading-tight">{CUSTOM_PRESET.label}</div>
-                      <div className="text-xs text-muted-foreground leading-snug">{CUSTOM_PRESET.description}</div>
-                    </div>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* Add field — visible pill buttons */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {[...FIELD_PRESETS, CUSTOM_PRESET].map((preset) => {
+                  const Icon = preset.icon;
+                  return (
+                    <Tooltip key={preset.id}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 rounded-full px-3 text-xs gap-1.5"
+                          onClick={() => handleAddPreset(preset)}
+                        >
+                          <Icon className="size-3.5 text-muted-foreground" />
+                          {preset.label}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        {preset.description}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
