@@ -4,8 +4,14 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 
 /**
  * Audio playback state
+ * - idle: No audio loaded
+ * - loading: Audio is being loaded
+ * - playing: Audio is playing
+ * - paused: Audio is paused (can resume)
+ * - stopped: Audio was stopped (must reload to play again)
+ * - error: An error occurred
  */
-export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
+export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'stopped' | 'error';
 
 /**
  * Audio playback error info
@@ -186,12 +192,14 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
     setState('paused');
   }, []);
   
-  // Stop playback and reset to beginning
+  // Stop playback completely (requires reload to play again)
   const stop = useCallback(() => {
     if (!audioRef.current) return;
     audioRef.current.pause();
     audioRef.current.currentTime = 0;
-    setState('paused');
+    // Clear URL ref so next load() will actually reload
+    currentUrlRef.current = null;
+    setState('stopped');
   }, []);
   
   // Toggle play/pause

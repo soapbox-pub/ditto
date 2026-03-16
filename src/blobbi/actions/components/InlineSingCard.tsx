@@ -12,8 +12,6 @@ import {
   Loader2, 
   AlertCircle,
   RefreshCw,
-  ChevronUp,
-  ChevronDown,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -375,11 +373,6 @@ export function InlineSingCard({
             className="size-10 rounded-full shrink-0"
           >
             <FileText className="size-4" />
-            {showLyrics ? (
-              <ChevronDown className="size-3 absolute -bottom-0.5 -right-0.5" />
-            ) : (
-              <ChevronUp className="size-3 absolute -bottom-0.5 -right-0.5" />
-            )}
           </Button>
           
           {/* Center: Record/Stop button */}
