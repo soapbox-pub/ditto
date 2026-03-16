@@ -224,6 +224,37 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
     ],
   },
 
+  // ── Profile & Identity ───────────────────────────────────────────────────
+  {
+    id: 'profile-identity',
+    label: 'Profile & Identity',
+    items: [
+      {
+        id: 'profile-fields',
+        question: 'What are profile fields?',
+        answer: [
+          'Profile fields let you add extra info to your profile sidebar — like links, wallet addresses, music, photos, videos, and more. They\'re a way to express yourself and share what matters to you.',
+          'You can add fields from the profile settings page. Each field has a **label** (what it\'s called) and a **value** (the content). For media fields, you can upload files directly and they\'ll render as players or embeds on your profile.',
+        ],
+      },
+      {
+        id: 'profile-fields-music',
+        question: 'What audio formats can I upload for music fields?',
+        answer: [
+          'You can upload audio files in these formats: **MP3**, **OGG**, **WAV**, **FLAC**, **AAC**, **M4A**, and **Opus**. They\'ll appear as a mini audio player on your profile sidebar.',
+        ],
+      },
+      {
+        id: 'profile-fields-media',
+        question: 'What image and video formats are supported?',
+        answer: [
+          'For images: **JPG**, **PNG**, **GIF**, **WebP**, **SVG**, and **AVIF**. For video: **MP4**, **WebM**, and **MOV**.',
+          'Images will display as linked thumbnails, and videos will be embedded inline on your profile.',
+        ],
+      },
+    ],
+  },
+
   // ── Why is this different from Big Tech? ────────────────────────────────
   {
     id: 'big-tech',

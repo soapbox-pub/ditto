@@ -1,6 +1,9 @@
 import { useSeoMeta } from '@unhead/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Loader2, Plus, Trash2, ChevronDown, GripVertical, Type, Wallet, Image, Upload } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ArrowLeft, Loader2, Plus, Trash2, ChevronDown, GripVertical,
+  Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye,
+} from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,6 +21,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 import { ProfileCard } from '@/components/ProfileCard';
+import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { IntroImage } from '@/components/IntroImage';
 import { HelpTip } from '@/components/HelpTip';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
@@ -33,6 +37,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -56,7 +61,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { isValidAvatarShape } from '@/lib/avatarShape';
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const WALLET_TICKERS = [
   '$BTC', '$ETH', '$SOL', '$XMR', '$LTC', '$DOGE', '$ADA', '$DOT', '$XRP', '$MATIC',
@@ -64,6 +72,108 @@ const WALLET_TICKERS = [
 
 /** Bare tickers used only for detection (strips leading $). */
 const BARE_TICKERS = WALLET_TICKERS.map((t) => t.slice(1));
+
+// ── Field preset templates ────────────────────────────────────────────────────
+
+interface FieldPreset {
+  id: string;
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  /** Default label to pre-fill when adding this field type. */
+  defaultLabel: string;
+  /** The form field type. */
+  type: 'text' | 'wallet' | 'media';
+  /** File accept attribute for the file picker (media types only). */
+  accept?: string;
+  /** Human-readable format list shown in tooltips. */
+  formatHint?: string;
+  /** Placeholder for the value input. */
+  valuePlaceholder?: string;
+}
+
+const FIELD_PRESETS: FieldPreset[] = [
+  {
+    id: 'music',
+    label: 'Music',
+    description: 'Add a song or audio clip',
+    icon: Music,
+    defaultLabel: '\u{1F3B6}',
+    type: 'media',
+    accept: 'audio/*',
+    formatHint: 'MP3, OGG, WAV, FLAC, AAC, M4A, Opus',
+    valuePlaceholder: 'Audio URL',
+  },
+  {
+    id: 'photo',
+    label: 'Photo',
+    description: 'Upload an image',
+    icon: ImageIcon,
+    defaultLabel: '\u{1F4F8}',
+    type: 'media',
+    accept: 'image/*',
+    formatHint: 'JPG, PNG, GIF, WebP, SVG, AVIF',
+    valuePlaceholder: 'Image URL',
+  },
+  {
+    id: 'video',
+    label: 'Video',
+    description: 'Upload a video clip',
+    icon: Film,
+    defaultLabel: '\u{1F3AC}',
+    type: 'media',
+    accept: 'video/*',
+    formatHint: 'MP4, WebM, MOV',
+    valuePlaceholder: 'Video URL',
+  },
+  {
+    id: 'email',
+    label: 'Email',
+    description: 'Contact email address',
+    icon: Mail,
+    defaultLabel: 'Email',
+    type: 'text',
+    valuePlaceholder: 'you@example.com',
+  },
+  {
+    id: 'link',
+    label: 'Link',
+    description: 'Link to any website or profile',
+    icon: Link2,
+    defaultLabel: '',
+    type: 'text',
+    valuePlaceholder: 'https://...',
+  },
+  {
+    id: 'wallet',
+    label: 'Wallet',
+    description: 'Cryptocurrency wallet address',
+    icon: Wallet,
+    defaultLabel: '$BTC',
+    type: 'wallet',
+    valuePlaceholder: 'Address',
+  },
+];
+
+/** The "Custom" preset — always shown last, separated by a divider. */
+const CUSTOM_PRESET: FieldPreset = {
+  id: 'custom',
+  label: 'Custom',
+  description: 'Create any custom field',
+  icon: Pencil,
+  defaultLabel: '',
+  type: 'text',
+  valuePlaceholder: 'Value or URL',
+};
+
+/** Find a preset's format hint from its accept filter. */
+function getFormatHintForAccept(accept: string | undefined): string | undefined {
+  if (!accept) return undefined;
+  const preset = FIELD_PRESETS.find((p) => p.accept === accept);
+  return preset?.formatHint;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Infer the field type from stored label/value when loading from existing data. */
 function inferFieldType(label: string, value: string): 'text' | 'wallet' | 'media' {
@@ -76,11 +186,23 @@ function inferFieldType(label: string, value: string): 'text' | 'wallet' | 'medi
   return 'text';
 }
 
+/** Infer a file-accept filter from an existing field's value URL. */
+function inferAcceptFromValue(value: string): string | undefined {
+  if (/\.(mp3|mpga|ogg|oga|wav|flac|aac|m4a|opus|weba|webm|spx|caf)(\?.*)?$/i.test(value)) return 'audio/*';
+  if (/\.(jpe?g|png|gif|webp|svg|avif)(\?.*)?$/i.test(value)) return 'image/*';
+  if (/\.(mp4|webm|mov|qt)(\?.*)?$/i.test(value)) return 'video/*';
+  return undefined;
+}
+
+// ── Schema ────────────────────────────────────────────────────────────────────
+
 const formSchema = n.metadata().extend({
   fields: z.array(z.object({
     label: z.string(),
     value: z.string(),
     type: z.enum(['text', 'wallet', 'media']),
+    /** Client-side only — file accept filter for the file picker (not persisted). */
+    accept: z.string().optional(),
   })).optional(),
   shape: z.string().optional(),
 });
@@ -100,6 +222,7 @@ interface SortableFieldRowProps {
   id: string;
   index: number;
   type: 'text' | 'wallet' | 'media';
+  accept?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control: any;
   onRemove: () => void;
@@ -107,9 +230,11 @@ interface SortableFieldRowProps {
   onTickerChange: (ticker: string) => void;
 }
 
-function SortableFieldRow({ id, index, type, control, onRemove, onMediaPick, onTickerChange }: SortableFieldRowProps) {
+function SortableFieldRow({ id, index, type, accept, control, onRemove, onMediaPick, onTickerChange }: SortableFieldRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition };
+
+  const formatHint = type === 'media' ? getFormatHintForAccept(accept) : undefined;
 
   return (
     <div
@@ -165,7 +290,7 @@ function SortableFieldRow({ id, index, type, control, onRemove, onMediaPick, onT
         />
       )}
 
-      {/* Value column — media gets upload button, others get text input */}
+      {/* Value column — media gets upload button with tooltip, others get text input */}
       {type === 'media' ? (
         <FormField
           control={control}
@@ -176,15 +301,26 @@ function SortableFieldRow({ id, index, type, control, onRemove, onMediaPick, onT
                 <FormControl>
                   <Input placeholder="URL" {...field} className="h-9 flex-1 min-w-0" readOnly={false} />
                 </FormControl>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 shrink-0"
-                  onClick={onMediaPick}
-                >
-                  <Upload className="size-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 shrink-0"
+                      onClick={onMediaPick}
+                    >
+                      <Upload className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs max-w-52">
+                    {formatHint ? (
+                      <span>Upload file<br /><span className="text-muted-foreground">{formatHint}</span></span>
+                    ) : (
+                      <span>Upload a media file</span>
+                    )}
+                  </TooltipContent>
+                </Tooltip>
               </div>
               <FormMessage />
             </FormItem>
@@ -230,6 +366,7 @@ export function ProfileSettings() {
   const { toast } = useToast();
   const [cropState, setCropState] = useState<CropState | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
 
   useSeoMeta({
     title: `Profile | Settings | ${config.appName}`,
@@ -237,7 +374,7 @@ export function ProfileSettings() {
   });
 
   // Parse existing custom fields from raw event
-  const parseFields = (): Array<{ label: string; value: string; type: 'text' | 'wallet' | 'media' }> => {
+  const parseFields = (): Array<{ label: string; value: string; type: 'text' | 'wallet' | 'media'; accept?: string }> => {
     if (!event) return [];
     try {
       const parsed = JSON.parse(event.content);
@@ -250,7 +387,8 @@ export function ProfileSettings() {
             const label = type === 'wallet' && !f[0].startsWith('$')
               ? `$${f[0].toUpperCase()}`
               : f[0];
-            return { label, value: f[1], type };
+            const accept = type === 'media' ? inferAcceptFromValue(f[1]) : undefined;
+            return { label, value: f[1], type, accept };
           });
       }
     } catch { /* ignore */ }
@@ -292,11 +430,16 @@ export function ProfileSettings() {
     move(oldIndex, newIndex);
   }, [fields, move]);
 
-  // Media field upload
+  // Media field upload — dynamic accept attribute per field
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const pendingMediaIndex = useRef<number>(-1);
   const handleMediaPick = (index: number) => {
     pendingMediaIndex.current = index;
+    // Dynamically set the accept attribute based on the field's preset
+    const fieldAccept = form.getValues(`fields.${index}.accept`);
+    if (mediaInputRef.current) {
+      mediaInputRef.current.accept = fieldAccept || 'image/*,video/*,audio/*';
+    }
     mediaInputRef.current?.click();
   };
   const handleMediaFileChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -345,6 +488,24 @@ export function ProfileSettings() {
     bot: watched.bot,
     shape: watched.shape,
   };
+
+  // Live sidebar preview fields — computed from watched form values
+  const previewFields = useMemo(() => {
+    const result: Array<{ label: string; value: string }> = [];
+    // Add website if present
+    if (watched.website?.trim()) {
+      result.push({ label: 'Website', value: watched.website.trim() });
+    }
+    // Add custom fields that have both label and value
+    if (watched.fields) {
+      for (const f of watched.fields) {
+        if (f.label.trim() && f.value.trim()) {
+          result.push({ label: f.label, value: f.value });
+        }
+      }
+    }
+    return result;
+  }, [watched.website, watched.fields]);
 
   // Card onChange: patch individual fields
   const handleCardChange = (patch: Partial<NostrMetadata>) => {
@@ -395,6 +556,16 @@ export function ProfileSettings() {
     setCropState(null);
   };
 
+  // Handle adding a field from a preset
+  const handleAddPreset = (preset: FieldPreset) => {
+    append({
+      label: preset.defaultLabel,
+      value: '',
+      type: preset.type,
+      accept: preset.accept,
+    });
+  };
+
   const onSubmit = async (values: FormValues) => {
     if (!user) return;
     try {
@@ -428,6 +599,21 @@ export function ProfileSettings() {
 
   const busy = isPending || isUploading;
 
+  // ── Sidebar preview element (shared between desktop and mobile) ───────
+  const sidebarPreview = (
+    <div className="rounded-xl border bg-card/50 overflow-hidden">
+      <div className="px-3 py-2 border-b bg-muted/30">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <Eye className="size-3.5" />
+          <span>Sidebar Preview</span>
+        </div>
+      </div>
+      <div className="p-1">
+        <ProfileRightSidebar fields={previewFields} />
+      </div>
+    </div>
+  );
+
   return (
     <main className="min-h-screen">
       {/* Hidden file input for avatar/banner */}
@@ -438,7 +624,7 @@ export function ProfileSettings() {
         className="hidden"
         onChange={handleFileChosen}
       />
-      {/* Hidden file input for media fields */}
+      {/* Hidden file input for media fields — accept is set dynamically */}
       <input
         ref={mediaInputRef}
         type="file"
@@ -475,150 +661,191 @@ export function ProfileSettings() {
         </div>
       </div>
 
-      <Form {...form}>
-        <form id="profile-settings-form" onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl mx-auto px-4 pb-10 space-y-6">
+      {/* Two-column layout: form + sidebar preview on xl+ */}
+      <div className="xl:flex xl:gap-8 xl:max-w-5xl xl:mx-auto xl:px-4">
+        {/* Left column — form */}
+        <Form {...form}>
+          <form id="profile-settings-form" onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl xl:max-w-none xl:flex-1 mx-auto xl:mx-0 px-4 xl:px-0 pb-10 space-y-6">
 
-          {/* Intro */}
-          <div className="flex items-center gap-4 px-3 pt-2 pb-2">
-            <IntroImage src="/profile-intro.png" />
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold">Your Identity</h2>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Tap any field on the card to edit. Click your avatar or banner to upload and crop a new image.
-              </p>
+            {/* Intro */}
+            <div className="flex items-center gap-4 px-3 pt-2 pb-2">
+              <IntroImage src="/profile-intro.png" />
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold">Your Identity</h2>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Tap any field on the card to edit. Click your avatar or banner to upload and crop a new image.
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* Interactive profile card */}
-          <ProfileCard
-            pubkey={user.pubkey}
-            metadata={cardMetadata}
-            onChange={handleCardChange}
-            onPickImage={handlePickImage}
-            onAvatarShape={(shape) => form.setValue('shape', shape, { shouldDirty: true })}
-            onRemoveAvatar={() => form.setValue('picture', '', { shouldDirty: true })}
-          />
+            {/* Interactive profile card */}
+            <ProfileCard
+              pubkey={user.pubkey}
+              metadata={cardMetadata}
+              onChange={handleCardChange}
+              onPickImage={handlePickImage}
+              onAvatarShape={(shape) => form.setValue('shape', shape, { shouldDirty: true })}
+              onRemoveAvatar={() => form.setValue('picture', '', { shouldDirty: true })}
+            />
 
-          {isUploading && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="size-3.5 animate-spin" />
-              Uploading image…
+            {isUploading && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin" />
+                Uploading…
+              </div>
+            )}
+
+            {/* Profile fields */}
+            <div>
+              <h2 className="text-sm font-medium py-2 flex items-center gap-1">
+                Profile Fields
+                <HelpTip faqId="profile-fields" iconSize="size-3.5" />
+              </h2>
+              <div className="space-y-3 pt-1">
+                {/* Website — always first */}
+                <FormField
+                  control={form.control}
+                  name="website"
+                  render={({ field }) => (
+                    <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
+                      <div className="w-6" />
+                      <div className="flex items-center h-9 px-3 text-sm text-muted-foreground">
+                        <span>Website</span>
+                      </div>
+                      <Input placeholder="https://yourwebsite.com" {...field} className="h-9" />
+                      <div className="size-9" />
+                    </div>
+                  )}
+                />
+
+                {/* Lightning address */}
+                <FormField
+                  control={form.control}
+                  name="lud16"
+                  render={({ field }) => (
+                    <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
+                      <div className="w-6" />
+                      <div className="flex items-center h-9 px-3 text-sm text-muted-foreground gap-1">
+                        <span>Lightning</span>
+                        <HelpTip faqId="what-are-zaps" iconSize="size-3.5" />
+                      </div>
+                      <Input placeholder="you@walletofsatoshi.com" {...field} className="h-9" />
+                      <div className="size-9" />
+                    </div>
+                  )}
+                />
+
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleFieldDragEnd}>
+                  <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+                    {fields.map((field, index) => (
+                      <SortableFieldRow
+                        key={field.id}
+                        id={field.id}
+                        index={index}
+                        type={form.watch(`fields.${index}.type`) ?? 'text'}
+                        accept={form.watch(`fields.${index}.accept`)}
+                        control={form.control}
+                        onRemove={() => remove(index)}
+                        onMediaPick={() => handleMediaPick(index)}
+                        onTickerChange={(ticker) => form.setValue(`fields.${index}.label`, ticker, { shouldDirty: true })}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+
+                {/* Add field dropdown with presets */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs w-full"
+                    >
+                      <Plus className="size-3 mr-1" /> Add Field
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="w-56">
+                    {FIELD_PRESETS.map((preset) => {
+                      const Icon = preset.icon;
+                      return (
+                        <DropdownMenuItem key={preset.id} onClick={() => handleAddPreset(preset)} className="flex items-start gap-2.5 py-2">
+                          <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium leading-tight">{preset.label}</div>
+                            <div className="text-xs text-muted-foreground leading-snug">{preset.description}</div>
+                          </div>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleAddPreset(CUSTOM_PRESET)} className="flex items-start gap-2.5 py-2">
+                      <CUSTOM_PRESET.icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium leading-tight">{CUSTOM_PRESET.label}</div>
+                        <div className="text-xs text-muted-foreground leading-snug">{CUSTOM_PRESET.description}</div>
+                      </div>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
-          )}
 
-          {/* Profile fields */}
-          <div>
-            <h2 className="text-sm font-medium py-2">Profile Fields</h2>
-            <div className="space-y-3 pt-1">
-              {/* Website — always first */}
-              <FormField
-                control={form.control}
-                name="website"
-                render={({ field }) => (
-                  <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
-                    <div className="w-6" />
-                    <div className="flex items-center h-9 px-3 text-sm text-muted-foreground">
-                      <span>Website</span>
-                    </div>
-                    <Input placeholder="https://yourwebsite.com" {...field} className="h-9" />
-                    <div className="size-9" />
-                  </div>
-                )}
-              />
-
-              {/* Lightning address */}
-              <FormField
-                control={form.control}
-                name="lud16"
-                render={({ field }) => (
-                  <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
-                    <div className="w-6" />
-                    <div className="flex items-center h-9 px-3 text-sm text-muted-foreground gap-1">
-                      <span>Lightning</span>
-                      <HelpTip faqId="what-are-zaps" iconSize="size-3.5" />
-                    </div>
-                    <Input placeholder="you@walletofsatoshi.com" {...field} className="h-9" />
-                    <div className="size-9" />
-                  </div>
-                )}
-              />
-
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleFieldDragEnd}>
-                <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
-                  {fields.map((field, index) => (
-                    <SortableFieldRow
-                      key={field.id}
-                      id={field.id}
-                      index={index}
-                      type={form.watch(`fields.${index}.type`) ?? 'text'}
-                      control={form.control}
-                      onRemove={() => remove(index)}
-                      onMediaPick={() => handleMediaPick(index)}
-                      onTickerChange={(ticker) => form.setValue(`fields.${index}.label`, ticker, { shouldDirty: true })}
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
-
-              {/* Add field dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs w-full"
-                  >
-                    <Plus className="size-3 mr-1" /> Add Field
+            {/* Mobile sidebar preview */}
+            <div className="xl:hidden">
+              <Collapsible open={showMobilePreview} onOpenChange={setShowMobilePreview}>
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
+                    <span className="text-sm font-medium flex items-center gap-1.5">
+                      <Eye className="size-3.5" />
+                      Sidebar Preview
+                    </span>
+                    <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="w-48">
-                  <DropdownMenuItem onClick={() => append({ label: '', value: '', type: 'text' })}>
-                    <Type className="size-4 mr-2" />
-                    Text
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => append({ label: '$BTC', value: '', type: 'wallet' })}>
-                    <Wallet className="size-4 mr-2" />
-                    Wallet Address
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => append({ label: '', value: '', type: 'media' })}>
-                    <Image className="size-4 mr-2" />
-                    Media
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3">
+                  {sidebarPreview}
+                </CollapsibleContent>
+              </Collapsible>
             </div>
+
+            {/* Advanced */}
+            <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+              <CollapsibleTrigger asChild>
+                <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
+                  <span className="text-sm font-medium">Advanced</span>
+                  <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-3">
+                <FormField
+                  control={form.control}
+                  name="bot"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                      <div>
+                        <FormLabel className="text-sm">Bot Account</FormLabel>
+                        <FormDescription className="text-xs">Mark this account as automated</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </CollapsibleContent>
+            </Collapsible>
+
+          </form>
+        </Form>
+
+        {/* Right column — live sidebar preview (xl+ only) */}
+        <div className="hidden xl:block xl:w-80 xl:shrink-0 xl:pt-2">
+          <div className="sticky top-20">
+            {sidebarPreview}
           </div>
-
-          {/* Advanced */}
-          <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
-            <CollapsibleTrigger asChild>
-              <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
-                <span className="text-sm font-medium">Advanced</span>
-                <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-3">
-              <FormField
-                control={form.control}
-                name="bot"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <FormLabel className="text-sm">Bot Account</FormLabel>
-                      <FormDescription className="text-xs">Mark this account as automated</FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </CollapsibleContent>
-          </Collapsible>
-
-        </form>
-      </Form>
+        </div>
+      </div>
     </main>
   );
 }
