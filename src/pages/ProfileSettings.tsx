@@ -4,6 +4,7 @@ import {
   ArrowLeft, Loader2, Plus, Trash2, ChevronDown, GripVertical,
   Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye,
 } from 'lucide-react';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { Link, Navigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -595,24 +596,14 @@ export function ProfileSettings() {
     }
   };
 
+  // Inject live sidebar preview into the app's right sidebar slot
+  useLayoutOptions({
+    rightSidebar: <ProfileRightSidebar fields={previewFields} />,
+  });
+
   if (!user) return <Navigate to="/settings" replace />;
 
   const busy = isPending || isUploading;
-
-  // ── Sidebar preview element (shared between desktop and mobile) ───────
-  const sidebarPreview = (
-    <div className="rounded-xl border bg-card/50 overflow-hidden">
-      <div className="px-3 py-2 border-b bg-muted/30">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <Eye className="size-3.5" />
-          <span>Sidebar Preview</span>
-        </div>
-      </div>
-      <div className="p-1">
-        <ProfileRightSidebar fields={previewFields} />
-      </div>
-    </div>
-  );
 
   return (
     <main className="min-h-screen">
@@ -661,191 +652,195 @@ export function ProfileSettings() {
         </div>
       </div>
 
-      {/* Two-column layout: form + sidebar preview on xl+ */}
-      <div className="xl:flex xl:gap-8 xl:max-w-5xl xl:mx-auto xl:px-4">
-        {/* Left column — form */}
-        <Form {...form}>
-          <form id="profile-settings-form" onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl xl:max-w-none xl:flex-1 mx-auto xl:mx-0 px-4 xl:px-0 pb-10 space-y-6">
+      <Form {...form}>
+        <form id="profile-settings-form" onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl mx-auto px-4 pb-10 space-y-6">
 
-            {/* Intro */}
-            <div className="flex items-center gap-4 px-3 pt-2 pb-2">
-              <IntroImage src="/profile-intro.png" />
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold">Your Identity</h2>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Tap any field on the card to edit. Click your avatar or banner to upload and crop a new image.
-                </p>
-              </div>
+          {/* Intro */}
+          <div className="flex items-center gap-4 px-3 pt-2 pb-2">
+            <IntroImage src="/profile-intro.png" />
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold">Your Identity</h2>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Tap any field on the card to edit. Click your avatar or banner to upload and crop a new image.
+              </p>
             </div>
+          </div>
 
-            {/* Interactive profile card */}
-            <ProfileCard
-              pubkey={user.pubkey}
-              metadata={cardMetadata}
-              onChange={handleCardChange}
-              onPickImage={handlePickImage}
-              onAvatarShape={(shape) => form.setValue('shape', shape, { shouldDirty: true })}
-              onRemoveAvatar={() => form.setValue('picture', '', { shouldDirty: true })}
-            />
+          {/* Interactive profile card */}
+          <ProfileCard
+            pubkey={user.pubkey}
+            metadata={cardMetadata}
+            onChange={handleCardChange}
+            onPickImage={handlePickImage}
+            onAvatarShape={(shape) => form.setValue('shape', shape, { shouldDirty: true })}
+            onRemoveAvatar={() => form.setValue('picture', '', { shouldDirty: true })}
+          />
 
-            {isUploading && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="size-3.5 animate-spin" />
-                Uploading…
-              </div>
-            )}
-
-            {/* Profile fields */}
-            <div>
-              <h2 className="text-sm font-medium py-2 flex items-center gap-1">
-                Profile Fields
-                <HelpTip faqId="profile-fields" iconSize="size-3.5" />
-              </h2>
-              <div className="space-y-3 pt-1">
-                {/* Website — always first */}
-                <FormField
-                  control={form.control}
-                  name="website"
-                  render={({ field }) => (
-                    <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
-                      <div className="w-6" />
-                      <div className="flex items-center h-9 px-3 text-sm text-muted-foreground">
-                        <span>Website</span>
-                      </div>
-                      <Input placeholder="https://yourwebsite.com" {...field} className="h-9" />
-                      <div className="size-9" />
-                    </div>
-                  )}
-                />
-
-                {/* Lightning address */}
-                <FormField
-                  control={form.control}
-                  name="lud16"
-                  render={({ field }) => (
-                    <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
-                      <div className="w-6" />
-                      <div className="flex items-center h-9 px-3 text-sm text-muted-foreground gap-1">
-                        <span>Lightning</span>
-                        <HelpTip faqId="what-are-zaps" iconSize="size-3.5" />
-                      </div>
-                      <Input placeholder="you@walletofsatoshi.com" {...field} className="h-9" />
-                      <div className="size-9" />
-                    </div>
-                  )}
-                />
-
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleFieldDragEnd}>
-                  <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
-                    {fields.map((field, index) => (
-                      <SortableFieldRow
-                        key={field.id}
-                        id={field.id}
-                        index={index}
-                        type={form.watch(`fields.${index}.type`) ?? 'text'}
-                        accept={form.watch(`fields.${index}.accept`)}
-                        control={form.control}
-                        onRemove={() => remove(index)}
-                        onMediaPick={() => handleMediaPick(index)}
-                        onTickerChange={(ticker) => form.setValue(`fields.${index}.label`, ticker, { shouldDirty: true })}
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
-
-                {/* Add field dropdown with presets */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs w-full"
-                    >
-                      <Plus className="size-3 mr-1" /> Add Field
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="center" className="w-56">
-                    {FIELD_PRESETS.map((preset) => {
-                      const Icon = preset.icon;
-                      return (
-                        <DropdownMenuItem key={preset.id} onClick={() => handleAddPreset(preset)} className="flex items-start gap-2.5 py-2">
-                          <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
-                          <div className="min-w-0">
-                            <div className="text-sm font-medium leading-tight">{preset.label}</div>
-                            <div className="text-xs text-muted-foreground leading-snug">{preset.description}</div>
-                          </div>
-                        </DropdownMenuItem>
-                      );
-                    })}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handleAddPreset(CUSTOM_PRESET)} className="flex items-start gap-2.5 py-2">
-                      <CUSTOM_PRESET.icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium leading-tight">{CUSTOM_PRESET.label}</div>
-                        <div className="text-xs text-muted-foreground leading-snug">{CUSTOM_PRESET.description}</div>
-                      </div>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+          {isUploading && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="size-3.5 animate-spin" />
+              Uploading…
             </div>
+          )}
 
-            {/* Mobile sidebar preview */}
-            <div className="xl:hidden">
-              <Collapsible open={showMobilePreview} onOpenChange={setShowMobilePreview}>
-                <CollapsibleTrigger asChild>
-                  <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
-                    <span className="text-sm font-medium flex items-center gap-1.5">
-                      <Eye className="size-3.5" />
-                      Sidebar Preview
-                    </span>
-                    <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
+          {/* Profile fields */}
+          <div>
+            <h2 className="text-sm font-medium py-2 flex items-center gap-1">
+              Profile Fields
+              <HelpTip faqId="profile-fields" iconSize="size-3.5" />
+            </h2>
+            <div className="space-y-3 pt-1">
+              {/* Website — always first */}
+              <FormField
+                control={form.control}
+                name="website"
+                render={({ field }) => (
+                  <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
+                    <div className="w-6" />
+                    <div className="flex items-center h-9 px-3 text-sm text-muted-foreground">
+                      <span>Website</span>
+                    </div>
+                    <Input placeholder="https://yourwebsite.com" {...field} className="h-9" />
+                    <div className="size-9" />
+                  </div>
+                )}
+              />
+
+              {/* Lightning address */}
+              <FormField
+                control={form.control}
+                name="lud16"
+                render={({ field }) => (
+                  <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
+                    <div className="w-6" />
+                    <div className="flex items-center h-9 px-3 text-sm text-muted-foreground gap-1">
+                      <span>Lightning</span>
+                      <HelpTip faqId="what-are-zaps" iconSize="size-3.5" />
+                    </div>
+                    <Input placeholder="you@walletofsatoshi.com" {...field} className="h-9" />
+                    <div className="size-9" />
+                  </div>
+                )}
+              />
+
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleFieldDragEnd}>
+                <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+                  {fields.map((field, index) => (
+                    <SortableFieldRow
+                      key={field.id}
+                      id={field.id}
+                      index={index}
+                      type={form.watch(`fields.${index}.type`) ?? 'text'}
+                      accept={form.watch(`fields.${index}.accept`)}
+                      control={form.control}
+                      onRemove={() => remove(index)}
+                      onMediaPick={() => handleMediaPick(index)}
+                      onTickerChange={(ticker) => form.setValue(`fields.${index}.label`, ticker, { shouldDirty: true })}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+
+              {/* Add field dropdown with presets */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs w-full"
+                  >
+                    <Plus className="size-3 mr-1" /> Add Field
                   </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="pt-3">
-                  {sidebarPreview}
-                </CollapsibleContent>
-              </Collapsible>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="w-56">
+                  {FIELD_PRESETS.map((preset) => {
+                    const Icon = preset.icon;
+                    return (
+                      <DropdownMenuItem key={preset.id} onClick={() => handleAddPreset(preset)} className="flex items-start gap-2.5 py-2">
+                        <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium leading-tight">{preset.label}</div>
+                          <div className="text-xs text-muted-foreground leading-snug">{preset.description}</div>
+                        </div>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleAddPreset(CUSTOM_PRESET)} className="flex items-start gap-2.5 py-2">
+                    <CUSTOM_PRESET.icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium leading-tight">{CUSTOM_PRESET.label}</div>
+                      <div className="text-xs text-muted-foreground leading-snug">{CUSTOM_PRESET.description}</div>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+          </div>
 
-            {/* Advanced */}
-            <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+          {/* Mobile sidebar preview — visible only below xl where the real sidebar is hidden */}
+          <div className="xl:hidden">
+            <Collapsible open={showMobilePreview} onOpenChange={setShowMobilePreview}>
               <CollapsibleTrigger asChild>
                 <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
-                  <span className="text-sm font-medium">Advanced</span>
+                  <span className="text-sm font-medium flex items-center gap-1.5">
+                    <Eye className="size-3.5" />
+                    Sidebar Preview
+                  </span>
                   <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-3">
-                <FormField
-                  control={form.control}
-                  name="bot"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                      <div>
-                        <FormLabel className="text-sm">Bot Account</FormLabel>
-                        <FormDescription className="text-xs">Mark this account as automated</FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
+                <div className="rounded-xl border bg-card/50 overflow-hidden p-3">
+                  {previewFields.length > 0 ? (
+                    <div className="space-y-4">
+                      {previewFields.map((field, i) => (
+                        <div key={i}>
+                          <div className="font-semibold text-sm">{field.label}</div>
+                          <p className="text-sm text-muted-foreground truncate">{field.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Add fields above to see a preview here.
+                    </p>
                   )}
-                />
+                </div>
               </CollapsibleContent>
             </Collapsible>
-
-          </form>
-        </Form>
-
-        {/* Right column — live sidebar preview (xl+ only) */}
-        <div className="hidden xl:block xl:w-80 xl:shrink-0 xl:pt-2">
-          <div className="sticky top-20">
-            {sidebarPreview}
           </div>
-        </div>
-      </div>
+
+          {/* Advanced */}
+          <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+            <CollapsibleTrigger asChild>
+              <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
+                <span className="text-sm font-medium">Advanced</span>
+                <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3">
+              <FormField
+                control={form.control}
+                name="bot"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <FormLabel className="text-sm">Bot Account</FormLabel>
+                      <FormDescription className="text-xs">Mark this account as automated</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </CollapsibleContent>
+          </Collapsible>
+
+        </form>
+      </Form>
     </main>
   );
 }
