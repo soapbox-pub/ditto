@@ -885,8 +885,6 @@ export function ProfileSettings() {
                 <div className="rounded-xl border bg-card/50 overflow-hidden">
                   <ProfileRightSidebar
                     fields={previewFields}
-                    mediaEvents={mediaEvents}
-                    mediaLoading={mediaPending}
                     className="relative w-full flex flex-col h-auto max-h-[60vh] overflow-y-auto"
                   />
                 </div>
