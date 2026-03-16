@@ -78,3 +78,6 @@ supported_nips:
   - "92"  # Inline file metadata (imeta tag)
   - "94"  # File metadata (kind 1063)
   - "98"  # HTTP authentication (kind 27235, used for AI API calls)
+  - "A0"  # Voice messages (kind 1222 root, kind 1244 reply)
+  - "GC"  # Geocaching (kind 37516 cache listings, kind 7516 found logs)
+  - "MG"  # Magic decks (kind 37381)
