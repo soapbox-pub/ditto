@@ -52,7 +52,8 @@ import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReportDialog } from '@/components/ReportDialog';
 import { AddToListDialog } from '@/components/AddToListDialog';
-import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
+import { MiniAudioPlayer, isAudioUrl, isImageUrl, isVideoUrl } from '@/components/MiniAudioPlayer';
+import { VideoPlayer } from '@/components/VideoPlayer';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
@@ -633,6 +634,33 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
 
   if (isUrl && isAudioUrl(field.value)) {
     return <MiniAudioPlayer src={field.value} label={field.label || undefined} />;
+  }
+
+  if (isUrl && isImageUrl(field.value)) {
+    return (
+      <div className="min-w-0">
+        {field.label && <div className="text-sm text-muted-foreground mb-1">{field.label}</div>}
+        <a href={field.value} target="_blank" rel="noopener noreferrer" className="block">
+          <img
+            src={field.value}
+            alt={field.label || 'Profile image'}
+            className="w-full max-w-sm rounded-lg object-cover"
+            loading="lazy"
+          />
+        </a>
+      </div>
+    );
+  }
+
+  if (isUrl && isVideoUrl(field.value)) {
+    return (
+      <div className="min-w-0">
+        {field.label && <div className="text-sm text-muted-foreground mb-1">{field.label}</div>}
+        <div className="rounded-lg overflow-hidden max-w-sm">
+          <VideoPlayer src={field.value} />
+        </div>
+      </div>
+    );
   }
 
   if (isUrl) {
