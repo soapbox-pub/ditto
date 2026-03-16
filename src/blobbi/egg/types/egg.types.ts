@@ -9,7 +9,6 @@ export type EggVisualBlobbi = {
   secondaryColor?: string;
   pattern?: string;
   specialMark?: string;
-  eggTemperature?: number;
   title?: string;
   lifeStage?: 'egg' | 'baby' | 'adult';
   themeVariant?: string;

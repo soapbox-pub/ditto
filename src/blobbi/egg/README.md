@@ -45,13 +45,12 @@ import { EggGraphic } from './egg';
 function MyComponent() {
   const egg = {
     baseColor: '#f2f2f2',
-    eggTemperature: 50,
     lifeStage: 'egg',
   };
 
   return (
     <div style={{ width: '200px', height: '250px' }}>
-      <EggGraphic blobbi={egg} animated={true} />
+      <EggGraphic blobbi={egg} animated={true} warmth={50} />
     </div>
   );
 }
@@ -65,7 +64,6 @@ const fancyEgg = {
   secondaryColor: '#ff99ff',
   specialMark: 'sigil_eye',
   title: 'The Primordial',
-  eggTemperature: 75,
   lifeStage: 'egg',
 };
 
@@ -79,7 +77,6 @@ const divineEgg = {
   baseColor: '#55C4A2',
   themeVariant: 'divine',
   crossoverApp: 'divine',
-  eggTemperature: 70,
   lifeStage: 'egg',
   tags: [
     ['theme', 'divine'],
@@ -102,7 +99,7 @@ Main component for rendering eggs.
 - `className?: string` - Additional CSS classes
 - `animated?: boolean` - Enable animations (default: false)
 - `cracking?: boolean` - Show cracking effect (default: false)
-- `warmth?: number` - Temperature 0-100 (default: 50) - fallback if blobbi.eggTemperature not set
+- `warmth?: number` - Temperature 0-100 (default: 50) - controls glow effect intensity
 
 ### `EggVisualBlobbi` Type
 
@@ -113,7 +110,6 @@ type EggVisualBlobbi = {
   secondaryColor?: string;      // Secondary color for patterns (hex)
   pattern?: string;             // Pattern type (gradient, stripes, dots, swirl)
   specialMark?: string;         // Special visual mark
-  eggTemperature?: number;      // Temperature 0-100
   title?: string;               // Special title (displays below egg)
   lifeStage?: 'egg' | 'baby' | 'adult';
   themeVariant?: string;        // Theme (e.g., 'divine')

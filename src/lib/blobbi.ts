@@ -951,7 +951,6 @@ export const LEGACY_VISUAL_TAG_NAMES = [
   'pattern',
   'special_mark',
   'size',
-  'egg_temperature',
   'egg_status',
 ] as const;
 
@@ -960,9 +959,11 @@ export const LEGACY_VISUAL_TAG_NAMES = [
  * These tags were part of earlier designs but are no longer used.
  * 
  * - shell_integrity: Eggs now use the standard health stat instead
+ * - egg_temperature: Eggs now rely on warmth prop fallback; not part of active stat model
  */
 export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
   'shell_integrity',
+  'egg_temperature',
 ]);
 
 /**

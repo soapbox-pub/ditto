@@ -21,16 +21,14 @@ export const EggGraphicDemo: React.FC = () => {
       name: 'Basic Common Egg',
       egg: {
         baseColor: '#f2f2f2',
-        eggTemperature: 50,
         lifeStage: 'egg',
       },
     },
     {
-      name: 'Warm Egg with Special Mark',
+      name: 'Egg with Special Mark',
       egg: {
         baseColor: '#ffffcc',
         specialMark: 'dot_center',
-        eggTemperature: 75,
         lifeStage: 'egg',
       },
     },
@@ -41,7 +39,6 @@ export const EggGraphicDemo: React.FC = () => {
         secondaryColor: '#ff99ff',
         specialMark: 'sigil_eye',
         title: 'The Primordial',
-        eggTemperature: 60,
         lifeStage: 'egg',
       },
     },
@@ -52,7 +49,6 @@ export const EggGraphicDemo: React.FC = () => {
         specialMark: 'divine_wordmark',
         themeVariant: 'divine',
         crossoverApp: 'divine',
-        eggTemperature: 70,
         lifeStage: 'egg',
         tags: [
           ['theme', 'divine'],
@@ -67,7 +63,6 @@ export const EggGraphicDemo: React.FC = () => {
         secondaryColor: '#ccffcc',
         pattern: 'gradient',
         specialMark: 'oval_spots',
-        eggTemperature: 55,
         lifeStage: 'egg',
       },
     },
@@ -78,7 +73,6 @@ export const EggGraphicDemo: React.FC = () => {
         secondaryColor: '#9933ff',
         specialMark: 'rune_top',
         title: 'Defender of the Grove',
-        eggTemperature: 80,
         lifeStage: 'egg',
       },
     },
@@ -162,7 +156,6 @@ export const EggGraphicDemo: React.FC = () => {
                 {egg.secondaryColor && <div>Secondary: {egg.secondaryColor}</div>}
                 {egg.specialMark && <div>Mark: {egg.specialMark}</div>}
                 {egg.pattern && <div>Pattern: {egg.pattern}</div>}
-                <div>Temp: {egg.eggTemperature}°</div>
               </div>
             </div>
           ))}
@@ -194,7 +187,6 @@ export const EggGraphicDemo: React.FC = () => {
 const myEgg = {
   baseColor: '#f2f2f2',
   specialMark: 'dot_center',
-  eggTemperature: 50,
   lifeStage: 'egg',
 };
 
@@ -202,7 +194,7 @@ const myEgg = {
   blobbi={myEgg} 
   animated={true}
   cracking={false}
-  warmth={50}
+  warmth={50}  // fallback warmth for glow effect
 />`}
           </pre>
         </div>

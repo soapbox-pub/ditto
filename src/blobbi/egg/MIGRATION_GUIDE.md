@@ -45,7 +45,6 @@ import type { EggVisualBlobbi } from './egg';
 // Create an egg object
 const myEgg: EggVisualBlobbi = {
   baseColor: '#f2f2f2',
-  eggTemperature: 50,
   lifeStage: 'egg',
 };
 
@@ -53,7 +52,7 @@ const myEgg: EggVisualBlobbi = {
 function MyComponent() {
   return (
     <div style={{ width: '200px', height: '250px' }}>
-      <EggGraphic blobbi={myEgg} animated={true} />
+      <EggGraphic blobbi={myEgg} animated={true} warmth={50} />
     </div>
   );
 }
