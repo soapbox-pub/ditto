@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
@@ -1215,7 +1215,7 @@ export function ProfilePage() {
   );
   const effectiveProfileBackground = profileThemeColors ? profileThemeBackground : undefined;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!effectiveProfileColors) return;
 
     // Inject the profile theme's CSS vars onto :root
