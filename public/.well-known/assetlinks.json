@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "pub.ditto.app",
+    "sha256_cert_fingerprints": ["A1:B7:4F:40:F8:2B:8D:33:A0:54:5F:57:9A:BA:71:A3:A2:57:8E:01:32:BD:9C:19:00:E5:71:02:D5:7E:50:0F"]
+  }
+}]

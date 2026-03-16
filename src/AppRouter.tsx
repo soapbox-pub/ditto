@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
+import { DeepLinkHandler } from "@/components/DeepLinkHandler";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
@@ -68,6 +69,7 @@ export function AppRouter() {
       <BrowserRouter>
         <MinimizedAudioBar />
         <AudioNavigationGuard />
+        <DeepLinkHandler />
         <ScrollToTop />
         <Routes>
           {/* All routes share the persistent MainLayout (sidebar + nav) */}
