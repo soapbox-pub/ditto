@@ -1,6 +1,7 @@
 package pub.ditto.app;
 
 import android.app.AlarmManager;
+import android.app.ForegroundServiceStartNotAllowedException;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -114,7 +115,24 @@ public class NotificationRelayService extends Service {
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
-        startForeground(NOTIFICATION_ID, buildForegroundNotification());
+
+        // Android 16+ (targetSdk 36) enforces strict time limits on dataSync
+        // foreground services. If the limit has already been exhausted when we
+        // try to call startForeground(), the system throws
+        // ForegroundServiceStartNotAllowedException and kills the app. We catch
+        // it here and stop the service gracefully; the alarm will reschedule
+        // the next fetch cycle at the normal interval.
+        try {
+            startForeground(NOTIFICATION_ID, buildForegroundNotification());
+        } catch (Exception e) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                    && e instanceof ForegroundServiceStartNotAllowedException) {
+                Log.w(TAG, "Foreground service start not allowed (time limit exhausted), stopping.");
+                stopSelf();
+                return;
+            }
+            throw e; // re-throw unexpected exceptions
+        }
 
         httpClient = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
