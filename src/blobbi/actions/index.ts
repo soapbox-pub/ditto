@@ -5,6 +5,9 @@ export { BlobbiActionsModal } from './components/BlobbiActionsModal';
 export { BlobbiActionInventoryModal } from './components/BlobbiActionInventoryModal';
 export { PlayMusicModal } from './components/PlayMusicModal';
 export { SingModal } from './components/SingModal';
+export { InlineMusicPlayer } from './components/InlineMusicPlayer';
+export { InlineSingCard } from './components/InlineSingCard';
+export type { AudioSource } from './components/PlayMusicModal';
 
 // Hooks
 export { useBlobbiUseInventoryItem } from './hooks/useBlobbiUseInventoryItem';
@@ -20,6 +23,9 @@ export type {
 export { useBlobbiDirectAction, DIRECT_ACTION_HAPPINESS_EFFECTS } from './hooks/useBlobbiDirectAction';
 export type { DirectActionRequest, DirectActionResult, UseBlobbiDirectActionParams } from './hooks/useBlobbiDirectAction';
 
+export { useAudioPlayback } from './hooks/useAudioPlayback';
+export type { PlaybackState, PlaybackError, UseAudioPlaybackOptions, UseAudioPlaybackReturn } from './hooks/useAudioPlayback';
+
 // Built-in tracks
 export { 
   BLOBBI_BUILTIN_TRACKS,
@@ -28,6 +34,20 @@ export {
   formatTrackDuration,
   type BuiltInTrack,
 } from './lib/blobbi-builtin-tracks';
+
+// Activity state
+export {
+  createMusicActivity,
+  createSingActivity,
+  createNoActivity,
+  type InlineActivityType,
+  type InlineActivityState,
+  type MusicActivityState,
+  type SingActivityState,
+  type NoActivityState,
+  type BlobbiReactionState,
+  type MusicTrackSource,
+} from './lib/blobbi-activity-state';
 
 // Utilities
 export {

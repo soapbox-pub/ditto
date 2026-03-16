@@ -42,13 +42,20 @@ import {
   BlobbiActionsModal, 
   BlobbiActionInventoryModal,
   PlayMusicModal,
-  SingModal,
+  InlineMusicPlayer,
+  InlineSingCard,
   useBlobbiUseInventoryItem,
   useBlobbiHatch,
   useBlobbiEvolve,
   useBlobbiDirectAction,
+  createMusicActivity,
+  createSingActivity,
+  createNoActivity,
   type InventoryAction,
   type DirectAction,
+  type InlineActivityState,
+  type AudioSource,
+  type BlobbiReactionState,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 
@@ -694,9 +701,14 @@ function BlobbiDashboard({
   const [inventoryAction, setInventoryAction] = useState<InventoryAction | null>(null);
   const [usingItemId, setUsingItemId] = useState<string | null>(null);
   
-  // Direct action modal states
-  const [showPlayMusicModal, setShowPlayMusicModal] = useState(false);
-  const [showSingModal, setShowSingModal] = useState(false);
+  // Track selection modal (for changing tracks in music player)
+  const [showTrackPickerModal, setShowTrackPickerModal] = useState(false);
+  
+  // Inline activity state - only one activity can be active at a time
+  const [inlineActivity, setInlineActivity] = useState<InlineActivityState>(createNoActivity());
+  
+  // Blobbi reaction state - drives visual reactions to activities
+  const [blobbiReaction, setBlobbiReaction] = useState<BlobbiReactionState>('idle');
   
   // Handle opening an inventory action modal
   const handleInventoryAction = (action: InventoryAction) => {
@@ -704,26 +716,61 @@ function BlobbiDashboard({
     setInventoryAction(action);
   };
   
-  // Handle opening a direct action modal
+  // Handle opening a direct action (now opens inline card)
   const handleDirectAction = (action: DirectAction) => {
     setShowActionsModal(false);
     if (action === 'play_music') {
-      setShowPlayMusicModal(true);
+      // Open the track picker modal first
+      setShowTrackPickerModal(true);
     } else if (action === 'sing') {
-      setShowSingModal(true);
+      // Open the inline sing card directly
+      setInlineActivity(createSingActivity());
     }
   };
   
-  // Handle confirming play music action
-  const handleConfirmPlayMusic = async () => {
-    await onDirectAction('play_music');
-    setShowPlayMusicModal(false);
+  // Handle track selected from picker - creates inline music player
+  const handleTrackSelected = async (source: AudioSource) => {
+    setShowTrackPickerModal(false);
+    
+    // Create the music activity state (not yet published)
+    setInlineActivity(createMusicActivity(source));
+    
+    // Publish the action first, then playback will start after publish succeeds
+    try {
+      await onDirectAction('play_music');
+      // Mark as published so playback can begin
+      setInlineActivity(prev => 
+        prev.type === 'music' ? { ...prev, isPublished: true } : prev
+      );
+    } catch {
+      // If publish fails, close the activity
+      setInlineActivity(createNoActivity());
+    }
   };
   
-  // Handle confirming sing action
+  // Handle confirming sing action (called from InlineSingCard)
   const handleConfirmSing = async () => {
     await onDirectAction('sing');
-    setShowSingModal(false);
+  };
+  
+  // Handle closing inline activities
+  const handleCloseInlineActivity = () => {
+    setInlineActivity(createNoActivity());
+    setBlobbiReaction('idle');
+  };
+  
+  // Handle music playback state changes (for Blobbi reaction)
+  const handleMusicPlaybackStart = () => {
+    setBlobbiReaction('listening');
+  };
+  
+  const handleMusicPlaybackStop = () => {
+    setBlobbiReaction('idle');
+  };
+  
+  // Handle opening track picker to change track (from inline player)
+  const handleChangeTrack = () => {
+    setShowTrackPickerModal(true);
   };
   
   // Handle using an item
@@ -895,6 +942,27 @@ function BlobbiDashboard({
         )}
       </div>
       
+      {/* Inline Activity Area - positioned between stats and bottom bar */}
+      {inlineActivity.type === 'music' && (
+        <InlineMusicPlayer
+          source={inlineActivity.source}
+          onChangeTrack={handleChangeTrack}
+          onClose={handleCloseInlineActivity}
+          onPlaybackStart={handleMusicPlaybackStart}
+          onPlaybackStop={handleMusicPlaybackStop}
+          isPublished={inlineActivity.isPublished}
+          isPublishing={isDirectActionPending}
+        />
+      )}
+      
+      {inlineActivity.type === 'sing' && (
+        <InlineSingCard
+          onConfirm={handleConfirmSing}
+          onClose={handleCloseInlineActivity}
+          isPublishing={isDirectActionPending}
+        />
+      )}
+      
       {/* Bottom Action Bar */}
       <BlobbiBottomBar
         onBlobbiesClick={() => setShowSelector(true)}
@@ -975,19 +1043,11 @@ function BlobbiDashboard({
         />
       )}
       
-      {/* Play Music Modal */}
+      {/* Track Picker Modal (for selecting music tracks) */}
       <PlayMusicModal
-        open={showPlayMusicModal}
-        onOpenChange={setShowPlayMusicModal}
-        onConfirm={handleConfirmPlayMusic}
-        isLoading={isDirectActionPending}
-      />
-      
-      {/* Sing Modal */}
-      <SingModal
-        open={showSingModal}
-        onOpenChange={setShowSingModal}
-        onConfirm={handleConfirmSing}
+        open={showTrackPickerModal}
+        onOpenChange={setShowTrackPickerModal}
+        onConfirm={handleTrackSelected}
         isLoading={isDirectActionPending}
       />
       
