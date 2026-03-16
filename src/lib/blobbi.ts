@@ -201,6 +201,8 @@ export interface BlobbiCompanion {
   incubationTime: number | undefined;
   /** When incubation began (egg only) */
   startIncubation: number | undefined;
+  /** Adult evolution form type (adult only) */
+  adultType: string | undefined;
   /** All tags preserved for republishing */
   allTags: string[][];
 }
@@ -834,6 +836,7 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     careStreak: parseNumericTag(tags, 'care_streak'),
     incubationTime: parseNumericTag(tags, 'incubation_time'),
     startIncubation: parseNumericTag(tags, 'start_incubation'),
+    adultType: getTagValue(tags, 'adult_type'),
     allTags: tags,
   };
 }
