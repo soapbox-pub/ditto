@@ -77,16 +77,22 @@ export function useNativeNotifications(): void {
     });
   }, [user, config.relayMetadata, config.useAppRelays, notificationsEnabled]);
 
-  // ── Web Push path (nostr-push) — disable only ─────────────────────────────
-  // Enable is handled by NotificationSettings.tsx click handler.
+  // ── Web Push path (nostr-push) — logout cleanup only ────────────────────
+  // Enable/disable is handled by NotificationSettings.tsx click handler.
+  // We only need to clean up when the user logs out — the NIP-78
+  // notificationsEnabled setting is NOT used for web push state because
+  // push subscriptions are browser-local and the setting can be stale
+  // (e.g. set on another device). This prevents the race condition where
+  // settings haven't loaded yet and notificationsEnabled evaluates to
+  // false, causing an unwanted disablePush() on every page load.
 
   useEffect(() => {
     if (Capacitor.isNativePlatform()) return;
     if (!pushSupported) return;
 
-    // User logged out or disabled notifications — unregister from nostr-push.
-    if ((!user || !notificationsEnabled) && pushEnabled) {
+    // User logged out — unregister from nostr-push.
+    if (!user && pushEnabled) {
       disablePush().catch((err) => console.error('[push] Failed to disable:', err));
     }
-  }, [user, notificationsEnabled, pushSupported, pushEnabled]);
+  }, [user, pushSupported, pushEnabled]);
 }
