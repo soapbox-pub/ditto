@@ -1,10 +1,11 @@
 // src/blobbi/actions/components/InlineMusicPlayer.tsx
 
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Music, Play, Pause, RotateCcw, MoreHorizontal, Loader2, AlertCircle, X, Volume2, VolumeX } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 import { useAudioPlayback } from '../hooks/useAudioPlayback';
@@ -57,32 +58,6 @@ export function InlineMusicPlayer({
       onPlaybackStop?.();
     },
   });
-  
-  // Volume slider visibility
-  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
-  
-  // Close volume slider when clicking outside
-  useEffect(() => {
-    if (!showVolumeSlider) return;
-    
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      // Check if click is outside the volume control area
-      if (!target.closest('[data-volume-control]')) {
-        setShowVolumeSlider(false);
-      }
-    };
-    
-    // Delay adding listener to avoid immediate close from the opening click
-    const timeoutId = setTimeout(() => {
-      document.addEventListener('click', handleClickOutside);
-    }, 0);
-    
-    return () => {
-      clearTimeout(timeoutId);
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, [showVolumeSlider]);
   
   // Auto-start playback when first published (idle -> playing)
   // Note: 'stopped' state is NOT included here - stop is a terminal state
@@ -212,34 +187,35 @@ export function InlineMusicPlayer({
             )}
             
             {/* Volume control */}
-            <div className="relative flex items-center" data-volume-control>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => setShowVolumeSlider(!showVolumeSlider)}
-                className="size-9 rounded-full"
-                title={volume === 0 ? 'Unmute' : 'Volume'}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-9 rounded-full"
+                  title={volume === 0 ? 'Unmute' : 'Volume'}
+                >
+                  {volume === 0 ? (
+                    <VolumeX className="size-4" />
+                  ) : (
+                    <Volume2 className="size-4" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent 
+                side="top" 
+                align="center" 
+                className="w-32 p-3"
               >
-                {volume === 0 ? (
-                  <VolumeX className="size-4" />
-                ) : (
-                  <Volume2 className="size-4" />
-                )}
-              </Button>
-              
-              {/* Volume slider popup */}
-              {showVolumeSlider && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 bg-popover border rounded-lg shadow-lg z-10 min-w-[120px]">
-                  <Slider
-                    value={[volume * 100]}
-                    onValueChange={([val]) => setVolume(val / 100)}
-                    max={100}
-                    step={1}
-                    className="w-full"
-                  />
-                </div>
-              )}
-            </div>
+                <Slider
+                  value={[volume * 100]}
+                  onValueChange={([val]) => setVolume(val / 100)}
+                  max={100}
+                  step={1}
+                  className="w-full"
+                />
+              </PopoverContent>
+            </Popover>
             
             {/* Change track button */}
             <Button
