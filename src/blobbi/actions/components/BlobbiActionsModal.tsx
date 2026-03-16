@@ -1,6 +1,6 @@
 // src/blobbi/actions/components/BlobbiActionsModal.tsx
 
-import { Loader2, Moon, Sun, Utensils, Gamepad2, Sparkles as SparklesIcon, Pill } from 'lucide-react';
+import { Loader2, Moon, Sun, Utensils, Gamepad2, Sparkles as SparklesIcon, Pill, Music, Mic } from 'lucide-react';
 
 import {
   Dialog,
@@ -11,8 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 
 import type { BlobbiCompanion } from '@/lib/blobbi';
-import { canUseAction } from '../lib/blobbi-action-utils';
-import type { InventoryAction } from '../lib/blobbi-action-utils';
+import type { InventoryAction, DirectAction } from '../lib/blobbi-action-utils';
 
 interface BlobbiActionsModalProps {
   open: boolean;
@@ -20,6 +19,7 @@ interface BlobbiActionsModalProps {
   companion: BlobbiCompanion;
   onRest: () => void;
   onInventoryAction: (action: InventoryAction) => void;
+  onDirectAction: (action: DirectAction) => void;
   actionInProgress: string | null;
   isPublishing: boolean;
 }
@@ -30,19 +30,13 @@ export function BlobbiActionsModal({
   companion,
   onRest,
   onInventoryAction,
+  onDirectAction,
   actionInProgress,
   isPublishing,
 }: BlobbiActionsModalProps) {
   const isSleeping = companion.state === 'sleeping';
   const isDisabled = isPublishing || actionInProgress !== null;
   const isEgg = companion.stage === 'egg';
-  
-  // Check which actions are available for this companion
-  const canFeed = canUseAction(companion, 'feed');
-  const canPlay = canUseAction(companion, 'play');
-  const canClean = canUseAction(companion, 'clean');
-  // Note: medicine is available for all stages (including eggs)
-  const _canMedicine = canUseAction(companion, 'medicine');
 
   const handleAction = (action: () => void) => {
     action();
@@ -56,39 +50,43 @@ export function BlobbiActionsModal({
           <p className="text-sm text-muted-foreground">{companion.name}</p>
         </DialogHeader>
         <div className="grid gap-3 pt-2">
-          {/* Feed Action */}
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3 h-14"
-            onClick={() => handleAction(() => onInventoryAction('feed'))}
-            disabled={isDisabled}
-          >
-            <Utensils className="size-5 text-orange-500" />
-            <div className="text-left">
-              <p className="font-medium">Feed</p>
-              <p className="text-xs text-muted-foreground">
-                {canFeed ? 'Give your Blobbi something to eat' : 'Not available for eggs'}
-              </p>
-            </div>
-          </Button>
+          {/* Feed Action - hidden for eggs */}
+          {!isEgg && (
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 h-14"
+              onClick={() => handleAction(() => onInventoryAction('feed'))}
+              disabled={isDisabled}
+            >
+              <Utensils className="size-5 text-orange-500" />
+              <div className="text-left">
+                <p className="font-medium">Feed</p>
+                <p className="text-xs text-muted-foreground">
+                  Give your Blobbi something to eat
+                </p>
+              </div>
+            </Button>
+          )}
 
-          {/* Play Action */}
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3 h-14"
-            onClick={() => handleAction(() => onInventoryAction('play'))}
-            disabled={isDisabled}
-          >
-            <Gamepad2 className="size-5 text-yellow-500" />
-            <div className="text-left">
-              <p className="font-medium">Play</p>
-              <p className="text-xs text-muted-foreground">
-                {canPlay ? 'Play with toys to make your Blobbi happy' : 'Not available for eggs'}
-              </p>
-            </div>
-          </Button>
+          {/* Play Action - hidden for eggs */}
+          {!isEgg && (
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 h-14"
+              onClick={() => handleAction(() => onInventoryAction('play'))}
+              disabled={isDisabled}
+            >
+              <Gamepad2 className="size-5 text-yellow-500" />
+              <div className="text-left">
+                <p className="font-medium">Play</p>
+                <p className="text-xs text-muted-foreground">
+                  Play with toys to make your Blobbi happy
+                </p>
+              </div>
+            </Button>
+          )}
 
-          {/* Clean Action */}
+          {/* Clean Action - available for all stages */}
           <Button
             variant="outline"
             className="w-full justify-start gap-3 h-14"
@@ -99,12 +97,14 @@ export function BlobbiActionsModal({
             <div className="text-left">
               <p className="font-medium">Clean</p>
               <p className="text-xs text-muted-foreground">
-                {canClean ? 'Keep your Blobbi clean and fresh' : 'Not available for eggs'}
+                {isEgg 
+                  ? 'Keep your egg clean and fresh' 
+                  : 'Keep your Blobbi clean and fresh'}
               </p>
             </div>
           </Button>
 
-          {/* Medicine Action */}
+          {/* Medicine Action - available for all stages */}
           <Button
             variant="outline"
             className="w-full justify-start gap-3 h-14"
@@ -122,27 +122,65 @@ export function BlobbiActionsModal({
             </div>
           </Button>
 
-          {/* Sleep/Wake Action */}
+          {/* Play Music Action - available for all stages */}
           <Button
             variant="outline"
             className="w-full justify-start gap-3 h-14"
-            onClick={() => handleAction(onRest)}
+            onClick={() => handleAction(() => onDirectAction('play_music'))}
             disabled={isDisabled}
           >
-            {actionInProgress === 'rest' ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : isSleeping ? (
-              <Sun className="size-5 text-amber-500" />
-            ) : (
-              <Moon className="size-5 text-violet-500" />
-            )}
+            <Music className="size-5 text-pink-500" />
             <div className="text-left">
-              <p className="font-medium">{isSleeping ? 'Wake Up' : 'Sleep'}</p>
+              <p className="font-medium">Play Music</p>
               <p className="text-xs text-muted-foreground">
-                {isSleeping ? 'Wake your Blobbi up' : 'Put your Blobbi to sleep'}
+                {isEgg 
+                  ? 'Play soothing music for your egg' 
+                  : 'Play music for your Blobbi'}
               </p>
             </div>
           </Button>
+
+          {/* Sing Action - available for all stages */}
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 h-14"
+            onClick={() => handleAction(() => onDirectAction('sing'))}
+            disabled={isDisabled}
+          >
+            <Mic className="size-5 text-purple-500" />
+            <div className="text-left">
+              <p className="font-medium">Sing</p>
+              <p className="text-xs text-muted-foreground">
+                {isEgg 
+                  ? 'Sing a lullaby to your egg' 
+                  : 'Sing to your Blobbi'}
+              </p>
+            </div>
+          </Button>
+
+          {/* Sleep/Wake Action - hidden for eggs */}
+          {!isEgg && (
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 h-14"
+              onClick={() => handleAction(onRest)}
+              disabled={isDisabled}
+            >
+              {actionInProgress === 'rest' ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : isSleeping ? (
+                <Sun className="size-5 text-amber-500" />
+              ) : (
+                <Moon className="size-5 text-violet-500" />
+              )}
+              <div className="text-left">
+                <p className="font-medium">{isSleeping ? 'Wake Up' : 'Sleep'}</p>
+                <p className="text-xs text-muted-foreground">
+                  {isSleeping ? 'Wake your Blobbi up' : 'Put your Blobbi to sleep'}
+                </p>
+              </div>
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

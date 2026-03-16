@@ -24,6 +24,7 @@ import {
   clampStat,
   applyStat,
   hasMedicineEffectForEgg,
+  hasHygieneEffectForEgg,
   type InventoryAction,
   ACTION_METADATA,
 } from '../lib/blobbi-action-utils';
@@ -137,10 +138,13 @@ export function useBlobbiUseInventoryItem({
         throw new Error('This item has no effect');
       }
 
-      // For eggs using medicine, validate that the medicine has an applicable effect
+      // For eggs, validate that items have applicable effects
       const isEgg = companion.stage === 'egg';
       if (isEgg && action === 'medicine' && !hasMedicineEffectForEgg(shopItem.effect)) {
         throw new Error('This medicine has no effect on eggs');
+      }
+      if (isEgg && action === 'clean' && !hasHygieneEffectForEgg(shopItem.effect)) {
+        throw new Error('This item has no cleaning effect on eggs');
       }
 
       // ─── Ensure Canonical Before Action ───
@@ -183,6 +187,31 @@ export function useBlobbiUseInventoryItem({
         // Apply decayed values for other egg stats
         statsUpdate.hygiene = statsAfterDecay.hygiene.toString();
         statsUpdate.happiness = statsAfterDecay.happiness.toString();
+        // hunger and energy stay at 100 for eggs
+        statsUpdate.hunger = '100';
+        statsUpdate.energy = '100';
+      } else if (isEgg && action === 'clean') {
+        // Egg clean/hygiene handling:
+        // Hygiene items affect the egg's hygiene stat
+        // Some hygiene items also give happiness (e.g., bubble bath)
+        // hunger and energy remain fixed at 100 for eggs
+        
+        const hygieneDelta = shopItem.effect.hygiene ?? 0;
+        const happinessDelta = shopItem.effect.happiness ?? 0;
+        
+        const newHygiene = applyStat(statsAfterDecay.hygiene, hygieneDelta);
+        const newHappiness = applyStat(statsAfterDecay.happiness, happinessDelta);
+        
+        statsUpdate.hygiene = newHygiene.toString();
+        statsChanged.hygiene = hygieneDelta;
+        
+        statsUpdate.happiness = newHappiness.toString();
+        if (happinessDelta !== 0) {
+          statsChanged.happiness = happinessDelta;
+        }
+        
+        // Apply decayed health
+        statsUpdate.health = statsAfterDecay.health.toString();
         // hunger and energy stay at 100 for eggs
         statsUpdate.hunger = '100';
         statsUpdate.energy = '100';

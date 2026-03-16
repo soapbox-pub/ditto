@@ -41,10 +41,14 @@ import { BlobbiInventoryModal } from '@/blobbi/shop/components/BlobbiInventoryMo
 import { 
   BlobbiActionsModal, 
   BlobbiActionInventoryModal,
+  PlayMusicModal,
+  SingModal,
   useBlobbiUseInventoryItem,
   useBlobbiHatch,
   useBlobbiEvolve,
+  useBlobbiDirectAction,
   type InventoryAction,
+  type DirectAction,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 
@@ -346,6 +350,20 @@ function BlobbiContent() {
     await executeEvolve();
   }, [executeEvolve]);
   
+  // ─── Direct Action Hook ───
+  const { mutateAsync: executeDirectAction, isPending: isDirectActionPending } = useBlobbiDirectAction({
+    companion,
+    ensureCanonicalBeforeAction,
+    updateCompanionEvent,
+    invalidateCompanion,
+    invalidateProfile,
+  });
+  
+  // Handler for direct actions (play_music, sing)
+  const handleDirectAction = useCallback(async (action: DirectAction) => {
+    await executeDirectAction({ action });
+  }, [executeDirectAction]);
+  
   // ─── Determine UI State ───
   // Clear separation of cases based on profile and pet data
   
@@ -554,7 +572,9 @@ function BlobbiContent() {
       onSelectBlobbi={handleSelectBlobbi}
       onRest={handleRest}
       onUseItem={handleUseItem}
+      onDirectAction={handleDirectAction}
       isUsingItem={isUsingItem}
+      isDirectActionPending={isDirectActionPending}
       actionInProgress={actionInProgress}
       isPublishing={isPublishing}
       isFetching={profileFetching || companionFetching}
@@ -608,7 +628,9 @@ interface BlobbiDashboardProps {
   onSelectBlobbi: (d: string) => void;
   onRest: () => void;
   onUseItem: (itemId: string, action: InventoryAction) => Promise<void>;
+  onDirectAction: (action: DirectAction) => Promise<void>;
   isUsingItem: boolean;
+  isDirectActionPending: boolean;
   actionInProgress: string | null;
   isPublishing: boolean;
   isFetching: boolean;
@@ -635,7 +657,9 @@ function BlobbiDashboard({
   onSelectBlobbi,
   onRest,
   onUseItem,
+  onDirectAction,
   isUsingItem,
+  isDirectActionPending,
   actionInProgress,
   isPublishing,
   isFetching,
@@ -670,10 +694,36 @@ function BlobbiDashboard({
   const [inventoryAction, setInventoryAction] = useState<InventoryAction | null>(null);
   const [usingItemId, setUsingItemId] = useState<string | null>(null);
   
+  // Direct action modal states
+  const [showPlayMusicModal, setShowPlayMusicModal] = useState(false);
+  const [showSingModal, setShowSingModal] = useState(false);
+  
   // Handle opening an inventory action modal
   const handleInventoryAction = (action: InventoryAction) => {
     setShowActionsModal(false);
     setInventoryAction(action);
+  };
+  
+  // Handle opening a direct action modal
+  const handleDirectAction = (action: DirectAction) => {
+    setShowActionsModal(false);
+    if (action === 'play_music') {
+      setShowPlayMusicModal(true);
+    } else if (action === 'sing') {
+      setShowSingModal(true);
+    }
+  };
+  
+  // Handle confirming play music action
+  const handleConfirmPlayMusic = async () => {
+    await onDirectAction('play_music');
+    setShowPlayMusicModal(false);
+  };
+  
+  // Handle confirming sing action
+  const handleConfirmSing = async () => {
+    await onDirectAction('sing');
+    setShowSingModal(false);
   };
   
   // Handle using an item
@@ -905,6 +955,7 @@ function BlobbiDashboard({
         companion={companion}
         onRest={onRest}
         onInventoryAction={handleInventoryAction}
+        onDirectAction={handleDirectAction}
         actionInProgress={actionInProgress}
         isPublishing={isPublishing}
       />
@@ -923,6 +974,22 @@ function BlobbiDashboard({
           usingItemId={usingItemId}
         />
       )}
+      
+      {/* Play Music Modal */}
+      <PlayMusicModal
+        open={showPlayMusicModal}
+        onOpenChange={setShowPlayMusicModal}
+        onConfirm={handleConfirmPlayMusic}
+        isLoading={isDirectActionPending}
+      />
+      
+      {/* Sing Modal */}
+      <SingModal
+        open={showSingModal}
+        onOpenChange={setShowSingModal}
+        onConfirm={handleConfirmSing}
+        isLoading={isDirectActionPending}
+      />
       
       {/* Placeholder Modals */}
       <BlobbiPlaceholderModal
