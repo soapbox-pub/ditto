@@ -54,13 +54,23 @@ export function InlineMusicPlayer({
     },
   });
   
-  // Auto-start playback when published
+  // Auto-start playback when published or when source changes
   useEffect(() => {
-    if (isPublished && playbackState === 'idle') {
+    if (isPublished && (playbackState === 'idle' || playbackState === 'stopped')) {
       load(source.url, true);
       onPlaybackStart?.();
     }
   }, [isPublished, playbackState, source.url, load, onPlaybackStart]);
+  
+  // Force reload when source URL changes while already playing/paused
+  useEffect(() => {
+    // Only trigger reload if we're in an active playback state with a different URL
+    if (isPublished && (playbackState === 'playing' || playbackState === 'paused')) {
+      // The load function will check if URL changed and reload if needed
+      load(source.url, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only react to source.url changes
+  }, [source.url]);
   
   // Notify on playback state changes
   useEffect(() => {
@@ -81,7 +91,7 @@ export function InlineMusicPlayer({
   
   // Handle play/pause toggle
   const handleToggle = useCallback(async () => {
-    if (playbackState === 'idle') {
+    if (playbackState === 'idle' || playbackState === 'stopped') {
       load(source.url, true);
     } else {
       await toggle();
@@ -154,12 +164,15 @@ export function InlineMusicPlayer({
               )}
             </Button>
             
-            {/* Stop button */}
+            {/* Stop button - only show when actively playing or paused */}
             {isPublished && (playbackState === 'playing' || playbackState === 'paused') && (
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={() => { stop(); onPlaybackStop?.(); }}
+                onClick={() => {
+                  stop();
+                  onPlaybackStop?.();
+                }}
                 className="size-9 rounded-full"
               >
                 <Square className="size-3.5" />

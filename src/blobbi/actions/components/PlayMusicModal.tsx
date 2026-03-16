@@ -232,7 +232,11 @@ export function PlayMusicModal({
           <Tabs defaultValue="builtin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="builtin">Built-in</TabsTrigger>
-              <TabsTrigger value="upload" className="gap-1.5">
+              <TabsTrigger 
+                value="upload" 
+                disabled
+                className="gap-1.5 data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed"
+              >
                 Upload
                 <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 font-normal">
                   Soon

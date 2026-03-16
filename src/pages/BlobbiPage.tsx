@@ -729,23 +729,34 @@ function BlobbiDashboard({
     }
   };
   
-  // Handle track selected from picker - creates inline music player
+  // Handle track selected from picker - creates inline music player or changes track
   const handleTrackSelected = async (source: AudioSource) => {
     setShowTrackPickerModal(false);
     
-    // Create the music activity state (not yet published)
-    setInlineActivity(createMusicActivity(source));
+    // Check if we're changing an existing track (already published) or selecting initial track
+    const isChangingTrack = inlineActivity.type === 'music' && inlineActivity.isPublished;
     
-    // Publish the action first, then playback will start after publish succeeds
-    try {
-      await onDirectAction('play_music');
-      // Mark as published so playback can begin
+    if (isChangingTrack) {
+      // Just update the source, keep isPublished: true
+      // The InlineMusicPlayer will detect the URL change and reload
       setInlineActivity(prev => 
-        prev.type === 'music' ? { ...prev, isPublished: true } : prev
+        prev.type === 'music' ? { ...prev, source } : prev
       );
-    } catch {
-      // If publish fails, close the activity
-      setInlineActivity(createNoActivity());
+    } else {
+      // Initial track selection - need to publish the action
+      setInlineActivity(createMusicActivity(source));
+      
+      // Publish the action first, then playback will start after publish succeeds
+      try {
+        await onDirectAction('play_music');
+        // Mark as published so playback can begin
+        setInlineActivity(prev => 
+          prev.type === 'music' ? { ...prev, isPublished: true } : prev
+        );
+      } catch {
+        // If publish fails, close the activity
+        setInlineActivity(createNoActivity());
+      }
     }
   };
   
