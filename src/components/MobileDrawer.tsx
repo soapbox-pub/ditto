@@ -101,12 +101,15 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
 
           {user ? (
-            <div className={`flex flex-col h-full ${hasBgImage ? 'py-2 px-2 gap-1' : ''}`}>
+            <div
+              className={`flex flex-col h-full ${hasBgImage ? 'py-2 px-2 gap-1' : ''}`}
+              style={hasBgImage ? { paddingTop: `calc(0.5rem + env(safe-area-inset-top, 0px))`, paddingBottom: `calc(0.5rem + env(safe-area-inset-bottom, 0px))` } : undefined}
+            >
               {/* User row with caret */}
               <button
                 onClick={() => setAccountExpanded((v) => !v)}
                 className={`flex items-center gap-3 px-3 hover:bg-secondary/60 transition-colors w-full text-left ${hasBgImage ? 'bg-background rounded-xl' : ''}`}
-                style={{ minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
+                style={hasBgImage ? { minHeight: '3rem' } : { minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
               >
                 <Avatar shape={currentUserAvatarShape} className="size-7 shrink-0">
                   <AvatarImage src={metadata?.picture} alt={displayName} />
@@ -289,17 +292,20 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               {/* Theme */}
               <div
                 className={`flex items-center ${hasBgImage ? 'bg-background rounded-xl' : 'border-t border-border'}`}
-                style={{ minHeight: '3.5rem', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+                style={{ minHeight: '3.5rem', paddingBottom: hasBgImage ? undefined : 'env(safe-area-inset-bottom, 0px)' }}
               >
                 <SidebarThemeDropdown userPubkey={user.pubkey} onNavigate={handleClose} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 rounded-full transition-colors" />
               </div>
             </div>
           ) : (
-            <div className={`flex flex-col h-full ${hasBgImage ? 'py-2 px-2 gap-1' : ''}`}>
+            <div
+              className={`flex flex-col h-full ${hasBgImage ? 'py-2 px-2 gap-1' : ''}`}
+              style={hasBgImage ? { paddingTop: `calc(0.5rem + env(safe-area-inset-top, 0px))`, paddingBottom: `calc(0.5rem + env(safe-area-inset-bottom, 0px))` } : undefined}
+            >
               {/* Login prompt */}
               <div
                 className={`flex items-center gap-3 px-4 border-b border-border ${hasBgImage ? 'bg-background rounded-xl' : ''}`}
-                style={{ minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
+                style={hasBgImage ? { minHeight: '3rem' } : { minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
               >
                 <LoginArea className="w-full flex" />
               </div>
@@ -337,7 +343,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               {/* Theme */}
               <div
                 className={`flex items-center ${hasBgImage ? 'bg-background rounded-xl' : 'border-t border-border'}`}
-                style={{ minHeight: '3.5rem', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+                style={{ minHeight: '3.5rem', paddingBottom: hasBgImage ? undefined : 'env(safe-area-inset-bottom, 0px)' }}
               >
                 <SidebarThemeDropdown onNavigate={handleClose} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 rounded-full transition-colors" />
               </div>
