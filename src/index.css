@@ -194,17 +194,51 @@
 }
 
 .animate-blobbi-sway {
-  animation: blobbi-gentle-sway 2s ease-in-out infinite;
+  /* Baby/adult sway is livelier than egg (1.6s vs 2.5s) */
+  animation: blobbi-gentle-sway 1.6s ease-in-out infinite;
 }
 
 .animate-blobbi-bounce {
-  animation: blobbi-bounce 0.5s ease-in-out infinite;
+  /* Baby/adult bounce is livelier than egg (0.45s vs 0.55s) */
+  animation: blobbi-bounce 0.45s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-blobbi-sway,
   .animate-blobbi-bounce {
     animation: none !important;
+  }
+}
+
+/* ─── Floating Music Notes ───────────────────────────────────────────────────── */
+
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.8);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1);
+  }
+  85% {
+    opacity: 0.8;
+    transform: translateY(-60px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-80px) scale(0.6);
+  }
+}
+
+.animate-float-up {
+  animation: float-up 3s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-up {
+    animation: none !important;
+    opacity: 0 !important;
   }
 }
 
