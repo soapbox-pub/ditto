@@ -282,6 +282,7 @@ interface SortableFieldRowProps {
   type: 'text' | 'wallet' | 'media';
   accept?: string;
   valuePlaceholder?: string;
+  isUploading?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control: any;
   onRemove: () => void;
@@ -289,7 +290,7 @@ interface SortableFieldRowProps {
   onTickerChange: (ticker: string) => void;
 }
 
-function SortableFieldRow({ id, index, type, accept, valuePlaceholder, control, onRemove, onMediaPick, onTickerChange }: SortableFieldRowProps) {
+function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploading: fieldUploading, control, onRemove, onMediaPick, onTickerChange }: SortableFieldRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
@@ -362,26 +363,32 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, control, 
                   <FormControl>
                     <Input placeholder={valuePlaceholder || 'Upload file or paste direct file link'} {...field} className="h-9 flex-1 min-w-0" readOnly={false} />
                   </FormControl>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-9 w-9 shrink-0"
-                        onClick={onMediaPick}
-                      >
-                        <Upload className="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="text-xs max-w-52">
-                      {formatHint ? (
-                        <span>Choose file to upload<br /><span className="text-muted-foreground">{formatHint}</span></span>
-                      ) : (
-                        <span>Choose a media file to upload</span>
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
+                  {fieldUploading ? (
+                    <div className="flex items-center justify-center h-9 w-9 shrink-0">
+                      <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 shrink-0"
+                          onClick={onMediaPick}
+                        >
+                          <Upload className="size-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs max-w-52">
+                        {formatHint ? (
+                          <span>Choose file to upload<br /><span className="text-muted-foreground">{formatHint}</span></span>
+                        ) : (
+                          <span>Choose a media file to upload</span>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
                 {mismatchWarning && (
                   <p className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-500 mt-1 leading-snug">
@@ -435,6 +442,7 @@ export function ProfileSettings() {
   const [cropState, setCropState] = useState<CropState | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showMobilePreview, setShowMobilePreview] = useState(false);
+  const [uploadingFieldIndex, setUploadingFieldIndex] = useState<number>(-1);
 
   useSeoMeta({
     title: `Profile | Settings | ${config.appName}`,
@@ -516,12 +524,15 @@ export function ProfileSettings() {
     e.target.value = '';
     const index = pendingMediaIndex.current;
     if (index < 0) return;
+    setUploadingFieldIndex(index);
     try {
       const [[, url]] = await uploadFile(file);
       form.setValue(`fields.${index}.value`, url, { shouldDirty: true });
       toast({ title: 'Uploaded', description: 'Media file uploaded' });
     } catch {
       toast({ title: 'Upload failed', description: 'Please try again.', variant: 'destructive' });
+    } finally {
+      setUploadingFieldIndex(-1);
     }
   };
 
@@ -801,6 +812,7 @@ export function ProfileSettings() {
                       type={form.watch(`fields.${index}.type`) ?? 'text'}
                       accept={form.watch(`fields.${index}.accept`)}
                       valuePlaceholder={form.watch(`fields.${index}.placeholder`)}
+                      isUploading={uploadingFieldIndex === index}
                       control={form.control}
                       onRemove={() => remove(index)}
                       onMediaPick={() => handleMediaPick(index)}
