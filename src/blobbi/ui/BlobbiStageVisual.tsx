@@ -121,16 +121,20 @@ export function BlobbiStageVisual({
 
   // Show music notes when listening to music
   const showMusicNotes = effectiveReaction === 'listening';
+  
+  // Container size class (shared across all stages)
+  const containerClass = SIZE_CONFIG[size];
 
   // Egg stage
   if (stage === 'egg') {
     return (
-      <div className={cn('relative', className)}>
+      <div className={cn('relative', containerClass, className)}>
         <BlobbiEggVisual
           companion={companion}
           size={size as BlobbiEggSize}
           animated={animated}
           reaction={effectiveReaction}
+          className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />
       </div>
@@ -144,7 +148,6 @@ export function BlobbiStageVisual({
       blobbiForBaby,
       visualTraits: companion.visualTraits,
     });
-    const containerClass = SIZE_CONFIG[size];
 
     return (
       <div className={cn('relative', containerClass, className)}>
@@ -160,8 +163,6 @@ export function BlobbiStageVisual({
 
   // Adult stage - placeholder with reaction support
   if (stage === 'adult') {
-    const containerClass = SIZE_CONFIG[size];
-
     return (
       <div className={cn('relative', containerClass, className)}>
         <div
