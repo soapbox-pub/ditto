@@ -183,13 +183,13 @@
     transform: translateY(0) rotate(0deg);
   }
   25% {
-    transform: translateY(-6px) rotate(3deg);
+    transform: translateY(-3px) rotate(1.5deg);
   }
   50% {
     transform: translateY(0) rotate(0deg);
   }
   75% {
-    transform: translateY(-6px) rotate(-3deg);
+    transform: translateY(-3px) rotate(-1.5deg);
   }
 }
 
@@ -199,8 +199,8 @@
 }
 
 .animate-blobbi-bounce {
-  /* Baby/adult bounce is livelier than egg (0.4s vs 0.5s) */
-  animation: blobbi-bounce 0.4s ease-in-out infinite;
+  /* Baby/adult sing bounce - smoother and cuter than before (0.5s) */
+  animation: blobbi-bounce 0.5s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

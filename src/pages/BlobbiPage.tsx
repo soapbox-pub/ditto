@@ -725,9 +725,8 @@ function BlobbiDashboard({
       setShowTrackPickerModal(true);
     } else if (action === 'sing') {
       // Open the inline sing card directly
+      // Note: Singing reaction starts when recording actually begins (via onRecordingStart)
       setInlineActivity(createSingActivity());
-      // Start singing reaction animation
-      setBlobbiReaction('singing');
     }
   };
   
@@ -779,6 +778,15 @@ function BlobbiDashboard({
   };
   
   const handleMusicPlaybackStop = () => {
+    setBlobbiReaction('idle');
+  };
+  
+  // Handle sing recording state changes (for Blobbi reaction)
+  const handleSingRecordingStart = () => {
+    setBlobbiReaction('singing');
+  };
+  
+  const handleSingRecordingStop = () => {
     setBlobbiReaction('idle');
   };
   
@@ -976,6 +984,8 @@ function BlobbiDashboard({
             <InlineSingCard
               onConfirm={handleConfirmSing}
               onClose={handleCloseInlineActivity}
+              onRecordingStart={handleSingRecordingStart}
+              onRecordingStop={handleSingRecordingStop}
               isPublishing={isDirectActionPending}
             />
           </div>
