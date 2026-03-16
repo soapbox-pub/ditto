@@ -473,8 +473,8 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
 
   return (
     <aside className={cn("w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3", className)}>
-      {/* Media Section */}
-      <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
+      {/* Media Section — only shown when mediaEvents prop is provided */}
+      {mediaEvents !== undefined && <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <h2 className="text-xl font-bold mb-3">Media</h2>
         {mediaLoading ? (
           <div className="flex flex-col gap-0.5">
@@ -569,7 +569,7 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
         ) : (
           <p className="text-sm text-muted-foreground">No media yet.</p>
         )}
-      </section>
+      </section>}
 
       {/* Profile Fields Section */}
       {fields && fields.length > 0 && (
@@ -583,14 +583,16 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
         </section>
       )}
 
-      {/* Footer */}
-      <footer className="mt-auto pt-4 pb-4 text-left bg-background/85 rounded-xl p-3 -mx-1">
-        <p className="text-xs text-muted-foreground">
-          <a href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
-            Edit Ditto with Shakespeare
-          </a>
-        </p>
-      </footer>
+      {/* Footer — hidden when used as a fields-only preview */}
+      {mediaEvents !== undefined && (
+        <footer className="mt-auto pt-4 pb-4 text-left bg-background/85 rounded-xl p-3 -mx-1">
+          <p className="text-xs text-muted-foreground">
+            <a href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+              Edit Ditto with Shakespeare
+            </a>
+          </p>
+        </footer>
+      )}
     </aside>
   );
 }
