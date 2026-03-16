@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,7 +16,8 @@ import type { AddrCoords } from '@/hooks/useEvent';
 import QRCode from 'qrcode';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getContentWarning } from '@/lib/contentWarning';
-import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
+import { MiniAudioPlayer, isAudioUrl, isImageUrl, isVideoUrl } from '@/components/MiniAudioPlayer';
+import { VideoPlayer } from '@/components/VideoPlayer';
 import { parseDimToAspectRatio } from '@/components/MediaCollage';
 
 /** Simple email regex for display purposes. */
@@ -66,6 +68,8 @@ interface ProfileRightSidebarProps {
   mediaLoading?: boolean;
   /** Called when a media tile is clicked. If provided, tiles don't navigate. */
   onMediaClick?: (url: string) => void;
+  /** Override the root element's className (e.g. to show on mobile). */
+  className?: string;
 }
 
 interface MediaItem {
@@ -368,7 +372,7 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
     );
   }
 
-  // Audio file: render mini player
+  // Media fields: render inline players/previews based on file extension
   const isUrl = field.value.startsWith('http://') || field.value.startsWith('https://');
 
   if (isUrl && isAudioUrl(field.value)) {
@@ -376,6 +380,33 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
       <div>
         <div className="font-semibold text-sm mb-1.5">{field.label}</div>
         <MiniAudioPlayer src={field.value} />
+      </div>
+    );
+  }
+
+  if (isUrl && isImageUrl(field.value)) {
+    return (
+      <div>
+        {field.label && <div className="font-semibold text-sm mb-1.5">{field.label}</div>}
+        <a href={field.value} target="_blank" rel="noopener noreferrer" className="block">
+          <img
+            src={field.value}
+            alt={field.label || 'Profile image'}
+            className="w-full rounded-lg object-cover"
+            loading="lazy"
+          />
+        </a>
+      </div>
+    );
+  }
+
+  if (isUrl && isVideoUrl(field.value)) {
+    return (
+      <div>
+        {field.label && <div className="font-semibold text-sm mb-1.5">{field.label}</div>}
+        <div className="rounded-lg overflow-hidden">
+          <VideoPlayer src={field.value} />
+        </div>
       </div>
     );
   }
@@ -430,7 +461,7 @@ function sidebarJustifiedLayout(items: MediaItem[]): { items: MediaItem[]; heigh
   return rows;
 }
 
-export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp, onMediaClick }: ProfileRightSidebarProps) {
+export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp, onMediaClick, className }: ProfileRightSidebarProps) {
   const { config } = useAppContext();
   const media = useMemo(
     () => extractMedia(mediaEvents ?? [], config.contentWarningPolicy),
@@ -441,9 +472,9 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
   const sidebarRows = useMemo(() => sidebarJustifiedLayout(media), [media]);
 
   return (
-    <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3">
-      {/* Media Section */}
-      <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
+    <aside className={cn("w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3", className)}>
+      {/* Media Section — only shown when mediaEvents prop is provided */}
+      {mediaEvents !== undefined && <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <h2 className="text-xl font-bold mb-3">Media</h2>
         {mediaLoading ? (
           <div className="flex flex-col gap-0.5">
@@ -538,7 +569,7 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
         ) : (
           <p className="text-sm text-muted-foreground">No media yet.</p>
         )}
-      </section>
+      </section>}
 
       {/* Profile Fields Section */}
       {fields && fields.length > 0 && (
@@ -552,14 +583,16 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
         </section>
       )}
 
-      {/* Footer */}
-      <footer className="mt-auto pt-4 pb-4 text-left bg-background/85 rounded-xl p-3 -mx-1">
-        <p className="text-xs text-muted-foreground">
-          <a href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
-            Edit Ditto with Shakespeare
-          </a>
-        </p>
-      </footer>
+      {/* Footer — hidden when used as a fields-only preview */}
+      {mediaEvents !== undefined && (
+        <footer className="mt-auto pt-4 pb-4 text-left bg-background/85 rounded-xl p-3 -mx-1">
+          <p className="text-xs text-muted-foreground">
+            <a href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+              Edit Ditto with Shakespeare
+            </a>
+          </p>
+        </footer>
+      )}
     </aside>
   );
 }
