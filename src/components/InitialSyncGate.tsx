@@ -42,6 +42,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { genUserName } from "@/lib/genUserName";
+import { getAvatarShape } from "@/lib/avatarShape";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -1107,7 +1108,7 @@ function AuthorAttribution({ pubkey }: { pubkey: string }) {
 
   return (
     <div className="px-4 py-2 bg-muted/30 border-t border-border flex items-center gap-2">
-      <MiniAvatar src={metadata?.picture} name={name} />
+      <MiniAvatar src={metadata?.picture} name={name} metadata={metadata} />
       <span className="text-xs text-muted-foreground truncate">
         by <span className="font-medium text-foreground">{name}</span>
       </span>
@@ -1116,9 +1117,9 @@ function AuthorAttribution({ pubkey }: { pubkey: string }) {
 }
 
 /** Tiny avatar used in pack member stacks. */
-function MiniAvatar({ src, name }: { src?: string; name: string }) {
+function MiniAvatar({ src, name, metadata }: { src?: string; name: string; metadata?: NostrMetadata }) {
   return (
-    <Avatar className="size-7 ring-2 ring-background">
+    <Avatar className="size-7 ring-2 ring-background" shape={getAvatarShape(metadata)}>
       <AvatarImage src={src} alt={name} />
       <AvatarFallback className="bg-primary/15 text-primary text-[10px]">
         {name[0]?.toUpperCase()}

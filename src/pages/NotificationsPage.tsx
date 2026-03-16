@@ -18,6 +18,7 @@ import { useNotifications, type GroupedNotificationItem, type NotificationItem }
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
@@ -253,7 +254,7 @@ function ActorAvatar({ pubkey }: { pubkey: string }) {
   return (
     <ProfileHoverCard pubkey={pubkey} asChild>
       <Link to={profileUrl} title={name} className="shrink-0">
-        <Avatar className="size-7 ring-2 ring-background">
+        <Avatar className="size-7 ring-2 ring-background" shape={getAvatarShape(metadata)}>
           {metadata?.picture && <AvatarImage src={metadata.picture} alt={name} />}
           <AvatarFallback className="text-[10px]">{name.slice(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
