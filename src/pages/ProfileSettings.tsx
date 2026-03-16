@@ -785,34 +785,7 @@ export function ProfileSettings() {
               <HelpTip faqId="profile-fields" iconSize="size-3.5" />
             </h2>
 
-            {/* Add field — visible pill buttons */}
-            <div className="flex flex-wrap gap-1.5 pb-3">
-              {[...FIELD_PRESETS, CUSTOM_PRESET].map((preset) => {
-                const Icon = preset.icon;
-                return (
-                  <Tooltip key={preset.id}>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 rounded-full px-3 text-xs gap-1.5"
-                        onClick={() => handleAddPreset(preset)}
-                      >
-                        <Plus className="size-3 text-muted-foreground" />
-                        <Icon className="size-3.5 text-muted-foreground" />
-                        {preset.label}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="text-xs">
-                      {preset.description}
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
-            </div>
-
-            <div className="space-y-3">
+            <div className="space-y-3 pt-1">
               {/* Website — always first */}
               <FormField
                 control={form.control}
@@ -865,6 +838,33 @@ export function ProfileSettings() {
                   ))}
                 </SortableContext>
               </DndContext>
+
+              {/* Add field — visible pill buttons */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {[...FIELD_PRESETS, CUSTOM_PRESET].map((preset) => {
+                  const Icon = preset.icon;
+                  return (
+                    <Tooltip key={preset.id}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 rounded-full px-3 text-xs gap-1.5"
+                          onClick={() => handleAddPreset(preset)}
+                        >
+                          <Plus className="size-3 text-muted-foreground" />
+                          <Icon className="size-3.5 text-muted-foreground" />
+                          {preset.label}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        {preset.description}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
 
             </div>
           </div>
