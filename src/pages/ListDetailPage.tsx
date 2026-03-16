@@ -1,26 +1,33 @@
 /**
  * ListDetailPage
  *
- * Full-page detail view for a NIP-51 Follow Set (kind 30000).
+ * Full-page detail view for a NIP-51 List (kind 30000).
  * Two tabs: Feed (posts from members) and Members (manage membership).
  */
 import { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import {
-  ArrowLeft, Users, UserPlus, Loader2, X, Rss, Share2, Check, Copy,
+  ArrowLeft, Users, UserPlus, Loader2, X, Rss, Share2, Check, Copy, Quote,
 } from 'lucide-react';
+import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { NoteCard } from '@/components/NoteCard';
 import { AddMembersDialog } from '@/components/AddMembersDialog';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserLists } from '@/hooks/useUserLists';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
@@ -28,6 +35,9 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { shareOrCopy } from '@/lib/share';
+import { getRepostKind } from '@/lib/feedUtils';
+import { DITTO_RELAY } from '@/lib/appRelays';
 import { toast } from '@/hooks/useToast';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -57,6 +67,7 @@ function MemberCard({ pubkey, isOwner, listId, onRemoved }: {
 }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.display_name || metadata?.name || genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
   const { data: followData } = useFollowList();
@@ -97,7 +108,7 @@ function MemberCard({ pubkey, isOwner, listId, onRemoved }: {
           </>
         ) : (
           <>
-            <Avatar className="size-10 shrink-0">
+            <Avatar shape={avatarShape} className="size-10 shrink-0">
               <AvatarImage src={metadata?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-sm">
                 {displayName[0]?.toUpperCase()}
@@ -274,9 +285,12 @@ export function ListDetailPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { lists, isLoading: ownListsLoading, createList } = useUserLists();
+  const { mutate: publishEvent } = useNostrPublish();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<Tab>('feed');
   const [copied, setCopied] = useState(false);
   const [cloning, setCloning] = useState(false);
+  const [quoteOpen, setQuoteOpen] = useState(false);
 
   // Decode the naddr to get the d-tag identifier and author
   const decoded = useMemo(() => {
@@ -320,14 +334,54 @@ export function ListDetailPage() {
   const list = isOwnList ? ownList : (remoteListQuery.data ?? null);
   const isLoading = isOwnList ? ownListsLoading : remoteListQuery.isLoading;
 
-  const handleCopyLink = useCallback(() => {
+  const handleShare = useCallback(async () => {
     const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
+    const result = await shareOrCopy(url, list?.title);
+    if (result === 'copied') {
       setCopied(true);
       toast({ title: 'Link copied to clipboard' });
       setTimeout(() => setCopied(false), 2000);
-    });
-  }, []);
+    }
+  }, [list?.title]);
+
+  const handleRepost = useCallback(() => {
+    const event = list?.event;
+    if (!event) return;
+    if (!user) {
+      toast({ title: 'Please log in to repost', variant: 'destructive' });
+      return;
+    }
+
+    const repostKind = getRepostKind(event.kind);
+    const tags: string[][] = [
+      ['e', event.id, DITTO_RELAY],
+      ['p', event.pubkey],
+    ];
+    if (repostKind === 16) {
+      tags.push(['k', String(event.kind)]);
+      if (event.kind >= 30000 && event.kind < 40000) {
+        const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
+        tags.push(['a', `${event.kind}:${event.pubkey}:${dTag}`]);
+      }
+    }
+
+    publishEvent(
+      { kind: repostKind, content: '', created_at: Math.floor(Date.now() / 1000), tags },
+      {
+        onSuccess: () => {
+          toast({ title: 'Reposted!' });
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
+            queryClient.invalidateQueries({ queryKey: ['event-interactions', event.id] });
+            queryClient.invalidateQueries({ queryKey: ['user-repost', event.id] });
+          }, 3000);
+        },
+        onError: () => {
+          toast({ title: 'Failed to repost', variant: 'destructive' });
+        },
+      },
+    );
+  }, [list?.event, user, publishEvent, queryClient]);
 
   const handleClone = useCallback(async () => {
     if (!list || !user || cloning) return;
@@ -348,7 +402,7 @@ export function ListDetailPage() {
 
   useSeoMeta({
     title: list ? `${list.title} | ${config.appName}` : `List | ${config.appName}`,
-    description: list ? `${list.title} — ${list.pubkeys.length} members` : 'Nostr Follow Set',
+    description: list ? `${list.title} — ${list.pubkeys.length} members` : 'Nostr List',
   });
 
   // Loading state
@@ -419,18 +473,32 @@ export function ListDetailPage() {
                 Save
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full size-9"
-              onClick={handleCopyLink}
-              title="Copy link"
-            >
-              {copied
-                ? <Check className="size-4 text-green-500" />
-                : <Share2 className="size-4" />
-              }
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full size-9"
+                  title="Share"
+                >
+                  <Share2 className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleShare} className="gap-3">
+                  {copied ? <Check className="size-4 text-green-500" /> : <Share2 className="size-4" />}
+                  Share
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleRepost} className="gap-3">
+                  <RepostIcon className="size-4" />
+                  Repost
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setQuoteOpen(true)} className="gap-3">
+                  <Quote className="size-4" />
+                  Quote post
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -503,6 +571,14 @@ export function ListDetailPage() {
         <ListFeedTab list={list} />
       ) : (
         <ListMembersTab list={list} isOwner={isOwnList} />
+      )}
+
+      {list.event && (
+        <ReplyComposeModal
+          quotedEvent={list.event}
+          open={quoteOpen}
+          onOpenChange={setQuoteOpen}
+        />
       )}
     </main>
   );

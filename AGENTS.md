@@ -1209,3 +1209,65 @@ If git is available in your environment (through a `shell` tool, or other git-sp
 When your changes are complete and validated, create a git commit with a descriptive message summarizing your changes.
 
 **ALWAYS commit when you are finished making changes.**
+
+## CI/CD Pipeline
+
+The project uses GitLab CI (`.gitlab-ci.yml`) with the following stages:
+
+1. **test** - Runs `npm run test` on every commit (skipped for tags)
+2. **deploy** - Builds and deploys to GitLab Pages (default branch only)
+3. **build** - Builds a signed release APK (`build-apk` job, tags only)
+4. **release** - Creates a GitLab Release with the APK artifact (tags only)
+5. **publish** - Publishes the APK to Zapstore (`publish-zapstore` job, tags only)
+
+### Creating a Release
+
+Releases are triggered by pushing a version tag. Use the npm script:
+
+```bash
+npm run release
+```
+
+This creates a tag in the format `v2026.03.14+abc1234` (date + short commit hash) and pushes it to GitLab, which triggers the `build-apk`, `release`, and `publish-zapstore` stages.
+
+### Zapstore Publishing
+
+The project automatically publishes Android APKs to [Zapstore](https://zapstore.dev/) using the [`zsp`](https://github.com/zapstore/zsp) CLI tool. The `publish-zapstore` CI job runs after a successful APK build and uses NIP-46 bunker signing via Amber.
+
+**Configuration files:**
+- `zapstore.yaml` - App metadata for Zapstore (name, tags, icon, supported NIPs)
+- `.gitlab-ci.yml` - The `publish-zapstore` job definition
+
+**GitLab CI/CD Variables** (Settings > CI/CD > Variables):
+
+| Variable | Description | Protected | Masked | Raw |
+|---|---|---|---|---|
+| `ZAPSTORE_BUNKER_URL` | NIP-46 bunker URL (`bunker://<pubkey>?relay=...`). No `secret` param needed after initial auth. | Yes | No | Yes |
+| `ZAPSTORE_CLIENT_KEY` | Hex private key used as the NIP-46 client identity for bunker communication | Yes | Yes | Yes |
+| `ANDROID_KEYSTORE_BASE64` | Base64-encoded Android signing keystore | Yes | Yes | Yes |
+| `KEYSTORE_PASSWORD` | Android keystore password | Yes | Yes | Yes |
+| `KEY_PASSWORD` | Android key password | Yes | Yes | Yes |
+
+#### How NIP-46 Bunker Auth Works in CI
+
+NIP-46 bunker signing requires two keys: the **user's key** (held by Amber) and a **client key** (the CI runner's identity). The bunker authorizes specific client pubkeys -- once authorized, the client can request signatures without re-approval.
+
+The `publish-zapstore` job restores the client key from `ZAPSTORE_CLIENT_KEY` into `~/.config/zsp/bunker-keys/<bunker-pubkey>.key` before running `zsp`, so the bunker recognizes the CI runner as an already-authorized client.
+
+**Initial setup (one-time):**
+1. Generate a client key: `nak key generate` (save the hex output)
+2. Store it as `ZAPSTORE_CLIENT_KEY` in GitLab CI/CD variables
+3. Get a bunker URL from Amber (with `secret` param for first connection)
+4. Authorize the client key locally using `nak`:
+   ```bash
+   export NOSTR_CLIENT_KEY="<the hex client key>"
+   nak event --sec "bunker://<pubkey>?relay=...&secret=<secret>" -c "test"
+   ```
+5. Approve the connection on Amber when prompted
+6. Store the bunker URL **without the `secret` param** as `ZAPSTORE_BUNKER_URL` in GitLab CI/CD variables (the secret is single-use and no longer needed after authorization)
+
+**Key points:**
+- The `secret` in bunker URLs is **single-use** -- it is consumed on first connection and cannot be reused
+- The `ZAPSTORE_CLIENT_KEY` must be authorized locally first by connecting to the bunker with a fresh secret and approving on Amber
+- After authorization, the bunker recognizes the client key and no secret or manual approval is needed for CI runs
+- If the client key is rotated, the authorization step must be repeated with a new bunker URL secret

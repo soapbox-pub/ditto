@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { useNostr } from '@nostrify/react';
@@ -46,7 +46,8 @@ export function useNativeNotifications(): void {
   const { config } = useAppContext();
   const { settings } = useEncryptedSettings();
 
-  const notificationsEnabled = settings?.notificationsEnabled ?? false;
+  const notificationsEnabled = settings?.notificationsEnabled ?? true;
+  const notifPrefs = useMemo(() => settings?.notificationPreferences ?? {}, [settings?.notificationPreferences]);
 
   // Track the subscription start time so we only surface events that arrive
   // after the subscription is opened (avoids replaying historical events).
@@ -55,6 +56,11 @@ export function useNativeNotifications(): void {
   // Keep a stable ref to the nostr object to avoid re-subscribing on every render.
   const nostrRef = useRef<NPool>(nostr);
   useEffect(() => { nostrRef.current = nostr; }, [nostr]);
+
+  // Keep a stable ref to per-type prefs so the async loop reads the latest
+  // values without triggering a reconnect on every preference change.
+  const notifPrefsRef = useRef(notifPrefs);
+  useEffect(() => { notifPrefsRef.current = notifPrefs; }, [notifPrefs]);
 
   // Deduplicate: track event IDs that have already triggered a notification.
   const seenIdsRef = useRef<Set<string>>(new Set());
@@ -136,6 +142,14 @@ export function useNativeNotifications(): void {
           // Deduplicate: skip if we've already shown a notification for this event
           if (seenIdsRef.current.has(event.id)) continue;
           seenIdsRef.current.add(event.id);
+
+          // Respect per-type preferences (default = enabled when not explicitly false)
+          const prefs = notifPrefsRef.current;
+          if (event.kind === 7 && prefs.reactions === false) continue;
+          if ((event.kind === 6 || event.kind === 16) && prefs.reposts === false) continue;
+          if (event.kind === 9735 && prefs.zaps === false) continue;
+          if (event.kind === 1 && prefs.mentions === false) continue;
+          if (event.kind === 1111 && prefs.comments === false) continue;
 
           new Notification(notificationTitle(event), {
             body: event.content.slice(0, 120) || undefined,

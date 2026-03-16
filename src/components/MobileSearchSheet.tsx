@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, UserRoundCheck, X } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { genUserName } from '@/lib/genUserName';
@@ -121,16 +122,15 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
 
   return (
     <>
-      {/* Backdrop — doesn't cover the bottom nav (z-30) */}
+      {/* Backdrop */}
       <div
         className="fixed inset-0 z-40 bg-black/60 sidebar:hidden animate-in fade-in-0 duration-150"
         onClick={handleClose}
       />
 
       {/* Bottom sheet — sits above the bottom nav bar */}
-      <div className="fixed left-0 right-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200"
-        style={{ bottom: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }}
-      >
+      <div className="fixed left-0 right-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 bottom-mobile-nav">
+
         {/* Results list — reversed so closest to input = most relevant */}
         {hasResults && (
           <div className="flex flex-col-reverse bg-popover/95 rounded-2xl mx-6 mb-0.5 overflow-hidden max-h-[55vh] overflow-y-auto shadow-lg">
@@ -267,7 +267,7 @@ function SearchProfileItem({
       onMouseDown={(e) => e.preventDefault()}
     >
       <div className="relative shrink-0">
-        <Avatar className="size-9">
+        <Avatar shape={getAvatarShape(metadata)} className="size-9">
           <AvatarImage src={metadata.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}

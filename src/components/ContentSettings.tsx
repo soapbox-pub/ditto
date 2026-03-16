@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useToast } from '@/hooks/useToast';
@@ -252,15 +253,31 @@ function FeedTabsSection() {
     return stored ? JSON.parse(stored) : null;
   });
 
+  const [showDittoFeed, setShowDittoFeed] = useState(() => {
+    const stored = localStorage.getItem('ditto:showDittoFeed');
+    return stored !== null ? stored === 'true' : true; // Default to true
+  });
+
   const [showGlobalFeed, setShowGlobalFeed] = useState(() => {
     const stored = localStorage.getItem('ditto:showGlobalFeed');
-    return stored !== null ? stored === 'true' : true; // Default to true
+    return stored !== null ? stored === 'true' : false; // Default to false
   });
 
   const [showCommunityFeed, setShowCommunityFeed] = useState(() => {
     const stored = localStorage.getItem('ditto:showCommunityFeed');
     return stored !== null ? stored === 'true' : false; // Default to false
   });
+
+  const handleToggleDittoFeed = async (checked: boolean) => {
+    setShowDittoFeed(checked);
+    localStorage.setItem('ditto:showDittoFeed', String(checked));
+    toast({
+      title: checked ? 'Ditto feed enabled' : 'Ditto feed disabled',
+      description: checked
+        ? 'The Ditto feed tab will appear in your navigation'
+        : 'The Ditto feed tab will be hidden',
+    });
+  };
 
   const handleToggleGlobalFeed = async (checked: boolean) => {
     setShowGlobalFeed(checked);
@@ -421,6 +438,20 @@ function FeedTabsSection() {
                   : 'Only top-level posts will appear in your follows feed',
               });
             }}
+            className="shrink-0"
+          />
+        </div>
+      </div>
+
+      <div className="border-b border-border">
+        <div className="flex items-center justify-between py-3.5 px-3">
+          <div className="min-w-0">
+            <Label className="text-sm font-medium">Ditto Feed</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Show trending and curated content from the Ditto relay</p>
+          </div>
+          <Switch
+            checked={showDittoFeed}
+            onCheckedChange={handleToggleDittoFeed}
             className="shrink-0"
           />
         </div>
@@ -935,6 +966,7 @@ export function MuteSettingsInternals() {
 function MutedUserProfile({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name ?? genUserName(pubkey);
 
   if (author.isLoading) {
@@ -948,7 +980,7 @@ function MutedUserProfile({ pubkey }: { pubkey: string }) {
 
   return (
     <div className="flex items-center gap-2.5 min-w-0">
-      <Avatar className="size-7 shrink-0">
+      <Avatar shape={avatarShape} className="size-7 shrink-0">
         <AvatarImage src={metadata?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
           {displayName[0]?.toUpperCase() ?? '?'}

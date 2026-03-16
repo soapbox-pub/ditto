@@ -16,8 +16,8 @@ function getStoredPosition(): { x: number; y: number } | null {
 }
 
 function getBottomOffset() {
-  // Reserve space for mobile bottom nav (56px) below the sidebar breakpoint
-  const hasSidebar = window.matchMedia('(min-width: 600px)').matches;
+  // On mobile (below sidebar breakpoint), reserve space for the bottom nav (56px)
+  const hasSidebar = window.matchMedia('(min-width: 900px)').matches;
   return hasSidebar ? 0 : 56;
 }
 

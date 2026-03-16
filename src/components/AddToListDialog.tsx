@@ -153,7 +153,7 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
                 <>
                   {followPacks.length > 0 && (
                     <p className="px-4 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Follow Sets
+                      Lists
                     </p>
                   )}
                   {lists.map((list) => {

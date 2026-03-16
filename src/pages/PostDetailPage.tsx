@@ -60,6 +60,7 @@ import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
 import { ThreadedReplyList } from "@/components/ThreadedReplyList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarShape } from "@/lib/avatarShape";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -75,7 +76,8 @@ import { ZapDialog } from "@/components/ZapDialog";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
 import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
-import { extractAudioUrls } from "@/lib/mediaUrls";
+import { formatNumber } from "@/lib/formatNumber";
+import { extractAudioUrls, extractVideoUrls } from "@/lib/mediaUrls";
 
 /** Kinds that get the full follow-pack detail view. */
 const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
@@ -153,20 +155,6 @@ interface PostDetailPageProps {
 interface AddrPostDetailPageProps {
   addr: AddrCoords;
   relays?: string[];
-}
-
-/** Formats a sats amount into a compact human-readable string. */
-function formatSats(sats: number): string {
-  if (sats >= 1_000_000)
-    return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
-  return sats.toString();
-}
-
-/** Extracts video URLs from note content. */
-function extractVideos(content: string): string[] {
-  const urlRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi;
-  return content.match(urlRegex) || [];
 }
 
 /** Get the first value for a tag name. */
@@ -420,6 +408,7 @@ function CopyableHex({ value }: { value: string }) {
 function AuthorHintRow({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
@@ -436,7 +425,7 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
           </>
         ) : (
           <>
-            <Avatar className="size-6 shrink-0">
+            <Avatar shape={avatarShape} className="size-6 shrink-0">
               <AvatarImage src={metadata?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                 {displayName[0]?.toUpperCase()}
@@ -762,6 +751,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const queryClient = useQueryClient();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
 
   // Refetch the author's profile whenever we navigate to a post by this author.
@@ -831,7 +821,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isDevKind;
 
   const videos = useMemo(
-    () => (isTextNote ? extractVideos(event.content) : []),
+    () => (isTextNote ? extractVideoUrls(event.content) : []),
     [event.content, isTextNote],
   );
   const imetaMap = useMemo(
@@ -1213,7 +1203,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <>
                   <ProfileHoverCard pubkey={event.pubkey} asChild>
                     <Link to={profileUrl} className="shrink-0">
-                      <Avatar className="size-6">
+                      <Avatar shape={avatarShape} className="size-6">
                         <AvatarImage
                           src={metadata?.picture}
                           alt={displayName}
@@ -1256,7 +1246,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             >
               <MessageCircle className="size-5" />
               {stats?.replies ? (
-                <span className="text-sm tabular-nums">{stats.replies}</span>
+                <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
               ) : null}
             </button>
 
@@ -1268,7 +1258,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 >
                   <RepostIcon className="size-5" />
                   {repostTotal ? (
-                    <span className="text-sm tabular-nums">{repostTotal}</span>
+                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
                   ) : null}
                 </button>
               )}
@@ -1328,7 +1318,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <>
                 <ProfileHoverCard pubkey={event.pubkey} asChild>
                   <Link to={profileUrl}>
-                    <Avatar className="size-11">
+                    <Avatar shape={avatarShape} className="size-11">
                       <AvatarImage src={metadata?.picture} alt={displayName} />
                       <AvatarFallback className="bg-primary/20 text-primary text-sm">
                         {displayName[0].toUpperCase()}
@@ -1452,6 +1442,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     mime={imetaMap.get(url)?.mime}
                     avatarUrl={metadata?.picture}
                     avatarFallback={displayName[0]?.toUpperCase() ?? "?"}
+                    avatarShape={getAvatarShape(metadata)}
                   />
                 ))}
                 {webxdcApps.map((app) => (
@@ -1476,7 +1467,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   className="hover:underline transition-colors"
                 >
                   <span className="font-bold text-foreground">
-                    {stats.reposts}
+                    {formatNumber(stats.reposts)}
                   </span>{" "}
                   Repost{stats.reposts !== 1 ? "s" : ""}
                 </button>
@@ -1487,7 +1478,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   className="hover:underline transition-colors"
                 >
                   <span className="font-bold text-foreground">
-                    {stats.quotes}
+                    {formatNumber(stats.quotes)}
                   </span>{" "}
                   Quote{stats.quotes !== 1 ? "s" : ""}
                 </button>
@@ -1498,7 +1489,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   className="inline-flex items-center gap-1 hover:[&>span:first-child]:underline transition-colors"
                 >
                   <span className="font-bold text-foreground">
-                    {stats.reactions}
+                    {formatNumber(stats.reactions)}
                   </span>
                   {topEmojis.length > 0 ? (
                     <span className="inline-flex items-center">
@@ -1521,7 +1512,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   className="hover:underline transition-colors"
                 >
                   <span className="font-bold text-foreground">
-                    {stats.zapCount}
+                    {formatNumber(stats.zapCount)}
                   </span>{" "}
                   Zap{stats.zapCount !== 1 ? "s" : ""}
                 </button>
@@ -1584,7 +1575,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             >
               <MessageCircle className="size-5" />
               {stats?.replies ? (
-                <span className="text-sm tabular-nums">{stats.replies}</span>
+                <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
               ) : null}
             </button>
 
@@ -1597,7 +1588,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 >
                   <RepostIcon className="size-5" />
                   {repostTotal ? (
-                    <span className="text-sm tabular-nums">{repostTotal}</span>
+                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
                   ) : null}
                 </button>
               )}
@@ -1621,7 +1612,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   <Zap className="size-5" />
                   {stats?.zapAmount ? (
                     <span className="text-sm tabular-nums">
-                      {formatSats(stats.zapAmount)}
+                      {formatNumber(stats.zapAmount)}
                     </span>
                   ) : null}
                 </button>

@@ -13,9 +13,11 @@ import {
   Clock, Flame, TrendingUp,
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useInView } from 'react-intersection-observer';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -29,7 +31,6 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { buildKindOptions, KindPicker, AuthorChip, AuthorFilterDropdown } from '@/components/SavedFeedFiltersEditor';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
-import { useDebounce } from '@/hooks/useDebounce';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
@@ -47,6 +48,7 @@ import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { cn, STICKY_HEADER_CLASS, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
+import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
 
 
@@ -96,9 +98,9 @@ export function SearchPage() {
   // Derive tab directly from URL — single source of truth
   const activeTab = parseTab(searchParams.get('tab'));
 
-  // Local input state for the search field (avoids trimming while typing)
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  // SearchPage only tracks the debounced value — raw keystroke state lives in
+  // the SearchInput child component so typing doesn't re-render the whole page.
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchParams.get('q') ?? '');
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // ── Filter state — all derived from URL params ──────────────────────────
@@ -204,25 +206,33 @@ export function SearchPage() {
   // when we ourselves just wrote to the URL.
   const internalUrlUpdate = useRef(false);
 
-  // Sync search query state → URL (debounced to avoid disrupting typing)
+  // Sync search query state → URL (debounced to avoid disrupting typing).
+  // Intentionally omits `searchParams` from deps — including it causes a
+  // feedback loop: writing to the URL updates searchParams, which re-triggers
+  // this effect, forcing extra renders on every keystroke.
+  // The functional updater form of setSearchParams already receives the latest
+  // params, so we don't need searchParams in scope here.
   useEffect(() => {
-    const currentQ = searchParams.get('q') ?? '';
     const trimmed = debouncedSearchQuery.trim();
-    if (trimmed !== currentQ) {
-      internalUrlUpdate.current = true;
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        if (trimmed) {
-          next.set('q', trimmed);
-        } else {
-          next.delete('q');
-        }
-        return next;
-      }, { replace: true });
-    }
-  }, [debouncedSearchQuery, searchParams, setSearchParams]);
+    internalUrlUpdate.current = true;
+    setSearchParams((prev) => {
+      const currentQ = prev.get('q') ?? '';
+      if (trimmed === currentQ) {
+        // No change — return the same object so React Router skips a history update.
+        internalUrlUpdate.current = false;
+        return prev;
+      }
+      const next = new URLSearchParams(prev);
+      if (trimmed) {
+        next.set('q', trimmed);
+      } else {
+        next.delete('q');
+      }
+      return next;
+    }, { replace: true });
+  }, [debouncedSearchQuery, setSearchParams]);
 
-  // Sync URL → search query state (e.g., sidebar search or browser navigation)
+  // Sync URL → debounced query state (e.g., sidebar search or browser navigation)
   useEffect(() => {
     // Skip if we just wrote to the URL ourselves (avoids clobbering mid-typing input)
     if (internalUrlUpdate.current) {
@@ -230,8 +240,8 @@ export function SearchPage() {
       return;
     }
     const q = searchParams.get('q') ?? '';
-    if (q !== searchQuery.trim()) {
-      setSearchQuery(q);
+    if (q !== debouncedSearchQuery.trim()) {
+      setDebouncedSearchQuery(q);
     }
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -247,14 +257,19 @@ export function SearchPage() {
 
   const kindOptions = useMemo(() => buildKindOptions(), []);
 
-  // Resolve kindsOverride from the current kind filter state
-  const kindsOverride = useMemo<number[] | undefined>(
-    () => parseKindFilter(kindFilter, customKindText),
-    [kindFilter, customKindText],
+  // All kind numbers available in the picker — used as the "all kinds" default.
+  const allKindNumbers = useMemo(() => kindOptions.map((o) => Number(o.value)), [kindOptions]);
+
+  // Resolve kindsOverride from the current kind filter state.
+  // "all" means every kind in the picker list, not undefined (which would let
+  // useStreamPosts fall back to only the user's enabled feed-settings kinds).
+  const kindsOverride = useMemo<number[]>(
+    () => kindFilter === 'all' ? allKindNumbers : (parseKindFilter(kindFilter, customKindText) ?? allKindNumbers),
+    [kindFilter, customKindText, allKindNumbers],
   );
 
   // Detect kind + media type conflict: a specific kind is selected AND a media type is set
-  const hasKindMediaConflict = kindsOverride !== undefined && mediaType !== 'all';
+  const hasKindMediaConflict = kindFilter !== 'all' && kindsOverride.length > 0 && mediaType !== 'all';
 
   // Determine if any filter differs from the default
   const hasActiveFilters = !includeReplies || mediaType !== DEFAULT_FILTERS.mediaType ||
@@ -286,7 +301,7 @@ export function SearchPage() {
       : ['protocol:nostr'];
     if (debouncedSearchQuery.trim()) parts.push(debouncedSearchQuery.trim());
     if (language !== 'global') parts.push(`language:${language}`);
-    const isDedicatedKindQuery = !kindsOverride && (mediaType === 'vines' || mediaType === 'images' || mediaType === 'videos');
+    const isDedicatedKindQuery = kindFilter === 'all' && (mediaType === 'vines' || mediaType === 'images' || mediaType === 'videos');
     if (!isDedicatedKindQuery && !hasKindMediaConflict) {
       if (mediaType === 'images') { parts.push('media:true'); parts.push('video:false'); }
       else if (mediaType === 'videos') parts.push('video:true');
@@ -412,25 +427,20 @@ export function SearchPage() {
           {/* Search input + filter icon */}
           <div className="px-4 pt-5 pb-3">
             <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Input
-                  type="text"
-                  placeholder="Search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
-                />
-                <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-              </div>
+              <SearchInput
+                initialValue={debouncedSearchQuery}
+                onDebouncedChange={setDebouncedSearchQuery}
+              />
 
                 {/* Add to feed button */}
-                {user && (searchQuery.trim() || hasActiveFilters) && (
+                {user && (
+                <div className={cn(!debouncedSearchQuery.trim() && !hasActiveFilters ? 'hidden' : undefined)}>
                   <Popover open={savePopoverOpen} onOpenChange={(o) => {
                     setSavePopoverOpen(o);
                     if (o && !saveFeedLabel) {
                       // Pre-fill with the search query, or a label derived from active filters
-                      if (searchQuery.trim()) {
-                        setSaveFeedLabel(searchQuery.trim());
+                      if (debouncedSearchQuery.trim()) {
+                        setSaveFeedLabel(debouncedSearchQuery.trim());
                       } else if (listPickerValue) {
                         const matched =
                           listPickerValue.startsWith('set:')
@@ -493,6 +503,7 @@ export function SearchPage() {
                       )}
                     </PopoverContent>
                   </Popover>
+                </div>
                 )}
 
                 {/* Filter popover */}
@@ -617,10 +628,10 @@ export function SearchPage() {
                   </div>
                   <Separator />
 
-                  {/* Media + Platform */}
+                  {/* Media + Protocol */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Media</span>
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Media</span>
                       <Select value={mediaType} onValueChange={(v) => setMediaType(v)}>
                         <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
                           <SelectValue />
@@ -635,7 +646,7 @@ export function SearchPage() {
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Platform <HelpTip faqId="vs-mastodon-bluesky" iconSize="size-3" /></span>
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Protocol <HelpTip faqId="vs-mastodon-bluesky" iconSize="size-3" /></span>
                       <Select value={platform} onValueChange={(v) => setPlatform(v)}>
                         <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
                           <SelectValue />
@@ -652,7 +663,7 @@ export function SearchPage() {
                   {/* Language + Kind */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Language</span>
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Language</span>
                       <Select value={language} onValueChange={(v) => setLanguage(v)}>
                         <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
                           <SelectValue />
@@ -669,7 +680,7 @@ export function SearchPage() {
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kind</span>
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Kind</span>
                       <KindPicker value={kindFilter} options={kindOptions} onChange={(v) => setKindFilter(v)} />
                     </div>
                   </div>
@@ -713,7 +724,7 @@ export function SearchPage() {
             )}
 
             {/* NIP-50 search query debug block */}
-            {searchQuery.trim() && (
+            {debouncedSearchQuery.trim() && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -741,11 +752,18 @@ export function SearchPage() {
             </div>
           ) : posts.length > 0 ? (
             <div>
-              {posts.map((event) => (
-                <NoteCard key={event.id} event={event} />
-              ))}
+              {posts.map((event) => {
+                if (isRepostKind(event.kind)) {
+                  const embedded = parseRepostContent(event);
+                  if (embedded) {
+                    return <NoteCard key={event.id} event={embedded} repostedBy={event.pubkey} />;
+                  }
+                  return null;
+                }
+                return <NoteCard key={event.id} event={event} />;
+              })}
             </div>
-          ) : searchQuery.trim() ? (
+          ) : debouncedSearchQuery.trim() ? (
             <EmptyState
               message="No posts found matching your search."
               activeFilters={activeFilterLabels}
@@ -762,20 +780,14 @@ export function SearchPage() {
         <>
           {/* Search input for accounts */}
           <div className="px-4 pt-5 pb-2">
-            <div className="relative">
-              <Input
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
-              />
-              <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-            </div>
+            <SearchInput
+              initialValue={debouncedSearchQuery}
+              onDebouncedChange={setDebouncedSearchQuery}
+            />
           </div>
 
           <div>
-            {searchQuery.trim() ? (
+            {debouncedSearchQuery.trim() ? (
               profilesLoading ? (
                 <div className="divide-y divide-border">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -824,6 +836,7 @@ function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metad
   const npub = useMemo(() => nip19.npubEncode(profile.pubkey), [profile.pubkey]);
   const metadata = profile.metadata as { name?: string; nip05?: string; picture?: string; about?: string; bot?: boolean };
   const displayName = metadata?.name || genUserName(profile.pubkey);
+  const profileAvatarShape = getAvatarShape(metadata);
   const tags = profile.event?.tags ?? [];
 
   return (
@@ -832,7 +845,7 @@ function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metad
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
       <div className="relative shrink-0">
-        <Avatar className="size-11">
+        <Avatar shape={profileAvatarShape} className="size-11">
           <AvatarImage src={metadata?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}
@@ -867,9 +880,22 @@ function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metad
   );
 }
 
+const FOLLOWS_PAGE_SIZE = 30;
+
 function FollowsList() {
   const { data: followData } = useFollowList();
   const pubkeys = followData?.pubkeys ?? [];
+  const [visibleCount, setVisibleCount] = useState(FOLLOWS_PAGE_SIZE);
+  const { ref: sentinelRef, inView } = useInView({ threshold: 0, rootMargin: '300px' });
+
+  const visiblePubkeys = useMemo(() => pubkeys.slice(0, visibleCount), [pubkeys, visibleCount]);
+  const hasMore = visibleCount < pubkeys.length;
+
+  useEffect(() => {
+    if (inView && hasMore) {
+      setVisibleCount((c) => Math.min(c + FOLLOWS_PAGE_SIZE, pubkeys.length));
+    }
+  }, [inView, hasMore, pubkeys.length]);
 
   if (pubkeys.length === 0) {
     return <EmptyState message="Search for people by name or NIP-05 address." />;
@@ -877,9 +903,16 @@ function FollowsList() {
 
   return (
     <div className="divide-y divide-border">
-      {pubkeys.map((pubkey) => (
+      {visiblePubkeys.map((pubkey) => (
         <FollowItem key={pubkey} pubkey={pubkey} />
       ))}
+      {hasMore && (
+        <div ref={sentinelRef} className="divide-y divide-border">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <AccountSkeleton key={i} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -887,6 +920,7 @@ function FollowsList() {
 function FollowItem({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const displayName = metadata?.name || genUserName(pubkey);
   const tags = author.data?.event?.tags ?? [];
@@ -901,7 +935,7 @@ function FollowItem({ pubkey }: { pubkey: string }) {
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
       <div className="relative shrink-0">
-        <Avatar className="size-11">
+        <Avatar shape={avatarShape} className="size-11">
           <AvatarImage src={metadata?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}
@@ -1015,6 +1049,49 @@ function AccountSkeleton() {
  *  - The user manually types a full npub1… / hex pubkey / NIP-05 and presses Enter or blurs
  */
 /** Small removable chip showing a single selected author. */
+
+/**
+ * Owns the raw keystroke state for the search box so that typing only
+ * re-renders this small component, not the entire SearchPage.
+ * Calls onDebouncedChange after 300 ms of inactivity.
+ */
+function SearchInput({
+  initialValue,
+  onDebouncedChange,
+  className,
+}: {
+  initialValue: string;
+  onDebouncedChange: (value: string) => void;
+  className?: string;
+}) {
+  const [value, setValue] = useState(initialValue);
+  const onDebouncedChangeRef = useRef(onDebouncedChange);
+  onDebouncedChangeRef.current = onDebouncedChange;
+
+  // Sync if the parent resets the value (e.g. browser back/forward)
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  // Debounce: call parent only after 300 ms of no typing
+  useEffect(() => {
+    const id = setTimeout(() => onDebouncedChangeRef.current(value), 300);
+    return () => clearTimeout(id);
+  }, [value]);
+
+  return (
+    <div className={cn('relative flex-1', className)}>
+      <Input
+        type="text"
+        placeholder="Search"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
+      />
+      <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+    </div>
+  );
+}
 
 function SaveDestinationRow({
   icon, label, description, onClick, disabled, loading,

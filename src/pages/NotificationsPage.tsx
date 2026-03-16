@@ -9,15 +9,18 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAppContext } from '@/hooks/useAppContext';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteCard } from '@/components/NoteCard';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEvent } from '@/hooks/useEvent';
-import { useNotifications, type NotificationItem } from '@/hooks/useNotifications';
+import { useNotifications, type GroupedNotificationItem, type NotificationItem } from '@/hooks/useNotifications';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
+import { getAvatarShape, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
@@ -36,7 +39,7 @@ export function NotificationsPage() {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const {
-    items,
+    groupedItems,
     newNotificationIds,
     isLoading,
     hasFetched,
@@ -76,22 +79,24 @@ export function NotificationsPage() {
 
   // Auto-fetch page 2 as soon as page 1 arrives for smoother scrolling
   useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && items.length > 0 && items.length <= 20) {
+    if (hasNextPage && !isFetchingNextPage && groupedItems.length > 0 && groupedItems.length <= 20) {
       fetchNextPage();
     }
-  }, [hasNextPage, isFetchingNextPage, items.length, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, groupedItems.length, fetchNextPage]);
 
-  const filteredItems = useMemo(() => {
-    let filtered = items;
+  const filteredGroups = useMemo(() => {
+    let filtered = groupedItems;
     // Filter out notifications from muted users/content
     if (muteItems.length > 0) {
-      filtered = filtered.filter((item) => !isEventMuted(item.event, muteItems));
+      filtered = filtered.filter((group) =>
+        group.actors.every((item) => !isEventMuted(item.event, muteItems)),
+      );
     }
     if (activeTab === 'mentions') {
-      filtered = filtered.filter((item) => item.event.kind === 1 || item.event.kind === 1111);
+      filtered = filtered.filter((group) => group.kind === 1 || group.kind === 1111);
     }
     return filtered;
-  }, [items, activeTab, muteItems]);
+  }, [groupedItems, activeTab, muteItems]);
 
   const tabs: { key: NotificationTab; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -131,13 +136,12 @@ export function NotificationsPage() {
               <NotificationSkeleton key={i} />
             ))}
           </div>
-        ) : filteredItems.length > 0 ? (
+        ) : filteredGroups.length > 0 ? (
           <div>
-            {filteredItems.map((item) => (
-              <NotificationItemView
-                key={item.event.id}
-                item={item}
-                isNew={newNotificationIds.has(item.event.id)}
+            {filteredGroups.map((group) => (
+              <GroupedNotificationView
+                key={group.key}
+                group={group}
               />
             ))}
             {hasNextPage && (
@@ -160,30 +164,31 @@ export function NotificationsPage() {
   );
 }
 
-/** Determines the type of notification and renders accordingly. */
-function NotificationItemView({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
-  switch (item.event.kind) {
+/** Renders one condensed group. Delegates to type-specific components. */
+function GroupedNotificationView({ group }: { group: GroupedNotificationItem }) {
+  const solo = group.actors.length === 1;
+
+  switch (group.kind) {
     case 7:
-      return <LikeNotification item={item} isNew={isNew} />;
+      return solo
+        ? <LikeNotification item={group.actors[0]} isNew={group.isNew} />
+        : <LikeNotificationGroup group={group} />;
     case 6:
     case 16:
-      return <RepostNotification item={item} isNew={isNew} />;
+      return solo
+        ? <RepostNotification item={group.actors[0]} isNew={group.isNew} />
+        : <RepostNotificationGroup group={group} />;
     case 9735:
-      return <ZapNotification item={item} isNew={isNew} />;
+      return solo
+        ? <ZapNotification item={group.actors[0]} isNew={group.isNew} />
+        : <ZapNotificationGroup group={group} />;
     case 1:
-      return <MentionNotification item={item} isNew={isNew} />;
+      return <MentionNotification item={group.actors[0]} isNew={group.isNew} />;
     case 1111:
-      return <CommentNotification item={item} isNew={isNew} />;
+      return <CommentNotification item={group.actors[0]} isNew={group.isNew} />;
     default:
       return null;
   }
-}
-
-/** Formats a sats amount into a compact human-readable string. */
-function formatSats(sats: number): string {
-  if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  return sats.toString();
 }
 
 /** Wrapper that adds the new-notification indicator. */
@@ -200,7 +205,7 @@ function NotificationWrapper({ isNew, children }: { isNew: boolean; children: Re
 
 /**
  * Renders the referenced event as a NoteCard.
- * Uses the pre-fetched event from the notification item, falling back to useEvent.
+ * Uses the pre-fetched event from the group, falling back to useEvent.
  */
 function ReferencedNoteCard({ item }: { item: NotificationItem }) {
   const referencedEventId = item.event.tags.findLast(([name]) => name === 'e')?.[1];
@@ -216,7 +221,133 @@ function ReferencedNoteCard({ item }: { item: NotificationItem }) {
 }
 
 // ──────────────────────────────────────
-// Like Notification
+// Actor avatars row for condensed groups
+// ──────────────────────────────────────
+
+/** Shows up to MAX_SHOWN actor avatars with an overflow "+N" badge. */
+const MAX_SHOWN = 5;
+
+function ActorAvatars({ actors }: { actors: NotificationItem[] }) {
+  const shown = actors.slice(0, MAX_SHOWN);
+  const overflow = actors.length - MAX_SHOWN;
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {shown.map((item) => (
+        <ActorAvatar key={item.event.id} pubkey={item.event.pubkey} />
+      ))}
+      {overflow > 0 && (
+        <span className="text-xs text-muted-foreground font-medium pl-0.5">
+          +{overflow} more
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ActorAvatar({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const name = metadata?.name ?? genUserName(pubkey);
+  const profileUrl = useProfileUrl(pubkey, metadata);
+  const shape = getAvatarShape(metadata);
+  const isEmojiShape = !!shape;
+
+  return (
+    <ProfileHoverCard pubkey={pubkey} asChild>
+      <Link
+        to={profileUrl}
+        title={name}
+        className="shrink-0"
+        style={isEmojiShape ? emojiAvatarBorderStyle : undefined}
+      >
+        <Avatar className={cn("size-7", !isEmojiShape && "ring-2 ring-background")} shape={shape}>
+          {metadata?.picture && <AvatarImage src={metadata.picture} alt={name} />}
+          <AvatarFallback className="text-[10px]">{name.slice(0, 2).toUpperCase()}</AvatarFallback>
+        </Avatar>
+      </Link>
+    </ProfileHoverCard>
+  );
+}
+
+// ──────────────────────────────────────
+// Condensed group header: avatars + action text
+// ──────────────────────────────────────
+
+function GroupHeader({
+  actors,
+  icon,
+  action,
+}: {
+  actors: NotificationItem[];
+  icon: React.ReactNode;
+  action: string;
+}) {
+  // Build a human-readable subject line from the first 2 actor names
+  const firstActor = actors[0];
+  const secondActor = actors[1];
+  const totalCount = actors.length;
+
+  const firstName = useActorName(firstActor.event.pubkey);
+  const secondName = useActorName(secondActor?.event.pubkey ?? '');
+
+  let subject: React.ReactNode;
+
+  if (totalCount === 1) {
+    subject = <ActorLink pubkey={firstActor.event.pubkey} name={firstName} />;
+  } else if (totalCount === 2) {
+    subject = (
+      <>
+        <ActorLink pubkey={firstActor.event.pubkey} name={firstName} />
+        {' and '}
+        <ActorLink pubkey={secondActor.event.pubkey} name={secondName} />
+      </>
+    );
+  } else {
+    subject = (
+      <>
+        <ActorLink pubkey={firstActor.event.pubkey} name={firstName} />
+        {` and ${totalCount - 1} others`}
+      </>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 px-4 pt-3 pb-2">
+      <ActorAvatars actors={actors} />
+      <div className="flex items-center gap-1.5 text-sm flex-wrap">
+        <span className="shrink-0 text-muted-foreground">{icon}</span>
+        <span className="font-medium">{subject}</span>
+        <span className="text-muted-foreground">{action}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Helper hook to get a display name for a pubkey. */
+function useActorName(pubkey: string): string {
+  const author = useAuthor(pubkey || 'dummy');
+  return author.data?.metadata?.name ?? genUserName(pubkey || 'dummy');
+}
+
+function ActorLink({ pubkey, name }: { pubkey: string; name: string }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const profileUrl = useProfileUrl(pubkey, metadata);
+
+  return (
+    <ProfileHoverCard pubkey={pubkey} asChild>
+      <Link to={profileUrl} className="font-bold hover:underline">
+        {author.data?.event ? (
+          <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText>
+        ) : name}
+      </Link>
+    </ProfileHoverCard>
+  );
+}
+
+// ──────────────────────────────────────
+// Like Notification (single actor)
 // ──────────────────────────────────────
 function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   return (
@@ -238,7 +369,7 @@ function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: bool
 }
 
 // ──────────────────────────────────────
-// Repost Notification
+// Repost Notification (single actor)
 // ──────────────────────────────────────
 function RepostNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   return (
@@ -256,12 +387,11 @@ function RepostNotification({ item, isNew }: { item: NotificationItem; isNew: bo
 }
 
 // ──────────────────────────────────────
-// Zap Notification
+// Zap Notification (single actor)
 // ──────────────────────────────────────
 function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   const { event } = item;
 
-  // Extract zap amount
   const zapAmount = useMemo(() => {
     const amountTag = event.tags.find(([name]) => name === 'amount');
     if (amountTag?.[1]) {
@@ -282,7 +412,6 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
     return 0;
   }, [event]);
 
-  // Extract sender pubkey from zap receipt
   const senderPubkey = useMemo(() => {
     const pTag = event.tags.find(([name]) => name === 'P');
     if (pTag?.[1]) return pTag[1];
@@ -296,7 +425,7 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
     return event.pubkey;
   }, [event]);
 
-  const amountLabel = zapAmount > 0 ? ` ${formatSats(zapAmount)} sats` : '';
+  const amountLabel = zapAmount > 0 ? ` ${formatNumber(zapAmount)} sats` : '';
 
   return (
     <NotificationWrapper isNew={isNew}>
@@ -313,7 +442,108 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
 }
 
 // ──────────────────────────────────────
-// Mention Notification
+// Like Notification (grouped)
+// ──────────────────────────────────────
+function LikeNotificationGroup({ group }: { group: GroupedNotificationItem }) {
+  // Use the first actor's reaction emoji as the icon
+  const firstEvent = group.actors[0].event;
+  return (
+    <NotificationWrapper isNew={group.isNew}>
+      <GroupHeader
+        actors={group.actors}
+        icon={
+          <span className="text-base leading-none size-4 flex items-center justify-center">
+            <ReactionEmoji content={firstEvent.content.trim()} tags={firstEvent.tags} className="inline-block h-4 w-4" />
+          </span>
+        }
+        action="reacted to your post"
+      />
+      <ReferencedNoteCard item={group.actors[0]} />
+    </NotificationWrapper>
+  );
+}
+
+// ──────────────────────────────────────
+// Repost Notification (grouped)
+// ──────────────────────────────────────
+function RepostNotificationGroup({ group }: { group: GroupedNotificationItem }) {
+  return (
+    <NotificationWrapper isNew={group.isNew}>
+      <GroupHeader
+        actors={group.actors}
+        icon={<RepostIcon className="size-4 text-accent" />}
+        action="reposted your note"
+      />
+      <ReferencedNoteCard item={group.actors[0]} />
+    </NotificationWrapper>
+  );
+}
+
+// ──────────────────────────────────────
+// Zap Notification (grouped)
+// ──────────────────────────────────────
+function ZapNotificationGroup({ group }: { group: GroupedNotificationItem }) {
+  // Sum zap amounts across all actors in the group
+  const totalSats = useMemo(() => {
+    let total = 0;
+    for (const item of group.actors) {
+      const event = item.event;
+      const amountTag = event.tags.find(([name]) => name === 'amount');
+      if (amountTag?.[1]) {
+        const msats = parseInt(amountTag[1], 10);
+        if (!isNaN(msats) && msats > 0) { total += Math.floor(msats / 1000); continue; }
+      }
+      const descTag = event.tags.find(([name]) => name === 'description');
+      if (descTag?.[1]) {
+        try {
+          const zapRequest = JSON.parse(descTag[1]);
+          const reqAmountTag = zapRequest.tags?.find(([name]: [string]) => name === 'amount');
+          if (reqAmountTag?.[1]) {
+            const msats = parseInt(reqAmountTag[1], 10);
+            if (!isNaN(msats) && msats > 0) { total += Math.floor(msats / 1000); continue; }
+          }
+        } catch { /* ignore */ }
+      }
+    }
+    return total;
+  }, [group.actors]);
+
+  // Extract sender pubkeys from zap receipts to use as the actor pubkeys
+  const zapActors = useMemo<NotificationItem[]>(() => {
+    return group.actors.map((item) => {
+      const event = item.event;
+      let senderPubkey = event.pubkey;
+      const pTag = event.tags.find(([name]) => name === 'P');
+      if (pTag?.[1]) { senderPubkey = pTag[1]; }
+      else {
+        const descTag = event.tags.find(([name]) => name === 'description');
+        if (descTag?.[1]) {
+          try {
+            const zapRequest = JSON.parse(descTag[1]);
+            if (zapRequest.pubkey) senderPubkey = zapRequest.pubkey;
+          } catch { /* ignore */ }
+        }
+      }
+      return { ...item, event: { ...event, pubkey: senderPubkey } };
+    });
+  }, [group.actors]);
+
+  const amountLabel = totalSats > 0 ? ` ${formatNumber(totalSats)} sats` : '';
+
+  return (
+    <NotificationWrapper isNew={group.isNew}>
+      <GroupHeader
+        actors={zapActors}
+        icon={<Zap className="size-4 text-amber-500 fill-amber-500" />}
+        action={`zapped you${amountLabel}`}
+      />
+      <ReferencedNoteCard item={group.actors[0]} />
+    </NotificationWrapper>
+  );
+}
+
+// ──────────────────────────────────────
+// Mention Notification (always standalone)
 // ──────────────────────────────────────
 function MentionNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   return (
@@ -331,7 +561,7 @@ function MentionNotification({ item, isNew }: { item: NotificationItem; isNew: b
 }
 
 // ──────────────────────────────────────
-// Comment Notification (kind 1111)
+// Comment Notification (kind 1111, always standalone)
 // ──────────────────────────────────────
 function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   // If the parent kind tag is "1111", this is a reply to a comment; otherwise it's a
@@ -354,7 +584,7 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
 }
 
 // ──────────────────────────────────────
-// Notification Header: icon + actor name + action
+// Notification Header: icon + actor name + action (used for standalone items)
 // ──────────────────────────────────────
 function NotificationHeader({
   actorPubkey,

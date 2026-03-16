@@ -19,8 +19,10 @@ import { isEventMuted } from '@/lib/muteHelpers';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { formatTime } from '@/lib/formatTime';
 import { canZap } from '@/lib/canZap';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 
 import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
@@ -40,13 +42,6 @@ function formatFullDate(ts: number): string {
   });
 }
 
-/** Format sats compactly. */
-function formatSats(sats: number): string {
-  if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  return sats.toString();
-}
-
 export function MusicDetailContent({ event }: { event: NostrEvent }) {
   const isTrack = event.kind === 36787;
   return isTrack ? <TrackDetail event={event} /> : <PlaylistDetail event={event} />;
@@ -61,6 +56,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
 
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { user } = useCurrentUser();
@@ -127,7 +123,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
           {parsed?.artist && <p className="text-base text-muted-foreground">{parsed.artist}</p>}
           {!parsed?.artist && (
             <Link to={profileUrl} className="flex items-center gap-2 group" onClick={(e) => e.stopPropagation()}>
-              <Avatar className="size-6">
+              <Avatar shape={avatarShape} className="size-6">
                 <AvatarImage src={metadata?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-[10px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
               </Avatar>
@@ -202,8 +198,8 @@ function TrackDetail({ event }: { event: NostrEvent }) {
             {/* Zap stats */}
             {zapAmount > 0 && (
               <button onClick={() => setInteractionsTab('zaps')} className="ml-1 text-right hover:opacity-80">
-                <p className="text-lg font-bold leading-tight">{formatSats(zapAmount)} sats</p>
-                <p className="text-xs text-muted-foreground">{stats.data?.zapCount ?? 0} zap{(stats.data?.zapCount ?? 0) !== 1 ? 's' : ''}</p>
+                <p className="text-lg font-bold leading-tight">{formatNumber(zapAmount)} sats</p>
+                <p className="text-xs text-muted-foreground">{formatNumber(stats.data?.zapCount ?? 0)} zap{(stats.data?.zapCount ?? 0) !== 1 ? 's' : ''}</p>
               </button>
             )}
           </div>
@@ -241,13 +237,13 @@ function TrackDetail({ event }: { event: NostrEvent }) {
           onClick={() => setReplyOpen(true)}
           className="flex-1 py-3 text-center text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
         >
-          Comments <span className="text-xs ml-1 opacity-70">{comments.length || 0}</span>
+          Comments <span className="text-xs ml-1 opacity-70">{formatNumber(comments.length || 0)}</span>
         </button>
         <button
           onClick={() => setInteractionsTab('reactions')}
           className="flex-1 py-3 text-center text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
         >
-          Reactions <span className="text-xs ml-1 opacity-70">{stats.data?.reactions || 0}</span>
+          Reactions <span className="text-xs ml-1 opacity-70">{formatNumber(stats.data?.reactions || 0)}</span>
         </button>
       </div>
 
@@ -288,6 +284,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
   const parsed = useMemo(() => parseMusicPlaylist(event), [event]);
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
@@ -319,7 +316,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
           <h2 className="text-xl sm:text-2xl font-bold leading-tight">{parsed?.title ?? 'Untitled'}</h2>
 
           <Link to={profileUrl} className="flex items-center gap-2 group">
-            <Avatar className="size-6">
+            <Avatar shape={avatarShape} className="size-6">
               <AvatarImage src={metadata?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-[10px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>

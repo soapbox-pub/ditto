@@ -6,6 +6,7 @@ import type { NostrSigner } from '@nostrify/nostrify';
 
 import { useCurrentUser } from "./useCurrentUser";
 import { useAppContext } from "./useAppContext";
+import { getEffectiveBlossomServers } from "@/lib/appBlossom";
 
 export function useUploadFile() {
   const { user } = useCurrentUser();
@@ -17,8 +18,13 @@ export function useUploadFile() {
         throw new Error('Must be logged in to upload files');
       }
 
+      const servers = getEffectiveBlossomServers(
+        config.blossomServerMetadata,
+        config.useAppBlossomServers,
+      );
+
       const uploader = new BlossomUploader({
-        servers: config.blossomServers,
+        servers,
         signer: user.signer,
       });
 
@@ -37,8 +43,8 @@ export function useUploadFile() {
       // Mirror to all other servers in the background (fire-and-forget).
       // BlossomUploader uses Promise.any(), so only one server has the blob.
       // We mirror to the rest for redundancy (BUD-04).
-      const uploadedServer = config.blossomServers.find((s) => url.startsWith(s));
-      const mirrorServers = config.blossomServers.filter((s) => s !== uploadedServer);
+      const uploadedServer = servers.find((s) => url.startsWith(s));
+      const mirrorServers = servers.filter((s) => s !== uploadedServer);
 
       if (mirrorServers.length > 0) {
         mirrorToServers(url, mirrorServers, user.signer).catch(() => {
