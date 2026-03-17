@@ -358,16 +358,26 @@ export function useBlobbiEyes(
       });
 
       // ─── Apply Blink Transform (whole eye) ────────────────────────────────
-      // Only scaleY - no translate. Affects eye white + pupil + highlight.
-      const blinkTransform = `scale(1 ${blinkScaleY})`;
+      // Scale around eye center using: translate(cx,cy) scale(1,blinkY) translate(-cx,-cy)
+      // This keeps the eye in place instead of shifting down during blink.
+      const applyBlinkTransform = (el: SVGGElement) => {
+        // Extract center from transform-origin style (format: "Xpx Ypx")
+        const origin = el.style.transformOrigin;
+        const match = origin.match(/(-?\d+\.?\d*)px\s+(-?\d+\.?\d*)px/);
 
-      leftBlinkRef.current.forEach((el) => {
-        el.setAttribute('transform', blinkTransform);
-      });
+        if (match) {
+          const cx = parseFloat(match[1]);
+          const cy = parseFloat(match[2]);
+          // Scale around center: translate to origin, scale, translate back
+          el.setAttribute('transform', `translate(${cx} ${cy}) scale(1 ${blinkScaleY}) translate(${-cx} ${-cy})`);
+        } else {
+          // Fallback if no center found
+          el.setAttribute('transform', `scale(1 ${blinkScaleY})`);
+        }
+      };
 
-      rightBlinkRef.current.forEach((el) => {
-        el.setAttribute('transform', blinkTransform);
-      });
+      leftBlinkRef.current.forEach(applyBlinkTransform);
+      rightBlinkRef.current.forEach(applyBlinkTransform);
 
       // Continue animation loop
       animationRef.current = requestAnimationFrame(animate);
