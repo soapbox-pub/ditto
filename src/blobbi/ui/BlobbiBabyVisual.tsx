@@ -6,11 +6,11 @@
  * Includes eye movement animation with mouse tracking.
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
 import { addEyeAnimation } from './lib/eye-animation';
-import { useBlobbiEyes } from './lib/useBlobbiEyes';
+import { useBlobbiEyes, type EyePosition } from './lib/useBlobbiEyes';
 import { cn } from '@/lib/utils';
 import type { Blobbi } from '@/types/blobbi';
 import { isBlobbiSleeping } from '@/types/blobbi';
@@ -48,13 +48,36 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', className }: Blobb
   // Disable reactions when sleeping
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
-  // Eye animation hook - pass containerRef for mouse position calculations
-  // Energy affects idle behavior: high energy = more active, low energy = lazy
-  const { leftEyePosition, rightEyePosition, isTracking } = useBlobbiEyes(containerRef, {
+  // Direct DOM update callback - called every animation frame
+  // This bypasses React state for real-time responsiveness
+  const handleEyeUpdate = useCallback(
+    (left: EyePosition, right: EyePosition, isTracking: boolean) => {
+      if (!containerRef.current) return;
+
+      const leftEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-left');
+      const rightEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-right');
+
+      // Apply transforms directly to DOM
+      leftEyes.forEach((el) => {
+        el.style.transform = `translate(${left.x}px, ${left.y}px)`;
+        el.classList.toggle('tracking', isTracking);
+      });
+
+      rightEyes.forEach((el) => {
+        el.style.transform = `translate(${right.x}px, ${right.y}px)`;
+        el.classList.toggle('tracking', isTracking);
+      });
+    },
+    []
+  );
+
+  // Eye animation hook - uses callback for direct DOM updates (no React state lag)
+  useBlobbiEyes(containerRef, {
     isSleeping,
     maxMovement: 2,
     trackingRadius: 200,
     energy: blobbi.stats.energy,
+    onUpdate: handleEyeUpdate,
   });
 
   // Memoize the customized SVG to avoid unnecessary processing
@@ -69,25 +92,6 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', className }: Blobb
 
     return colorizedSvg;
   }, [blobbi, isSleeping]);
-
-  // Apply eye transforms via DOM manipulation
-  useEffect(() => {
-    if (!containerRef.current || isSleeping) return;
-
-    const leftEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-left');
-    const rightEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-right');
-
-    // Apply transforms
-    leftEyes.forEach((el) => {
-      el.style.transform = `translate(${leftEyePosition.x}px, ${leftEyePosition.y}px)`;
-      el.classList.toggle('tracking', isTracking);
-    });
-
-    rightEyes.forEach((el) => {
-      el.style.transform = `translate(${rightEyePosition.x}px, ${rightEyePosition.y}px)`;
-      el.classList.toggle('tracking', isTracking);
-    });
-  }, [leftEyePosition, rightEyePosition, isTracking, isSleeping]);
 
   return (
     <div
