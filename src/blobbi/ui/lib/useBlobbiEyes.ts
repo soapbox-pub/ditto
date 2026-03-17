@@ -2,12 +2,20 @@
  * useBlobbiEyes - Hook for Blobbi eye animations
  *
  * Provides natural eye movement with:
- * - Random idle wandering with pauses
+ * - Smooth interpolation for all movement (no jumps)
+ * - Random idle wandering with long pauses
  * - Mouse tracking when cursor is nearby
- * - Smooth transitions between states
+ * - Clean separation between idle and tracking states
+ *
+ * Architecture:
+ * - Single requestAnimationFrame loop handles ALL animation
+ * - Maintains "current" and "target" positions
+ * - Always interpolates: current = lerp(current, target, smoothing)
+ * - Idle behavior sets new targets periodically
+ * - Mouse tracking overrides targets when active
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,8 +36,6 @@ interface UseBlobbiEyesOptions {
 }
 
 interface UseBlobbiEyesReturn {
-  /** Ref to attach to the Blobbi container */
-  containerRef: React.RefObject<HTMLDivElement>;
   /** Current position for left eye */
   leftEyePosition: EyePosition;
   /** Current position for right eye */
@@ -40,48 +46,65 @@ interface UseBlobbiEyesReturn {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEFAULT_MAX_MOVEMENT = 2; // pixels
-const DEFAULT_TRACKING_RADIUS = 200; // pixels
-const IDLE_MOVE_INTERVAL = { min: 1500, max: 4000 }; // ms between movements
-const PAUSE_DURATION = { min: 2000, max: 5000 }; // ms to pause at position
-const TRACKING_SMOOTHING = 0.15; // Lerp factor for mouse tracking
+const DEFAULT_MAX_MOVEMENT = 2;
+const DEFAULT_TRACKING_RADIUS = 200;
+
+// Smoothing factors (per frame at 60fps)
+// Lower = smoother/slower, Higher = snappier
+const IDLE_SMOOTHING = 0.03; // Very smooth for idle drift
+const TRACKING_SMOOTHING = 0.08; // Slightly faster for tracking
+const RETURN_SMOOTHING = 0.04; // Smooth return from tracking to idle
+
+// Idle behavior timing (in milliseconds)
+const IDLE_MIN_DURATION = 3000; // Minimum time at a position
+const IDLE_MAX_DURATION = 6000; // Maximum time at a position
+const IDLE_PAUSE_CHANCE = 0.4; // 40% chance to pause at center
 
 // ─── Utility Functions ────────────────────────────────────────────────────────
 
-/**
- * Get a random number in a range
- */
 function randomInRange(min: number, max: number): number {
   return Math.random() * (max - min) + min;
 }
 
-/**
- * Clamp a value between min and max
- */
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-/**
- * Linear interpolation
- */
 function lerp(start: number, end: number, factor: number): number {
   return start + (end - start) * factor;
 }
 
+function lerpPosition(start: EyePosition, end: EyePosition, factor: number): EyePosition {
+  return {
+    x: lerp(start.x, end.x, factor),
+    y: lerp(start.y, end.y, factor),
+  };
+}
+
+function distanceSquared(a: EyePosition, b: EyePosition): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
+}
+
 /**
- * Generate a random idle position within bounds
+ * Generate a random idle target position
+ * Occasionally returns center (0,0) for natural pauses
  */
-function getRandomIdlePosition(maxMovement: number): EyePosition {
+function getRandomIdleTarget(maxMovement: number): EyePosition {
+  // Sometimes pause at center
+  if (Math.random() < IDLE_PAUSE_CHANCE) {
+    return { x: 0, y: 0 };
+  }
+
   return {
     x: randomInRange(-maxMovement, maxMovement),
-    y: randomInRange(-maxMovement * 0.5, maxMovement * 0.5), // Less vertical movement
+    y: randomInRange(-maxMovement * 0.5, maxMovement * 0.5), // Less vertical
   };
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useBlobbiEyes(options: UseBlobbiEyesOptions = {}): UseBlobbiEyesReturn {
+export function useBlobbiEyes(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  options: UseBlobbiEyesOptions = {}
+): UseBlobbiEyesReturn {
   const {
     isSleeping = false,
     maxMovement = DEFAULT_MAX_MOVEMENT,
@@ -89,125 +112,154 @@ export function useBlobbiEyes(options: UseBlobbiEyesOptions = {}): UseBlobbiEyes
     enableTracking = true,
   } = options;
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Output state (what gets rendered)
   const [leftEyePosition, setLeftEyePosition] = useState<EyePosition>({ x: 0, y: 0 });
   const [rightEyePosition, setRightEyePosition] = useState<EyePosition>({ x: 0, y: 0 });
   const [isTracking, setIsTracking] = useState(false);
 
-  // Refs for animation state
-  const idleTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
-  const animationFrameRef = useRef<number>();
+  // Animation state (refs to avoid re-renders during animation)
+  const animationRef = useRef<number | null>(null);
+  const currentLeftRef = useRef<EyePosition>({ x: 0, y: 0 });
+  const currentRightRef = useRef<EyePosition>({ x: 0, y: 0 });
+  const targetLeftRef = useRef<EyePosition>({ x: 0, y: 0 });
+  const targetRightRef = useRef<EyePosition>({ x: 0, y: 0 });
+
+  // Mouse tracking state
   const mousePositionRef = useRef<{ x: number; y: number } | null>(null);
-  const targetPositionRef = useRef<EyePosition>({ x: 0, y: 0 });
+  const isTrackingRef = useRef(false);
 
-  // ─── Idle Animation ───────────────────────────────────────────────────────
+  // Idle timing state
+  const nextIdleChangeRef = useRef(0);
 
-  const scheduleIdleMove = useCallback(() => {
-    if (isSleeping) return;
+  // ─── Main Animation Loop ──────────────────────────────────────────────────
 
-    // Clear any existing timeout
-    if (idleTimeoutRef.current) {
-      clearTimeout(idleTimeoutRef.current);
-    }
-
-    // Random delay before next movement
-    const delay = randomInRange(IDLE_MOVE_INTERVAL.min, IDLE_MOVE_INTERVAL.max);
-
-    idleTimeoutRef.current = setTimeout(() => {
-      if (isTracking) {
-        // Don't move during tracking, reschedule
-        scheduleIdleMove();
-        return;
-      }
-
-      // Random chance to pause at current position
-      if (Math.random() < 0.3) {
-        const pauseDuration = randomInRange(PAUSE_DURATION.min, PAUSE_DURATION.max);
-        idleTimeoutRef.current = setTimeout(scheduleIdleMove, pauseDuration);
-        return;
-      }
-
-      // Generate new random position
-      const newPosition = getRandomIdlePosition(maxMovement);
-
-      // Slight offset for right eye to feel more natural
-      const rightOffset = {
-        x: newPosition.x + randomInRange(-0.3, 0.3),
-        y: newPosition.y + randomInRange(-0.2, 0.2),
-      };
-
-      setLeftEyePosition(newPosition);
-      setRightEyePosition({
-        x: clamp(rightOffset.x, -maxMovement, maxMovement),
-        y: clamp(rightOffset.y, -maxMovement * 0.5, maxMovement * 0.5),
-      });
-
-      // Schedule next move
-      scheduleIdleMove();
-    }, delay);
-  }, [isSleeping, isTracking, maxMovement]);
-
-  // ─── Mouse Tracking ───────────────────────────────────────────────────────
-
-  const updateMouseTracking = useCallback(() => {
-    if (!containerRef.current || !mousePositionRef.current || isSleeping || !enableTracking) {
+  useEffect(() => {
+    if (isSleeping) {
+      // Reset everything when sleeping
+      currentLeftRef.current = { x: 0, y: 0 };
+      currentRightRef.current = { x: 0, y: 0 };
+      targetLeftRef.current = { x: 0, y: 0 };
+      targetRightRef.current = { x: 0, y: 0 };
+      setLeftEyePosition({ x: 0, y: 0 });
+      setRightEyePosition({ x: 0, y: 0 });
+      setIsTracking(false);
       return;
     }
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const containerCenterX = rect.left + rect.width / 2;
-    const containerCenterY = rect.top + rect.height / 2;
+    let lastTime = performance.now();
 
-    const mouseX = mousePositionRef.current.x;
-    const mouseY = mousePositionRef.current.y;
+    const animate = (currentTime: number) => {
+      const deltaTime = currentTime - lastTime;
+      lastTime = currentTime;
 
-    // Calculate distance from center
-    const dx = mouseX - containerCenterX;
-    const dy = mouseY - containerCenterY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
+      // Normalize smoothing to ~60fps (16.67ms per frame)
+      const timeScale = deltaTime / 16.67;
 
-    if (distance < trackingRadius) {
-      // Mouse is nearby - track it
-      if (!isTracking) {
-        setIsTracking(true);
+      // ─── Determine Target Position ────────────────────────────────────
+
+      let smoothing = IDLE_SMOOTHING;
+      let shouldTrack = false;
+
+      // Check if mouse is nearby and we should track
+      if (enableTracking && mousePositionRef.current && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const mouseX = mousePositionRef.current.x;
+        const mouseY = mousePositionRef.current.y;
+
+        const dx = mouseX - centerX;
+        const dy = mouseY - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < trackingRadius) {
+          shouldTrack = true;
+          smoothing = TRACKING_SMOOTHING;
+
+          // Calculate eye target based on mouse direction
+          const angle = Math.atan2(dy, dx);
+
+          // Intensity increases as mouse gets closer (but never reaches max at center)
+          // Use a curve that feels natural
+          const normalizedDistance = distance / trackingRadius;
+          const intensity = Math.pow(normalizedDistance, 0.5); // Square root for more responsive near edges
+
+          const targetX = Math.cos(angle) * maxMovement * intensity;
+          const targetY = Math.sin(angle) * maxMovement * 0.7 * intensity;
+
+          // Both eyes look at the same point
+          targetLeftRef.current = { x: targetX, y: targetY };
+          targetRightRef.current = { x: targetX, y: targetY };
+        }
       }
 
-      // Calculate direction to mouse and clamp movement
-      const angle = Math.atan2(dy, dx);
-      const intensity = Math.min(distance / trackingRadius, 1);
+      // Update tracking state
+      if (shouldTrack !== isTrackingRef.current) {
+        isTrackingRef.current = shouldTrack;
+        setIsTracking(shouldTrack);
 
-      // Target position based on mouse direction
-      const targetX = Math.cos(angle) * maxMovement * intensity;
-      const targetY = Math.sin(angle) * maxMovement * 0.7 * intensity; // Less vertical
-
-      targetPositionRef.current = { x: targetX, y: targetY };
-
-      // Smooth interpolation to target
-      setLeftEyePosition((prev) => ({
-        x: lerp(prev.x, targetX, TRACKING_SMOOTHING),
-        y: lerp(prev.y, targetY, TRACKING_SMOOTHING),
-      }));
-
-      // Right eye follows with slight offset
-      setRightEyePosition((prev) => ({
-        x: lerp(prev.x, targetX, TRACKING_SMOOTHING),
-        y: lerp(prev.y, targetY, TRACKING_SMOOTHING),
-      }));
-    } else {
-      // Mouse is far - return to idle
-      if (isTracking) {
-        setIsTracking(false);
+        if (!shouldTrack) {
+          // Just stopped tracking - use return smoothing and schedule next idle change soon
+          smoothing = RETURN_SMOOTHING;
+          nextIdleChangeRef.current = currentTime + randomInRange(500, 1500);
+        }
       }
-    }
 
-    // Continue animation frame
-    animationFrameRef.current = requestAnimationFrame(updateMouseTracking);
-  }, [isSleeping, enableTracking, trackingRadius, maxMovement, isTracking]);
+      // ─── Idle Behavior (only when not tracking) ───────────────────────
 
-  // ─── Mouse Event Handler ──────────────────────────────────────────────────
+      if (!shouldTrack) {
+        // Check if it's time to pick a new idle target
+        if (currentTime >= nextIdleChangeRef.current) {
+          const newTarget = getRandomIdleTarget(maxMovement);
 
-  useEffect(() => {
-    if (isSleeping || !enableTracking) return;
+          // Add slight variation between eyes for natural feel
+          targetLeftRef.current = newTarget;
+          targetRightRef.current = {
+            x: newTarget.x + randomInRange(-0.2, 0.2),
+            y: newTarget.y + randomInRange(-0.1, 0.1),
+          };
+
+          // Schedule next change
+          nextIdleChangeRef.current = currentTime + randomInRange(IDLE_MIN_DURATION, IDLE_MAX_DURATION);
+        }
+
+        smoothing = IDLE_SMOOTHING;
+      }
+
+      // ─── Interpolate Current Position Toward Target ───────────────────
+
+      const adjustedSmoothing = Math.min(smoothing * timeScale, 0.5); // Cap to prevent overshooting
+
+      const newLeft = lerpPosition(currentLeftRef.current, targetLeftRef.current, adjustedSmoothing);
+      const newRight = lerpPosition(currentRightRef.current, targetRightRef.current, adjustedSmoothing);
+
+      // Only update state if position changed meaningfully (avoid unnecessary renders)
+      const threshold = 0.001;
+      const leftChanged = distanceSquared(currentLeftRef.current, newLeft) > threshold * threshold;
+      const rightChanged = distanceSquared(currentRightRef.current, newRight) > threshold * threshold;
+
+      currentLeftRef.current = newLeft;
+      currentRightRef.current = newRight;
+
+      if (leftChanged) {
+        setLeftEyePosition({ x: newLeft.x, y: newLeft.y });
+      }
+      if (rightChanged) {
+        setRightEyePosition({ x: newRight.x, y: newRight.y });
+      }
+
+      // Continue animation loop
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    // Initialize idle timing
+    nextIdleChangeRef.current = performance.now() + randomInRange(1000, 2000);
+
+    // Start animation loop
+    animationRef.current = requestAnimationFrame(animate);
+
+    // ─── Mouse Event Listeners ──────────────────────────────────────────
 
     const handleMouseMove = (e: MouseEvent) => {
       mousePositionRef.current = { x: e.clientX, y: e.clientY };
@@ -215,46 +267,27 @@ export function useBlobbiEyes(options: UseBlobbiEyesOptions = {}): UseBlobbiEyes
 
     const handleMouseLeave = () => {
       mousePositionRef.current = null;
-      setIsTracking(false);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseleave', handleMouseLeave);
-
-    // Start animation frame loop for smooth tracking
-    animationFrameRef.current = requestAnimationFrame(updateMouseTracking);
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseleave', handleMouseLeave);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [isSleeping, enableTracking, updateMouseTracking]);
-
-  // ─── Idle Animation Setup ─────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (isSleeping) {
-      // Reset to center when sleeping
-      setLeftEyePosition({ x: 0, y: 0 });
-      setRightEyePosition({ x: 0, y: 0 });
-      return;
+    if (enableTracking) {
+      window.addEventListener('mousemove', handleMouseMove, { passive: true });
+      window.addEventListener('mouseleave', handleMouseLeave);
     }
 
-    // Start idle animation
-    scheduleIdleMove();
+    // ─── Cleanup ────────────────────────────────────────────────────────
 
     return () => {
-      if (idleTimeoutRef.current) {
-        clearTimeout(idleTimeoutRef.current);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      if (enableTracking) {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseleave', handleMouseLeave);
       }
     };
-  }, [isSleeping, scheduleIdleMove]);
+  }, [isSleeping, maxMovement, trackingRadius, enableTracking, containerRef]);
 
   return {
-    containerRef,
     leftEyePosition,
     rightEyePosition,
     isTracking,
