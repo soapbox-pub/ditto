@@ -246,26 +246,18 @@
 
 /**
  * Eye animation for Blobbi characters.
- * Uses CSS transitions for smooth movement, controlled by JavaScript.
- * The actual animation logic is in useBlobbiEyes hook.
+ * NO CSS transitions - movement is controlled directly by JavaScript RAF loop.
+ * Using transitions causes delayed visual updates while mouse is moving.
  */
 .blobbi-eye {
   /* SVG transform properties */
   transform-box: fill-box;
   transform-origin: center center;
-  /* Smooth transitions for JS-controlled movement */
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform;
-}
-
-/* Faster transition when tracking mouse */
-.blobbi-eye.tracking {
-  transition: transform 0.1s ease-out;
+  /* NO transition - instant updates only */
 }
 
 @media (prefers-reduced-motion: reduce) {
   .blobbi-eye {
-    transition: none !important;
     transform: none !important;
   }
 }
