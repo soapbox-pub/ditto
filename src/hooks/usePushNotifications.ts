@@ -114,13 +114,21 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   }, []);
 
   // ─── enable() ─────────────────────────────────────────────────────────────
+  // Called from NotificationSettings click handler AFTER permission is already
+  // granted. Does NOT call requestPermission() itself — the caller is
+  // responsible for that (and must do so from a user gesture for iOS).
 
   const enable = useCallback(async (userPubkey: string) => {
-    if (!supported) return;
+    if (!supported) {
+      console.warn('[push] enable() called but push not supported');
+      return;
+    }
 
-    const result = await Notification.requestPermission();
-    setPermission(result);
-    if (result !== 'granted') return;
+    // Verify permission was already granted by the caller.
+    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+      console.warn('[push] enable() called but Notification.permission is', Notification.permission);
+      return;
+    }
 
     const client = clientRef.current;
     if (!client) {
@@ -131,23 +139,32 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     // Get or fetch VAPID key
     let vapidPublicKey = localStorage.getItem(VAPID_KEY_CACHE);
     if (!vapidPublicKey) {
+      console.debug('[push] Fetching VAPID key from nostr-push server for domain:', DOMAIN);
       vapidPublicKey = await client.getVapidKey(DOMAIN);
       localStorage.setItem(VAPID_KEY_CACHE, vapidPublicKey);
+      console.debug('[push] Got VAPID key:', vapidPublicKey.substring(0, 20) + '...');
+    } else {
+      console.debug('[push] Using cached VAPID key');
     }
 
     // Get or create push subscription
     const reg = swRegistrationRef.current ?? await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
+      console.debug('[push] Creating new push subscription');
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
       });
+    } else {
+      console.debug('[push] Reusing existing push subscription');
     }
     pushSubRef.current = sub;
 
     const baseId = getOrCreateSubscriptionId();
     const serialized = serializePushSubscription(sub);
+
+    console.debug('[push] Registering', NOTIFICATION_TEMPLATES.length, 'subscription(s) with nostr-push');
 
     // Register one subscription per notification type so each gets a
     // tailored template (matching the Android native notification text).
@@ -169,6 +186,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       }),
     ));
 
+    console.debug('[push] All subscriptions registered successfully');
     setEnabled(true);
   }, [supported]);
 
