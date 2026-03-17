@@ -1945,6 +1945,7 @@ export function ProfilePage() {
                   setActiveTab(tabId);
                   if (tab.label === 'Media') setSidebarMediaUrl(null);
                 }}
+                className="flex-initial shrink-0 px-4"
               />
             );
           })}
