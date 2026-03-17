@@ -245,67 +245,28 @@
 /* ─── Blobbi Eye Movement Animation ──────────────────────────────────────────── */
 
 /**
- * Subtle eye movement animation for Blobbi pupils.
- * Movement is very small (1-2px) to keep pupils within eye whites.
- * Uses a complex timing pattern to feel natural and not robotic.
+ * Eye animation for Blobbi characters.
+ * Uses CSS transitions for smooth movement, controlled by JavaScript.
+ * The actual animation logic is in useBlobbiEyes hook.
  */
-@keyframes eye-wander {
-  0%, 100% {
-    transform: translate(0, 0);
-  }
-  8% {
-    transform: translate(0.8px, 0.3px);
-  }
-  15% {
-    transform: translate(1px, 0);
-  }
-  25% {
-    transform: translate(0.5px, -0.5px);
-  }
-  35% {
-    transform: translate(0, 0);
-  }
-  /* Pause - eyes stay still */
-  50% {
-    transform: translate(0, 0);
-  }
-  58% {
-    transform: translate(-0.6px, 0.2px);
-  }
-  65% {
-    transform: translate(-1px, 0.5px);
-  }
-  75% {
-    transform: translate(-0.3px, 0);
-  }
-  85% {
-    transform: translate(0.2px, -0.3px);
-  }
-  /* Return to center */
-  95% {
-    transform: translate(0, 0);
-  }
-}
-
-.animate-eye-movement {
-  animation: eye-wander 8s ease-in-out infinite;
-  transform-origin: center;
+.blobbi-eye {
+  /* SVG transform properties */
+  transform-box: fill-box;
+  transform-origin: center center;
+  /* Smooth transitions for JS-controlled movement */
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
 }
 
-/* Offset the right eye animation slightly for natural feel */
-.animate-eye-movement.eye-right {
-  animation-delay: -3s;
-}
-
-/* Slight variation for left eye */
-.animate-eye-movement.eye-left {
-  animation-delay: 0s;
+/* Faster transition when tracking mouse */
+.blobbi-eye.tracking {
+  transition: transform 0.1s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-eye-movement {
-    animation: none !important;
+  .blobbi-eye {
+    transition: none !important;
+    transform: none !important;
   }
 }
 
