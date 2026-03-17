@@ -9,21 +9,22 @@
  *
  * Architecture:
  * - Single requestAnimationFrame loop handles ALL animation
- * - Tracking mode: instant position updates (no interpolation)
+ * - NO React state in animation loop (causes lag)
+ * - Uses onUpdate callback for direct DOM manipulation
+ * - Tracking mode: instant position (no interpolation)
  * - Idle mode: smooth interpolation with energy-scaled timing
- * - Energy affects: movement frequency, smoothing speed, micro-movement chance
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface EyePosition {
+export interface EyePosition {
   x: number;
   y: number;
 }
 
-interface UseBlobbiEyesOptions {
+export interface UseBlobbiEyesOptions {
   /** Whether the Blobbi is sleeping (disables animation) */
   isSleeping?: boolean;
   /** Maximum eye movement in pixels */
@@ -34,15 +35,11 @@ interface UseBlobbiEyesOptions {
   enableTracking?: boolean;
   /** Blobbi's current energy level (0-100), affects idle behavior */
   energy?: number;
-}
-
-interface UseBlobbiEyesReturn {
-  /** Current position for left eye */
-  leftEyePosition: EyePosition;
-  /** Current position for right eye */
-  rightEyePosition: EyePosition;
-  /** Whether currently tracking mouse */
-  isTracking: boolean;
+  /**
+   * Callback called every animation frame with current eye positions.
+   * Use this to apply transforms directly to DOM (no React state lag).
+   */
+  onUpdate?: (left: EyePosition, right: EyePosition, isTracking: boolean) => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -54,9 +51,6 @@ const DEFAULT_ENERGY = 70;
 // Smoothing range based on energy (per frame at 60fps)
 const SMOOTHING_MIN = 0.02; // Low energy - very slow drift
 const SMOOTHING_MAX = 0.06; // High energy - quicker movement
-
-// Return from tracking smoothing
-const RETURN_SMOOTHING = 0.05;
 
 // Idle duration range in milliseconds
 const IDLE_DURATION_MIN = 1000; // High energy - frequent changes
@@ -84,12 +78,6 @@ function lerpPosition(start: EyePosition, end: EyePosition, factor: number): Eye
     x: lerp(start.x, end.x, factor),
     y: lerp(start.y, end.y, factor),
   };
-}
-
-function distanceSquared(a: EyePosition, b: EyePosition): number {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return dx * dx + dy * dy;
 }
 
 // ─── Energy-Based Helpers ─────────────────────────────────────────────────────
@@ -170,21 +158,17 @@ function getRandomIdleTarget(maxMovement: number, energy: number): EyePosition {
 export function useBlobbiEyes(
   containerRef: React.RefObject<HTMLDivElement | null>,
   options: UseBlobbiEyesOptions = {}
-): UseBlobbiEyesReturn {
+): void {
   const {
     isSleeping = false,
     maxMovement = DEFAULT_MAX_MOVEMENT,
     trackingRadius = DEFAULT_TRACKING_RADIUS,
     enableTracking = true,
     energy = DEFAULT_ENERGY,
+    onUpdate,
   } = options;
 
-  // Output state (what gets rendered)
-  const [leftEyePosition, setLeftEyePosition] = useState<EyePosition>({ x: 0, y: 0 });
-  const [rightEyePosition, setRightEyePosition] = useState<EyePosition>({ x: 0, y: 0 });
-  const [isTracking, setIsTracking] = useState(false);
-
-  // Animation state (refs to avoid re-renders during animation)
+  // Animation state (all refs - NO React state in animation loop)
   const animationRef = useRef<number | null>(null);
   const currentLeftRef = useRef<EyePosition>({ x: 0, y: 0 });
   const currentRightRef = useRef<EyePosition>({ x: 0, y: 0 });
@@ -198,9 +182,12 @@ export function useBlobbiEyes(
   // Idle timing state
   const nextIdleChangeRef = useRef(0);
 
-  // Store energy in ref for use in animation loop without causing re-renders
+  // Store options in refs for use in animation loop
   const energyRef = useRef(energy);
   energyRef.current = energy;
+
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
 
   // ─── Main Animation Loop ──────────────────────────────────────────────────
 
@@ -211,9 +198,9 @@ export function useBlobbiEyes(
       currentRightRef.current = { x: 0, y: 0 };
       targetLeftRef.current = { x: 0, y: 0 };
       targetRightRef.current = { x: 0, y: 0 };
-      setLeftEyePosition({ x: 0, y: 0 });
-      setRightEyePosition({ x: 0, y: 0 });
-      setIsTracking(false);
+      isTrackingRef.current = false;
+      // Call onUpdate to reset DOM
+      onUpdateRef.current?.({ x: 0, y: 0 }, { x: 0, y: 0 }, false);
       return;
     }
 
@@ -253,10 +240,11 @@ export function useBlobbiEyes(
           // Calculate eye target based on mouse direction
           const angle = Math.atan2(dy, dx);
 
-          // Intensity increases as mouse gets closer to edge of tracking radius
-          // Use square root curve for more responsive feel near edges
+          // Intensity: CLOSER mouse = STRONGER movement (inverted from before)
+          // normalizedDistance=0 (at center) → intensity=1 (max)
+          // normalizedDistance=1 (at edge) → intensity=0 (min)
           const normalizedDistance = distance / trackingRadius;
-          const intensity = Math.pow(normalizedDistance, 0.5);
+          const intensity = 1 - Math.pow(normalizedDistance, 0.5);
 
           const targetX = Math.cos(angle) * maxMovement * intensity;
           const targetY = Math.sin(angle) * maxMovement * 0.7 * intensity;
@@ -265,15 +253,13 @@ export function useBlobbiEyes(
         }
       }
 
-      // Update tracking state
-      if (shouldTrack !== isTrackingRef.current) {
-        isTrackingRef.current = shouldTrack;
-        setIsTracking(shouldTrack);
+      // Handle tracking state change
+      const wasTracking = isTrackingRef.current;
+      isTrackingRef.current = shouldTrack;
 
-        if (!shouldTrack) {
-          // Just stopped tracking - schedule next idle change soon
-          nextIdleChangeRef.current = currentTime + randomInRange(300, 800);
-        }
+      // When tracking stops, immediately trigger new idle target
+      if (wasTracking && !shouldTrack) {
+        nextIdleChangeRef.current = currentTime; // Force immediate idle target selection
       }
 
       // ─── Handle Tracking Mode (INSTANT - no interpolation) ────────────
@@ -286,9 +272,8 @@ export function useBlobbiEyes(
         targetLeftRef.current = trackingTarget;
         targetRightRef.current = trackingTarget;
 
-        // Update state for rendering
-        setLeftEyePosition({ x: trackingTarget.x, y: trackingTarget.y });
-        setRightEyePosition({ x: trackingTarget.x, y: trackingTarget.y });
+        // Call onUpdate callback (direct DOM update, no React state)
+        onUpdateRef.current?.(trackingTarget, trackingTarget, true);
 
         // Continue animation loop
         animationRef.current = requestAnimationFrame(animate);
@@ -315,12 +300,7 @@ export function useBlobbiEyes(
       }
 
       // Get energy-based smoothing
-      let smoothing = getSmoothing(currentEnergy);
-
-      // If we just stopped tracking, use return smoothing for first few frames
-      if (!isTrackingRef.current && currentTime < nextIdleChangeRef.current - getIdleDuration(currentEnergy) * 0.5) {
-        smoothing = RETURN_SMOOTHING;
-      }
+      const smoothing = getSmoothing(currentEnergy);
 
       // ─── Interpolate Current Position Toward Target ───────────────────
 
@@ -329,28 +309,18 @@ export function useBlobbiEyes(
       const newLeft = lerpPosition(currentLeftRef.current, targetLeftRef.current, adjustedSmoothing);
       const newRight = lerpPosition(currentRightRef.current, targetRightRef.current, adjustedSmoothing);
 
-      // Only update state if position changed meaningfully (avoid unnecessary renders)
-      const threshold = 0.0005; // Smaller threshold for smoother updates
-      const leftChanged = distanceSquared(currentLeftRef.current, newLeft) > threshold * threshold;
-      const rightChanged = distanceSquared(currentRightRef.current, newRight) > threshold * threshold;
-
       currentLeftRef.current = newLeft;
       currentRightRef.current = newRight;
 
-      if (leftChanged) {
-        setLeftEyePosition({ x: newLeft.x, y: newLeft.y });
-      }
-      if (rightChanged) {
-        setRightEyePosition({ x: newRight.x, y: newRight.y });
-      }
+      // Call onUpdate callback every frame (direct DOM update, no React state)
+      onUpdateRef.current?.(newLeft, newRight, false);
 
       // Continue animation loop
       animationRef.current = requestAnimationFrame(animate);
     };
 
-    // Initialize idle timing based on energy
-    const initialDelay = randomInRange(500, 1500);
-    nextIdleChangeRef.current = performance.now() + initialDelay;
+    // Initialize idle timing
+    nextIdleChangeRef.current = performance.now() + randomInRange(100, 500);
 
     // Start animation loop
     animationRef.current = requestAnimationFrame(animate);
@@ -382,10 +352,4 @@ export function useBlobbiEyes(
       }
     };
   }, [isSleeping, maxMovement, trackingRadius, enableTracking, containerRef]);
-
-  return {
-    leftEyePosition,
-    rightEyePosition,
-    isTracking,
-  };
 }
