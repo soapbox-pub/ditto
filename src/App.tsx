@@ -9,6 +9,7 @@ import { InferSeoMetaPlugin } from "@unhead/addons";
 import { createHead, UnheadProvider } from "@unhead/react/client";
 import { useEffect } from "react";
 import { AppProvider } from "@/components/AppProvider";
+import { DMProvider, type DMConfig } from "@/components/DMProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { NativeNotifications } from "@/components/NativeNotifications";
 import NostrProvider from "@/components/NostrProvider";
@@ -19,7 +20,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
+import { PROTOCOL_MODE } from "@/lib/dmConstants";
 import AppRouter from "./AppRouter";
+
+const dmConfig: DMConfig = {
+  enabled: true,
+  protocolMode: PROTOCOL_MODE.NIP04_OR_NIP17,
+};
 
 const head = createHead({
   plugins: [InferSeoMetaPlugin()],
@@ -107,6 +114,7 @@ const hardcodedConfig: AppConfig = {
   sidebarOrder: [
     "feed",
     "notifications",
+    "messages",
     "search",
     "bookmarks",
     "profile",
@@ -169,13 +177,15 @@ export function App() {
                 <NostrProvider>
                   <NostrSync />
                   <NativeNotifications />
-                  <NWCProvider>
-                    <TooltipProvider>
-                      <Toaster />
-                      <InitialSyncGate>
-                        <AppRouter />
-                      </InitialSyncGate>
-                    </TooltipProvider>
+                    <NWCProvider>
+                    <DMProvider config={dmConfig}>
+                      <TooltipProvider>
+                        <Toaster />
+                        <InitialSyncGate>
+                          <AppRouter />
+                        </InitialSyncGate>
+                      </TooltipProvider>
+                    </DMProvider>
                   </NWCProvider>
                 </NostrProvider>
               </NostrLoginProvider>
