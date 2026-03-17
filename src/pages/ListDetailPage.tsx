@@ -39,6 +39,7 @@ import { shareOrCopy } from '@/lib/share';
 import { getRepostKind } from '@/lib/feedUtils';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import { toast } from '@/hooks/useToast';
+import { TabButton } from '@/components/TabButton';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { UserList } from '@/hooks/useUserLists';
@@ -524,45 +525,33 @@ export function ListDetailPage() {
           </div>
         )}
 
-
-
         {/* Tab bar */}
         <div className="flex border-b border-border">
-          <button
-            className={cn(
-              'flex-1 py-2.5 text-sm font-medium text-center transition-colors relative',
-              activeTab === 'feed'
-                ? 'text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
+          <TabButton
+            label="Feed"
+            active={activeTab === 'feed'}
             onClick={() => setActiveTab('feed')}
+            className="py-2.5"
+            indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
           >
             <span className="flex items-center justify-center gap-1.5">
               <Rss className="size-4" />
               Feed
             </span>
-            {activeTab === 'feed' && (
-              <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
-            )}
-          </button>
-          <button
-            className={cn(
-              'flex-1 py-2.5 text-sm font-medium text-center transition-colors relative',
-              activeTab === 'members'
-                ? 'text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
+          </TabButton>
+          <TabButton
+            label="Members"
+            active={activeTab === 'members'}
             onClick={() => setActiveTab('members')}
+            className="py-2.5"
+            indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
           >
             <span className="flex items-center justify-center gap-1.5">
               <Users className="size-4" />
               Members
               <span className="text-xs text-muted-foreground">({list.pubkeys.length})</span>
             </span>
-            {activeTab === 'members' && (
-              <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
-            )}
-          </button>
+          </TabButton>
         </div>
       </div>
 

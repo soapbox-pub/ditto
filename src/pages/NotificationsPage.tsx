@@ -11,6 +11,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteCard } from '@/components/NoteCard';
+import { TabButton } from '@/components/TabButton';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEvent } from '@/hooks/useEvent';
@@ -108,19 +109,14 @@ export function NotificationsPage() {
       {/* Tab bar */}
       <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
         {tabs.map(({ key, label }) => (
-          <button
+          <TabButton
             key={key}
+            label={label}
+            active={activeTab === key}
             onClick={() => setActiveTab(key)}
-            className={cn(
-              'flex-1 py-3.5 sidebar:py-5 text-sm font-medium sidebar:font-semibold transition-colors relative hover:bg-secondary/40',
-              activeTab === key ? 'text-foreground' : 'text-muted-foreground',
-            )}
-          >
-            {label}
-            {activeTab === key && (
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 sidebar:h-[3px] bg-primary rounded-full" />
-            )}
-          </button>
+            className="sidebar:py-5 sidebar:font-semibold"
+            indicatorClassName="sidebar:h-[3px]"
+          />
         ))}
       </div>
 

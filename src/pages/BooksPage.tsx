@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, BookMarked, Loader2, Search, X } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 
-import { FeedTabButton } from '@/components/FeedTabButton';
+import { TabButton } from '@/components/TabButton';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -111,8 +111,8 @@ export function BooksPage() {
       {/* Follows / Global tabs */}
       {user && (
         <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-          <FeedTabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
-          <FeedTabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
+          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
         </div>
       )}
 
@@ -325,9 +325,3 @@ function BookSearchResultItem({ book, onSelect }: { book: BookSearchResult; onSe
     </button>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Tab Button
-// ---------------------------------------------------------------------------
-
-

@@ -45,7 +45,7 @@ import { useVideoThumbnail } from '@/components/VideoPlayer';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { timeAgo } from '@/lib/timeAgo';
-import { FeedTabButton } from '@/components/FeedTabButton';
+import { TabButton } from '@/components/TabButton';
 import { cn } from '@/lib/utils';
 import { getEffectiveStreamStatus } from '@/lib/streamStatus';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -790,8 +790,8 @@ export function VideosFeedPage() {
 
       {/* Follows / Global tabs */}
       <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        <FeedTabButton label="Follows" active={feedTab === 'follows'} onClick={() => setFeedTab('follows')} disabled={!user} />
-        <FeedTabButton label="Global" active={feedTab === 'global'} onClick={() => setFeedTab('global')} />
+        <TabButton label="Follows" active={feedTab === 'follows'} onClick={() => setFeedTab('follows')} disabled={!user} />
+        <TabButton label="Global" active={feedTab === 'global'} onClick={() => setFeedTab('global')} />
       </div>
 
       {/* Live streams strip — follows tab filters by followed authors */}
