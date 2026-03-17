@@ -15,6 +15,7 @@ import {
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { FeedTabButton } from '@/components/FeedTabButton';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -416,8 +417,8 @@ export function SearchPage() {
       {/* Tabs — sticky at top */}
       <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
         <div className="flex">
-          <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
-          <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
+          <FeedTabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} className="sidebar:py-5" />
+          <FeedTabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} className="sidebar:py-5" />
         </div>
       </div>
 
@@ -815,22 +816,7 @@ export function SearchPage() {
 
 /* ── Shared sub-components ── */
 
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-1 py-3.5 sidebar:py-5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
-        active ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
-      )}
-    </button>
-  );
-}
+
 
 function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metadata: Record<string, unknown>; event?: { tags: string[][] } }; isFollowed: boolean }) {
   const npub = useMemo(() => nip19.npubEncode(profile.pubkey), [profile.pubkey]);

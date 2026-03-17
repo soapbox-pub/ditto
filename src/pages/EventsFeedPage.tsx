@@ -16,11 +16,11 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { FeedTabButton } from '@/components/FeedTabButton';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
-import { cn } from '@/lib/utils';
 
 type FeedTab = 'follows' | 'global';
 
@@ -120,8 +120,8 @@ export function EventsFeedPage() {
       {/* Follows / Global tabs */}
       {user && (
         <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
-          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+          <FeedTabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
+          <FeedTabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
         </div>
       )}
 
@@ -184,21 +184,4 @@ function EventCardSkeleton() {
   );
 }
 
-// ─── TabButton ────────────────────────────────────────────────────────────────
 
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
-        active ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
-      )}
-    </button>
-  );
-}

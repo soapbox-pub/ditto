@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { FeedTabButton } from '@/components/FeedTabButton';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
@@ -18,7 +19,6 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { cn } from '@/lib/utils';
 
 type ThemesTab = 'my-themes' | 'follows' | 'global';
 
@@ -115,9 +115,9 @@ export function ThemesPage() {
 
       {/* Tabs */}
       <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        <TabButton label="My Themes" active={activeTab === 'my-themes'} onClick={() => setActiveTab('my-themes')} />
-        <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
-        <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+        <FeedTabButton label="My Themes" active={activeTab === 'my-themes'} onClick={() => setActiveTab('my-themes')} />
+        <FeedTabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
+        <FeedTabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
       </div>
 
       {/* Tab content */}
@@ -190,24 +190,7 @@ export function ThemesPage() {
 // Tab Button
 // ---------------------------------------------------------------------------
 
-function TabButton({ label, active, onClick, disabled }: { label: string; active: boolean; onClick: () => void; disabled?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
-        active ? 'text-foreground' : 'text-muted-foreground',
-        disabled && 'opacity-50 cursor-not-allowed hover:bg-transparent',
-      )}
-    >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
-      )}
-    </button>
-  );
-}
+
 
 // ---------------------------------------------------------------------------
 // Skeleton
