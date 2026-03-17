@@ -13,6 +13,8 @@ import {
   customizeAdultSvgFromBlobbi,
 } from '@/blobbi/adult-blobbi';
 import { cn } from '@/lib/utils';
+
+import { addEyeAnimation } from './lib/eye-animation';
 import type { Blobbi } from '@/types/blobbi';
 import { isBlobbiSleeping } from '@/types/blobbi';
 
@@ -58,7 +60,14 @@ export function BlobbiAdultVisual({
     const { form, svg } = resolveAdultSvgWithForm(blobbi, { isSleeping });
     
     // Apply color customization
-    return customizeAdultSvgFromBlobbi(svg, form, blobbi, isSleeping);
+    const colorizedSvg = customizeAdultSvgFromBlobbi(svg, form, blobbi, isSleeping);
+    
+    // Add eye animation when awake (eyes are closed when sleeping)
+    if (!isSleeping) {
+      return addEyeAnimation(colorizedSvg);
+    }
+    
+    return colorizedSvg;
   }, [blobbi, isSleeping]);
 
   return (
