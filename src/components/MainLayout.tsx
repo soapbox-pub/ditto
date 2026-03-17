@@ -98,7 +98,7 @@ function MainLayoutInner() {
               </div>
             )}
           </div>
-          {rightSidebar ?? <RightSidebar />}
+          {rightSidebar !== null && (rightSidebar ?? <RightSidebar />)}
         </Suspense>
       </div>
 
