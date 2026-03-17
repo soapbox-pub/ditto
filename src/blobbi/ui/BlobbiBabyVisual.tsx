@@ -49,10 +49,12 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', className }: Blobb
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
   // Eye animation hook - pass containerRef for mouse position calculations
+  // Energy affects idle behavior: high energy = more active, low energy = lazy
   const { leftEyePosition, rightEyePosition, isTracking } = useBlobbiEyes(containerRef, {
     isSleeping,
     maxMovement: 2,
     trackingRadius: 200,
+    energy: blobbi.stats.energy,
   });
 
   // Memoize the customized SVG to avoid unnecessary processing
