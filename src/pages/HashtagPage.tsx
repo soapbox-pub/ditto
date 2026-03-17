@@ -101,8 +101,8 @@ export function HashtagPage() {
         ) : filteredEvents && filteredEvents.length > 0 ? (
           filteredEvents.map((event) => <NoteCard key={event.id} event={event} />)
         ) : (
-          <div className="py-16 text-center text-muted-foreground">
-            No posts found with #{tag}.
+          <div className="py-16 text-center text-muted-foreground px-4">
+            <span className="break-all">No posts found with #{tag}.</span>
           </div>
         )}
       </main>

@@ -651,7 +651,7 @@ export function NoteContent({
               <Link
                 key={i}
                 to={`/t/${token.tag}`}
-                className="text-primary hover:underline"
+                className="text-primary hover:underline break-all"
                 onClick={(e) => e.stopPropagation()}
               >
                 {token.raw}
