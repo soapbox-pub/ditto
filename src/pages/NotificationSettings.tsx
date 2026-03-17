@@ -131,16 +131,12 @@ export function NotificationSettings() {
 
   const isNative = Capacitor.isNativePlatform();
 
-  // ── Push toggle state ───────────────────────────────────────────────────
-  // On web: derive from the hook's `enabled` (actual browser push subscription
-  // state). This avoids stale NIP-78 settings showing the toggle as "on" when
-  // no real subscription exists (e.g. different device, cleared browser data).
-  // On native: derive from NIP-78 settings (Capacitor manages its own service).
+  // Web: toggle reflects actual browser push subscription (from the hook).
+  // Native: toggle reflects NIP-78 persisted preference.
   const [nativePushEnabled, setNativePushEnabled] = useState<boolean>(() => isNative);
   const [prefs, setPrefs] = useState<NonNullable<NonNullable<typeof settings>['notificationPreferences']>>({});
   const initializedRef = useRef(false);
 
-  // Populate local state from settings on first load (native toggle + prefs)
   useEffect(() => {
     if (initializedRef.current || settings === null || settings === undefined) return;
     initializedRef.current = true;
@@ -150,8 +146,6 @@ export function NotificationSettings() {
     setPrefs(settings.notificationPreferences ?? {});
   }, [settings]);
 
-  // On web, the toggle reflects the actual browser subscription state.
-  // On native, it reflects the NIP-78 persisted preference.
   const pushEnabled = isNative ? nativePushEnabled : pushHookEnabled;
 
   useSeoMeta({
@@ -173,9 +167,8 @@ export function NotificationSettings() {
       setPermission(result);
       if (result !== 'granted') return;
 
-      // Register with nostr-push from this click handler (user gesture).
-      // Must happen here — iOS requires requestPermission + pushManager.subscribe
-      // to originate from a direct user interaction, not a useEffect.
+      // Register with nostr-push from this click handler (iOS requires
+      // requestPermission + pushManager.subscribe from a user gesture).
       if (user) {
         try {
           await enablePush(user.pubkey);
@@ -185,7 +178,6 @@ export function NotificationSettings() {
           return; // Don't persist enabled=true if registration failed
         }
       }
-      // NIP-78 updated for record-keeping, but web toggle is driven by hook state.
       updateSettings.mutateAsync({ notificationsEnabled: true }).catch(() => {});
       return;
     }

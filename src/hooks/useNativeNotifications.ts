@@ -5,7 +5,6 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { useCurrentUser } from './useCurrentUser';
 import { useAppContext } from './useAppContext';
 import { useEncryptedSettings } from './useEncryptedSettings';
-import { usePushNotifications } from './usePushNotifications';
 import { getEffectiveRelays } from '@/lib/appRelays';
 
 /** Interface for the native DittoNotification Capacitor plugin. */
@@ -16,29 +15,23 @@ interface DittoNotificationPlugin {
 const DittoNotification = registerPlugin<DittoNotificationPlugin>('DittoNotification');
 
 /**
- * Hook that manages device/browser notifications for the Nostr app.
+ * Manages the native Android notification service via Capacitor.
  *
- * Capacitor (native): passes user pubkey + relay URLs to the native Android
- * notification service. Defaults to on. Respects the user's notificationsEnabled setting.
+ * Passes user pubkey + relay URLs to the DittoNotification plugin so it can
+ * poll for events in the background. Respects the NIP-78 notificationsEnabled
+ * setting (defaults to on).
  *
- * Web/PWA: handles only the disable path — unregisters from nostr-push when
- * the user turns off notifications or logs out. The enable path is triggered
- * exclusively from NotificationSettings.tsx (a user gesture / click handler)
- * because iOS requires Notification.requestPermission() to be called from
- * a direct user interaction.
+ * Web Push (nostr-push) is handled separately by usePushNotifications +
+ * NotificationSettings — this hook is Capacitor-only.
  */
 export function useNativeNotifications(): void {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { settings } = useEncryptedSettings();
-  const { supported: pushSupported, enabled: pushEnabled, disable: disablePush } = usePushNotifications();
 
-  // Web defaults to false (opt-in); native defaults to true (foreground service).
-  const notificationsEnabled = settings?.notificationsEnabled ?? Capacitor.isNativePlatform();
+  const notificationsEnabled = settings?.notificationsEnabled ?? true;
 
-  // ── Capacitor path ────────────────────────────────────────────────────────
-
-  // Request native notification permission on first mount (native only).
+  // Request native notification permission on first mount.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
@@ -59,7 +52,6 @@ export function useNativeNotifications(): void {
     if (!Capacitor.isNativePlatform()) return;
 
     if (!user || !notificationsEnabled) {
-      // Logged out or user disabled notifications — stop the native service.
       DittoNotification.configure({});
       return;
     }
@@ -76,23 +68,4 @@ export function useNativeNotifications(): void {
       relayUrls,
     });
   }, [user, config.relayMetadata, config.useAppRelays, notificationsEnabled]);
-
-  // ── Web Push path (nostr-push) — logout cleanup only ────────────────────
-  // Enable/disable is handled by NotificationSettings.tsx click handler.
-  // We only need to clean up when the user logs out — the NIP-78
-  // notificationsEnabled setting is NOT used for web push state because
-  // push subscriptions are browser-local and the setting can be stale
-  // (e.g. set on another device). This prevents the race condition where
-  // settings haven't loaded yet and notificationsEnabled evaluates to
-  // false, causing an unwanted disablePush() on every page load.
-
-  useEffect(() => {
-    if (Capacitor.isNativePlatform()) return;
-    if (!pushSupported) return;
-
-    // User logged out — unregister from nostr-push.
-    if (!user && pushEnabled) {
-      disablePush().catch((err) => console.error('[push] Failed to disable:', err));
-    }
-  }, [user, pushSupported, pushEnabled]);
 }
