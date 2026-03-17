@@ -52,10 +52,12 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', className }: Blob
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
   // Eye animation hook - pass containerRef for mouse position calculations
+  // Energy affects idle behavior: high energy = more active, low energy = lazy
   const { leftEyePosition, rightEyePosition, isTracking } = useBlobbiEyes(containerRef, {
     isSleeping,
     maxMovement: 2.5, // Slightly more movement for larger adult form
     trackingRadius: 200,
+    energy: blobbi.stats.energy,
   });
 
   // Memoize the customized SVG to avoid unnecessary processing

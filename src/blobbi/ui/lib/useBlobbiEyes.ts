@@ -1,18 +1,17 @@
 /**
  * useBlobbiEyes - Hook for Blobbi eye animations
  *
- * Provides natural eye movement with:
- * - Smooth interpolation for all movement (no jumps)
- * - Random idle wandering with long pauses
- * - Mouse tracking when cursor is nearby
- * - Clean separation between idle and tracking states
+ * Provides natural, alive eye movement with:
+ * - Instant mouse tracking (no lag - eyes lock onto cursor)
+ * - Energy-based idle behavior (high energy = more active)
+ * - Micro-movements for subtle aliveness
+ * - Smooth transitions for idle movement only
  *
  * Architecture:
  * - Single requestAnimationFrame loop handles ALL animation
- * - Maintains "current" and "target" positions
- * - Always interpolates: current = lerp(current, target, smoothing)
- * - Idle behavior sets new targets periodically
- * - Mouse tracking overrides targets when active
+ * - Tracking mode: instant position updates (no interpolation)
+ * - Idle mode: smooth interpolation with energy-scaled timing
+ * - Energy affects: movement frequency, smoothing speed, micro-movement chance
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -33,6 +32,8 @@ interface UseBlobbiEyesOptions {
   trackingRadius?: number;
   /** Whether to enable mouse tracking */
   enableTracking?: boolean;
+  /** Blobbi's current energy level (0-100), affects idle behavior */
+  energy?: number;
 }
 
 interface UseBlobbiEyesReturn {
@@ -48,22 +49,30 @@ interface UseBlobbiEyesReturn {
 
 const DEFAULT_MAX_MOVEMENT = 2;
 const DEFAULT_TRACKING_RADIUS = 200;
+const DEFAULT_ENERGY = 70;
 
-// Smoothing factors (per frame at 60fps)
-// Lower = smoother/slower, Higher = snappier
-const IDLE_SMOOTHING = 0.03; // Very smooth for idle drift
-const TRACKING_SMOOTHING = 0.08; // Slightly faster for tracking
-const RETURN_SMOOTHING = 0.04; // Smooth return from tracking to idle
+// Smoothing range based on energy (per frame at 60fps)
+const SMOOTHING_MIN = 0.02; // Low energy - very slow drift
+const SMOOTHING_MAX = 0.06; // High energy - quicker movement
 
-// Idle behavior timing (in milliseconds)
-const IDLE_MIN_DURATION = 3000; // Minimum time at a position
-const IDLE_MAX_DURATION = 6000; // Maximum time at a position
-const IDLE_PAUSE_CHANCE = 0.4; // 40% chance to pause at center
+// Return from tracking smoothing
+const RETURN_SMOOTHING = 0.05;
+
+// Idle duration range in milliseconds
+const IDLE_DURATION_MIN = 1000; // High energy - frequent changes
+const IDLE_DURATION_MAX = 6000; // Low energy - long pauses
+
+// Micro-movement settings
+const MICRO_MOVEMENT_MAX = 0.5; // Maximum micro-movement in pixels
 
 // ─── Utility Functions ────────────────────────────────────────────────────────
 
 function randomInRange(min: number, max: number): number {
   return Math.random() * (max - min) + min;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 function lerp(start: number, end: number, factor: number): number {
@@ -83,16 +92,73 @@ function distanceSquared(a: EyePosition, b: EyePosition): number {
   return dx * dx + dy * dy;
 }
 
+// ─── Energy-Based Helpers ─────────────────────────────────────────────────────
+
+/**
+ * Get idle duration based on energy level
+ * High energy = shorter duration (more frequent movement)
+ * Low energy = longer duration (lazy, less movement)
+ */
+function getIdleDuration(energy: number): number {
+  const normalizedEnergy = clamp(energy, 0, 100) / 100;
+  // Invert: high energy = low duration
+  return IDLE_DURATION_MAX - normalizedEnergy * (IDLE_DURATION_MAX - IDLE_DURATION_MIN);
+}
+
+/**
+ * Get smoothing factor based on energy level
+ * High energy = faster smoothing (quicker movement)
+ * Low energy = slower smoothing (sluggish movement)
+ */
+function getSmoothing(energy: number): number {
+  const normalizedEnergy = clamp(energy, 0, 100) / 100;
+  return SMOOTHING_MIN + normalizedEnergy * (SMOOTHING_MAX - SMOOTHING_MIN);
+}
+
+/**
+ * Get micro-movement chance based on energy level
+ * High energy = more micro-movements (curious, alert)
+ * Low energy = fewer micro-movements (tired, still)
+ */
+function getMicroMovementChance(energy: number): number {
+  const normalizedEnergy = clamp(energy, 0, 100) / 100;
+  // Range: 0.1 (low energy) to 0.5 (high energy)
+  return 0.1 + normalizedEnergy * 0.4;
+}
+
+/**
+ * Get pause chance based on energy level
+ * High energy = less likely to pause at center
+ * Low energy = more likely to rest at center
+ */
+function getPauseChance(energy: number): number {
+  const normalizedEnergy = clamp(energy, 0, 100) / 100;
+  // Range: 0.5 (low energy, pauses often) to 0.1 (high energy, rarely pauses)
+  return 0.5 - normalizedEnergy * 0.4;
+}
+
 /**
  * Generate a random idle target position
- * Occasionally returns center (0,0) for natural pauses
+ * Takes energy into account for micro-movements and pauses
  */
-function getRandomIdleTarget(maxMovement: number): EyePosition {
-  // Sometimes pause at center
-  if (Math.random() < IDLE_PAUSE_CHANCE) {
+function getRandomIdleTarget(maxMovement: number, energy: number): EyePosition {
+  const pauseChance = getPauseChance(energy);
+  const microChance = getMicroMovementChance(energy);
+
+  // Chance to pause at center (rest position)
+  if (Math.random() < pauseChance) {
     return { x: 0, y: 0 };
   }
 
+  // Chance for micro-movement (subtle aliveness)
+  if (Math.random() < microChance) {
+    return {
+      x: randomInRange(-MICRO_MOVEMENT_MAX, MICRO_MOVEMENT_MAX),
+      y: randomInRange(-MICRO_MOVEMENT_MAX * 0.6, MICRO_MOVEMENT_MAX * 0.6),
+    };
+  }
+
+  // Full range movement
   return {
     x: randomInRange(-maxMovement, maxMovement),
     y: randomInRange(-maxMovement * 0.5, maxMovement * 0.5), // Less vertical
@@ -110,6 +176,7 @@ export function useBlobbiEyes(
     maxMovement = DEFAULT_MAX_MOVEMENT,
     trackingRadius = DEFAULT_TRACKING_RADIUS,
     enableTracking = true,
+    energy = DEFAULT_ENERGY,
   } = options;
 
   // Output state (what gets rendered)
@@ -130,6 +197,10 @@ export function useBlobbiEyes(
 
   // Idle timing state
   const nextIdleChangeRef = useRef(0);
+
+  // Store energy in ref for use in animation loop without causing re-renders
+  const energyRef = useRef(energy);
+  energyRef.current = energy;
 
   // ─── Main Animation Loop ──────────────────────────────────────────────────
 
@@ -155,10 +226,13 @@ export function useBlobbiEyes(
       // Normalize smoothing to ~60fps (16.67ms per frame)
       const timeScale = deltaTime / 16.67;
 
+      // Get current energy for this frame
+      const currentEnergy = energyRef.current;
+
       // ─── Determine Target Position ────────────────────────────────────
 
-      let smoothing = IDLE_SMOOTHING;
       let shouldTrack = false;
+      let trackingTarget: EyePosition | null = null;
 
       // Check if mouse is nearby and we should track
       if (enableTracking && mousePositionRef.current && containerRef.current) {
@@ -175,22 +249,19 @@ export function useBlobbiEyes(
 
         if (distance < trackingRadius) {
           shouldTrack = true;
-          smoothing = TRACKING_SMOOTHING;
 
           // Calculate eye target based on mouse direction
           const angle = Math.atan2(dy, dx);
 
-          // Intensity increases as mouse gets closer (but never reaches max at center)
-          // Use a curve that feels natural
+          // Intensity increases as mouse gets closer to edge of tracking radius
+          // Use square root curve for more responsive feel near edges
           const normalizedDistance = distance / trackingRadius;
-          const intensity = Math.pow(normalizedDistance, 0.5); // Square root for more responsive near edges
+          const intensity = Math.pow(normalizedDistance, 0.5);
 
           const targetX = Math.cos(angle) * maxMovement * intensity;
           const targetY = Math.sin(angle) * maxMovement * 0.7 * intensity;
 
-          // Both eyes look at the same point
-          targetLeftRef.current = { x: targetX, y: targetY };
-          targetRightRef.current = { x: targetX, y: targetY };
+          trackingTarget = { x: targetX, y: targetY };
         }
       }
 
@@ -200,31 +271,55 @@ export function useBlobbiEyes(
         setIsTracking(shouldTrack);
 
         if (!shouldTrack) {
-          // Just stopped tracking - use return smoothing and schedule next idle change soon
-          smoothing = RETURN_SMOOTHING;
-          nextIdleChangeRef.current = currentTime + randomInRange(500, 1500);
+          // Just stopped tracking - schedule next idle change soon
+          nextIdleChangeRef.current = currentTime + randomInRange(300, 800);
         }
       }
 
-      // ─── Idle Behavior (only when not tracking) ───────────────────────
+      // ─── Handle Tracking Mode (INSTANT - no interpolation) ────────────
 
-      if (!shouldTrack) {
-        // Check if it's time to pick a new idle target
-        if (currentTime >= nextIdleChangeRef.current) {
-          const newTarget = getRandomIdleTarget(maxMovement);
+      if (shouldTrack && trackingTarget) {
+        // INSTANT: Eyes lock directly onto target position
+        // No lerp, no smoothing - immediate response
+        currentLeftRef.current = trackingTarget;
+        currentRightRef.current = trackingTarget;
+        targetLeftRef.current = trackingTarget;
+        targetRightRef.current = trackingTarget;
 
-          // Add slight variation between eyes for natural feel
-          targetLeftRef.current = newTarget;
-          targetRightRef.current = {
-            x: newTarget.x + randomInRange(-0.2, 0.2),
-            y: newTarget.y + randomInRange(-0.1, 0.1),
-          };
+        // Update state for rendering
+        setLeftEyePosition({ x: trackingTarget.x, y: trackingTarget.y });
+        setRightEyePosition({ x: trackingTarget.x, y: trackingTarget.y });
 
-          // Schedule next change
-          nextIdleChangeRef.current = currentTime + randomInRange(IDLE_MIN_DURATION, IDLE_MAX_DURATION);
-        }
+        // Continue animation loop
+        animationRef.current = requestAnimationFrame(animate);
+        return;
+      }
 
-        smoothing = IDLE_SMOOTHING;
+      // ─── Handle Idle Mode (smooth interpolation) ──────────────────────
+
+      // Check if it's time to pick a new idle target
+      if (currentTime >= nextIdleChangeRef.current) {
+        const newTarget = getRandomIdleTarget(maxMovement, currentEnergy);
+
+        // Add slight variation between eyes for natural feel
+        targetLeftRef.current = newTarget;
+        targetRightRef.current = {
+          x: newTarget.x + randomInRange(-0.15, 0.15),
+          y: newTarget.y + randomInRange(-0.08, 0.08),
+        };
+
+        // Schedule next change based on energy
+        const baseDuration = getIdleDuration(currentEnergy);
+        // Add some randomness (±30%)
+        nextIdleChangeRef.current = currentTime + randomInRange(baseDuration * 0.7, baseDuration * 1.3);
+      }
+
+      // Get energy-based smoothing
+      let smoothing = getSmoothing(currentEnergy);
+
+      // If we just stopped tracking, use return smoothing for first few frames
+      if (!isTrackingRef.current && currentTime < nextIdleChangeRef.current - getIdleDuration(currentEnergy) * 0.5) {
+        smoothing = RETURN_SMOOTHING;
       }
 
       // ─── Interpolate Current Position Toward Target ───────────────────
@@ -235,7 +330,7 @@ export function useBlobbiEyes(
       const newRight = lerpPosition(currentRightRef.current, targetRightRef.current, adjustedSmoothing);
 
       // Only update state if position changed meaningfully (avoid unnecessary renders)
-      const threshold = 0.001;
+      const threshold = 0.0005; // Smaller threshold for smoother updates
       const leftChanged = distanceSquared(currentLeftRef.current, newLeft) > threshold * threshold;
       const rightChanged = distanceSquared(currentRightRef.current, newRight) > threshold * threshold;
 
@@ -253,8 +348,9 @@ export function useBlobbiEyes(
       animationRef.current = requestAnimationFrame(animate);
     };
 
-    // Initialize idle timing
-    nextIdleChangeRef.current = performance.now() + randomInRange(1000, 2000);
+    // Initialize idle timing based on energy
+    const initialDelay = randomInRange(500, 1500);
+    nextIdleChangeRef.current = performance.now() + initialDelay;
 
     // Start animation loop
     animationRef.current = requestAnimationFrame(animate);
