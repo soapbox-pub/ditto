@@ -6,7 +6,7 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { SidebarNavList } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
-import { SidebarThemeDropdown } from '@/components/SidebarThemeDropdown';
+
 import { LoginArea } from '@/components/auth/LoginArea';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import LoginDialog from '@/components/auth/LoginDialog';
@@ -287,13 +287,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 </div>
               </nav>
 
-              {/* Theme */}
-              <div
-                className="flex items-center border-t border-border"
-                style={{ minHeight: '3.5rem', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-              >
-                <SidebarThemeDropdown userPubkey={user.pubkey} onNavigate={handleClose} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 rounded-full transition-colors" />
-              </div>
             </div>
           ) : (
             <div className="flex flex-col h-full relative">
@@ -335,13 +328,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 </div>
               </nav>
 
-              {/* Theme */}
-              <div
-                className="flex items-center border-t border-border"
-                style={{ minHeight: '3.5rem', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-              >
-                <SidebarThemeDropdown onNavigate={handleClose} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 rounded-full transition-colors" />
-              </div>
             </div>
           )}
         </SheetContent>
