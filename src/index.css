@@ -242,15 +242,24 @@
   }
 }
 
-/* ─── Blobbi Eye Movement Animation ──────────────────────────────────────────── */
+/* ─── Blobbi Eye Animation ───────────────────────────────────────────────────── */
 
 /**
  * Eye animation for Blobbi characters.
- * NO CSS transitions - movement is controlled directly by JavaScript RAF loop.
- * Using transitions causes delayed visual updates while mouse is moving.
+ *
+ * Features:
+ * - Mouse tracking: eyes follow cursor instantly
+ * - Natural blinking: random intervals (2-5s), fast close, slow open
+ *
+ * NO CSS transitions - all animation is controlled by JavaScript RAF loop.
+ * Using transitions causes delayed visual updates.
+ *
+ * Transform combines: translate(x y) scale(1 blinkY)
+ * - translate: mouse tracking position
+ * - scale: vertical squash for blink effect (1 = open, 0.1 = closed)
  */
 .blobbi-eye {
-  /* SVG transform properties */
+  /* SVG transform properties - scale from center of each eye element */
   transform-box: fill-box;
   transform-origin: center center;
   /* NO transition - instant updates only */
@@ -258,6 +267,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .blobbi-eye {
+    /* Disable all eye animations for users who prefer reduced motion */
     transform: none !important;
   }
 }
