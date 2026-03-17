@@ -23,8 +23,8 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
+import { FeedTabButton } from '@/components/FeedTabButton';
 import { getExtraKindDef } from '@/lib/extraKinds';
-import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import { MediaCollage, MediaCollageSkeleton, eventToMediaItem } from '@/components/MediaCollage';
 
@@ -32,26 +32,6 @@ const PHOTO_KIND = 20;
 const photosDef = getExtraKindDef('photos')!;
 
 type FeedTab = 'follows' | 'global';
-
-// ── Tab button ────────────────────────────────────────────────────────────────
-
-function TabButton({ label, active, onClick, disabled }: {
-  label: string; active: boolean; onClick: () => void; disabled?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 disabled:opacity-50',
-        active ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {label}
-      {active && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />}
-    </button>
-  );
-}
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -124,8 +104,8 @@ export function PhotosFeedPage() {
 
       {/* Tabs */}
       <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
-        <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+        <FeedTabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
+        <FeedTabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
       </div>
 
       {/* Grid */}

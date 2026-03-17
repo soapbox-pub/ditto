@@ -45,6 +45,7 @@ import { useVideoThumbnail } from '@/components/VideoPlayer';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { timeAgo } from '@/lib/timeAgo';
+import { FeedTabButton } from '@/components/FeedTabButton';
 import { cn } from '@/lib/utils';
 import { getEffectiveStreamStatus } from '@/lib/streamStatus';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -192,26 +193,6 @@ function useDragScroll<T extends HTMLElement>() {
   useEffect(() => () => stopEdgeScroll(), [stopEdgeScroll]);
 
   return { ref, onMouseDown, onMouseMove, onMouseUp, onMouseLeave };
-}
-
-// ── Tab button ────────────────────────────────────────────────────────────────
-
-function TabButton({ label, active, onClick, disabled }: {
-  label: string; active: boolean; onClick: () => void; disabled?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 disabled:opacity-50',
-        active ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {label}
-      {active && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />}
-    </button>
-  );
 }
 
 // ── Video grid card (kind 21) — YouTube-style ────────────────────────────────
@@ -809,8 +790,8 @@ export function VideosFeedPage() {
 
       {/* Follows / Global tabs */}
       <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        <TabButton label="Follows" active={feedTab === 'follows'} onClick={() => setFeedTab('follows')} disabled={!user} />
-        <TabButton label="Global" active={feedTab === 'global'} onClick={() => setFeedTab('global')} />
+        <FeedTabButton label="Follows" active={feedTab === 'follows'} onClick={() => setFeedTab('follows')} disabled={!user} />
+        <FeedTabButton label="Global" active={feedTab === 'global'} onClick={() => setFeedTab('global')} />
       </div>
 
       {/* Live streams strip — follows tab filters by followed authors */}
