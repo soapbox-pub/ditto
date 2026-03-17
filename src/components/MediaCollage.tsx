@@ -23,7 +23,12 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 
 export type MediaType = 'image' | 'video' | 'audio';
 
-function detectType(url: string, mime?: string): MediaType {
+/** Event kinds that are inherently video content (vines, horizontal video, vertical video). */
+const VIDEO_KINDS = new Set([34236, 21, 22]);
+/** Event kinds that are inherently audio content (music tracks, podcast episodes/trailers). */
+const AUDIO_KINDS = new Set([36787, 34139, 30054, 30055, 1222]);
+
+function detectType(url: string, mime?: string, eventKind?: number): MediaType {
   if (mime) {
     if (mime.startsWith('video/')) return 'video';
     if (mime.startsWith('audio/')) return 'audio';
@@ -31,6 +36,11 @@ function detectType(url: string, mime?: string): MediaType {
   }
   if (/\.(mp4|webm|mov|qt|m3u8)(\?.*)?$/i.test(url)) return 'video';
   if (/\.(mp3|ogg|flac|wav|aac|opus)(\?.*)?$/i.test(url)) return 'audio';
+  // Fall back to event kind for extensionless URLs (e.g. Blossom content-addressed URLs)
+  if (eventKind !== undefined) {
+    if (VIDEO_KINDS.has(eventKind)) return 'video';
+    if (AUDIO_KINDS.has(eventKind)) return 'audio';
+  }
   return 'image';
 }
 
@@ -153,7 +163,7 @@ export function eventToMediaItem(event: NostrEvent): MediaItem | null {
   const imeta = parseImeta(event.tags);
   if (imeta.length > 0) {
     const first = imeta[0];
-    const firstType = detectType(first.url, first.mime);
+    const firstType = detectType(first.url, first.mime, event.kind);
     return {
       url: first.url,
       type: firstType,
@@ -162,7 +172,7 @@ export function eventToMediaItem(event: NostrEvent): MediaItem | null {
       alt: first.alt,
       mime: first.mime,
       allUrls: imeta.map((e) => e.url),
-      allTypes: imeta.map((e) => detectType(e.url, e.mime)),
+      allTypes: imeta.map((e) => detectType(e.url, e.mime, event.kind)),
       allDims: imeta.map((e) => e.dim),
       event,
       hasMultiple: imeta.length > 1,
