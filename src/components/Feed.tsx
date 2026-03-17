@@ -24,8 +24,8 @@ import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
+import { FeedTabButton } from '@/components/FeedTabButton';
 import { DITTO_RELAY } from '@/lib/appRelays';
-import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
@@ -97,9 +97,15 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     return 'Community';
   })();
 
-  const [activeTab, handleSetActiveTab] = useFeedTab<FeedTab>(feedId);
+  const [rawActiveTab, handleSetActiveTab] = useFeedTab<FeedTab>(feedId);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
+
+  // Kind-specific pages only support Follows + Global. Clamp any other
+  // persisted tab (e.g. 'ditto', 'communities') back to 'follows'.
+  const activeTab: FeedTab = kinds && rawActiveTab !== 'follows' && rawActiveTab !== 'global'
+    ? 'follows'
+    : rawActiveTab;
 
   // Is the active tab a saved feed?
   const activeSavedFeed = useMemo(
@@ -115,7 +121,8 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const useTopFeedForLoggedOut = !user && !kinds;
 
   // When the Ditto tab is active (logged in), show the same hot-sorted curated feed.
-  const useDittoTab = user && activeTab === 'ditto';
+  // Disabled on kind-specific pages — the Ditto tab is not shown there.
+  const useDittoTab = user && activeTab === 'ditto' && !kinds;
 
   // Standard feed query (used when logged in, or on kind-specific pages, or core tabs)
   const isCoreFeedTab = activeTab === 'follows' || activeTab === 'global' || activeTab === 'communities' || activeTab === 'ditto';
@@ -209,8 +216,10 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
-  // Saved feed tabs are only shown on the main home feed (no kinds/tagFilters override)
-  const showSavedFeedTabs = user && !kinds && !tagFilters;
+  // Kind-specific pages (e.g. Development, WebXDC) only show Follows + Global tabs.
+  // Extra tabs (Ditto, Community, saved feeds, hashtags) are only for the home feed.
+  const isKindSpecificPage = !!kinds;
+  const showSavedFeedTabs = user && !isKindSpecificPage && !tagFilters;
 
   return (
     <main className="flex-1 min-w-0">
@@ -221,18 +230,18 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       {/* Tabs (logged in) or CTA (logged out, main feed only) */}
       {user ? (
         <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none">
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
-          {showDittoFeed && (
-            <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
+          <FeedTabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
+          {!isKindSpecificPage && showDittoFeed && (
+            <FeedTabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
           )}
-          {showCommunityFeed && (
-            <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
+          {!isKindSpecificPage && showCommunityFeed && (
+            <FeedTabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
           )}
-          {showGlobalFeed && (
-            <TabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
+          {(isKindSpecificPage || showGlobalFeed) && (
+            <FeedTabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
           )}
           {showSavedFeedTabs && savedFeeds.map((feed) => (
-            <TabButton
+            <FeedTabButton
               key={feed.id}
               label={feed.label}
               active={activeTab === feed.id}
@@ -240,7 +249,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
             />
           ))}
           {showSavedFeedTabs && hashtags.map((tag) => (
-            <TabButton
+            <FeedTabButton
               key={`hashtag:${tag}`}
               label={`#${tag}`}
               active={activeTab === `hashtag:${tag}`}
@@ -423,23 +432,6 @@ function HashtagFeedContent({ tag }: { tag: string }) {
         <NoteCard key={event.id} event={event} />
       ))}
     </div>
-  );
-}
-
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-1 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 whitespace-nowrap',
-        active ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 max-w-16 h-1 bg-primary rounded-full" />
-      )}
-    </button>
   );
 }
 
