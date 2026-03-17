@@ -204,7 +204,7 @@ export function LeftSidebar() {
                       value={statusDraft}
                       onChange={(e) => setStatusDraft(e.target.value.slice(0, 80))}
                       placeholder="What are you up to?"
-                      className="h-8 text-sm"
+                      className="h-8 text-base md:text-sm"
                       maxLength={80}
                       autoFocus
                       onKeyDown={(e) => {

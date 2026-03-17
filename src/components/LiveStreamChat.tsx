@@ -169,7 +169,7 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Say something..."
-              className="flex-1 h-9 text-sm"
+              className="flex-1 h-9 text-base md:text-sm"
               disabled={isSending}
               maxLength={500}
             />

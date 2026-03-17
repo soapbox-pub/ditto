@@ -128,7 +128,7 @@ export function GifPicker({ onSelect }: GifPickerProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search GIFs..."
-            className="pl-8 pr-8 h-9 text-sm bg-muted/50 border-0 rounded-lg"
+            className="pl-8 pr-8 h-9 text-base md:text-sm bg-muted/50 border-0 rounded-lg"
           />
           {query && (
             <button

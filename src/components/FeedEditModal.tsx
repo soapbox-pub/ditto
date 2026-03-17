@@ -181,7 +181,7 @@ export function FeedEditModal({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="e.g. bitcoin"
-              className="bg-secondary/50 border-border focus-visible:ring-1 h-8 text-sm"
+              className="bg-secondary/50 border-border focus-visible:ring-1 h-8 text-base md:text-sm"
             />
           </div>
 

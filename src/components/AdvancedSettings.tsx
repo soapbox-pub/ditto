@@ -72,7 +72,7 @@ export function AdvancedSettings() {
                   value={statsPubkey}
                   onChange={(e) => handleStatsPubkeyChange(e.target.value)}
                   placeholder="Enter 64-character hex pubkey"
-                  className="font-mono text-sm"
+                  className="font-mono text-base md:text-sm"
                   maxLength={64}
                 />
                 {statsPubkey && statsPubkey.length !== 64 && (
@@ -107,7 +107,7 @@ export function AdvancedSettings() {
                     }
                   }}
                   placeholder="https://fetch.ditto.pub/favicon/{hostname}"
-                  className="font-mono text-sm"
+                  className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
                   <span className="font-medium">Default: </span>
@@ -136,7 +136,7 @@ export function AdvancedSettings() {
                     }
                   }}
                   placeholder="https://fetch.ditto.pub/link/{url}"
-                  className="font-mono text-sm"
+                  className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
                   <span className="font-medium">Default: </span>
@@ -165,7 +165,7 @@ export function AdvancedSettings() {
                     }
                   }}
                   placeholder="https://proxy.shakespeare.diy/?url={href}"
-                  className="font-mono text-sm"
+                  className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
                   <span className="font-medium">Default: </span>
@@ -261,7 +261,7 @@ export function AdvancedSettings() {
                     }
                   }}
                   placeholder="https://examplePublicKey@o0.ingest.sentry.io/0"
-                  className="font-mono text-sm"
+                  className="font-mono text-base md:text-sm"
                 />
               </div>
             </div>
