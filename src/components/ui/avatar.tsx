@@ -1,7 +1,8 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { type AvatarShape, isEmoji, getEmojiMaskUrl } from "@/lib/avatarShape"
+import { type AvatarShape, isEmoji, getAvatarMaskUrl, isValidAvatarShape } from "@/lib/avatarShape"
+import { isBlobbiShape } from "@/lib/blobbiShapes"
 
 /**
  * Shared ref so AvatarFallback can check if a sibling AvatarImage
@@ -24,12 +25,16 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
     // Reset per render so stale values don't persist
     hasSrcRef.current = false
 
-    const isEmojiShape = !!shape && isEmoji(shape)
+    // Check if shape is valid (emoji or Blobbi)
+    const hasValidShape = !!shape && isValidAvatarShape(shape)
+    const isEmojiShape = hasValidShape && isEmoji(shape)
+    const isBlobbi = hasValidShape && isBlobbiShape(shape)
+    const hasCustomShape = isEmojiShape || isBlobbi
 
-    // Build inline style: mask-image for emoji shapes
+    // Build inline style: mask-image for shaped avatars
     const mergedStyle = React.useMemo<React.CSSProperties>(() => {
-      if (isEmojiShape) {
-        const maskUrl = getEmojiMaskUrl(shape)
+      if (hasCustomShape && shape) {
+        const maskUrl = getAvatarMaskUrl(shape)
         if (maskUrl) {
           return {
             ...style,
@@ -45,7 +50,7 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
         }
       }
       return style ?? {}
-    }, [isEmojiShape, shape, style])
+    }, [hasCustomShape, shape, style])
 
     return (
       <AvatarHasSrcContext.Provider value={hasSrcRef}>
@@ -54,7 +59,7 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
             ref={ref}
             className={cn(
               "relative flex h-10 w-10 shrink-0 overflow-hidden bg-muted",
-              !isEmojiShape && "rounded-full",
+              !hasCustomShape && "rounded-full",
               className
             )}
             style={mergedStyle}
@@ -125,7 +130,7 @@ const AvatarFallback = React.forwardRef<
   const hasSrcRef = React.useContext(AvatarHasSrcContext)
   const shape = React.useContext(AvatarShapeContext)
 
-  const isEmojiShape = !!shape && isEmoji(shape)
+  const hasCustomShape = !!shape && isValidAvatarShape(shape)
 
   // AvatarImage renders before AvatarFallback (DOM order), so hasSrcRef
   // is already set by the time we read it here in the same render frame.
@@ -136,7 +141,7 @@ const AvatarFallback = React.forwardRef<
       ref={ref}
       className={cn(
         "flex h-full w-full items-center justify-center",
-        !isEmojiShape && "rounded-full",
+        !hasCustomShape && "rounded-full",
         className
       )}
       {...props}
