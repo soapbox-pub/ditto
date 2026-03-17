@@ -6,7 +6,6 @@ import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { FeedTabButton } from '@/components/FeedTabButton';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
@@ -14,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ThemeSelector } from '@/components/ThemeSelector';
+import { TabButton } from '@/components/TabButton';
 import { useThemeFeed } from '@/hooks/useThemeFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTheme } from '@/hooks/useTheme';
@@ -115,9 +115,9 @@ export function ThemesPage() {
 
       {/* Tabs */}
       <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        <FeedTabButton label="My Themes" active={activeTab === 'my-themes'} onClick={() => setActiveTab('my-themes')} />
-        <FeedTabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
-        <FeedTabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+        <TabButton label="My Themes" active={activeTab === 'my-themes'} onClick={() => setActiveTab('my-themes')} />
+        <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
+        <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
       </div>
 
       {/* Tab content */}
@@ -185,12 +185,6 @@ export function ThemesPage() {
     </main>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Tab Button
-// ---------------------------------------------------------------------------
-
-
 
 // ---------------------------------------------------------------------------
 // Skeleton

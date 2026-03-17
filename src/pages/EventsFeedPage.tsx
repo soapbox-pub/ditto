@@ -11,12 +11,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { NoteCard } from '@/components/NoteCard';
+import { TabButton } from '@/components/TabButton';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { FeedTabButton } from '@/components/FeedTabButton';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { getExtraKindDef } from '@/lib/extraKinds';
@@ -120,8 +120,8 @@ export function EventsFeedPage() {
       {/* Follows / Global tabs */}
       {user && (
         <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-          <FeedTabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
-          <FeedTabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
+          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
         </div>
       )}
 
@@ -183,5 +183,3 @@ function EventCardSkeleton() {
     </div>
   );
 }
-
-
