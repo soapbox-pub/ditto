@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award } from 'lucide-react';
+import { FeedTabButton } from '@/components/FeedTabButton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
@@ -364,22 +365,7 @@ function FollowingListModal({ pubkeys, open, onOpenChange, displayName }: Follow
 
 // ----- Tab Button -----
 
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-1 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 whitespace-nowrap',
-        active ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 max-w-16 h-1 bg-primary rounded-full" />
-      )}
-    </button>
-  );
-}
+
 
 type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
@@ -1923,7 +1909,7 @@ export function ProfilePage() {
           {!tabEditMode && profileTabsQuery.isFetched && viewTabs.map((tab) => {
             const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
             return (
-              <TabButton
+              <FeedTabButton
                 key={tab.label}
                 label={tab.label}
                 active={activeTab === tabId}
