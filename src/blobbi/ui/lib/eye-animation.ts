@@ -1,44 +1,51 @@
 /**
  * Eye Animation Utility
- * 
- * Transforms SVG content to add subtle eye movement animations.
- * Wraps pupil and highlight elements in animated groups while keeping
- * the eye white background static.
- * 
+ *
+ * Transforms SVG content to add eye movement capability.
+ * Wraps pupil and highlight elements in <g> groups that can be animated.
+ *
  * Pattern detection:
- * - Eye white: Elements with gradient IDs containing "Eye" but not "Pupil"
- * - Pupil: Elements with gradient IDs containing "Pupil" or dark fills (#1f2937, #374151, etc.)
- * - Highlights: Small white circles/ellipses that follow pupils
+ * - Pupil: Elements with gradient IDs containing "Pupil" or dark fills
+ * - Highlights: Small white circles/ellipses near pupils
+ * - Eye white: NOT animated (larger white ellipses/circles)
  */
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface _EyeElements {
-  /** Index where the eye's pupil starts in the elements array */
-  pupilStartIndex: number;
-  /** Index where the eye's highlights end */
-  highlightEndIndex: number;
-  /** X coordinate of the eye center (for grouping left/right eyes) */
-  eyeCenterX: number;
+interface ElementInfo {
+  /** The full SVG element string */
+  match: string;
+  /** Start index in the SVG string */
+  index: number;
+  /** End index in the SVG string */
+  endIndex: number;
+  /** Center X coordinate */
+  cx: number;
+  /** Center Y coordinate */
+  cy: number;
+  /** Element type */
+  type: 'pupil' | 'highlight' | 'other';
+}
+
+interface EyeGroup {
+  /** Pupil element */
+  pupil: ElementInfo;
+  /** Associated highlight elements */
+  highlights: ElementInfo[];
+  /** Eye side (left or right) based on X position */
+  side: 'left' | 'right';
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 // Dark colors typically used for pupils
-const PUPIL_COLORS = ['#1f2937', '#374151', '#1e293b', '#111827'];
+const PUPIL_COLORS = ['#1f2937', '#374151', '#1e293b', '#111827', '#0f172a'];
 
 // Gradient ID patterns for pupils
-const PUPIL_GRADIENT_PATTERNS = [
-  /Pupil/i,
-  /blobbiPupilGradient/i,
-];
+const PUPIL_GRADIENT_PATTERNS = [/Pupil/i];
 
-// Patterns to identify eye white backgrounds (should NOT be animated)
-const EYE_WHITE_PATTERNS = [
-  /EyeWhite/i,
-  /EyeGradient/i,
-  /blobbiEyeGradient/i,
-];
+// Max distance (in SVG units) for a highlight to be associated with a pupil
+const HIGHLIGHT_PROXIMITY = 15;
 
 // ─── Detection Helpers ────────────────────────────────────────────────────────
 
@@ -50,25 +57,14 @@ function isPupilElement(element: string): boolean {
   for (const pattern of PUPIL_GRADIENT_PATTERNS) {
     if (pattern.test(element)) return true;
   }
-  
+
   // Check for dark fill colors (common pupil colors)
   for (const color of PUPIL_COLORS) {
     if (element.includes(`fill="${color}"`) || element.includes(`fill='${color}'`)) {
       return true;
     }
   }
-  
-  return false;
-}
 
-/**
- * Check if an element is an eye white background (should NOT be animated)
- * Reserved for future use if we need to explicitly skip eye whites.
- */
-function _isEyeWhiteElement(element: string): boolean {
-  for (const pattern of EYE_WHITE_PATTERNS) {
-    if (pattern.test(element)) return true;
-  }
   return false;
 }
 
@@ -77,21 +73,24 @@ function _isEyeWhiteElement(element: string): boolean {
  * These should move with the pupil
  */
 function isHighlightElement(element: string): boolean {
-  // Must be white or have high opacity white
-  const isWhite = element.includes('fill="white"') || 
-                  element.includes("fill='white'") ||
-                  element.includes('fill="#fff"') ||
-                  element.includes('fill="#ffffff"');
-  
+  // Must be white
+  const isWhite =
+    element.includes('fill="white"') ||
+    element.includes("fill='white'") ||
+    element.includes('fill="#fff"') ||
+    element.includes('fill="#ffffff"') ||
+    element.includes('fill="#FFF"') ||
+    element.includes('fill="#FFFFFF"');
+
   if (!isWhite) return false;
-  
-  // Must be small (radius <= 6 for circles, or small ellipse)
+
+  // Must be small (radius <= 6 for circles)
   const radiusMatch = element.match(/\br="(\d+\.?\d*)"/);
   if (radiusMatch) {
     const radius = parseFloat(radiusMatch[1]);
     return radius <= 6;
   }
-  
+
   // Check for small ellipse
   const rxMatch = element.match(/rx="(\d+\.?\d*)"/);
   const ryMatch = element.match(/ry="(\d+\.?\d*)"/);
@@ -100,129 +99,152 @@ function isHighlightElement(element: string): boolean {
     const ry = parseFloat(ryMatch[1]);
     return rx <= 6 && ry <= 6;
   }
-  
+
   return false;
 }
 
 /**
- * Extract center X coordinate from an element
+ * Extract center coordinates from an element
  */
-function getElementCenterX(element: string): number | null {
-  // Check for cx attribute (circles/ellipses)
+function getElementCenter(element: string): { cx: number; cy: number } | null {
   const cxMatch = element.match(/cx="(\d+\.?\d*)"/);
-  if (cxMatch) {
-    return parseFloat(cxMatch[1]);
+  const cyMatch = element.match(/cy="(\d+\.?\d*)"/);
+
+  if (cxMatch && cyMatch) {
+    return {
+      cx: parseFloat(cxMatch[1]),
+      cy: parseFloat(cyMatch[1]),
+    };
   }
   return null;
+}
+
+/**
+ * Calculate distance between two points
+ */
+function distance(x1: number, y1: number, x2: number, y2: number): number {
+  return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+}
+
+// ─── SVG Parsing ──────────────────────────────────────────────────────────────
+
+/**
+ * Parse SVG and extract all circle/ellipse elements with their positions
+ */
+function parseElements(svgText: string): ElementInfo[] {
+  const elementRegex = /<(circle|ellipse)[^>]*\/>/g;
+  const elements: ElementInfo[] = [];
+
+  let match;
+  while ((match = elementRegex.exec(svgText)) !== null) {
+    const center = getElementCenter(match[0]);
+    if (!center) continue;
+
+    let type: ElementInfo['type'] = 'other';
+    if (isPupilElement(match[0])) {
+      type = 'pupil';
+    } else if (isHighlightElement(match[0])) {
+      type = 'highlight';
+    }
+
+    elements.push({
+      match: match[0],
+      index: match.index,
+      endIndex: match.index + match[0].length,
+      cx: center.cx,
+      cy: center.cy,
+      type,
+    });
+  }
+
+  return elements;
+}
+
+/**
+ * Group pupils with their associated highlights based on proximity
+ */
+function groupEyeElements(elements: ElementInfo[]): EyeGroup[] {
+  const pupils = elements.filter((e) => e.type === 'pupil');
+  const highlights = elements.filter((e) => e.type === 'highlight');
+
+  if (pupils.length === 0) return [];
+
+  // Sort pupils by X position to determine left/right
+  const sortedPupils = [...pupils].sort((a, b) => a.cx - b.cx);
+  const midX =
+    sortedPupils.length > 1
+      ? (sortedPupils[0].cx + sortedPupils[sortedPupils.length - 1].cx) / 2
+      : sortedPupils[0].cx;
+
+  const groups: EyeGroup[] = [];
+  const usedHighlights = new Set<ElementInfo>();
+
+  for (const pupil of pupils) {
+    // Find highlights near this pupil (that haven't been used)
+    const nearbyHighlights = highlights.filter(
+      (h) => !usedHighlights.has(h) && distance(pupil.cx, pupil.cy, h.cx, h.cy) < HIGHLIGHT_PROXIMITY
+    );
+
+    // Mark these highlights as used
+    nearbyHighlights.forEach((h) => usedHighlights.add(h));
+
+    groups.push({
+      pupil,
+      highlights: nearbyHighlights,
+      side: pupil.cx < midX ? 'left' : 'right',
+    });
+  }
+
+  return groups;
 }
 
 // ─── SVG Transformation ───────────────────────────────────────────────────────
 
 /**
- * Add eye movement animation to SVG content.
- * 
+ * Add eye animation capability to SVG content.
+ *
  * This function:
- * 1. Finds pupil and highlight elements
- * 2. Groups them by eye (left/right based on x-coordinate)
- * 3. Wraps each eye's movable elements in an animated <g> group
- * 
+ * 1. Finds pupil and highlight elements by parsing the SVG
+ * 2. Groups them by proximity (not by order in SVG)
+ * 3. Wraps each element in a <g> group with animation classes
+ *
+ * The actual animation is controlled by CSS or JavaScript.
+ *
  * @param svgText - The raw SVG string
- * @param animationClass - CSS class to apply for animation (default: 'animate-eye-movement')
  * @returns Modified SVG string with animation groups
  */
-export function addEyeAnimation(
-  svgText: string,
-  animationClass: string = 'animate-eye-movement'
-): string {
-  // Split SVG into individual elements for analysis
-  // We need to find sequences of: [eye-white] [pupil] [highlights...]
-  
-  // Find all circle and ellipse elements (potential eye parts)
-  const elementRegex = /<(circle|ellipse)[^>]*\/>/g;
-  const elements: { match: string; index: number; endIndex: number }[] = [];
-  
-  let match;
-  while ((match = elementRegex.exec(svgText)) !== null) {
-    elements.push({
-      match: match[0],
-      index: match.index,
-      endIndex: match.index + match[0].length,
-    });
+export function addEyeAnimation(svgText: string): string {
+  const elements = parseElements(svgText);
+  const eyeGroups = groupEyeElements(elements);
+
+  if (eyeGroups.length === 0) return svgText;
+
+  // Collect all elements to wrap and sort by index (descending) to replace from end
+  interface WrapInfo {
+    element: ElementInfo;
+    side: 'left' | 'right';
   }
-  
-  if (elements.length === 0) return svgText;
-  
-  // Find pupil elements and their following highlights
-  const eyeGroups: { startIndex: number; endIndex: number; elements: string[] }[] = [];
-  let i = 0;
-  
-  while (i < elements.length) {
-    const el = elements[i];
-    
-    if (isPupilElement(el.match)) {
-      // Found a pupil, collect it and following highlights
-      const group = {
-        startIndex: el.index,
-        endIndex: el.endIndex,
-        elements: [el.match],
-      };
-      
-      // Look ahead for highlights that belong to this eye
-      const pupilX = getElementCenterX(el.match);
-      let j = i + 1;
-      
-      while (j < elements.length) {
-        const nextEl = elements[j];
-        const nextX = getElementCenterX(nextEl.match);
-        
-        // Check if this is a highlight near the same X position (within 10px)
-        if (isHighlightElement(nextEl.match) && 
-            pupilX !== null && 
-            nextX !== null && 
-            Math.abs(nextX - pupilX) < 10) {
-          group.elements.push(nextEl.match);
-          group.endIndex = nextEl.endIndex;
-          j++;
-        } else {
-          break;
-        }
-      }
-      
-      eyeGroups.push(group);
-      i = j;
-    } else {
-      i++;
+
+  const toWrap: WrapInfo[] = [];
+
+  for (const group of eyeGroups) {
+    toWrap.push({ element: group.pupil, side: group.side });
+    for (const highlight of group.highlights) {
+      toWrap.push({ element: highlight, side: group.side });
     }
   }
-  
-  if (eyeGroups.length === 0) return svgText;
-  
-  // Apply transformations from end to start to preserve indices
+
+  // Sort by index descending to replace from end to start
+  toWrap.sort((a, b) => b.element.index - a.element.index);
+
   let result = svgText;
-  
-  // Determine if we have left/right eyes (for alternating animation delays)
-  const sortedGroups = [...eyeGroups].sort((a, b) => {
-    const aX = getElementCenterX(a.elements[0]) ?? 0;
-    const bX = getElementCenterX(b.elements[0]) ?? 0;
-    return aX - bX;
-  });
-  
-  // Process from end to preserve string indices
-  for (let idx = eyeGroups.length - 1; idx >= 0; idx--) {
-    const group = eyeGroups[idx];
-    const isLeftEye = sortedGroups.indexOf(group) % 2 === 0;
-    
-    // Create the animated group wrapper
-    const elementsJoined = group.elements.join('\n    ');
-    const delayClass = isLeftEye ? 'eye-left' : 'eye-right';
-    const wrappedGroup = `<g class="${animationClass} ${delayClass}">\n    ${elementsJoined}\n  </g>`;
-    
-    // Replace the original elements with the wrapped group
-    const before = result.slice(0, group.startIndex);
-    const after = result.slice(group.endIndex);
-    result = before + wrappedGroup + after;
+
+  // Wrap each element individually
+  for (const { element, side } of toWrap) {
+    const wrapper = `<g class="blobbi-eye blobbi-eye-${side}" style="transform-box: fill-box; transform-origin: center;">${element.match}</g>`;
+    result = result.slice(0, element.index) + wrapper + result.slice(element.endIndex);
   }
-  
+
   return result;
 }
 
