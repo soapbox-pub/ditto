@@ -475,7 +475,7 @@ export function SearchPage() {
                             value={saveFeedLabel}
                             onChange={(e) => setSaveFeedLabel(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFeed(); }}
-                            className="bg-secondary/50 border-border focus-visible:ring-1 text-sm"
+                            className="bg-secondary/50 border-border focus-visible:ring-1 text-base md:text-sm"
                             autoFocus
                           />
                           <div className="space-y-1">
@@ -632,7 +632,7 @@ export function SearchPage() {
                     <div className="space-y-1.5">
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Media</span>
                       <Select value={mediaType} onValueChange={(v) => setMediaType(v)}>
-                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
+                         <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -647,7 +647,7 @@ export function SearchPage() {
                     <div className="space-y-1.5">
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Protocol <HelpTip faqId="vs-mastodon-bluesky" iconSize="size-3" /></span>
                       <Select value={platform} onValueChange={(v) => setPlatform(v)}>
-                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
+                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -664,7 +664,7 @@ export function SearchPage() {
                     <div className="space-y-1.5">
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Language</span>
                       <Select value={language} onValueChange={(v) => setLanguage(v)}>
-                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
+                         <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -691,7 +691,7 @@ export function SearchPage() {
                       placeholder="e.g. 1, 30023"
                       value={customKindText}
                       onChange={(e) => setCustomKindText(e.target.value)}
-                      className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-xs h-8"
+                      className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-base md:text-xs h-8"
                     />
                   )}
 

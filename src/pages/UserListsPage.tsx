@@ -107,7 +107,7 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
                   if (e.key === 'Enter') handleRename();
                   if (e.key === 'Escape') { setEditing(false); setRenameValue(list.title); }
                 }}
-                className="h-7 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="h-7 text-base md:text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
                 autoFocus
               />
               <Button size="icon" variant="ghost" className="size-7 shrink-0" onClick={handleRename}>

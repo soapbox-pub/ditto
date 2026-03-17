@@ -251,7 +251,7 @@ export function BlossomSettings() {
                   if (e.key === 'Enter') handleAddServer();
                 }}
                 placeholder="https://blossom.example.com/"
-                className="h-9 text-sm font-mono"
+                className="h-9 text-base md:text-sm font-mono"
               />
             </div>
             <Button

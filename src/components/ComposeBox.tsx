@@ -1236,7 +1236,7 @@ export function ComposeBox({
               value={cwText}
               onChange={(e) => setCwText(e.target.value)}
               placeholder="Content warning reason (optional)"
-              className="h-8 text-sm bg-secondary/50 border-0 rounded-lg"
+              className="h-8 text-base md:text-sm bg-secondary/50 border-0 rounded-lg"
             />
             <button
               onClick={() => { setCwEnabled(false); setCwText(''); }}
