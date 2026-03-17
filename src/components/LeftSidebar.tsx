@@ -298,7 +298,7 @@ export function LeftSidebar() {
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-secondary/60 transition-colors"
                   >
                     {userStatus.status ? (
-                      <span className="truncate text-muted-foreground italic text-xs">{userStatus.status}</span>
+                      <span className="truncate text-muted-foreground italic text-xs pr-1">{userStatus.status}</span>
                     ) : (
                       <span className="text-muted-foreground">Set a status</span>
                     )}
