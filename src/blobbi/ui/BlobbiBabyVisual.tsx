@@ -48,8 +48,8 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', className }: Blobb
   // Disable reactions when sleeping
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
-  // Eye animation hook
-  const { leftEyePosition, rightEyePosition, isTracking } = useBlobbiEyes({
+  // Eye animation hook - pass containerRef for mouse position calculations
+  const { leftEyePosition, rightEyePosition, isTracking } = useBlobbiEyes(containerRef, {
     isSleeping,
     maxMovement: 2,
     trackingRadius: 200,

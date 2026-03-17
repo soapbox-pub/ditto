@@ -51,8 +51,8 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', className }: Blob
   // Disable reactions when sleeping
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
-  // Eye animation hook
-  const { leftEyePosition, rightEyePosition, isTracking } = useBlobbiEyes({
+  // Eye animation hook - pass containerRef for mouse position calculations
+  const { leftEyePosition, rightEyePosition, isTracking } = useBlobbiEyes(containerRef, {
     isSleeping,
     maxMovement: 2.5, // Slightly more movement for larger adult form
     trackingRadius: 200,
