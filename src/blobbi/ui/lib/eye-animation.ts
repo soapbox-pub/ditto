@@ -41,10 +41,10 @@ interface FullEyeGroup {
   highlights: ElementInfo[];
   /** Left or right eye */
   side: 'left' | 'right';
-  /** Center X (from pupil) */
-  centerX: number;
-  /** Center Y (from pupil) */
-  centerY: number;
+  /** Blink center X - from eye white if available, otherwise from pupil */
+  blinkCenterX: number;
+  /** Blink center Y - from eye white if available, otherwise from pupil */
+  blinkCenterY: number;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -237,13 +237,16 @@ function groupFullEyes(elements: ElementInfo[]): FullEyeGroup[] {
     });
     nearbyHighlights.forEach((h) => usedHighlights.add(h));
 
+    // Use eye white center for blink anchor (more accurate), fallback to pupil
+    const blinkAnchor = closestEyeWhite || pupil;
+
     groups.push({
       eyeWhite: closestEyeWhite,
       pupil,
       highlights: nearbyHighlights,
       side: pupil.cx < midX ? 'left' : 'right',
-      centerX: pupil.cx,
-      centerY: pupil.cy,
+      blinkCenterX: blinkAnchor.cx,
+      blinkCenterY: blinkAnchor.cy,
     });
   }
 
@@ -317,7 +320,9 @@ export function addEyeAnimation(svgText: string): string {
       blinkContent = trackingGroup;
     }
 
-    const blinkGroup = `<g class="blobbi-blink blobbi-blink-${group.side}" style="transform-box: fill-box; transform-origin: ${group.centerX}px ${group.centerY}px;">
+    // Store blink center as data attributes for the animation loop to use
+    // This is more reliable than CSS transform-origin for SVG transforms
+    const blinkGroup = `<g class="blobbi-blink blobbi-blink-${group.side}" data-cx="${group.blinkCenterX}" data-cy="${group.blinkCenterY}">
     ${blinkContent}
   </g>`;
 
