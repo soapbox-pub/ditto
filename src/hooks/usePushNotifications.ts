@@ -1,19 +1,16 @@
 /**
  * usePushNotifications
  *
- * Manages the Web Push notification lifecycle for Ditto via nostr-push.
+ * Manages the Web Push notification lifecycle via nostr-push.
  *
- * - Registers the service worker on mount.
- * - On enable(): requests browser permission, fetches the VAPID key from the
- *   nostr-push server, subscribes to Web Push, and registers the subscription
- *   with the server for each notification kind the user cares about.
- * - On disable(): deletes server subscriptions and unsubscribes the browser.
+ * - Registers the service worker and restores push state on mount.
+ * - enable(): fetches the VAPID key, subscribes to Web Push, and registers
+ *   per-type subscriptions with nostr-push. Must be called from a user gesture
+ *   AFTER Notification.requestPermission() has already been granted.
+ * - disable(): deletes server subscriptions and unsubscribes the browser.
  *
- * Uses an ephemeral device keypair (not the user's Nostr key) for signing
- * the RPC events, so the user's signer is never prompted.
- *
- * Environment variables:
- *   VITE_NOSTR_PUSH_PUBKEY — hex pubkey of the nostr-push server
+ * Uses an ephemeral device keypair (persisted in localStorage) to sign RPC
+ * events so the user's Nostr signer is never prompted.
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
@@ -56,7 +53,7 @@ export interface UsePushNotificationsReturn {
   enabled: boolean;
   /** Whether the browser and environment support Web Push. */
   supported: boolean;
-  /** Request permission, subscribe, and register with nostr-push. Must be called from a user gesture. */
+  /** Subscribe and register with nostr-push. Caller must request permission first. */
   enable: (userPubkey: string) => Promise<void>;
   /** Unsubscribe from Web Push and delete server registrations. */
   disable: () => Promise<void>;
@@ -92,10 +89,8 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return navigator.serviceWorker.ready;
       })
       .then(async (reg) => {
-        // If permission was already granted and a push subscription exists,
-        // restore the enabled state silently (no RPC needed — server already has it).
-        // We check only the browser's actual subscription state, not localStorage,
-        // because localStorage can get out of sync (cleared independently, etc.).
+        // Returning user: if permission is already granted and a browser push
+        // subscription exists, restore the enabled state silently.
         if (Notification.permission === 'granted') {
           const existing = await reg.pushManager.getSubscription();
           if (existing) {
@@ -114,17 +109,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   }, []);
 
   // ─── enable() ─────────────────────────────────────────────────────────────
-  // Called from NotificationSettings click handler AFTER permission is already
-  // granted. Does NOT call requestPermission() itself — the caller is
-  // responsible for that (and must do so from a user gesture for iOS).
 
   const enable = useCallback(async (userPubkey: string) => {
-    if (!supported) {
-      console.warn('[push] enable() called but push not supported');
-      return;
-    }
+    if (!supported) return;
 
-    // Verify permission was already granted by the caller.
+    // Caller must have already obtained permission (from a user gesture).
     if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
       console.warn('[push] enable() called but Notification.permission is', Notification.permission);
       return;
@@ -136,38 +125,28 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       return;
     }
 
-    // Get or fetch VAPID key
+    // Fetch VAPID key (cached after first fetch).
     let vapidPublicKey = localStorage.getItem(VAPID_KEY_CACHE);
     if (!vapidPublicKey) {
-      console.debug('[push] Fetching VAPID key from nostr-push server for domain:', DOMAIN);
       vapidPublicKey = await client.getVapidKey(DOMAIN);
       localStorage.setItem(VAPID_KEY_CACHE, vapidPublicKey);
-      console.debug('[push] Got VAPID key:', vapidPublicKey.substring(0, 20) + '...');
-    } else {
-      console.debug('[push] Using cached VAPID key');
     }
 
-    // Get or create push subscription
+    // Get or create the browser push subscription.
     const reg = swRegistrationRef.current ?? await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
-      console.debug('[push] Creating new push subscription');
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
       });
-    } else {
-      console.debug('[push] Reusing existing push subscription');
     }
     pushSubRef.current = sub;
 
+    // Register one subscription per notification type with nostr-push.
     const baseId = getOrCreateSubscriptionId();
     const serialized = serializePushSubscription(sub);
 
-    console.debug('[push] Registering', NOTIFICATION_TEMPLATES.length, 'subscription(s) with nostr-push');
-
-    // Register one subscription per notification type so each gets a
-    // tailored template (matching the Android native notification text).
     await Promise.all(NOTIFICATION_TEMPLATES.map((tmpl) =>
       client.registerSubscription({
         subscription_id: `${baseId}-${tmpl.id}`,
@@ -186,7 +165,6 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       }),
     ));
 
-    console.debug('[push] All subscriptions registered successfully');
     setEnabled(true);
   }, [supported]);
 
@@ -196,7 +174,6 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     const client = clientRef.current;
     const baseId = localStorage.getItem(SUBSCRIPTION_ID_KEY);
 
-    // Delete all per-type subscriptions from nostr-push server
     if (client && baseId) {
       await Promise.allSettled(
         NOTIFICATION_TEMPLATES.map((tmpl) =>
@@ -208,7 +185,6 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       );
     }
 
-    // Unsubscribe browser push
     const pushSub = pushSubRef.current;
     if (pushSub) {
       try {

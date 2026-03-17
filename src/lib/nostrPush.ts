@@ -215,11 +215,9 @@ export class NostrPushClient {
     });
 
     // Publish to relays — at least one must accept
-    console.debug('[nostr-push] Publishing RPC event', { method, request_id, relays: this.relays, eventId: event.id });
     await Promise.any(this.relays.map((url) => this.pool.publish([url], event))).catch(() => {
       throw new Error('nostr-push: failed to publish RPC event to any relay');
     });
-    console.debug('[nostr-push] RPC event published, awaiting response...');
 
     return responsePromise;
   }
