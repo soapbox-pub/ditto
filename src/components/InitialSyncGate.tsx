@@ -513,7 +513,7 @@ function DownloadStep({
           type={showKey ? "text" : "password"}
           value={nsec}
           readOnly
-          className="pr-10 font-mono text-sm"
+          className="pr-10 font-mono text-base md:text-sm"
         />
         <Button
           type="button"

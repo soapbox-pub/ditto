@@ -137,7 +137,7 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
       const shadowRoot = (container.firstChild as HTMLElement)?.shadowRoot;
       if (shadowRoot) {
         const style = document.createElement('style');
-        style.textContent = '.sticky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background-color: var(--em-color-background) !important; }';
+        style.textContent = '.sticky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background-color: var(--em-color-background) !important; } input { font-size: 16px !important; }';
         shadowRoot.appendChild(style);
       }
     });

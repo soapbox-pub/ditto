@@ -232,7 +232,7 @@ export function ProfileTabEditModal({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="e.g. photography, travel..."
-              className="bg-secondary/50 border-border focus-visible:ring-1 h-9 text-sm"
+              className="bg-secondary/50 border-border focus-visible:ring-1 h-9 text-base md:text-sm"
             />
           </div>
 
