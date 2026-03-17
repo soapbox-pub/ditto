@@ -2,15 +2,16 @@
  * useBlobbiEyes - Hook for Blobbi eye animations
  *
  * Real-time mouse tracking:
- * - Eyes ALWAYS follow the mouse cursor
+ * - Pupils ALWAYS follow the mouse cursor (via .blobbi-eye groups)
  * - Instant response using SVG transform attribute
  * - No CSS transitions (they cause delayed updates)
- * - Cached eye element references for performance
+ * - Eye whites do NOT move - only pupils track
  *
  * Natural blinking:
  * - Random intervals between 2-5 seconds
  * - Fast close (~80ms), short pause (~100ms), slower open (~120ms)
  * - Occasional double blinks (20% chance)
+ * - Blink affects WHOLE eye (via .blobbi-blink groups)
  * - Disabled when sleeping
  *
  * Architecture:
@@ -18,7 +19,9 @@
  * - Single requestAnimationFrame loop per instance
  * - Direct SVG attribute manipulation (not style.transform)
  * - Element caching with automatic refresh on SVG changes
- * - Combined transforms: translate(x y) scale(1, blinkY)
+ * - Separate transforms:
+ *   - .blobbi-eye: translate(x y) for mouse tracking
+ *   - .blobbi-blink: scale(1, blinkY) for blinking
  */
 
 import { useEffect, useRef } from 'react';
@@ -200,9 +203,13 @@ export function useBlobbiEyes(
   // Animation frame ref for cleanup
   const animationRef = useRef<number | null>(null);
 
-  // Cached eye elements
+  // Cached eye elements for TRACKING (pupil + highlight only)
   const leftEyesRef = useRef<SVGGElement[]>([]);
   const rightEyesRef = useRef<SVGGElement[]>([]);
+
+  // Cached eye elements for BLINKING (whole eye including white)
+  const leftBlinkRef = useRef<SVGGElement[]>([]);
+  const rightBlinkRef = useRef<SVGGElement[]>([]);
 
   // Track last SVG content to detect changes
   const lastSvgContentRef = useRef<string>('');
@@ -216,11 +223,19 @@ export function useBlobbiEyes(
     if (isSleeping) {
       // Reset eyes to center when sleeping (no blinking)
       const resetEyes = () => {
+        // Reset tracking transforms
         leftEyesRef.current.forEach((el) => {
           el.setAttribute('transform', 'translate(0 0)');
         });
         rightEyesRef.current.forEach((el) => {
           el.setAttribute('transform', 'translate(0 0)');
+        });
+        // Reset blink transforms
+        leftBlinkRef.current.forEach((el) => {
+          el.setAttribute('transform', 'scale(1 1)');
+        });
+        rightBlinkRef.current.forEach((el) => {
+          el.setAttribute('transform', 'scale(1 1)');
         });
       };
       resetEyes();
@@ -245,9 +260,13 @@ export function useBlobbiEyes(
         return true; // Already cached and unchanged
       }
 
-      // Query and cache eye elements
+      // Query and cache TRACKING elements (pupil + highlight only)
       const leftEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-left');
       const rightEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-right');
+
+      // Query and cache BLINK elements (whole eye including white)
+      const leftBlink = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-blink-left');
+      const rightBlink = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-blink-right');
 
       if (leftEyes.length === 0 && rightEyes.length === 0) {
         return false; // SVG not rendered yet
@@ -255,12 +274,16 @@ export function useBlobbiEyes(
 
       leftEyesRef.current = Array.from(leftEyes);
       rightEyesRef.current = Array.from(rightEyes);
+      leftBlinkRef.current = Array.from(leftBlink);
+      rightBlinkRef.current = Array.from(rightBlink);
       lastSvgContentRef.current = currentContent;
 
       // Remove any CSS transitions that might interfere
-      [...leftEyesRef.current, ...rightEyesRef.current].forEach((el) => {
-        el.style.transition = 'none';
-      });
+      [...leftEyesRef.current, ...rightEyesRef.current, ...leftBlinkRef.current, ...rightBlinkRef.current].forEach(
+        (el) => {
+          el.style.transition = 'none';
+        }
+      );
 
       return true;
     };
@@ -322,17 +345,28 @@ export function useBlobbiEyes(
       const eyeX = Math.cos(angle) * maxMovement;
       const eyeY = Math.sin(angle) * maxMovement * VERTICAL_SCALE;
 
-      // ─── Apply Combined Transform ───────────────────────────────────────
-      // Combine mouse tracking (translate) with blinking (scaleY)
-      // Scale is applied from center of each eye element (transform-origin: center)
-      const transformValue = `translate(${eyeX} ${eyeY}) scale(1 ${blinkScaleY})`;
+      // ─── Apply Tracking Transform (pupils only) ──────────────────────────
+      // Only translate - no scale here. Eye whites stay fixed.
+      const trackingTransform = `translate(${eyeX} ${eyeY})`;
 
       leftEyesRef.current.forEach((el) => {
-        el.setAttribute('transform', transformValue);
+        el.setAttribute('transform', trackingTransform);
       });
 
       rightEyesRef.current.forEach((el) => {
-        el.setAttribute('transform', transformValue);
+        el.setAttribute('transform', trackingTransform);
+      });
+
+      // ─── Apply Blink Transform (whole eye) ────────────────────────────────
+      // Only scaleY - no translate. Affects eye white + pupil + highlight.
+      const blinkTransform = `scale(1 ${blinkScaleY})`;
+
+      leftBlinkRef.current.forEach((el) => {
+        el.setAttribute('transform', blinkTransform);
+      });
+
+      rightBlinkRef.current.forEach((el) => {
+        el.setAttribute('transform', blinkTransform);
       });
 
       // Continue animation loop
