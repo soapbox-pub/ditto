@@ -11,6 +11,7 @@ import {
   resolveBabySvg,
   customizeBabySvgFromBlobbi,
 } from '@/blobbi/baby-blobbi';
+import { addEyeAnimation } from './lib/eye-animation';
 import { cn } from '@/lib/utils';
 import type { Blobbi } from '@/types/blobbi';
 import { isBlobbiSleeping } from '@/types/blobbi';
@@ -58,7 +59,14 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', className }: Blobb
     });
 
     const baseSvg = resolveBabySvg(blobbi, { isSleeping });
-    return customizeBabySvgFromBlobbi(baseSvg, blobbi, isSleeping);
+    const colorizedSvg = customizeBabySvgFromBlobbi(baseSvg, blobbi, isSleeping);
+    
+    // Add eye movement animation (only when not sleeping)
+    if (!isSleeping) {
+      return addEyeAnimation(colorizedSvg);
+    }
+    
+    return colorizedSvg;
   }, [blobbi, isSleeping]);
 
   return (
