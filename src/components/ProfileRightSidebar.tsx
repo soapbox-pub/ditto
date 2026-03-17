@@ -85,6 +85,8 @@ interface MediaItem {
   blurhash?: string;
   /** NIP-94 dim value from the imeta tag, e.g. "1280x720". */
   dim?: string;
+  /** MIME type from the imeta `m` field, e.g. "video/mp4". */
+  mime?: string;
 }
 
 /** Extracts image URLs from content. */
@@ -99,8 +101,8 @@ function extractVideoUrls(content: string): string[] {
   return content.match(regex) || [];
 }
 
-/** Extract url, blurhash, and dim from the first matching imeta tag for a given URL (or the first tag if no URL given). */
-function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: string; blurhash?: string; dim?: string } {
+/** Extract url, blurhash, dim, and mime from the first matching imeta tag for a given URL (or the first tag if no URL given). */
+function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: string; blurhash?: string; dim?: string; mime?: string } {
   const imetaTags = event.tags.filter(([name]) => name === 'imeta');
   for (const imetaTag of imetaTags) {
     const fields: Record<string, string> = {};
@@ -111,7 +113,7 @@ function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: strin
     }
     if (!fields.url) continue;
     if (matchUrl && fields.url !== matchUrl) continue;
-    return { url: fields.url, blurhash: fields.blurhash, dim: fields.dim };
+    return { url: fields.url, blurhash: fields.blurhash, dim: fields.dim, mime: fields.m };
   }
   return {};
 }
@@ -129,11 +131,11 @@ function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
 
     // For media-native kinds (vines etc.), extract from imeta tags
     if (event.kind !== 1) {
-      const { url, blurhash, dim } = extractImetaFields(event);
+      const { url, blurhash, dim, mime } = extractImetaFields(event);
       if (url && !seen.has(url)) {
         seen.add(url);
         const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-        items.push({ url, blurhash, dim, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
+        items.push({ url, blurhash, dim, mime, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
       }
       continue;
     }
@@ -144,8 +146,8 @@ function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
     for (const url of [...images, ...videos]) {
       if (!seen.has(url)) {
         seen.add(url);
-        const { blurhash, dim } = extractImetaFields(event, url);
-        items.push({ url, blurhash, dim, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
+        const { blurhash, dim, mime } = extractImetaFields(event, url);
+        items.push({ url, blurhash, dim, mime, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
       }
     }
   }
@@ -153,11 +155,22 @@ function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
   return items.slice(0, 9);
 }
 
+/** Event kinds that are inherently video content. */
+const VIDEO_KINDS = new Set([34236, 21, 22]);
+
+/** Detect whether a media item is a video using mime type, file extension, or event kind. */
+function isVideoItem(item: MediaItem): boolean {
+  if (item.mime?.startsWith('video/')) return true;
+  if (/\.(mp4|webm|mov|qt)(\?.*)?$/i.test(item.url)) return true;
+  if (item.kind !== undefined && VIDEO_KINDS.has(item.kind)) return true;
+  return false;
+}
+
 /** Single media tile with a blurhash/skeleton shown until the image loads. */
 function MediaTile({ item }: { item: MediaItem }) {
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
-  const isVideo = /\.(mp4|webm|mov|qt)(\?.*)?$/i.test(item.url);
+  const isVideo = isVideoItem(item);
 
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
