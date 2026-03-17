@@ -15,7 +15,7 @@ export function FeedTabButton({ label, active, onClick, disabled, className }: F
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 whitespace-nowrap',
+        'flex-1 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 min-w-0 truncate',
         active ? 'text-foreground' : 'text-muted-foreground',
         disabled && 'opacity-50 cursor-not-allowed hover:bg-transparent',
         className,
