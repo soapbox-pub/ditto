@@ -24,7 +24,7 @@ import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { FeedTabButton } from '@/components/FeedTabButton';
+import { TabButton } from '@/components/TabButton';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -230,18 +230,18 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       {/* Tabs (logged in) or CTA (logged out, main feed only) */}
       {user ? (
         <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none">
-          <FeedTabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {!isKindSpecificPage && showDittoFeed && (
-            <FeedTabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
+            <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
           )}
           {!isKindSpecificPage && showCommunityFeed && (
-            <FeedTabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
+            <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
           )}
           {(isKindSpecificPage || showGlobalFeed) && (
-            <FeedTabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
+            <TabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
           )}
           {showSavedFeedTabs && savedFeeds.map((feed) => (
-            <FeedTabButton
+            <TabButton
               key={feed.id}
               label={feed.label}
               active={activeTab === feed.id}
@@ -249,7 +249,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
             />
           ))}
           {showSavedFeedTabs && hashtags.map((tag) => (
-            <FeedTabButton
+            <TabButton
               key={`hashtag:${tag}`}
               label={`#${tag}`}
               active={activeTab === `hashtag:${tag}`}

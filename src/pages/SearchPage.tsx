@@ -15,7 +15,6 @@ import {
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FeedTabButton } from '@/components/FeedTabButton';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -46,13 +45,12 @@ import { ListPackPicker } from '@/components/SavedFeedFiltersEditor';
 
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
+import { TabButton } from '@/components/TabButton';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { cn, STICKY_HEADER_CLASS, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
 import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
-
-
 
 type TabType = 'posts' | 'accounts';
 
@@ -417,8 +415,8 @@ export function SearchPage() {
       {/* Tabs — sticky at top */}
       <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
         <div className="flex">
-          <FeedTabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} className="sidebar:py-5" />
-          <FeedTabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} className="sidebar:py-5" />
+          <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} className="sidebar:py-5" />
+          <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} className="sidebar:py-5" />
         </div>
       </div>
 
@@ -815,8 +813,6 @@ export function SearchPage() {
 }
 
 /* ── Shared sub-components ── */
-
-
 
 function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metadata: Record<string, unknown>; event?: { tags: string[][] } }; isFollowed: boolean }) {
   const npub = useMemo(() => nip19.npubEncode(profile.pubkey), [profile.pubkey]);
