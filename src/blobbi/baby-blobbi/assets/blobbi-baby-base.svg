@@ -42,8 +42,6 @@
   <circle cx="62" cy="46" r="6" fill="url(#blobbiPupilGradient)" />
   <circle cx="40" cy="44" r="2" fill="white" />
   <circle cx="64" cy="44" r="2" fill="white" />
-  <circle cx="41" cy="45" r="0.8" fill="white" opacity="0.8" />
-  <circle cx="65" cy="45" r="0.8" fill="white" opacity="0.8" />
   
   <!-- Happy mouth -->
   <path d="M 42 62 Q 50 68 58 62" stroke="url(#blobbiMouthGradient)" stroke-width="2.5" fill="none" stroke-linecap="round" />

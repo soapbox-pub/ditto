@@ -360,19 +360,16 @@ export function useBlobbiEyes(
       // ─── Apply Blink Transform (whole eye) ────────────────────────────────
       // Scale around eye center using: translate(cx,cy) scale(1,blinkY) translate(-cx,-cy)
       // This keeps the eye in place instead of shifting down during blink.
+      // Center coordinates come from data-cx/data-cy attributes (set from actual SVG element positions)
       const applyBlinkTransform = (el: SVGGElement) => {
-        // Extract center from transform-origin style (format: "Xpx Ypx")
-        const origin = el.style.transformOrigin;
-        const match = origin.match(/(-?\d+\.?\d*)px\s+(-?\d+\.?\d*)px/);
+        const cxAttr = el.getAttribute('data-cx');
+        const cyAttr = el.getAttribute('data-cy');
 
-        if (match) {
-          const cx = parseFloat(match[1]);
-          const cy = parseFloat(match[2]);
+        if (cxAttr && cyAttr) {
+          const cx = parseFloat(cxAttr);
+          const cy = parseFloat(cyAttr);
           // Scale around center: translate to origin, scale, translate back
           el.setAttribute('transform', `translate(${cx} ${cy}) scale(1 ${blinkScaleY}) translate(${-cx} ${-cy})`);
-        } else {
-          // Fallback if no center found
-          el.setAttribute('transform', `scale(1 ${blinkScaleY})`);
         }
       };
 
