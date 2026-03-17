@@ -63,7 +63,7 @@ export function HashtagPage() {
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <h1 className="text-xl font-bold flex-1">#{tag}</h1>
+          <h1 className="text-xl font-bold flex-1 truncate min-w-0">#{tag}</h1>
           {user && tag && (
             <Button
               size="sm"
