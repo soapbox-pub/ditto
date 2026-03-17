@@ -55,6 +55,7 @@ export function FollowButton({ pubkey, className, size = 'sm' }: FollowButtonPro
 
   return (
     <Button
+      type="button"
       size={size}
       variant={isFollowing ? 'outline' : 'default'}
       className={cn(
