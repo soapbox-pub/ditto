@@ -74,13 +74,18 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   const pushSubRef = useRef<PushSubscription | null>(null);
   const clientRef = useRef<NostrPushClient | null>(null);
   const swRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  // Pre-fetched VAPID key so enable() doesn't need an async network call
+  // before pushManager.subscribe() — browsers require that call to be
+  // synchronously reachable from the user gesture.
+  const vapidKeyRef = useRef<string | null>(null);
 
   // ─── Register SW + restore state on mount ─────────────────────────────────
 
   useEffect(() => {
     if (!supported) return;
 
-    clientRef.current = new NostrPushClient(SERVER_PUBKEY, RPC_RELAYS);
+    const client = new NostrPushClient(SERVER_PUBKEY, RPC_RELAYS);
+    clientRef.current = client;
 
     navigator.serviceWorker
       .register('/sw.js', { scope: '/' })
@@ -89,6 +94,24 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return navigator.serviceWorker.ready;
       })
       .then(async (reg) => {
+        // Pre-fetch and cache the VAPID key so it is ready before the user
+        // clicks "Enable". This keeps pushManager.subscribe() as the first
+        // async step inside enable(), satisfying the browser's user-gesture
+        // requirement (otherwise the intermediate network await breaks the
+        // activation chain and throws "DOMException: The operation is insecure").
+        let vapidKey = localStorage.getItem(VAPID_KEY_CACHE);
+        if (!vapidKey) {
+          try {
+            vapidKey = await client.getVapidKey(DOMAIN);
+            localStorage.setItem(VAPID_KEY_CACHE, vapidKey);
+          } catch (err) {
+            console.warn('[push] Failed to pre-fetch VAPID key:', err);
+          }
+        }
+        if (vapidKey) {
+          vapidKeyRef.current = vapidKey;
+        }
+
         // Returning user: if permission is already granted and a browser push
         // subscription exists, restore the enabled state silently.
         if (Notification.permission === 'granted') {
@@ -125,11 +148,19 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       return;
     }
 
-    // Fetch VAPID key (cached after first fetch).
-    let vapidPublicKey = localStorage.getItem(VAPID_KEY_CACHE);
+    // Use the VAPID key pre-fetched on mount (already in vapidKeyRef and
+    // localStorage). Avoid any network round-trip here — an async await
+    // before pushManager.subscribe() breaks the user-gesture activation chain
+    // and causes "DOMException: The operation is insecure" in strict browsers.
+    let vapidPublicKey = vapidKeyRef.current ?? localStorage.getItem(VAPID_KEY_CACHE);
     if (!vapidPublicKey) {
+      // Should rarely happen (pre-fetch failed on mount). Log a warning but
+      // still attempt the fetch; on browsers that enforce the gesture chain
+      // this may still throw the insecure-operation error.
+      console.warn('[push] VAPID key not pre-fetched; fetching now (may fail on strict browsers)');
       vapidPublicKey = await client.getVapidKey(DOMAIN);
       localStorage.setItem(VAPID_KEY_CACHE, vapidPublicKey);
+      vapidKeyRef.current = vapidPublicKey;
     }
 
     // Get or create the browser push subscription.
