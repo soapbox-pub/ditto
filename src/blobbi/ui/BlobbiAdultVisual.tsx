@@ -4,7 +4,7 @@
  * Uses the adult-blobbi module for SVG resolution and customization.
  * Handles awake vs sleeping states automatically.
  * Supports multiple adult evolution forms.
- * Includes eye movement animation with mouse tracking.
+ * Eyes always track the mouse cursor.
  */
 
 import { useCallback, useMemo, useRef } from 'react';
@@ -41,7 +41,7 @@ export interface BlobbiAdultVisualProps {
  * - Resolves the correct form from blobbi data (evolutionForm or seed-derived)
  * - Selects the correct SVG variant (awake or sleeping) based on state
  * - Applies color customization from Blobbi traits
- * - Animates eyes with idle wandering and mouse tracking
+ * - Eyes always track the mouse cursor (instant, no lag)
  * - Renders safely using dangerouslySetInnerHTML
  */
 export function BlobbiAdultVisual({ blobbi, reaction = 'idle', className }: BlobbiAdultVisualProps) {
@@ -52,34 +52,26 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', className }: Blob
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
   // Direct DOM update callback - called every animation frame
-  // This bypasses React state for real-time responsiveness
-  const handleEyeUpdate = useCallback(
-    (left: EyePosition, right: EyePosition, isTracking: boolean) => {
-      if (!containerRef.current) return;
+  const handleEyeUpdate = useCallback((left: EyePosition, right: EyePosition) => {
+    if (!containerRef.current) return;
 
-      const leftEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-left');
-      const rightEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-right');
+    const leftEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-left');
+    const rightEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-right');
 
-      // Apply transforms directly to DOM
-      leftEyes.forEach((el) => {
-        el.style.transform = `translate(${left.x}px, ${left.y}px)`;
-        el.classList.toggle('tracking', isTracking);
-      });
+    // Apply transforms directly to DOM
+    leftEyes.forEach((el) => {
+      el.style.transform = `translate(${left.x}px, ${left.y}px)`;
+    });
 
-      rightEyes.forEach((el) => {
-        el.style.transform = `translate(${right.x}px, ${right.y}px)`;
-        el.classList.toggle('tracking', isTracking);
-      });
-    },
-    []
-  );
+    rightEyes.forEach((el) => {
+      el.style.transform = `translate(${right.x}px, ${right.y}px)`;
+    });
+  }, []);
 
-  // Eye animation hook - uses callback for direct DOM updates (no React state lag)
+  // Eye animation hook - always tracks mouse
   useBlobbiEyes(containerRef, {
     isSleeping,
     maxMovement: 2.5, // Slightly more movement for larger adult form
-    trackingRadius: 200,
-    energy: blobbi.stats.energy,
     onUpdate: handleEyeUpdate,
   });
 
