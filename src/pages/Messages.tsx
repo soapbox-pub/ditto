@@ -8,7 +8,7 @@ const Messages = () => {
     description: 'Private encrypted messaging on Nostr',
   });
 
-  useLayoutOptions({ noOverscroll: true });
+  useLayoutOptions({ noOverscroll: true, rightSidebar: null, noMaxWidth: true });
 
   return (
     <div className="bg-background">

@@ -28,6 +28,12 @@ export interface LayoutOptions {
    * that manage their own scroll containers.
    */
   noOverscroll?: boolean;
+  /**
+   * If true, removes the max-width constraint on the center column so it
+   * expands to fill available space. Use with `rightSidebar: null` for
+   * full-width page layouts (e.g. messaging).
+   */
+  noMaxWidth?: boolean;
 }
 
 type Listener = () => void;
@@ -95,7 +101,8 @@ export function useLayoutOptions(options: LayoutOptions): void {
     prev.current.wrapperClassName !== options.wrapperClassName ||
     prev.current.rightSidebar !== options.rightSidebar ||
     prev.current.scrollContainer !== options.scrollContainer ||
-    prev.current.noOverscroll !== options.noOverscroll;
+    prev.current.noOverscroll !== options.noOverscroll ||
+    prev.current.noMaxWidth !== options.noMaxWidth;
 
   if (changed) {
     prev.current = options;
