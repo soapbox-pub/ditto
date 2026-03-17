@@ -799,16 +799,15 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
       onMouseLeave={handleMouseUp}
       style={{ cursor: scale.current > 1 ? 'grab' : 'default' }}
     >
-      <div ref={wrapRef} style={{ transformOrigin: 'center center', willChange: 'transform' }}>
+      <div ref={wrapRef} style={{ transformOrigin: 'center center', willChange: 'transform', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <img
           ref={imgRef}
           src={src}
           alt=""
           className={cn(
-            'max-w-full max-h-full object-contain select-none transition-opacity duration-300',
+            'block max-w-full max-h-full object-contain select-none transition-opacity duration-300',
             isLoaded ? 'opacity-100' : 'opacity-0',
           )}
-          style={{ display: 'block', maxHeight: '100dvh' }}
           onLoad={handleLoaded}
           onError={onError}
           draggable={false}
