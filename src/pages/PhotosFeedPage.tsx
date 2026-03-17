@@ -23,7 +23,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
-import { FeedTabButton } from '@/components/FeedTabButton';
+import { TabButton } from '@/components/TabButton';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import type { FeedItem } from '@/lib/feedUtils';
 import { MediaCollage, MediaCollageSkeleton, eventToMediaItem } from '@/components/MediaCollage';
@@ -104,8 +104,8 @@ export function PhotosFeedPage() {
 
       {/* Tabs */}
       <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        <FeedTabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
-        <FeedTabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+        <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
+        <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
       </div>
 
       {/* Grid */}
