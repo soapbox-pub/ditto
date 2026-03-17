@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
+import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { MainLayout } from "./components/MainLayout";
@@ -55,6 +57,22 @@ const articlesDef = getExtraKindDef("articles")!;
 const decksDef = getExtraKindDef("decks")!;
 const emojisDef = getExtraKindDef("emojis")!;
 const developmentDef = getExtraKindDef("development")!;
+
+/** Polls feed page with a FAB that opens the compose modal (poll mode via + menu). */
+function PollsFeedPage() {
+  const [composeOpen, setComposeOpen] = useState(false);
+  return (
+    <>
+      <KindFeedPage
+        kind={pollsDef.kind}
+        title={pollsDef.label}
+        icon={sidebarItemIcon("polls", "size-5")}
+        onFabClick={() => setComposeOpen(true)}
+      />
+      <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} initialMode="poll" />
+    </>
+  );
+}
 
 /** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
 function ProfileRedirect() {
@@ -111,16 +129,7 @@ export function AppRouter() {
             <Route path="/vines" element={<VinesFeedPage />} />
             <Route path="/music" element={<MusicFeedPage />} />
             <Route path="/podcasts" element={<PodcastsFeedPage />} />
-            <Route
-              path="/polls"
-              element={
-                <KindFeedPage
-                  kind={pollsDef.kind}
-                  title={pollsDef.label}
-                  icon={sidebarItemIcon("polls", "size-5")}
-                />
-              }
-            />
+            <Route path="/polls" element={<PollsFeedPage />} />
             <Route path="/treasures" element={<TreasuresPage />} />
             <Route
               path="/colors"
