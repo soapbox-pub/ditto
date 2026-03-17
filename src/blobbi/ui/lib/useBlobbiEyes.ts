@@ -1,16 +1,17 @@
 /**
  * useBlobbiEyes - Hook for Blobbi eye animations
  *
- * Simple, always-on mouse tracking:
+ * Real-time mouse tracking:
  * - Eyes ALWAYS follow the mouse cursor
- * - No idle mode, no random movement
- * - Instant response, no interpolation
- * - Works across the entire screen
+ * - Instant response using SVG transform attribute
+ * - No CSS transitions (they cause delayed updates)
+ * - Cached eye element references for performance
  *
  * Architecture:
- * - Single requestAnimationFrame loop
- * - Direct angle calculation to mouse position
- * - Callback-based DOM updates (no React state lag)
+ * - Global mouse listener (shared by all instances)
+ * - Single requestAnimationFrame loop per instance
+ * - Direct SVG attribute manipulation (not style.transform)
+ * - Element caching with automatic refresh on SVG changes
  */
 
 import { useEffect, useRef } from 'react';
@@ -27,11 +28,6 @@ export interface UseBlobbiEyesOptions {
   isSleeping?: boolean;
   /** Maximum eye movement in pixels (default: 2) */
   maxMovement?: number;
-  /**
-   * Callback called every animation frame with current eye positions.
-   * Use this to apply transforms directly to DOM.
-   */
-  onUpdate?: (left: EyePosition, right: EyePosition) => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -45,7 +41,6 @@ const VERTICAL_SCALE = 0.7; // Reduce vertical movement to 70%
 let globalMouseX = 0;
 let globalMouseY = 0;
 let mouseListenerAttached = false;
-let instanceCount = 0;
 
 function attachGlobalMouseListener() {
   if (mouseListenerAttached) return;
@@ -55,19 +50,9 @@ function attachGlobalMouseListener() {
     globalMouseY = e.clientY;
   };
 
-  window.addEventListener('mousemove', handleMouseMove, { passive: true });
+  // Use capture phase for earliest possible update
+  window.addEventListener('mousemove', handleMouseMove, { capture: true, passive: true });
   mouseListenerAttached = true;
-}
-
-function detachGlobalMouseListener() {
-  if (!mouseListenerAttached) return;
-
-  // Only detach when no instances are using it
-  if (instanceCount > 0) return;
-
-  // Note: We don't actually remove the listener since we can't reference
-  // the same function. In practice, this is fine - mouse listeners are cheap.
-  // The listener will persist but do minimal work (just updating two numbers).
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -76,32 +61,91 @@ export function useBlobbiEyes(
   containerRef: React.RefObject<HTMLDivElement | null>,
   options: UseBlobbiEyesOptions = {}
 ): void {
-  const { isSleeping = false, maxMovement = DEFAULT_MAX_MOVEMENT, onUpdate } = options;
-
-  // Store callback in ref to avoid recreating animation loop
-  const onUpdateRef = useRef(onUpdate);
-  onUpdateRef.current = onUpdate;
+  const { isSleeping = false, maxMovement = DEFAULT_MAX_MOVEMENT } = options;
 
   // Animation frame ref for cleanup
   const animationRef = useRef<number | null>(null);
 
+  // Cached eye elements
+  const leftEyesRef = useRef<SVGGElement[]>([]);
+  const rightEyesRef = useRef<SVGGElement[]>([]);
+
+  // Track last SVG content to detect changes
+  const lastSvgContentRef = useRef<string>('');
+
   useEffect(() => {
-    // Track instance count for global listener management
-    instanceCount++;
     attachGlobalMouseListener();
 
     if (isSleeping) {
       // Reset eyes to center when sleeping
-      onUpdateRef.current?.({ x: 0, y: 0 }, { x: 0, y: 0 });
+      const resetEyes = () => {
+        leftEyesRef.current.forEach((el) => {
+          el.setAttribute('transform', 'translate(0 0)');
+        });
+        rightEyesRef.current.forEach((el) => {
+          el.setAttribute('transform', 'translate(0 0)');
+        });
+      };
+      resetEyes();
+
       return () => {
-        instanceCount--;
-        detachGlobalMouseListener();
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
       };
     }
+
+    // ─── Cache Eye Elements ─────────────────────────────────────────────
+
+    const cacheEyeElements = () => {
+      if (!containerRef.current) return false;
+
+      // Check if SVG content changed
+      const currentContent = containerRef.current.innerHTML;
+      if (currentContent === lastSvgContentRef.current && leftEyesRef.current.length > 0) {
+        return true; // Already cached and unchanged
+      }
+
+      // Query and cache eye elements
+      const leftEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-left');
+      const rightEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-right');
+
+      if (leftEyes.length === 0 && rightEyes.length === 0) {
+        return false; // SVG not rendered yet
+      }
+
+      leftEyesRef.current = Array.from(leftEyes);
+      rightEyesRef.current = Array.from(rightEyes);
+      lastSvgContentRef.current = currentContent;
+
+      // Remove any CSS transitions that might interfere
+      [...leftEyesRef.current, ...rightEyesRef.current].forEach((el) => {
+        el.style.transition = 'none';
+      });
+
+      return true;
+    };
 
     // ─── Animation Loop ─────────────────────────────────────────────────
 
     const animate = () => {
+      // Try to cache elements if not done yet
+      if (leftEyesRef.current.length === 0 || rightEyesRef.current.length === 0) {
+        if (!cacheEyeElements()) {
+          // SVG not ready yet, try again next frame
+          animationRef.current = requestAnimationFrame(animate);
+          return;
+        }
+      }
+
+      // Check if SVG content changed (e.g., sleeping state change)
+      if (containerRef.current) {
+        const currentContent = containerRef.current.innerHTML;
+        if (currentContent !== lastSvgContentRef.current) {
+          cacheEyeElements();
+        }
+      }
+
       if (!containerRef.current) {
         animationRef.current = requestAnimationFrame(animate);
         return;
@@ -123,10 +167,17 @@ export function useBlobbiEyes(
       const eyeX = Math.cos(angle) * maxMovement;
       const eyeY = Math.sin(angle) * maxMovement * VERTICAL_SCALE;
 
-      const position: EyePosition = { x: eyeX, y: eyeY };
+      // Apply transform using SVG attribute (not style.transform)
+      // This triggers immediate repaint without CSS transition interference
+      const transformValue = `translate(${eyeX} ${eyeY})`;
 
-      // Update both eyes (same direction)
-      onUpdateRef.current?.(position, position);
+      leftEyesRef.current.forEach((el) => {
+        el.setAttribute('transform', transformValue);
+      });
+
+      rightEyesRef.current.forEach((el) => {
+        el.setAttribute('transform', transformValue);
+      });
 
       // Continue animation loop
       animationRef.current = requestAnimationFrame(animate);
@@ -141,8 +192,6 @@ export function useBlobbiEyes(
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
-      instanceCount--;
-      detachGlobalMouseListener();
     };
   }, [isSleeping, maxMovement, containerRef]);
 }
