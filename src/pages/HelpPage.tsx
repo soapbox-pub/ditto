@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, HelpCircle } from 'lucide-react';
+import { ArrowLeft, HelpCircle, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { useAppContext } from '@/hooks/useAppContext';
@@ -44,6 +44,17 @@ export function HelpPage() {
 
       {/* FAQ accordion sections */}
       <HelpFAQSection className="px-4 pb-8" />
+
+      {/* Privacy policy link */}
+      <div className="px-4 pb-8">
+        <Link
+          to="/privacy"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Shield className="size-4" />
+          <span>Privacy Policy</span>
+        </Link>
+      </div>
     </main>
   );
 }
