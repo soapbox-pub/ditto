@@ -1343,10 +1343,13 @@ export function ComposeBox({
                   ref={fileInputRef}
                   type="file"
                   accept="image/*,video/*,audio/*,.xdc"
+                  multiple
                   className="hidden"
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file);
+                    const files = e.target.files;
+                    if (files) {
+                      Array.from(files).forEach((file) => handleFileUpload(file));
+                    }
                     e.target.value = '';
                   }}
                 />
