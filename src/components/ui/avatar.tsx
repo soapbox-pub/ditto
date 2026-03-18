@@ -32,25 +32,26 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
     const hasCustomShape = isEmojiShape || isBlobbi
 
     // Build inline style: mask-image for shaped avatars
+    // Note: We compute maskUrl outside useMemo to ensure it's always fresh,
+    // then include it in dependencies to trigger re-render when shape changes
+    const maskUrl = hasCustomShape && shape ? getAvatarMaskUrl(shape) : ''
+    
     const mergedStyle = React.useMemo<React.CSSProperties>(() => {
-      if (hasCustomShape && shape) {
-        const maskUrl = getAvatarMaskUrl(shape)
-        if (maskUrl) {
-          return {
-            ...style,
-            WebkitMaskImage: `url(${maskUrl})`,
-            maskImage: `url(${maskUrl})`,
-            WebkitMaskSize: 'contain',
-            maskSize: 'contain' as string,
-            WebkitMaskRepeat: 'no-repeat',
-            maskRepeat: 'no-repeat' as string,
-            WebkitMaskPosition: 'center',
-            maskPosition: 'center' as string,
-          }
+      if (maskUrl) {
+        return {
+          ...style,
+          WebkitMaskImage: `url(${maskUrl})`,
+          maskImage: `url(${maskUrl})`,
+          WebkitMaskSize: 'contain',
+          maskSize: 'contain' as string,
+          WebkitMaskRepeat: 'no-repeat',
+          maskRepeat: 'no-repeat' as string,
+          WebkitMaskPosition: 'center',
+          maskPosition: 'center' as string,
         }
       }
       return style ?? {}
-    }, [hasCustomShape, shape, style])
+    }, [maskUrl, style])
 
     return (
       <AvatarHasSrcContext.Provider value={hasSrcRef}>
