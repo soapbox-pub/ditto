@@ -16,7 +16,7 @@
  * ────────────────────────────────────────────────────────────────────────── */
 
 export type BlobbiLifeStage = 'egg' | 'baby' | 'adult';
-export type BlobbiState = 'active' | 'sleeping' | 'hibernating';
+export type BlobbiState = 'active' | 'sleeping' | 'hibernating' | 'incubating' | 'evolving';
 
 /* ────────────────────────────────────────────────────────────────────────── *
  * Visual traits

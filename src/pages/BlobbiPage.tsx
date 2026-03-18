@@ -38,16 +38,22 @@ import { applyBlobbiDecay } from '@/lib/blobbi-decay';
 
 import { BlobbiShopModal } from '@/blobbi/shop/components/BlobbiShopModal';
 import { BlobbiInventoryModal } from '@/blobbi/shop/components/BlobbiInventoryModal';
-import { 
+import {
   BlobbiActionsModal, 
   BlobbiActionInventoryModal,
   PlayMusicModal,
   InlineMusicPlayer,
   InlineSingCard,
+  HatchTasksPanel,
+  BlobbiPostModal,
+  StartIncubationDialog,
   useBlobbiUseInventoryItem,
   useBlobbiHatch,
   useBlobbiEvolve,
   useBlobbiDirectAction,
+  useStartIncubation,
+  useHatchTasks,
+  getInteractionCount,
   createMusicActivity,
   createSingActivity,
   createNoActivity,
@@ -596,6 +602,7 @@ function BlobbiContent() {
       invalidateProfile={invalidateProfile}
       invalidateCompanion={invalidateCompanion}
       setStoredSelectedD={setStoredSelectedD}
+      ensureCanonicalBeforeAction={ensureCanonicalBeforeAction}
     />
   );
 }
@@ -654,6 +661,15 @@ interface BlobbiDashboardProps {
   invalidateProfile: () => void;
   invalidateCompanion: () => void;
   setStoredSelectedD: (d: string) => void;
+  // Incubation helpers
+  ensureCanonicalBeforeAction: () => Promise<{
+    companion: BlobbiCompanion;
+    content: string;
+    allTags: string[][];
+    wasMigrated: boolean;
+    profileAllTags: string[][];
+    profileStorage: import('@/lib/blobbi').StorageItem[];
+  } | null>;
 }
 
 function BlobbiDashboard({
@@ -681,6 +697,7 @@ function BlobbiDashboard({
   invalidateProfile,
   invalidateCompanion,
   setStoredSelectedD,
+  ensureCanonicalBeforeAction,
 }: BlobbiDashboardProps) {
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
@@ -711,6 +728,41 @@ function BlobbiDashboard({
   // Blobbi reaction state - drives visual reactions to activities
   // This is passed to BlobbiStageVisual to trigger dance/sway animations
   const [blobbiReaction, setBlobbiReaction] = useState<BlobbiReactionState>('idle');
+  
+  // Incubation/Hatch task state
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [showIncubationDialog, setShowIncubationDialog] = useState(false);
+  
+  // Incubation state detection
+  const isIncubating = companion.state === 'incubating';
+  const canStartIncubation = isEgg && !isIncubating && companion.state !== 'evolving';
+  
+  // Hatch tasks hook - only active when incubating
+  const interactionCount = getInteractionCount(companion);
+  const hatchTasks = useHatchTasks(
+    isIncubating ? companion : null,
+    interactionCount
+  );
+  
+  // Start incubation hook
+  const { mutateAsync: startIncubation, isPending: isStartingIncubation } = useStartIncubation({
+    companion,
+    profile,
+    ensureCanonicalBeforeAction,
+    updateCompanionEvent,
+    invalidateCompanion,
+    invalidateProfile,
+  });
+  
+  // Handler for starting incubation
+  const handleStartIncubation = async () => {
+    try {
+      await startIncubation();
+      setShowIncubationDialog(false);
+    } catch (error) {
+      console.error('Failed to start incubation:', error);
+    }
+  };
   
   // Handle opening an inventory action modal
   const handleInventoryAction = (action: InventoryAction) => {
@@ -886,6 +938,8 @@ function BlobbiDashboard({
           onEvolve={isEgg ? onHatch : onEvolve}
           isTransitioning={isHatching || isEvolving}
           onInfo={() => setShowInfoModal(true)}
+          // Hide hatch button when incubating (hatch is in HatchTasksPanel instead)
+          hideEvolveButton={isIncubating}
         />
         
         {/* Blobbi Name */}
@@ -978,6 +1032,35 @@ function BlobbiDashboard({
               color="violet"
               status={projectedState?.visibleStats.find(s => s.stat === 'energy')?.status}
             />
+          </div>
+        )}
+        
+        {/* Hatch Tasks Panel - for incubating eggs */}
+        {isEgg && isIncubating && (
+          <div className="mt-6">
+            <HatchTasksPanel
+              tasks={hatchTasks.tasks}
+              allCompleted={hatchTasks.allCompleted}
+              isLoading={hatchTasks.isLoading}
+              onOpenPostModal={() => setShowPostModal(true)}
+              onHatch={onHatch}
+              isHatching={isHatching}
+            />
+          </div>
+        )}
+        
+        {/* Start Incubation Button - for eggs not yet incubating */}
+        {canStartIncubation && (
+          <div className="mt-6 flex justify-center">
+            <Button
+              onClick={() => setShowIncubationDialog(true)}
+              variant="outline"
+              size="lg"
+              className="gap-2 border-primary/30 hover:border-primary/50 hover:bg-primary/5"
+            >
+              <Egg className="size-5" />
+              Start Incubation
+            </Button>
           </div>
         )}
         
@@ -1129,6 +1212,22 @@ function BlobbiDashboard({
         onOpenChange={setShowInfoModal}
         companion={companion}
       />
+      
+      {/* Blobbi Post Modal - for hatch task */}
+      <BlobbiPostModal
+        open={showPostModal}
+        onOpenChange={setShowPostModal}
+        onSuccess={() => hatchTasks.refetch()}
+      />
+      
+      {/* Start Incubation Confirmation Dialog */}
+      <StartIncubationDialog
+        open={showIncubationDialog}
+        onOpenChange={setShowIncubationDialog}
+        companion={companion}
+        onConfirm={handleStartIncubation}
+        isPending={isStartingIncubation}
+      />
     </DashboardShell>
   );
 }
@@ -1186,6 +1285,8 @@ interface BlobbiDashboardFloatingControlsProps {
   /** Whether a stage transition is in progress (hatch or evolve) */
   isTransitioning?: boolean;
   onInfo: () => void;
+  /** Whether to hide the evolve/hatch button (e.g., when incubating) */
+  hideEvolveButton?: boolean;
 }
 
 /**
@@ -1224,6 +1325,7 @@ function BlobbiDashboardFloatingControls({
   onEvolve,
   isTransitioning = false,
   onInfo,
+  hideEvolveButton = false,
 }: BlobbiDashboardFloatingControlsProps) {
   // Left-side buttons
   const leftButtons: FloatingActionDef[] = [
@@ -1304,7 +1406,8 @@ function BlobbiDashboardFloatingControls({
         
         {/* Evolve/Hatch button with accent styling */}
         {/* Adults can't evolve further, so hide the button */}
-        {stage !== 'adult' && (
+        {/* Also hide when explicitly requested (e.g., during incubation) */}
+        {stage !== 'adult' && !hideEvolveButton && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

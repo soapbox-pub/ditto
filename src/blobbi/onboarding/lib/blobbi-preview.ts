@@ -193,6 +193,11 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     startIncubation: undefined,
     adultType: undefined, // Eggs don't have adult type
     
+    // Task-related fields (not applicable to previews)
+    stateStartedAt: undefined,
+    tasks: [],
+    tasksCompleted: [],
+    
     // We need allTags for the adapter, but preview has no extra tags
     allTags: previewToEventTags(preview),
     

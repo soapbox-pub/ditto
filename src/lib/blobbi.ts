@@ -37,7 +37,7 @@ export const BLOBBI_ADOPTION_COST = 100;
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type BlobbiStage = 'egg' | 'baby' | 'adult';
-export type BlobbiState = 'active' | 'sleeping' | 'hibernating';
+export type BlobbiState = 'active' | 'sleeping' | 'hibernating' | 'incubating' | 'evolving';
 
 export interface BlobbiStats {
   hunger: number;
@@ -162,6 +162,15 @@ export const DEFAULT_VISUAL_TRAITS: BlobbiVisualTraits = {
 } as const;
 
 /**
+ * Parsed task progress stored in Blobbi event tags.
+ * Format: ["task", "name:value"]
+ */
+export interface BlobbiTaskProgress {
+  name: string;
+  value: number;
+}
+
+/**
  * Parsed representation of a Kind 31124 Blobbi Current State event.
  */
 export interface BlobbiCompanion {
@@ -203,6 +212,12 @@ export interface BlobbiCompanion {
   startIncubation: number | undefined;
   /** Adult evolution form type (adult only) */
   adultType: string | undefined;
+  /** Timestamp when current state (incubating/evolving) started (unix seconds) */
+  stateStartedAt: number | undefined;
+  /** Task progress cache (source of truth is computed from Nostr events) */
+  tasks: BlobbiTaskProgress[];
+  /** Completed task names */
+  tasksCompleted: string[];
   /** All tags preserved for republishing */
   allTags: string[][];
 }
@@ -811,6 +826,25 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     traits: `${visualTraits.baseColor} ${visualTraits.pattern} ${visualTraits.size}`,
   });
   
+  // Parse task progress tags: ["task", "name:value"]
+  const tasks: BlobbiTaskProgress[] = [];
+  for (const tag of tags) {
+    if (tag[0] === 'task' && tag[1]) {
+      const [taskName, taskValue] = tag[1].split(':');
+      if (taskName && taskValue) {
+        tasks.push({ name: taskName, value: parseInt(taskValue, 10) || 0 });
+      }
+    }
+  }
+  
+  // Parse completed task tags: ["task_completed", "name"]
+  const tasksCompleted: string[] = [];
+  for (const tag of tags) {
+    if (tag[0] === 'task_completed' && tag[1]) {
+      tasksCompleted.push(tag[1]);
+    }
+  }
+  
   return {
     event,
     d,
@@ -837,6 +871,9 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     incubationTime: parseNumericTag(tags, 'incubation_time'),
     startIncubation: parseNumericTag(tags, 'start_incubation'),
     adultType: getTagValue(tags, 'adult_type'),
+    stateStartedAt: parseNumericTag(tags, 'state_started_at'),
+    tasks,
+    tasksCompleted,
     allTags: tags,
   };
 }
@@ -940,6 +977,8 @@ export const MANAGED_BLOBBI_STATE_TAG_NAMES = new Set([
   'visible_to_others', 'generation', 'breeding_ready', 'experience',
   'care_streak', 'hunger', 'happiness', 'health', 'hygiene', 'energy',
   'last_interaction', 'last_decay_at', 'incubation_time', 'start_incubation',
+  // Incubation task system tags
+  'state_started_at', 'task', 'task_completed',
 ]);
 
 /**
