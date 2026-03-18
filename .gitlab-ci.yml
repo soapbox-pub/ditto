@@ -117,22 +117,28 @@ build-apk:
     - npx cap sync android
 
     # Build signed release APK
-    - cd android && chmod +x gradlew && ./gradlew assembleRelease && cd ..
+    - cd android && chmod +x gradlew && ./gradlew assembleRelease bundleRelease && cd ..
 
     # Copy APK to a predictable artifact path
     - mkdir -p artifacts
     - cp android/app/build/outputs/apk/release/app-release.apk "artifacts/Ditto.apk"
-    - ls -lh "artifacts/Ditto.apk"
+    - cp android/app/build/outputs/bundle/release/app-release.aab "artifacts/Ditto.aab"
+    - ls -lh artifacts/
 
     # Upload to Generic Packages registry for a stable public download URL
     - |
       curl --fail --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
         --upload-file "artifacts/Ditto.apk" \
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${CI_COMMIT_TAG}/Ditto-${CI_COMMIT_TAG}.apk"
+    - |
+      curl --fail --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+        --upload-file "artifacts/Ditto.aab" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${CI_COMMIT_TAG}/Ditto-${CI_COMMIT_TAG}.aab"
 
   artifacts:
     paths:
       - artifacts/Ditto.apk
+      - artifacts/Ditto.aab
     expire_in: 90 days
   cache:
     key: android-gradle
@@ -157,6 +163,9 @@ release:
       links:
         - name: "Ditto-${CI_COMMIT_TAG}.apk"
           url: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${CI_COMMIT_TAG}/Ditto-${CI_COMMIT_TAG}.apk"
+          link_type: package
+        - name: "Ditto-${CI_COMMIT_TAG}.aab"
+          url: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${CI_COMMIT_TAG}/Ditto-${CI_COMMIT_TAG}.aab"
           link_type: package
 
 publish-zapstore:
