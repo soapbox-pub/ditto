@@ -7,6 +7,7 @@
     "dev": "npm i --silent && vite",
     "build": "npm i --silent && vite build -l error && cp dist/index.html dist/404.html && echo 'Project built successfully!'",
     "test": "npm i --silent && tsc --noEmit && eslint && vitest run --reporter=dot --silent && vite build -l error && cp dist/index.html dist/404.html && echo 'All tests passed!'",
+    "keygen": "keytool -genkey -v -keystore android/app/my-upload-key.keystore -keyalg RSA -keysize 2048 -validity 10000 -alias upload",
     "icons": "bash scripts/generate-icons.sh",
     "release": "git tag \"v$(date +%Y.%m.%d)-$(git rev-parse --short HEAD)\" && git push origin --tags"
   },
