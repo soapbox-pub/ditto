@@ -405,20 +405,54 @@ export function getBlobbiMaskUrl(shapeId: string): string {
 /**
  * Build a complete SVG string for mask rendering.
  * Applies white fill and stroke to all elements.
+ *
+ * Note: We inject fill="white" and stroke="white" directly into each element
+ * rather than using a <style> tag, because CSS styles inside SVG data URLs
+ * used as mask-image don't work reliably across all browsers.
  */
 function buildMaskSvgString(shape: BlobbiShape): string {
   // Parse viewBox to get dimensions
   const vb = shape.viewBox.split(' ').map(Number);
   const [, , vbWidth, vbHeight] = vb;
 
-  // Wrap the SVG content with styling that makes everything white
-  // We use a style tag to override all fills and strokes
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${shape.viewBox}" width="${vbWidth}" height="${vbHeight}">
-    <style>
-      * { fill: white !important; stroke: white !important; }
-    </style>
-    <g>${shape.svg}</g>
-  </svg>`;
+  // Inject fill="white" and stroke="white" into each SVG element
+  // This is more reliable than using <style> tags in data URL contexts
+  const whiteSvg = injectWhiteFillStroke(shape.svg);
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${shape.viewBox}" width="${vbWidth}" height="${vbHeight}">${whiteSvg}</svg>`;
+}
+
+/**
+ * Inject fill="white" and stroke="white" attributes into SVG elements.
+ * Handles: circle, ellipse, rect, path, polygon, polyline, line
+ * Preserves existing fill="none" for stroke-only elements.
+ */
+function injectWhiteFillStroke(svg: string): string {
+  // Match SVG shape elements - capture tag name, attributes, and closing
+  // The closing can be "/>" or ">" (for elements with children, though rare for shapes)
+  const shapeElements = /<(circle|ellipse|rect|path|polygon|polyline|line)\b([^>]*?)(\/?>)/gi;
+
+  return svg.replace(shapeElements, (match, tagName: string, attributes: string, closing: string) => {
+    let attrs = attributes || '';
+
+    // Check if fill="none" exists (stroke-only element like catti's tail)
+    const hasFillNone = /fill\s*=\s*["']none["']/i.test(attrs);
+
+    // Remove any existing fill/stroke attributes (except fill="none")
+    attrs = attrs.replace(/\s*fill\s*=\s*["'][^"']*["']/gi, (m) => {
+      // Keep fill="none"
+      return /fill\s*=\s*["']none["']/i.test(m) ? m : '';
+    });
+    attrs = attrs.replace(/\s*stroke\s*=\s*["'][^"']*["']/gi, '');
+
+    // Add white fill (unless it's fill="none") and white stroke
+    if (!hasFillNone) {
+      attrs += ' fill="white"';
+    }
+    attrs += ' stroke="white"';
+
+    return `<${tagName}${attrs} ${closing}`;
+  });
 }
 
 /**
