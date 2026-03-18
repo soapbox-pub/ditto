@@ -249,11 +249,12 @@ export function BlobbiInventoryModal({
       </DialogContent>
 
       {/* Use Item Confirmation Dialog */}
-      {selectedItem && (
+      {selectedItem && companion && (
         <InventoryUseConfirmDialog
           open={showUseDialog}
           onOpenChange={handleCloseUseDialog}
           item={selectedItem}
+          companion={companion}
           quantity={quantity}
           maxQuantity={maxQuantity}
           onIncrease={handleIncrease}
@@ -273,6 +274,7 @@ interface InventoryUseConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item: ResolvedInventoryItem;
+  companion: BlobbiCompanion;
   quantity: number;
   maxQuantity: number;
   onIncrease: () => void;
@@ -286,6 +288,7 @@ function InventoryUseConfirmDialog({
   open,
   onOpenChange,
   item,
+  companion,
   quantity,
   maxQuantity,
   onIncrease,
@@ -294,17 +297,35 @@ function InventoryUseConfirmDialog({
   onConfirm,
   isUsing,
 }: InventoryUseConfirmDialogProps) {
-  // Calculate total effect for the selected quantity
+  // Calculate total effect for the selected quantity by simulating sequential application
+  // This matches the actual behavior when items are used (clamping at each step)
   const totalEffect = useMemo(() => {
     if (!item.effect) return null;
     
-    const result: Record<string, number> = {};
-    for (const [stat, value] of Object.entries(item.effect)) {
-      // Simple multiplication for display (actual clamping happens on use)
-      result[stat] = value * quantity;
+    const statKeys = ['hunger', 'happiness', 'energy', 'hygiene', 'health'] as const;
+    const currentStats = { ...companion.stats };
+    
+    // Apply effects N times in sequence with clamping at each step
+    for (let i = 0; i < quantity; i++) {
+      for (const stat of statKeys) {
+        const delta = item.effect[stat];
+        if (delta !== undefined) {
+          currentStats[stat] = Math.max(0, Math.min(100, (currentStats[stat] ?? 0) + delta));
+        }
+      }
     }
-    return result;
-  }, [item.effect, quantity]);
+    
+    // Calculate actual deltas (may be less than effect * quantity due to clamping)
+    const result: Record<string, number> = {};
+    for (const stat of statKeys) {
+      const delta = (currentStats[stat] ?? 0) - (companion.stats[stat] ?? 0);
+      if (delta !== 0) {
+        result[stat] = delta;
+      }
+    }
+    
+    return Object.keys(result).length > 0 ? result : null;
+  }, [item.effect, companion.stats, quantity]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -363,10 +384,10 @@ function InventoryUseConfirmDialog({
           </div>
 
           {/* Effects Summary */}
-          {totalEffect && Object.keys(totalEffect).length > 0 && (
+          {totalEffect && (
             <div className="p-4 rounded-lg bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-500/20">
               <h4 className="text-sm font-medium mb-2">
-                Estimated effect{quantity > 1 ? ` (x${quantity})` : ''}
+                Total effect{quantity > 1 ? ` (x${quantity})` : ''}
               </h4>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(totalEffect).map(([stat, value]) => (
@@ -384,11 +405,6 @@ function InventoryUseConfirmDialog({
                   </Badge>
                 ))}
               </div>
-              {quantity > 1 && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Stats are clamped to 0-100, so actual effect may be lower.
-                </p>
-              )}
             </div>
           )}
         </div>
