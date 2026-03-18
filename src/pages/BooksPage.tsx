@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, BookMarked, Loader2, Search, X } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 
+import { TabButton } from '@/components/TabButton';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -17,7 +18,6 @@ import { usePrefetchBookSummaries } from '@/hooks/useBookSummary';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useAppContext } from '@/hooks/useAppContext';
-import { cn } from '@/lib/utils';
 import type { ExtraKindDef } from '@/lib/extraKinds';
 
 type FeedTab = 'follows' | 'global';
@@ -244,7 +244,7 @@ function BookSearchBar() {
             if (debouncedQuery.length >= 2) setDropdownOpen(true);
           }}
           onKeyDown={handleKeyDown}
-          className="pl-9 pr-9 h-9 text-sm"
+          className="pl-9 pr-9 h-9 text-base md:text-sm"
         />
         {query && (
           <button
@@ -322,27 +322,6 @@ function BookSearchResultItem({ book, onSelect }: { book: BookSearchResult; onSe
           <p className="text-xs text-muted-foreground/60">{book.firstPublishYear}</p>
         )}
       </div>
-    </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab Button
-// ---------------------------------------------------------------------------
-
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
-        active ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
-      )}
     </button>
   );
 }

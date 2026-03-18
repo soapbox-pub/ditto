@@ -173,7 +173,9 @@ public class NotificationRelayService extends Service {
         if (fetchWakeLock != null && fetchWakeLock.isHeld()) {
             fetchWakeLock.release();
         }
-        httpClient.dispatcher().executorService().shutdownNow();
+        if (httpClient != null) {
+            httpClient.dispatcher().executorService().shutdownNow();
+        }
     }
 
     @Override
@@ -282,7 +284,7 @@ public class NotificationRelayService extends Service {
         try {
             JSONObject filter = new JSONObject();
             JSONArray kinds = new JSONArray();
-            kinds.put(1); kinds.put(6); kinds.put(7); kinds.put(9735); kinds.put(1111);
+            kinds.put(1); kinds.put(6); kinds.put(16); kinds.put(7); kinds.put(9735); kinds.put(1111);
             filter.put("kinds", kinds);
             JSONArray pTags = new JSONArray();
             pTags.put(userPubkey);

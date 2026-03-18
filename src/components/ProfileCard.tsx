@@ -77,7 +77,7 @@ function EditableTextarea({
         e.target.style.height = e.target.scrollHeight + 'px';
       }}
       rows={1}
-      className={cn(editableBase, 'w-full min-w-0 py-1 resize-none overflow-hidden text-sm text-muted-foreground leading-relaxed', className)}
+      className={cn(editableBase, 'w-full min-w-0 py-1 resize-none overflow-hidden text-base md:text-sm text-muted-foreground leading-relaxed', className)}
     />
   );
 }
@@ -348,7 +348,7 @@ export function ProfileCard({
                 onChange={(e) => patch('nip05')(e.target.value)}
                 onBlur={() => setNip05Focused(false)}
                 size={Math.max((nip05?.length ?? 0) + 1, 4)}
-                className={cn(editableBase, 'py-0.5 h-6 text-sm text-muted-foreground border-primary bg-transparent')}
+                className={cn(editableBase, 'py-0.5 h-6 text-base md:text-sm text-muted-foreground border-primary bg-transparent')}
               />
             ) : (
               <span
@@ -403,23 +403,23 @@ export function ProfileCard({
                   placeholder="https://yourwebsite.com"
                   value={(metadata.website as string) ?? ''}
                   onChange={(e) => patch('website')(e.target.value)}
-                  className="h-8 text-sm"
-                />
-              </div>
+                   className="h-8 text-base md:text-sm"
+                 />
+               </div>
 
-              {extraFields.map((field, i) => (
-                <div key={i} className="grid grid-cols-[1fr,2fr,auto] gap-2 items-center">
-                  <Input
-                    placeholder="Label"
-                    value={field.label}
-                    onChange={(e) => updateField(i, 'label', e.target.value)}
-                    className="h-8 text-sm"
-                  />
-                  <Input
-                    placeholder="Value or URL"
-                    value={field.value}
-                    onChange={(e) => updateField(i, 'value', e.target.value)}
-                    className="h-8 text-sm"
+               {extraFields.map((field, i) => (
+                 <div key={i} className="grid grid-cols-[1fr,2fr,auto] gap-2 items-center">
+                   <Input
+                     placeholder="Label"
+                     value={field.label}
+                     onChange={(e) => updateField(i, 'label', e.target.value)}
+                     className="h-8 text-base md:text-sm"
+                   />
+                   <Input
+                     placeholder="Value or URL"
+                     value={field.value}
+                     onChange={(e) => updateField(i, 'value', e.target.value)}
+                     className="h-8 text-base md:text-sm"
                   />
                   <Button type="button" variant="ghost" size="icon" onClick={() => removeField(i)} className="h-8 w-8 text-destructive hover:text-destructive">
                     <Trash2 className="size-3.5" />

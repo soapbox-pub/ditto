@@ -344,7 +344,11 @@ export function ColorMomentContent({ event }: { event: NostrEvent }) {
   const colors = useMemo(() => getColors(event.tags), [event.tags]);
   const layout = (getTag(event.tags, 'layout') ?? 'horizontal') as Layout;
   const name = getTag(event.tags, 'name');
-  const emoji = event.content.trim() || undefined;
+  const rawContent = event.content.trim();
+  // Only treat content as an emoji if it's a single grapheme cluster (emoji or short symbol).
+  // Long text should not be overlaid on the palette.
+  const isSingleEmoji = rawContent.length > 0 && [...rawContent].length <= 2 && /\p{Emoji}/u.test(rawContent);
+  const emoji = isSingleEmoji ? rawContent : undefined;
 
   const LayoutComponent = LAYOUT_MAP[layout] ?? HorizontalLayout;
 

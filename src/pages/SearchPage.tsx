@@ -45,13 +45,12 @@ import { ListPackPicker } from '@/components/SavedFeedFiltersEditor';
 
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
+import { TabButton } from '@/components/TabButton';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { cn, STICKY_HEADER_CLASS, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
 import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
-
-
 
 type TabType = 'posts' | 'accounts';
 
@@ -416,8 +415,8 @@ export function SearchPage() {
       {/* Tabs — sticky at top */}
       <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
         <div className="flex">
-          <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
-          <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
+          <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} className="sidebar:py-5" />
+          <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} className="sidebar:py-5" />
         </div>
       </div>
 
@@ -476,7 +475,7 @@ export function SearchPage() {
                             value={saveFeedLabel}
                             onChange={(e) => setSaveFeedLabel(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFeed(); }}
-                            className="bg-secondary/50 border-border focus-visible:ring-1 text-sm"
+                            className="bg-secondary/50 border-border focus-visible:ring-1 text-base md:text-sm"
                             autoFocus
                           />
                           <div className="space-y-1">
@@ -633,7 +632,7 @@ export function SearchPage() {
                     <div className="space-y-1.5">
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Media</span>
                       <Select value={mediaType} onValueChange={(v) => setMediaType(v)}>
-                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
+                         <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -648,7 +647,7 @@ export function SearchPage() {
                     <div className="space-y-1.5">
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Protocol <HelpTip faqId="vs-mastodon-bluesky" iconSize="size-3" /></span>
                       <Select value={platform} onValueChange={(v) => setPlatform(v)}>
-                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
+                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -665,7 +664,7 @@ export function SearchPage() {
                     <div className="space-y-1.5">
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Language</span>
                       <Select value={language} onValueChange={(v) => setLanguage(v)}>
-                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-xs">
+                         <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -692,7 +691,7 @@ export function SearchPage() {
                       placeholder="e.g. 1, 30023"
                       value={customKindText}
                       onChange={(e) => setCustomKindText(e.target.value)}
-                      className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-xs h-8"
+                      className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-base md:text-xs h-8"
                     />
                   )}
 
@@ -814,23 +813,6 @@ export function SearchPage() {
 }
 
 /* ── Shared sub-components ── */
-
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-1 py-3.5 sidebar:py-5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
-        active ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
-      )}
-    </button>
-  );
-}
 
 function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metadata: Record<string, unknown>; event?: { tags: string[][] } }; isFollowed: boolean }) {
   const npub = useMemo(() => nip19.npubEncode(profile.pubkey), [profile.pubkey]);

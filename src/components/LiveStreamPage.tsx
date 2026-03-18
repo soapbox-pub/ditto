@@ -22,6 +22,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { canZap } from '@/lib/canZap';
+import { getEffectiveStreamStatus } from '@/lib/streamStatus';
 import { cn } from '@/lib/utils';
 
 /** Extract the first value of a tag by name. */
@@ -84,7 +85,8 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   const streamUrl = getTag(event.tags, 'streaming');
   const recordingUrl = getTag(event.tags, 'recording');
   const imageUrl = getTag(event.tags, 'image');
-  const status = getTag(event.tags, 'status');
+  const rawStatus = getTag(event.tags, 'status');
+  const status = getEffectiveStreamStatus(event);
   const currentParticipants = getTag(event.tags, 'current_participants');
   const starts = getTag(event.tags, 'starts');
   const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
@@ -97,8 +99,9 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   const dTag = getTag(event.tags, 'd') || '';
   const aTag = `30311:${event.pubkey}:${dTag}`;
 
-  // The URL to play: prefer streaming for live, recording for ended
-  const playUrl = status === 'ended' ? (recordingUrl || streamUrl) : streamUrl;
+  // The URL to play: use the raw status tag (not the staleness heuristic)
+  // so that streams marked live always try the streaming URL first.
+  const playUrl = rawStatus === 'ended' ? (recordingUrl || streamUrl) : streamUrl;
 
   useSeoMeta({ title: `${title} - ${config.appName}` });
 

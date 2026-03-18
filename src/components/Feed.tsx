@@ -8,7 +8,7 @@ import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPin } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useFeed } from '@/hooks/useFeed';
@@ -24,8 +24,8 @@ import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
+import { TabButton } from '@/components/TabButton';
 import { DITTO_RELAY } from '@/lib/appRelays';
-import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
@@ -67,6 +67,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const queryClient = useQueryClient();
   const { savedFeeds } = useSavedFeeds();
   const { hashtags } = useInterests();
+  const { hashtags: geotags } = useInterests('g');
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
@@ -97,9 +98,15 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     return 'Community';
   })();
 
-  const [activeTab, handleSetActiveTab] = useFeedTab<FeedTab>(feedId);
+  const [rawActiveTab, handleSetActiveTab] = useFeedTab<FeedTab>(feedId);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
+
+  // Kind-specific pages only support Follows + Global. Clamp any other
+  // persisted tab (e.g. 'ditto', 'communities') back to 'follows'.
+  const activeTab: FeedTab = kinds && rawActiveTab !== 'follows' && rawActiveTab !== 'global'
+    ? 'follows'
+    : rawActiveTab;
 
   // Is the active tab a saved feed?
   const activeSavedFeed = useMemo(
@@ -110,12 +117,16 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   // Is the active tab a hashtag interest?
   const activeHashtag = activeTab.startsWith('hashtag:') ? activeTab.slice(8) : null;
 
+  // Is the active tab a geotag interest?
+  const activeGeotag = activeTab.startsWith('geotag:') ? activeTab.slice(7) : null;
+
   // When logged out (and not on a kind-specific page), show the "hot" sorted
   // feed instead of the noisy global feed so new visitors see quality content.
   const useTopFeedForLoggedOut = !user && !kinds;
 
   // When the Ditto tab is active (logged in), show the same hot-sorted curated feed.
-  const useDittoTab = user && activeTab === 'ditto';
+  // Disabled on kind-specific pages — the Ditto tab is not shown there.
+  const useDittoTab = user && activeTab === 'ditto' && !kinds;
 
   // Standard feed query (used when logged in, or on kind-specific pages, or core tabs)
   const isCoreFeedTab = activeTab === 'follows' || activeTab === 'global' || activeTab === 'communities' || activeTab === 'ditto';
@@ -209,8 +220,10 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
-  // Saved feed tabs are only shown on the main home feed (no kinds/tagFilters override)
-  const showSavedFeedTabs = user && !kinds && !tagFilters;
+  // Kind-specific pages (e.g. Development, WebXDC) only show Follows + Global tabs.
+  // Extra tabs (Ditto, Community, saved feeds, hashtags) are only for the home feed.
+  const isKindSpecificPage = !!kinds;
+  const showSavedFeedTabs = user && !isKindSpecificPage && !tagFilters;
 
   return (
     <main className="flex-1 min-w-0">
@@ -222,13 +235,13 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       {user ? (
         <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none">
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
-          {showDittoFeed && (
+          {!isKindSpecificPage && showDittoFeed && (
             <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
           )}
-          {showCommunityFeed && (
+          {!isKindSpecificPage && showCommunityFeed && (
             <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
           )}
-          {showGlobalFeed && (
+          {(isKindSpecificPage || showGlobalFeed) && (
             <TabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
           )}
           {showSavedFeedTabs && savedFeeds.map((feed) => (
@@ -247,6 +260,19 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               onClick={() => handleSetActiveTab(`hashtag:${tag}`)}
             />
           ))}
+          {showSavedFeedTabs && geotags.map((tag) => (
+            <TabButton
+              key={`geotag:${tag}`}
+              label={tag}
+              active={activeTab === `geotag:${tag}`}
+              onClick={() => handleSetActiveTab(`geotag:${tag}`)}
+            >
+              <span className="flex items-center justify-center gap-1">
+                <MapPin className="size-3.5" />
+                {tag}
+              </span>
+            </TabButton>
+          ))}
         </div>
       ) : !kinds && (
         <LandingHero
@@ -258,6 +284,8 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       {/* Feed content — saved feed tab gets its own stream */}
       {activeHashtag ? (
         <HashtagFeedContent tag={activeHashtag} />
+      ) : activeGeotag ? (
+        <GeotagFeedContent tag={activeGeotag} />
       ) : activeSavedFeed ? (
         <SavedFeedContent feed={activeSavedFeed} />
       ) : (
@@ -426,20 +454,54 @@ function HashtagFeedContent({ tag }: { tag: string }) {
   );
 }
 
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+/** Renders a feed of posts tagged with a specific geohash. */
+function GeotagFeedContent({ tag }: { tag: string }) {
+  const { nostr } = useNostr();
+  const { muteItems } = useMuteList();
+  const { feedSettings } = useFeedSettings();
+  const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
+  const kindsKey = [...kinds].sort().join(',');
+
+  const { data: events, isLoading } = useQuery<NostrEvent[]>({
+    queryKey: ['geotag-feed', tag, kindsKey],
+    queryFn: async ({ signal }) => {
+      const ditto = nostr.relay(DITTO_RELAY);
+      const filter = { kinds, limit: 40 } as Record<string, unknown>;
+      filter['#g'] = [tag];
+      return ditto.query([filter as Parameters<typeof ditto.query>[0][number]], {
+        signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
+      });
+    },
+  });
+
+  const filteredEvents = useMemo((): NostrEvent[] => {
+    if (!events) return [];
+    if (muteItems.length === 0) return events;
+    return events.filter((e) => !isEventMuted(e, muteItems));
+  }, [events, muteItems]);
+
+  if (isLoading && filteredEvents.length === 0) {
+    return (
+      <div className="divide-y divide-border">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <NoteCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (filteredEvents.length === 0) {
+    return (
+      <FeedEmptyState message={`No posts found near ${tag}.`} />
+    );
+  }
+
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-1 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 whitespace-nowrap',
-        active ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 max-w-16 h-1 bg-primary rounded-full" />
-      )}
-    </button>
+    <div>
+      {filteredEvents.map((event) => (
+        <NoteCard key={event.id} event={event} />
+      ))}
+    </div>
   );
 }
 

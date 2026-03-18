@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award } from 'lucide-react';
+
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
@@ -52,7 +53,8 @@ import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReportDialog } from '@/components/ReportDialog';
 import { AddToListDialog } from '@/components/AddToListDialog';
-import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
+import { MiniAudioPlayer, isAudioUrl, isImageUrl, isVideoUrl } from '@/components/MiniAudioPlayer';
+import { VideoPlayer } from '@/components/VideoPlayer';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
@@ -84,6 +86,7 @@ import { FontPicker } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { formatNumber } from '@/lib/formatNumber';
+import { TabButton } from '@/components/TabButton';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -362,25 +365,6 @@ function FollowingListModal({ pubkeys, open, onOpenChange, displayName }: Follow
   );
 }
 
-// ----- Tab Button -----
-
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-1 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 whitespace-nowrap',
-        active ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 max-w-16 h-1 bg-primary rounded-full" />
-      )}
-    </button>
-  );
-}
-
 type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
 function SortableTabChip({
@@ -633,6 +617,33 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
 
   if (isUrl && isAudioUrl(field.value)) {
     return <MiniAudioPlayer src={field.value} label={field.label || undefined} />;
+  }
+
+  if (isUrl && isImageUrl(field.value)) {
+    return (
+      <div className="min-w-0">
+        {field.label && <div className="text-sm text-muted-foreground mb-1">{field.label}</div>}
+        <a href={field.value} target="_blank" rel="noopener noreferrer" className="block">
+          <img
+            src={field.value}
+            alt={field.label || 'Profile image'}
+            className="w-full max-w-sm rounded-lg object-cover"
+            loading="lazy"
+          />
+        </a>
+      </div>
+    );
+  }
+
+  if (isUrl && isVideoUrl(field.value)) {
+    return (
+      <div className="min-w-0">
+        {field.label && <div className="text-sm text-muted-foreground mb-1">{field.label}</div>}
+        <div className="rounded-lg overflow-hidden max-w-sm">
+          <VideoPlayer src={field.value} />
+        </div>
+      </div>
+    );
   }
 
   if (isUrl) {
@@ -1187,7 +1198,7 @@ export function ProfilePage() {
   );
   const effectiveProfileBackground = profileThemeColors ? profileThemeBackground : undefined;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!effectiveProfileColors) return;
 
     // Inject the profile theme's CSS vars onto :root
@@ -1761,7 +1772,7 @@ export function ProfilePage() {
                   {feedSettings.showUserStatuses !== false && profileStatus.status && (
                     <div className="absolute -top-2 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
                       <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg">
-                        <p className="text-xs md:text-sm text-foreground italic truncate">
+                        <p className="text-xs md:text-sm text-foreground italic truncate pr-1">
                           {profileStatus.url ? (
                             <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
                               {profileStatus.status}
@@ -1931,6 +1942,7 @@ export function ProfilePage() {
                   setActiveTab(tabId);
                   if (tab.label === 'Media') setSidebarMediaUrl(null);
                 }}
+                className="flex-initial shrink-0 px-4"
               />
             );
           })}

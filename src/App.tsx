@@ -9,6 +9,7 @@ import { InferSeoMetaPlugin } from "@unhead/addons";
 import { createHead, UnheadProvider } from "@unhead/react/client";
 import { useEffect } from "react";
 import { AppProvider } from "@/components/AppProvider";
+import { DMProvider, type DMConfig } from "@/components/DMProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { NativeNotifications } from "@/components/NativeNotifications";
 import NostrProvider from "@/components/NostrProvider";
@@ -19,7 +20,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
+import { PROTOCOL_MODE } from "@/lib/dmConstants";
 import AppRouter from "./AppRouter";
+
+const dmConfig: DMConfig = {
+  enabled: true,
+  protocolMode: PROTOCOL_MODE.NIP04_OR_NIP17,
+};
 
 const head = createHead({
   plugins: [InferSeoMetaPlugin()],
@@ -51,27 +58,27 @@ const hardcodedConfig: AppConfig = {
   feedSettings: {
     feedIncludePosts: true,
     feedIncludeReposts: true,
-    feedIncludeArticles: false,
-    showArticles: false,
-    showEvents: false,
-    feedIncludeEvents: false,
-    showVines: false,
-    showPolls: false,
-    showTreasures: false,
+    feedIncludeArticles: true,
+    showArticles: true,
+    showEvents: true,
+    feedIncludeEvents: true,
+    showVines: true,
+    showPolls: true,
+    showTreasures: true,
     showTreasureGeocaches: true,
     showTreasureFoundLogs: true,
-    showColors: false,
-    showPacks: false,
-    feedIncludeVines: false,
-    feedIncludePolls: false,
-    feedIncludeTreasureGeocaches: false,
-    feedIncludeTreasureFoundLogs: false,
-    feedIncludeColors: false,
-    feedIncludePacks: false,
-    showDecks: false,
-    feedIncludeDecks: false,
-    showWebxdc: false,
-    feedIncludeWebxdc: false,
+    showColors: true,
+    showPacks: true,
+    feedIncludeVines: true,
+    feedIncludePolls: true,
+    feedIncludeTreasureGeocaches: true,
+    feedIncludeTreasureFoundLogs: true,
+    feedIncludeColors: true,
+    feedIncludePacks: true,
+    showDecks: true,
+    feedIncludeDecks: true,
+    showWebxdc: true,
+    feedIncludeWebxdc: true,
     showPhotos: true,
     feedIncludePhotos: true,
     showVideos: true,
@@ -84,29 +91,30 @@ const hardcodedConfig: AppConfig = {
     showProfileThemeUpdates: true,
     feedIncludeProfileThemeUpdates: true,
     showCustomProfileThemes: true,
-    feedIncludeVoiceMessages: false,
-    showEmojiPacks: false,
-    feedIncludeEmojiPacks: false,
+    feedIncludeVoiceMessages: true,
+    showEmojiPacks: true,
+    feedIncludeEmojiPacks: true,
     showCustomEmojis: true,
     showUserStatuses: true,
-    showMusic: false,
-    feedIncludeMusicTracks: false,
-    feedIncludeMusicPlaylists: false,
-    showPodcasts: false,
-    feedIncludePodcastEpisodes: false,
-    feedIncludePodcastTrailers: false,
+    showMusic: true,
+    feedIncludeMusicTracks: true,
+    feedIncludeMusicPlaylists: true,
+    showPodcasts: true,
+    feedIncludePodcastEpisodes: true,
+    feedIncludePodcastTrailers: true,
     showDevelopment: false,
     feedIncludeDevelopment: false,
-    showBadges: false,
+    showBadges: true,
     showBadgeDefinitions: true,
     showProfileBadges: true,
-    feedIncludeBadgeDefinitions: false,
-    feedIncludeProfileBadges: false,
+    feedIncludeBadgeDefinitions: true,
+    feedIncludeProfileBadges: true,
     followsFeedShowReplies: true,
   },
   sidebarOrder: [
     "feed",
     "notifications",
+    "messages",
     "search",
     "bookmarks",
     "profile",
@@ -169,13 +177,15 @@ export function App() {
                 <NostrProvider>
                   <NostrSync />
                   <NativeNotifications />
-                  <NWCProvider>
-                    <TooltipProvider>
-                      <Toaster />
-                      <InitialSyncGate>
-                        <AppRouter />
-                      </InitialSyncGate>
-                    </TooltipProvider>
+                    <NWCProvider>
+                    <DMProvider config={dmConfig}>
+                      <TooltipProvider>
+                        <Toaster />
+                        <InitialSyncGate>
+                          <AppRouter />
+                        </InitialSyncGate>
+                      </TooltipProvider>
+                    </DMProvider>
                   </NWCProvider>
                 </NostrProvider>
               </NostrLoginProvider>
