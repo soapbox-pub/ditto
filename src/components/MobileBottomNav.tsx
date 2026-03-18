@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Bell, Mail, Search, User } from 'lucide-react';
+import { Bell, Search, User } from 'lucide-react';
+import { PlanetIcon } from '@/components/icons/PlanetIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
@@ -45,6 +46,19 @@ export function MobileBottomNav() {
       >
         <div className="h-14 flex items-center">
 
+          {/* Feed */}
+          <Link
+            to="/feed"
+            onClick={() => setSearchOpen(false)}
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+              (location.pathname === '/feed' || location.pathname === '/') ? 'text-primary' : 'text-muted-foreground',
+            )}
+          >
+            <PlanetIcon className="size-5" />
+            <span className="text-[10px] font-medium">Feed</span>
+          </Link>
+
           {/* Search */}
           <button
             onClick={handleSearchClick}
@@ -74,21 +88,6 @@ export function MobileBottomNav() {
                 )}
               </span>
               <span className="text-[10px] font-medium">Notifications</span>
-            </Link>
-          )}
-
-          {/* Messages */}
-          {user && (
-            <Link
-              to="/messages"
-              onClick={() => setSearchOpen(false)}
-              className={cn(
-                'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-                location.pathname === '/messages' ? 'text-primary' : 'text-muted-foreground',
-              )}
-            >
-              <Mail className="size-5" />
-              <span className="text-[10px] font-medium">Messages</span>
             </Link>
           )}
 
