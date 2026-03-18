@@ -1,7 +1,7 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { type AvatarShape, isEmoji, getAvatarMaskUrl, isValidAvatarShape } from "@/lib/avatarShape"
+import { type AvatarShape, isEmoji, getAvatarMaskUrlAsync, isValidAvatarShape } from "@/lib/avatarShape"
 import { isBlobbiShape } from "@/lib/blobbiShapes"
 
 /**
@@ -31,11 +31,29 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
     const isBlobbi = hasValidShape && isBlobbiShape(shape)
     const hasCustomShape = isEmojiShape || isBlobbi
 
-    // Build inline style: mask-image for shaped avatars
-    // Note: We compute maskUrl outside useMemo to ensure it's always fresh,
-    // then include it in dependencies to trigger re-render when shape changes
-    const maskUrl = hasCustomShape && shape ? getAvatarMaskUrl(shape) : ''
-    
+    // State for the async-loaded mask URL
+    const [maskUrl, setMaskUrl] = React.useState<string>('')
+
+    // Load mask URL asynchronously when shape changes
+    React.useEffect(() => {
+      if (!hasCustomShape || !shape) {
+        setMaskUrl('')
+        return
+      }
+
+      let cancelled = false
+
+      getAvatarMaskUrlAsync(shape).then((url) => {
+        if (!cancelled) {
+          setMaskUrl(url)
+        }
+      })
+
+      return () => {
+        cancelled = true
+      }
+    }, [hasCustomShape, shape])
+
     const mergedStyle = React.useMemo<React.CSSProperties>(() => {
       if (maskUrl) {
         return {
