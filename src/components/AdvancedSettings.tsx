@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Bug, RotateCcw } from 'lucide-react';
+import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { RequestToVanishDialog } from '@/components/RequestToVanishDialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
@@ -20,6 +21,8 @@ export function AdvancedSettings() {
   const { user } = useCurrentUser();
   const [systemOpen, setSystemOpen] = useState(true);
   const [sentryOpen, setSentryOpen] = useState(false);
+  const [dangerOpen, setDangerOpen] = useState(false);
+  const [vanishDialogOpen, setVanishDialogOpen] = useState(false);
   const [statsPubkey, setStatsPubkey] = useState(config.nip85StatsPubkey);
   const [faviconUrl, setFaviconUrl] = useState(config.faviconUrl);
   const [linkPreviewUrl, setLinkPreviewUrl] = useState(config.linkPreviewUrl);
@@ -268,6 +271,58 @@ export function AdvancedSettings() {
           </CollapsibleContent>
         </Collapsible>
       </div>
+
+      {/* Danger Zone Section — only when logged in */}
+      {user && (
+        <div>
+          <Collapsible open={dangerOpen} onOpenChange={setDangerOpen}>
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+              >
+                <span className="flex items-center gap-2 text-base font-semibold text-destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  Danger Zone
+                </span>
+                {dangerOpen ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-destructive rounded-full" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-3 pt-3 pb-4 space-y-4">
+                <div className="rounded-lg border border-destructive/30 p-4 space-y-3">
+                  <div>
+                    <h3 className="text-sm font-medium">Request to Vanish</h3>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Permanently request all relays to delete your data, including your profile,
+                      posts, reactions, and direct messages. This action is irreversible and legally
+                      binding in some jurisdictions (NIP-62).
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={() => setVanishDialogOpen(true)}
+                  >
+                    Request to Vanish
+                  </Button>
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          <RequestToVanishDialog
+            open={vanishDialogOpen}
+            onOpenChange={setVanishDialogOpen}
+          />
+        </div>
+      )}
     </div>
   );
 }
