@@ -22,6 +22,7 @@ self.addEventListener('push', (event) => {
     body: payload.body ?? '',
     icon: payload.icon ?? '/icon-192.png',
     badge: payload.badge ?? '/icon-192.png',
+    image: payload.image ?? undefined,
     data: payload.data ?? {},
     requireInteraction: false,
     tag: payload.data?.subscription_id ?? 'ditto-notification',
