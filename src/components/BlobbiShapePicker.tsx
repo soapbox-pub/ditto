@@ -14,13 +14,14 @@ export interface BlobbiShapePickerProps {
 const viewBoxCache = new Map<string, string>();
 
 /**
- * Compute a tight viewBox for a shape path synchronously
+ * Compute a tight viewBox for a shape's SVG content synchronously.
+ * Works with any SVG elements (circles, ellipses, paths, rects, etc.)
  */
 function getTightViewBox(shape: BlobbiShape): string {
   const cached = viewBoxCache.get(shape.id);
   if (cached) return cached;
 
-  // Create a temporary SVG to measure the path's bounding box
+  // Create a temporary SVG to measure the group's bounding box
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', shape.viewBox);
   svg.style.position = 'absolute';
@@ -28,12 +29,13 @@ function getTightViewBox(shape: BlobbiShape): string {
   svg.style.width = '200px';
   svg.style.height = '200px';
 
-  const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  pathEl.setAttribute('d', shape.path);
-  svg.appendChild(pathEl);
+  // Create a group to hold all shape elements
+  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  group.innerHTML = shape.svg;
+  svg.appendChild(group);
   document.body.appendChild(svg);
 
-  const bbox = pathEl.getBBox();
+  const bbox = group.getBBox();
   document.body.removeChild(svg);
 
   // Add minimal padding (2% of the larger dimension)
@@ -47,6 +49,7 @@ function getTightViewBox(shape: BlobbiShape): string {
 /**
  * Renders a preview of a Blobbi shape with tight bounds for maximum visibility.
  * Uses useLayoutEffect to compute the tight viewBox before paint.
+ * Supports all SVG elements including circles, ellipses, paths, rects, and transforms.
  */
 function ShapePreview({ shape }: { shape: BlobbiShape }) {
   // Start with cached value if available, otherwise original viewBox
@@ -60,9 +63,17 @@ function ShapePreview({ shape }: { shape: BlobbiShape }) {
     setViewBox(tight);
   }, [shape]);
 
+  // Build inline style to colorize all elements
+  const fillColor = shape.previewColor || '#a1a1aa';
+
   return (
-    <svg viewBox={viewBox} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-      <path d={shape.path} fill={shape.previewColor || '#a1a1aa'} />
+    <svg
+      viewBox={viewBox}
+      className="w-full h-full"
+      preserveAspectRatio="xMidYMid meet"
+    >
+      <style>{`* { fill: ${fillColor}; stroke: ${fillColor}; }`}</style>
+      <g dangerouslySetInnerHTML={{ __html: shape.svg }} />
     </svg>
   );
 }
