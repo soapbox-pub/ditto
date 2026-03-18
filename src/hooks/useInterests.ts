@@ -10,7 +10,7 @@ import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-export function useInterests() {
+export function useInterests(tagName: 't' | 'g' = 't') {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -33,13 +33,13 @@ export function useInterests() {
     staleTime: 60 * 1000,
   });
 
-  /** All hashtags the user follows, normalized to lowercase. */
+  /** All interests for this tag type, normalized to lowercase. */
   const hashtags: string[] = (interestsQuery.data?.tags ?? [])
-    .filter(([name]) => name === 't')
+    .filter(([name]) => name === tagName)
     .map(([, value]) => value.toLowerCase())
     .filter((v, i, arr) => arr.indexOf(v) === i); // deduplicate
 
-  /** Check if the user follows a specific hashtag. */
+  /** Check if the user follows a specific interest. */
   function hasInterest(tag: string): boolean {
     return hashtags.includes(tag.toLowerCase());
   }
@@ -48,7 +48,7 @@ export function useInterests() {
     queryClient.invalidateQueries({ queryKey: ['interests', user?.pubkey] });
   };
 
-  /** Add a hashtag interest. */
+  /** Add an interest. */
   const addInterest = useMutation({
     mutationFn: async (tag: string) => {
       if (!user) throw new Error('Must be logged in');
@@ -59,9 +59,9 @@ export function useInterests() {
       const currentTags = existing?.tags ?? [];
 
       // Don't add duplicates
-      if (currentTags.some(([n, v]) => n === 't' && v.toLowerCase() === normalized)) return;
+      if (currentTags.some(([n, v]) => n === tagName && v.toLowerCase() === normalized)) return;
 
-      const newTags = [...currentTags, ['t', normalized]];
+      const newTags = [...currentTags, [tagName, normalized]];
       await publishEvent({
         kind: 10015,
         content: existing?.content ?? '',
@@ -71,7 +71,7 @@ export function useInterests() {
     onSuccess: invalidate,
   });
 
-  /** Remove a hashtag interest. */
+  /** Remove an interest. */
   const removeInterest = useMutation({
     mutationFn: async (tag: string) => {
       if (!user) throw new Error('Must be logged in');
@@ -81,7 +81,7 @@ export function useInterests() {
       if (!existing) return;
 
       const newTags = existing.tags.filter(
-        ([name, value]) => !(name === 't' && value.toLowerCase() === normalized),
+        ([name, value]) => !(name === tagName && value.toLowerCase() === normalized),
       );
       await publishEvent({
         kind: 10015,

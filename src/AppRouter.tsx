@@ -21,6 +21,7 @@ import { ContentSettingsPage } from "./pages/ContentSettingsPage";
 import { DomainFeedPage } from "./pages/DomainFeedPage";
 import { EventsFeedPage } from "./pages/EventsFeedPage";
 import { ExternalContentPage } from "./pages/ExternalContentPage";
+import { GeotagPage } from "./pages/GeotagPage";
 import { HashtagPage } from "./pages/HashtagPage";
 import { HelpPage } from "./pages/HelpPage";
 import { HomePage } from "./pages/HomePage";
@@ -101,7 +102,8 @@ export function AppRouter() {
             <Route path="/search" element={<SearchPage />} />
             <Route path="/trends" element={<TrendsPage />} />
             <Route path="/profile" element={<ProfileRedirect />} />
-            <Route path="/t/:tag" element={<HashtagPage />} />
+             <Route path="/t/:tag" element={<HashtagPage />} />
+             <Route path="/g/:geohash" element={<GeotagPage />} />
             <Route path="/feed/:domain" element={<DomainFeedPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/profile" element={<ProfileSettings />} />
