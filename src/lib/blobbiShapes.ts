@@ -122,7 +122,7 @@ export const BLOBBI_SHAPES: BlobbiShape[] = [
       <ellipse cx="100" cy="120" rx="45" ry="60" />
       <path d="M 68 72 L 58 48 L 82 62 Z" />
       <path d="M 132 72 L 142 48 L 118 62 Z" />
-      <path d="M 145 140 Q 165 115 158 95 Q 148 75 165 65" stroke="white" stroke-width="22" fill="none" stroke-linecap="round" />
+      <path d="M 145 140 Q 165 115 158 95 Q 148 75 165 65" stroke-width="22" fill="none" stroke-linecap="round" />
     `,
     previewColor: '#f97316',
   },
