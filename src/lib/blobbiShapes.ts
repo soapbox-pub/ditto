@@ -31,63 +31,227 @@ export interface BlobbiShape {
  * All available Blobbi shapes.
  * Body paths are extracted from the actual SVG files, keeping only the main silhouette.
  */
+/**
+ * Blobbi Avatar Shapes
+ *
+ * Defines body silhouettes for Blobbi characters that can be used as avatar masks.
+ * Each shape is defined as an SVG path that represents the outer body shape only,
+ * without eyes, mouth, or other internal details.
+ */
+
+export interface BlobbiShape {
+  id: string;
+  name: string;
+  category: 'egg' | 'baby' | 'adult';
+  viewBox: string;
+  path: string;
+  previewColor?: string;
+}
+
 export const BLOBBI_SHAPES: BlobbiShape[] = [
-  // ── Egg ──────────────────────────────────────────────────────────────────
   {
     id: 'egg',
     name: 'Egg',
     category: 'egg',
     viewBox: '0 0 100 100',
-    // Classic egg shape - wider at bottom, narrower at top
-    path: 'M 50 10 Q 75 25 78 55 Q 78 85 50 92 Q 22 85 22 55 Q 25 25 50 10 Z',
+    path: 'M 50 8 C 72 8 82 28 82 50 C 82 78 68 92 50 92 C 32 92 18 78 18 50 C 18 28 28 8 50 8 Z',
     previewColor: '#f5f5f4',
   },
 
-  // ── Baby ─────────────────────────────────────────────────────────────────
   {
     id: 'baby',
     name: 'Baby Blobbi',
     category: 'baby',
     viewBox: '0 0 100 100',
-    // Water droplet shape from blobbi-baby-base.svg
-    path: 'M 50 15 Q 50 10 50 15 Q 72 25 75 55 Q 75 80 50 88 Q 25 80 25 55 Q 28 25 50 15 Z',
+    path: 'M 50 15 Q 72 25 75 55 Q 75 80 50 88 Q 25 80 25 55 Q 28 25 50 15 Z',
     previewColor: '#8b5cf6',
   },
 
-  // ── Adults ───────────────────────────────────────────────────────────────
-
   {
-    id: 'catti',
-    name: 'Catti',
+    id: 'bloomi',
+    name: 'Bloomi',
     category: 'adult',
     viewBox: '0 0 200 200',
-    // Oval body with cat ears
-    path: `M 68 72 L 58 48 L 82 62 Z
-           M 132 72 L 142 48 L 118 62 Z
-           M 100 60 A 45 60 0 1 1 100 180 A 45 60 0 1 1 100 60 Z`,
-    previewColor: '#f97316',
+    path: `
+      M 100 45
+      A 25 25 0 1 1 100 95
+      A 25 25 0 1 1 100 45
+
+      M 130 65
+      A 25 25 0 1 1 130 115
+      A 25 25 0 1 1 130 65
+
+      M 130 105
+      A 25 25 0 1 1 130 155
+      A 25 25 0 1 1 130 105
+
+      M 100 125
+      A 25 25 0 1 1 100 175
+      A 25 25 0 1 1 100 125
+
+      M 70 105
+      A 25 25 0 1 1 70 155
+      A 25 25 0 1 1 70 105
+
+      M 70 65
+      A 25 25 0 1 1 70 115
+      A 25 25 0 1 1 70 65
+
+      M 100 75
+      A 35 35 0 1 1 100 145
+      A 35 35 0 1 1 100 75
+    `,
+    previewColor: '#f472b6',
   },
 
   {
-    id: 'owli',
-    name: 'Owli',
+    id: 'breezy',
+    name: 'Breezy',
     category: 'adult',
     viewBox: '0 0 200 200',
-    // Round owl body with ear tufts
-    path: `M 65 60 L 55 35 L 80 55 Z
-           M 135 60 L 145 35 L 120 55 Z
-           M 100 50 A 60 60 0 1 1 100 170 A 60 60 0 1 1 100 50 Z`,
-    previewColor: '#78716c',
+    path: `
+      M 100 40
+      Q 70 60 60 90
+      Q 55 120 70 140
+      Q 85 155 100 160
+      Q 115 155 130 140
+      Q 145 120 140 90
+      Q 130 60 100 40 Z
+
+      M 65 100
+      Q 55 95 50 105
+      Q 55 115 65 110 Z
+
+      M 135 100
+      Q 145 95 150 105
+      Q 145 115 135 110 Z
+
+      M 90 147
+      A 10 8 0 1 1 90 163
+      A 10 8 0 1 1 90 147
+
+      M 110 147
+      A 10 8 0 1 1 110 163
+      A 10 8 0 1 1 110 147
+    `,
+    previewColor: '#4ade80',
   },
 
   {
-    id: 'froggi',
-    name: 'Froggi',
+    id: 'cacti',
+    name: 'Cacti',
     category: 'adult',
     viewBox: '0 0 200 200',
-    // Flattened oval frog body
-    path: 'M 100 70 A 70 50 0 1 1 100 170 A 70 50 0 1 1 100 70 Z',
+    path: `
+      M 85 80
+      A 15 15 0 0 1 100 65
+      A 15 15 0 0 1 115 80
+      L 115 160
+      A 15 15 0 0 1 100 175
+      A 15 15 0 0 1 85 160
+      Z
+
+      M 60 100
+      A 10 10 0 0 1 70 90
+      L 70 90
+      A 10 10 0 0 1 80 100
+      L 80 130
+      A 10 10 0 0 1 70 140
+      A 10 10 0 0 1 60 130
+      Z
+
+      M 120 110
+      A 10 10 0 0 1 130 100
+      L 130 100
+      A 10 10 0 0 1 140 110
+      L 140 135
+      A 10 10 0 0 1 130 145
+      A 10 10 0 0 1 120 135
+      Z
+
+      M 75 160
+      L 125 160
+      L 120 175
+      L 80 175
+      Z
+
+      M 88 63
+      A 12 12 0 1 1 112 63
+      A 12 12 0 1 1 88 63
+      Z
+    `,
     previewColor: '#22c55e',
+  },
+
+{
+  id: 'catti',
+  name: 'Catti',
+  category: 'adult',
+  viewBox: '0 0 200 200',
+  path: `
+    M 68 72 L 58 48 L 82 62 Z
+    M 132 72 L 142 48 L 118 62 Z
+
+    M 100 60
+    C 125 60 145 87 145 120
+    C 145 153 125 180 100 180
+    C 75 180 55 153 55 120
+    C 55 87 75 60 100 60 Z
+
+    M 155 150
+    Q 165 138 170 128
+    Q 178 112 175 98
+    Q 172 82 185 70
+    Q 190 66 186 60
+    Q 180 55 172 60
+    Q 155 72 158 92
+    Q 161 112 152 128
+    Q 146 138 140 147
+    Q 146 155 155 150 Z
+  `,
+  previewColor: '#f97316',
+},
+
+  {
+    id: 'cloudi',
+    name: 'Cloudi',
+    category: 'adult',
+    viewBox: '0 0 200 200',
+    path: `
+      M 100 75
+      A 30 30 0 1 1 100 135
+      A 30 30 0 1 1 100 75
+
+      M 75 75
+      A 35 35 0 1 1 75 145
+      A 35 35 0 1 1 75 75
+
+      M 125 75
+      A 35 35 0 1 1 125 145
+      A 35 35 0 1 1 125 75
+
+      M 85 70
+      A 25 25 0 1 1 85 120
+      A 25 25 0 1 1 85 70
+
+      M 115 70
+      A 25 25 0 1 1 115 120
+      A 25 25 0 1 1 115 70
+
+      M 100 75
+      A 45 45 0 1 1 100 165
+      A 45 45 0 1 1 100 75
+    `,
+    previewColor: '#e2e8f0',
+  },
+
+  {
+    id: 'crysti',
+    name: 'Crysti',
+    category: 'adult',
+    viewBox: '0 0 200 200',
+    path: 'M 100 50 L 140 80 L 140 130 L 100 160 L 60 130 L 60 80 Z',
+    previewColor: '#a855f7',
   },
 
   {
@@ -95,8 +259,29 @@ export const BLOBBI_SHAPES: BlobbiShape[] = [
     name: 'Droppi',
     category: 'adult',
     viewBox: '0 0 200 200',
-    // Water drop shape
-    path: 'M 100 40 Q 100 30 100 40 Q 135 60 140 110 Q 140 150 100 165 Q 60 150 60 110 Q 65 60 100 40 Z',
+    path: `
+      M 100 40
+      Q 135 60 140 110
+      Q 140 150 100 165
+      Q 60 150 60 110
+      Q 65 60 100 40 Z
+
+      M 60 92
+      A 10 18 0 1 1 60 128
+      A 10 18 0 1 1 60 92
+
+      M 140 92
+      A 10 18 0 1 1 140 128
+      A 10 18 0 1 1 140 92
+
+      M 85 150
+      A 12 10 0 1 1 85 170
+      A 12 10 0 1 1 85 150
+
+      M 115 150
+      A 12 10 0 1 1 115 170
+      A 12 10 0 1 1 115 150
+    `,
     previewColor: '#06b6d4',
   },
 
@@ -105,99 +290,61 @@ export const BLOBBI_SHAPES: BlobbiShape[] = [
     name: 'Flammi',
     category: 'adult',
     viewBox: '0 0 200 200',
-    // Flame shape
-    path: 'M 100 160 Q 60 140 50 110 Q 45 80 70 60 Q 80 40 100 25 Q 120 40 130 60 Q 155 80 150 110 Q 140 140 100 160 Z',
+    path: `
+      M 100 160
+      Q 60 140 50 110
+      Q 45 80 70 60
+      Q 80 40 100 25
+      Q 120 40 130 60
+      Q 155 80 150 110
+      Q 140 140 100 160 Z
+
+      M 55 95
+      A 8 15 0 1 1 55 125
+      A 8 15 0 1 1 55 95
+
+      M 145 95
+      A 8 15 0 1 1 145 125
+      A 8 15 0 1 1 145 95
+
+      M 90 147
+      A 10 8 0 1 1 90 163
+      A 10 8 0 1 1 90 147
+
+      M 110 147
+      A 10 8 0 1 1 110 163
+      A 10 8 0 1 1 110 147
+    `,
     previewColor: '#f97316',
   },
 
   {
-    id: 'crysti',
-    name: 'Crysti',
+    id: 'froggi',
+    name: 'Froggi',
     category: 'adult',
     viewBox: '0 0 200 200',
-    // Hexagonal crystal
-    path: 'M 100 50 L 140 80 L 140 130 L 100 160 L 60 130 L 60 80 Z',
-    previewColor: '#a855f7',
-  },
+    path: `
+      M 70 53
+      A 27 27 0 1 1 70 107
+      A 27 27 0 1 1 70 53
 
-  {
-    id: 'cloudi',
-    name: 'Cloudi',
-    category: 'adult',
-    viewBox: '0 0 200 200',
-    // Cloud shape - multiple overlapping circles merged into one path
-    path: `M 55 120 
-           A 35 35 0 0 1 75 75 
-           A 25 25 0 0 1 100 55 
-           A 30 30 0 0 1 130 55
-           A 25 25 0 0 1 145 75
-           A 35 35 0 0 1 160 110
-           A 45 45 0 0 1 145 155
-           Q 100 175 55 155
-           A 35 35 0 0 1 55 120 Z`,
-    previewColor: '#e2e8f0',
-  },
+      M 130 53
+      A 27 27 0 1 1 130 107
+      A 27 27 0 1 1 130 53
 
-  {
-    id: 'mushie',
-    name: 'Mushie',
-    category: 'adult',
-    viewBox: '0 0 200 200',
-    // Mushroom shape - dome cap with stem
-    path: `M 40 100 
-           Q 40 50 100 50 
-           Q 160 50 160 100 
-           Q 160 115 140 115
-           L 130 115 L 130 160 Q 130 170 100 170 Q 70 170 70 160 L 70 115
-           L 60 115 Q 40 115 40 100 Z`,
-    previewColor: '#ef4444',
-  },
+      M 100 70
+      C 170 70 170 170 100 170
+      C 30 170 30 70 100 70 Z
 
-  {
-    id: 'starri',
-    name: 'Starri',
-    category: 'adult',
-    viewBox: '0 0 200 200',
-    // 5-pointed star
-    path: `M 100 30
-           L 115 75 L 165 80 L 128 115 L 140 165
-           L 100 140 L 60 165 L 72 115 L 35 80
-           L 85 75 Z`,
-    previewColor: '#fbbf24',
-  },
+      M 60 148
+      A 22 12 0 1 1 60 172
+      A 22 12 0 1 1 60 148
 
-  {
-    id: 'pandi',
-    name: 'Pandi',
-    category: 'adult',
-    viewBox: '0 0 200 200',
-    // Panda - round body with round ears
-    path: `M 65 55 A 20 20 0 1 1 65 95 A 20 20 0 1 1 65 55 Z
-           M 135 55 A 20 20 0 1 1 135 95 A 20 20 0 1 1 135 55 Z
-           M 100 60 A 55 60 0 1 1 100 180 A 55 60 0 1 1 100 60 Z`,
-    previewColor: '#fafafa',
-  },
-
-  {
-    id: 'cacti',
-    name: 'Cacti',
-    category: 'adult',
-    viewBox: '0 0 200 200',
-    // Cactus shape with arms
-    path: `M 85 50 L 85 170 Q 85 180 100 180 Q 115 180 115 170 L 115 50 Q 115 35 100 35 Q 85 35 85 50 Z
-           M 55 90 Q 45 90 45 105 L 45 130 Q 45 140 55 140 L 55 140 Q 65 140 65 130 L 65 115 L 85 115 L 85 90 L 65 90 Q 65 90 55 90 Z
-           M 145 100 Q 155 100 155 115 L 155 140 Q 155 150 145 150 L 145 150 Q 135 150 135 140 L 135 125 L 115 125 L 115 100 L 135 100 Q 135 100 145 100 Z`,
+      M 140 148
+      A 22 12 0 1 1 140 172
+      A 22 12 0 1 1 140 148
+    `,
     previewColor: '#22c55e',
-  },
-
-  {
-    id: 'breezy',
-    name: 'Breezy',
-    category: 'adult',
-    viewBox: '0 0 200 200',
-    // Leaf shape
-    path: 'M 100 30 Q 160 60 160 120 Q 160 170 100 180 Q 40 170 40 120 Q 40 60 100 30 Z',
-    previewColor: '#4ade80',
   },
 
   {
@@ -205,9 +352,146 @@ export const BLOBBI_SHAPES: BlobbiShape[] = [
     name: 'Leafy',
     category: 'adult',
     viewBox: '0 0 200 200',
-    // Round leaf/plant shape
-    path: 'M 100 40 Q 150 50 160 100 Q 165 150 100 170 Q 35 150 40 100 Q 50 50 100 40 Z',
-    previewColor: '#86efac',
+    path: `
+      M 55.00 85.00 A 45 12 0 1 0 145.00 85.00 A 45 12 0 1 0 55.00 85.00 Z
+      M 58.43 67.78 A 45 12 22.5 1 0 141.57 102.22 A 45 12 22.5 1 0 58.43 67.78 Z
+      M 68.18 53.18 A 45 12 45 1 0 131.82 116.82 A 45 12 45 1 0 68.18 53.18 Z
+      M 82.78 43.43 A 45 12 67.5 1 0 117.22 126.57 A 45 12 67.5 1 0 82.78 43.43 Z
+      M 100.00 40.00 A 45 12 90 1 0 100.00 130.00 A 45 12 90 1 0 100.00 40.00 Z
+      M 117.22 43.43 A 45 12 112.5 1 0 82.78 126.57 A 45 12 112.5 1 0 117.22 43.43 Z
+      M 131.82 53.18 A 45 12 135 1 0 68.18 116.82 A 45 12 135 1 0 131.82 53.18 Z
+      M 141.57 67.78 A 45 12 157.5 1 0 58.43 102.22 A 45 12 157.5 1 0 141.57 67.78 Z
+      M 145.00 85.00 A 45 12 180 1 0 55.00 85.00 A 45 12 180 1 0 145.00 85.00 Z
+      M 141.57 102.22 A 45 12 202.5 1 0 58.43 67.78 A 45 12 202.5 1 0 141.57 102.22 Z
+      M 131.82 116.82 A 45 12 225 1 0 68.18 53.18 A 45 12 225 1 0 131.82 116.82 Z
+      M 117.22 126.57 A 45 12 247.5 1 0 82.78 43.43 A 45 12 247.5 1 0 117.22 126.57 Z
+      M 100.00 130.00 A 45 12 270 1 0 100.00 40.00 A 45 12 270 1 0 100.00 130.00 Z
+      M 82.78 126.57 A 45 12 292.5 1 0 117.22 43.43 A 45 12 292.5 1 0 82.78 126.57 Z
+      M 68.18 116.82 A 45 12 315 1 0 131.82 53.18 A 45 12 315 1 0 68.18 116.82 Z
+      M 58.43 102.22 A 45 12 337.5 1 0 141.57 67.78 A 45 12 337.5 1 0 58.43 102.22 Z
+
+      M 96 120
+      A 4 4 0 0 1 100 116
+      A 4 4 0 0 1 104 120
+      L 104 162
+      L 96 162
+      Z
+
+      M 72.01 147.50
+      A 15 8 -30 1 0 97.99 132.50
+      A 15 8 -30 1 0 72.01 147.50
+      Z
+
+      M 102.01 142.50
+      A 15 8 30 1 0 127.99 157.50
+      A 15 8 30 1 0 102.01 142.50
+      Z
+
+      M 75 158
+      A 2 2 0 0 1 77 156
+      L 123 156
+      A 2 2 0 0 1 125 158
+      L 125 165
+      L 75 165
+      Z
+
+      M 75 160
+      L 80 177
+      L 120 177
+      L 125 160
+      Z
+    `,
+    previewColor: '#fde047',
+  },
+
+  {
+    id: 'mushie',
+    name: 'Mushie',
+    category: 'adult',
+    viewBox: '0 0 200 200',
+    path: `
+      M 50 110
+      Q 50 70 100 60
+      Q 150 70 150 110 Z
+
+      M 100 100
+      A 25 40 0 1 1 100 180
+      A 25 40 0 1 1 100 100
+
+      M 70 128
+      A 8 12 0 1 1 70 152
+      A 8 12 0 1 1 70 128
+
+      M 130 128
+      A 8 12 0 1 1 130 152
+      A 8 12 0 1 1 130 128
+    `,
+    previewColor: '#ef4444',
+  },
+
+  {
+    id: 'owli',
+    name: 'Owli',
+    category: 'adult',
+    viewBox: '0 0 200 200',
+    path: `
+      M 60 70 L 70 48 L 82 70 Z
+      M 118 70 L 130 48 L 140 70 Z
+
+      M 100 50
+      A 60 60 0 1 1 100 170
+      A 60 60 0 1 1 100 50
+
+      M 48 78
+      A 16 32 0 1 1 48 142
+      A 16 32 0 1 1 48 78
+
+      M 152 78
+      A 16 32 0 1 1 152 142
+      A 16 32 0 1 1 152 78
+    `,
+    previewColor: '#78716c',
+  },
+
+  {
+    id: 'pandi',
+    name: 'Pandi',
+    category: 'adult',
+    viewBox: '0 0 200 200',
+    path: `
+      M 70 27
+      A 18 18 0 1 1 70 63
+      A 18 18 0 1 1 70 27
+
+      M 130 27
+      A 18 18 0 1 1 130 63
+      A 18 18 0 1 1 130 27
+
+      M 100 40
+      A 45 45 0 1 1 100 130
+      A 45 45 0 1 1 100 40
+
+      M 100 65
+      A 55 55 0 1 1 100 175
+      A 55 55 0 1 1 100 65
+
+      M 45 105
+      A 15 15 0 1 1 45 135
+      A 15 15 0 1 1 45 105
+
+      M 155 105
+      A 15 15 0 1 1 155 135
+      A 15 15 0 1 1 155 105
+
+      M 80 147
+      A 18 18 0 1 1 80 183
+      A 18 18 0 1 1 80 147
+
+      M 120 147
+      A 18 18 0 1 1 120 183
+      A 18 18 0 1 1 120 147
+    `,
+    previewColor: '#fafafa',
   },
 
   {
@@ -215,8 +499,32 @@ export const BLOBBI_SHAPES: BlobbiShape[] = [
     name: 'Rocky',
     category: 'adult',
     viewBox: '0 0 200 200',
-    // Rock/boulder shape - irregular rounded polygon
-    path: 'M 70 50 L 130 45 L 165 80 L 170 130 L 140 165 L 60 170 L 35 130 L 40 75 Z',
+    path: `
+      M 100 50
+      L 130 70
+      L 140 110
+      L 130 150
+      L 100 165
+      L 70 150
+      L 60 110
+      L 70 70 Z
+
+      M 55 102
+      A 12 8 0 1 1 55 118
+      A 12 8 0 1 1 55 102
+
+      M 145 102
+      A 12 8 0 1 1 145 118
+      A 12 8 0 1 1 145 102
+
+      M 85 150
+      A 15 10 0 1 1 85 170
+      A 15 10 0 1 1 85 150
+
+      M 115 150
+      A 15 10 0 1 1 115 170
+      A 15 10 0 1 1 115 150
+    `,
     previewColor: '#a8a29e',
   },
 
@@ -225,29 +533,44 @@ export const BLOBBI_SHAPES: BlobbiShape[] = [
     name: 'Rosey',
     category: 'adult',
     viewBox: '0 0 200 200',
-    // Rose/flower shape - rounded with petal edges
-    path: `M 100 35 
-           Q 130 35 145 55 Q 165 65 165 100 
-           Q 165 135 145 150 Q 130 170 100 170 
-           Q 70 170 55 150 Q 35 135 35 100 
-           Q 35 65 55 55 Q 70 35 100 35 Z`,
+    path: `
+      M 100 55
+      A 35 35 0 1 1 100 125
+      A 35 35 0 1 1 100 55
+      Z
+
+      M 98 120
+      L 102 120
+      L 102 166
+      L 98 166
+      Z
+
+      M 85 137
+      A 12 8 0 1 1 85 153
+      A 12 8 0 1 1 85 137
+      Z
+
+      M 115 142
+      A 12 8 0 1 1 115 158
+      A 12 8 0 1 1 115 142
+      Z
+
+      M 74 166
+      L 126 166
+      L 120 182
+      L 80 182
+      Z
+    `,
     previewColor: '#fb7185',
   },
 
   {
-    id: 'bloomi',
-    name: 'Bloomi',
+    id: 'starri',
+    name: 'Starri',
     category: 'adult',
     viewBox: '0 0 200 200',
-    // Flower with petals around center
-    path: `M 100 35 A 25 25 0 1 1 100 85 A 25 25 0 1 1 100 35 Z
-           M 145 65 A 25 25 0 1 1 145 115 A 25 25 0 1 1 145 65 Z
-           M 145 105 A 25 25 0 1 1 145 155 A 25 25 0 1 1 145 105 Z
-           M 100 135 A 25 25 0 1 1 100 185 A 25 25 0 1 1 100 135 Z
-           M 55 105 A 25 25 0 1 1 55 155 A 25 25 0 1 1 55 105 Z
-           M 55 65 A 25 25 0 1 1 55 115 A 25 25 0 1 1 55 65 Z
-           M 100 80 A 30 30 0 1 1 100 140 A 30 30 0 1 1 100 80 Z`,
-    previewColor: '#f472b6',
+    path: 'M 100 25 L 115 75 L 165 75 L 125 110 L 140 160 L 100 130 L 60 160 L 75 110 L 35 75 L 85 75 Z',
+    previewColor: '#fbbf24',
   },
 ];
 

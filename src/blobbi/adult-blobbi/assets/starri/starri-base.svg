@@ -41,10 +41,8 @@
   </defs>
   
   <!-- Main star body - larger 5-pointed star shape -->
-  <path d="M 100 25 L 115 75 L 165 75 L 125 110 L 140 160 L 100 130 L 60 160 L 75 110 L 35 75 L 85 75 Z" 
-        fill="url(#starriBody)" />
-  <path d="M 100 35 L 112 70 L 150 70 L 120 95 L 132 135 L 100 115 L 68 135 L 80 95 L 50 70 L 88 70 Z" 
-        fill="url(#starriInner)" opacity="0.8" />
+  <path d="M 100 25 L 115 75 L 165 75 L 125 110 L 140 160 L 100 130 L 60 160 L 75 110 L 35 75 L 85 75 Z" fill="url(#starriBody)" />
+  <path d="M 100 35 L 112 70 L 150 70 L 120 95 L 132 135 L 100 115 L 68 135 L 80 95 L 50 70 L 88 70 Z" fill="url(#starriInner)" opacity="0.8" />
   
   <!-- Eyes -->
   <circle cx="88" cy="95" r="10" fill="url(#starriEye)" />

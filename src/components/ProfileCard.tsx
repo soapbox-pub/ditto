@@ -239,13 +239,13 @@ export function ProfileCard({
               </DropdownMenu>
 
               <Dialog open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
-                <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
-                  <DialogHeader className="px-6 pt-5 pb-3">
+                <DialogContent className="w-fit max-w-[calc(100vw-2rem)] p-0 gap-0 overflow-hidden">
+                  <DialogHeader className="px-4 pt-4 pb-2">
                     <DialogTitle className="text-base">Set avatar shape</DialogTitle>
                     <DialogDescription>Pick a shape to mask your avatar</DialogDescription>
                   </DialogHeader>
                   <Tabs defaultValue="emoji" className="w-full">
-                    <div className="px-4">
+                    <div className="px-4 pb-2">
                       <TabsList className="w-full grid grid-cols-2">
                         <TabsTrigger value="emoji" className="gap-1.5">
                           <SmilePlus className="size-4" />
@@ -253,7 +253,7 @@ export function ProfileCard({
                         </TabsTrigger>
                         <TabsTrigger value="blobbi" className="gap-1.5">
                           <Egg className="size-4" />
-                          Blobbi
+                          Blobbids
                         </TabsTrigger>
                       </TabsList>
                     </div>
@@ -265,7 +265,7 @@ export function ProfileCard({
                         }
                       }} />
                     </TabsContent>
-                    <TabsContent value="blobbi" className="mt-0 px-2 pb-2">
+                    <TabsContent value="blobbi" className="mt-0 px-4 pb-4">
                       <BlobbiShapePicker
                         onSelect={(shapeValue) => {
                           onAvatarShape?.(shapeValue);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useLayoutEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { BLOBBI_SHAPES, type BlobbiShape, toBlobbiShapeValue } from '@/lib/blobbiShapes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,12 +10,58 @@ export interface BlobbiShapePickerProps {
   className?: string;
 }
 
+/** Cache for computed tight viewBoxes */
+const viewBoxCache = new Map<string, string>();
+
 /**
- * Renders a preview of a Blobbi shape
+ * Compute a tight viewBox for a shape path synchronously
+ */
+function getTightViewBox(shape: BlobbiShape): string {
+  const cached = viewBoxCache.get(shape.id);
+  if (cached) return cached;
+
+  // Create a temporary SVG to measure the path's bounding box
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', shape.viewBox);
+  svg.style.position = 'absolute';
+  svg.style.visibility = 'hidden';
+  svg.style.width = '200px';
+  svg.style.height = '200px';
+
+  const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  pathEl.setAttribute('d', shape.path);
+  svg.appendChild(pathEl);
+  document.body.appendChild(svg);
+
+  const bbox = pathEl.getBBox();
+  document.body.removeChild(svg);
+
+  // Add minimal padding (2% of the larger dimension)
+  const padding = Math.max(bbox.width, bbox.height) * 0.02;
+  const tightViewBox = `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`;
+
+  viewBoxCache.set(shape.id, tightViewBox);
+  return tightViewBox;
+}
+
+/**
+ * Renders a preview of a Blobbi shape with tight bounds for maximum visibility.
+ * Uses useLayoutEffect to compute the tight viewBox before paint.
  */
 function ShapePreview({ shape }: { shape: BlobbiShape }) {
+  // Start with cached value if available, otherwise original viewBox
+  const [viewBox, setViewBox] = useState<string>(() => {
+    return viewBoxCache.get(shape.id) || shape.viewBox;
+  });
+
+  // Compute tight viewBox synchronously before browser paint
+  useLayoutEffect(() => {
+    const tight = getTightViewBox(shape);
+    setViewBox(tight);
+  }, [shape]);
+
   return (
-    <svg viewBox={shape.viewBox} className="w-full h-full">
+    <svg viewBox={viewBox} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
       <path d={shape.path} fill={shape.previewColor || '#a1a1aa'} />
     </svg>
   );
@@ -23,6 +69,7 @@ function ShapePreview({ shape }: { shape: BlobbiShape }) {
 
 /**
  * Grid of selectable Blobbi shapes
+ * Uses 5 columns for larger, more prominent shapes (~1.5x emoji size)
  */
 function ShapeGrid({
   shapes,
@@ -32,7 +79,7 @@ function ShapeGrid({
   onSelect: (shape: BlobbiShape) => void;
 }) {
   return (
-    <div className="grid grid-cols-4 gap-2 p-2">
+    <div className="grid grid-cols-5 gap-2">
       {shapes.map((shape) => (
         <button
           key={shape.id}
@@ -47,12 +94,9 @@ function ShapeGrid({
           )}
           title={shape.name}
         >
-          <div className="absolute inset-2">
+          <div className="absolute inset-1">
             <ShapePreview shape={shape} />
           </div>
-          <span className="absolute bottom-0.5 left-0 right-0 text-[10px] text-muted-foreground text-center opacity-0 group-hover:opacity-100 transition-opacity truncate px-1">
-            {shape.name}
-          </span>
         </button>
       ))}
     </div>
@@ -62,6 +106,7 @@ function ShapeGrid({
 /**
  * Blobbi shape picker with tabs for different categories.
  * Allows users to select a Blobbi silhouette as their avatar mask.
+ * Uses 5-column grid for prominent, easily recognizable shapes.
  */
 export function BlobbiShapePicker({ onSelect, className }: BlobbiShapePickerProps) {
   const [activeTab, setActiveTab] = useState<string>('all');
@@ -78,26 +123,26 @@ export function BlobbiShapePicker({ onSelect, className }: BlobbiShapePickerProp
   return (
     <div className={cn('w-full', className)}>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full grid grid-cols-4">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="egg">Egg</TabsTrigger>
-          <TabsTrigger value="baby">Baby</TabsTrigger>
-          <TabsTrigger value="adult">Adult</TabsTrigger>
+        <TabsList className="w-full grid grid-cols-4 mb-2">
+          <TabsTrigger value="all" className="text-xs px-2">All</TabsTrigger>
+          <TabsTrigger value="egg" className="text-xs px-2">Egg</TabsTrigger>
+          <TabsTrigger value="baby" className="text-xs px-2">Baby</TabsTrigger>
+          <TabsTrigger value="adult" className="text-xs px-2">Adult</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all" className="mt-2">
+        <TabsContent value="all" className="mt-0">
           <ShapeGrid shapes={BLOBBI_SHAPES} onSelect={handleSelect} />
         </TabsContent>
 
-        <TabsContent value="egg" className="mt-2">
+        <TabsContent value="egg" className="mt-0">
           <ShapeGrid shapes={eggShapes} onSelect={handleSelect} />
         </TabsContent>
 
-        <TabsContent value="baby" className="mt-2">
+        <TabsContent value="baby" className="mt-0">
           <ShapeGrid shapes={babyShapes} onSelect={handleSelect} />
         </TabsContent>
 
-        <TabsContent value="adult" className="mt-2">
+        <TabsContent value="adult" className="mt-0">
           <ShapeGrid shapes={adultShapes} onSelect={handleSelect} />
         </TabsContent>
       </Tabs>

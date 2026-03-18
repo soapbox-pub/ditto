@@ -42,14 +42,6 @@
   <!-- Bright smile -->
   <path d="M 88 92 Q 100 100 112 92" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
   
-  <!-- Little arms - small leaves -->
-  <ellipse cx="60" cy="85" rx="12" ry="6" fill="url(#leafyArm)" transform="rotate(-20 60 85)" />
-  <ellipse cx="140" cy="85" rx="12" ry="6" fill="url(#leafyArm)" transform="rotate(20 140 85)" />
-  
-  <!-- Base/roots -->
-  <ellipse cx="95" cy="170" rx="8" ry="6" fill="url(#leafyRoot)" />
-  <ellipse cx="105" cy="170" rx="8" ry="6" fill="url(#leafyRoot)" />
-  
   <!-- Floating pollen -->
   <circle cx="55" cy="60" r="2" fill="url(#leafyPollen)" opacity="0.8" />
   <circle cx="145" cy="65" r="1.5" fill="url(#leafyPollen)" opacity="0.6" />
@@ -58,6 +50,10 @@
   <circle cx="75" cy="45" r="1.5" fill="url(#leafyPollen)" opacity="0.9" />
   <circle cx="125" cy="50" r="1" fill="url(#leafyPollen)" opacity="0.8" />
   
+  <!-- Leavy pot -->
+  <path d="M 75 160 L 80 175 L 120 175 L 125 160 Z" fill="url(#leafyPot)" />
+  <rect x="75" y="160" width="50" height="5" fill="url(#leafyPotRim)" rx="2" />
+
   <defs>
     <radialGradient id="leafyStem" cx="0.3" cy="0.2">
       <stop offset="0%" stop-color="#22c55e" />
@@ -76,10 +72,10 @@
       <stop offset="100%" stop-color="#4ade80" />
     </radialGradient>
     <radialGradient id="leafyPetal" cx="0.3" cy="0.3">
-      <stop offset="0%" stop-color="#fef3c7" />
-      <stop offset="30%" stop-color="#fde047" />
-      <!-- <stop offset="70%" stop-color="#eab308" /> -->
       <stop offset="100%" stop-color="#eab308" />
+      <!-- <stop offset="70%" stop-color="#eab308" /> -->
+      <stop offset="30%" stop-color="#fde047" />
+      <stop offset="0%" stop-color="#ffce09" />
     </radialGradient>
     <radialGradient id="leafyCenter" cx="0.3" cy="0.2">
       <stop offset="0%" stop-color="#a16207" />
@@ -105,6 +101,14 @@
     <radialGradient id="leafyPollen" cx="0.5" cy="0.5">
       <stop offset="0%" stop-color="#fef3c7" />
       <stop offset="100%" stop-color="#fde047" />
+    </radialGradient>
+        <radialGradient id="leafyPot" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#dc2626" />
+      <stop offset="100%" stop-color="#991b1b" />
+    </radialGradient>
+    <radialGradient id="leafyPotRim" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#dc2626" />
     </radialGradient>
   </defs>
 </svg>
