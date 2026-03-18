@@ -88,6 +88,13 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     icon: Mail,
     requiresAuth: true,
   },
+  {
+    id: "messages-p",
+    label: "Messages P",
+    path: "/messages-p",
+    icon: Mail,
+    requiresAuth: true,
+  },
   { id: "search", label: "Search", path: "/search", icon: Search },
   { id: "trends", label: "Trends", path: "/trends", icon: TrendingUp },
   {
