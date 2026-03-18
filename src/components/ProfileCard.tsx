@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { type AvatarShape, isValidAvatarShape, isEmoji, getAvatarMaskUrl, shapedAvatarBorderStyle } from '@/lib/avatarShape';
+import { type AvatarShape, isValidAvatarShape, isEmoji, getAvatarMaskUrlAsync, shapedAvatarBorderStyle } from '@/lib/avatarShape';
 import { isBlobbiShape } from '@/lib/blobbiShapes';
 import { CheckCircle2, Pencil, Plus, Trash2, ChevronDown, ImagePlus, SmilePlus, X as XIcon, Egg } from 'lucide-react';
 import { genUserName } from '@/lib/genUserName';
@@ -130,14 +130,34 @@ export function ProfileCard({
   const isBlobbi = !!shape && isBlobbiShape(shape);
   const hasCustomShape = isEmojiShape || isBlobbi;
 
+  // State for async-loaded mask URL for the hover overlay
+  const [overlayMaskUrl, setOverlayMaskUrl] = useState<string>('');
+
+  // Load mask URL asynchronously when shape changes
+  useEffect(() => {
+    if (!hasCustomShape || !shape) {
+      setOverlayMaskUrl('');
+      return;
+    }
+
+    let cancelled = false;
+    getAvatarMaskUrlAsync(shape).then((url) => {
+      if (!cancelled) {
+        setOverlayMaskUrl(url);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasCustomShape, shape]);
+
   // Memoized mask style for the hover overlay on shaped avatars
   const overlayMaskStyle = useMemo<React.CSSProperties | undefined>(() => {
-    if (!hasCustomShape || !shape) return undefined;
-    const maskUrl = getAvatarMaskUrl(shape);
-    if (!maskUrl) return undefined;
+    if (!overlayMaskUrl) return undefined;
     return {
-      WebkitMaskImage: `url(${maskUrl})`,
-      maskImage: `url(${maskUrl})`,
+      WebkitMaskImage: `url(${overlayMaskUrl})`,
+      maskImage: `url(${overlayMaskUrl})`,
       WebkitMaskSize: 'contain',
       maskSize: 'contain' as string,
       WebkitMaskRepeat: 'no-repeat',
@@ -145,7 +165,7 @@ export function ProfileCard({
       WebkitMaskPosition: 'center',
       maskPosition: 'center' as string,
     };
-  }, [hasCustomShape, shape]);
+  }, [overlayMaskUrl]);
 
   const nip05 = metadata.nip05;
   const nip05Domain = nip05 ? getNip05Domain(nip05) : undefined;
