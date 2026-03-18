@@ -116,6 +116,7 @@ const hardcodedConfig: AppConfig = {
     "feed",
     "notifications",
     "messages",
+    "messages-p",
     "search",
     "bookmarks",
     "profile",
