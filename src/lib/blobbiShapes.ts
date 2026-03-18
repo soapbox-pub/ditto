@@ -373,17 +373,17 @@ export function toBlobbiShapeValue(id: string): string {
 const blobbiMaskCache = new Map<string, string>();
 
 /**
- * Generate a PNG mask URL for a Blobbi shape.
- * The mask is white with alpha from the shape silhouette.
+ * Generate a mask URL for a Blobbi shape.
+ * Returns an SVG data URL with white fill/stroke, suitable for CSS mask-image.
  *
- * This function renders the raw SVG markup into an Image, draws it on a canvas,
- * and exports it as a PNG data URL. Supports all SVG elements including:
+ * This approach is simpler and more reliable than rendering to canvas,
+ * as CSS mask-image supports SVG data URLs directly. Supports all SVG elements:
  * - circles, ellipses, rects, paths
  * - transforms (rotate, translate, scale)
  * - stroke-based shapes (like tails)
  *
  * @param shapeId - The Blobbi shape ID (e.g., "catti", "baby")
- * @returns PNG data URL or empty string if shape not found
+ * @returns SVG data URL or empty string if shape not found
  */
 export function getBlobbiMaskUrl(shapeId: string): string {
   const cached = blobbiMaskCache.get(shapeId);
@@ -395,16 +395,10 @@ export function getBlobbiMaskUrl(shapeId: string): string {
   // Build complete SVG string with white fill and stroke for mask
   const svgString = buildMaskSvgString(shape);
 
-  // Convert SVG string to data URL
-  const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+  // Convert SVG string to data URL - CSS mask-image supports SVG directly
+  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
 
-  // Create image and wait for it to load, then render to canvas
-  const url = renderSvgToMaskUrl(svgDataUrl, shape.viewBox);
-
-  if (url) {
-    blobbiMaskCache.set(shapeId, url);
-  }
-
+  blobbiMaskCache.set(shapeId, url);
   return url;
 }
 
@@ -428,111 +422,14 @@ function buildMaskSvgString(shape: BlobbiShape): string {
 }
 
 /**
- * Synchronously render an SVG data URL to a PNG mask URL.
- * Uses a synchronous approach with a pre-loaded image.
- */
-function renderSvgToMaskUrl(svgDataUrl: string, viewBox: string): string {
-  // Parse viewBox
-  const vb = viewBox.split(' ').map(Number);
-  const [, , vbWidth, vbHeight] = vb;
-
-  // Canvas output size
-  const size = 256;
-
-  // Create canvas
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return '';
-
-  // Create image synchronously
-  const img = new Image();
-  img.src = svgDataUrl;
-
-  // If image isn't loaded yet, we need to handle this case
-  // For data URLs, the image should be available immediately in most browsers
-  if (!img.complete) {
-    // Fallback: return empty and cache will be populated on next call
-    // This is rare for data URLs but handles edge cases
-
-    // Set up async loading for next time
-    // Note: This path is rarely taken for data URLs but handles edge cases
-    img.onload = () => {
-      drawImageToCanvas(ctx, img, vbWidth, vbHeight, size);
-      // The result is discarded here, but subsequent calls will succeed
-      // because the image will be cached by the browser
-    };
-
-    return '';
-  }
-
-  drawImageToCanvas(ctx, img, vbWidth, vbHeight, size);
-  return canvas.toDataURL('image/png');
-}
-
-/**
- * Draw an image to canvas with proper scaling
- */
-function drawImageToCanvas(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  vbWidth: number,
-  vbHeight: number,
-  canvasSize: number
-): void {
-  // Scale to fit canvas while maintaining aspect ratio
-  const scale = canvasSize / Math.max(vbWidth, vbHeight);
-  const offsetX = (canvasSize - vbWidth * scale) / 2;
-  const offsetY = (canvasSize - vbHeight * scale) / 2;
-
-  ctx.drawImage(img, offsetX, offsetY, vbWidth * scale, vbHeight * scale);
-}
-
-/**
  * Async version of mask URL generation.
- * Use this when you need guaranteed loading (e.g., in useEffect).
+ * Since we now use SVG data URLs directly (synchronous), this just wraps
+ * the sync version for API compatibility.
+ *
+ * @deprecated Use getBlobbiMaskUrl() instead - it's now synchronous
  */
 export async function getBlobbiMaskUrlAsync(shapeId: string): Promise<string> {
-  const cached = blobbiMaskCache.get(shapeId);
-  if (cached) return cached;
-
-  const shape = getBlobbiShape(shapeId);
-  if (!shape) return '';
-
-  const svgString = buildMaskSvgString(shape);
-  const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
-
-  return new Promise((resolve) => {
-    const img = new Image();
-
-    img.onload = () => {
-      const vb = shape.viewBox.split(' ').map(Number);
-      const [, , vbWidth, vbHeight] = vb;
-      const size = 256;
-
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-
-      if (!ctx) {
-        resolve('');
-        return;
-      }
-
-      drawImageToCanvas(ctx, img, vbWidth, vbHeight, size);
-      const url = canvas.toDataURL('image/png');
-      blobbiMaskCache.set(shapeId, url);
-      resolve(url);
-    };
-
-    img.onerror = () => {
-      resolve('');
-    };
-
-    img.src = svgDataUrl;
-  });
+  return getBlobbiMaskUrl(shapeId);
 }
 
 /**
