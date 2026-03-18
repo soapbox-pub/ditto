@@ -5,6 +5,13 @@
 @layer base {
   :root {
     --radius: 0.75rem;
+    --success: 142 72% 29%;
+    --success-foreground: 138 60% 94%;
+  }
+
+  .dark {
+    --success: 142 60% 22%;
+    --success-foreground: 138 60% 94%;
   }
 }
 
@@ -162,6 +169,11 @@
 .landing-hero-fade {
   opacity: 0;
   animation: landing-hero-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes nudge-cancel-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 0.6; }
 }
 
 
