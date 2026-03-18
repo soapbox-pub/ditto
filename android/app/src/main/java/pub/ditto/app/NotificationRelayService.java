@@ -173,7 +173,9 @@ public class NotificationRelayService extends Service {
         if (fetchWakeLock != null && fetchWakeLock.isHeld()) {
             fetchWakeLock.release();
         }
-        httpClient.dispatcher().executorService().shutdownNow();
+        if (httpClient != null) {
+            httpClient.dispatcher().executorService().shutdownNow();
+        }
     }
 
     @Override
