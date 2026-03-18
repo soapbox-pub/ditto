@@ -7,6 +7,9 @@ export { PlayMusicModal } from './components/PlayMusicModal';
 export { SingModal } from './components/SingModal';
 export { InlineMusicPlayer } from './components/InlineMusicPlayer';
 export { InlineSingCard } from './components/InlineSingCard';
+export { HatchTasksPanel } from './components/HatchTasksPanel';
+export { BlobbiPostModal } from './components/BlobbiPostModal';
+export { StartIncubationDialog } from './components/StartIncubationDialog';
 export type { AudioSource } from './components/PlayMusicModal';
 
 // Hooks
@@ -19,6 +22,25 @@ export type {
   StageTransitionResult,
   CanonicalActionResult,
 } from './hooks/useBlobbiStageTransition';
+
+export { useStartIncubation, useUpdateTaskProgress } from './hooks/useBlobbiIncubation';
+export type {
+  UseStartIncubationParams,
+  StartIncubationResult,
+  UseUpdateTaskProgressParams,
+  UpdateTaskProgressRequest,
+} from './hooks/useBlobbiIncubation';
+
+export { 
+  useHatchTasks, 
+  getInteractionCount,
+  KIND_THEME_DEFINITION,
+  KIND_COLOR_MOMENT,
+  REQUIRED_INTERACTIONS,
+  BLOBBI_POST_PREFIX,
+  BLOBBI_POST_REQUIRED_HASHTAGS,
+} from './hooks/useHatchTasks';
+export type { HatchTask, HatchTasksResult } from './hooks/useHatchTasks';
 
 export { useBlobbiDirectAction, DIRECT_ACTION_HAPPINESS_EFFECTS } from './hooks/useBlobbiDirectAction';
 export type { DirectActionRequest, DirectActionResult, UseBlobbiDirectActionParams } from './hooks/useBlobbiDirectAction';
