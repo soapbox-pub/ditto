@@ -36,6 +36,7 @@ import { NotificationSettings } from "./pages/NotificationSettings";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { PhotosFeedPage } from "./pages/PhotosFeedPage";
 import { PodcastsFeedPage } from "./pages/PodcastsFeedPage";
+import { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage";
 import { ProfileSettings } from "./pages/ProfileSettings";
 import { RelayPage } from "./pages/RelayPage";
 import { SearchPage } from "./pages/SearchPage";
@@ -203,6 +204,7 @@ export function AppRouter() {
             <Route path="/badges" element={<BadgesFeedPage />} />
             <Route path="/books" element={<BooksPage />} />
             <Route path="/help" element={<HelpPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/r/*" element={<RelayPage />} />
             <Route
               path="/settings/lists"
