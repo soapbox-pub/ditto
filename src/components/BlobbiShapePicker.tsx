@@ -63,7 +63,6 @@ function ShapePreview({ shape }: { shape: BlobbiShape }) {
     setViewBox(tight);
   }, [shape]);
 
-  // Build inline style to colorize all elements
   const fillColor = shape.previewColor || '#a1a1aa';
 
   return (
@@ -72,8 +71,12 @@ function ShapePreview({ shape }: { shape: BlobbiShape }) {
       className="w-full h-full"
       preserveAspectRatio="xMidYMid meet"
     >
-      <style>{`* { fill: ${fillColor}; stroke: ${fillColor}; }`}</style>
-      <g dangerouslySetInnerHTML={{ __html: shape.svg }} />
+      <g
+        className="blobbi-shape"
+        fill={fillColor}
+        stroke={fillColor}
+        dangerouslySetInnerHTML={{ __html: shape.svg }}
+      />
     </svg>
   );
 }
@@ -90,7 +93,7 @@ function ShapeGrid({
   onSelect: (shape: BlobbiShape) => void;
 }) {
   return (
-    <div className="grid grid-cols-5 gap-2">
+    <div className="grid grid-cols-4 gap-2">
       {shapes.map((shape) => (
         <button
           key={shape.id}
@@ -105,7 +108,7 @@ function ShapeGrid({
           )}
           title={shape.name}
         >
-          <div className="absolute inset-1">
+          <div className="absolute inset-0.5">
             <ShapePreview shape={shape} />
           </div>
         </button>
