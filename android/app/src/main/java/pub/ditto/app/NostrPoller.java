@@ -15,9 +15,13 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
 
@@ -79,15 +83,46 @@ public class NostrPoller {
 
         if (filtered.isEmpty()) return;
 
+        // Collect referenced event IDs for reactions, reposts, and zaps so we
+        // can verify the referenced post was authored by the current user.
+        Set<String> refIdsNeeded = new HashSet<>();
+        for (JSONObject event : filtered) {
+            int kind = event.optInt("kind");
+            if (kind == 7 || kind == 6 || kind == 16 || kind == 9735) {
+                String refId = getReferencedEventId(event);
+                if (refId != null) refIdsNeeded.add(refId);
+            }
+        }
+
+        // Fetch referenced events synchronously so we can filter before notifying.
+        Map<String, JSONObject> referencedMap = refIdsNeeded.isEmpty()
+                ? new HashMap<>()
+                : fetchEventsByIds(new ArrayList<>(refIdsNeeded), relayUrl, httpClient);
+
+        // Filter out reactions/reposts/zaps on posts the user didn't author.
+        List<JSONObject> notifiable = new ArrayList<>();
+        for (JSONObject event : filtered) {
+            int kind = event.optInt("kind");
+            if (kind == 7 || kind == 6 || kind == 16 || kind == 9735) {
+                String refId = getReferencedEventId(event);
+                if (refId == null) continue;
+                JSONObject refEvent = referencedMap.get(refId);
+                if (refEvent == null || !userPubkey.equals(refEvent.optString("pubkey"))) continue;
+            }
+            notifiable.add(event);
+        }
+
+        if (notifiable.isEmpty()) return;
+
         // Dispatch notifications
-        if (filtered.size() > 3) {
+        if (notifiable.size() > 3) {
             showNotification(
-                    hashId(filtered.get(0).optString("id") + "-summary"),
+                    hashId(notifiable.get(0).optString("id") + "-summary"),
                     "Ditto",
-                    "You have " + filtered.size() + " new notifications"
+                    "You have " + notifiable.size() + " new notifications"
             );
         } else {
-            for (JSONObject event : filtered) {
+            for (JSONObject event : notifiable) {
                 String action = kindToAction(event);
                 showNotification(
                         hashId(event.optString("id")),
@@ -97,7 +132,8 @@ public class NostrPoller {
             }
         }
 
-        // Update last-seen to newest event
+        // Update last-seen to newest event (use full filtered list, not just
+        // notifiable, so we don't re-fetch already-seen events on next cycle).
         long newestTs = getLastSeenTimestamp();
         for (JSONObject event : filtered) {
             long ts = event.optLong("created_at", 0);
@@ -106,13 +142,96 @@ public class NostrPoller {
         setLastSeenTimestamp(newestTs);
     }
 
+    /** Returns the last `e` tag value from the event, or null if absent. */
+    private String getReferencedEventId(JSONObject event) {
+        JSONArray tags = event.optJSONArray("tags");
+        if (tags == null) return null;
+        String last = null;
+        for (int i = 0; i < tags.length(); i++) {
+            JSONArray tag = tags.optJSONArray(i);
+            if (tag != null && "e".equals(tag.optString(0)) && tag.length() > 1) {
+                last = tag.optString(1);
+            }
+        }
+        return last;
+    }
+
+    /**
+     * Synchronously fetch a set of events by ID from the relay.
+     * Uses a CountDownLatch so the caller blocks until EOSE or timeout (5 s).
+     */
+    private Map<String, JSONObject> fetchEventsByIds(List<String> ids, String relayUrl, OkHttpClient httpClient) {
+        Map<String, JSONObject> result = new HashMap<>();
+        if (ids.isEmpty()) return result;
+
+        CountDownLatch latch = new CountDownLatch(1);
+        String subId = "ref-" + Long.toHexString(System.nanoTime());
+
+        try {
+            JSONArray idsArr = new JSONArray();
+            for (String id : ids) idsArr.put(id);
+
+            JSONObject filter = new JSONObject();
+            filter.put("ids", idsArr);
+            filter.put("limit", ids.size());
+
+            JSONArray req = new JSONArray();
+            req.put("REQ");
+            req.put(subId);
+            req.put(filter);
+            String reqStr = req.toString();
+
+            okhttp3.Request request = new okhttp3.Request.Builder().url(relayUrl).build();
+            httpClient.newWebSocket(request, new okhttp3.WebSocketListener() {
+                @Override
+                public void onOpen(okhttp3.WebSocket webSocket, okhttp3.Response response) {
+                    webSocket.send(reqStr);
+                }
+
+                @Override
+                public void onMessage(okhttp3.WebSocket webSocket, String text) {
+                    try {
+                        JSONArray msg = new JSONArray(text);
+                        String type = msg.optString(0);
+                        if ("EVENT".equals(type) && subId.equals(msg.optString(1))) {
+                            JSONObject ev = msg.getJSONObject(2);
+                            result.put(ev.optString("id"), ev);
+                        } else if ("EOSE".equals(type) || "CLOSED".equals(type)) {
+                            JSONArray close = new JSONArray();
+                            close.put("CLOSE");
+                            close.put(subId);
+                            webSocket.send(close.toString());
+                            webSocket.close(1000, "done");
+                            latch.countDown();
+                        }
+                    } catch (Exception ignored) {}
+                }
+
+                @Override
+                public void onFailure(okhttp3.WebSocket webSocket, Throwable t, okhttp3.Response response) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void onClosed(okhttp3.WebSocket webSocket, int code, String reason) {
+                    latch.countDown();
+                }
+            });
+
+            latch.await(5, TimeUnit.SECONDS);
+        } catch (Exception ignored) {}
+
+        return result;
+    }
+
     // --- Event helpers ---
 
     private String kindToAction(JSONObject event) {
         int kind = event.optInt("kind");
         switch (kind) {
             case 7: return "reacted to your post";
-            case 6: return "reposted your note";
+            case 6: // fall-through
+            case 16: return "reposted your note";
             case 9735: {
                 long sats = getZapAmount(event);
                 if (sats > 0) {

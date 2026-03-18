@@ -600,7 +600,7 @@ function EventNotFound({
                 value={relayUrl}
                 onChange={(e) => setRelayUrl(e.target.value)}
                 placeholder="wss://relay.example.com"
-                className="flex-1 font-mono text-xs h-9"
+                className="flex-1 font-mono text-base md:text-xs h-9"
                 disabled={isRetrying}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleRetry(relayUrl);

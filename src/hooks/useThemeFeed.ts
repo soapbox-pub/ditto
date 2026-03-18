@@ -18,7 +18,7 @@ export function useThemeFeed(tab: 'follows' | 'global' = 'global') {
   const followsReady = tab !== 'follows' || (!!user && followList !== undefined);
 
   return useInfiniteQuery({
-    queryKey: ['theme-feed', tab, user?.pubkey ?? '', followList?.length ?? 0],
+    queryKey: ['theme-feed', tab, user?.pubkey ?? ''],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(5000);
       const baseUntil = pageParam as number | undefined;

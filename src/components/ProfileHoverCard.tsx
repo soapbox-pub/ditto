@@ -112,7 +112,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
 
         {/* NIP-38 user status */}
         {userStatus && (
-          <p className="text-xs text-muted-foreground italic mt-2 truncate">
+          <p className="text-xs text-muted-foreground italic mt-2 truncate pr-1">
             {statusUrl ? (
               <a href={statusUrl} target="_blank" rel="noopener noreferrer" className="hover:underline" onClick={(e) => e.stopPropagation()}>
                 {userStatus}

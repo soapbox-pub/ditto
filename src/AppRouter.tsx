@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
+import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { MainLayout } from "./components/MainLayout";
@@ -20,12 +22,14 @@ import { ContentSettingsPage } from "./pages/ContentSettingsPage";
 import { DomainFeedPage } from "./pages/DomainFeedPage";
 import { EventsFeedPage } from "./pages/EventsFeedPage";
 import { ExternalContentPage } from "./pages/ExternalContentPage";
+import { GeotagPage } from "./pages/GeotagPage";
 import { HashtagPage } from "./pages/HashtagPage";
 import { HelpPage } from "./pages/HelpPage";
 import { HomePage } from "./pages/HomePage";
 import Index from "./pages/Index";
 import { KindFeedPage } from "./pages/KindFeedPage";
 import { MagicSettingsPage } from "./pages/MagicSettingsPage";
+import Messages from "./pages/Messages";
 import { MusicFeedPage } from "./pages/MusicFeedPage";
 import { NetworkSettingsPage } from "./pages/NetworkSettingsPage";
 import { NIP19Page } from "./pages/NIP19Page";
@@ -34,6 +38,7 @@ import { NotificationSettings } from "./pages/NotificationSettings";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { PhotosFeedPage } from "./pages/PhotosFeedPage";
 import { PodcastsFeedPage } from "./pages/PodcastsFeedPage";
+import { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage";
 import { ProfileSettings } from "./pages/ProfileSettings";
 import { RelayPage } from "./pages/RelayPage";
 import { SearchPage } from "./pages/SearchPage";
@@ -55,6 +60,22 @@ const articlesDef = getExtraKindDef("articles")!;
 const decksDef = getExtraKindDef("decks")!;
 const emojisDef = getExtraKindDef("emojis")!;
 const developmentDef = getExtraKindDef("development")!;
+
+/** Polls feed page with a FAB that opens the compose modal (poll mode via + menu). */
+function PollsFeedPage() {
+  const [composeOpen, setComposeOpen] = useState(false);
+  return (
+    <>
+      <KindFeedPage
+        kind={pollsDef.kind}
+        title={pollsDef.label}
+        icon={sidebarItemIcon("polls", "size-5")}
+        onFabClick={() => setComposeOpen(true)}
+      />
+      <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} initialMode="poll" />
+    </>
+  );
+}
 
 /** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
 function ProfileRedirect() {
@@ -78,10 +99,12 @@ export function AppRouter() {
             <Route path="/" element={<HomePage />} />
             <Route path="/feed" element={<Index />} />
             <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/messages" element={<Messages />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/trends" element={<TrendsPage />} />
             <Route path="/profile" element={<ProfileRedirect />} />
-            <Route path="/t/:tag" element={<HashtagPage />} />
+             <Route path="/t/:tag" element={<HashtagPage />} />
+             <Route path="/g/:geohash" element={<GeotagPage />} />
             <Route path="/feed/:domain" element={<DomainFeedPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/profile" element={<ProfileSettings />} />
@@ -110,16 +133,7 @@ export function AppRouter() {
             <Route path="/vines" element={<VinesFeedPage />} />
             <Route path="/music" element={<MusicFeedPage />} />
             <Route path="/podcasts" element={<PodcastsFeedPage />} />
-            <Route
-              path="/polls"
-              element={
-                <KindFeedPage
-                  kind={pollsDef.kind}
-                  title={pollsDef.label}
-                  icon={sidebarItemIcon("polls", "size-5")}
-                />
-              }
-            />
+            <Route path="/polls" element={<PollsFeedPage />} />
             <Route path="/treasures" element={<TreasuresPage />} />
             <Route
               path="/colors"
@@ -194,6 +208,7 @@ export function AppRouter() {
             <Route path="/badges" element={<BadgesFeedPage />} />
             <Route path="/books" element={<BooksPage />} />
             <Route path="/help" element={<HelpPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/r/*" element={<RelayPage />} />
             <Route
               path="/settings/lists"

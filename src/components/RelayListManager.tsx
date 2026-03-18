@@ -352,7 +352,7 @@ export function RelayListManager() {
                     handleAddRelay();
                   }
                 }}
-                className="h-9 text-sm"
+                className="h-9 text-base md:text-sm"
               />
             </div>
             <Button

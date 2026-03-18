@@ -426,7 +426,7 @@ export function AIChatPage() {
         <div className="flex items-center gap-2">
           {/* Model selector */}
           <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
-            <SelectTrigger className="w-full sidebar:w-44 h-8 text-xs">
+            <SelectTrigger className="w-full sidebar:w-44 h-8 text-base md:text-xs">
               <SelectValue placeholder={modelsLoading ? 'Loading models...' : 'Select model'} />
             </SelectTrigger>
             <SelectContent>

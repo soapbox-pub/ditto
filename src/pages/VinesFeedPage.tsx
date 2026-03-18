@@ -45,13 +45,12 @@ import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
-
-
 import { CommentsSheet } from '@/components/CommentsSheet';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { canZap } from '@/lib/canZap';
 import { formatNumber } from '@/lib/formatNumber';
+import { TabButton } from '@/components/TabButton';
 import { cn } from '@/lib/utils';
 
 const VINE_KIND = 34236;
@@ -788,26 +787,9 @@ function VinesTabBar({ tab, onTabChange, hasUser }: VinesTabBarProps) {
   return (
     <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 shrink-0">
       {hasUser && (
-        <VinesTabButton label="Follows" active={tab === 'follows'} onClick={() => onTabChange('follows')} />
+        <TabButton label="Follows" active={tab === 'follows'} onClick={() => onTabChange('follows')} className="sidebar:py-5 sidebar:font-semibold" indicatorClassName="sidebar:h-[3px]" />
       )}
-      <VinesTabButton label="Global" active={tab === 'global'} onClick={() => onTabChange('global')} />
+      <TabButton label="Global" active={tab === 'global'} onClick={() => onTabChange('global')} className="sidebar:py-5 sidebar:font-semibold" indicatorClassName="sidebar:h-[3px]" />
     </div>
-  );
-}
-
-function VinesTabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-1 py-3.5 sidebar:py-5 text-center text-sm font-medium sidebar:font-semibold transition-colors relative hover:bg-secondary/40',
-        active ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 sidebar:h-[3px] bg-primary rounded-full" />
-      )}
-    </button>
   );
 }

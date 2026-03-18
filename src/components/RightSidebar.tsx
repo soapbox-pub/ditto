@@ -235,6 +235,10 @@ export function RightSidebar() {
           <a href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
             Edit Ditto with Shakespeare
           </a>
+          {' · '}
+          <Link to="/privacy" className="text-primary hover:underline">
+            Privacy
+          </Link>
         </p>
       </footer>
     </aside>

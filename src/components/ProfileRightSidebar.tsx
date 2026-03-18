@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,7 +16,8 @@ import type { AddrCoords } from '@/hooks/useEvent';
 import QRCode from 'qrcode';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getContentWarning } from '@/lib/contentWarning';
-import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
+import { MiniAudioPlayer, isAudioUrl, isImageUrl, isVideoUrl } from '@/components/MiniAudioPlayer';
+import { VideoPlayer } from '@/components/VideoPlayer';
 import { parseDimToAspectRatio } from '@/components/MediaCollage';
 
 /** Simple email regex for display purposes. */
@@ -66,6 +68,8 @@ interface ProfileRightSidebarProps {
   mediaLoading?: boolean;
   /** Called when a media tile is clicked. If provided, tiles don't navigate. */
   onMediaClick?: (url: string) => void;
+  /** Override the root element's className (e.g. to show on mobile). */
+  className?: string;
 }
 
 interface MediaItem {
@@ -81,6 +85,8 @@ interface MediaItem {
   blurhash?: string;
   /** NIP-94 dim value from the imeta tag, e.g. "1280x720". */
   dim?: string;
+  /** MIME type from the imeta `m` field, e.g. "video/mp4". */
+  mime?: string;
 }
 
 /** Extracts image URLs from content. */
@@ -95,8 +101,8 @@ function extractVideoUrls(content: string): string[] {
   return content.match(regex) || [];
 }
 
-/** Extract url, blurhash, and dim from the first matching imeta tag for a given URL (or the first tag if no URL given). */
-function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: string; blurhash?: string; dim?: string } {
+/** Extract url, blurhash, dim, and mime from the first matching imeta tag for a given URL (or the first tag if no URL given). */
+function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: string; blurhash?: string; dim?: string; mime?: string } {
   const imetaTags = event.tags.filter(([name]) => name === 'imeta');
   for (const imetaTag of imetaTags) {
     const fields: Record<string, string> = {};
@@ -107,7 +113,7 @@ function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: strin
     }
     if (!fields.url) continue;
     if (matchUrl && fields.url !== matchUrl) continue;
-    return { url: fields.url, blurhash: fields.blurhash, dim: fields.dim };
+    return { url: fields.url, blurhash: fields.blurhash, dim: fields.dim, mime: fields.m };
   }
   return {};
 }
@@ -125,11 +131,11 @@ function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
 
     // For media-native kinds (vines etc.), extract from imeta tags
     if (event.kind !== 1) {
-      const { url, blurhash, dim } = extractImetaFields(event);
+      const { url, blurhash, dim, mime } = extractImetaFields(event);
       if (url && !seen.has(url)) {
         seen.add(url);
         const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-        items.push({ url, blurhash, dim, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
+        items.push({ url, blurhash, dim, mime, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
       }
       continue;
     }
@@ -140,8 +146,8 @@ function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
     for (const url of [...images, ...videos]) {
       if (!seen.has(url)) {
         seen.add(url);
-        const { blurhash, dim } = extractImetaFields(event, url);
-        items.push({ url, blurhash, dim, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
+        const { blurhash, dim, mime } = extractImetaFields(event, url);
+        items.push({ url, blurhash, dim, mime, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
       }
     }
   }
@@ -149,11 +155,22 @@ function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
   return items.slice(0, 9);
 }
 
+/** Event kinds that are inherently video content. */
+const VIDEO_KINDS = new Set([34236, 21, 22]);
+
+/** Detect whether a media item is a video using mime type, file extension, or event kind. */
+function isVideoItem(item: MediaItem): boolean {
+  if (item.mime?.startsWith('video/')) return true;
+  if (/\.(mp4|webm|mov|qt)(\?.*)?$/i.test(item.url)) return true;
+  if (item.kind !== undefined && VIDEO_KINDS.has(item.kind)) return true;
+  return false;
+}
+
 /** Single media tile with a blurhash/skeleton shown until the image loads. */
 function MediaTile({ item }: { item: MediaItem }) {
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
-  const isVideo = /\.(mp4|webm|mov|qt)(\?.*)?$/i.test(item.url);
+  const isVideo = isVideoItem(item);
 
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
@@ -368,7 +385,7 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
     );
   }
 
-  // Audio file: render mini player
+  // Media fields: render inline players/previews based on file extension
   const isUrl = field.value.startsWith('http://') || field.value.startsWith('https://');
 
   if (isUrl && isAudioUrl(field.value)) {
@@ -376,6 +393,33 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
       <div>
         <div className="font-semibold text-sm mb-1.5">{field.label}</div>
         <MiniAudioPlayer src={field.value} />
+      </div>
+    );
+  }
+
+  if (isUrl && isImageUrl(field.value)) {
+    return (
+      <div>
+        {field.label && <div className="font-semibold text-sm mb-1.5">{field.label}</div>}
+        <a href={field.value} target="_blank" rel="noopener noreferrer" className="block">
+          <img
+            src={field.value}
+            alt={field.label || 'Profile image'}
+            className="w-full rounded-lg object-cover"
+            loading="lazy"
+          />
+        </a>
+      </div>
+    );
+  }
+
+  if (isUrl && isVideoUrl(field.value)) {
+    return (
+      <div>
+        {field.label && <div className="font-semibold text-sm mb-1.5">{field.label}</div>}
+        <div className="rounded-lg overflow-hidden">
+          <VideoPlayer src={field.value} />
+        </div>
       </div>
     );
   }
@@ -430,7 +474,7 @@ function sidebarJustifiedLayout(items: MediaItem[]): { items: MediaItem[]; heigh
   return rows;
 }
 
-export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp, onMediaClick }: ProfileRightSidebarProps) {
+export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp, onMediaClick, className }: ProfileRightSidebarProps) {
   const { config } = useAppContext();
   const media = useMemo(
     () => extractMedia(mediaEvents ?? [], config.contentWarningPolicy),
@@ -441,9 +485,9 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
   const sidebarRows = useMemo(() => sidebarJustifiedLayout(media), [media]);
 
   return (
-    <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3">
-      {/* Media Section */}
-      <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
+    <aside className={cn("w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3", className)}>
+      {/* Media Section — only shown when mediaEvents prop is provided */}
+      {mediaEvents !== undefined && <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <h2 className="text-xl font-bold mb-3">Media</h2>
         {mediaLoading ? (
           <div className="flex flex-col gap-0.5">
@@ -538,7 +582,7 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
         ) : (
           <p className="text-sm text-muted-foreground">No media yet.</p>
         )}
-      </section>
+      </section>}
 
       {/* Profile Fields Section */}
       {fields && fields.length > 0 && (
@@ -552,14 +596,16 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
         </section>
       )}
 
-      {/* Footer */}
-      <footer className="mt-auto pt-4 pb-4 text-left bg-background/85 rounded-xl p-3 -mx-1">
-        <p className="text-xs text-muted-foreground">
-          <a href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
-            Edit Ditto with Shakespeare
-          </a>
-        </p>
-      </footer>
+      {/* Footer — hidden when used as a fields-only preview */}
+      {mediaEvents !== undefined && (
+        <footer className="mt-auto pt-4 pb-4 text-left bg-background/85 rounded-xl p-3 -mx-1">
+          <p className="text-xs text-muted-foreground">
+            <a href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+              Edit Ditto with Shakespeare
+            </a>
+          </p>
+        </footer>
+      )}
     </aside>
   );
 }

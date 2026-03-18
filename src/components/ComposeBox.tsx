@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker } from 'lucide-react';
+import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarChart3, Plus, ChevronLeft } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
@@ -41,6 +42,11 @@ import { formatTime } from '@/lib/formatTime';
 import { DITTO_RELAY } from '@/lib/appRelays';
 
 const MAX_CHARS = 5000;
+
+/** Short random ID for poll options. */
+function pollOptionId(): string {
+  return Math.random().toString(36).slice(2, 8);
+}
 
 /**
  * For an image File, returns `{ dim: "WxH", blurhash: "..." }`.
@@ -110,6 +116,8 @@ interface ComposeBoxProps {
   onHasPreviewableContentChange?: (hasContent: boolean) => void;
   /** Pre-filled content for the compose box. */
   initialContent?: string;
+  /** Open directly in poll mode. */
+  initialMode?: 'post' | 'poll';
 }
 
 /** Circular progress ring for character count. */
@@ -149,6 +157,7 @@ function CharRing({ count, max }: { count: number; max: number }) {
   );
 }
 
+
 export function ComposeBox({ 
   onSuccess, 
   placeholder = "What's on your mind?", 
@@ -160,11 +169,12 @@ export function ComposeBox({
   previewMode: controlledPreviewMode,
   onHasPreviewableContentChange,
   initialContent = '',
+  initialMode = 'post',
 }: ComposeBoxProps) {
   const { user, metadata, isLoading: isProfileLoading } = useCurrentUser();
   const avatarShape = getAvatarShape(metadata);
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
-  const { mutateAsync: createEvent, isPending } = useNostrPublish();
+  const { mutateAsync: createEvent, isPending, isPending: isPollPending } = useNostrPublish();
   const { mutateAsync: postComment, isPending: isCommentPending } = usePostComment();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { feedSettings } = useFeedSettings();
@@ -180,7 +190,18 @@ export function ComposeBox({
   const [cwText, setCwText] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState<'emoji' | 'gif' | 'stickers'>('emoji');
+  const [trayOpen, setTrayOpen] = useState(false);
   const [internalPreviewMode, setInternalPreviewMode] = useState(false);
+
+  // Poll mode state
+  const [mode, setMode] = useState<'post' | 'poll'>(initialMode);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState([
+    { id: pollOptionId(), label: '' },
+    { id: pollOptionId(), label: '' },
+  ]);
+  const [pollType, setPollType] = useState<'singlechoice' | 'multiplechoice'>('singlechoice');
+  const [pollDuration, setPollDuration] = useState<7 | 3 | 1 | 0>(7);
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const [_uploadedFileTags, setUploadedFileTags] = useState<string[][]>([]);
   /** Maps uploaded file URLs to their NIP-94 tags (grouped per upload). */
@@ -953,6 +974,39 @@ export function ComposeBox({
     }
   };
 
+  const handlePollSubmit = async () => {
+    const filledOptions = pollOptions.filter((o) => o.label.trim());
+    if (!pollQuestion.trim() || filledOptions.length < 2 || !user || isPollPending) return;
+
+    const tags: string[][] = [];
+    for (const opt of filledOptions) {
+      tags.push(['option', opt.id, opt.label.trim()]);
+    }
+    tags.push(['polltype', pollType]);
+    if (pollDuration > 0) {
+      tags.push(['endsAt', String(Math.floor(Date.now() / 1000) + pollDuration * 86_400)]);
+    }
+    tags.push(['alt', `Poll: ${pollQuestion.trim()}`]);
+
+    try {
+      await createEvent({ kind: 1068, content: pollQuestion.trim(), tags });
+      // Reset poll state
+      setMode('post');
+      setPollQuestion('');
+      setPollOptions([{ id: pollOptionId(), label: '' }, { id: pollOptionId(), label: '' }]);
+      setPollType('singlechoice');
+      setPollDuration(7);
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      toast({ title: 'Poll published!' });
+      onSuccess?.();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to publish poll.', variant: 'destructive' });
+    }
+  };
+
+  const pollFilledCount = pollOptions.filter((o) => o.label.trim()).length;
+  const isPollValid = pollQuestion.trim().length > 0 && pollFilledCount >= 2;
+
   const isExpanded = forceExpanded || expanded || content.length > 0 || !compact;
 
   // Early return after all hooks to avoid violating Rules of Hooks
@@ -1007,8 +1061,113 @@ export function ComposeBox({
         )}
 
         <div className="flex-1 min-w-0">
-          {!previewMode ? (
-          /* Edit mode - Textarea */
+          {mode === 'poll' ? (
+          /* ── Inline poll builder ─────────────────────────────── */
+          <div className="pt-2.5 pb-1 space-y-3">
+            {/* Back to post link — hidden when poll mode is the only mode */}
+            {initialMode !== 'poll' && (
+              <button
+                type="button"
+                onClick={() => setMode('post')}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors -mt-0.5"
+              >
+                <ChevronLeft className="size-3.5" />
+                Back to post
+              </button>
+            )}
+
+            {/* Question */}
+            <textarea
+              value={pollQuestion}
+              onChange={(e) => setPollQuestion(e.target.value)}
+              placeholder="Ask a question…"
+              rows={2}
+              maxLength={280}
+              className="w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pb-1 opacity-85 break-words"
+            />
+
+            {/* Options */}
+            <div className="space-y-1.5">
+              {pollOptions.map((opt, idx) => (
+                <div key={opt.id} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={opt.label}
+                    onChange={(e) =>
+                      setPollOptions((prev) =>
+                        prev.map((o) => (o.id === opt.id ? { ...o, label: e.target.value } : o)),
+                      )
+                    }
+                    placeholder={`Option ${idx + 1}`}
+                    maxLength={100}
+                    className="flex-1 bg-secondary/40 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (pollOptions.length > 2) {
+                        setPollOptions((prev) => prev.filter((o) => o.id !== opt.id));
+                      }
+                    }}
+                    disabled={pollOptions.length <= 2}
+                    className="p-1 rounded-full text-muted-foreground hover:text-destructive transition-colors disabled:opacity-20"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+
+              {pollOptions.length < 8 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPollOptions((prev) => [...prev, { id: pollOptionId(), label: '' }])
+                  }
+                  className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors pt-0.5"
+                >
+                  <Plus className="size-3" />
+                  Add option
+                </button>
+              )}
+            </div>
+
+            {/* Settings row — pill toggles */}
+            <div className="flex flex-wrap gap-2 pt-0.5">
+              {(['singlechoice', 'multiplechoice'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setPollType(t)}
+                  className={cn(
+                    'text-xs px-2.5 py-1 rounded-full border transition-colors',
+                    pollType === t
+                      ? 'border-primary bg-primary/10 text-primary font-medium'
+                      : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30',
+                  )}
+                >
+                  {t === 'singlechoice' ? 'Single choice' : 'Multiple choice'}
+                </button>
+              ))}
+              <div className="w-px bg-border self-stretch mx-0.5" />
+              {([1, 3, 7, 0] as const).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setPollDuration(d)}
+                  className={cn(
+                    'text-xs px-2.5 py-1 rounded-full border transition-colors',
+                    pollDuration === d
+                      ? 'border-primary bg-primary/10 text-primary font-medium'
+                      : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30',
+                  )}
+                >
+                  {d === 0 ? <span style={{ fontSize: '15px', lineHeight: 1, position: 'relative', top: '-1px' }}>∞</span> : `${d}d`}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : !previewMode ? (
+          /* ── Edit mode — Textarea ────────────────────────────── */
           <div className="relative">
             <textarea
               ref={textareaRef}
@@ -1077,7 +1236,7 @@ export function ComposeBox({
               value={cwText}
               onChange={(e) => setCwText(e.target.value)}
               placeholder="Content warning reason (optional)"
-              className="h-8 text-sm bg-secondary/50 border-0 rounded-lg"
+              className="h-8 text-base md:text-sm bg-secondary/50 border-0 rounded-lg"
             />
             <button
               onClick={() => { setCwEnabled(false); setCwText(''); }}
@@ -1184,10 +1343,13 @@ export function ComposeBox({
                   ref={fileInputRef}
                   type="file"
                   accept="image/*,video/*,audio/*,.xdc"
+                  multiple
                   className="hidden"
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file);
+                    const files = e.target.files;
+                    if (files) {
+                      Array.from(files).forEach((file) => handleFileUpload(file));
+                    }
                     e.target.value = '';
                   }}
                 />
@@ -1335,32 +1497,56 @@ export function ComposeBox({
                    </DialogContent>
                  </Dialog>
 
-                {/* Content warning (NIP-36) */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => setCwEnabled(!cwEnabled)}
-                      className={cn(
-                        'p-2 rounded-full transition-colors',
-                        cwEnabled
-                          ? 'text-amber-500 bg-amber-500/10'
-                          : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10',
+                {/* Overflow: Poll + CW */}
+                <Popover open={trayOpen} onOpenChange={setTrayOpen}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={!user}
+                          className={cn(
+                            'p-2 rounded-full transition-colors disabled:opacity-40',
+                            (trayOpen || mode === 'poll' || cwEnabled)
+                              ? 'text-primary bg-primary/10'
+                              : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
+                          )}
+                        >
+                          <Plus className="size-[18px]" strokeWidth={2.5} />
+                        </button>
+                      </PopoverTrigger>
+                    </TooltipTrigger>
+                    {!trayOpen && <TooltipContent>More</TooltipContent>}
+                  </Tooltip>
+                  <PopoverContent side="bottom" align="start" sideOffset={6} className="w-44 p-1.5 rounded-xl border-border shadow-lg">
+                    <div className="flex flex-col gap-0.5">
+                      {!replyTo && (
+                        <button
+                          type="button"
+                          onClick={() => { setMode((m) => m === 'poll' ? 'post' : 'poll'); setTrayOpen(false); expand(); }}
+                          className={cn('flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors', mode === 'poll' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60')}
+                        >
+                          <BarChart3 className="size-4" /><span className="font-medium">Poll</span>
+                        </button>
                       )}
-                    >
-                      <AlertTriangle className="size-[18px]" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>Content warning (NIP-36)</TooltipContent>
-                </Tooltip>
+                      <button
+                        type="button"
+                        onClick={() => { setCwEnabled((v) => !v); setTrayOpen(false); expand(); }}
+                        className={cn('flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors', cwEnabled ? 'text-amber-500 bg-amber-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60')}
+                      >
+                        <AlertTriangle className="size-4" /><span className="font-medium">Spoiler</span>
+                      </button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Spacer */}
               <div className="flex-1" />
 
-              {/* Right: char count + post button */}
+              {/* Right: char count + post/poll button */}
               <div className="flex items-center gap-3">
-                {charCount > 0 && (
+                {mode === 'post' && charCount > 0 && (
                   <div className="flex items-center gap-1.5">
                     <CharRing count={charCount} max={MAX_CHARS} />
                     <span className={cn(
@@ -1372,14 +1558,25 @@ export function ComposeBox({
                   </div>
                 )}
 
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!content.trim() || isPending || isCommentPending || !user || charCount > MAX_CHARS}
-                  className="rounded-full px-5 font-bold"
-                  size="sm"
-                >
-                  {isPending || isCommentPending ? 'Posting...' : 'Post!'}
-                </Button>
+                {mode === 'poll' ? (
+                  <Button
+                    onClick={handlePollSubmit}
+                    disabled={!isPollValid || isPollPending || !user}
+                    className="rounded-full px-5 font-bold"
+                    size="sm"
+                  >
+                    {isPollPending ? 'Publishing...' : 'Publish poll'}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!content.trim() || isPending || isCommentPending || !user || charCount > MAX_CHARS}
+                    className="rounded-full px-5 font-bold"
+                    size="sm"
+                  >
+                    {isPending || isCommentPending ? 'Posting...' : 'Post!'}
+                  </Button>
+                )}
               </div>
             </div>
           )

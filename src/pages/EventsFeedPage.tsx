@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { NoteCard } from '@/components/NoteCard';
+import { TabButton } from '@/components/TabButton';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
@@ -20,7 +21,6 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
-import { cn } from '@/lib/utils';
 
 type FeedTab = 'follows' | 'global';
 
@@ -181,24 +181,5 @@ function EventCardSkeleton() {
         <Skeleton className="h-20 w-full rounded-lg" />
       </div>
     </div>
-  );
-}
-
-// ─── TabButton ────────────────────────────────────────────────────────────────
-
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
-        active ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
-      )}
-    </button>
   );
 }

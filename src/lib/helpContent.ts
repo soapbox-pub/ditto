@@ -113,7 +113,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'Can I download this on the App Store or Google Play?',
         answer: [
           'This site works as a web app right from your browser \u2014 no download needed! You can also "Add to Home Screen" on your phone to get an app-like experience.',
-          'Native app store releases are planned for the future \u2014 stay tuned!',
+          'On Android, you can download Ditto from [Zap Store](https://zapstore.dev/apps/pub.ditto.app), a community-driven app store for the Nostr ecosystem. iOS support is planned for the future \u2014 stay tuned!',
         ],
       },
       {
@@ -128,7 +128,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         id: 'nostr-app-store',
         question: 'Is there a Nostr-specific app store?',
         answer: [
-          'Yes! [Zap Store](https://zapstore.dev/) is a community-driven app store built specifically for the Nostr ecosystem. You can discover and download Nostr apps, and the apps are verified by the community rather than a corporation.',
+          'Yes! [Zap Store](https://zapstore.dev/) is a community-driven app store built specifically for the Nostr ecosystem. You can discover and download Nostr apps, and the apps are verified by the community rather than a corporation. Ditto is listed there \u2014 [get it on Zap Store](https://zapstore.dev/apps/pub.ditto.app).',
           'You can also browse a directory of Nostr apps at [nostrapps.com](https://nostrapps.com/).',
         ],
       },
@@ -219,6 +219,37 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         answer: [
           'Nostr itself is a protocol (like email or the web) \u2014 it doesn\'t have terms of service. Individual relays and apps may have their own rules.',
           'Since no single entity controls the network, the community largely self-moderates. Think of it less like a walled garden and more like the open internet.',
+        ],
+      },
+    ],
+  },
+
+  // ── Profile & Identity ───────────────────────────────────────────────────
+  {
+    id: 'profile-identity',
+    label: 'Profile & Identity',
+    items: [
+      {
+        id: 'profile-fields',
+        question: 'What are profile fields?',
+        answer: [
+          'Profile fields let you add extra info to your profile sidebar — like links, wallet addresses, music, photos, videos, and more. They\'re a way to express yourself and share what matters to you.',
+          'You can add fields from the profile settings page. Each field has a **label** (what it\'s called) and a **value** (the content). For media fields, you can upload files directly and they\'ll render as players or embeds on your profile.',
+        ],
+      },
+      {
+        id: 'profile-fields-music',
+        question: 'What audio formats can I upload for music fields?',
+        answer: [
+          'You can upload audio files in these formats: **MP3**, **OGG**, **WAV**, **FLAC**, **AAC**, **M4A**, and **Opus**. They\'ll appear as a mini audio player on your profile sidebar.',
+        ],
+      },
+      {
+        id: 'profile-fields-media',
+        question: 'What image and video formats are supported?',
+        answer: [
+          'For images: **JPG**, **PNG**, **GIF**, **WebP**, **SVG**, and **AVIF**. For video: **MP4**, **WebM**, and **MOV**.',
+          'Images will display as linked thumbnails, and videos will be embedded inline on your profile.',
         ],
       },
     ],
