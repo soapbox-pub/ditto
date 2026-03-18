@@ -34,6 +34,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { NoteContent } from '@/components/NoteContent';
@@ -235,6 +236,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   const isOwnPost = user?.pubkey === event.pubkey;
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(event.pubkey);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', event.pubkey);
@@ -328,7 +330,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
         {/* Post preview */}
         <div className="px-4 pt-4 pb-3">
           <div className="flex gap-3">
-            <Avatar className="size-10 shrink-0">
+            <Avatar shape={avatarShape} className="size-10 shrink-0">
               <AvatarImage src={metadata?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-sm">
                 {displayName[0].toUpperCase()}

@@ -5,6 +5,7 @@ import { nip19 } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -46,12 +47,13 @@ function parseCommunityEvent(event: NostrEvent) {
 function ModeratorRow({ pubkey }: { pubkey: string }) {
   const { data } = useAuthor(pubkey);
   const metadata: NostrMetadata | undefined = data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const name = metadata?.display_name || metadata?.name || genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
   return (
     <Link to={profileUrl} className="flex items-center gap-3 group py-1.5">
-      <Avatar className="size-9 ring-2 ring-background">
+      <Avatar shape={avatarShape} className="size-9 ring-2 ring-background">
         <AvatarImage src={metadata?.picture} />
         <AvatarFallback className="bg-muted text-muted-foreground text-xs">
           {name.charAt(0).toUpperCase()}
@@ -83,6 +85,7 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
   // Owner
   const ownerAuthor = useAuthor(event.pubkey);
   const ownerMetadata = ownerAuthor.data?.metadata;
+  const ownerAvatarShape = getAvatarShape(ownerMetadata);
   const ownerName = ownerMetadata?.display_name || ownerMetadata?.name || genUserName(event.pubkey);
   const ownerProfileUrl = useProfileUrl(event.pubkey, ownerMetadata);
 
@@ -179,7 +182,7 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
       <div>
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Created by</p>
         <Link to={ownerProfileUrl} className="flex items-center gap-3 group">
-          <Avatar className={cn('size-10 ring-2 ring-background')}>
+          <Avatar shape={ownerAvatarShape} className={cn('size-10 ring-2 ring-background')}>
             <AvatarImage src={ownerMetadata?.picture} />
             <AvatarFallback className="bg-muted text-muted-foreground">
               {ownerName.charAt(0).toUpperCase()}

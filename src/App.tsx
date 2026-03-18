@@ -1,32 +1,36 @@
 // NOTE: This file should normally not be modified unless you are adding a new provider.
 // To add new routes, edit the AppRouter.tsx file.
 
+import { Capacitor } from "@capacitor/core";
+import { StatusBar, Style } from "@capacitor/status-bar";
+import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createHead, UnheadProvider } from '@unhead/react/client';
-import { InferSeoMetaPlugin } from '@unhead/addons';
-import { useEffect } from 'react';
-import NostrProvider from '@/components/NostrProvider';
-import { NostrSync } from '@/components/NostrSync';
-import { NativeNotifications } from '@/components/NativeNotifications';
-
-import { InitialSyncGate } from '@/components/InitialSyncGate';
+import { InferSeoMetaPlugin } from "@unhead/addons";
+import { createHead, UnheadProvider } from "@unhead/react/client";
+import { useEffect } from "react";
+import { AppProvider } from "@/components/AppProvider";
+import { DMProvider, type DMConfig } from "@/components/DMProvider";
+import { InitialSyncGate } from "@/components/InitialSyncGate";
+import { NativeNotifications } from "@/components/NativeNotifications";
+import NostrProvider from "@/components/NostrProvider";
+import { NostrSync } from "@/components/NostrSync";
+import { PlausibleProvider } from "@/components/PlausibleProvider";
+import { SentryProvider } from "@/components/SentryProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { NostrLoginProvider } from '@nostrify/react/login';
-import { AppProvider } from '@/components/AppProvider';
-import { SentryProvider } from '@/components/SentryProvider';
-import { PlausibleProvider } from '@/components/PlausibleProvider';
-import { NWCProvider } from '@/contexts/NWCContext';
-import { AppConfig } from '@/contexts/AppContext';
-import { DMProviderWrapper } from '@/components/DMProviderWrapper';
-import AppRouter from './AppRouter';
-import { StatusBar, Style } from '@capacitor/status-bar';
-import { Capacitor } from '@capacitor/core';
+import type { AppConfig } from "@/contexts/AppContext";
+import { DMProviderWrapper } from "@/components/DMProviderWrapper";
+import { NWCProvider } from "@/contexts/NWCContext";
+import { PROTOCOL_MODE } from "@/lib/dmConstants";
+import { AppRouter } from "./AppRouter";
+
+const dmConfig: DMConfig = {
+  enabled: true,
+  protocolMode: PROTOCOL_MODE.NIP04_OR_NIP17,
+};
 
 const head = createHead({
-  plugins: [
-    InferSeoMetaPlugin(),
-  ],
+  plugins: [InferSeoMetaPlugin()],
 });
 
 const queryClient = new QueryClient({
@@ -41,9 +45,9 @@ const queryClient = new QueryClient({
 
 /** Hardcoded fallback values. Always provides every required field. */
 const hardcodedConfig: AppConfig = {
-  appName: 'Ditto',
-  appId: 'ditto',
-  homePage: 'feed',
+  appName: "Ditto",
+  appId: "ditto",
+  homePage: "feed",
   magicMouse: false,
   theme: "system",
   autoShareTheme: true,
@@ -55,27 +59,27 @@ const hardcodedConfig: AppConfig = {
   feedSettings: {
     feedIncludePosts: true,
     feedIncludeReposts: true,
-    feedIncludeArticles: false,
-    showArticles: false,
-    showEvents: false,
-    feedIncludeEvents: false,
-    showVines: false,
-    showPolls: false,
-    showTreasures: false,
+    feedIncludeArticles: true,
+    showArticles: true,
+    showEvents: true,
+    feedIncludeEvents: true,
+    showVines: true,
+    showPolls: true,
+    showTreasures: true,
     showTreasureGeocaches: true,
     showTreasureFoundLogs: true,
-    showColors: false,
-    showPacks: false,
-    feedIncludeVines: false,
-    feedIncludePolls: false,
-    feedIncludeTreasureGeocaches: false,
-    feedIncludeTreasureFoundLogs: false,
-    feedIncludeColors: false,
-    feedIncludePacks: false,
-    showDecks: false,
-    feedIncludeDecks: false,
-    showWebxdc: false,
-    feedIncludeWebxdc: false,
+    showColors: true,
+    showPacks: true,
+    feedIncludeVines: true,
+    feedIncludePolls: true,
+    feedIncludeTreasureGeocaches: true,
+    feedIncludeTreasureFoundLogs: true,
+    feedIncludeColors: true,
+    feedIncludePacks: true,
+    showDecks: true,
+    feedIncludeDecks: true,
+    showWebxdc: true,
+    feedIncludeWebxdc: true,
     showPhotos: true,
     feedIncludePhotos: true,
     showVideos: true,
@@ -88,35 +92,55 @@ const hardcodedConfig: AppConfig = {
     showProfileThemeUpdates: true,
     feedIncludeProfileThemeUpdates: true,
     showCustomProfileThemes: true,
-    feedIncludeVoiceMessages: false,
-    showEmojiPacks: false,
-    feedIncludeEmojiPacks: false,
+    feedIncludeVoiceMessages: true,
+    showEmojiPacks: true,
+    feedIncludeEmojiPacks: true,
     showCustomEmojis: true,
     showUserStatuses: true,
-    showMusic: false,
-    feedIncludeMusicTracks: false,
-    feedIncludeMusicPlaylists: false,
-    showPodcasts: false,
-    feedIncludePodcastEpisodes: false,
-    feedIncludePodcastTrailers: false,
-    showBadges: false,
+    showMusic: true,
+    feedIncludeMusicTracks: true,
+    feedIncludeMusicPlaylists: true,
+    showPodcasts: true,
+    feedIncludePodcastEpisodes: true,
+    feedIncludePodcastTrailers: true,
+    showDevelopment: false,
+    feedIncludeDevelopment: false,
+    showBadges: true,
     showBadgeDefinitions: true,
     showProfileBadges: true,
-    feedIncludeBadgeDefinitions: false,
-    feedIncludeProfileBadges: false,
+    feedIncludeBadgeDefinitions: true,
+    feedIncludeProfileBadges: true,
     followsFeedShowReplies: true,
   },
-  sidebarOrder: ['feed', 'notifications', 'messages', 'search', 'bookmarks', 'profile', 'photos', 'videos', 'themes', 'theme', 'settings', 'help'],
-  nip85StatsPubkey: '5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea',
-  blossomServers: ['https://blossom.ditto.pub/', 'https://blossom.dreamith.to/', 'https://blossom.primal.net/'],
-  faviconUrl: 'https://fetch.ditto.pub/favicon/{hostname}',
-  linkPreviewUrl: 'https://fetch.ditto.pub/link/{url}',
-  corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
-  contentWarningPolicy: 'blur',
-  sentryDsn: import.meta.env.VITE_SENTRY_DSN || '',
+  sidebarOrder: [
+    "feed",
+    "notifications",
+    "messages",
+    "search",
+    "bookmarks",
+    "profile",
+    "photos",
+    "videos",
+    "themes",
+    "theme",
+    "settings",
+    "help",
+  ],
+  nip85StatsPubkey:
+    "5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea",
+  blossomServerMetadata: {
+    servers: [],
+    updatedAt: 0,
+  },
+  useAppBlossomServers: true,
+  faviconUrl: "https://fetch.ditto.pub/favicon/{hostname}",
+  linkPreviewUrl: "https://fetch.ditto.pub/link/{url}",
+  corsProxy: "https://proxy.shakespeare.diy/?url={href}",
+  contentWarningPolicy: "blur",
+  sentryDsn: import.meta.env.VITE_SENTRY_DSN || "",
   sentryEnabled: true,
-  plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || '',
-  plausibleEndpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT || '',
+  plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || "",
+  plausibleEndpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT || "",
   savedFeeds: [],
 };
 
@@ -126,7 +150,9 @@ const hardcodedConfig: AppConfig = {
  */
 const defaultConfig: AppConfig = {
   ...hardcodedConfig,
-  ...(typeof __DITTO_CONFIG__ !== 'undefined' && __DITTO_CONFIG__ ? __DITTO_CONFIG__ : {}),
+  ...(typeof __DITTO_CONFIG__ !== "undefined" && __DITTO_CONFIG__
+    ? __DITTO_CONFIG__
+    : {}),
 };
 
 export function App() {
@@ -148,18 +174,20 @@ export function App() {
         <SentryProvider>
           <PlausibleProvider>
             <QueryClientProvider client={queryClient}>
-              <NostrLoginProvider storageKey='nostr:login'>
+              <NostrLoginProvider storageKey="nostr:login">
                 <NostrProvider>
                   <NostrSync />
                   <NativeNotifications />
                   <NWCProvider>
                     <DMProviderWrapper>
+                      <DMProvider config={dmConfig}>
                       <TooltipProvider>
                         <Toaster />
                         <InitialSyncGate>
                           <AppRouter />
                         </InitialSyncGate>
                       </TooltipProvider>
+                      </DMProvider>
                     </DMProviderWrapper>
                   </NWCProvider>
                 </NostrProvider>

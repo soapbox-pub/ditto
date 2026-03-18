@@ -1,11 +1,14 @@
 import { useSeoMeta } from '@unhead/react';
 import { DMMessagingInterface } from '@/components/dm/DMMessagingInterface';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 const Messages = () => {
   useSeoMeta({
     title: 'Messages',
     description: 'Private encrypted messaging on Nostr',
   });
+
+  useLayoutOptions({ noOverscroll: true, rightSidebar: null, noMaxWidth: true });
 
   return (
     <div className="bg-background">

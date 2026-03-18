@@ -13,12 +13,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ThemeSelector } from '@/components/ThemeSelector';
+import { TabButton } from '@/components/TabButton';
 import { useThemeFeed } from '@/hooks/useThemeFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { cn } from '@/lib/utils';
 
 type ThemesTab = 'my-themes' | 'follows' | 'global';
 
@@ -183,29 +183,6 @@ export function ThemesPage() {
         </PullToRefresh>
       )}
     </main>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab Button
-// ---------------------------------------------------------------------------
-
-function TabButton({ label, active, onClick, disabled }: { label: string; active: boolean; onClick: () => void; disabled?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
-        active ? 'text-foreground' : 'text-muted-foreground',
-        disabled && 'opacity-50 cursor-not-allowed hover:bg-transparent',
-      )}
-    >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
-      )}
-    </button>
   );
 }
 

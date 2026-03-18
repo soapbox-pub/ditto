@@ -18,6 +18,7 @@ deploy.sh
 .idea
 .DS_Store
 .project
+.classpath
 .settings/
 *.suo
 *.ntvs*

@@ -120,6 +120,12 @@ export const RelayMetadataSchema = z.object({
   updatedAt: z.number(),
 });
 
+/** Zod schema for BlossomServerMetadata (BUD-03 kind 10063 server list). */
+export const BlossomServerMetadataSchema = z.object({
+  servers: z.array(z.string().url()),
+  updatedAt: z.number(),
+});
+
 /**
  * Zod schema for FeedSettings validation.
  * All fields use .optional() so data with missing keys
@@ -171,6 +177,8 @@ export const FeedSettingsSchema = z.looseObject({
   showPodcasts: z.boolean().optional(),
   feedIncludePodcastEpisodes: z.boolean().optional(),
   feedIncludePodcastTrailers: z.boolean().optional(),
+  showDevelopment: z.boolean().optional(),
+  feedIncludeDevelopment: z.boolean().optional(),
 });
 
 /** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */
@@ -219,7 +227,8 @@ export const AppConfigSchema = z.object({
     (val) => val.length === 0 || (val.length === 64 && /^[0-9a-f]{64}$/i.test(val)),
     { message: 'Must be empty or a valid 64-character hex pubkey' }
   ),
-  blossomServers: z.array(z.string().url()),
+  blossomServerMetadata: BlossomServerMetadataSchema,
+  useAppBlossomServers: z.boolean(),
   faviconUrl: z.string(),
   linkPreviewUrl: z.string(),
   corsProxy: z.string(),
@@ -292,6 +301,14 @@ export const EncryptedSettingsSchema = z.looseObject({
   contentWarningPolicy: ContentWarningPolicySchema.optional(),
   notificationsEnabled: z.boolean().optional(),
   notificationsCursor: z.number().optional(),
+  notificationPreferences: z.object({
+    reactions: z.boolean().optional(),
+    reposts: z.boolean().optional(),
+    zaps: z.boolean().optional(),
+    mentions: z.boolean().optional(),
+    comments: z.boolean().optional(),
+    onlyFollowing: z.boolean().optional(),
+  }).optional(),
   lastSync: z.number().optional(),
   sidebarOrder: z.array(z.string()).optional(),
   homePage: z.string().optional(),

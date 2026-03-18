@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CustomEmojiImg, EmojifiedText } from '@/components/CustomEmoji';
@@ -19,6 +20,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 
 export type InteractionTab = 'reposts' | 'quotes' | 'reactions' | 'zaps';
@@ -29,13 +31,6 @@ interface InteractionsModalProps {
   onOpenChange: (open: boolean) => void;
   /** Which tab to show initially. */
   initialTab?: InteractionTab;
-}
-
-/** Formats a sats amount into a compact human-readable string. */
-function formatSats(sats: number): string {
-  if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  return sats.toString();
 }
 
 export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'reposts' }: InteractionsModalProps) {
@@ -95,7 +90,7 @@ export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'r
                   'text-xs tabular-nums',
                   activeTab === key ? 'text-foreground' : 'text-muted-foreground',
                 )}>
-                  {count}
+                  {formatNumber(count)}
                 </span>
               )}
               {activeTab === key && (
@@ -221,7 +216,7 @@ function ZapsTab({ zaps }: { zaps: ZapEntry[] }) {
       {/* Total */}
       <div className="flex items-center justify-center gap-2 px-4 py-3 bg-secondary/30 border-b border-border">
         <Zap className="size-4 text-amber-500 fill-amber-500" />
-        <span className="text-sm font-bold text-amber-500">{formatSats(totalSats)} sats</span>
+        <span className="text-sm font-bold text-amber-500">{formatNumber(totalSats)} sats</span>
         <span className="text-xs text-muted-foreground">from {zaps.length} zap{zaps.length !== 1 ? 's' : ''}</span>
       </div>
 
@@ -239,6 +234,7 @@ function ZapsTab({ zaps }: { zaps: ZapEntry[] }) {
 function ReactionRow({ entry }: { entry: ReactionEntry }) {
   const author = useAuthor(entry.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(entry.pubkey);
   const nevent = useMemo(() => nip19.neventEncode({ id: entry.eventId, author: entry.pubkey }), [entry.eventId, entry.pubkey]);
 
@@ -247,7 +243,7 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
       to={`/${nevent}`}
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
-      <Avatar className="size-10 shrink-0">
+      <Avatar shape={avatarShape} className="size-10 shrink-0">
         <AvatarImage src={metadata?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0].toUpperCase()}
@@ -276,6 +272,7 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
 function UserRow({ pubkey, subtitle }: { pubkey: string; subtitle?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(pubkey);
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
@@ -284,7 +281,7 @@ function UserRow({ pubkey, subtitle }: { pubkey: string; subtitle?: string }) {
       to={`/${npub}`}
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
-      <Avatar className="size-10 shrink-0">
+      <Avatar shape={avatarShape} className="size-10 shrink-0">
         <AvatarImage src={metadata?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0].toUpperCase()}
@@ -313,6 +310,7 @@ function UserRow({ pubkey, subtitle }: { pubkey: string; subtitle?: string }) {
 function ZapRow({ zap }: { zap: ZapEntry }) {
   const author = useAuthor(zap.senderPubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(zap.senderPubkey);
   const npub = useMemo(() => nip19.npubEncode(zap.senderPubkey), [zap.senderPubkey]);
 
@@ -321,7 +319,7 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
       to={`/${npub}`}
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
-      <Avatar className="size-10 shrink-0">
+      <Avatar shape={avatarShape} className="size-10 shrink-0">
         <AvatarImage src={metadata?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0].toUpperCase()}
@@ -347,7 +345,7 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
       {/* Zap amount badge */}
       <div className="flex items-center gap-1 shrink-0 bg-amber-500/10 text-amber-500 rounded-full px-2.5 py-1">
         <Zap className="size-3.5 fill-amber-500" />
-        <span className="text-xs font-bold tabular-nums">{formatSats(zap.amountSats)}</span>
+        <span className="text-xs font-bold tabular-nums">{formatNumber(zap.amountSats)}</span>
       </div>
     </Link>
   );
@@ -356,6 +354,7 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
 function QuoteRow({ quote }: { quote: QuoteEntry }) {
   const author = useAuthor(quote.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(quote.pubkey);
   const nevent = useMemo(() => nip19.neventEncode({ id: quote.eventId, author: quote.pubkey }), [quote.eventId, quote.pubkey]);
 
@@ -364,7 +363,7 @@ function QuoteRow({ quote }: { quote: QuoteEntry }) {
       to={`/${nevent}`}
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
-      <Avatar className="size-10 shrink-0">
+      <Avatar shape={avatarShape} className="size-10 shrink-0">
         <AvatarImage src={metadata?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0].toUpperCase()}

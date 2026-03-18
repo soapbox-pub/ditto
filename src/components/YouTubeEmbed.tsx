@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -8,13 +8,85 @@ interface YouTubeEmbedProps {
 }
 
 /**
+ * YouTube thumbnail sizes to try, in preference order.
+ *
+ * - `sddefault.jpg` (640×480) — available for most videos, good enough for the
+ *   ~568px max render width on desktop (even on 2x Retina it's acceptable for
+ *   a temporary thumbnail that gets replaced by an iframe on click)
+ * - `hqdefault.jpg` (480×360) — universally available fallback with letterbox bars
+ *
+ * `maxresdefault.jpg` (1280×720) is omitted intentionally: it 404s for many
+ * videos, and in a feed with multiple YouTube links the wasted requests add up.
+ * The thumbnail is disposable — it only exists until the user clicks play.
+ *
+ * YouTube's CDN serves a 120×90 gray placeholder when a requested size doesn't
+ * exist. We probe off-screen with `new Image()` and check naturalWidth to detect
+ * this, so the gray image is never rendered visibly.
+ */
+const THUMBNAIL_SIZES = ['sddefault', 'hqdefault'] as const;
+
+function thumbnailUrl(videoId: string, size: string): string {
+  return `https://i.ytimg.com/vi/${videoId}/${size}.jpg`;
+}
+
+/** Probe thumbnail sizes off-screen and resolve with the first valid URL. */
+function findThumbnail(videoId: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+
+    function tryIndex(i: number) {
+      if (i >= THUMBNAIL_SIZES.length) {
+        if (!settled) {
+          settled = true;
+          resolve(null);
+        }
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        if (settled) return;
+        // YouTube serves a 120×90 gray placeholder when the size doesn't exist.
+        if (img.naturalWidth <= 120 && img.naturalHeight <= 90) {
+          tryIndex(i + 1);
+        } else {
+          settled = true;
+          resolve(thumbnailUrl(videoId, THUMBNAIL_SIZES[i]));
+        }
+      };
+      img.onerror = () => {
+        if (!settled) tryIndex(i + 1);
+      };
+      img.src = thumbnailUrl(videoId, THUMBNAIL_SIZES[i]);
+    }
+
+    tryIndex(0);
+  });
+}
+
+/**
  * Renders a YouTube video embed with a privacy-respecting click-to-load facade.
  *
  * Shows a thumbnail and play button instead of mounting the iframe immediately,
  * so no requests are made to YouTube until the user explicitly clicks play.
+ *
+ * Probes thumbnail sizes off-screen before rendering so the gray placeholder
+ * is never visible to the user.
  */
 export function YouTubeEmbed({ videoId, className }: YouTubeEmbedProps) {
   const [activated, setActivated] = useState(false);
+  const [resolvedThumb, setResolvedThumb] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setResolvedThumb(null);
+
+    findThumbnail(videoId).then((url) => {
+      if (!cancelled) setResolvedThumb(url);
+    });
+
+    return () => { cancelled = true; };
+  }, [videoId]);
 
   return (
     <div
@@ -37,19 +109,13 @@ export function YouTubeEmbed({ videoId, className }: YouTubeEmbedProps) {
             onClick={() => setActivated(true)}
             aria-label="Play video"
           >
-            {/* YouTube thumbnail — maxresdefault with hqdefault fallback */}
-            <picture>
-              <source
-                srcSet={`https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`}
-                type="image/jpeg"
-              />
+            {resolvedThumb && (
               <img
-                src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`}
+                src={resolvedThumb}
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover"
-                loading="lazy"
               />
-            </picture>
+            )}
 
             {/* Play button — mimics the YouTube red pill shape */}
             <div className="absolute inset-0 flex items-center justify-center">

@@ -8,6 +8,7 @@ import { VideoPlayer } from '@/components/VideoPlayer';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { getAvatarShape } from '@/lib/avatarShape';
 
 /** Minimal imeta fields needed for pre-load sizing. */
 interface ImetaDimensions {
@@ -557,7 +558,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
                 meta={mediaMeta?.[i]}
                 isActive={isCurrent}
                 isLoaded={isCurrent ? isLoaded : true}
-                onLoad={() => markLoaded(url)}
+                onLoad={markLoaded}
                 onSwipeBlocked={() => { dragX.current = null; axis.current = null; }}
               />
             </div>
@@ -593,7 +594,7 @@ const MAX_SCALE = 8;
 function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
   url: string;
   isLoaded: boolean;
-  onLoad: () => void;
+  onLoad: (url: string) => void;
   /** Called when a horizontal swipe is intercepted by pan (image is zoomed). */
   onSwipeBlocked?: () => void;
 }) {
@@ -615,10 +616,12 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
   // Mouse drag when zoomed
   const mouseDrag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
+  const handleLoaded = useCallback(() => onLoad(url), [onLoad, url]);
+
   // If the image is already cached, onLoad may not fire — check on mount.
   useEffect(() => {
-    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) onLoad();
-  }, [src, onLoad]);
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) handleLoaded();
+  }, [src, handleLoaded]);
 
   // Reset zoom when url changes
   useEffect(() => {
@@ -796,17 +799,16 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
       onMouseLeave={handleMouseUp}
       style={{ cursor: scale.current > 1 ? 'grab' : 'default' }}
     >
-      <div ref={wrapRef} style={{ transformOrigin: 'center center', willChange: 'transform' }}>
+      <div ref={wrapRef} style={{ transformOrigin: 'center center', willChange: 'transform', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <img
           ref={imgRef}
           src={src}
           alt=""
           className={cn(
-            'max-w-full max-h-full object-contain select-none transition-opacity duration-300',
+            'block max-w-full max-h-full object-contain select-none transition-opacity duration-300',
             isLoaded ? 'opacity-100' : 'opacity-0',
           )}
-          style={{ display: 'block', maxHeight: '100dvh' }}
-          onLoad={onLoad}
+          onLoad={handleLoaded}
           onError={onError}
           draggable={false}
         />
@@ -829,7 +831,7 @@ function LightboxSlot({
   meta?: LightboxMediaMeta;
   isActive: boolean;
   isLoaded: boolean;
-  onLoad: () => void;
+  onLoad: (url: string) => void;
   onSwipeBlocked?: () => void;
 }) {
   const author = useAuthor(type === 'audio' ? meta?.pubkey : undefined);
@@ -860,6 +862,7 @@ function LightboxSlot({
           mime={meta?.mime}
           avatarUrl={authorMeta?.picture}
           avatarFallback={fallback[0]?.toUpperCase()}
+          avatarShape={getAvatarShape(authorMeta)}
           className="w-full max-w-lg"
         />
       </div>

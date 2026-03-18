@@ -17,6 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { cn } from '@/lib/utils';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 import type { ThemeConfig } from '@/themes';
 
@@ -207,6 +208,8 @@ export function AIChatPage() {
     title: `AI Chat | ${config.appName}`,
     description: 'Chat with AI assistant',
   });
+
+  useLayoutOptions({ noOverscroll: true });
 
   // Scroll to bottom on new messages
   const scrollToBottom = useCallback(() => {
@@ -423,7 +426,7 @@ export function AIChatPage() {
         <div className="flex items-center gap-2">
           {/* Model selector */}
           <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
-            <SelectTrigger className="w-full sidebar:w-44 h-8 text-xs">
+            <SelectTrigger className="w-full sidebar:w-44 h-8 text-base md:text-xs">
               <SelectValue placeholder={modelsLoading ? 'Loading models...' : 'Select model'} />
             </SelectTrigger>
             <SelectContent>

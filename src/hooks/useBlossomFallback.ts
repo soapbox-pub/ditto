@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { useAppContext } from './useAppContext';
+import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 
 /** SHA-256 hash pattern (64 hex characters) used in Blossom content-addressed URLs. */
 const BLOSSOM_PATH_REGEX = /^\/([a-f0-9]{64})\b/;
@@ -19,6 +20,11 @@ export function useBlossomFallback(originalUrl: string) {
   const [fallbackIndex, setFallbackIndex] = useState(-1);
   const failedRef = useRef(false);
 
+  const servers = getEffectiveBlossomServers(
+    config.blossomServerMetadata,
+    config.useAppBlossomServers,
+  );
+
   // Build the list of alternative URLs from configured Blossom servers.
   // Only applies if the URL path looks like a content-addressed blob (/<sha256>...).
   const alternatives = useMemo(() => {
@@ -27,7 +33,7 @@ export function useBlossomFallback(originalUrl: string) {
       if (!BLOSSOM_PATH_REGEX.test(parsed.pathname)) return [];
 
       const origin = parsed.origin;
-      return config.blossomServers
+      return servers
         .filter((server) => {
           try {
             return new URL(server).origin !== origin;
@@ -42,7 +48,8 @@ export function useBlossomFallback(originalUrl: string) {
     } catch {
       return [];
     }
-  }, [originalUrl, config.blossomServers]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [originalUrl, config.blossomServerMetadata, config.useAppBlossomServers]);
 
   const src = fallbackIndex < 0 ? originalUrl : (alternatives[fallbackIndex] ?? originalUrl);
 

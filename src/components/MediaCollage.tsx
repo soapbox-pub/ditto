@@ -1,7 +1,8 @@
 /**
- * MediaGrid — generic 3-column square-thumbnail grid for Nostr media events.
- * Supports images, video, and audio. All media across all events is flattened
- * into one array so the Lightbox strip swipe just advances through them in order.
+ * MediaCollage — justified row-based collage for Nostr media events (Google Photos style).
+ * Supports images, video, and audio. Images respect their aspect ratios from imeta `dim` tags.
+ * All media across all events is flattened into one array so the Lightbox strip swipe
+ * just advances through them in order.
  */
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
@@ -10,25 +11,118 @@ import { Blurhash } from 'react-blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Lightbox, LOADING_SENTINEL } from '@/components/ImageGallery';
 import { PhotoBottomBar } from '@/components/PhotoBottomBar';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 // ── Media type detection ──────────────────────────────────────────────────────
 
 export type MediaType = 'image' | 'video' | 'audio';
 
-function detectType(url: string, mime?: string): MediaType {
+/** Event kinds that are inherently video content (vines, horizontal video, vertical video). */
+const VIDEO_KINDS = new Set([34236, 21, 22]);
+/** Event kinds that are inherently audio content (music tracks, podcast episodes/trailers). */
+const AUDIO_KINDS = new Set([36787, 34139, 30054, 30055, 1222]);
+
+function detectType(url: string, mime?: string, eventKind?: number): MediaType {
   if (mime) {
     if (mime.startsWith('video/')) return 'video';
     if (mime.startsWith('audio/')) return 'audio';
     if (mime.startsWith('image/')) return 'image';
   }
-  if (/\.(mp4|webm|mov|m3u8)(\?.*)?$/i.test(url)) return 'video';
+  if (/\.(mp4|webm|mov|qt|m3u8)(\?.*)?$/i.test(url)) return 'video';
   if (/\.(mp3|ogg|flac|wav|aac|opus)(\?.*)?$/i.test(url)) return 'audio';
+  // Fall back to event kind for extensionless URLs (e.g. Blossom content-addressed URLs)
+  if (eventKind !== undefined) {
+    if (VIDEO_KINDS.has(eventKind)) return 'video';
+    if (AUDIO_KINDS.has(eventKind)) return 'audio';
+  }
   return 'image';
+}
+
+// ── Aspect ratio helpers ──────────────────────────────────────────────────────
+
+/** Default aspect ratio when dim tag is missing or unparseable. */
+const DEFAULT_ASPECT_RATIO = 1;
+
+/** Parse a dim string like "1280x720" into a width/height aspect ratio number. */
+export function parseDimToAspectRatio(dim?: string): number {
+  if (!dim) return DEFAULT_ASPECT_RATIO;
+  const match = dim.match(/^(\d+)x(\d+)$/);
+  if (!match) return DEFAULT_ASPECT_RATIO;
+  const w = parseInt(match[1], 10);
+  const h = parseInt(match[2], 10);
+  if (!w || !h) return DEFAULT_ASPECT_RATIO;
+  return w / h;
+}
+
+/** A row of items in the justified layout. */
+interface JustifiedRow<T> {
+  items: T[];
+  /** The height of this row as a fraction of containerWidth. */
+  heightFraction: number;
+}
+
+interface JustifiedLayoutResult<T> {
+  rows: JustifiedRow<T>[];
+  /** True when the last row was not fully packed (trailing/orphan row). */
+  lastRowIncomplete: boolean;
+}
+
+/**
+ * Compute a justified (Google Photos–style) row layout.
+ * Packs items into rows so each row fills the container width.
+ * Each item's width in the row is proportional to its aspect ratio.
+ *
+ * @param items - Items with aspect ratios.
+ * @param getAspectRatio - Function to extract aspect ratio from an item.
+ * @param targetRowHeight - Ideal row height as a fraction of container width (e.g. 0.3 = 30% of width).
+ * @param maxRowItems - Maximum items per row.
+ */
+function justifiedLayout<T>(
+  items: T[],
+  getAspectRatio: (item: T) => number,
+  targetRowHeight: number = 0.3,
+  maxRowItems: number = 5,
+): JustifiedLayoutResult<T> {
+  if (items.length === 0) return { rows: [], lastRowIncomplete: false };
+
+  const rows: JustifiedRow<T>[] = [];
+  let currentRow: T[] = [];
+  let currentAspectSum = 0;
+
+  for (const item of items) {
+    const ar = getAspectRatio(item);
+    currentRow.push(item);
+    currentAspectSum += ar;
+
+    // The row height (as fraction of container width) = 1 / sum(aspect ratios)
+    const rowHeightFraction = 1 / currentAspectSum;
+
+    // If row is full enough (height is at or below target) or max items reached, finalize it
+    if (rowHeightFraction <= targetRowHeight || currentRow.length >= maxRowItems) {
+      rows.push({ items: [...currentRow], heightFraction: rowHeightFraction });
+      currentRow = [];
+      currentAspectSum = 0;
+    }
+  }
+
+  // Handle remaining items in the last incomplete row
+  if (currentRow.length > 0) {
+    const rowHeightFraction = 1 / currentAspectSum;
+    // Cap the last row height to target so items don't get too large
+    rows.push({
+      items: currentRow,
+      heightFraction: Math.min(rowHeightFraction, targetRowHeight),
+    });
+    return { rows, lastRowIncomplete: true };
+  }
+
+  return { rows, lastRowIncomplete: false };
 }
 
 // ── Media extraction ──────────────────────────────────────────────────────────
@@ -42,6 +136,7 @@ export interface MediaItem {
   mime?: string;
   allUrls: string[];
   allTypes: MediaType[];
+  allDims: (string | undefined)[];
   event: NostrEvent;
   hasMultiple: boolean;
 }
@@ -61,14 +156,14 @@ function parseImeta(tags: string[][]): { url: string; blurhash?: string; dim?: s
 }
 
 function extractMediaUrls(content: string): string[] {
-  return content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|flac|wav|aac|opus)(\?[^\s]*)?/gi) ?? [];
+  return content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|qt|mp3|ogg|flac|wav|aac|opus)(\?[^\s]*)?/gi) ?? [];
 }
 
 export function eventToMediaItem(event: NostrEvent): MediaItem | null {
   const imeta = parseImeta(event.tags);
   if (imeta.length > 0) {
     const first = imeta[0];
-    const firstType = detectType(first.url, first.mime);
+    const firstType = detectType(first.url, first.mime, event.kind);
     return {
       url: first.url,
       type: firstType,
@@ -77,7 +172,8 @@ export function eventToMediaItem(event: NostrEvent): MediaItem | null {
       alt: first.alt,
       mime: first.mime,
       allUrls: imeta.map((e) => e.url),
-      allTypes: imeta.map((e) => detectType(e.url, e.mime)),
+      allTypes: imeta.map((e) => detectType(e.url, e.mime, event.kind)),
+      allDims: imeta.map((e) => e.dim),
       event,
       hasMultiple: imeta.length > 1,
     };
@@ -91,6 +187,7 @@ export function eventToMediaItem(event: NostrEvent): MediaItem | null {
         type: types[0],
         allUrls: urls,
         allTypes: types,
+        allDims: urls.map(() => undefined),
         event,
         hasMultiple: urls.length > 1,
       };
@@ -118,6 +215,7 @@ interface FlatEntry {
 function AudioThumb({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const name = metadata?.name ?? genUserName(pubkey);
 
   return (
@@ -127,7 +225,7 @@ function AudioThumb({ pubkey }: { pubkey: string }) {
         <div className="size-24 rounded-full border border-primary animate-ping" style={{ animationDuration: '3s' }} />
         <div className="absolute size-16 rounded-full border border-primary animate-ping" style={{ animationDuration: '2.3s', animationDelay: '0.5s' }} />
       </div>
-      <Avatar className="size-12 relative ring-2 ring-primary/40">
+      <Avatar shape={avatarShape} className="size-12 relative ring-2 ring-primary/40">
         <AvatarImage src={metadata?.picture} alt={name} />
         <AvatarFallback className="text-base">{name[0]?.toUpperCase()}</AvatarFallback>
       </Avatar>
@@ -142,7 +240,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
 
   return (
     <button
-      className="relative aspect-square overflow-hidden bg-muted group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="relative overflow-hidden rounded-lg bg-muted group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full h-full"
       onClick={onClick}
       aria-label="View media"
     >
@@ -208,19 +306,61 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
-export function MediaGridSkeleton({ count = 15 }: { count?: number }) {
+/** Pre-defined aspect ratios for skeleton rows to approximate a collage. */
+const SKELETON_ROWS_DESKTOP = [
+  [1.5, 0.8, 1.2],
+  [1, 1.3, 0.9],
+  [0.75, 1.5, 1],
+  [1.2, 1, 1.3],
+  [1, 0.8, 1.5],
+];
+
+const SKELETON_ROWS_MOBILE = [
+  [1.4, 0.9],
+  [0.8, 1.3],
+  [1.2, 1],
+  [1, 1.5],
+  [1.3, 0.7],
+  [0.9, 1.1],
+  [1.5, 0.8],
+];
+
+export function MediaCollageSkeleton({ count = 15 }: { count?: number }) {
+  const isMobile = useIsMobile();
+  const skeletonRows = isMobile ? SKELETON_ROWS_MOBILE : SKELETON_ROWS_DESKTOP;
+  const perRow = isMobile ? 2 : 3;
+  const rowCount = Math.ceil(count / perRow);
   return (
-    <div className="grid grid-cols-3 gap-0.5">
-      {Array.from({ length: count }).map((_, i) => (
-        <Skeleton key={i} className="aspect-square w-full rounded-none" />
-      ))}
+    <div className="flex flex-col gap-1.5 p-1.5">
+      {Array.from({ length: rowCount }).map((_, rowIdx) => {
+        const ratios = skeletonRows[rowIdx % skeletonRows.length];
+        const rowAR = ratios.reduce((s, r) => s + r, 0);
+        return (
+          <div key={rowIdx} className="flex gap-1.5" style={{ aspectRatio: `${rowAR}` }}>
+            {ratios.map((ar, colIdx) => {
+              const itemIdx = rowIdx * perRow + colIdx;
+              if (itemIdx >= count) return null;
+              return (
+                <Skeleton
+                  key={colIdx}
+                  className="rounded-lg h-full"
+                  style={{
+                    flexGrow: ar,
+                    flexBasis: 0,
+                  }}
+                />
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-// ── MediaGrid ─────────────────────────────────────────────────────────────────
+// ── MediaCollage ─────────────────────────────────────────────────────────────────
 
-interface MediaGridProps {
+interface MediaCollageProps {
   events: NostrEvent[];
   className?: string;
   /** If set, the lightbox opens at this URL on mount (used by sidebar click). */
@@ -234,7 +374,9 @@ interface MediaGridProps {
   isFetchingNextPage?: boolean;
 }
 
-export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenConsumed, onNearEnd, hasNextPage }: MediaGridProps) {
+export function MediaCollage({ events, className, initialOpenUrl, onInitialOpenConsumed, onNearEnd, hasNextPage }: MediaCollageProps) {
+  const isMobile = useIsMobile();
+
   const items = useMemo(
     () => events.map(eventToMediaItem).filter((x): x is MediaItem => x !== null),
     [events],
@@ -246,7 +388,7 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
         url,
         type: item.allTypes[indexInEvent] ?? item.type,
         mime: item.mime,
-        dim: item.dim,
+        dim: item.allDims[indexInEvent] ?? item.dim,
         blurhash: item.blurhash,
         pubkey: item.event.pubkey,
         event: item.event,
@@ -266,6 +408,21 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
     }
     return starts;
   }, [items]);
+
+  // Compute justified row layout — fewer items per row on mobile for larger thumbnails
+  const { rows, lastRowIncomplete } = useMemo(
+    () => justifiedLayout(
+      items.map((item, i) => ({ item, index: i })),
+      ({ item }) => parseDimToAspectRatio(item.dim),
+      isMobile ? 0.45 : 0.3,
+      isMobile ? 2 : 5,
+    ),
+    [items, isMobile],
+  );
+
+  // When more pages are coming, hide the trailing incomplete row to avoid
+  // oversized orphan thumbnails. Show a skeleton placeholder instead.
+  const visibleRows = hasNextPage && lastRowIncomplete ? rows.slice(0, -1) : rows;
 
   // Open at initialOpenUrl if provided
   const initialIndex = useMemo(() => {
@@ -328,14 +485,58 @@ export function MediaGrid({ events, className, initialOpenUrl, onInitialOpenCons
 
   return (
     <>
-      <div className={cn('grid grid-cols-3 gap-0.5', className)}>
-        {items.map((item, i) => (
-          <MediaThumb
-            key={item.event.id}
-            item={item}
-            onClick={() => setFlatIndex(itemStartIndex[i])}
-          />
-        ))}
+      <div className={cn('flex flex-col gap-1.5 p-1.5', className)}>
+        {visibleRows.map((row, rowIdx) => {
+          // The row's aspect ratio is the sum of all item aspect ratios
+          // (at equal height, total width = sum of ARs * height)
+          const rowAR = row.items.reduce((s, { item }) => s + parseDimToAspectRatio(item.dim), 0);
+          return (
+            <div
+              key={rowIdx}
+              className="flex gap-1.5"
+              style={{ aspectRatio: `${rowAR}` }}
+            >
+              {row.items.map(({ item, index }) => {
+                const ar = parseDimToAspectRatio(item.dim);
+                return (
+                  <div
+                    key={item.event.id}
+                    className="relative h-full"
+                    style={{
+                      flexGrow: ar,
+                      flexBasis: 0,
+                    }}
+                  >
+                    <MediaThumb
+                      item={item}
+                      onClick={() => setFlatIndex(itemStartIndex[index])}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+
+        {/* Skeleton placeholder while next page loads */}
+        {hasNextPage && (
+          <>
+            {(isMobile ? SKELETON_ROWS_MOBILE : SKELETON_ROWS_DESKTOP).slice(0, 2).map((ratios, i) => {
+              const rowAR = ratios.reduce((s, r) => s + r, 0);
+              return (
+                <div key={`skel-${i}`} className="flex gap-1.5" style={{ aspectRatio: `${rowAR}` }}>
+                  {ratios.map((ar, j) => (
+                    <Skeleton
+                      key={j}
+                      className="rounded-lg h-full animate-pulse"
+                      style={{ flexGrow: ar, flexBasis: 0 }}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </>
+        )}
       </div>
 
       {flatIndex !== null && (

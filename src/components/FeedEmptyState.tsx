@@ -22,7 +22,7 @@ export function FeedEmptyState({
 }: FeedEmptyStateProps) {
   return (
     <div className={cn('py-16 px-8 text-center space-y-3', className)}>
-      <p className="text-muted-foreground">{message}</p>
+      <p className="text-muted-foreground break-all">{message}</p>
       {onSwitchToGlobal && (
         <button
           className="text-sm text-primary hover:underline"

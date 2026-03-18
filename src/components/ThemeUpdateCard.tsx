@@ -4,6 +4,7 @@ import { Palette, Copy, Pencil } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -28,6 +29,7 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
   const isOwn = user?.pubkey === event.pubkey;
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const authorEvent = author.data?.event;
   const displayName = metadata?.name ?? genUserName(event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
@@ -58,7 +60,7 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
         <Link to={profileUrl}>
-          <Avatar className="size-10">
+          <Avatar shape={avatarShape} className="size-10">
             <AvatarImage src={metadata?.picture} alt={displayName} />
             <AvatarFallback className="bg-primary/20 text-primary text-sm">
               {displayName[0]?.toUpperCase()}

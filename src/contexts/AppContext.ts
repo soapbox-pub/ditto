@@ -32,6 +32,14 @@ export interface RelayMetadata {
   updatedAt: number;
 }
 
+/** Blossom server list metadata, mirroring RelayMetadata for parity with relay management. */
+export interface BlossomServerMetadata {
+  /** Ordered list of Blossom server URLs (most trusted/reliable first per BUD-03). */
+  servers: string[];
+  /** Unix timestamp of when the server list was last updated (from kind 10063 created_at). */
+  updatedAt: number;
+}
+
 /** Which "Other Stuff" content types to show in the sidebar nav and include in feeds. */
 export interface FeedSettings {
   /** Include text posts (kind 1) in the feed */
@@ -126,6 +134,10 @@ export interface FeedSettings {
   feedIncludePodcastEpisodes: boolean;
   /** Include podcast trailers (kind 30055) in the follows/global feed */
   feedIncludePodcastTrailers: boolean;
+  /** Show Development (NIP-34 repos, patches, PRs, custom NIPs, app submissions) link in sidebar */
+  showDevelopment: boolean;
+  /** Include Development content in the follows/global feed */
+  feedIncludeDevelopment: boolean;
   /** Show Badges (NIP-58 kind 30009) link in sidebar */
   showBadges: boolean;
   /** Show badge definitions (kind 30009) on the Badges page */
@@ -215,8 +227,17 @@ export interface AppConfig {
   sidebarOrder: string[];
   /** NIP-85 stats pubkey source (hex format) */
   nip85StatsPubkey: string;
-  /** Blossom file upload server URLs */
-  blossomServers: string[];
+  /**
+   * Blossom file upload server metadata (BUD-03).
+   * `servers` is the user's personal list, synced from/to kind 10063.
+   * App default servers are managed separately via APP_BLOSSOM_SERVERS.
+   */
+  blossomServerMetadata: BlossomServerMetadata;
+  /**
+   * Whether to use app default Blossom servers in addition to the user's kind 10063 servers.
+   * Mirrors `useAppRelays` semantics for Blossom.
+   */
+  useAppBlossomServers: boolean;
   /** Favicon URI template. Supports RFC 6570 variables: {href}, {origin}, {hostname}, etc. */
   faviconUrl: string;
   /** Link preview URI template. Supports RFC 6570 variables: {url}, {href}, {origin}, {hostname}, etc. Returns OEmbed JSON. */
@@ -243,7 +264,9 @@ export interface AppContextType {
   /** Current application configuration */
   config: AppConfig;
   /** Update configuration using a callback that receives current config and returns new config */
-  updateConfig: (updater: (currentConfig: Partial<AppConfig>) => Partial<AppConfig>) => void;
+  updateConfig: (
+    updater: (currentConfig: Partial<AppConfig>) => Partial<AppConfig>,
+  ) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);

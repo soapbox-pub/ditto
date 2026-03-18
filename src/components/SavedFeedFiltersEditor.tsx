@@ -215,7 +215,7 @@ export function KindPicker({ value, options, onChange }: {
         <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-border shrink-0">
           <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
           <input
-            className="flex-1 text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+            className="flex-1 text-base md:text-xs bg-transparent outline-none placeholder:text-muted-foreground"
             placeholder="Search kinds..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -314,7 +314,7 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
           <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">
             <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
             <input
-              className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+              className="flex-1 text-base md:text-sm bg-transparent outline-none placeholder:text-muted-foreground"
               placeholder="Search kinds..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -445,15 +445,20 @@ export function ScopeToggle<T extends string>({
   /** 'sm' = xs text + py-1.5 (feed modal), 'md' = sm text + py-2 (profile modal) */
   size?: 'sm' | 'md';
 }) {
+  const useGrid = options.length > 3;
   return (
-    <div className="flex rounded-lg border border-border overflow-hidden">
+    <div className={cn(
+      'rounded-lg border border-border overflow-hidden',
+      useGrid ? 'grid grid-cols-2' : 'flex',
+    )}>
       {options.map(({ value: scope, label, icon: Icon }) => (
         <button
           key={scope}
           onClick={() => onChange(scope)}
           className={cn(
-            'flex-1 flex items-center justify-center font-medium transition-colors',
+            'flex items-center justify-center font-medium transition-colors',
             size === 'sm' ? 'py-1.5 gap-1 text-xs' : 'py-2 gap-1.5 text-sm',
+            !useGrid && 'flex-1',
             value === scope
               ? 'bg-primary text-primary-foreground'
               : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
@@ -498,13 +503,13 @@ export function ListPackPicker({ lists, followPacks, value, onSelectPubkeys, cla
         if (pubkeys.length > 0) onSelectPubkeys(pubkeys);
       }}
     >
-      <SelectTrigger className={cn('w-full bg-secondary/50 h-8 text-xs', className)}>
+      <SelectTrigger className={cn('w-full bg-secondary/50 h-8 text-base md:text-xs', className)}>
         <SelectValue placeholder="Or choose a list..." />
       </SelectTrigger>
       <SelectContent>
         {lists.length > 0 && (
           <SelectGroup>
-            {followPacks.length > 0 && <SelectLabel>Follow Sets</SelectLabel>}
+            {followPacks.length > 0 && <SelectLabel>Lists</SelectLabel>}
             {lists.map((l) => (
               <SelectItem key={`set:${l.id}`} value={`set:${l.id}`}>
                 {l.title} ({l.pubkeys.length})
@@ -572,7 +577,7 @@ export function AuthorFilterDropdown({ onCommit }: { onCommit: (pubkey: string, 
       placeholder="Search by name or npub..."
       onSelect={handleSelect}
       hideCountry
-      inputClassName="rounded-lg bg-secondary/50 border border-border focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 text-sm h-9"
+      inputClassName="rounded-lg bg-secondary/50 border border-border focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 text-base md:text-sm h-9"
       className="w-full"
     />
   );
@@ -703,7 +708,7 @@ export function SavedFeedFiltersEditor({
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="e.g. bitcoin"
-              className="bg-secondary/50 border-border focus-visible:ring-1 h-8 text-sm"
+              className="bg-secondary/50 border-border focus-visible:ring-1 h-8 text-base md:text-sm"
             />
           </div>
           <Separator />
@@ -779,7 +784,7 @@ export function SavedFeedFiltersEditor({
           placeholder="e.g. 1, 30023"
           value={customKindText}
           onChange={(e) => handleCustomKindChange(e.target.value)}
-          className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-xs h-8"
+          className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-base md:text-xs h-8"
         />
       )}
     </div>

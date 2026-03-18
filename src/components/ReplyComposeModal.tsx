@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { NoteContent } from '@/components/NoteContent';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ProfilePreview } from '@/components/ExternalContentHeader';
@@ -31,6 +32,8 @@ interface ReplyComposeModalProps {
   onSuccess?: () => void;
   /** Pre-filled content for the compose box. */
   initialContent?: string;
+  /** Open directly in poll mode. */
+  initialMode?: 'post' | 'poll';
   /** Override the modal title. */
   title?: string;
   /** Override the compose box placeholder text. */
@@ -43,7 +46,7 @@ function extractImages(content: string): string[] {
   return content.match(urlRegex) || [];
 }
 
-export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, title: titleOverride, placeholder: placeholderOverride }: ReplyComposeModalProps) {
+export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, initialMode, title: titleOverride, placeholder: placeholderOverride }: ReplyComposeModalProps) {
   const isUrl = event instanceof URL;
   const isReply = !!event;
   const isQuote = !!quotedEvent;
@@ -52,7 +55,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
   const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
 
   const isProfileRoot = !isUrl && event instanceof Object && 'kind' in event && event.kind === 0;
-  const title = titleOverride ?? (isUrl ? 'New comment' : isProfileRoot ? 'Comment on profile' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post');
+  const title = titleOverride ?? (initialMode === 'poll' ? 'New poll' : isUrl ? 'New comment' : isProfileRoot ? 'Comment on profile' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post');
   const placeholder = placeholderOverride ?? (isUrl ? 'Write a comment...' : isReply ? "What's on your mind?" : isQuote ? 'Add a comment...' : "What's happening?");
 
   const dialogContentRef = useCallback((node: HTMLElement | null) => {
@@ -135,6 +138,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
               previewMode={previewMode}
               onHasPreviewableContentChange={setHasPreviewableContent}
               initialContent={initialContent}
+              initialMode={initialMode}
             />
           </div>
         </PortalContainerProvider>
@@ -161,6 +165,7 @@ function EmbeddedPost({ event }: { event: NostrEvent }) {
 function EmbeddedNote({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(event.pubkey);
   const nip05 = metadata?.nip05;
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
@@ -172,7 +177,7 @@ function EmbeddedNote({ event }: { event: NostrEvent }) {
         {/* Author row */}
         <div className="flex items-center gap-2 mb-1.5">
           <Link to={`/${npub}`} className="shrink-0">
-            <Avatar className="size-8">
+            <Avatar shape={avatarShape} className="size-8">
               <AvatarImage src={metadata?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-xs">
                 {displayName[0].toUpperCase()}

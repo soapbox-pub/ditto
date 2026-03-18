@@ -6,6 +6,7 @@ import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
+import { getAvatarShape } from '@/lib/avatarShape';
 import type { ImetaEntry } from '@/lib/imeta';
 
 /** Media content for kind 1 text notes — renders videos, audio, and webxdc apps. */
@@ -45,6 +46,7 @@ export function NoteMedia({
             mime={mime}
             avatarUrl={metadata?.picture}
             avatarFallback={displayName[0]?.toUpperCase() ?? '?'}
+            avatarShape={getAvatarShape(metadata)}
           />
         );
       })}

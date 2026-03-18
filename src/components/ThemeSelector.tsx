@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, type RefCallback } from 'react';
-import { Check, Palette, Plus, Trash2, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { Check, Palette, Plus, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight as ChevronRightIcon, RotateCcw } from 'lucide-react';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -7,7 +7,7 @@ import { usePublishTheme } from '@/hooks/usePublishTheme';
 import { useUserThemes } from '@/hooks/useUserThemes';
 import { useToast } from '@/hooks/useToast';
 import type { ThemeDefinition } from '@/lib/themeEvent';
-import { themePresets, coreToTokens, resolveTheme, resolveThemeConfig, type CoreThemeColors, type ThemeTokens, type ThemeConfig, type ThemesConfig } from '@/themes';
+import { themePresets, coreToTokens, resolveTheme, resolveThemeConfig, type CoreThemeColors, type ThemeTokens, type ThemeConfig, type ThemesConfig, type ThemeFont, type ThemeBackground } from '@/themes';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontPicker } from '@/components/FontPicker';
@@ -478,6 +478,24 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
     setBuilderPortalContainer(node ?? undefined);
   }, []);
 
+  // Builder scroll indicators
+  const builderScrollRef = useRef<HTMLDivElement>(null);
+  const [builderCanScrollUp, setBuilderCanScrollUp] = useState(false);
+  const [builderCanScrollDown, setBuilderCanScrollDown] = useState(false);
+  const updateBuilderScroll = useCallback(() => {
+    const el = builderScrollRef.current;
+    if (!el) return;
+    setBuilderCanScrollUp(el.scrollTop > 0);
+    setBuilderCanScrollDown(el.scrollTop + el.clientHeight < el.scrollHeight - 1);
+  }, []);
+  // Re-check scroll on open and when content might change size
+  useEffect(() => {
+    if (!builderOpen) return;
+    // Defer so DOM has settled
+    const raf = requestAnimationFrame(updateBuilderScroll);
+    return () => cancelAnimationFrame(raf);
+  }, [builderOpen, updateBuilderScroll, editingTheme, user]);
+
   // Publish dialog state
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [publishTitle, setPublishTitle] = useState('');
@@ -492,6 +510,40 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
 
   /** The effective colors for the current theme (used in the color editor) */
   const effectiveColors = getEffectiveColors(theme, customTheme, themes);
+
+  // Snapshot of theme state when the builder dialog opens, for reset functionality
+  const [snapshot, setSnapshot] = useState<{
+    colors: CoreThemeColors;
+    font: ThemeFont | undefined;
+    background: ThemeBackground | undefined;
+  } | null>(null);
+
+  // Capture snapshot when builder opens
+  useEffect(() => {
+    if (builderOpen) {
+      setSnapshot({
+        colors: getEffectiveColors(theme, customTheme, themes),
+        font: customTheme?.font,
+        background: customTheme?.background,
+      });
+    } else {
+      setSnapshot(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [builderOpen]);
+
+  /** Whether anything has changed from the snapshot */
+  const hasChanges = snapshot !== null && (
+    JSON.stringify(effectiveColors) !== JSON.stringify(snapshot.colors) ||
+    JSON.stringify(customTheme?.font) !== JSON.stringify(snapshot.font) ||
+    JSON.stringify(customTheme?.background) !== JSON.stringify(snapshot.background)
+  );
+
+  /** Reset all theme values to the snapshot */
+  const handleReset = useCallback(() => {
+    if (!snapshot) return;
+    applyCustomTheme({ ...customTheme, colors: snapshot.colors, font: snapshot.font, background: snapshot.background });
+  }, [snapshot, customTheme, applyCustomTheme]);
 
   /** Handle a color change from the inline editor */
   const handleColorChange = useCallback((key: keyof CoreThemeColors, hex: string) => {
@@ -762,13 +814,45 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
       <Dialog open={builderOpen ?? false} onOpenChange={(open) => onBuilderOpenChange?.(open)}>
         <DialogContent ref={builderContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-visible rounded-lg p-0">
           <PortalContainerProvider value={builderPortalContainer}>
-          <div className="overflow-y-auto max-h-[85vh] p-6 space-y-4">
-          <DialogHeader>
-            <DialogTitle>{editingTheme ? 'Edit Theme' : 'New Theme'}</DialogTitle>
-            <DialogDescription>
+          {hasChanges && (
+            <button
+              onClick={handleReset}
+              className="absolute left-4 top-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            >
+              <RotateCcw className="size-4" />
+              <span className="sr-only">Reset</span>
+            </button>
+          )}
+          <div className="relative max-h-[85vh] flex flex-col">
+            {/* Top scroll indicator */}
+            <div
+              className={cn(
+                'pointer-events-none absolute top-0 left-0 right-0 z-[1] flex justify-center py-1 transition-opacity duration-200',
+                builderCanScrollUp ? 'opacity-100' : 'opacity-0',
+              )}
+            >
+              <ChevronUp className="size-4 text-muted-foreground" />
+            </div>
+            {/* Bottom scroll indicator */}
+            <div
+              className={cn(
+                'pointer-events-none absolute bottom-0 left-0 right-0 z-[1] flex justify-center py-1 transition-opacity duration-200',
+                builderCanScrollDown ? 'opacity-100' : 'opacity-0',
+              )}
+            >
+              <ChevronDown className="size-4 text-muted-foreground" />
+            </div>
+          <div
+            className="overflow-y-auto flex-1 p-6 space-y-4"
+            ref={builderScrollRef}
+            onScroll={updateBuilderScroll}
+          >
+          <DialogHeader className="text-center">
+            <DialogTitle className="text-center">{editingTheme ? 'Edit Theme' : 'New Theme'}</DialogTitle>
+            <DialogDescription className="text-center">
               {editingTheme
                 ? `Editing "${editingTheme.title}"`
-                : 'Customize colors, font, and background for your theme'}
+                : 'Customize color, font and background'}
             </DialogDescription>
           </DialogHeader>
 
@@ -796,9 +880,9 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               <div className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-center justify-between gap-4">
                   <Label htmlFor="auto-share-theme-dialog" className="flex flex-col gap-1 cursor-pointer">
-                    <span className="text-sm font-medium">Sync app theme with your profile theme</span>
+                    <span className="text-sm font-medium">Sync with Profile</span>
                     <span className="text-xs text-muted-foreground font-normal">
-                      Turn this off if you want to display a different theme on your profile than you use in the rest of the app.
+                      Turn off to display different theme on profile than everywhere else
                     </span>
                   </Label>
                   <Switch
@@ -863,6 +947,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               )}
             </div>
           )}
+          </div>
           </div>
           </PortalContainerProvider>
         </DialogContent>

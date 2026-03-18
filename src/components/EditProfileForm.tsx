@@ -31,13 +31,15 @@ import {
 import { z } from 'zod';
 import { IntroImage } from '@/components/IntroImage';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
+import { isValidAvatarShape } from '@/lib/avatarShape';
 
-// Extended form schema that includes custom fields
+// Extended form schema that includes custom fields and avatar shape
 const formSchema = n.metadata().extend({
   fields: z.array(z.object({
     label: z.string(),
     value: z.string(),
   })).optional(),
+  shape: z.string().optional(),
 });
 
 type ExtendedMetadata = z.infer<typeof formSchema>;
@@ -81,6 +83,16 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
     return [];
   };
 
+  // Parse existing shape from raw event content
+  const parseShape = (): string => {
+    if (!event) return '';
+    try {
+      const parsed = JSON.parse(event.content);
+      if (isValidAvatarShape(parsed.shape)) return parsed.shape;
+    } catch { /* ignore */ }
+    return '';
+  };
+
   // Initialize the form with default values
   const form = useForm<ExtendedMetadata>({
     resolver: zodResolver(formSchema),
@@ -94,6 +106,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       lud16: '',
       bot: false,
       fields: [],
+      shape: '',
     },
   });
 
@@ -114,6 +127,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
         lud16: metadata.lud16 || '',
         bot: metadata.bot || false,
         fields: existingFields,
+        shape: parseShape(),
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,7 +147,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       nip05: v.nip05,
       lud16: v.lud16,
       bot: v.bot,
-    });
+      shape: v.shape,
+    } as Partial<NostrMetadata>);
   }, [form, onValuesChange]);
 
   // Watch all fields and propagate
@@ -198,11 +213,18 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
     }
 
     try {
-      // Extract fields and other metadata
-      const { fields: customFields, ...standardMetadata } = values;
+      // Extract fields, shape, and other metadata
+      const { fields: customFields, shape, ...standardMetadata } = values;
 
       // Combine existing metadata with new values
       const data: Record<string, unknown> = { ...metadata, ...standardMetadata };
+
+      // Add shape only if set (an emoji string)
+      if (shape && isValidAvatarShape(shape)) {
+        data.shape = shape;
+      } else {
+        delete data.shape;
+      }
 
       // Clean up empty values in standard metadata
       for (const key in data) {

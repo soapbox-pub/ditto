@@ -8,6 +8,7 @@ import { genUserName } from '@/lib/genUserName';
 import { MESSAGE_PROTOCOL, PROTOCOL_MODE, type MessageProtocol } from '@/lib/dmConstants';
 import { formatConversationTime, formatFullDateTime } from '@/lib/dmUtils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -161,6 +162,7 @@ MessageBubble.displayName = 'MessageBubble';
 const ChatHeader = ({ pubkey, onBack }: { pubkey: string; onBack?: () => void }) => {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
 
   const displayName = metadata?.name || genUserName(pubkey);
   const avatarUrl = metadata?.picture;
@@ -179,7 +181,7 @@ const ChatHeader = ({ pubkey, onBack }: { pubkey: string; onBack?: () => void })
         </Button>
       )}
       
-      <Avatar className="h-10 w-10">
+      <Avatar shape={avatarShape} className="h-10 w-10">
         <AvatarImage src={avatarUrl} alt={displayName} />
         <AvatarFallback>{initials}</AvatarFallback>
       </Avatar>

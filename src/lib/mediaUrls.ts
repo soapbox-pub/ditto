@@ -2,7 +2,7 @@
 export const IMAGE_EXTS = 'jpg|jpeg|png|gif|webp|svg|avif';
 
 /** Video extensions rendered as players. */
-export const VIDEO_EXTS = 'mp4|webm|mov|avi|mkv|flv';
+export const VIDEO_EXTS = 'mp4|webm|mov|qt|avi|mkv|flv';
 
 /** Audio extensions rendered as players. */
 export const AUDIO_EXTS = 'mp3|wav|ogg|flac|m4a|aac|opus';
@@ -52,6 +52,7 @@ export function mimeFromExt(ext: string): string {
     case 'mp4':  return 'video/mp4';
     case 'webm': return 'video/webm';
     case 'mov':  return 'video/quicktime';
+    case 'qt':   return 'video/quicktime';
     case 'avi':  return 'video/x-msvideo';
     case 'mkv':  return 'video/x-matroska';
     case 'flv':  return 'video/x-flv';

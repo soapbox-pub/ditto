@@ -9,6 +9,7 @@ import { RenderResolvedEmoji } from '@/components/CustomEmoji';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserReaction } from '@/hooks/useUserReaction';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 import type { EventStats } from '@/hooks/useTrending';
 
@@ -127,7 +128,7 @@ export function ReactionButton({
       <PopoverTrigger asChild>
         <button
           className={cn(
-            'flex items-center gap-1.5 p-2 rounded-full transition-colors',
+            'flex items-center gap-1.5 p-2 rounded-full transition-colors focus:outline-none',
             'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
             className,
             hasReacted && 'text-pink-500',
@@ -143,6 +144,42 @@ export function ReactionButton({
             if (justClosedRef.current) return;
             setMenuOpen((prev) => !prev);
           }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            if (!user) return;
+            if (hasReacted) return;
+            setMenuOpen(false);
+            const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
+            queryClient.setQueryData(['user-reaction', eventId], '❤️');
+            if (prevStats) {
+              queryClient.setQueryData<EventStats>(['event-stats', eventId], {
+                ...prevStats,
+                reactions: prevStats.reactions + 1,
+              });
+            }
+            publishEvent(
+              {
+                kind: 7,
+                content: '❤️',
+                tags: [['e', eventId], ['p', eventPubkey], ['k', String(eventKind)]],
+              },
+              {
+                onSuccess: () => {
+                  setTimeout(() => {
+                    queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
+                    queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
+                    queryClient.invalidateQueries({ queryKey: ['user-reaction', eventId] });
+                  }, 3000);
+                },
+                onError: () => {
+                  queryClient.setQueryData(['user-reaction', eventId], null);
+                  if (prevStats) {
+                    queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
+                  }
+                },
+              },
+            );
+          }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
@@ -154,7 +191,7 @@ export function ReactionButton({
             <Heart className="size-5" />
           )}
           {reactionCount > 0 && (
-            <span className={cn('text-sm tabular-nums', hasReacted && 'text-pink-500')}>{reactionCount}</span>
+            <span className={cn('text-sm tabular-nums', hasReacted && 'text-pink-500')}>{formatNumber(reactionCount)}</span>
           )}
         </button>
       </PopoverTrigger>

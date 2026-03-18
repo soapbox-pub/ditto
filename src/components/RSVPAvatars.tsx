@@ -1,6 +1,7 @@
 import type { NostrMetadata } from '@nostrify/nostrify';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -22,6 +23,7 @@ const spacingClasses: Record<AvatarSize, string> = {
 function RSVPAvatar({ pubkey, size = 'sm' }: { pubkey: string; size?: AvatarSize }) {
   const { data } = useAuthor(pubkey);
   const metadata: NostrMetadata | undefined = data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
 
   const displayName = metadata?.display_name || metadata?.name || genUserName(pubkey);
   const initial = displayName.charAt(0).toUpperCase();
@@ -29,7 +31,7 @@ function RSVPAvatar({ pubkey, size = 'sm' }: { pubkey: string; size?: AvatarSize
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Avatar className={cn(sizeClasses[size], 'ring-2 ring-background')}>
+        <Avatar shape={avatarShape} className={cn(sizeClasses[size], 'ring-2 ring-background')}>
           <AvatarImage src={metadata?.picture} />
           <AvatarFallback className="bg-muted text-muted-foreground">
             {initial}

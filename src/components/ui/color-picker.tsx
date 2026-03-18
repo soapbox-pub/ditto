@@ -96,13 +96,23 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
     return () => cancelAnimationFrame(raf);
   }, [popoverOpen]);
 
+  /** Extract clientX/clientY from either a mouse or touch event. */
+  const getPointer = (e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) => {
+    if ('touches' in e) {
+      const touch = e.touches[0] ?? (e as TouchEvent).changedTouches[0];
+      return { clientX: touch.clientX, clientY: touch.clientY };
+    }
+    return { clientX: (e as MouseEvent).clientX, clientY: (e as MouseEvent).clientY };
+  };
+
   const handleSLInteraction = React.useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement> | MouseEvent) => {
+    (e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
+      const { clientX, clientY } = getPointer(e);
       const rect = canvas.getBoundingClientRect();
-      const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+      const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
 
       const s = x * 100;
       const v = (1 - y) * 100;
@@ -118,11 +128,12 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
   );
 
   const handleHueInteraction = React.useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement> | MouseEvent) => {
+    (e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) => {
       const canvas = hueRef.current;
       if (!canvas) return;
+      const { clientX } = getPointer(e);
       const rect = canvas.getBoundingClientRect();
-      const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       const newHue = Math.round(x * 360);
       setHue(newHue);
 
@@ -135,11 +146,11 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
     [localHex, onChange],
   );
 
-  // Global mouse handlers for dragging
+  // Global mouse + touch handlers for dragging
   React.useEffect(() => {
     if (!isDraggingSL && !isDraggingHue) return;
 
-    const handleMove = (e: MouseEvent) => {
+    const handleMove = (e: MouseEvent | TouchEvent) => {
       if (isDraggingSL) handleSLInteraction(e);
       if (isDraggingHue) handleHueInteraction(e);
     };
@@ -150,9 +161,13 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
 
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleUp);
     return () => {
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleUp);
     };
   }, [isDraggingSL, isDraggingHue, handleSLInteraction, handleHueInteraction]);
 
@@ -206,15 +221,19 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-3 space-y-3" align="start" side="right" sideOffset={8}>
+      <PopoverContent className="w-64 p-3 space-y-3" align="center" sideOffset={8} onOpenAutoFocus={(e) => e.preventDefault()}>
         {/* Saturation/Lightness area */}
         <div className="relative w-full aspect-square rounded-lg overflow-hidden cursor-crosshair">
           <canvas
             ref={canvasRef}
             width={256}
             height={256}
-            className="w-full h-full"
+            className="w-full h-full touch-none"
             onMouseDown={(e) => {
+              setIsDraggingSL(true);
+              handleSLInteraction(e);
+            }}
+            onTouchStart={(e) => {
               setIsDraggingSL(true);
               handleSLInteraction(e);
             }}
@@ -232,8 +251,12 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
             ref={hueRef}
             width={256}
             height={12}
-            className="w-full h-full"
+            className="w-full h-full touch-none"
             onMouseDown={(e) => {
+              setIsDraggingHue(true);
+              handleHueInteraction(e);
+            }}
+            onTouchStart={(e) => {
               setIsDraggingHue(true);
               handleHueInteraction(e);
             }}
@@ -253,7 +276,7 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
           <Input
             value={localHex}
             onChange={handleHexInput}
-            className="h-8 font-mono text-xs uppercase"
+            className="h-8 font-mono text-base uppercase"
             maxLength={7}
             spellCheck={false}
           />

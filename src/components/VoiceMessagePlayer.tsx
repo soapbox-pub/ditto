@@ -6,6 +6,7 @@ import { AudioVisualizer } from '@/components/AudioVisualizer';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { getAvatarShape } from '@/lib/avatarShape';
 
 /** Parse NIP-A0 imeta fields from an event's tags. */
 function parseVoiceImeta(tags: string[][]): { waveform?: number[]; duration?: number } {
@@ -60,6 +61,7 @@ export function VoiceMessagePlayer({ event, className }: VoiceMessagePlayerProps
         src={audioUrl}
         avatarUrl={avatarUrl}
         avatarFallback={displayName[0]?.toUpperCase() ?? '?'}
+        avatarShape={getAvatarShape(metadata)}
         className={className}
       />
     );

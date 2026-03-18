@@ -153,7 +153,7 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
                 <>
                   {followPacks.length > 0 && (
                     <p className="px-4 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Follow Sets
+                      Lists
                     </p>
                   )}
                   {lists.map((list) => {
@@ -217,7 +217,7 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
               value={newListName}
               onChange={(e) => setNewListName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleCreateAndAdd(); }}
-              className="flex-1 h-8 text-sm"
+              className="flex-1 h-8 text-base md:text-sm"
               disabled={creatingNew}
             />
             <Button

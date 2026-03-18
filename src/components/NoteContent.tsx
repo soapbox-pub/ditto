@@ -378,6 +378,32 @@ export function NoteContent({
       result.push({ type: 'text', value: text });
     }
 
+    // Enrich nevent-embed tokens with relay hints from `q` tags when the
+    // nevent URI itself didn't include any.  This ensures quote posts whose
+    // inline nevent was encoded without relay hints can still resolve the
+    // quoted event via the relay hint stored in the q tag.
+    const qTagMap = new Map<string, { relay?: string; author?: string }>();
+    for (const tag of event.tags) {
+      if (tag[0] === 'q' && tag[1]) {
+        qTagMap.set(tag[1], { relay: tag[2] || undefined, author: tag[3] || undefined });
+      }
+    }
+    if (qTagMap.size > 0) {
+      for (const token of result) {
+        if (token.type === 'nevent-embed') {
+          const qInfo = qTagMap.get(token.eventId);
+          if (qInfo) {
+            if ((!token.relays || token.relays.length === 0) && qInfo.relay) {
+              token.relays = [qInfo.relay];
+            }
+            if (!token.author && qInfo.author) {
+              token.author = qInfo.author;
+            }
+          }
+        }
+      }
+    }
+
     // Collapse excessive whitespace around block-level tokens (link-preview, youtube-embed)
     // Preserve formatting but prevent too much stacking with the card's own spacing.
     for (let i = 0; i < result.length; i++) {
@@ -625,7 +651,7 @@ export function NoteContent({
               <Link
                 key={i}
                 to={`/t/${token.tag}`}
-                className="text-primary hover:underline"
+                className="text-primary hover:underline break-all"
                 onClick={(e) => e.stopPropagation()}
               >
                 {token.raw}

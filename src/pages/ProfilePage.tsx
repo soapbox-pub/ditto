@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
@@ -6,7 +6,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award } from 'lucide-react';
+
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -32,10 +34,10 @@ import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, filterByTab } from '@/hooks/useProfileFeed';
+import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, useTabFeed, filterByTab } from '@/hooks/useProfileFeed';
 import type { ProfileTab as CoreProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
-import { MediaGrid, MediaGridSkeleton } from '@/components/MediaGrid';
+import { MediaCollage, MediaCollageSkeleton } from '@/components/MediaCollage';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useWallComments } from '@/hooks/useWallComments';
 import { ThreadedReplyList } from '@/components/ThreadedReplyList';
@@ -45,12 +47,14 @@ import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
 import { shareOrCopy } from '@/lib/share';
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { BioContent } from '@/components/BioContent';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReportDialog } from '@/components/ReportDialog';
 import { AddToListDialog } from '@/components/AddToListDialog';
-import { MiniAudioPlayer, isAudioUrl } from '@/components/MiniAudioPlayer';
+import { MiniAudioPlayer, isAudioUrl, isImageUrl, isVideoUrl } from '@/components/MiniAudioPlayer';
+import { VideoPlayer } from '@/components/VideoPlayer';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
@@ -63,7 +67,6 @@ import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
-import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
 import {
@@ -82,6 +85,8 @@ import { ColorPicker } from '@/components/ui/color-picker';
 import { FontPicker } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
+import { formatNumber } from '@/lib/formatNumber';
+import { TabButton } from '@/components/TabButton';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -164,11 +169,6 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     close();
   };
 
-  const handleViewOnNjump = () => {
-    window.open(`https://njump.me/${npubEncoded}`, '_blank', 'noopener,noreferrer');
-    close();
-  };
-
   const handleMuteUser = () => {
     const muteItem = { type: 'pubkey' as const, value: pubkey };
     const mutation = userMuted ? removeMute : addMute;
@@ -209,11 +209,6 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             icon={<ClipboardCopy className="size-5" />}
             label="Copy profile link"
             onClick={handleCopyLink}
-          />
-          <MenuRow
-            icon={<ExternalLink className="size-5" />}
-            label="View on njump.me"
-            onClick={handleViewOnNjump}
           />
           <MenuRow
             icon={<ListPlus className="size-5" />}
@@ -288,6 +283,7 @@ function MenuRow({ icon, label, onClick, destructive }: { icon: React.ReactNode;
 function FollowingUserRow({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
@@ -306,7 +302,7 @@ function FollowingUserRow({ pubkey }: { pubkey: string }) {
         </>
       ) : (
         <>
-          <Avatar className="size-10 shrink-0">
+          <Avatar shape={avatarShape} className="size-10 shrink-0">
             <AvatarImage src={metadata?.picture} alt={displayName} />
             <AvatarFallback className="bg-primary/20 text-primary text-sm">
               {displayName[0]?.toUpperCase()}
@@ -366,25 +362,6 @@ function FollowingListModal({ pubkeys, open, onOpenChange, displayName }: Follow
         </ScrollArea>
       </DialogContent>
     </Dialog>
-  );
-}
-
-// ----- Tab Button -----
-
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-1 px-4 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 whitespace-nowrap',
-        active ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {label}
-      {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 max-w-16 h-1 bg-primary rounded-full" />
-      )}
-    </button>
   );
 }
 
@@ -640,6 +617,33 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
 
   if (isUrl && isAudioUrl(field.value)) {
     return <MiniAudioPlayer src={field.value} label={field.label || undefined} />;
+  }
+
+  if (isUrl && isImageUrl(field.value)) {
+    return (
+      <div className="min-w-0">
+        {field.label && <div className="text-sm text-muted-foreground mb-1">{field.label}</div>}
+        <a href={field.value} target="_blank" rel="noopener noreferrer" className="block">
+          <img
+            src={field.value}
+            alt={field.label || 'Profile image'}
+            className="w-full max-w-sm rounded-lg object-cover"
+            loading="lazy"
+          />
+        </a>
+      </div>
+    );
+  }
+
+  if (isUrl && isVideoUrl(field.value)) {
+    return (
+      <div className="min-w-0">
+        {field.label && <div className="text-sm text-muted-foreground mb-1">{field.label}</div>}
+        <div className="rounded-lg overflow-hidden max-w-sm">
+          <VideoPlayer src={field.value} />
+        </div>
+      </div>
+    );
   }
 
   if (isUrl) {
@@ -995,6 +999,8 @@ export function ProfilePage() {
   // Kind 0 — resolved from the author cache (seeded by the feed query above).
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
+  const isEmojiShape = !!avatarShape && isEmoji(avatarShape);
   const profileStatus = useUserStatus(pubkey);
 
   // Refetch the author's profile whenever we navigate to this profile page.
@@ -1192,7 +1198,7 @@ export function ProfilePage() {
   );
   const effectiveProfileBackground = profileThemeColors ? profileThemeBackground : undefined;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!effectiveProfileColors) return;
 
     // Inject the profile theme's CSS vars onto :root
@@ -1752,19 +1758,21 @@ export function ProfilePage() {
                     onClick={() => metadata?.picture && setLightboxImage(metadata.picture)}
                     disabled={!metadata?.picture}
                   >
-                    <Avatar className={cn('size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
-                      <AvatarImage src={metadata?.picture} alt={displayName} />
-                      <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
-                        {displayName[0].toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div style={isEmojiShape ? emojiAvatarBorderStyle : undefined}>
+                      <Avatar shape={avatarShape} className={cn(isEmojiShape ? 'size-[88px] md:size-[120px]' : 'size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
+                        <AvatarImage src={metadata?.picture} alt={displayName} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
+                          {displayName[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
                   </button>
 
                   {/* NIP-38 thought bubble — floats beside the avatar over the banner */}
                   {feedSettings.showUserStatuses !== false && profileStatus.status && (
                     <div className="absolute -top-2 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
                       <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg">
-                        <p className="text-xs md:text-sm text-foreground italic truncate">
+                        <p className="text-xs md:text-sm text-foreground italic truncate pr-1">
                           {profileStatus.url ? (
                             <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
                               {profileStatus.status}
@@ -1875,7 +1883,7 @@ export function ProfilePage() {
                     title={`${profileFollowing.count} following`}
                   >
                     <Users className="size-4 text-primary" />
-                    <span className="text-sm font-bold tabular-nums text-primary">{profileFollowing.count}</span>
+                    <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(profileFollowing.count)}</span>
                     <span className="text-sm text-muted-foreground">following</span>
                   </button>
                 )}
@@ -1894,9 +1902,7 @@ export function ProfilePage() {
 
               {metadata?.about && (
                 <p className="mt-3 text-sm whitespace-pre-wrap break-words overflow-hidden">
-                  {metadataEvent ? (
-                    <EmojifiedText tags={metadataEvent.tags}>{metadata.about}</EmojifiedText>
-                  ) : metadata.about}
+                  <BioContent tags={metadataEvent?.tags}>{metadata.about}</BioContent>
                 </p>
               )}
 
@@ -1936,6 +1942,7 @@ export function ProfilePage() {
                   setActiveTab(tabId);
                   if (tab.label === 'Media') setSidebarMediaUrl(null);
                 }}
+                className="flex-initial shrink-0 px-4"
               />
             );
           })}
@@ -2188,10 +2195,10 @@ export function ProfilePage() {
         {hasTabs && activeTab === 'media' && (
           <div>
             {mediaPending ? (
-              <MediaGridSkeleton count={15} />
+              <MediaCollageSkeleton count={15} />
             ) : mediaEvents.length > 0 ? (
               <>
-                <MediaGrid
+                <MediaCollage
                   events={mediaEvents}
                   initialOpenUrl={sidebarMediaUrl ?? undefined}
                   onInitialOpenConsumed={() => setSidebarMediaUrl(null)}
@@ -2200,11 +2207,7 @@ export function ProfilePage() {
                   onNearEnd={() => { if (hasNextMediaPage && !isFetchingNextMediaPage) fetchNextMediaPage(); }}
                 />
                 {hasNextMediaPage && (
-                  <div ref={scrollRef} className="flex justify-center py-6">
-                    {isFetchingNextMediaPage && (
-                      <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                    )}
-                  </div>
+                  <div ref={scrollRef} className="h-px" />
                 )}
               </>
             ) : (
@@ -2679,21 +2682,30 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
 }) {
   const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(feed.filter, vars, ownerPubkey);
 
-  // Extract search query and kinds from the resolved filter for useStreamPosts
-  const search = typeof resolvedFilter?.search === 'string' ? resolvedFilter.search : '';
-  const kindsOverride = Array.isArray(resolvedFilter?.kinds) ? resolvedFilter.kinds as number[] : undefined;
-  const authorPubkeys = Array.isArray(resolvedFilter?.authors) ? resolvedFilter.authors as string[] : undefined;
+  const {
+    data,
+    isPending,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTabFeed(resolvedFilter, feed.label, !isResolving);
 
-  const { posts, isLoading: isStreamLoading } = useStreamPosts(search, {
-    includeReplies: true,
-    mediaType: 'all',
-    kindsOverride,
-    authorPubkeys: authorPubkeys && authorPubkeys.length > 0 ? authorPubkeys : undefined,
-  });
+  const { ref: tabScrollRef, inView: tabInView } = useInView({ threshold: 0 });
 
-  const isLoading = isResolving || isStreamLoading;
+  useEffect(() => {
+    if (tabInView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [tabInView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isLoading && posts.length === 0) {
+  const items = useMemo(
+    () => data?.pages.flatMap((p) => p.items) ?? [],
+    [data],
+  );
+
+  const isLoading = isResolving || isPending;
+
+  if (isLoading && items.length === 0) {
     return (
       <div className="space-y-0">
         {Array.from({ length: 3 }).map((_, i) => (
@@ -2712,7 +2724,7 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
     );
   }
 
-  if (posts.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="py-12 text-center text-muted-foreground text-sm">
         No posts found for "{feed.label}".
@@ -2722,9 +2734,21 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
 
   return (
     <div>
-      {posts.map((event) => (
-        <NoteCard key={event.id} event={event} />
+      {items.map((item) => (
+        <NoteCard
+          key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+          event={item.event}
+          repostedBy={item.repostedBy}
+        />
       ))}
+
+      {hasNextPage && (
+        <div ref={tabScrollRef} className="flex justify-center py-6">
+          {isFetchingNextPage && (
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          )}
+        </div>
+      )}
     </div>
   );
 }

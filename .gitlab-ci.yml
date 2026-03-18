@@ -14,6 +14,7 @@ stages:
   - deploy
   - build
   - release
+  - publish
 
 test:
   stage: test
@@ -45,7 +46,7 @@ build-apk:
   timeout: 15 minutes
   needs: []
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+-/
   variables:
     ANDROID_SDK_ROOT: /opt/android-sdk
     ANDROID_HOME: /opt/android-sdk
@@ -96,10 +97,11 @@ build-apk:
       storeFile=my-upload-key.keystore
       EOF
   script:
-    # Extract version from git tag (e.g., v2026.02.24+abc1234 -> 20260224 / 2026.02.24)
+    # Extract version from git tag (e.g., v2026.03.16+974041a)
+    # versionName: full calver+sha string (e.g., 2026.03.16+974041a)
     - TAG="${CI_COMMIT_TAG#v}"
-    - VERSION_NAME="${TAG%%+*}"
-    - VERSION_CODE=$(echo "$VERSION_NAME" | tr -d '.')
+    - VERSION_NAME="${TAG}"
+    - VERSION_CODE="${CI_PIPELINE_IID}"
     - echo "Building version $VERSION_NAME (code $VERSION_CODE) from tag $CI_COMMIT_TAG"
 
     # Stamp version into build.gradle
@@ -107,7 +109,7 @@ build-apk:
     - sed -i "s/versionName \"[^\"]*\"/versionName \"${VERSION_NAME}\"/" android/app/build.gradle
 
     # Build web assets
-    - npm ci --silent
+    - npm ci
     - npx vite build -l error
     - cp dist/index.html dist/404.html
 
@@ -119,11 +121,18 @@ build-apk:
 
     # Copy APK to a predictable artifact path
     - mkdir -p artifacts
-    - cp android/app/build/outputs/apk/release/app-release.apk "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
-    - ls -lh "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
+    - cp android/app/build/outputs/apk/release/app-release.apk "artifacts/Ditto.apk"
+    - ls -lh "artifacts/Ditto.apk"
+
+    # Upload to Generic Packages registry for a stable public download URL
+    - |
+      curl --fail --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+        --upload-file "artifacts/Ditto.apk" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${CI_COMMIT_TAG}/Ditto-${CI_COMMIT_TAG}.apk"
+
   artifacts:
     paths:
-      - "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
+      - artifacts/Ditto.apk
     expire_in: 90 days
   cache:
     key: android-gradle
@@ -137,7 +146,7 @@ release:
   needs:
     - build-apk
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+-/
   script:
     - echo "Creating release for $CI_COMMIT_TAG"
   release:
@@ -147,5 +156,29 @@ release:
     assets:
       links:
         - name: "Ditto-${CI_COMMIT_TAG}.apk"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/artifacts/Ditto-${CI_COMMIT_TAG}.apk?job=build-apk"
+          url: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${CI_COMMIT_TAG}/Ditto-${CI_COMMIT_TAG}.apk"
           link_type: package
+
+publish-zapstore:
+  stage: publish
+  image: golang:1.24
+  needs:
+    - build-apk
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+-/
+  variables:
+    SIGN_WITH: $ZAPSTORE_BUNKER_URL
+  script:
+    - go install github.com/zapstore/zsp@latest
+
+    # Restore the persistent NIP-46 client key so the bunker recognizes us across CI runs.
+    # zsp stores client keys at ~/.config/zsp/bunker-keys/<bunker-pubkey>.key
+    - BUNKER_PUBKEY=$(echo "$ZAPSTORE_BUNKER_URL" | sed 's|bunker://||;s|?.*||')
+    - mkdir -p ~/.config/zsp/bunker-keys
+    - echo "$ZAPSTORE_CLIENT_KEY" > ~/.config/zsp/bunker-keys/${BUNKER_PUBKEY}.key
+
+    - APK_PATH="artifacts/Ditto.apk"
+    - VERSION="${CI_COMMIT_TAG#v}"
+    - sed -i "2i release_source:\ ./${APK_PATH}" zapstore.yaml
+    - sed -i "2i version:\ ${VERSION}" zapstore.yaml
+    - zsp publish -y --skip-metadata --skip-preview zapstore.yaml

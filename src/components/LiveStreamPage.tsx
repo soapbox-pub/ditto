@@ -8,6 +8,7 @@ import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { LiveStreamChat } from '@/components/LiveStreamChat';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ZapDialog } from '@/components/ZapDialog';
@@ -21,6 +22,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { canZap } from '@/lib/canZap';
+import { getEffectiveStreamStatus } from '@/lib/streamStatus';
 import { cn } from '@/lib/utils';
 
 /** Extract the first value of a tag by name. */
@@ -83,7 +85,8 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   const streamUrl = getTag(event.tags, 'streaming');
   const recordingUrl = getTag(event.tags, 'recording');
   const imageUrl = getTag(event.tags, 'image');
-  const status = getTag(event.tags, 'status');
+  const rawStatus = getTag(event.tags, 'status');
+  const status = getEffectiveStreamStatus(event);
   const currentParticipants = getTag(event.tags, 'current_participants');
   const starts = getTag(event.tags, 'starts');
   const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
@@ -96,8 +99,9 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   const dTag = getTag(event.tags, 'd') || '';
   const aTag = `30311:${event.pubkey}:${dTag}`;
 
-  // The URL to play: prefer streaming for live, recording for ended
-  const playUrl = status === 'ended' ? (recordingUrl || streamUrl) : streamUrl;
+  // The URL to play: use the raw status tag (not the staleness heuristic)
+  // so that streams marked live always try the streaming URL first.
+  const playUrl = rawStatus === 'ended' ? (recordingUrl || streamUrl) : streamUrl;
 
   useSeoMeta({ title: `${title} - ${config.appName}` });
 
@@ -125,7 +129,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   const hasDetails = !!(summary || hashtags.length > 0 || participants.length > 0);
   const hasExpandable = hasDescription || hasDetails;
 
-  useLayoutOptions({ rightSidebar: chatSidebar });
+  useLayoutOptions({ rightSidebar: chatSidebar, noOverscroll: true });
 
   /** Details block — always visible on desktop, expandable on mobile.
    *  On mobile this also includes the author row.
@@ -283,6 +287,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
 function StreamAuthorRow({ event, participants }: { event: NostrEvent; participants: Participant[] }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
@@ -318,7 +323,7 @@ function StreamAuthorRow({ event, participants }: { event: NostrEvent; participa
     <div className="flex items-center gap-3">
       <ProfileHoverCard pubkey={showPubkey} asChild>
         <Link to={showProfileUrl}>
-          <Avatar className="size-10">
+          <Avatar shape={avatarShape} className="size-10">
             <AvatarImage src={showMetadata?.picture} alt={showName} />
             <AvatarFallback className="bg-primary/20 text-primary text-sm">
               {showName[0]?.toUpperCase()}
@@ -365,13 +370,14 @@ function ZapButton({ event }: { event: NostrEvent }) {
 function ParticipantRow({ pubkey, role }: { pubkey: string; role?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
   return (
     <div className="flex items-center gap-2.5">
       <Link to={profileUrl} className="shrink-0">
-        <Avatar className="size-7">
+        <Avatar shape={avatarShape} className="size-7">
           <AvatarImage src={metadata?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
             {displayName[0]?.toUpperCase()}

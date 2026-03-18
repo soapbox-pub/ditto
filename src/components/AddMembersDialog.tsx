@@ -9,6 +9,7 @@ import { Search, Loader2, Plus, UserPlus, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useUserLists } from '@/hooks/useUserLists';
@@ -155,7 +156,7 @@ export function AddMembersDialog({ open, onOpenChange, listId, listPubkeys }: Ad
                   onClick={() => handleAdd(profile)}
                   onMouseEnter={() => setSelectedIdx(idx)}
                 >
-                  <Avatar className="size-9 shrink-0">
+                  <Avatar shape={getAvatarShape(profile.metadata)} className="size-9 shrink-0">
                     <AvatarImage src={profile.metadata.picture} alt={name} />
                     <AvatarFallback className="bg-primary/20 text-primary text-xs">
                       {name[0]?.toUpperCase()}

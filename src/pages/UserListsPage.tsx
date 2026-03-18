@@ -12,6 +12,7 @@ import {
   Check, X,
 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,9 +37,10 @@ import type { UserList } from '@/hooks/useUserLists';
 function MiniAvatar({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name ?? genUserName(pubkey);
   return (
-    <Avatar className="size-7 border-2 border-background shrink-0">
+    <Avatar shape={avatarShape} className="size-7 border-2 border-background shrink-0">
       <AvatarImage src={metadata?.picture} alt={displayName} />
       <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
         {displayName[0]?.toUpperCase()}
@@ -105,7 +107,7 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
                   if (e.key === 'Enter') handleRename();
                   if (e.key === 'Escape') { setEditing(false); setRenameValue(list.title); }
                 }}
-                className="h-7 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="h-7 text-base md:text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
                 autoFocus
               />
               <Button size="icon" variant="ghost" className="size-7 shrink-0" onClick={handleRename}>
@@ -163,7 +165,7 @@ export function UserListsPage() {
 
   useSeoMeta({
     title: `Lists | Settings | ${config.appName}`,
-    description: 'Manage your follow sets on Nostr.',
+    description: 'Manage your lists on Nostr.',
   });
 
   const [newListName, setNewListName] = useState('');
@@ -215,7 +217,7 @@ export function UserListsPage() {
           <div>
             <h1 className="text-xl font-bold">Lists</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Organize people into follow sets. Lists are stored on Nostr so they follow you across clients.
+              Organize people into lists. Lists are stored on Nostr so they follow you across clients.
             </p>
           </div>
         </div>
@@ -226,7 +228,7 @@ export function UserListsPage() {
         <div className="flex items-center gap-4 px-3 pt-2 pb-4">
           <IntroImage src="/lists-intro.png" />
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold">Follow Sets</h2>
+            <h2 className="text-sm font-semibold">Lists</h2>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               Group people into named lists. Use any list as the source for a custom feed, or filter searches by list members.
             </p>
@@ -296,7 +298,7 @@ export function UserListsPage() {
         </div>
 
         <p className="text-xs text-muted-foreground px-3 pt-4 leading-relaxed">
-          Lists are stored as Follow Sets (NIP-51) on Nostr and sync across clients.
+          Lists are stored on Nostr (NIP-51) and sync across clients.
         </p>
       </div>
 

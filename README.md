@@ -1,6 +1,6 @@
 # Ditto
 
-Your social media, your way. A fun, customizable [Nostr](https://nostr.com/) client that puts you in control.
+Your content. Your vibe. Your rules. A fun, customizable [Nostr](https://nostr.com/) client that puts you in control.
 
 **[ditto.pub](https://ditto.pub)** | **[Docs](https://docs.ditto.pub)** | **[Source](https://gitlab.com/soapbox-pub/ditto)**
 
