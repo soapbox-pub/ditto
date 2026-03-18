@@ -61,8 +61,8 @@
   <path d="M 90 110 Q 100 118 110 110" stroke="url(#pandiMouth3D)" stroke-width="3" fill="none" stroke-linecap="round" />
   
   <!-- Arms -->
-  <circle cx="55" cy="120" r="15" fill="url(#pandiArm3D)" />
-  <circle cx="145" cy="120" r="15" fill="url(#pandiArm3D)" />
+  <circle cx="45" cy="120" r="15" fill="url(#pandiArm3D)" />
+  <circle cx="155" cy="120" r="15" fill="url(#pandiArm3D)" />
   
   <!-- Legs -->
   <circle cx="80" cy="165" r="18" fill="url(#pandiLeg3D)" />

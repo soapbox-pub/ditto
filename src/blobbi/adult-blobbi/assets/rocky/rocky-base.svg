@@ -1,7 +1,4 @@
 <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <!-- Sombra -->
-  <ellipse cx="105" cy="185" rx="50" ry="8" fill="rgba(0,0,0,0.2)" />
-
   <!-- Bolinha 1 - sentido horário -->
   <g transform="rotate(0 100 110)">
     <circle cx="50" cy="80" r="4" fill="url(#rockyPebble)" opacity="0.8" />
@@ -47,10 +44,8 @@
   </g>
 
   <!-- Corpo do Rocky -->
-  <path d="M 100 50 L 130 70 L 140 110 L 130 150 L 100 165 L 70 150 L 60 110 L 70 70 Z" 
-    fill="url(#rockyBody)" />
-<path d="M 100 55 L 125 72 L 135 108 L 125 145 L 100 158 L 75 145 L 65 108 L 75 72 Z" 
-    fill="url(#rockyInner)" opacity="0.8" />
+  <path d="M 100 50 L 130 70 L 140 110 L 130 150 L 100 165 L 70 150 L 60 110 L 70 70 Z" fill="url(#rockyBody)" />
+  <path d="M 100 55 L 125 72 L 135 108 L 125 145 L 100 158 L 75 145 L 65 108 L 75 72 Z" fill="url(#rockyInner)" opacity="0.8" />
 
   <!-- Textura -->
   <path d="M 75 80 L 125 85" stroke="#57534e" stroke-width="2" opacity="0.5" />

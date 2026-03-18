@@ -7,8 +7,8 @@
   <path d="M 102 145 L 106 143" stroke="#15803d" stroke-width="2" stroke-linecap="round" />
   
   <!-- Leaves -->
-  <ellipse cx="85" cy="140" rx="12" ry="8" fill="url(#roseyLeaf)" transform="rotate(-30 85 140)" />
-  <ellipse cx="115" cy="150" rx="12" ry="8" fill="url(#roseyLeaf)" transform="rotate(30 115 150)" />
+  <ellipse cx="85" cy="145" rx="12" ry="8" fill="url(#roseyLeaf)" transform="rotate(-30 85 140)" />
+  <ellipse cx="110" cy="150" rx="12" ry="8" fill="url(#roseyLeaf)" transform="rotate(30 115 150)" />
   
   <!-- Rose petals - layered -->
   <circle cx="100" cy="90" r="35" fill="url(#roseyPetal1)" />
@@ -30,10 +30,6 @@
   <!-- Rosy cheeks -->
   <circle cx="75" cy="95" r="6" fill="url(#roseyBlush)" opacity="0.6" />
   <circle cx="125" cy="95" r="6" fill="url(#roseyBlush)" opacity="0.6" />
-  
-  <!-- Little arms from center -->
-  <ellipse cx="70" cy="90" rx="8" ry="12" fill="url(#roseyArm)" transform="rotate(-30 70 90)" />
-  <ellipse cx="130" cy="90" rx="8" ry="12" fill="url(#roseyArm)" transform="rotate(30 130 90)" />
   
   <!-- Floating petals -->
   <ellipse cx="55" cy="70" rx="8" ry="5" fill="url(#roseyFloatingPetal)" opacity="0.8" transform="rotate(45 55 70)" />
