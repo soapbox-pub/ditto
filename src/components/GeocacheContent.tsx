@@ -1,7 +1,9 @@
 import { MapPin, Mountain, Brain, Package, Eye, EyeOff } from 'lucide-react';
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { ImageGallery } from '@/components/ImageGallery';
 import { Badge } from '@/components/ui/badge';
+import { ChestIcon } from '@/components/icons/ChestIcon';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -58,6 +60,13 @@ export function GeocacheContent({ event }: { event: NostrEvent }) {
   const terrain = Number(getTag(event.tags, 'T') ?? 1);
   const size = getTag(event.tags, 'S') ?? 'other';
   const cacheType = getTag(event.tags, 't') ?? 'traditional';
+  // Take the longest g tag (most precise) and truncate to 5 chars
+  const geohash = getAllTags(event.tags, 'g')
+    .reduce<string | undefined>(
+      (longest, g) => (longest === undefined || g.length > longest.length ? g : longest),
+      undefined,
+    )
+    ?.slice(0, 5);
   const hint = getTag(event.tags, 'hint');
   const images = getAllTags(event.tags, 'image').filter((url) => url.trim() !== '');
   const description = event.content;
@@ -72,12 +81,12 @@ export function GeocacheContent({ event }: { event: NostrEvent }) {
       {/* Cache name */}
       {name && (
         <div className="flex items-start gap-2 mb-2">
-          <MapPin className="size-4 text-primary mt-0.5 shrink-0" />
+          <ChestIcon className="size-4 text-primary mt-0.5 shrink-0" />
           <span className="text-[15px] font-semibold leading-snug">{name}</span>
         </div>
       )}
 
-      {/* Badges row: type, size */}
+      {/* Badges row: type, size, geohash */}
       <div className="flex flex-wrap gap-1.5 mb-3">
         <Badge variant="secondary" className="text-[11px] gap-1 font-medium">
           {TYPE_LABELS[cacheType] ?? cacheType}
@@ -86,6 +95,14 @@ export function GeocacheContent({ event }: { event: NostrEvent }) {
           <Package className="size-3" />
           {SIZE_LABELS[size] ?? size}
         </Badge>
+        {geohash && (
+          <Link to={`/g/${geohash}`} onClick={(e) => e.stopPropagation()}>
+            <Badge variant="secondary" className="text-[11px] gap-1 font-medium hover:bg-secondary/80 transition-colors">
+              <MapPin className="size-3" />
+              {geohash}
+            </Badge>
+          </Link>
+        )}
       </div>
 
       {/* D/T ratings */}

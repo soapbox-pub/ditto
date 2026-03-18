@@ -8,7 +8,7 @@ import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPin } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useFeed } from '@/hooks/useFeed';
@@ -67,6 +67,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const queryClient = useQueryClient();
   const { savedFeeds } = useSavedFeeds();
   const { hashtags } = useInterests();
+  const { hashtags: geotags } = useInterests('g');
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
@@ -115,6 +116,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
   // Is the active tab a hashtag interest?
   const activeHashtag = activeTab.startsWith('hashtag:') ? activeTab.slice(8) : null;
+
+  // Is the active tab a geotag interest?
+  const activeGeotag = activeTab.startsWith('geotag:') ? activeTab.slice(7) : null;
 
   // When logged out (and not on a kind-specific page), show the "hot" sorted
   // feed instead of the noisy global feed so new visitors see quality content.
@@ -256,6 +260,19 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               onClick={() => handleSetActiveTab(`hashtag:${tag}`)}
             />
           ))}
+          {showSavedFeedTabs && geotags.map((tag) => (
+            <TabButton
+              key={`geotag:${tag}`}
+              label={tag}
+              active={activeTab === `geotag:${tag}`}
+              onClick={() => handleSetActiveTab(`geotag:${tag}`)}
+            >
+              <span className="flex items-center justify-center gap-1">
+                <MapPin className="size-3.5" />
+                {tag}
+              </span>
+            </TabButton>
+          ))}
         </div>
       ) : !kinds && (
         <LandingHero
@@ -267,6 +284,8 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       {/* Feed content — saved feed tab gets its own stream */}
       {activeHashtag ? (
         <HashtagFeedContent tag={activeHashtag} />
+      ) : activeGeotag ? (
+        <GeotagFeedContent tag={activeGeotag} />
       ) : activeSavedFeed ? (
         <SavedFeedContent feed={activeSavedFeed} />
       ) : (
@@ -423,6 +442,57 @@ function HashtagFeedContent({ tag }: { tag: string }) {
   if (filteredEvents.length === 0) {
     return (
       <FeedEmptyState message={`No posts found with #${tag}.`} />
+    );
+  }
+
+  return (
+    <div>
+      {filteredEvents.map((event) => (
+        <NoteCard key={event.id} event={event} />
+      ))}
+    </div>
+  );
+}
+
+/** Renders a feed of posts tagged with a specific geohash. */
+function GeotagFeedContent({ tag }: { tag: string }) {
+  const { nostr } = useNostr();
+  const { muteItems } = useMuteList();
+  const { feedSettings } = useFeedSettings();
+  const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
+  const kindsKey = [...kinds].sort().join(',');
+
+  const { data: events, isLoading } = useQuery<NostrEvent[]>({
+    queryKey: ['geotag-feed', tag, kindsKey],
+    queryFn: async ({ signal }) => {
+      const ditto = nostr.relay(DITTO_RELAY);
+      const filter = { kinds, limit: 40 } as Record<string, unknown>;
+      filter['#g'] = [tag];
+      return ditto.query([filter as Parameters<typeof ditto.query>[0][number]], {
+        signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
+      });
+    },
+  });
+
+  const filteredEvents = useMemo((): NostrEvent[] => {
+    if (!events) return [];
+    if (muteItems.length === 0) return events;
+    return events.filter((e) => !isEventMuted(e, muteItems));
+  }, [events, muteItems]);
+
+  if (isLoading && filteredEvents.length === 0) {
+    return (
+      <div className="divide-y divide-border">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <NoteCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (filteredEvents.length === 0) {
+    return (
+      <FeedEmptyState message={`No posts found near ${tag}.`} />
     );
   }
 
