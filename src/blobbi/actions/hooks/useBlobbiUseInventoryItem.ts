@@ -6,7 +6,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiCompanion, BlobbonautProfile } from '@/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile, BlobbiStats } from '@/lib/blobbi';
 import {
   KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
@@ -35,6 +35,8 @@ import {
 export interface UseItemRequest {
   itemId: string;
   action: InventoryAction;
+  /** Number of items to use (defaults to 1) */
+  quantity?: number;
 }
 
 /**
@@ -43,6 +45,7 @@ export interface UseItemRequest {
 export interface UseItemResult {
   itemName: string;
   action: InventoryAction;
+  quantity: number;
   statsChanged: Record<string, number>;
 }
 
@@ -101,7 +104,7 @@ export function useBlobbiUseInventoryItem({
   const { mutateAsync: publishEvent } = useNostrPublish();
 
   return useMutation({
-    mutationFn: async ({ itemId, action }: UseItemRequest): Promise<UseItemResult> => {
+    mutationFn: async ({ itemId, action, quantity = 1 }: UseItemRequest): Promise<UseItemResult> => {
       // ─── Validation ───
       if (!user?.pubkey) {
         throw new Error('You must be logged in to use items');
@@ -113,6 +116,11 @@ export function useBlobbiUseInventoryItem({
 
       if (!profile) {
         throw new Error('Profile not found');
+      }
+
+      // Validate quantity
+      if (quantity < 1) {
+        throw new Error('Quantity must be at least 1');
       }
 
       // Check stage restrictions for this specific action
@@ -127,10 +135,13 @@ export function useBlobbiUseInventoryItem({
         throw new Error('Item not found in catalog');
       }
 
-      // Validate item exists in storage
+      // Validate item exists in storage with sufficient quantity
       const storageItem = profile.storage.find(s => s.itemId === itemId);
       if (!storageItem || storageItem.quantity <= 0) {
         throw new Error('Item not found in your inventory');
+      }
+      if (storageItem.quantity < quantity) {
+        throw new Error(`Not enough items in inventory (have ${storageItem.quantity}, need ${quantity})`);
       }
 
       // Validate item has effects
@@ -170,6 +181,9 @@ export function useBlobbiUseInventoryItem({
       const statsAfterDecay = decayResult.stats;
       
       // ─── Apply Item Effects ───
+      // Apply effects multiple times (once per quantity) to simulate using items in sequence.
+      // This ensures proper clamping at each step, e.g., using 5 health items when at 90 health
+      // won't give more than 100 health total.
       // Use canonical companion stage for egg checks
       const isEggCompanion = canonical.companion.stage === 'egg';
       const statsUpdate: Record<string, string> = {};
@@ -182,14 +196,19 @@ export function useBlobbiUseInventoryItem({
         // hunger and energy remain fixed at 100 for eggs
         
         const healthDelta = shopItem.effect.health ?? 0;
-        const newHealth = applyStat(statsAfterDecay.health, healthDelta);
+        // Apply health effect N times in sequence with clamping at each step
+        let currentHealth = statsAfterDecay.health ?? 0;
+        for (let i = 0; i < quantity; i++) {
+          currentHealth = applyStat(currentHealth, healthDelta);
+        }
         
-        statsUpdate.health = newHealth.toString();
-        statsChanged.health = healthDelta;
+        statsUpdate.health = currentHealth.toString();
+        // Track total actual change (may be less than healthDelta * quantity due to clamping)
+        statsChanged.health = currentHealth - (statsAfterDecay.health ?? 0);
         
         // Apply decayed values for other egg stats
-        statsUpdate.hygiene = statsAfterDecay.hygiene.toString();
-        statsUpdate.happiness = statsAfterDecay.happiness.toString();
+        statsUpdate.hygiene = (statsAfterDecay.hygiene ?? 0).toString();
+        statsUpdate.happiness = (statsAfterDecay.happiness ?? 0).toString();
         // hunger and energy stay at 100 for eggs
         statsUpdate.hunger = '100';
         statsUpdate.energy = '100';
@@ -202,41 +221,50 @@ export function useBlobbiUseInventoryItem({
         const hygieneDelta = shopItem.effect.hygiene ?? 0;
         const happinessDelta = shopItem.effect.happiness ?? 0;
         
-        const newHygiene = applyStat(statsAfterDecay.hygiene, hygieneDelta);
-        const newHappiness = applyStat(statsAfterDecay.happiness, happinessDelta);
+        // Apply effects N times in sequence
+        let currentHygiene = statsAfterDecay.hygiene ?? 0;
+        let currentHappiness = statsAfterDecay.happiness ?? 0;
+        for (let i = 0; i < quantity; i++) {
+          currentHygiene = applyStat(currentHygiene, hygieneDelta);
+          currentHappiness = applyStat(currentHappiness, happinessDelta);
+        }
         
-        statsUpdate.hygiene = newHygiene.toString();
-        statsChanged.hygiene = hygieneDelta;
+        statsUpdate.hygiene = currentHygiene.toString();
+        statsChanged.hygiene = currentHygiene - (statsAfterDecay.hygiene ?? 0);
         
-        statsUpdate.happiness = newHappiness.toString();
-        if (happinessDelta !== 0) {
-          statsChanged.happiness = happinessDelta;
+        statsUpdate.happiness = currentHappiness.toString();
+        const totalHappinessChange = currentHappiness - (statsAfterDecay.happiness ?? 0);
+        if (totalHappinessChange !== 0) {
+          statsChanged.happiness = totalHappinessChange;
         }
         
         // Apply decayed health
-        statsUpdate.health = statsAfterDecay.health.toString();
+        statsUpdate.health = (statsAfterDecay.health ?? 0).toString();
         // hunger and energy stay at 100 for eggs
         statsUpdate.hunger = '100';
         statsUpdate.energy = '100';
       } else {
         // Normal stats application for baby/adult
-        // Apply item effects ON TOP of decayed stats
-        const newStats = applyItemEffects(statsAfterDecay, shopItem.effect);
+        // Apply item effects N times in sequence ON TOP of decayed stats
+        let currentStats: Partial<BlobbiStats> = { ...statsAfterDecay };
+        for (let i = 0; i < quantity; i++) {
+          currentStats = applyItemEffects(currentStats, shopItem.effect);
+        }
 
-        statsUpdate.hunger = clampStat(newStats.hunger).toString();
-        statsChanged.hunger = (newStats.hunger ?? 0) - (statsAfterDecay.hunger ?? 0);
+        statsUpdate.hunger = clampStat(currentStats.hunger).toString();
+        statsChanged.hunger = (currentStats.hunger ?? 0) - (statsAfterDecay.hunger ?? 0);
         
-        statsUpdate.happiness = clampStat(newStats.happiness).toString();
-        statsChanged.happiness = (newStats.happiness ?? 0) - (statsAfterDecay.happiness ?? 0);
+        statsUpdate.happiness = clampStat(currentStats.happiness).toString();
+        statsChanged.happiness = (currentStats.happiness ?? 0) - (statsAfterDecay.happiness ?? 0);
         
-        statsUpdate.energy = clampStat(newStats.energy).toString();
-        statsChanged.energy = (newStats.energy ?? 0) - (statsAfterDecay.energy ?? 0);
+        statsUpdate.energy = clampStat(currentStats.energy).toString();
+        statsChanged.energy = (currentStats.energy ?? 0) - (statsAfterDecay.energy ?? 0);
         
-        statsUpdate.hygiene = clampStat(newStats.hygiene).toString();
-        statsChanged.hygiene = (newStats.hygiene ?? 0) - (statsAfterDecay.hygiene ?? 0);
+        statsUpdate.hygiene = clampStat(currentStats.hygiene).toString();
+        statsChanged.hygiene = (currentStats.hygiene ?? 0) - (statsAfterDecay.hygiene ?? 0);
         
-        statsUpdate.health = clampStat(newStats.health).toString();
-        statsChanged.health = (newStats.health ?? 0) - (statsAfterDecay.health ?? 0);
+        statsUpdate.health = clampStat(currentStats.health).toString();
+        statsChanged.health = (currentStats.health ?? 0) - (statsAfterDecay.health ?? 0);
       }
 
       // ─── Update Blobbi State Event (kind 31124) ───
@@ -259,7 +287,7 @@ export function useBlobbiUseInventoryItem({
       // CRITICAL: Use canonical.profileStorage and canonical.profileAllTags
       // instead of profile.storage/profile.allTags to avoid restoring
       // stale/legacy values after migration
-      const newStorage = decrementStorageItem(canonical.profileStorage, itemId, 1);
+      const newStorage = decrementStorageItem(canonical.profileStorage, itemId, quantity);
       const storageValues = createStorageTags(newStorage).map(tag => tag[1]);
 
       const profileTags = updateBlobbonautTags(canonical.profileAllTags, {
@@ -281,14 +309,16 @@ export function useBlobbiUseInventoryItem({
       return {
         itemName: shopItem.name,
         action,
+        quantity,
         statsChanged,
       };
     },
-    onSuccess: ({ itemName, action }) => {
+    onSuccess: ({ itemName, action, quantity }) => {
       const actionMeta = ACTION_METADATA[action];
+      const quantityText = quantity > 1 ? ` (x${quantity})` : '';
       toast({
         title: `${actionMeta.label} successful!`,
-        description: `Used ${itemName} on your Blobbi.`,
+        description: `Used ${itemName}${quantityText} on your Blobbi.`,
       });
     },
     onError: (error: Error) => {
