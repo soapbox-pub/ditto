@@ -57,6 +57,7 @@ export {
   type BlobbiAction,
   type ResolvedInventoryItem,
   type EggStatPreview,
+  type ItemUsabilityResult,
   // Constants
   ACTION_TO_ITEM_TYPE,
   ACTION_METADATA,
@@ -68,6 +69,7 @@ export {
   EGG_ALLOWED_DIRECT_ACTIONS,
   EGG_VISIBLE_INVENTORY_ACTIONS,
   EGG_VISIBLE_ACTIONS,
+  SHELL_REPAIR_KIT_ID,
   // Functions
   clampStat,
   applyStat,
@@ -84,4 +86,6 @@ export {
   previewCleanForEgg,
   hasMedicineEffectForEgg,
   hasHygieneEffectForEgg,
+  canUseItemForStage,
+  getActionForItem,
 } from './lib/blobbi-action-utils';

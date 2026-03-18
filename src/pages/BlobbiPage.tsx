@@ -51,6 +51,7 @@ import {
   createMusicActivity,
   createSingActivity,
   createNoActivity,
+  getActionForItem,
   type InventoryAction,
   type DirectAction,
   type InlineActivityState,
@@ -323,9 +324,9 @@ function BlobbiContent() {
     invalidateProfile,
   });
   
-  // Handler for using an inventory item
-  const handleUseItem = useCallback(async (itemId: string, action: InventoryAction) => {
-    await executeUseItem({ itemId, action });
+  // Handler for using an inventory item (with optional quantity)
+  const handleUseItem = useCallback(async (itemId: string, action: InventoryAction, quantity: number = 1) => {
+    await executeUseItem({ itemId, action, quantity });
   }, [executeUseItem]);
   
   // ─── Stage Transition Hooks ───
@@ -634,7 +635,7 @@ interface BlobbiDashboardProps {
   setShowSelector: (show: boolean) => void;
   onSelectBlobbi: (d: string) => void;
   onRest: () => void;
-  onUseItem: (itemId: string, action: InventoryAction) => Promise<void>;
+  onUseItem: (itemId: string, action: InventoryAction, quantity?: number) => Promise<void>;
   onDirectAction: (action: DirectAction) => Promise<void>;
   isUsingItem: boolean;
   isDirectActionPending: boolean;
@@ -795,12 +796,12 @@ function BlobbiDashboard({
     setShowTrackPickerModal(true);
   };
   
-  // Handle using an item
-  const handleUseItem = async (itemId: string) => {
+  // Handle using an item (with optional quantity)
+  const handleUseItem = async (itemId: string, quantity: number = 1) => {
     if (!inventoryAction || isUsingItem) return;
     setUsingItemId(itemId);
     try {
-      await onUseItem(itemId, inventoryAction);
+      await onUseItem(itemId, inventoryAction, quantity);
       // Close the modal on success
       setInventoryAction(null);
     } finally {
@@ -812,6 +813,22 @@ function BlobbiDashboard({
   const handleOpenShopFromAction = () => {
     setInventoryAction(null);
     setShowShopModal(true);
+  };
+
+  // Handle using item directly from inventory modal
+  const handleUseItemFromInventory = async (itemId: string, quantity: number) => {
+    // Determine the action type from the item
+    const action = getActionForItem(itemId);
+    if (!action) return;
+
+    setUsingItemId(itemId);
+    try {
+      await onUseItem(itemId, action, quantity);
+      // Close the inventory modal on success
+      setShowInventoryModal(false);
+    } finally {
+      setUsingItemId(null);
+    }
   };
   
   return (
@@ -1101,6 +1118,9 @@ function BlobbiDashboard({
         open={showInventoryModal}
         onOpenChange={setShowInventoryModal}
         profile={profile}
+        companion={companion}
+        onUseItem={handleUseItemFromInventory}
+        isUsingItem={isUsingItem}
       />
       
       {/* Blobbi Info Modal */}

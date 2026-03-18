@@ -134,6 +134,109 @@ export function applyItemEffects(
 // ─── Egg-Specific Item Helpers ────────────────────────────────────────────────
 
 /**
+ * The Shell Repair Kit is a special medicine item only usable by eggs.
+ */
+export const SHELL_REPAIR_KIT_ID = 'med_shell_repair';
+
+/**
+ * Result of checking if an item can be used by a specific Blobbi stage.
+ */
+export interface ItemUsabilityResult {
+  canUse: boolean;
+  reason?: string;
+}
+
+/**
+ * Check if a specific item can be used by a companion at the given stage.
+ * 
+ * This is the centralized item usability logic:
+ * - Shell Repair Kit: Only usable by eggs
+ * - Food items: Only usable by baby/adult (not eggs)
+ * - Toy items: Only usable by baby/adult (not eggs)
+ * - Medicine items (except Shell Repair Kit): Usable by all stages with health effect
+ * - Hygiene items: Usable by all stages
+ * 
+ * @param itemId - The shop item ID
+ * @param stage - The companion's life stage
+ * @returns Object with canUse boolean and optional reason string
+ */
+export function canUseItemForStage(
+  itemId: string,
+  stage: 'egg' | 'baby' | 'adult'
+): ItemUsabilityResult {
+  const shopItem = getShopItemById(itemId);
+  if (!shopItem) {
+    return { canUse: false, reason: 'Item not found' };
+  }
+
+  const isEgg = stage === 'egg';
+
+  // Shell Repair Kit special case: only for eggs
+  if (itemId === SHELL_REPAIR_KIT_ID) {
+    if (!isEgg) {
+      return { canUse: false, reason: 'Only usable for eggs' };
+    }
+    return { canUse: true };
+  }
+
+  // Food items: not usable by eggs
+  if (shopItem.type === 'food') {
+    if (isEgg) {
+      return { canUse: false, reason: 'Eggs cannot eat food' };
+    }
+    return { canUse: true };
+  }
+
+  // Toy items: not usable by eggs
+  if (shopItem.type === 'toy') {
+    if (isEgg) {
+      return { canUse: false, reason: 'Eggs cannot use toys' };
+    }
+    return { canUse: true };
+  }
+
+  // Medicine items (except Shell Repair Kit): check for health effect
+  if (shopItem.type === 'medicine') {
+    if (!hasMedicineEffectForEgg(shopItem.effect)) {
+      return { canUse: false, reason: 'This medicine has no effect' };
+    }
+    return { canUse: true };
+  }
+
+  // Hygiene items: all stages can use
+  if (shopItem.type === 'hygiene') {
+    if (!hasHygieneEffectForEgg(shopItem.effect) && !hasHappinessEffectForEgg(shopItem.effect)) {
+      return { canUse: false, reason: 'This item has no cleaning effect' };
+    }
+    return { canUse: true };
+  }
+
+  // Accessories are disabled
+  if (shopItem.type === 'accessory') {
+    return { canUse: false, reason: 'Accessories are not usable yet' };
+  }
+
+  return { canUse: true };
+}
+
+/**
+ * Get the action type for a given item.
+ */
+export function getActionForItem(itemId: string): InventoryAction | null {
+  const shopItem = getShopItemById(itemId);
+  if (!shopItem) return null;
+
+  const typeToAction: Record<string, InventoryAction> = {
+    food: 'feed',
+    toy: 'play',
+    hygiene: 'clean',
+    medicine: 'medicine',
+  };
+
+  return typeToAction[shopItem.type] ?? null;
+}
+
+/**
  * Check if a medicine item has any effect on an egg.
  * 
  * Eggs use the standard 3-stat model:
@@ -192,9 +295,12 @@ export interface FilterInventoryOptions {
  * Filter inventory items by action type.
  * Returns resolved items with shop metadata.
  * 
- * When stage is 'egg', only items with egg-compatible effects are returned:
- * - medicine action: only items with health effect
- * - clean action: only items with hygiene or happiness effect
+ * Filtering rules:
+ * - Only items matching the action's item type are included
+ * - Shell Repair Kit only appears in medicine modal for eggs
+ * - For eggs: only items with egg-compatible effects are returned
+ *   - medicine action: only items with health effect
+ *   - clean action: only items with hygiene or happiness effect
  */
 export function filterInventoryByAction(
   storage: StorageItem[],
@@ -210,6 +316,11 @@ export function filterInventoryByAction(
     if (!shopItem) continue;
     if (shopItem.type !== allowedType) continue;
     if (storageItem.quantity <= 0) continue;
+
+    // Shell Repair Kit: only show for eggs in medicine modal
+    if (storageItem.itemId === SHELL_REPAIR_KIT_ID && !isEgg) {
+      continue;
+    }
 
     // For eggs, filter items by egg-compatible effects
     if (isEgg) {
