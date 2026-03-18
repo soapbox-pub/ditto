@@ -369,46 +369,126 @@ export function toBlobbiShapeValue(id: string): string {
 
 // ─── Mask Generation ──────────────────────────────────────────────────────────
 
-/** Cache for generated mask URLs */
+/** Cache for generated PNG mask URLs */
 const blobbiMaskCache = new Map<string, string>();
 
+/** Cache for pending mask generation promises (to avoid duplicate work) */
+const pendingMaskGenerations = new Map<string, Promise<string>>();
+
 /**
- * Generate a mask URL for a Blobbi shape.
- * Returns an SVG data URL with white fill/stroke, suitable for CSS mask-image.
+ * Generate a PNG mask URL for a Blobbi shape.
+ * Renders the SVG to a canvas and exports as PNG data URL.
  *
- * This approach is simpler and more reliable than rendering to canvas,
- * as CSS mask-image supports SVG data URLs directly. Supports all SVG elements:
- * - circles, ellipses, rects, paths
- * - transforms (rotate, translate, scale)
- * - stroke-based shapes (like tails)
+ * This is more reliable than using SVG data URLs directly in CSS mask-image,
+ * which doesn't work correctly for complex SVGs with transforms in some browsers.
  *
  * @param shapeId - The Blobbi shape ID (e.g., "catti", "baby")
- * @returns SVG data URL or empty string if shape not found
+ * @returns PNG data URL, empty string if not yet ready, or empty if shape not found
  */
 export function getBlobbiMaskUrl(shapeId: string): string {
+  // Return cached PNG if available
   const cached = blobbiMaskCache.get(shapeId);
   if (cached) return cached;
 
   const shape = getBlobbiShape(shapeId);
   if (!shape) return '';
 
-  // Build complete SVG string with white fill and stroke for mask
+  // Start async generation if not already in progress
+  if (!pendingMaskGenerations.has(shapeId)) {
+    const promise = generatePngMask(shape).then((url) => {
+      blobbiMaskCache.set(shapeId, url);
+      pendingMaskGenerations.delete(shapeId);
+      return url;
+    });
+    pendingMaskGenerations.set(shapeId, promise);
+  }
+
+  // Return empty string for now - the async version should be used for reliable results
+  return '';
+}
+
+/**
+ * Async version of mask URL generation.
+ * This is the preferred method as it guarantees the mask is ready.
+ *
+ * @param shapeId - The Blobbi shape ID
+ * @returns Promise resolving to PNG data URL
+ */
+export async function getBlobbiMaskUrlAsync(shapeId: string): Promise<string> {
+  // Return cached PNG if available
+  const cached = blobbiMaskCache.get(shapeId);
+  if (cached) return cached;
+
+  const shape = getBlobbiShape(shapeId);
+  if (!shape) return '';
+
+  // Return pending promise if generation is in progress
+  const pending = pendingMaskGenerations.get(shapeId);
+  if (pending) return pending;
+
+  // Start new generation
+  const promise = generatePngMask(shape).then((url) => {
+    blobbiMaskCache.set(shapeId, url);
+    pendingMaskGenerations.delete(shapeId);
+    return url;
+  });
+  pendingMaskGenerations.set(shapeId, promise);
+
+  return promise;
+}
+
+/**
+ * Generate a PNG mask by rendering SVG to canvas.
+ */
+async function generatePngMask(shape: BlobbiShape): Promise<string> {
   const svgString = buildMaskSvgString(shape);
+  const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+  const svgUrl = URL.createObjectURL(svgBlob);
 
-  // Convert SVG string to data URL - CSS mask-image supports SVG directly
-  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+  try {
+    const img = await loadImage(svgUrl);
 
-  blobbiMaskCache.set(shapeId, url);
-  return url;
+    // Parse viewBox for dimensions
+    const vb = shape.viewBox.split(' ').map(Number);
+    const [, , vbWidth, vbHeight] = vb;
+
+    // Canvas size - use higher resolution for quality
+    const size = 256;
+    const scale = size / Math.max(vbWidth, vbHeight);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+
+    // Center the shape
+    const offsetX = (size - vbWidth * scale) / 2;
+    const offsetY = (size - vbHeight * scale) / 2;
+
+    ctx.drawImage(img, offsetX, offsetY, vbWidth * scale, vbHeight * scale);
+
+    return canvas.toDataURL('image/png');
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
+
+/**
+ * Load an image from a URL as a promise.
+ */
+function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = url;
+  });
 }
 
 /**
  * Build a complete SVG string for mask rendering.
  * Applies white fill and stroke to all elements.
- *
- * Note: We inject fill="white" and stroke="white" directly into each element
- * rather than using a <style> tag, because CSS styles inside SVG data URLs
- * used as mask-image don't work reliably across all browsers.
  */
 function buildMaskSvgString(shape: BlobbiShape): string {
   // Parse viewBox to get dimensions
@@ -416,7 +496,6 @@ function buildMaskSvgString(shape: BlobbiShape): string {
   const [, , vbWidth, vbHeight] = vb;
 
   // Inject fill="white" and stroke="white" into each SVG element
-  // This is more reliable than using <style> tags in data URL contexts
   const whiteSvg = injectWhiteFillStroke(shape.svg);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${shape.viewBox}" width="${vbWidth}" height="${vbHeight}">${whiteSvg}</svg>`;
@@ -429,7 +508,6 @@ function buildMaskSvgString(shape: BlobbiShape): string {
  */
 function injectWhiteFillStroke(svg: string): string {
   // Match SVG shape elements - capture tag name, attributes, and closing
-  // The closing can be "/>" or ">" (for elements with children, though rare for shapes)
   const shapeElements = /<(circle|ellipse|rect|path|polygon|polyline|line)\b([^>]*?)(\/?>)/gi;
 
   return svg.replace(shapeElements, (match, tagName: string, attributes: string, closing: string) => {
@@ -440,7 +518,6 @@ function injectWhiteFillStroke(svg: string): string {
 
     // Remove any existing fill/stroke attributes (except fill="none")
     attrs = attrs.replace(/\s*fill\s*=\s*["'][^"']*["']/gi, (m) => {
-      // Keep fill="none"
       return /fill\s*=\s*["']none["']/i.test(m) ? m : '';
     });
     attrs = attrs.replace(/\s*stroke\s*=\s*["'][^"']*["']/gi, '');
@@ -453,17 +530,6 @@ function injectWhiteFillStroke(svg: string): string {
 
     return `<${tagName}${attrs} ${closing}`;
   });
-}
-
-/**
- * Async version of mask URL generation.
- * Since we now use SVG data URLs directly (synchronous), this just wraps
- * the sync version for API compatibility.
- *
- * @deprecated Use getBlobbiMaskUrl() instead - it's now synchronous
- */
-export async function getBlobbiMaskUrlAsync(shapeId: string): Promise<string> {
-  return getBlobbiMaskUrl(shapeId);
 }
 
 /**

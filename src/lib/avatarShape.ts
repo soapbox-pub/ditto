@@ -1,6 +1,6 @@
 import type React from 'react';
 
-import { isBlobbiShape, parseBlobbiShapeId, getBlobbiShape, getBlobbiMaskUrl } from './blobbiShapes';
+import { isBlobbiShape, parseBlobbiShapeId, getBlobbiShape, getBlobbiMaskUrl, getBlobbiMaskUrlAsync } from './blobbiShapes';
 
 /**
  * An avatar shape is stored in kind-0 metadata as the `shape` property.
@@ -91,6 +91,10 @@ const emojiMaskCache = new Map<string, string>();
 /**
  * Get mask URL for any avatar shape type (emoji or Blobbi).
  * Returns empty string if shape is invalid or mask generation fails.
+ *
+ * Note: For Blobbi shapes, this may return empty string on first call
+ * while the PNG mask is being generated. Use getAvatarMaskUrlAsync for
+ * guaranteed results.
  */
 export function getAvatarMaskUrl(shape: string): string {
   // Check if Blobbi shape first
@@ -103,6 +107,28 @@ export function getAvatarMaskUrl(shape: string): string {
   }
 
   // Otherwise treat as emoji
+  if (isEmoji(shape)) {
+    return getEmojiMaskUrl(shape);
+  }
+
+  return '';
+}
+
+/**
+ * Async version of getAvatarMaskUrl.
+ * This is the preferred method for Blobbi shapes as it guarantees the PNG mask is ready.
+ */
+export async function getAvatarMaskUrlAsync(shape: string): Promise<string> {
+  // Check if Blobbi shape first
+  if (isBlobbiShape(shape)) {
+    const shapeId = parseBlobbiShapeId(shape);
+    if (shapeId) {
+      return getBlobbiMaskUrlAsync(shapeId);
+    }
+    return '';
+  }
+
+  // Otherwise treat as emoji (sync is fine for emoji)
   if (isEmoji(shape)) {
     return getEmojiMaskUrl(shape);
   }
