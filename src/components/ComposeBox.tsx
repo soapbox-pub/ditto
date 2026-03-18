@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarChart3, Plus, ChevronLeft } from 'lucide-react';
+import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarChart3, Plus, ChevronLeft, ChessKnight } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -32,6 +32,10 @@ import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import type { EventStats } from '@/hooks/useTrending';
+import {
+  appendMoveToPgn, buildPositions, initialBoard,
+  parseMoves, parsePgnHeaders, tryApplyMove, type Board, type Color,
+} from '@/lib/chess';
 import { cn } from '@/lib/utils';
 import { extractWebxdcMeta } from '@/lib/webxdcMeta';
 import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
@@ -116,8 +120,10 @@ interface ComposeBoxProps {
   onHasPreviewableContentChange?: (hasContent: boolean) => void;
   /** Pre-filled content for the compose box. */
   initialContent?: string;
-  /** Open directly in poll mode. */
-  initialMode?: 'post' | 'poll';
+  /** Open directly in poll or chess mode. */
+  initialMode?: 'post' | 'poll' | 'chess';
+  /** When in chess mode, the PGN of the game being continued. */
+  initialPgn?: string;
 }
 
 /** Circular progress ring for character count. */
@@ -158,6 +164,284 @@ function CharRing({ count, max }: { count: number; max: number }) {
 }
 
 
+// ── ChessComposer ─────────────────────────────────────────────────────────────
+
+import {
+  ChessBishop, ChessKing, ChessKnight as ChessKnightIcon,
+  ChessPawn, ChessQueen, ChessRook, type LucideIcon,
+} from 'lucide-react';
+import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
+import type { SearchProfile } from '@/hooks/useSearchProfiles';
+import { getLegalTargets, moveToSan } from '@/lib/chess';
+
+const COMPOSE_PIECE_ICONS: Record<string, LucideIcon> = {
+  K: ChessKing, Q: ChessQueen, R: ChessRook, B: ChessBishop, N: ChessKnightIcon, P: ChessPawn,
+};
+
+function ComposePieceIcon({ type, color }: { type: string; color: Color }) {
+  const Icon = COMPOSE_PIECE_ICONS[type] ?? ChessPawn;
+  return (
+    <Icon
+      className="w-full h-full"
+      stroke={color === 'w' ? '#ffffff' : '#1c1917'}
+      strokeWidth={2}
+    />
+  );
+}
+
+/**
+ * Interactive click-to-move chess board for composing.
+ * New game: pick opponent via search, then click to make your opening move.
+ * Continue: shows current position, click piece → click destination.
+ */
+function ChessComposer({ initialPgn, isContinuation, onChange }: {
+  initialPgn: string;
+  isContinuation: boolean;
+  onChange: (pgn: string) => void;
+}) {
+  const existingMoves = useMemo(() => parseMoves(initialPgn), [initialPgn]);
+  const existingHeaders = useMemo(() => parsePgnHeaders(initialPgn), [initialPgn]);
+  const positions = useMemo(() => buildPositions(existingMoves), [existingMoves]);
+  const currentBoard = positions[positions.length - 1] ?? initialBoard();
+  const whoseTurn: Color = existingMoves.length % 2 === 0 ? 'w' : 'b';
+
+  const [flipped] = useState(false);
+  const [selected, setSelected] = useState<[number, number] | null>(null);
+  const [legalTargets, setLegalTargets] = useState<[number, number][]>([]);
+  const [pendingBoard, setPendingBoard] = useState<Board | null>(null);
+  const [pendingSan, setPendingSan] = useState<string | null>(null);
+  const [promotionSquare, setPromotionSquare] = useState<{ toRow: number; toCol: number; fromRow: number; fromCol: number } | null>(null);
+  const [opponent, setOpponent] = useState<SearchProfile | null>(null);
+
+  const displayBoard = pendingBoard ?? currentBoard;
+
+  // Keep a stable ref to onChange so effects don't re-run when the parent re-renders
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; });
+
+  // Emit PGN up whenever the move or opponent changes
+  useEffect(() => {
+    const emit = onChangeRef.current;
+    const opponentName = !isContinuation
+      ? (opponent?.metadata?.display_name || opponent?.metadata?.name || '?')
+      : null;
+
+    if (isContinuation) {
+      // Continuing an existing game — emit updated PGN only when a move is pending
+      if (pendingSan) emit(appendMoveToPgn(initialPgn, pendingSan));
+      // No move yet: leave chessPgn as initialPgn (already set by parent)
+    } else {
+      // New game — always emit so the submit button has valid PGN
+      const headers = [`[White "Me"]`, `[Black "${opponentName}"]`].join('\n');
+      const base = `${headers}\n\n*`;
+      emit(pendingSan ? appendMoveToPgn(base, pendingSan) : base);
+    }
+  }, [pendingSan, isContinuation, initialPgn, opponent]);
+
+  const handleSquareClick = (row: number, col: number) => {
+    const piece = displayBoard[row][col];
+
+    // If there's already a pending move, clicking anywhere resets to pick again
+    if (pendingBoard) {
+      setPendingBoard(null);
+      setPendingSan(null);
+      setSelected(null);
+      setLegalTargets([]);
+    }
+
+    // If a piece is selected and this is a legal target → make the move
+    if (selected) {
+      const [fromRow, fromCol] = selected;
+      const isTarget = legalTargets.some(([r, c]) => r === row && c === col);
+
+      if (isTarget) {
+        const movingPiece = currentBoard[fromRow][fromCol];
+        // Pawn promotion?
+        if (movingPiece?.type === 'P' && (row === 0 || row === 7)) {
+          setPromotionSquare({ toRow: row, toCol: col, fromRow, fromCol });
+          setSelected(null);
+          setLegalTargets([]);
+          return;
+        }
+        const san = moveToSan(currentBoard, fromRow, fromCol, row, col);
+        const next = tryApplyMove(currentBoard, san, whoseTurn);
+        if (next) {
+          setPendingBoard(next);
+          setPendingSan(san);
+        }
+        setSelected(null);
+        setLegalTargets([]);
+        return;
+      }
+
+      // Clicked own piece → re-select
+      if (piece && piece.color === whoseTurn) {
+        setSelected([row, col]);
+        setLegalTargets(getLegalTargets(currentBoard, row, col));
+        return;
+      }
+
+      // Clicked elsewhere → deselect
+      setSelected(null);
+      setLegalTargets([]);
+      return;
+    }
+
+    // Select a piece of the current player's color
+    if (piece && piece.color === whoseTurn) {
+      setSelected([row, col]);
+      setLegalTargets(getLegalTargets(currentBoard, row, col));
+    }
+  };
+
+  const handlePromotion = (type: string) => {
+    if (!promotionSquare) return;
+    const { toRow, toCol, fromRow, fromCol } = promotionSquare;
+    const san = moveToSan(currentBoard, fromRow, fromCol, toRow, toCol, type as import('@/lib/chess').PieceType);
+    const next = tryApplyMove(currentBoard, san, whoseTurn);
+    if (next) { setPendingBoard(next); setPendingSan(san); }
+    setPromotionSquare(null);
+  };
+
+  const ranks = flipped ? [0,1,2,3,4,5,6,7] : [7,6,5,4,3,2,1,0];
+  const files = flipped ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
+  const turnLabel = whoseTurn === 'w' ? 'White' : 'Black';
+  const whitePlayer = existingHeaders['White'] ?? 'White';
+  const blackPlayer = existingHeaders['Black'] ?? 'Black';
+
+  return (
+    <div className="py-1 space-y-3">
+      {/* Opponent picker — new games only */}
+      {!isContinuation && (
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-medium text-muted-foreground">Challenge opponent</label>
+          {opponent ? (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/40 border border-border/40">
+              <img src={opponent.metadata?.picture} alt="" className="size-8 rounded-full object-cover" onError={e => { e.currentTarget.style.display = 'none'; }} />
+              <span className="text-sm font-medium flex-1 truncate">
+                {opponent.metadata?.display_name || opponent.metadata?.name || 'Unknown'}
+              </span>
+              <button type="button" onClick={() => setOpponent(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X className="size-4" />
+              </button>
+            </div>
+          ) : (
+            <ProfileSearchDropdown
+              placeholder="Search for an opponent..."
+              hideCountry
+              onSelect={p => setOpponent(p)}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Player labels */}
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground px-0.5">
+        <div className="flex items-center gap-1.5">
+          <div className={cn('w-3 h-3 rounded-sm border', flipped ? 'bg-white border-gray-300' : 'bg-stone-900 border-stone-600')} />
+          <span className="font-medium">{flipped ? whitePlayer : blackPlayer}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="font-medium">{flipped ? blackPlayer : whitePlayer}</span>
+          <div className={cn('w-3 h-3 rounded-sm border', flipped ? 'bg-stone-900 border-stone-600' : 'bg-white border-gray-300')} />
+        </div>
+      </div>
+
+      {/* Interactive board */}
+      <div className="relative w-full rounded-xl overflow-hidden border border-border/40 shadow-sm">
+        {ranks.map(rank => (
+          <div key={rank} className="flex">
+            {files.map(file => {
+              const boardRow = 7 - rank;
+              const piece = displayBoard[boardRow]?.[file] ?? null;
+              const light = (rank + file) % 2 === 0;
+              const isSelected = selected?.[0] === boardRow && selected?.[1] === file;
+              const isTarget = legalTargets.some(([r, c]) => r === boardRow && c === file);
+              const isOccupiedTarget = isTarget && !!displayBoard[boardRow][file];
+
+              return (
+                <div
+                  key={file}
+                  className={cn(
+                    'relative flex items-center justify-center aspect-square flex-1 cursor-pointer transition-colors',
+                    light ? 'bg-[#f0d9b5]' : 'bg-[#b58863]',
+                    isSelected && 'ring-2 ring-inset ring-primary/80 bg-yellow-300/70',
+                  )}
+                  onClick={() => handleSquareClick(boardRow, file)}
+                >
+                  {/* Legal move dot / capture ring */}
+                  {isTarget && !isOccupiedTarget && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-[30%] h-[30%] rounded-full bg-black/20" />
+                    </div>
+                  )}
+                  {isOccupiedTarget && (
+                    <div className="absolute inset-0 rounded-sm ring-4 ring-inset ring-black/25 pointer-events-none" />
+                  )}
+                  {piece && (
+                    <div className="relative w-[72%] h-[72%]">
+                      <ComposePieceIcon type={piece.type} color={piece.color} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+
+        {/* Promotion picker */}
+        {promotionSquare && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-10">
+            <div className="bg-popover rounded-2xl p-3 shadow-xl border border-border">
+              <p className="text-xs font-semibold text-center mb-2 text-muted-foreground">Promote to</p>
+              <div className="flex gap-2">
+                {(['Q','R','B','N'] as const).map(t => {
+                  const Icon = COMPOSE_PIECE_ICONS[t];
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => handlePromotion(t)}
+                      className="size-12 flex items-center justify-center rounded-xl bg-secondary hover:bg-primary/20 transition-colors border border-border"
+                    >
+                      <Icon className="size-7" style={{ color: whoseTurn === 'w' ? '#1c1917' : '#fff' }} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Status bar */}
+      <div className="flex items-center gap-2 text-[11px]">
+        <div className={cn('w-3 h-3 rounded-sm border shrink-0', whoseTurn === 'w' ? 'bg-white border-gray-300' : 'bg-stone-900 border-stone-600')} />
+        {pendingSan ? (
+          <span className="text-green-600 dark:text-green-400 font-medium">
+            Move: <span className="font-mono">{pendingSan}</span> — ready to publish
+          </span>
+        ) : (
+          <span className="text-muted-foreground">
+            {selected ? `${turnLabel} — select a destination` : `${turnLabel} to move — click a piece`}
+          </span>
+        )}
+        {pendingSan && (
+          <button type="button" onClick={() => { setPendingBoard(null); setPendingSan(null); setSelected(null); setLegalTargets([]); }} className="ml-auto text-muted-foreground hover:text-foreground transition-colors text-[11px]">
+            Undo
+          </button>
+        )}
+      </div>
+
+      {!isContinuation && !pendingSan && (
+        <p className="text-[11px] text-muted-foreground">
+          Make a move to start the game, or publish as an open challenge.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function ComposeBox({ 
   onSuccess, 
   placeholder = "What's on your mind?", 
@@ -170,6 +454,7 @@ export function ComposeBox({
   onHasPreviewableContentChange,
   initialContent = '',
   initialMode = 'post',
+  initialPgn = '',
 }: ComposeBoxProps) {
   const { user, metadata, isLoading: isProfileLoading } = useCurrentUser();
   const avatarShape = getAvatarShape(metadata);
@@ -193,8 +478,10 @@ export function ComposeBox({
   const [trayOpen, setTrayOpen] = useState(false);
   const [internalPreviewMode, setInternalPreviewMode] = useState(false);
 
-  // Poll mode state
-  const [mode, setMode] = useState<'post' | 'poll'>(initialMode);
+  // Post/poll/chess mode state
+  const [mode, setMode] = useState<'post' | 'poll' | 'chess'>(initialMode);
+  // Chess compose state
+  const [chessPgn, setChessPgn] = useState(initialPgn);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState([
     { id: pollOptionId(), label: '' },
@@ -1007,6 +1294,31 @@ export function ComposeBox({
   const pollFilledCount = pollOptions.filter((o) => o.label.trim()).length;
   const isPollValid = pollQuestion.trim().length > 0 && pollFilledCount >= 2;
 
+  const handleChessSubmit = async () => {
+    if (!chessPgn.trim() || !user || isPending) return;
+    const tags: string[][] = [['alt', 'Chess game (PGN)']];
+    // If this is a reply to an existing chess game, add reply tags
+    if (replyTo && !(replyTo instanceof URL)) {
+      tags.push(['e', replyTo.id, '', 'reply']);
+      tags.push(['p', replyTo.pubkey]);
+    }
+    try {
+      await createEvent({ kind: 64, content: chessPgn.trim(), tags });
+      setChessPgn(initialPgn);
+      if (initialMode !== 'chess') setMode('post');
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      toast({ title: 'Game published!' });
+      onSuccess?.();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to publish game.', variant: 'destructive' });
+    }
+  };
+
+  // For continuations, require actual PGN with moves; for new games, headers alone are enough
+  const isChessValid = replyTo
+    ? chessPgn.trim().length > 0 && parseMoves(chessPgn).length > 0
+    : chessPgn.trim().length > 0;
+
   const isExpanded = forceExpanded || expanded || content.length > 0 || !compact;
 
   // Early return after all hooks to avoid violating Rules of Hooks
@@ -1166,6 +1478,13 @@ export function ComposeBox({
               ))}
             </div>
           </div>
+        ) : mode === 'chess' ? (
+          /* ── Chess game composer ─────────────────────────────── */
+          <ChessComposer
+            initialPgn={chessPgn}
+            isContinuation={!!replyTo}
+            onChange={setChessPgn}
+          />
         ) : !previewMode ? (
           /* ── Edit mode — Textarea ────────────────────────────── */
           <div className="relative">
@@ -1504,7 +1823,7 @@ export function ComposeBox({
                           disabled={!user}
                           className={cn(
                             'p-2 rounded-full transition-colors disabled:opacity-40',
-                            (trayOpen || mode === 'poll' || cwEnabled)
+                            (trayOpen || mode === 'poll' || mode === 'chess' || cwEnabled)
                               ? 'text-primary bg-primary/10'
                               : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
                           )}
@@ -1516,24 +1835,31 @@ export function ComposeBox({
                     {!trayOpen && <TooltipContent>More</TooltipContent>}
                   </Tooltip>
                   <PopoverContent side="bottom" align="start" sideOffset={6} className="w-44 p-1.5 rounded-xl border-border shadow-lg">
-                    <div className="flex flex-col gap-0.5">
-                      {!replyTo && (
-                        <button
-                          type="button"
-                          onClick={() => { setMode((m) => m === 'poll' ? 'post' : 'poll'); setTrayOpen(false); expand(); }}
-                          className={cn('flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors', mode === 'poll' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60')}
-                        >
-                          <BarChart3 className="size-4" /><span className="font-medium">Poll</span>
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => { setCwEnabled((v) => !v); setTrayOpen(false); expand(); }}
-                        className={cn('flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors', cwEnabled ? 'text-amber-500 bg-amber-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60')}
-                      >
-                        <AlertTriangle className="size-4" /><span className="font-medium">Spoiler</span>
-                      </button>
-                    </div>
+                     <div className="flex flex-col gap-0.5">
+                       {!replyTo && (
+                         <button
+                           type="button"
+                           onClick={() => { setMode((m) => m === 'poll' ? 'post' : 'poll'); setTrayOpen(false); expand(); }}
+                           className={cn('flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors', mode === 'poll' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60')}
+                         >
+                           <BarChart3 className="size-4" /><span className="font-medium">Poll</span>
+                         </button>
+                       )}
+                       <button
+                         type="button"
+                         onClick={() => { setMode((m) => m === 'chess' ? 'post' : 'chess'); setTrayOpen(false); expand(); }}
+                         className={cn('flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors', mode === 'chess' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60')}
+                       >
+                         <ChessKnight className="size-4" /><span className="font-medium">Chess</span>
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => { setCwEnabled((v) => !v); setTrayOpen(false); expand(); }}
+                         className={cn('flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors', cwEnabled ? 'text-amber-500 bg-amber-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60')}
+                       >
+                         <AlertTriangle className="size-4" /><span className="font-medium">Spoiler</span>
+                       </button>
+                     </div>
                   </PopoverContent>
                 </Popover>
               </div>
@@ -1562,7 +1888,16 @@ export function ComposeBox({
                     className="rounded-full px-5 font-bold"
                     size="sm"
                   >
-                    {isPollPending ? 'Publishing...' : 'Publish poll'}
+                    {isPollPending ? 'Polling...' : 'Poll!'}
+                  </Button>
+                ) : mode === 'chess' ? (
+                  <Button
+                    onClick={handleChessSubmit}
+                    disabled={!isChessValid || isPending || !user}
+                    className="rounded-full px-5 font-bold"
+                    size="sm"
+                  >
+                    {isPending ? 'Moving...' : 'Chess!'}
                   </Button>
                 ) : (
                   <Button

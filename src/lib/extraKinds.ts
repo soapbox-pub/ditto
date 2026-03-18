@@ -444,6 +444,19 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
       },
     ],
   },
+  {
+    kind: 64,
+    id: 'chess',
+    showKey: 'showChess',
+    feedKey: 'feedIncludeChess',
+    label: 'Chess',
+    description: 'Chess games in PGN format (NIP-64)',
+    route: 'chess',
+    addressable: false,
+    section: 'whimsy',
+    blurb: 'Chess games shared on Nostr in PGN format. Browse games, replay moves, and share your own games.',
+    sites: [{ url: 'https://lichess.org', name: 'Lichess' }],
+  },
   // Development
   {
     kind: 30617,

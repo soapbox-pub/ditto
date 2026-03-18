@@ -109,6 +109,8 @@ const hardcodedConfig: AppConfig = {
     showProfileBadges: true,
     feedIncludeBadgeDefinitions: true,
     feedIncludeProfileBadges: true,
+    showChess: true,
+    feedIncludeChess: true,
     followsFeedShowReplies: true,
   },
   sidebarOrder: [

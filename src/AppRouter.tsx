@@ -55,6 +55,7 @@ const colorsDef = getExtraKindDef("colors")!;
 const packsDef = getExtraKindDef("packs")!;
 const articlesDef = getExtraKindDef("articles")!;
 const decksDef = getExtraKindDef("decks")!;
+const chessDef = getExtraKindDef("chess")!;
 const emojisDef = getExtraKindDef("emojis")!;
 const developmentDef = getExtraKindDef("development")!;
 
@@ -70,6 +71,26 @@ function PollsFeedPage() {
         onFabClick={() => setComposeOpen(true)}
       />
       <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} initialMode="poll" />
+    </>
+  );
+}
+
+/** Chess feed page with a FAB that opens the chess compose modal. */
+function ChessFeedPage() {
+  const [composeOpen, setComposeOpen] = useState(false);
+  return (
+    <>
+      <KindFeedPage
+        kind={chessDef.kind}
+        title={chessDef.label}
+        icon={sidebarItemIcon("chess", "size-5")}
+        onFabClick={() => setComposeOpen(true)}
+      />
+      <ReplyComposeModal
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
+        initialMode="chess"
+      />
     </>
   );
 }
@@ -172,6 +193,7 @@ export function AppRouter() {
                 />
               }
             />
+            <Route path="/chess" element={<ChessFeedPage />} />
             <Route
               path="/emojis"
               element={

@@ -142,6 +142,10 @@ export interface FeedSettings {
   feedIncludeBadgeDefinitions: boolean;
   /** Include profile badges (kind 30008) in the follows/global feed */
   feedIncludeProfileBadges: boolean;
+  /** Show Chess (NIP-64 kind 64) link in sidebar */
+  showChess: boolean;
+  /** Include Chess games in the follows/global feed */
+  feedIncludeChess: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }

@@ -1,6 +1,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
+  ChessKnight,
   MessageCircle,
   MoreHorizontal,
   Palette,
@@ -42,6 +43,7 @@ import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
 import { RepostIcon } from "@/components/icons/RepostIcon";
 import { LiveStreamPlayer } from "@/components/LiveStreamPlayer";
+import { ChessGameContent } from "@/components/ChessGameContent";
 import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { Nip05Badge } from "@/components/Nip05Badge";
 import { NoteContent } from "@/components/NoteContent";
@@ -224,6 +226,7 @@ export function NoteCard({
   const isFollowPack = event.kind === 39089 || event.kind === 30000;
   const isArticle = event.kind === 30023;
   const isMagicDeck = event.kind === 37381;
+  const isChessGame = event.kind === 64;
   const isStream = event.kind === 30311;
   const isFileMetadata = event.kind === 1063;
   const isThemeDefinition = event.kind === 36767;
@@ -260,6 +263,7 @@ export function NoteCard({
     !isFollowPack &&
     !isArticle &&
     !isMagicDeck &&
+    !isChessGame &&
     !isStream &&
     !isFileMetadata &&
     !isTheme &&
@@ -420,6 +424,8 @@ export function NoteCard({
           <ArticleContent event={event} preview className="mt-2" />
         ) : isMagicDeck ? (
           <MagicDeckContent event={event} />
+        ) : isChessGame ? (
+          <ChessGameContent event={event} mode="fullCard" />
         ) : isStream ? (
           <StreamContent event={event} />
         ) : isFileMetadata ? (
@@ -825,48 +831,51 @@ export function NoteCard({
   return (
     <article
       className={cn(
-        "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+        "border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+        !isChessGame && "px-4 py-3",
         className,
       )}
       onClick={handleCardClick}
       onAuxClick={handleAuxClick}
     >
       {/* Action header — repost takes priority, otherwise derived from event kind */}
-      {repostedBy ? (
-        <EventActionHeader
-          pubkey={repostedBy}
-          icon={RepostIcon}
-          iconClassName="text-accent"
-          action="reposted"
-        />
-      ) : (
-        KIND_HEADER_MAP[event.kind] &&
-        (() => {
-          const cfg = KIND_HEADER_MAP[event.kind];
-          const isLive =
-            event.kind === 30311 && getEffectiveStreamStatus(event) === "live";
-          return (
-            <EventActionHeader
-              pubkey={event.pubkey}
-              icon={cfg.icon}
-              iconClassName={
-                event.kind === 30311
-                  ? isLive
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                  : cfg.iconClassName
-              }
-              action={
-                typeof cfg.action === "function"
-                  ? cfg.action(event.tags, event)
-                  : cfg.action
-              }
-              noun={cfg.noun}
-              nounRoute={cfg.nounRoute}
-            />
-          );
-        })()
-      )}
+      <div className={cn(isChessGame && "px-4 pt-3")}>
+        {repostedBy ? (
+          <EventActionHeader
+            pubkey={repostedBy}
+            icon={RepostIcon}
+            iconClassName="text-accent"
+            action="reposted"
+          />
+        ) : (
+          KIND_HEADER_MAP[event.kind] &&
+          (() => {
+            const cfg = KIND_HEADER_MAP[event.kind];
+            const isLive =
+              event.kind === 30311 && getEffectiveStreamStatus(event) === "live";
+            return (
+              <EventActionHeader
+                pubkey={event.pubkey}
+                icon={cfg.icon}
+                iconClassName={
+                  event.kind === 30311
+                    ? isLive
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                    : cfg.iconClassName
+                }
+                action={
+                  typeof cfg.action === "function"
+                    ? cfg.action(event.tags, event)
+                    : cfg.action
+                }
+                noun={cfg.noun}
+                nounRoute={cfg.nounRoute}
+              />
+            );
+          })()
+        )}
+      </div>
 
       {/* For follow packs / lists: content-first layout with subtle author attribution */}
       {isFollowPack ? (
@@ -879,6 +888,22 @@ export function NoteCard({
               <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
               <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
             </>
+          )}
+        </>
+      ) : isChessGame ? (
+        /* ── Chess: avatar + author above, then full-bleed board ── */
+        <>
+          <div className="flex items-center gap-3 px-4 pb-2">
+            {avatarElement}
+            {authorInfo}
+          </div>
+          {contentBlock}
+          {!compact && (
+            <div className="px-4">
+              {actionButtons}
+              <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+              <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+            </div>
           )}
         </>
       ) : (
@@ -1554,6 +1579,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
       event && getEffectiveStreamStatus(event) === "live"
         ? "is streaming"
         : "streamed",
+  },
+  64: {
+    icon: ChessKnight,
+    action: "shared a",
+    noun: "chess game",
+    nounRoute: "/chess",
   },
 };
 

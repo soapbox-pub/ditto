@@ -45,6 +45,7 @@ import {
 } from "@/components/InteractionsModal";
 import { RepostIcon } from "@/components/icons/RepostIcon";
 import { LiveStreamPage } from "@/components/LiveStreamPage";
+import { ChessGameContent } from "@/components/ChessGameContent";
 import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { MusicDetailContent } from "@/components/MusicDetailContent";
 import { NoteCard } from "@/components/NoteCard";
@@ -791,6 +792,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isEmojiPack = event.kind === 30030;
   const isArticle = event.kind === 30023;
   const isMagicDeck = event.kind === 37381;
+  const isChessGame = event.kind === 64;
   const isFileMetadata = event.kind === 1063;
   const isTheme = event.kind === 36767 || event.kind === 16767;
   const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
@@ -812,6 +814,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isEmojiPack &&
     !isArticle &&
     !isMagicDeck &&
+    !isChessGame &&
     !isFileMetadata &&
     !isTheme &&
     !isVoiceMessage &&
@@ -1377,6 +1380,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <ArticleContent event={event} className="mt-3" />
             ) : isMagicDeck ? (
               <MagicDeckContent event={event} />
+            ) : isChessGame ? (
+              <ChessGameContent event={event} mode="detail" />
             ) : isFileMetadata ? (
               <FileMetadataContent event={event} />
             ) : isTheme ? (

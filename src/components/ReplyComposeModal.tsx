@@ -32,8 +32,10 @@ interface ReplyComposeModalProps {
   onSuccess?: () => void;
   /** Pre-filled content for the compose box. */
   initialContent?: string;
-  /** Open directly in poll mode. */
-  initialMode?: 'post' | 'poll';
+  /** Open directly in poll or chess mode. */
+  initialMode?: 'post' | 'poll' | 'chess';
+  /** When in chess mode, the PGN of the game being continued. */
+  initialPgn?: string;
   /** Override the modal title. */
   title?: string;
   /** Override the compose box placeholder text. */
@@ -46,7 +48,7 @@ function extractImages(content: string): string[] {
   return content.match(urlRegex) || [];
 }
 
-export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, initialMode, title: titleOverride, placeholder: placeholderOverride }: ReplyComposeModalProps) {
+export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, initialMode, initialPgn, title: titleOverride, placeholder: placeholderOverride }: ReplyComposeModalProps) {
   const isUrl = event instanceof URL;
   const isReply = !!event;
   const isQuote = !!quotedEvent;
@@ -55,7 +57,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
   const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
 
   const isProfileRoot = !isUrl && event instanceof Object && 'kind' in event && event.kind === 0;
-  const title = titleOverride ?? (initialMode === 'poll' ? 'New poll' : isUrl ? 'New comment' : isProfileRoot ? 'Comment on profile' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post');
+  const title = titleOverride ?? (initialMode === 'chess' ? (isReply ? 'Continue game' : 'New chess game') : initialMode === 'poll' ? 'New poll' : isUrl ? 'New comment' : isProfileRoot ? 'Comment on profile' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post');
   const placeholder = placeholderOverride ?? (isUrl ? 'Write a comment...' : isReply ? "What's on your mind?" : isQuote ? 'Add a comment...' : "What's happening?");
 
   const dialogContentRef = useCallback((node: HTMLElement | null) => {
@@ -139,6 +141,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
               onHasPreviewableContentChange={setHasPreviewableContent}
               initialContent={initialContent}
               initialMode={initialMode}
+              initialPgn={initialPgn}
             />
           </div>
         </PortalContainerProvider>

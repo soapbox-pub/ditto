@@ -93,7 +93,7 @@
     "hls.js": "^1.6.15",
     "idb": "^8.0.3",
     "input-otp": "^1.2.4",
-    "lucide-react": "^0.462.0",
+    "lucide-react": "^0.577.0",
     "nostr-tools": "^2.13.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
