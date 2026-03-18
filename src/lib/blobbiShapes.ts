@@ -305,6 +305,8 @@ export const BLOBBI_SHAPES: BlobbiShape[] = [
       <rect x="98" y="120" width="4" height="50" rx="2" />
       <ellipse cx="85" cy="145" rx="12" ry="8" transform="rotate(-30 85 140)" />
       <ellipse cx="110" cy="150" rx="12" ry="8" transform="rotate(30 115 150)" />
+      <path d="M 75 160 L 80 175 L 120 175 L 125 160 Z" />
+      <rect x="75" y="160" width="50" height="5" rx="2" />
     `,
     previewColor: '#fb7185',
   },

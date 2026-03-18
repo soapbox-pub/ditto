@@ -37,6 +37,10 @@
   <ellipse cx="50" cy="120" rx="6" ry="3.5" fill="url(#roseyFloatingPetal)" opacity="0.7" transform="rotate(60 50 120)" />
   <ellipse cx="150" cy="115" rx="7" ry="4" fill="url(#roseyFloatingPetal)" opacity="0.5" transform="rotate(-45 150 115)" />
   
+    <!-- Rosey pot -->
+  <path d="M 75 160 L 80 175 L 120 175 L 125 160 Z" fill="url(#leafyPot)" />
+  <rect x="75" y="160" width="50" height="5" fill="url(#leafyPotRim)" rx="2" />
+
   <defs>
     <radialGradient id="roseyStem" cx="0.5" cy="0.5">
       <stop offset="0%" stop-color="#22c55e" />
@@ -75,6 +79,14 @@
     <radialGradient id="roseyFloatingPetal" cx="0.5" cy="0.5">
       <stop offset="0%" stop-color="#fbcfe8" />
       <stop offset="100%" stop-color="#f472b6" />
+    </radialGradient>
+    <radialGradient id="leafyPot" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#dc2626" />
+      <stop offset="100%" stop-color="#991b1b" />
+    </radialGradient>
+    <radialGradient id="leafyPotRim" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#dc2626" />
     </radialGradient>
   </defs>
 </svg>
