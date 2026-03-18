@@ -294,9 +294,9 @@ export function useNotifications(): NotificationData {
         const refId = (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244) ? getReferencedEventId(ev) : undefined;
         const referencedEvent = refId ? referencedMap.get(refId) : undefined;
 
-        // For reactions (7) and reposts (6, 16), only notify if the referenced
-        // post was authored by the current user.
-        if (ev.kind === 7 || ev.kind === 6 || ev.kind === 16) {
+        // For reactions (7), reposts (6, 16), and zaps (9735), only notify if
+        // the referenced post was authored by the current user.
+        if (ev.kind === 7 || ev.kind === 6 || ev.kind === 16 || ev.kind === 9735) {
           if (!referencedEvent || referencedEvent.pubkey !== user.pubkey) return [];
         }
 
