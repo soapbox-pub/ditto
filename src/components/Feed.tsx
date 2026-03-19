@@ -233,46 +233,58 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
       {/* Tabs (logged in) or CTA (logged out, main feed only) */}
       {user ? (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none">
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
-          {!isKindSpecificPage && showDittoFeed && (
-            <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
-          )}
-          {!isKindSpecificPage && showCommunityFeed && (
-            <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
-          )}
-          {(isKindSpecificPage || showGlobalFeed) && (
-            <TabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
-          )}
-          {showSavedFeedTabs && savedFeeds.map((feed) => (
-            <TabButton
-              key={feed.id}
-              label={feed.label}
-              active={activeTab === feed.id}
-              onClick={() => handleSetActiveTab(feed.id)}
-            />
-          ))}
-          {showSavedFeedTabs && hashtags.map((tag) => (
-            <TabButton
-              key={`hashtag:${tag}`}
-              label={`#${tag}`}
-              active={activeTab === `hashtag:${tag}`}
-              onClick={() => handleSetActiveTab(`hashtag:${tag}`)}
-            />
-          ))}
-          {showSavedFeedTabs && geotags.map((tag) => (
-            <TabButton
-              key={`geotag:${tag}`}
-              label={tag}
-              active={activeTab === `geotag:${tag}`}
-              onClick={() => handleSetActiveTab(`geotag:${tag}`)}
-            >
-              <span className="flex items-center justify-center gap-1">
-                <MapPin className="size-3.5" />
-                {tag}
-              </span>
-            </TabButton>
-          ))}
+        <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
+          <div className="flex bg-background/80 backdrop-blur-md overflow-x-auto scrollbar-none">
+            <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
+            {!isKindSpecificPage && showDittoFeed && (
+              <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
+            )}
+            {!isKindSpecificPage && showCommunityFeed && (
+              <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
+            )}
+            {(isKindSpecificPage || showGlobalFeed) && (
+              <TabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
+            )}
+            {showSavedFeedTabs && savedFeeds.map((feed) => (
+              <TabButton
+                key={feed.id}
+                label={feed.label}
+                active={activeTab === feed.id}
+                onClick={() => handleSetActiveTab(feed.id)}
+              />
+            ))}
+            {showSavedFeedTabs && hashtags.map((tag) => (
+              <TabButton
+                key={`hashtag:${tag}`}
+                label={`#${tag}`}
+                active={activeTab === `hashtag:${tag}`}
+                onClick={() => handleSetActiveTab(`hashtag:${tag}`)}
+              />
+            ))}
+            {showSavedFeedTabs && geotags.map((tag) => (
+              <TabButton
+                key={`geotag:${tag}`}
+                label={tag}
+                active={activeTab === `geotag:${tag}`}
+                onClick={() => handleSetActiveTab(`geotag:${tag}`)}
+              >
+                <span className="flex items-center justify-center gap-1">
+                  <MapPin className="size-3.5" />
+                  {tag}
+                </span>
+              </TabButton>
+            ))}
+          </div>
+          {/* Decorative semi-ellipse arc below the tabs */}
+          <svg
+            className="absolute left-0 right-0 top-full w-full pointer-events-none"
+            viewBox="0 0 100 12"
+            preserveAspectRatio="none"
+            style={{ height: 20 }}
+          >
+            <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
+            <path d="M0,0 Q50,12 100,0" className="fill-none stroke-border" vectorEffect="non-scaling-stroke" />
+          </svg>
         </div>
       ) : !kinds && (
         <LandingHero
