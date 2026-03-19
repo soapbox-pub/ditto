@@ -1,6 +1,10 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { ZAPSTORE_RELAY } from '@/lib/appRelays';
+
+/** Kinds whose canonical home is the Zapstore relay. */
+const ZAPSTORE_KINDS = [32267, 30063];
 
 /**
  * Extract write relay URLs from a NIP-65 (kind 10002) relay list event.
@@ -100,10 +104,21 @@ export function useAddrEvent(addr: AddrCoords | undefined, relays?: string[]) {
     queryKey: ['addr-event', addr?.kind ?? 0, addr?.pubkey ?? '', addr?.identifier ?? ''],
     queryFn: async ({ signal }) => {
       if (!addr) return null;
-      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
       const filter: NostrFilter[] = [{ kinds: [addr.kind], authors: [addr.pubkey], '#d': [addr.identifier], limit: 1 }];
 
-      // 1. Query the user's configured relays first
+      // For Zapstore kinds, try the canonical relay first for fastest results
+      if (ZAPSTORE_KINDS.includes(addr.kind)) {
+        try {
+          const zapSignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
+          const zapEvents = await nostr.relay(ZAPSTORE_RELAY).query(filter, { signal: zapSignal });
+          if (zapEvents.length > 0) return zapEvents[0];
+        } catch {
+          // zapstore relay failed — fall through to normal flow
+        }
+      }
+
+      // 1. Query the user's configured relays
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
       const events = await nostr.query(filter, { signal: querySignal });
       if (events.length > 0) return events[0];
 
