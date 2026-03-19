@@ -56,19 +56,18 @@ export function useEvent(eventId: string | undefined, relays?: string[], authorH
 
   return useQuery<NostrEvent | null>({
     queryKey: ['event', eventId ?? ''],
-    queryFn: async ({ signal }) => {
+    queryFn: async () => {
       if (!eventId) return null;
       const filter: NostrFilter[] = [{ ids: [eventId], limit: 1 }];
 
       // 1. Query the user's configured relays first (batched automatically)
-      const events = await nostr.query(filter, { signal });
+      const events = await nostr.query(filter, { signal: AbortSignal.timeout(5000) });
       if (events.length > 0) return events[0];
 
       // 2. If not found and we have relay hints, try those relays directly
       if (relays && relays.length > 0) {
         try {
-          const hintSignal = AbortSignal.any([signal, AbortSignal.timeout(1000)]);
-          const hintEvents = await nostr.group(relays).query(filter, { signal: hintSignal });
+          const hintEvents = await nostr.group(relays).query(filter, { signal: AbortSignal.timeout(5000) });
           if (hintEvents.length > 0) return hintEvents[0];
         } catch {
           // relay hint query failed — fall through
@@ -78,7 +77,7 @@ export function useEvent(eventId: string | undefined, relays?: string[], authorH
       // 3. Last resort: if we have the author's pubkey, fetch their NIP-65 relay
       //    list and try their write relays (where they publish content)
       if (authorHint) {
-        const found = await queryAuthorRelays(nostr, authorHint, filter, AbortSignal.timeout(1000));
+        const found = await queryAuthorRelays(nostr, authorHint, filter, AbortSignal.timeout(10000));
         if (found) return found;
       }
 
@@ -102,15 +101,14 @@ export function useAddrEvent(addr: AddrCoords | undefined, relays?: string[]) {
 
   return useQuery<NostrEvent | null>({
     queryKey: ['addr-event', addr?.kind ?? 0, addr?.pubkey ?? '', addr?.identifier ?? ''],
-    queryFn: async ({ signal }) => {
+    queryFn: async () => {
       if (!addr) return null;
       const filter: NostrFilter[] = [{ kinds: [addr.kind], authors: [addr.pubkey], '#d': [addr.identifier], limit: 1 }];
 
       // For Zapstore kinds, try the canonical relay first for fastest results
       if (ZAPSTORE_KINDS.includes(addr.kind)) {
         try {
-          const zapSignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-          const zapEvents = await nostr.relay(ZAPSTORE_RELAY).query(filter, { signal: zapSignal });
+          const zapEvents = await nostr.relay(ZAPSTORE_RELAY).query(filter, { signal: AbortSignal.timeout(5000) });
           if (zapEvents.length > 0) return zapEvents[0];
         } catch {
           // zapstore relay failed — fall through to normal flow
@@ -118,15 +116,13 @@ export function useAddrEvent(addr: AddrCoords | undefined, relays?: string[]) {
       }
 
       // 1. Query the user's configured relays
-      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-      const events = await nostr.query(filter, { signal: querySignal });
+      const events = await nostr.query(filter, { signal: AbortSignal.timeout(5000) });
       if (events.length > 0) return events[0];
 
       // 2. If not found and we have relay hints, try those relays directly
       if (relays && relays.length > 0) {
         try {
-          const hintSignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-          const hintEvents = await nostr.group(relays).query(filter, { signal: hintSignal });
+          const hintEvents = await nostr.group(relays).query(filter, { signal: AbortSignal.timeout(5000) });
           if (hintEvents.length > 0) return hintEvents[0];
         } catch {
           // relay hint query failed — fall through
@@ -135,7 +131,7 @@ export function useAddrEvent(addr: AddrCoords | undefined, relays?: string[]) {
 
       // 3. Last resort: fetch the author's NIP-65 relay list and try their
       //    write relays (naddr always includes the author pubkey)
-      const found = await queryAuthorRelays(nostr, addr.pubkey, filter, signal);
+      const found = await queryAuthorRelays(nostr, addr.pubkey, filter, AbortSignal.timeout(10000));
       if (found) return found;
 
       return null;
