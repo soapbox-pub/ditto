@@ -7,6 +7,8 @@ interface SubHeaderBarProps {
   className?: string;
   /** Extra classes on the inner flex container holding the tabs. */
   innerClassName?: string;
+  /** Replace the decorative arc with a plain rectangle. */
+  noArc?: boolean;
 }
 
 /**
@@ -17,10 +19,10 @@ interface SubHeaderBarProps {
  * Used by all tab bars (Feed, Search, Notifications, etc.) and the MobileTopBar
  * fallback arc.
  */
-export function SubHeaderBar({ children, className, innerClassName }: SubHeaderBarProps) {
+export function SubHeaderBar({ children, className, innerClassName, noArc }: SubHeaderBarProps) {
   return (
     <div className={cn('relative sticky top-mobile-bar sidebar:top-0 z-10', className)}>
-      <ArcBackground variant="down" />
+      <ArcBackground variant={noArc ? 'rect' : 'down'} />
       {/* Tab content sits above the SVG background */}
       <div className={cn('relative flex overflow-x-auto scrollbar-none', innerClassName)}>
         {children}
