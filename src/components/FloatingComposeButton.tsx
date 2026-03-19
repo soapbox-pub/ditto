@@ -69,10 +69,11 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
               <stop offset="0%" style={{ stopColor: 'hsl(var(--primary))' }} />
               <stop offset="100%" style={{ stopColor: 'hsl(var(--accent))' }} />
             </linearGradient>
-            {/* Mask: white = visible, black = cut out */}
+            {/* Mask: white = visible, black = cut out.
+                Strokes the full ring path in black to carve a gap where the ring
+                crosses the planet body. No pathLength/dash tricks — Safari-safe. */}
             <mask id="planet-body-mask">
               <circle cx="12" cy="12" r="8" fill="white" />
-              {/* Cut out the ring path where it crosses the body */}
               <path
                 d="M4.05 13c-1.7 1.8-2.5 3.5-1.8 4.5c1.1 1.9 6.4 1 11.8-2s8.9-7.1 7.7-9c-.6-1-2.4-1.2-4.7-.7"
                 fill="none"
@@ -80,9 +81,6 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
                 strokeWidth="3"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                pathLength="100"
-                strokeDasharray="90"
-                strokeDashoffset="-5"
               />
             </mask>
           </defs>
