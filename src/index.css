@@ -68,6 +68,12 @@
     top: calc(3rem + env(safe-area-inset-top, 0px));
   }
 
+  /* Negative margin to pull content area up behind the mobile top bar */
+  .-mt-mobile-bar {
+    margin-top: calc(-3rem - env(safe-area-inset-top, 0px));
+    padding-top: calc(3rem + env(safe-area-inset-top, 0px));
+  }
+
   /* AI chat height on mobile: full viewport minus top bar, bottom nav (3.5rem), and safe-area insets */
   .ai-chat-height {
     height: calc(100dvh - 3rem - 3.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
