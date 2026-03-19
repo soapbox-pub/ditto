@@ -1002,10 +1002,16 @@ export const LEGACY_VISUAL_TAG_NAMES = [
  * 
  * - shell_integrity: Eggs now use the standard health stat instead
  * - egg_temperature: Eggs now rely on warmth prop fallback; not part of active stat model
+ * - incubation_progress: Obsolete task progress field
+ * - egg_status: Obsolete status field
+ * - fees: Obsolete fee tracking field
  */
 export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
   'shell_integrity',
   'egg_temperature',
+  'incubation_progress',
+  'egg_status',
+  'fees',
 ]);
 
 /**
