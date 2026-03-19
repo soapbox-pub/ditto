@@ -40,6 +40,12 @@ export interface LayoutOptions {
    * doubling up.
    */
   hasSubHeader?: boolean;
+  /**
+   * If true, all decorative arcs are replaced with plain rectangles on the
+   * mobile top bar, bottom nav, and sub-header. Use for immersive pages
+   * (e.g. vines) where curved chrome interferes with full-bleed content.
+   */
+  noArcs?: boolean;
 }
 
 type Listener = () => void;
@@ -109,7 +115,8 @@ export function useLayoutOptions(options: LayoutOptions): void {
     prev.current.scrollContainer !== options.scrollContainer ||
     prev.current.noOverscroll !== options.noOverscroll ||
     prev.current.noMaxWidth !== options.noMaxWidth ||
-    prev.current.hasSubHeader !== options.hasSubHeader;
+    prev.current.hasSubHeader !== options.hasSubHeader ||
+    prev.current.noArcs !== options.noArcs;
 
   if (changed) {
     prev.current = options;

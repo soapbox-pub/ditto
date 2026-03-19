@@ -635,6 +635,7 @@ export function VinesFeedPage() {
     scrollContainer,
     noOverscroll: true,
     hasSubHeader: true,
+    noArcs: true,
   });
 
   // Track scroll direction to expand vines when bottom nav hides
@@ -787,7 +788,7 @@ interface VinesTabBarProps {
 
 function VinesTabBar({ tab, onTabChange, hasUser }: VinesTabBarProps) {
   return (
-    <SubHeaderBar className="shrink-0">
+    <SubHeaderBar className="shrink-0" noArc>
       {hasUser && (
         <TabButton label="Follows" active={tab === 'follows'} onClick={() => onTabChange('follows')} className="sidebar:py-5 sidebar:font-semibold" indicatorClassName="sidebar:h-[3px]" />
       )}

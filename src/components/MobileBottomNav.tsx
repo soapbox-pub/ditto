@@ -22,7 +22,7 @@ export function MobileBottomNav() {
   const location = useLocation();
   const { user, metadata } = useCurrentUser();
   const hasUnread = useHasUnreadNotifications();
-  const { scrollContainer } = useLayoutSnapshot();
+  const { scrollContainer, noArcs } = useLayoutSnapshot();
   const { hidden } = useScrollDirection(scrollContainer);
   const profileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
 
@@ -50,7 +50,7 @@ export function MobileBottomNav() {
         )}
         style={isHidden ? hiddenStyle : undefined}
       >
-        <ArcBackground variant="up" />
+        <ArcBackground variant={noArcs ? 'rect' : 'up'} />
 
         <div className="h-11 flex items-center relative">
 
