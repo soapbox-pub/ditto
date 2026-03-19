@@ -616,7 +616,7 @@ interface DashboardShellProps {
 function DashboardShell({ children }: DashboardShellProps) {
   return (
     <main className="min-h-[calc(100vh-4rem)] p-4 pb-20">
-      <div className="container mx-auto max-w-4xl">
+      <div className="mx-auto w-full max-w-4xl sm:px-6 lg:px-8">
         {/* Frosted glass dashboard container */}
         <div className="relative rounded-2xl bg-card/80 backdrop-blur-sm border border-border overflow-hidden min-h-[70vh]">
           {/* Subtle decorative gradient overlay */}
@@ -935,11 +935,23 @@ function BlobbiDashboard({
           onSetAsCompanion={() => console.log('TODO: set as companion')}
           onTakePhoto={() => console.log('TODO: take photo')}
           onOpenPiP={() => console.log('TODO: open PiP')}
-          onEvolve={isEgg ? onHatch : onEvolve}
-          isTransitioning={isHatching || isEvolving}
+          onEvolve={
+            // For eggs not yet incubating: show incubation dialog
+            // For eggs incubating with all tasks complete: hatch action handled in HatchTasksPanel
+            // For baby: evolve to adult
+            canStartIncubation
+              ? () => setShowIncubationDialog(true)
+              : isEgg
+                ? onHatch
+                : onEvolve
+          }
+          isTransitioning={isHatching || isEvolving || isStartingIncubation}
           onInfo={() => setShowInfoModal(true)}
-          // Hide hatch button when incubating (hatch is in HatchTasksPanel instead)
+          // Hide hatch button only when actively incubating (hatch is in HatchTasksPanel instead)
+          // Show button for eggs not yet incubating (to start incubation)
           hideEvolveButton={isIncubating}
+          // When canStartIncubation is true, the button triggers incubation start
+          isIncubationAction={canStartIncubation}
         />
         
         {/* Blobbi Name */}
@@ -1049,20 +1061,7 @@ function BlobbiDashboard({
           </div>
         )}
         
-        {/* Start Incubation Button - for eggs not yet incubating */}
-        {canStartIncubation && (
-          <div className="mt-6 flex justify-center">
-            <Button
-              onClick={() => setShowIncubationDialog(true)}
-              variant="outline"
-              size="lg"
-              className="gap-2 border-primary/30 hover:border-primary/50 hover:bg-primary/5"
-            >
-              <Egg className="size-5" />
-              Start Incubation
-            </Button>
-          </div>
-        )}
+
         
         {/* Inline Activity Area - inside padded container for proper spacing above bottom bar */}
         {inlineActivity.type === 'music' && (
@@ -1275,7 +1274,6 @@ interface FloatingActionDef {
 }
 
 interface BlobbiDashboardFloatingControlsProps {
-  /** Current Blobbi's life stage - affects evolve button icon */
   stage: 'egg' | 'baby' | 'adult';
   onBack?: () => void;
   onSetAsCompanion: () => void;
@@ -1287,14 +1285,17 @@ interface BlobbiDashboardFloatingControlsProps {
   onInfo: () => void;
   /** Whether to hide the evolve/hatch button (e.g., when incubating) */
   hideEvolveButton?: boolean;
+  /** Whether the button should show incubation action (for eggs not yet incubating) */
+  isIncubationAction?: boolean;
 }
 
 /**
- * Get the appropriate icon for the evolve/hatch button based on stage.
- * - egg stage: Egg icon (hatching action)
+ * Get the appropriate icon for the evolve/hatch button based on stage and incubation state.
+ * - egg stage (not incubating): Egg icon (start incubation action)
+ * - egg stage (incubating): Egg icon (hatching action)
  * - baby/adult stages: Sparkles icon (evolution/transformation)
  */
-function getEvolveIcon(stage: 'egg' | 'baby' | 'adult'): React.ReactNode {
+function getEvolveIcon(stage: 'egg' | 'baby' | 'adult', _isIncubationAction?: boolean): React.ReactNode {
   if (stage === 'egg') {
     return <Egg className="size-4" />;
   }
@@ -1303,11 +1304,11 @@ function getEvolveIcon(stage: 'egg' | 'baby' | 'adult'): React.ReactNode {
 }
 
 /**
- * Get the appropriate tooltip for the evolve/hatch button based on stage.
+ * Get the appropriate tooltip for the evolve/hatch button based on stage and incubation state.
  */
-function getEvolveTooltip(stage: 'egg' | 'baby' | 'adult'): string {
+function getEvolveTooltip(stage: 'egg' | 'baby' | 'adult', isIncubationAction?: boolean): string {
   if (stage === 'egg') {
-    return 'Hatch';
+    return isIncubationAction ? 'Start Incubation' : 'Hatch';
   }
   return 'Evolve';
 }
@@ -1326,6 +1327,7 @@ function BlobbiDashboardFloatingControls({
   isTransitioning = false,
   onInfo,
   hideEvolveButton = false,
+  isIncubationAction = false,
 }: BlobbiDashboardFloatingControlsProps) {
   // Left-side buttons
   const leftButtons: FloatingActionDef[] = [
@@ -1365,12 +1367,12 @@ function BlobbiDashboardFloatingControls({
     },
   ];
 
-  // Evolve/Hatch button (emphasized, at the bottom of right cluster)
-  // Icon and tooltip are stage-aware
+  // Evolve/Hatch/Incubation button (emphasized, at the bottom of right cluster)
+  // Icon and tooltip are stage-aware and incubation-aware
   const evolveButton: FloatingActionDef = {
     id: 'evolve',
-    icon: getEvolveIcon(stage),
-    tooltip: getEvolveTooltip(stage),
+    icon: getEvolveIcon(stage, isIncubationAction),
+    tooltip: getEvolveTooltip(stage, isIncubationAction),
     onClick: onEvolve,
     variant: 'accent',
   };

@@ -80,6 +80,7 @@ export {
   type ResolvedInventoryItem,
   type EggStatPreview,
   type ItemUsabilityResult,
+  type IncrementInteractionResult,
   // Constants
   ACTION_TO_ITEM_TYPE,
   ACTION_METADATA,
@@ -110,4 +111,5 @@ export {
   hasHygieneEffectForEgg,
   canUseItemForStage,
   getActionForItem,
+  incrementInteractionTaskTags,
 } from './lib/blobbi-action-utils';
