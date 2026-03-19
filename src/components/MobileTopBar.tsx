@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { DittoLogo } from '@/components/DittoLogo';
 import { BarsStaggeredIcon } from '@/components/icons/BarsStaggeredIcon';
+import { ArcBackground } from '@/components/ArcBackground';
 
 interface MobileTopBarProps {
   onAvatarClick: () => void;
@@ -21,20 +22,7 @@ export function MobileTopBar({ onAvatarClick, showArc }: MobileTopBarProps) {
 
   return (
     <header className="sticky top-0 z-20 sidebar:hidden safe-area-top">
-      {/* Unified background: rectangle (+ optional arc) as one SVG shape.
-          When showArc is false, sub-header provides its own arc so we just draw the rect. */}
-      <svg
-        className="absolute inset-0 w-full pointer-events-none"
-        viewBox="0 0 100 64"
-        preserveAspectRatio="none"
-        style={{ height: showArc ? 'calc(100% + 20px)' : '100%' }}
-      >
-        {showArc ? (
-          <path d="M0,0 L100,0 L100,44 Q50,64 0,44 Z" className="fill-background/80" />
-        ) : (
-          <rect x="0" y="0" width="100" height="64" className="fill-background/80" />
-        )}
-      </svg>
+      <ArcBackground variant={showArc ? 'down' : 'rect'} />
       <div className="relative flex items-center px-3 h-10">
         {/* Left: hamburger menu icon */}
         <div className="flex items-center justify-center w-7 shrink-0">

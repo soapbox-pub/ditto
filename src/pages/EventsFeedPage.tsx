@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CalendarDays, Loader2 } from 'lucide-react';
+import { CalendarDays, Loader2 } from 'lucide-react';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { useSeoMeta } from '@unhead/react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -11,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { NoteCard } from '@/components/NoteCard';
+import { PageHeader } from '@/components/PageHeader';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { useFeed } from '@/hooks/useFeed';
@@ -114,17 +114,9 @@ export function EventsFeedPage() {
         </SubHeaderBar>
       )}
 
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <CalendarDays className="size-5" />
-          <h1 className="text-xl font-bold">Events</h1>
-        </div>
+      <PageHeader title="Events" icon={<CalendarDays className="size-5" />}>
         <KindInfoButton kindDef={eventsDef} icon={sidebarItemIcon('events', 'size-5')} />
-      </div>
+      </PageHeader>
 
       <PullToRefresh onRefresh={handleRefresh}>
         {showSkeleton ? (

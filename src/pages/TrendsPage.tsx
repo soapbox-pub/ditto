@@ -1,9 +1,10 @@
 import { useSeoMeta } from "@unhead/react";
-import { ArrowLeft, Flame, Loader2, Swords, TrendingUp } from "lucide-react";
+import { Flame, Loader2, Swords, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { Link } from "react-router-dom";
 import { NoteCard } from "@/components/NoteCard";
+import { PageHeader } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useMuteList } from "@/hooks/useMuteList";
@@ -64,16 +65,7 @@ export function TrendsPage() {
 
   return (
     <main className="">
-      {/* Page header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <TrendingUp className="size-5" />
-          <h1 className="text-xl font-bold">Trends</h1>
-        </div>
-      </div>
+      <PageHeader title="Trends" icon={<TrendingUp className="size-5" />} />
 
       {/* Trending Hashtags */}
       <div className="px-4 pt-4 pb-2">

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, BookMarked, Loader2, Search, X } from 'lucide-react';
+import { BookMarked, Loader2, Search, X } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 
 import { SubHeaderBar } from '@/components/SubHeaderBar';
@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { KindInfoButton } from '@/components/KindInfoButton';
+import { PageHeader } from '@/components/PageHeader';
 import { BookFeedItem, BookFeedItemSkeleton } from '@/components/BookFeedItem';
 import { useBookFeed } from '@/hooks/useBookFeed';
 import { useBookSearch, type BookSearchResult } from '@/hooks/useBookSearch';
@@ -105,17 +106,9 @@ export function BooksPage() {
         </SubHeaderBar>
       )}
 
-      {/* Page header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <BookMarked className="size-5" />
-          <h1 className="text-xl font-bold">Books</h1>
-        </div>
+      <PageHeader title="Books" icon={<BookMarked className="size-5" />}>
         <KindInfoButton kindDef={booksDef} icon={<BookMarked className="size-10" />} />
-      </div>
+      </PageHeader>
 
       {/* Book search bar */}
       <BookSearchBar />
