@@ -43,7 +43,7 @@ export function PhotosFeedPage() {
   const [activeTab, setActiveTab] = useFeedTab<FeedTab>('photos', ['follows', 'global']);
 
   useSeoMeta({ title: `Photos | ${config.appName}`, description: 'Photo posts on Nostr' });
-  useLayoutOptions({ showFAB: false });
+  useLayoutOptions({ showFAB: false, hasSubHeader: true });
 
   // ── Follows feed (chronological) ──
   const followsQuery = useFeed('follows', { kinds: [PHOTO_KIND] });

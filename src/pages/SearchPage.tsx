@@ -49,6 +49,7 @@ import { TabButton } from '@/components/TabButton';
 // getNostrIdentifierPath removed — identifiers are now handled as autocomplete suggestions
 import { cn, STICKY_HEADER_CLASS, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
 
@@ -90,6 +91,8 @@ export function SearchPage() {
     title: `Search | ${config.appName}`,
     description: 'Search Nostr',
   });
+
+  useLayoutOptions({ hasSubHeader: true });
 
   const [searchParams, setSearchParams] = useSearchParams();
 

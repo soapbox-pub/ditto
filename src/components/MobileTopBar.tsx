@@ -5,9 +5,11 @@ import { BarsStaggeredIcon } from '@/components/icons/BarsStaggeredIcon';
 
 interface MobileTopBarProps {
   onAvatarClick: () => void;
+  /** Whether to show the decorative arc below the header (when no sub-header exists). */
+  showArc?: boolean;
 }
 
-export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
+export function MobileTopBar({ onAvatarClick, showArc }: MobileTopBarProps) {
   const location = useLocation();
 
   const handleLogoClick = useCallback((e: React.MouseEvent) => {
@@ -37,6 +39,12 @@ export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
         {/* Right: spacer for symmetry */}
         <div className="w-7 shrink-0" />
       </div>
+      {/* Decorative arc — only shown when no sub-header provides its own */}
+      {showArc && (
+        <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
+          <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
+        </svg>
+      )}
     </header>
   );
 }

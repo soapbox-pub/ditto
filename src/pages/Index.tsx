@@ -11,7 +11,7 @@ const Index = () => {
     description: 'Your content. Your vibe. Your rules.',
   });
 
-  useLayoutOptions({ showFAB: true, fabKind: 1 });
+  useLayoutOptions({ showFAB: true, fabKind: 1, hasSubHeader: true });
 
   return <Feed />;
 };
