@@ -114,7 +114,7 @@ export function NotificationsPage() {
     <main className="">
       {/* Tab bar */}
       <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
-        <div className="flex bg-background/80 backdrop-blur-md">
+        <div className="flex bg-background">
           {tabs.map(({ key, label }) => (
             <TabButton
               key={key}
@@ -133,7 +133,7 @@ export function NotificationsPage() {
           preserveAspectRatio="none"
           style={{ height: 20 }}
         >
-          <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
+          <path d="M0,0 Q50,12 100,0 Z" className="fill-background" />
         </svg>
       </div>
 

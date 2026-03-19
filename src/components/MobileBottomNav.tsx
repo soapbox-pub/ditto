@@ -39,7 +39,7 @@ export function MobileBottomNav() {
 
       <nav
         className={cn(
-          'fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md sidebar:hidden safe-area-bottom',
+          'fixed bottom-0 left-0 right-0 z-40 bg-background sidebar:hidden safe-area-bottom',
           'transition-transform duration-300 ease-in-out',
           isHidden && 'translate-y-full',
         )}
@@ -51,7 +51,7 @@ export function MobileBottomNav() {
           preserveAspectRatio="none"
           style={{ height: 20 }}
         >
-          <path d="M0,12 Q50,0 100,12 Z" className="fill-background/80" />
+          <path d="M0,12 Q50,0 100,12 Z" className="fill-background" />
         </svg>
 
         <div className="h-14 flex items-center">
