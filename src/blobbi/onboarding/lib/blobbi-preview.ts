@@ -8,7 +8,6 @@
 
 import {
   DEFAULT_EGG_STATS,
-  DEFAULT_INCUBATION_TIME,
   BLOBBI_ECOSYSTEM_NAMESPACE,
   BLOBBI_TOPIC_TAG,
   BLOBBI_CLIENT_TAG,
@@ -43,8 +42,6 @@ export interface BlobbiEggPreview {
   visualTraits: BlobbiVisualTraits;
   /** Default stats for a new egg */
   stats: BlobbiStats;
-  /** Incubation time in seconds */
-  incubationTime: number;
   /** Unix timestamp when preview was created (used for seed derivation) */
   createdAt: number;
   /** Owner pubkey */
@@ -86,7 +83,6 @@ export function generateEggPreview(
     state: 'active',
     visualTraits,
     stats: { ...DEFAULT_EGG_STATS },
-    incubationTime: DEFAULT_INCUBATION_TIME,
     createdAt,
     ownerPubkey: pubkey,
   };
@@ -151,7 +147,6 @@ export function previewToEventTags(preview: BlobbiEggPreview): string[][] {
     ['energy', preview.stats.energy.toString()],
     ['last_interaction', now],
     ['last_decay_at', now],
-    ['incubation_time', preview.incubationTime.toString()],
     // Visual trait tags - ensures deterministic rendering
     ['base_color', visualTraits.baseColor],
     ['secondary_color', visualTraits.secondaryColor],
@@ -189,8 +184,8 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     breedingReady: false,
     experience: 0,
     careStreak: 0,
-    incubationTime: preview.incubationTime,
-    startIncubation: undefined,
+    incubationTime: undefined, // Deprecated field, no longer used
+    startIncubation: undefined, // Deprecated field, no longer used
     adultType: undefined, // Eggs don't have adult type
     
     // Task-related fields (not applicable to previews)

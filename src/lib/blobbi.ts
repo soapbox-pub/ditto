@@ -20,7 +20,10 @@ export const DEFAULT_EGG_STATS = {
   energy: 100,
 };
 
-// Default incubation time in seconds (4 days)
+/**
+ * @deprecated No longer used. Task system uses state_started_at instead.
+ * Kept for backwards compatibility with older code that may reference it.
+ */
 export const DEFAULT_INCUBATION_TIME = 345600;
 
 // ─── Onboarding Constants ─────────────────────────────────────────────────────
@@ -206,9 +209,15 @@ export interface BlobbiCompanion {
   experience: number | undefined;
   /** Consecutive care days */
   careStreak: number | undefined;
-  /** Incubation time in seconds (egg only) */
+  /** 
+   * @deprecated Incubation time in seconds - no longer used.
+   * Task system uses state_started_at instead.
+   */
   incubationTime: number | undefined;
-  /** When incubation began (egg only) */
+  /** 
+   * @deprecated When incubation began - no longer used.
+   * Replaced by state_started_at for all process timing.
+   */
   startIncubation: number | undefined;
   /** Adult evolution form type (adult only) */
   adultType: string | undefined;
@@ -930,6 +939,9 @@ export function buildBlobbonautTags(pubkey: string): string[][] {
 /**
  * Build tags for a new Blobbi egg (Kind 31124).
  * Includes required and recommended tags for a new egg.
+ * 
+ * Visual traits are derived from the seed and explicitly stored
+ * to ensure consistent rendering across clients.
  */
 export function buildEggTags(
   pubkey: string,
@@ -940,6 +952,14 @@ export function buildEggTags(
   const d = getCanonicalBlobbiD(pubkey, petId);
   const seed = deriveBlobbiSeedV1(pubkey, d, createdAt);
   const now = createdAt.toString();
+  
+  // Derive visual traits from seed for explicit storage
+  const baseColor = deriveBaseColorFromSeed(seed);
+  const secondaryColor = deriveSecondaryColorFromSeed(seed);
+  const eyeColor = deriveEyeColorFromSeed(seed);
+  const pattern = derivePatternFromSeed(seed);
+  const specialMark = deriveSpecialMarkFromSeed(seed);
+  const size = deriveSizeFromSeed(seed);
   
   return [
     ['d', d],
@@ -962,7 +982,13 @@ export function buildEggTags(
     ['energy', DEFAULT_EGG_STATS.energy.toString()],
     ['last_interaction', now],
     ['last_decay_at', now],
-    ['incubation_time', DEFAULT_INCUBATION_TIME.toString()],
+    // Visual traits (derived from seed, explicitly stored for consistency)
+    ['base_color', baseColor],
+    ['secondary_color', secondaryColor],
+    ['eye_color', eyeColor],
+    ['pattern', pattern],
+    ['special_mark', specialMark],
+    ['size', size],
   ];
 }
 
@@ -976,24 +1002,27 @@ export const MANAGED_BLOBBI_STATE_TAG_NAMES = new Set([
   'd', 'b', 't', 'client', 'name', 'stage', 'state', 'seed',
   'visible_to_others', 'generation', 'breeding_ready', 'experience',
   'care_streak', 'hunger', 'happiness', 'health', 'hygiene', 'energy',
-  'last_interaction', 'last_decay_at', 'incubation_time', 'start_incubation',
-  // Incubation task system tags
+  'last_interaction', 'last_decay_at',
+  // Task system tags (state_started_at is the single source of truth for process timing)
   'state_started_at', 'task', 'task_completed',
+  // Visual trait tags (required for consistent rendering)
+  'base_color', 'secondary_color', 'eye_color', 'pattern', 'special_mark', 'size',
 ]);
 
 /**
- * Legacy visual tags that should be explicitly preserved during migration.
- * These tags are TRANSITIONAL - seed is the future source of truth.
- * They are preserved for backwards compatibility with older events.
+ * Visual trait tags that are part of the canonical Blobbi format.
+ * These tags ensure deterministic visual rendering across clients.
+ * 
+ * Note: While seed is the ultimate source of truth for visual generation,
+ * these tags are explicitly stored for compatibility and faster rendering.
  */
-export const LEGACY_VISUAL_TAG_NAMES = [
+export const VISUAL_TRAIT_TAG_NAMES = [
   'base_color',
   'secondary_color',
   'eye_color',
   'pattern',
   'special_mark',
   'size',
-  'egg_status',
 ] as const;
 
 /**
@@ -1005,6 +1034,8 @@ export const LEGACY_VISUAL_TAG_NAMES = [
  * - incubation_progress: Obsolete task progress field
  * - egg_status: Obsolete status field
  * - fees: Obsolete fee tracking field
+ * - incubation_time: Obsolete; task system uses state_started_at instead
+ * - start_incubation: Obsolete; replaced by state_started_at
  */
 export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
   'shell_integrity',
@@ -1012,6 +1043,8 @@ export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
   'incubation_progress',
   'egg_status',
   'fees',
+  'incubation_time',
+  'start_incubation',
 ]);
 
 /**
@@ -1306,10 +1339,10 @@ export function buildMigrationTags(
     }
   }
   
-  // EXPLICITLY preserve legacy visual tags for backwards compatibility
+  // EXPLICITLY preserve visual trait tags for backwards compatibility
   // These are TRANSITIONAL - seed is the future source of truth
   // Do not overwrite if they exist in the legacy event
-  for (const visualTag of LEGACY_VISUAL_TAG_NAMES) {
+  for (const visualTag of VISUAL_TRAIT_TAG_NAMES) {
     const value = getTagValue(legacyTags, visualTag);
     if (value !== undefined) {
       newTags.push([visualTag, value]);
@@ -1326,10 +1359,10 @@ export function buildMigrationTags(
   }
   
   // Preserve truly unknown tags for forward compatibility
-  // (tags not in managed set AND not in legacy visual set)
+  // (tags not in managed set AND not in visual trait set)
   const knownTagNames = new Set([
     ...MANAGED_BLOBBI_STATE_TAG_NAMES,
-    ...LEGACY_VISUAL_TAG_NAMES,
+    ...VISUAL_TRAIT_TAG_NAMES,
   ]);
   const unknownTags = legacyTags.filter(tag => !knownTagNames.has(tag[0]));
   

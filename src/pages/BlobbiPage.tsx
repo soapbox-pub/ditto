@@ -615,8 +615,9 @@ interface DashboardShellProps {
 
 function DashboardShell({ children }: DashboardShellProps) {
   return (
-    <main className="min-h-[calc(100vh-4rem)] p-4 pb-20">
-      <div className="mx-auto w-full max-w-4xl sm:px-6 lg:px-8">
+    <main className="min-h-[calc(100vh-4rem)] px-2 py-4 pb-20 sm:px-4 md:px-6">
+      {/* Responsive container: narrow on mobile, wider on desktop with reasonable max */}
+      <div className="mx-auto w-full max-w-2xl lg:max-w-3xl">
         {/* Frosted glass dashboard container */}
         <div className="relative rounded-2xl bg-card/80 backdrop-blur-sm border border-border overflow-hidden min-h-[70vh]">
           {/* Subtle decorative gradient overlay */}
