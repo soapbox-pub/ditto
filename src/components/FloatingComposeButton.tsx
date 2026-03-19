@@ -55,18 +55,24 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
           viewBox="0 0 24 24"
           className="absolute inset-0 w-full h-full"
         >
-          {/* Planet body */}
-          <circle cx="12" cy="12" r="8" className="fill-accent" />
-          {/* Ring gap — wider background-colored stroke to create visible border around the ring */}
-          <path
-            d="M4.05 13c-1.7 1.8-2.5 3.5-1.8 4.5c1.1 1.9 6.4 1 11.8-2s8.9-7.1 7.7-9c-.6-1-2.4-1.2-4.7-.7"
-            fill="none"
-            className="stroke-background"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {/* Ring — accent-colored, drawn on top of the gap */}
+          <defs>
+            {/* Mask: white = visible, black = cut out */}
+            <mask id="planet-body-mask">
+              <circle cx="12" cy="12" r="8" fill="white" />
+              {/* Cut out the ring path where it crosses the body */}
+              <path
+                d="M4.05 13c-1.7 1.8-2.5 3.5-1.8 4.5c1.1 1.9 6.4 1 11.8-2s8.9-7.1 7.7-9c-.6-1-2.4-1.2-4.7-.7"
+                fill="none"
+                stroke="black"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </mask>
+          </defs>
+          {/* Planet body with ring gap cut out */}
+          <circle cx="12" cy="12" r="8" className="fill-accent" mask="url(#planet-body-mask)" />
+          {/* Ring — accent-colored */}
           <path
             d="M4.05 13c-1.7 1.8-2.5 3.5-1.8 4.5c1.1 1.9 6.4 1 11.8-2s8.9-7.1 7.7-9c-.6-1-2.4-1.2-4.7-.7"
             fill="none"
