@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Sparkles, ArrowLeft, Pencil } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Loader2, Sparkles, Pencil } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { NoteCard } from '@/components/NoteCard';
+import { PageHeader } from '@/components/PageHeader';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -111,16 +111,7 @@ export function ThemesPage() {
         <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
       </SubHeaderBar>
 
-      {/* Page header */}
-      <div className="flex items-center gap-4 px-4 pt-4 pb-5">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Sparkles className="size-5" />
-          <h1 className="text-xl font-bold">Themes</h1>
-        </div>
-      </div>
+      <PageHeader title="Themes" icon={<Sparkles className="size-5" />} />
 
       {/* Tab content */}
       {activeTab === 'my-themes' ? (

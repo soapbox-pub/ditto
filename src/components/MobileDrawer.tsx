@@ -29,6 +29,9 @@ import { useToast } from '@/hooks/useToast';
 import { Input } from '@/components/ui/input';
 import { resolveTheme, resolveThemeConfig } from '@/themes';
 
+/** Total width of the drawer background layer: 300px drawer + 36px arc overhang. */
+const DRAWER_BG_WIDTH = 336;
+
 interface MobileDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -99,21 +102,26 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     <>
         <Sheet open={open} onOpenChange={(v) => { if (!v) setMoreMenuOpen(false); onOpenChange(v); }}>
         <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col overflow-visible">
-          {/* SVG clip path definition for the drawer + arc shape */}
+          {/* SVG clip path definition for the drawer + arc shape.
+              The clip path uses objectBoundingBox units so the arc scales with the
+              background layer. The 0.893 ratio ≈ DRAWER_WIDTH / DRAWER_BG_WIDTH
+              (300 / 336), placing the arc's apex at the right edge of the visible
+              drawer while the extra 36px overflows for the curved bulge. */}
           <svg className="absolute" width="0" height="0" aria-hidden="true">
             <defs>
               <clipPath id="drawer-arc-clip" clipPathUnits="objectBoundingBox">
-                {/* Rectangle for drawer body (0–0.893) + quadratic arc on the right edge */}
                 <path d="M0,0 L0.893,0 Q1,0.5 0.893,1 L0,1 Z" />
               </clipPath>
             </defs>
           </svg>
-          {/* Single background layer spanning drawer + arc so the image flows seamlessly */}
+          {/* Background layer: 300px drawer + 36px arc overhang = 336px total.
+              Clipped to the drawer+arc shape so the background image (if any) flows
+              seamlessly through both regions. */}
           <div
             className="absolute top-0 left-0 bottom-0 pointer-events-none bg-background"
             style={{
               ...bgStyle,
-              width: 336,
+              width: DRAWER_BG_WIDTH,
               clipPath: 'url(#drawer-arc-clip)',
             }}
           />
@@ -121,7 +129,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
             <div
               className="absolute top-0 left-0 bottom-0 bg-background/70 pointer-events-none"
               style={{
-                width: 336,
+                width: DRAWER_BG_WIDTH,
                 clipPath: 'url(#drawer-arc-clip)',
               }}
             />
