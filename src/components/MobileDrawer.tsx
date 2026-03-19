@@ -98,17 +98,27 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   return (
     <>
         <Sheet open={open} onOpenChange={(v) => { if (!v) setMoreMenuOpen(false); onOpenChange(v); }}>
-        <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-0 flex flex-col overflow-visible" style={bgStyle}>
+        <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col overflow-visible" style={bgStyle}>
           {hasBgImage && <div className="absolute inset-0 bg-background/70 pointer-events-none" />}
-          {/* Decorative semi-ellipse arc on the right edge */}
-          <svg
-            className="absolute top-0 bottom-0 left-full h-full pointer-events-none"
-            viewBox="0 0 12 100"
-            preserveAspectRatio="none"
-            style={{ width: 20 }}
+          {/* Decorative vertical arc extending the drawer's background */}
+          <div
+            className="absolute top-0 bottom-0 left-full pointer-events-none"
+            style={{ width: 36 }}
           >
-            <path d="M0,0 Q12,50 0,100 Z" className="fill-background/80" />
-          </svg>
+            <div
+              className="w-full h-full bg-background"
+              style={{
+                ...bgStyle,
+                clipPath: 'ellipse(100% 50% at 0% 50%)',
+              }}
+            />
+            {hasBgImage && (
+              <div
+                className="absolute inset-0 bg-background/70"
+                style={{ clipPath: 'ellipse(100% 50% at 0% 50%)' }}
+              />
+            )}
+          </div>
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
 
           {user ? (
