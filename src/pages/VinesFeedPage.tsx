@@ -441,10 +441,10 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
         </>
       )}
 
-      {/* ── Mute toggle (top-right) — only shown once video is ready ──── */}
+      {/* ── Mute toggle (bottom-right) — only shown once video is ready ──── */}
       {isVideoReady && (
         <button
-          className="absolute top-4 right-4 z-10 size-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+          className="absolute bottom-4 right-4 z-10 size-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
           onClick={toggleMute}
           aria-label={isMuted ? 'Unmute' : 'Mute'}
         >
