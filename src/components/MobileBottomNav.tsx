@@ -51,10 +51,7 @@ export function MobileBottomNav() {
           preserveAspectRatio="none"
           style={{ height: 20 }}
         >
-          {/* Fill matching the nav background */}
           <path d="M0,12 Q50,0 100,12 Z" className="fill-background/80" />
-          {/* Stroke matching the nav border */}
-          <path d="M0,12 Q50,0 100,12" className="fill-none stroke-border" vectorEffect="non-scaling-stroke" />
         </svg>
 
         <div className="h-14 flex items-center">
