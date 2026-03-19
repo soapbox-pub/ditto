@@ -46,7 +46,7 @@ export function ThemesPage() {
   useLayoutOptions({
     showFAB: activeTab === 'my-themes',
     onFabClick: handleFabClick,
-    fabIcon: <Pencil strokeWidth={3} />,
+    fabIcon: <Pencil strokeWidth={3} size={16} />,
   });
 
   // Feed queries for follows/global tabs
