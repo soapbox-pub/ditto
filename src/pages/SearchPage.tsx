@@ -409,14 +409,14 @@ export function SearchPage() {
   const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? debouncedSearchQuery : '');
 
   return (
-    <main className="">
+    <main className="flex-1 min-w-0">
       {/* Tabs — sticky at top */}
       <div className={cn(STICKY_HEADER_CLASS, 'relative z-10')}>
         <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
           <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} className="sidebar:py-5" />
           <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} className="sidebar:py-5" />
         </div>
-        <svg className="absolute left-0 right-0 top-full w-full pointer-events-none hidden sidebar:block" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
+        <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
           <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
         </svg>
       </div>
@@ -425,7 +425,7 @@ export function SearchPage() {
       {activeTab === 'posts' && (
         <>
           {/* Search input + filter icon */}
-          <div className="px-4 pt-3 sidebar:pt-5 pb-3">
+          <div className="px-4 pt-2 pb-3 sidebar:pt-5">
             <div className="flex items-center gap-2">
               <SearchInput
                 initialValue={debouncedSearchQuery}
@@ -779,7 +779,7 @@ export function SearchPage() {
       {activeTab === 'accounts' && (
         <>
           {/* Search input for accounts */}
-          <div className="px-4 pt-3 sidebar:pt-5 pb-2">
+          <div className="px-4 pt-2 pb-2 sidebar:pt-5">
             <SearchInput
               initialValue={debouncedSearchQuery}
               onDebouncedChange={setDebouncedSearchQuery}
