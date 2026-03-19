@@ -1013,14 +1013,6 @@ function AccountSkeleton() {
 }
 
 /**
- * Author filter input that uses the profile search dropdown.
- * Commits to the parent only when:
- *  - A profile is selected from the dropdown (fires onCommit immediately with npub + display name)
- *  - The user manually types a full npub1… / hex pubkey / NIP-05 and presses Enter or blurs
- */
-/** Small removable chip showing a single selected author. */
-
-/**
  * Owns the raw keystroke state for the search box so that typing only
  * re-renders this small component, not the entire SearchPage.
  * Calls onDebouncedChange after 300 ms of inactivity.

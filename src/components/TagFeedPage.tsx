@@ -1,6 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
-import { ArrowLeft, Plus, Check, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Plus, Check, Loader2 } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
@@ -13,6 +12,7 @@ import { useInterests } from '@/hooks/useInterests';
 import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
+import { PageHeader } from '@/components/PageHeader';
 import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
@@ -95,12 +95,10 @@ export function TagFeedPage({
 
   return (
     <main className="">
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        {icon && <span className="text-muted-foreground shrink-0">{icon}</span>}
-        <h1 className="text-xl font-bold flex-1 truncate min-w-0">{title}</h1>
+      <PageHeader
+        title={title}
+        icon={icon ? <span className="text-muted-foreground shrink-0">{icon}</span> : undefined}
+      >
         {followable && user && tag && (
           <Button
             size="sm"
@@ -118,7 +116,7 @@ export function TagFeedPage({
             )}
           </Button>
         )}
-      </div>
+      </PageHeader>
 
       {isLoading ? (
         <FeedSkeleton />
