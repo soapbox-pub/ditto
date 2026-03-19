@@ -85,19 +85,35 @@ export const ALL_ACTION_METADATA: Record<BlobbiAction, { label: string; descript
 // ─── Stat Helpers ─────────────────────────────────────────────────────────────
 
 /**
- * Clamp a stat value between 0 and 100.
- * Safe for undefined values (returns 0).
+ * Minimum stat value - prevents soft-lock by ensuring recovery is always possible.
+ * Stats cannot drop below this value through decay or effects.
+ */
+export const STAT_MIN = 1;
+
+/**
+ * Maximum stat value.
+ */
+export const STAT_MAX = 100;
+
+/**
+ * Clamp a stat value between STAT_MIN (1) and STAT_MAX (100).
+ * Safe for undefined values (returns STAT_MIN).
+ * 
+ * The minimum of 1 (instead of 0) ensures:
+ * - Blobbi is never in an unrecoverable state
+ * - Visual feedback shows critical state without being "dead"
+ * - Recovery is always possible with any healing item
  */
 export function clampStat(value: number | undefined): number {
-  if (value === undefined) return 0;
-  return Math.max(0, Math.min(100, Math.round(value)));
+  if (value === undefined) return STAT_MIN;
+  return Math.max(STAT_MIN, Math.min(STAT_MAX, Math.round(value)));
 }
 
 /**
- * Apply a delta to a stat, clamping the result to 0-100.
+ * Apply a delta to a stat, clamping the result to STAT_MIN-STAT_MAX.
  */
 export function applyStat(current: number | undefined, delta: number): number {
-  const currentValue = current ?? 0;
+  const currentValue = current ?? STAT_MIN;
   return clampStat(currentValue + delta);
 }
 

@@ -82,6 +82,8 @@ export {
   type ItemUsabilityResult,
   type IncrementInteractionResult,
   // Constants
+  STAT_MIN,
+  STAT_MAX,
   ACTION_TO_ITEM_TYPE,
   ACTION_METADATA,
   DIRECT_ACTION_METADATA,
