@@ -53,6 +53,7 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
+          overflow="visible"
           className="absolute inset-0 w-full h-full"
         >
           <defs>
