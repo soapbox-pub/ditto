@@ -8,6 +8,7 @@ import { SidebarNavList } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
 
 import { LoginArea } from '@/components/auth/LoginArea';
+import { LinkFooter } from '@/components/LinkFooter';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
@@ -287,6 +288,9 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 </div>
               </nav>
 
+              <div className="px-2">
+                <LinkFooter />
+              </div>
             </div>
           ) : (
             <div className="flex flex-col h-full relative">
@@ -328,6 +332,9 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 </div>
               </nav>
 
+              <div className="px-2">
+                <LinkFooter />
+              </div>
             </div>
           )}
         </SheetContent>
