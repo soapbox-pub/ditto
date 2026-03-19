@@ -67,6 +67,9 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
                 strokeWidth="3"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                pathLength="100"
+                strokeDasharray="90"
+                strokeDashoffset="-5"
               />
             </mask>
           </defs>
