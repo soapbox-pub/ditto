@@ -8,8 +8,7 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-
-const ZAPSTORE_RELAY = 'wss://relay.zapstore.dev';
+import { ZAPSTORE_RELAY } from '@/lib/appRelays';
 
 /** Get a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {

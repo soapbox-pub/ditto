@@ -1,6 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { ZAPSTORE_RELAY } from '@/lib/appRelays';
 
 /**
  * Extract write relay URLs from a NIP-65 (kind 10002) relay list event.
@@ -98,9 +99,9 @@ export interface AddrCoords {
  */
 const KIND_RELAY_HINTS: Record<number, string[]> = {
   // Zapstore app metadata (NIP-82)
-  32267: ['wss://relay.zapstore.dev'],
+  32267: [ZAPSTORE_RELAY],
   // Zapstore software releases (NIP-82)
-  30063: ['wss://relay.zapstore.dev'],
+  30063: [ZAPSTORE_RELAY],
 };
 
 /** Fetches a single addressable Nostr event by kind + pubkey + d-tag, optionally querying relay hints. */
