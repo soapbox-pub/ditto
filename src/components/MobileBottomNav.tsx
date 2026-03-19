@@ -61,24 +61,22 @@ export function MobileBottomNav() {
             to="/feed"
             onClick={() => setSearchOpen(false)}
             className={cn(
-              'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+              'flex items-center justify-center flex-1 py-2 transition-colors',
               (location.pathname === '/feed' || location.pathname === '/') ? 'text-primary' : 'text-muted-foreground',
             )}
           >
             <PlanetIcon className="size-5" />
-            <span className="text-[10px] font-medium">Feed</span>
           </Link>
 
           {/* Search */}
           <button
             onClick={handleSearchClick}
             className={cn(
-              'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+              'flex items-center justify-center flex-1 py-2 transition-colors',
               searchOpen ? 'text-primary' : 'text-muted-foreground',
             )}
           >
             <Search className="size-5" />
-            <span className="text-[10px] font-medium">Search</span>
           </button>
 
           {/* Notifications */}
@@ -87,7 +85,7 @@ export function MobileBottomNav() {
               to="/notifications"
               onClick={() => setSearchOpen(false)}
               className={cn(
-                'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+                'flex items-center justify-center flex-1 py-2 transition-colors',
                 location.pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground',
               )}
             >
@@ -97,7 +95,6 @@ export function MobileBottomNav() {
                   <span className="absolute -top-1 right-0 size-2 bg-primary rounded-full" />
                 )}
               </span>
-              <span className="text-[10px] font-medium">Notifications</span>
             </Link>
           )}
 
@@ -107,7 +104,7 @@ export function MobileBottomNav() {
               to={profileUrl}
               onClick={() => setSearchOpen(false)}
               className={cn(
-                'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+                'flex items-center justify-center flex-1 py-2 transition-colors',
                 isOnProfile ? 'text-primary' : 'text-muted-foreground',
               )}
             >
@@ -117,17 +114,13 @@ export function MobileBottomNav() {
                   {displayName?.[0]?.toUpperCase() || <User className="size-3" />}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-[10px] font-medium">Profile</span>
             </Link>
           ) : (
             <Link
               to="/profile"
-              className={cn(
-                'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors text-muted-foreground',
-              )}
+              className="flex items-center justify-center flex-1 py-2 transition-colors text-muted-foreground"
             >
               <User className="size-5" />
-              <span className="text-[10px] font-medium">Profile</span>
             </Link>
           )}
 
