@@ -88,7 +88,7 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
   }
 
   if (isError || !event) {
-    return <EmbeddedNoteTombstone className={className} />;
+    return <EmbeddedNoteTombstone eventId={eventId} relays={relays} authorHint={authorHint} className={className} />;
   }
 
   // For follow packs / lists, render the same rich NoteCard used in feeds
@@ -349,13 +349,38 @@ function MaybeProfileHoverCard({ pubkey, disabled, children }: { pubkey: string;
 }
 
 /** Tombstone shown when a quoted note could not be loaded. */
-function EmbeddedNoteTombstone({ className }: { className?: string }) {
+function EmbeddedNoteTombstone({ eventId, relays, authorHint, className }: { eventId: string; relays?: string[]; authorHint?: string; className?: string }) {
+  const navigate = useNavigate();
+
+  const neventId = useMemo(
+    () => nip19.neventEncode({
+      id: eventId,
+      ...(authorHint ? { author: authorHint } : {}),
+      ...(relays?.length ? { relays } : {}),
+    }),
+    [eventId, authorHint, relays],
+  );
+
   return (
     <div
       className={cn(
         'rounded-2xl border border-dashed border-border overflow-hidden',
+        'hover:bg-secondary/40 transition-colors cursor-pointer',
         className,
       )}
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/${neventId}`);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/${neventId}`);
+        }
+      }}
     >
       <div className="px-3.5 py-4 flex items-center gap-2 text-muted-foreground">
         <MessageSquareOff className="size-4 shrink-0" />
