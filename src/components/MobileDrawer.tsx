@@ -98,27 +98,34 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   return (
     <>
         <Sheet open={open} onOpenChange={(v) => { if (!v) setMoreMenuOpen(false); onOpenChange(v); }}>
-        <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col overflow-visible" style={bgStyle}>
-          {hasBgImage && <div className="absolute inset-0 bg-background/70 pointer-events-none" />}
-          {/* Decorative vertical arc extending the drawer's background */}
+        <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col overflow-visible">
+          {/* SVG clip path definition for the drawer + arc shape */}
+          <svg className="absolute" width="0" height="0" aria-hidden="true">
+            <defs>
+              <clipPath id="drawer-arc-clip" clipPathUnits="objectBoundingBox">
+                {/* Rectangle for drawer body (0–0.893) + quadratic arc on the right edge */}
+                <path d="M0,0 L0.893,0 Q1,0.5 0.893,1 L0,1 Z" />
+              </clipPath>
+            </defs>
+          </svg>
+          {/* Single background layer spanning drawer + arc so the image flows seamlessly */}
           <div
-            className="absolute top-0 bottom-0 left-full pointer-events-none"
-            style={{ width: 36 }}
-          >
+            className="absolute top-0 left-0 bottom-0 pointer-events-none bg-background"
+            style={{
+              ...bgStyle,
+              width: 336,
+              clipPath: 'url(#drawer-arc-clip)',
+            }}
+          />
+          {hasBgImage && (
             <div
-              className="w-full h-full bg-background"
+              className="absolute top-0 left-0 bottom-0 bg-background/70 pointer-events-none"
               style={{
-                ...bgStyle,
-                clipPath: 'ellipse(100% 50% at 0% 50%)',
+                width: 336,
+                clipPath: 'url(#drawer-arc-clip)',
               }}
             />
-            {hasBgImage && (
-              <div
-                className="absolute inset-0 bg-background/70"
-                style={{ clipPath: 'ellipse(100% 50% at 0% 50%)' }}
-              />
-            )}
-          </div>
+          )}
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
 
           {user ? (
