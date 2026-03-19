@@ -11,6 +11,11 @@ import { PlanetButton } from '@/components/icons/PlanetButton';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
+/** Drop shadow style for the planet FAB — hoisted to avoid re-creating on every render. */
+const fabShadowStyle: React.CSSProperties = {
+  filter: 'drop-shadow(0 4px 12px hsl(var(--primary) / 0.4)) drop-shadow(0 2px 4px hsl(var(--primary) / 0.2))',
+};
+
 interface FloatingComposeButtonProps {
   /** The Nostr event kind this FAB creates. kind=1 opens compose; others show "Coming soon". */
   kind?: number;
@@ -49,9 +54,7 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
       <button
         onClick={handleClick}
         className="relative size-16 transition-transform hover:scale-105 active:scale-95"
-        style={{
-          filter: 'drop-shadow(0 4px 12px hsl(var(--primary) / 0.4)) drop-shadow(0 2px 4px hsl(var(--primary) / 0.2))',
-        }}
+        style={fabShadowStyle}
       >
         <PlanetButton />
         {/* Plus icon centered on the planet body */}

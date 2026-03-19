@@ -32,6 +32,12 @@ import { resolveTheme, resolveThemeConfig } from '@/themes';
 /** Total width of the drawer background layer: 300px drawer + 36px arc overhang. */
 const DRAWER_BG_WIDTH = 336;
 
+/** Shared clip-path style for the drawer arc background layers. */
+const drawerClipStyle: React.CSSProperties = {
+  width: DRAWER_BG_WIDTH,
+  clipPath: 'url(#drawer-arc-clip)',
+};
+
 interface MobileDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -119,19 +125,12 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               seamlessly through both regions. */}
           <div
             className="absolute top-0 left-0 bottom-0 pointer-events-none bg-background"
-            style={{
-              ...bgStyle,
-              width: DRAWER_BG_WIDTH,
-              clipPath: 'url(#drawer-arc-clip)',
-            }}
+            style={{ ...bgStyle, ...drawerClipStyle }}
           />
           {hasBgImage && (
             <div
               className="absolute top-0 left-0 bottom-0 bg-background/70 pointer-events-none"
-              style={{
-                width: DRAWER_BG_WIDTH,
-                clipPath: 'url(#drawer-arc-clip)',
-              }}
+              style={drawerClipStyle}
             />
           )}
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
