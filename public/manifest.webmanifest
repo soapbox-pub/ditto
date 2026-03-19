@@ -1,7 +1,7 @@
 {
   "name": "Ditto",
   "short_name": "Ditto",
-  "description": "A Nostr client for the social web",
+  "description": "Your content. Your vibe. Your rules.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#161b2e",
