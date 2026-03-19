@@ -229,8 +229,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
   return (
     <main className="flex-1 min-w-0">
-      {!hideCompose && <ComposeBox compact />}
-
       {header}
 
       {/* Tabs (logged in) or CTA (logged out, main feed only) */}
@@ -282,6 +280,8 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
           onSignupClick={startSignup}
         />
       )}
+
+      {!hideCompose && <ComposeBox compact />}
 
       {/* Feed content — saved feed tab gets its own stream */}
       {activeHashtag ? (
