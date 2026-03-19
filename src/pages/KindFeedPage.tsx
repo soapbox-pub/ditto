@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { Feed } from '@/components/Feed';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { EXTRA_KINDS, type ExtraKindDef } from '@/lib/extraKinds';
 
@@ -35,6 +36,7 @@ interface KindFeedPageProps {
 
 export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra, onFabClick, showFAB = true, feedId }: KindFeedPageProps) {
   const { config } = useAppContext();
+  const { user } = useCurrentUser();
   const primaryKind = Array.isArray(kind) ? kind[0] : kind;
 
   const resolvedDef = useMemo(
@@ -50,7 +52,7 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
   });
 
   const fabClick = onFabClick ?? (resolvedDef ? () => setInfoOpen(true) : undefined);
-  useLayoutOptions({ showFAB, fabKind: primaryKind, fabHref, onFabClick: fabClick, hasSubHeader: true });
+  useLayoutOptions({ showFAB, fabKind: primaryKind, fabHref, onFabClick: fabClick, hasSubHeader: !!user });
 
   const kinds = Array.isArray(kind) ? kind : [kind];
 

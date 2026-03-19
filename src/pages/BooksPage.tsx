@@ -47,7 +47,7 @@ export function BooksPage() {
     description: 'Book reviews, ratings, and discussions from the Nostr community',
   });
 
-  useLayoutOptions({ hasSubHeader: true });
+  useLayoutOptions({ hasSubHeader: !!user });
 
   const feedQuery = useBookFeed(activeTab);
 

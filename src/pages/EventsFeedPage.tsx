@@ -43,7 +43,7 @@ export function EventsFeedPage() {
   const [activeTab, setActiveTab] = useFeedTab<FeedTab>('events', ['follows', 'global']);
 
   useSeoMeta({ title: `Events | ${config.appName}` });
-  useLayoutOptions({ showFAB: true, fabKind: 31923, hasSubHeader: true });
+  useLayoutOptions({ showFAB: true, fabKind: 31923, hasSubHeader: !!user });
 
   // Calendar events feed
   const feedQuery = useFeed(activeTab, { kinds: [31922, 31923] });
