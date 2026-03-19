@@ -240,15 +240,27 @@ export function useHatchTasks(
     required: 1,
     completed: hasColorMoment,
     action: 'external_link',
-    actionTarget: 'https://espy.social/',
+    actionTarget: 'https://espy.you/',
     actionLabel: 'Open espy',
   });
   
   // 3. Change Avatar Shape
+  // Requirements for completion:
+  // 1. There must be a kind 0 profile update with created_at >= state_started_at
+  // 2. The shape value must be different from what it was before incubation started
+  // 3. If there was no profile before start, any shape set after start counts
+  // 4. If shape is undefined/same after the update, task is NOT complete
   const shapeBefore = data?.profileBefore ? extractShapeFromMetadata(data.profileBefore) : undefined;
   const shapeAfter = data?.profileAfter ? extractShapeFromMetadata(data.profileAfter) : undefined;
-  // Task completes if shape changed (and there was an update after start)
-  const shapeChanged = data?.profileAfter && shapeAfter !== shapeBefore;
+  
+  // Task completes only if:
+  // - There is a profile update after incubation started (profileAfter exists)
+  // - AND the shape after is defined (user actually set a shape)
+  // - AND the shape is different from before (actual change occurred)
+  const hasPostStartProfileUpdate = !!data?.profileAfter;
+  const hasNewShapeValue = shapeAfter !== undefined && shapeAfter !== '';
+  const shapeActuallyChanged = shapeAfter !== shapeBefore;
+  const shapeChanged = hasPostStartProfileUpdate && hasNewShapeValue && shapeActuallyChanged;
   tasks.push({
     id: 'change_shape',
     name: 'Change Avatar Shape',

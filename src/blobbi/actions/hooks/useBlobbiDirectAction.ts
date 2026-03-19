@@ -16,6 +16,7 @@ import {
   clampStat,
   applyStat,
   DIRECT_ACTION_METADATA,
+  incrementInteractionTaskTags,
   type DirectAction,
 } from '../lib/blobbi-action-utils';
 
@@ -144,32 +145,9 @@ export function useBlobbiDirectAction({
       const nowStr = now.toString();
       
       // If incubating, increment the interaction counter for hatch tasks
-      let updatedTags = canonical.allTags;
-      if (canonical.companion.state === 'incubating') {
-        // Get current interaction count from task tags
-        const interactionTag = canonical.allTags.find(tag => 
-          tag[0] === 'task' && tag[1]?.startsWith('interactions:')
-        );
-        const currentCount = interactionTag 
-          ? parseInt(interactionTag[1].split(':')[1] || '0', 10)
-          : 0;
-        const newCount = currentCount + 1;
-        
-        // Remove old interaction task tag and add new one
-        updatedTags = canonical.allTags.filter(tag => 
-          !(tag[0] === 'task' && tag[1]?.startsWith('interactions:'))
-        );
-        updatedTags = [...updatedTags, ['task', `interactions:${newCount}`]];
-        
-        // Mark as completed if reached 7
-        if (newCount >= 7) {
-          // Remove any existing task_completed for interactions
-          updatedTags = updatedTags.filter(tag => 
-            !(tag[0] === 'task_completed' && tag[1] === 'interactions')
-          );
-          updatedTags = [...updatedTags, ['task_completed', 'interactions']];
-        }
-      }
+      const updatedTags = canonical.companion.state === 'incubating'
+        ? incrementInteractionTaskTags(canonical.allTags).updatedTags
+        : canonical.allTags;
       
       const blobbiTags = updateBlobbiTags(updatedTags, {
         ...statsUpdate,

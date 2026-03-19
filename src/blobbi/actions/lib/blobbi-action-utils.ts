@@ -545,3 +545,62 @@ export function previewCleanForEgg(
   
   return results;
 }
+
+// ─── Interaction Task Helpers ─────────────────────────────────────────────────
+
+/** Required interactions to complete the interactions hatch task */
+const INTERACTION_TASK_REQUIRED = 7;
+
+/**
+ * Result of incrementing interaction task tags
+ */
+export interface IncrementInteractionResult {
+  /** Updated tags array */
+  updatedTags: string[][];
+  /** New interaction count after increment */
+  newCount: number;
+  /** Whether the task is now complete */
+  isCompleted: boolean;
+}
+
+/**
+ * Increment the interaction task counter in the tags array.
+ * 
+ * This is used by both useBlobbiDirectAction and useBlobbiUseInventoryItem
+ * to track progress on the "Interact with Blobbi" hatch task.
+ * 
+ * Tag format:
+ * - Progress: ["task", "interactions:N"]
+ * - Completion: ["task_completed", "interactions"]
+ * 
+ * @param currentTags - Current tags array from the Blobbi state
+ * @returns Updated tags array with incremented interaction count
+ */
+export function incrementInteractionTaskTags(currentTags: string[][]): IncrementInteractionResult {
+  // Get current interaction count from task tags
+  const interactionTag = currentTags.find(tag => 
+    tag[0] === 'task' && tag[1]?.startsWith('interactions:')
+  );
+  const currentCount = interactionTag 
+    ? parseInt(interactionTag[1].split(':')[1] || '0', 10)
+    : 0;
+  const newCount = currentCount + 1;
+  
+  // Remove old interaction task tag and add new one
+  let updatedTags = currentTags.filter(tag => 
+    !(tag[0] === 'task' && tag[1]?.startsWith('interactions:'))
+  );
+  updatedTags = [...updatedTags, ['task', `interactions:${newCount}`]];
+  
+  // Mark as completed if reached required count
+  const isCompleted = newCount >= INTERACTION_TASK_REQUIRED;
+  if (isCompleted) {
+    // Remove any existing task_completed for interactions (avoid duplicates)
+    updatedTags = updatedTags.filter(tag => 
+      !(tag[0] === 'task_completed' && tag[1] === 'interactions')
+    );
+    updatedTags = [...updatedTags, ['task_completed', 'interactions']];
+  }
+  
+  return { updatedTags, newCount, isCompleted };
+}
