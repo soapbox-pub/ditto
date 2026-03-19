@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { NostrEvent, NostrFilter, NPool, NRelay1 } from '@nostrify/nostrify';
 import { NostrContext } from '@nostrify/react';
 import { useAppContext } from '@/hooks/useAppContext';
-import { getEffectiveRelays, DITTO_RELAY, DIVINE_RELAY } from '@/lib/appRelays';
+import { getEffectiveRelays, DITTO_RELAY, DIVINE_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { NostrBatcher } from '@/lib/NostrBatcher';
 
 interface NostrProviderProps {
@@ -54,6 +54,12 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         const readRelays = effectiveRelays.current.relays
           .filter(r => r.read)
           .map(r => r.url);
+
+        // Include zapstore relay for kind 32267 (apps) and 30063 (releases)
+        const ZAPSTORE_KINDS = [32267, 30063];
+        if (filters.every((f) => f?.kinds?.every((k) => ZAPSTORE_KINDS.includes(k)))) {
+          return new Map([ZAPSTORE_RELAY, ...readRelays].map(url => [url, filters]));
+        }
 
         for (const url of readRelays) {
           routes.set(url, filters);

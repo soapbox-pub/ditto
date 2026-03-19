@@ -8,7 +8,6 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ZAPSTORE_RELAY } from '@/lib/appRelays';
 
 /** Get a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -56,9 +55,8 @@ function useLatestRelease(appIdentifier: string | undefined, appPubkey: string |
       if (!appIdentifier || !appPubkey) return null;
 
       try {
-        const relay = nostr.relay(ZAPSTORE_RELAY);
         const querySignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-        const events = await relay.query(
+        const events = await nostr.query(
           [{ kinds: [30063], authors: [appPubkey], '#i': [appIdentifier], limit: 5 }],
           { signal: querySignal },
         );

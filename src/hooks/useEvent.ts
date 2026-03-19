@@ -1,7 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
-import { ZAPSTORE_RELAY } from '@/lib/appRelays';
 
 /**
  * Extract write relay URLs from a NIP-65 (kind 10002) relay list event.
@@ -93,17 +92,6 @@ export interface AddrCoords {
   identifier: string;
 }
 
-/**
- * Well-known relays for specific event kinds that may not be on the user's
- * regular relay set. Maps kind numbers to relay URLs.
- */
-const KIND_RELAY_HINTS: Record<number, string[]> = {
-  // Zapstore app metadata (NIP-82)
-  32267: [ZAPSTORE_RELAY],
-  // Zapstore software releases (NIP-82)
-  30063: [ZAPSTORE_RELAY],
-};
-
 /** Fetches a single addressable Nostr event by kind + pubkey + d-tag, optionally querying relay hints. */
 export function useAddrEvent(addr: AddrCoords | undefined, relays?: string[]) {
   const { nostr } = useNostr();
@@ -120,11 +108,10 @@ export function useAddrEvent(addr: AddrCoords | undefined, relays?: string[]) {
       if (events.length > 0) return events[0];
 
       // 2. If not found and we have relay hints, try those relays directly
-      const allHints = [...(relays ?? []), ...(KIND_RELAY_HINTS[addr.kind] ?? [])];
-      if (allHints.length > 0) {
+      if (relays && relays.length > 0) {
         try {
           const hintSignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-          const hintEvents = await nostr.group(allHints).query(filter, { signal: hintSignal });
+          const hintEvents = await nostr.group(relays).query(filter, { signal: hintSignal });
           if (hintEvents.length > 0) return hintEvents[0];
         } catch {
           // relay hint query failed — fall through
