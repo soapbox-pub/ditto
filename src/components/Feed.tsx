@@ -229,8 +229,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
   return (
     <main className="flex-1 min-w-0">
-      {header}
-
       {/* Tabs (logged in) or CTA (logged out, main feed only) */}
       {user ? (
         <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
@@ -293,6 +291,8 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       )}
 
       {!hideCompose && <ComposeBox compact />}
+
+      {header}
 
       {/* Feed content — saved feed tab gets its own stream */}
       {activeHashtag ? (
