@@ -785,11 +785,16 @@ interface VinesTabBarProps {
 
 function VinesTabBar({ tab, onTabChange, hasUser }: VinesTabBarProps) {
   return (
-    <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 shrink-0">
-      {hasUser && (
-        <TabButton label="Follows" active={tab === 'follows'} onClick={() => onTabChange('follows')} className="sidebar:py-5 sidebar:font-semibold" indicatorClassName="sidebar:h-[3px]" />
-      )}
-      <TabButton label="Global" active={tab === 'global'} onClick={() => onTabChange('global')} className="sidebar:py-5 sidebar:font-semibold" indicatorClassName="sidebar:h-[3px]" />
+    <div className="relative sticky top-mobile-bar sidebar:top-0 z-10 shrink-0">
+      <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
+        {hasUser && (
+          <TabButton label="Follows" active={tab === 'follows'} onClick={() => onTabChange('follows')} className="sidebar:py-5 sidebar:font-semibold" indicatorClassName="sidebar:h-[3px]" />
+        )}
+        <TabButton label="Global" active={tab === 'global'} onClick={() => onTabChange('global')} className="sidebar:py-5 sidebar:font-semibold" indicatorClassName="sidebar:h-[3px]" />
+      </div>
+      <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
+        <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
+      </svg>
     </div>
   );
 }

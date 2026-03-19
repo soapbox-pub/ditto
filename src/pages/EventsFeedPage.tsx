@@ -119,9 +119,14 @@ export function EventsFeedPage() {
 
       {/* Follows / Global tabs */}
       {user && (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
-          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+        <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
+          <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
+            <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
+            <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+          </div>
+          <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
+            <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
+          </svg>
         </div>
       )}
 
