@@ -21,7 +21,7 @@ export function MobileTopBar({ onAvatarClick, showArc }: MobileTopBarProps) {
 
   return (
     <header className="sticky top-0 z-20 bg-background/80 sidebar:hidden safe-area-top">
-      <div className="flex items-center px-3 h-12">
+      <div className="flex items-center px-3 h-10">
         {/* Left: hamburger menu icon */}
         <div className="flex items-center justify-center w-7 shrink-0">
           <button onClick={onAvatarClick} className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background text-muted-foreground hover:text-foreground transition-colors">
@@ -32,7 +32,7 @@ export function MobileTopBar({ onAvatarClick, showArc }: MobileTopBarProps) {
       {/* Center: Ditto logo */}
       <div className="flex-1 flex items-center justify-center">
         <Link to="/" onClick={handleLogoClick}>
-          <DittoLogo size={28} />
+          <DittoLogo size={24} />
         </Link>
       </div>
 
