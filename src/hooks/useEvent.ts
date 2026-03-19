@@ -12,10 +12,19 @@ const ZAPSTORE_KINDS = [32267, 30063];
  * Tags with no marker are both read+write; tags with "write" are write-only.
  */
 function extractWriteRelays(event: NostrEvent): string[] {
-  return event.tags
-    .filter(([name, , marker]) => name === 'r' && marker !== 'read')
-    .map(([, url]) => url)
-    .filter(Boolean);
+  const relays = new Set<string>();
+  for (const [name, url, marker] of event.tags) {
+    if (name !== 'r' || marker === 'read' || !url) continue;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === 'wss:') {
+        relays.add(parsed.href);
+      }
+    } catch {
+      // skip malformed URLs
+    }
+  }
+  return [...relays];
 }
 
 /**
@@ -38,7 +47,7 @@ async function queryAuthorRelays(
 
     if (relayListEvents.length === 0) return null;
 
-    const writeRelays = extractWriteRelays(relayListEvents[0]);
+    const writeRelays = extractWriteRelays(relayListEvents[0]).slice(0, 5);
     if (writeRelays.length === 0) return null;
 
     // Query the author's write relays for the target event
