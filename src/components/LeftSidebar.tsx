@@ -144,8 +144,7 @@ export function LeftSidebar() {
         </div>
       )}
 
-      {/* Link footer when logged out */}
-      {!user && <LinkFooter />}
+      <LinkFooter />
 
       {/* User profile at bottom */}
       {user && currentUser && (
