@@ -46,8 +46,7 @@ import { ListPackPicker } from '@/components/SavedFeedFiltersEditor';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { TabButton } from '@/components/TabButton';
-// getNostrIdentifierPath removed — identifiers are now handled as autocomplete suggestions
-import { cn, STICKY_HEADER_CLASS, parseKindFilter } from '@/lib/utils';
+import { cn, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
@@ -410,339 +409,346 @@ export function SearchPage() {
 
   return (
     <main className="flex-1 min-w-0">
-      {/* Tabs — sticky at top */}
-      <div className={cn(STICKY_HEADER_CLASS, 'relative z-10')}>
+      {/* Tabs — sticky at top, identical structure to Feed.tsx */}
+      <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
         <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
-          <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} className="sidebar:py-5" />
-          <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} className="sidebar:py-5" />
+          <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
+          <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
         </div>
-        <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
+        {/* Decorative semi-ellipse arc below the tabs */}
+        <svg
+          className="absolute left-0 right-0 top-full w-full pointer-events-none"
+          viewBox="0 0 100 12"
+          preserveAspectRatio="none"
+          style={{ height: 20 }}
+        >
           <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
         </svg>
+      </div>
+
+      {/* Search input bar — always rendered right after tabs, like ComposeBox on Feed */}
+      <div className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <SearchInput
+            initialValue={debouncedSearchQuery}
+            onDebouncedChange={setDebouncedSearchQuery}
+          />
+
+          {/* Add to feed button (posts tab only) */}
+          {activeTab === 'posts' && user && (
+            <div className={cn(!debouncedSearchQuery.trim() && !hasActiveFilters ? 'hidden' : undefined)}>
+              <Popover open={savePopoverOpen} onOpenChange={(o) => {
+                setSavePopoverOpen(o);
+                if (o && !saveFeedLabel) {
+                  if (debouncedSearchQuery.trim()) {
+                    setSaveFeedLabel(debouncedSearchQuery.trim());
+                  } else if (listPickerValue) {
+                    const matched =
+                      listPickerValue.startsWith('set:')
+                        ? lists.find((l) => l.id === listPickerValue.slice(4))?.title
+                        : followPacks.find((p) => p.id === listPickerValue.slice(5))?.title;
+                    if (matched) setSaveFeedLabel(matched);
+                  }
+                }
+              }}>
+                <PopoverTrigger asChild>
+                  <button
+                    className={cn(
+                      'shrink-0 h-10 w-10 rounded-lg border flex items-center justify-center transition-colors',
+                      alreadySaved || savedJustNow
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground',
+                    )}
+                    style={{ outline: 'none' }}
+                    aria-label="Add to feed"
+                  >
+                    {savedJustNow ? <Check className="size-4" /> : <BookmarkPlus className="size-4" />}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-64 p-3 space-y-3">
+                  <p className="font-semibold text-sm">Save as tab</p>
+
+                  {alreadySaved ? (
+                    <p className="text-sm text-muted-foreground">Already saved.</p>
+                  ) : (
+                    <>
+                      <Input
+                        placeholder="Tab name…"
+                        value={saveFeedLabel}
+                        onChange={(e) => setSaveFeedLabel(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFeed(); }}
+                        className="bg-secondary/50 border-border focus-visible:ring-1 text-base md:text-sm"
+                        autoFocus
+                      />
+                      <div className="space-y-1">
+                        <SaveDestinationRow
+                          icon={<BookmarkPlus className="size-4 text-muted-foreground" />}
+                          label="Home feed"
+                          description="Tab on your home page"
+                          onClick={() => handleSaveFeed()}
+                          disabled={!saveFeedLabel.trim() || isSavingFeed || isPublishingTabs}
+                          loading={isSavingFeed}
+                        />
+                        {!isAuthorSpecific && (
+                          <SaveDestinationRow
+                            icon={<User className="size-4 text-muted-foreground" />}
+                            label="Profile tab"
+                            description="Your posts matching this search"
+                            onClick={() => handleSaveProfileTab()}
+                            disabled={!saveFeedLabel.trim() || isSavingFeed || isPublishingTabs}
+                            loading={isPublishingTabs}
+                          />
+                        )}
+                      </div>
+                    </>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          {/* Filter popover (posts tab only) */}
+          {activeTab === 'posts' && (
+            <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  className={cn(
+                    'shrink-0 h-10 w-10 rounded-lg border bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors',
+                    filtersOpen
+                      ? 'border-2 border-primary bg-secondary text-primary'
+                      : hasActiveFilters
+                        ? 'border-primary text-primary'
+                        : 'border-border',
+                  )}
+                  style={{ outline: 'none' }}
+                  aria-label="Search filters"
+                >
+                  <SlidersHorizontal className="size-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm">Filters</span>
+                  {hasActiveFilters && (
+                    <button
+                      className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                      onClick={resetFilters}
+                    >
+                      <RotateCcw className="size-3" />
+                      Reset
+                    </button>
+                  )}
+                </div>
+
+                {/* Author scope */}
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">From</span>
+                  <div className="flex rounded-lg border border-border overflow-hidden">
+                    {([
+                      ['anyone', 'Anyone', Globe],
+                      ['follows', 'Follows', Users],
+                      ['people', 'People', UserSearch],
+                    ] as const).map(([scope, label, Icon]) => (
+                      <button
+                        key={scope}
+                        onClick={() => setAuthorScope(scope as AuthorScope)}
+                        className={cn(
+                          'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
+                          authorScope === scope
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
+                        )}
+                      >
+                        <Icon className="size-3.5 shrink-0" />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {authorScope === 'people' && (
+                    <div className="space-y-1.5">
+                      {authorPubkeys.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {authorPubkeys.map((pk) => (
+                            <AuthorChip key={pk} pubkey={pk} onRemove={() => {
+                              const next = authorPubkeys.filter((p) => p !== pk);
+                              setSearchParams((prev) => {
+                                const n = new URLSearchParams(prev);
+                                n.delete('author');
+                                next.forEach((p) => n.append('author', p));
+                                if (next.length === 0) n.delete('authorScope');
+                                return n;
+                              }, { replace: true });
+                            }} />
+                          ))}
+                        </div>
+                      )}
+                      <AuthorFilterDropdown onCommit={(pubkey) => {
+                        if (!authorPubkeys.includes(pubkey)) {
+                          setSearchParams((prev) => {
+                            const n = new URLSearchParams(prev);
+                            n.append('author', pubkey);
+                            n.set('authorScope', 'people');
+                            return n;
+                          }, { replace: true });
+                        }
+                      }} />
+                      <ListPackPicker
+                        lists={lists}
+                        followPacks={followPacks}
+                        value={listPickerValue}
+                        onSelectPubkeys={setAuthorsFromList}
+                      />
+                    </div>
+                  )}
+                </div>
+                <Separator />
+
+                {/* Sort */}
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sort</span>
+                  <div className="flex rounded-lg border border-border overflow-hidden">
+                    {([
+                      ['recent', 'Recent', Clock],
+                      ['hot', 'Hot', Flame],
+                      ['trending', 'Trending', TrendingUp],
+                    ] as const).map(([s, label, Icon]) => (
+                      <button
+                        key={s}
+                        onClick={() => setSort(s)}
+                        className={cn(
+                          'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
+                          sort === s
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
+                        )}
+                      >
+                        <Icon className="size-3.5 shrink-0" />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Separator />
+
+                {/* Media + Protocol */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Media</span>
+                    <Select value={mediaType} onValueChange={(v) => setMediaType(v)}>
+                      <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="images">Images</SelectItem>
+                        <SelectItem value="videos">Videos</SelectItem>
+                        <SelectItem value="vines">Shorts</SelectItem>
+                        <SelectItem value="none">No media</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Protocol <HelpTip faqId="vs-mastodon-bluesky" iconSize="size-3" /></span>
+                    <Select value={platform} onValueChange={(v) => setPlatform(v)}>
+                      <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nostr">Nostr</SelectItem>
+                        <SelectItem value="activitypub">Mastodon</SelectItem>
+                        <SelectItem value="atproto">Bluesky</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Language + Kind */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Language</span>
+                    <Select value={language} onValueChange={(v) => setLanguage(v)}>
+                      <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="global">Global</SelectItem>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="es">Spanish</SelectItem>
+                        <SelectItem value="fr">French</SelectItem>
+                        <SelectItem value="de">German</SelectItem>
+                        <SelectItem value="ja">Japanese</SelectItem>
+                        <SelectItem value="zh">Chinese</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Kind</span>
+                    <KindPicker value={kindFilter} options={kindOptions} onChange={(v) => setKindFilter(v)} />
+                  </div>
+                </div>
+
+                {kindFilter === 'custom' && (
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="e.g. 1, 30023"
+                    value={customKindText}
+                    onChange={(e) => setCustomKindText(e.target.value)}
+                    className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-base md:text-xs h-8"
+                  />
+                )}
+
+                {/* Include replies toggle */}
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">Include replies</span>
+                  <Switch checked={includeReplies} onCheckedChange={setIncludeReplies} className="scale-90" />
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+
+        {/* Active filter summary chips (posts tab only) */}
+        {activeTab === 'posts' && activeFilterLabels.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {activeFilterLabels.map((label) => (
+              <Badge key={label} variant="secondary" className="text-xs font-normal">
+                {label}
+              </Badge>
+            ))}
+            <button
+              onClick={resetFilters}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
+        {/* NIP-50 search query debug block (posts tab only) */}
+        {activeTab === 'posts' && debouncedSearchQuery.trim() && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="mt-2 px-3 py-2 rounded-md bg-secondary/40 border border-border cursor-default">
+                  <p className="text-xs text-muted-foreground font-mono truncate">
+                    <span className="text-muted-foreground/60 mr-1">search:</span>
+                    {nip50SearchString}
+                  </p>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs text-xs font-mono break-all">
+                {nip50SearchString}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
       {/* ─── Posts Tab ─── */}
       {activeTab === 'posts' && (
         <>
-          {/* Search input + filter icon */}
-          <div className="px-4 pt-2 pb-3 sidebar:pt-5">
-            <div className="flex items-center gap-2">
-              <SearchInput
-                initialValue={debouncedSearchQuery}
-                onDebouncedChange={setDebouncedSearchQuery}
-              />
-
-                {/* Add to feed button */}
-                {user && (
-                <div className={cn(!debouncedSearchQuery.trim() && !hasActiveFilters ? 'hidden' : undefined)}>
-                  <Popover open={savePopoverOpen} onOpenChange={(o) => {
-                    setSavePopoverOpen(o);
-                    if (o && !saveFeedLabel) {
-                      // Pre-fill with the search query, or a label derived from active filters
-                      if (debouncedSearchQuery.trim()) {
-                        setSaveFeedLabel(debouncedSearchQuery.trim());
-                      } else if (listPickerValue) {
-                        const matched =
-                          listPickerValue.startsWith('set:')
-                            ? lists.find((l) => l.id === listPickerValue.slice(4))?.title
-                            : followPacks.find((p) => p.id === listPickerValue.slice(5))?.title;
-                        if (matched) setSaveFeedLabel(matched);
-                      }
-                    }
-                  }}>
-                    <PopoverTrigger asChild>
-                      <button
-                        className={cn(
-                          'shrink-0 h-10 w-10 rounded-lg border flex items-center justify-center transition-colors',
-                          alreadySaved || savedJustNow
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground',
-                        )}
-                        style={{ outline: 'none' }}
-                        aria-label="Add to feed"
-                      >
-                        {savedJustNow ? <Check className="size-4" /> : <BookmarkPlus className="size-4" />}
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-64 p-3 space-y-3">
-                      <p className="font-semibold text-sm">Save as tab</p>
-
-                      {alreadySaved ? (
-                        <p className="text-sm text-muted-foreground">Already saved.</p>
-                      ) : (
-                        <>
-                          <Input
-                            placeholder="Tab name…"
-                            value={saveFeedLabel}
-                            onChange={(e) => setSaveFeedLabel(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFeed(); }}
-                            className="bg-secondary/50 border-border focus-visible:ring-1 text-base md:text-sm"
-                            autoFocus
-                          />
-                          <div className="space-y-1">
-                            <SaveDestinationRow
-                              icon={<BookmarkPlus className="size-4 text-muted-foreground" />}
-                              label="Home feed"
-                              description="Tab on your home page"
-                              onClick={() => handleSaveFeed()}
-                               disabled={!saveFeedLabel.trim() || isSavingFeed || isPublishingTabs}
-                               loading={isSavingFeed}
-                             />
-                             {!isAuthorSpecific && (
-                               <SaveDestinationRow
-                                 icon={<User className="size-4 text-muted-foreground" />}
-                                 label="Profile tab"
-                                 description="Your posts matching this search"
-                                 onClick={() => handleSaveProfileTab()}
-                                 disabled={!saveFeedLabel.trim() || isSavingFeed || isPublishingTabs}
-                                 loading={isPublishingTabs}
-                               />
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                )}
-
-                {/* Filter popover */}
-                <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    className={cn(
-                      'shrink-0 h-10 w-10 rounded-lg border bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors',
-                      filtersOpen
-                        ? 'border-2 border-primary bg-secondary text-primary'
-                        : hasActiveFilters
-                          ? 'border-primary text-primary'
-                          : 'border-border',
-                    )}
-                    style={{ outline: 'none' }}
-                    aria-label="Search filters"
-                  >
-                    <SlidersHorizontal className="size-4" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-80 p-3 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm">Filters</span>
-                    {hasActiveFilters && (
-                      <button
-                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-                        onClick={resetFilters}
-                      >
-                        <RotateCcw className="size-3" />
-                        Reset
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Author scope */}
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">From</span>
-                    <div className="flex rounded-lg border border-border overflow-hidden">
-                      {([
-                        ['anyone', 'Anyone', Globe],
-                        ['follows', 'Follows', Users],
-                        ['people', 'People', UserSearch],
-                      ] as const).map(([scope, label, Icon]) => (
-                        <button
-                          key={scope}
-                          onClick={() => setAuthorScope(scope as AuthorScope)}
-                          className={cn(
-                            'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
-                            authorScope === scope
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
-                          )}
-                        >
-                          <Icon className="size-3.5 shrink-0" />
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                    {authorScope === 'people' && (
-                      <div className="space-y-1.5">
-                        {authorPubkeys.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {authorPubkeys.map((pk) => (
-                              <AuthorChip key={pk} pubkey={pk} onRemove={() => {
-                                const next = authorPubkeys.filter((p) => p !== pk);
-                                setSearchParams((prev) => {
-                                  const n = new URLSearchParams(prev);
-                                  n.delete('author');
-                                  next.forEach((p) => n.append('author', p));
-                                  if (next.length === 0) n.delete('authorScope');
-                                  return n;
-                                }, { replace: true });
-                              }} />
-                            ))}
-                          </div>
-                        )}
-                        <AuthorFilterDropdown onCommit={(pubkey) => {
-                          if (!authorPubkeys.includes(pubkey)) {
-                            setSearchParams((prev) => {
-                              const n = new URLSearchParams(prev);
-                              n.append('author', pubkey);
-                              n.set('authorScope', 'people');
-                              return n;
-                            }, { replace: true });
-                          }
-                        }} />
-                        <ListPackPicker
-                          lists={lists}
-                          followPacks={followPacks}
-                          value={listPickerValue}
-                          onSelectPubkeys={setAuthorsFromList}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <Separator />
-
-                  {/* Sort */}
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sort</span>
-                    <div className="flex rounded-lg border border-border overflow-hidden">
-                      {([
-                        ['recent', 'Recent', Clock],
-                        ['hot', 'Hot', Flame],
-                        ['trending', 'Trending', TrendingUp],
-                      ] as const).map(([s, label, Icon]) => (
-                        <button
-                          key={s}
-                          onClick={() => setSort(s)}
-                          className={cn(
-                            'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
-                            sort === s
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
-                          )}
-                        >
-                          <Icon className="size-3.5 shrink-0" />
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <Separator />
-
-                  {/* Media + Protocol */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Media</span>
-                      <Select value={mediaType} onValueChange={(v) => setMediaType(v)}>
-                         <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All</SelectItem>
-                          <SelectItem value="images">Images</SelectItem>
-                          <SelectItem value="videos">Videos</SelectItem>
-                          <SelectItem value="vines">Shorts</SelectItem>
-                          <SelectItem value="none">No media</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Protocol <HelpTip faqId="vs-mastodon-bluesky" iconSize="size-3" /></span>
-                      <Select value={platform} onValueChange={(v) => setPlatform(v)}>
-                        <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="nostr">Nostr</SelectItem>
-                          <SelectItem value="activitypub">Mastodon</SelectItem>
-                          <SelectItem value="atproto">Bluesky</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Language + Kind */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Language</span>
-                      <Select value={language} onValueChange={(v) => setLanguage(v)}>
-                         <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="global">Global</SelectItem>
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="es">Spanish</SelectItem>
-                          <SelectItem value="fr">French</SelectItem>
-                          <SelectItem value="de">German</SelectItem>
-                          <SelectItem value="ja">Japanese</SelectItem>
-                          <SelectItem value="zh">Chinese</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Kind</span>
-                      <KindPicker value={kindFilter} options={kindOptions} onChange={(v) => setKindFilter(v)} />
-                    </div>
-                  </div>
-
-                  {kindFilter === 'custom' && (
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="e.g. 1, 30023"
-                      value={customKindText}
-                      onChange={(e) => setCustomKindText(e.target.value)}
-                      className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-base md:text-xs h-8"
-                    />
-                  )}
-
-                  {/* Include replies toggle */}
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">Include replies</span>
-                    <Switch checked={includeReplies} onCheckedChange={setIncludeReplies} className="scale-90" />
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Active filter summary chips */}
-            {activeFilterLabels.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {activeFilterLabels.map((label) => (
-                  <Badge key={label} variant="secondary" className="text-xs font-normal">
-                    {label}
-                  </Badge>
-                ))}
-                <button
-                  onClick={resetFilters}
-                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-                >
-                  Clear
-                </button>
-              </div>
-            )}
-
-            {/* NIP-50 search query debug block */}
-            {debouncedSearchQuery.trim() && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="mt-2 px-3 py-2 rounded-md bg-secondary/40 border border-border cursor-default">
-                      <p className="text-xs text-muted-foreground font-mono truncate">
-                        <span className="text-muted-foreground/60 mr-1">search:</span>
-                        {nip50SearchString}
-                      </p>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs text-xs font-mono break-all">
-                    {nip50SearchString}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </div>
-
           {/* Post results — stream */}
           {postsLoading && posts.length === 0 ? (
             <div className="divide-y divide-border">
@@ -778,14 +784,6 @@ export function SearchPage() {
       {/* ─── Accounts Tab ─── */}
       {activeTab === 'accounts' && (
         <>
-          {/* Search input for accounts */}
-          <div className="px-4 pt-2 pb-2 sidebar:pt-5">
-            <SearchInput
-              initialValue={debouncedSearchQuery}
-              onDebouncedChange={setDebouncedSearchQuery}
-            />
-          </div>
-
           <div>
             {debouncedSearchQuery.trim() ? (
               profilesLoading ? (
