@@ -1,12 +1,14 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { ExternalLink, GitFork, Globe, Package, Shield } from 'lucide-react';
-import { useMemo } from 'react';
+import { ChevronLeft, ChevronRight, ExternalLink, GitFork, Globe, Package, Shield, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /** Get a tag value by name. */
@@ -77,6 +79,153 @@ function useLatestRelease(appIdentifier: string | undefined, appPubkey: string |
     enabled: !!appIdentifier && !!appPubkey,
     staleTime: 5 * 60 * 1000,
   });
+}
+
+/** Lightbox modal for viewing screenshots at full size with navigation. */
+function ScreenshotLightbox({
+  images,
+  initialIndex,
+  open,
+  onOpenChange,
+}: {
+  images: string[];
+  initialIndex: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [index, setIndex] = useState(initialIndex);
+
+  // Reset index when lightbox opens with a new image.
+  useEffect(() => {
+    if (open) setIndex(initialIndex);
+  }, [open, initialIndex]);
+
+  const prev = useCallback(() => setIndex((i) => (i > 0 ? i - 1 : images.length - 1)), [images.length]);
+  const next = useCallback(() => setIndex((i) => (i < images.length - 1 ? i + 1 : 0)), [images.length]);
+
+  // Keyboard navigation.
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') prev();
+      else if (e.key === 'ArrowRight') next();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [open, prev, next]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogPortal>
+        <DialogOverlay className="bg-black/80" />
+        <DialogPrimitive.Content
+          className="fixed inset-0 z-[250] flex items-center justify-center focus:outline-none"
+          onClick={() => onOpenChange(false)}
+          aria-label="Screenshot viewer"
+        >
+          {/* Close button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
+            className="absolute top-4 right-4 z-10 rounded-full bg-black/50 p-2 text-white/80 hover:text-white transition-colors hover:bg-black/70"
+            aria-label="Close"
+          >
+            <X className="size-5" />
+          </button>
+
+          {/* Previous button */}
+          {images.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); prev(); }}
+              className="absolute left-4 z-10 rounded-full bg-black/50 p-2 text-white/80 hover:text-white transition-colors hover:bg-black/70"
+              aria-label="Previous screenshot"
+            >
+              <ChevronLeft className="size-6" />
+            </button>
+          )}
+
+          {/* Image */}
+          <img
+            src={images[index]}
+            alt={`Screenshot ${index + 1} of ${images.length}`}
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl select-none"
+            onClick={(e) => e.stopPropagation()}
+            draggable={false}
+          />
+
+          {/* Next button */}
+          {images.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); next(); }}
+              className="absolute right-4 z-10 rounded-full bg-black/50 p-2 text-white/80 hover:text-white transition-colors hover:bg-black/70"
+              aria-label="Next screenshot"
+            >
+              <ChevronRight className="size-6" />
+            </button>
+          )}
+
+          {/* Dot indicators */}
+          {images.length > 1 && (
+            <div className="absolute bottom-6 flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+              {images.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setIndex(i)}
+                  className={`size-2 rounded-full transition-colors ${
+                    i === index ? 'bg-white' : 'bg-white/40 hover:bg-white/60'
+                  }`}
+                  aria-label={`Go to screenshot ${i + 1}`}
+                />
+              ))}
+            </div>
+          )}
+        </DialogPrimitive.Content>
+      </DialogPortal>
+    </Dialog>
+  );
+}
+
+/** Horizontally scrollable screenshot strip with click-to-open lightbox. */
+function ScreenshotStrip({ images, maxHeight, maxCount }: { images: string[]; maxHeight: string; maxCount?: number }) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const displayImages = maxCount ? images.slice(0, maxCount) : images;
+
+  return (
+    <>
+      <div className="flex gap-2.5 overflow-x-auto pb-1.5 -mx-1 px-1 scrollbar-none">
+        {displayImages.map((url, i) => (
+          <button
+            key={url}
+            type="button"
+            className="shrink-0 cursor-pointer rounded-xl overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-transform hover:scale-[1.02] active:scale-[0.98]"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightboxIndex(i);
+              setLightboxOpen(true);
+            }}
+            aria-label={`View screenshot ${i + 1}`}
+          >
+            <img
+              src={url}
+              alt=""
+              className={`${maxHeight} rounded-xl object-cover shadow-sm`}
+              loading="lazy"
+              onError={(e) => {
+                (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
+              }}
+            />
+          </button>
+        ))}
+      </div>
+
+      <ScreenshotLightbox
+        images={images}
+        initialIndex={lightboxIndex}
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+      />
+    </>
+  );
 }
 
 interface ZapstoreAppContentProps {
@@ -153,20 +302,7 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
 
         {/* Screenshot strip */}
         {images.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
-            {images.slice(0, 3).map((url) => (
-              <img
-                key={url}
-                src={url}
-                alt=""
-                className="h-36 rounded-lg object-cover shrink-0 shadow-sm"
-                loading="lazy"
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.display = 'none';
-                }}
-              />
-            ))}
-          </div>
+          <ScreenshotStrip images={images} maxHeight="h-36" maxCount={3} />
         )}
 
         {/* Tags */}
@@ -279,20 +415,7 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
 
       {/* Screenshot gallery */}
       {images.length > 0 && (
-        <div className="flex gap-2.5 overflow-x-auto pb-1.5 -mx-1 px-1 scrollbar-none">
-          {images.map((url) => (
-            <img
-              key={url}
-              src={url}
-              alt=""
-              className="h-52 rounded-xl object-cover shrink-0 shadow-sm"
-              loading="lazy"
-              onError={(e) => {
-                (e.currentTarget as HTMLElement).style.display = 'none';
-              }}
-            />
-          ))}
-        </div>
+        <ScreenshotStrip images={images} maxHeight="h-52" />
       )}
 
       {/* Release notes */}
