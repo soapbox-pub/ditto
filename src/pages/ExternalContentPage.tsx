@@ -21,9 +21,11 @@ import {
   BookContentHeader,
   CountryContentHeader,
 } from '@/components/ExternalContentHeader';
+import { PrecipitationEffect } from '@/components/PrecipitationEffect';
 import { parseExternalUri, headerLabel, seoTitle, type ExternalContent } from '@/lib/externalContent';
 import { ratingToStars } from '@/lib/bookstr';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useWeather, getPrecipitation } from '@/hooks/useWeather';
 import { useComments } from '@/hooks/useComments';
 import { useBookReviews } from '@/hooks/useBookReviews';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -299,6 +301,15 @@ export function ExternalContentPage() {
   const [composeOpen, setComposeOpen] = useState(false);
   const openCompose = useCallback(() => setComposeOpen(true), []);
 
+  // Weather-based precipitation effect for country pages
+  const isCountry = content?.type === 'iso3166';
+  const countryCode = isCountry ? content.code : null;
+  const { data: weather } = useWeather(countryCode);
+  const precipitation = useMemo(() => {
+    if (!weather) return null;
+    return getPrecipitation(weather.weatherCode);
+  }, [weather]);
+
   useLayoutOptions({
     showFAB: true,
     onFabClick: openCompose,
@@ -310,6 +321,11 @@ export function ExternalContentPage() {
 
   return (
     <main className="">
+      {/* Precipitation overlay for country pages */}
+      {precipitation?.type && (
+        <PrecipitationEffect type={precipitation.type} intensity={precipitation.intensity} />
+      )}
+
       {/* Non-sticky transparent header */}
       <div className="flex items-center gap-4 px-4 pt-4 pb-5">
         <Link

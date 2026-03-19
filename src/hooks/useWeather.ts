@@ -34,6 +34,26 @@ const WMO_CODES: Record<number, { description: string; icon: string }> = {
   99: { description: 'Thunderstorm with heavy hail', icon: '⛈️' },
 };
 
+export type PrecipitationType = 'rain' | 'snow' | null;
+
+/** Intensity: 'light' | 'moderate' | 'heavy'. */
+export type PrecipitationIntensity = 'light' | 'moderate' | 'heavy';
+
+/** Determine the precipitation type and intensity from a WMO code. */
+export function getPrecipitation(code: number): { type: PrecipitationType; intensity: PrecipitationIntensity } {
+  // Snow codes
+  if ([71, 85].includes(code)) return { type: 'snow', intensity: 'light' };
+  if ([73].includes(code)) return { type: 'snow', intensity: 'moderate' };
+  if ([75, 77, 86].includes(code)) return { type: 'snow', intensity: 'heavy' };
+
+  // Rain codes (including drizzle, freezing rain, showers, thunderstorms)
+  if ([51, 56, 61, 80].includes(code)) return { type: 'rain', intensity: 'light' };
+  if ([53, 63, 66, 81, 95].includes(code)) return { type: 'rain', intensity: 'moderate' };
+  if ([55, 57, 65, 67, 82, 96, 99].includes(code)) return { type: 'rain', intensity: 'heavy' };
+
+  return { type: null, intensity: 'light' };
+}
+
 export interface WeatherData {
   /** Current temperature in °C. */
   temperature: number;
