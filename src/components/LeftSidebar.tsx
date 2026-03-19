@@ -13,7 +13,7 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { SidebarNavList } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
-import { LinkFooter } from '@/components/LinkFooter';
+
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -143,8 +143,6 @@ export function LeftSidebar() {
           </button>
         </div>
       )}
-
-      <LinkFooter />
 
       {/* User profile at bottom */}
       {user && currentUser && (
