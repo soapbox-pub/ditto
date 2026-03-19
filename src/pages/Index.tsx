@@ -8,7 +8,7 @@ const Index = () => {
 
   useSeoMeta({
     title: config.appName,
-    description: 'A Nostr client for the social web.',
+    description: 'Your content. Your vibe. Your rules.',
   });
 
   useLayoutOptions({ showFAB: true, fabKind: 1 });
