@@ -18,7 +18,7 @@ export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
   }, [location.pathname]);
 
   return (
-    <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border sidebar:hidden safe-area-top">
+    <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md sidebar:hidden safe-area-top">
       <div className="flex items-center px-3 h-12">
         {/* Left: hamburger menu icon */}
         <div className="flex items-center justify-center w-7 shrink-0">
