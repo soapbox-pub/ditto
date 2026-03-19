@@ -113,17 +113,28 @@ export function NotificationsPage() {
   return (
     <main className="">
       {/* Tab bar */}
-      <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        {tabs.map(({ key, label }) => (
-          <TabButton
-            key={key}
-            label={label}
-            active={activeTab === key}
-            onClick={() => setActiveTab(key)}
-            className="sidebar:py-5 sidebar:font-semibold"
-            indicatorClassName="sidebar:h-[3px]"
-          />
-        ))}
+      <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
+        <div className="flex bg-background/80 backdrop-blur-md">
+          {tabs.map(({ key, label }) => (
+            <TabButton
+              key={key}
+              label={label}
+              active={activeTab === key}
+              onClick={() => setActiveTab(key)}
+              className="sidebar:py-5 sidebar:font-semibold"
+              indicatorClassName="sidebar:h-[3px]"
+            />
+          ))}
+        </div>
+        {/* Decorative semi-ellipse arc below the tabs */}
+        <svg
+          className="absolute left-0 right-0 top-full w-full pointer-events-none"
+          viewBox="0 0 100 12"
+          preserveAspectRatio="none"
+          style={{ height: 20 }}
+        >
+          <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
+        </svg>
       </div>
 
       {/* Content */}
