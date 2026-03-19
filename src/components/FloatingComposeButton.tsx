@@ -70,23 +70,15 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
               <stop offset="100%" style={{ stopColor: 'hsl(var(--accent))' }} />
             </linearGradient>
             {/* Mask: white = visible, black = cut out.
-                Only the FRONT arc segments (outside the circle) are stroked black
-                so the ring appears to pass in front there. The back arc (inside
-                the circle) is not masked, so the planet body covers it.
-                Two explicit path segments — no pathLength/dash tricks, Safari-safe. */}
+                The middle arc (crossing through the circle) is stroked black
+                so the ring appears to pass in front there. The outer arcs at
+                the edges pass behind the planet body naturally.
+                Single explicit path segment — no pathLength/dash tricks, Safari-safe. */}
             <mask id="planet-body-mask">
               <circle cx="12" cy="12" r="8" fill="white" />
-              {/* Front arc piece 1: bottom-left, outside circle */}
+              {/* Middle arc: crosses through the planet body, ring passes in front */}
               <path
-                d="M4.05 13 C2.35 14.8 1.55 16.5 2.25 17.5 C2.84 18.53 4.66 18.74 7.06 18.24"
-                fill="none"
-                stroke="black"
-                strokeWidth="3"
-                strokeLinecap="round"
-              />
-              {/* Front arc piece 2: top-right, outside circle */}
-              <path
-                d="M19.98 11.03 C21.66 9.22 22.4 7.54 21.75 6.5 C21.15 5.5 19.35 5.3 17.05 5.8"
+                d="M7.06 18.24 C9.1 17.82 11.57 16.88 14.05 15.5 C16.51 14.14 18.57 12.54 19.98 11.03"
                 fill="none"
                 stroke="black"
                 strokeWidth="3"
