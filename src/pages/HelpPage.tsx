@@ -1,9 +1,10 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, HelpCircle, Shield } from 'lucide-react';
+import { HelpCircle, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { PageHeader } from '@/components/PageHeader';
 import { TeamSoapboxCard } from '@/components/TeamSoapboxCard';
 import { HelpFAQSection } from '@/components/HelpFAQSection';
 
@@ -18,16 +19,7 @@ export function HelpPage() {
 
   return (
     <main className="min-h-screen pb-16 sidebar:pb-0">
-      {/* Page header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <HelpCircle className="size-5" />
-          <h1 className="text-xl font-bold">Help</h1>
-        </div>
-      </div>
+      <PageHeader title="Help" icon={<HelpCircle className="size-5" />} />
 
       {/* Team Soapbox follow pack */}
       <TeamSoapboxCard className="px-4 pt-2 pb-4" />

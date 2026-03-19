@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { ArcBackground } from '@/components/ArcBackground';
 
 interface SubHeaderBarProps {
   children: React.ReactNode;
@@ -19,16 +20,7 @@ interface SubHeaderBarProps {
 export function SubHeaderBar({ children, className, innerClassName }: SubHeaderBarProps) {
   return (
     <div className={cn('relative sticky top-mobile-bar sidebar:top-0 z-10', className)}>
-      {/* Unified background: rectangle + arc drawn as one SVG path.
-          Single fill layer = no opacity overlap seam, no sub-pixel gap. */}
-      <svg
-        className="absolute inset-0 w-full pointer-events-none"
-        viewBox="0 0 100 64"
-        preserveAspectRatio="none"
-        style={{ height: 'calc(100% + 20px)' }}
-      >
-        <path d="M0,0 L100,0 L100,44 Q50,64 0,44 Z" className="fill-background/80" />
-      </svg>
+      <ArcBackground variant="down" />
       {/* Tab content sits above the SVG background */}
       <div className={cn('relative flex overflow-x-auto scrollbar-none', innerClassName)}>
         {children}

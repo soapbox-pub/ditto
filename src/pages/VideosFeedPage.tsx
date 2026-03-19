@@ -41,6 +41,7 @@ import { getAvatarShape } from '@/lib/avatarShape';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { KindInfoButton } from '@/components/KindInfoButton';
+import { PageHeader } from '@/components/PageHeader';
 import { useVideoThumbnail } from '@/components/VideoPlayer';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { getExtraKindDef } from '@/lib/extraKinds';
@@ -783,17 +784,9 @@ export function VideosFeedPage() {
         <TabButton label="Global" active={feedTab === 'global'} onClick={() => setFeedTab('global')} />
       </SubHeaderBar>
 
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Film className="size-5" />
-          <h1 className="text-xl font-bold">Videos</h1>
-        </div>
+      <PageHeader title="Videos" icon={<Film className="size-5" />}>
         <KindInfoButton kindDef={videosDef} icon={sidebarItemIcon('videos', 'size-5')} />
-      </div>
+      </PageHeader>
 
       {/* Live streams strip — follows tab filters by followed authors */}
       <LiveStreamsStrip tab={feedTab} />

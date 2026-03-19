@@ -1,0 +1,47 @@
+import { cn } from '@/lib/utils';
+
+/** The arc overhang in pixels that extends beyond the element's bounds. */
+export const ARC_OVERHANG_PX = 20;
+
+/** SVG path for a downward arc (used by top bar and sub-header bar). */
+export const ARC_DOWN_PATH = 'M0,0 L100,0 L100,44 Q50,64 0,44 Z';
+
+/** SVG path for an upward arc (used by bottom nav). */
+export const ARC_UP_PATH = 'M0,20 Q50,0 100,20 L100,64 L0,64 Z';
+
+/** SVG path for a plain rectangle with no arc. */
+export const RECT_PATH = 'M0,0 L100,0 L100,64 L0,64 Z';
+
+interface ArcBackgroundProps {
+  /** Which arc shape to render. */
+  variant: 'down' | 'up' | 'rect';
+  /** Extra classes on the <svg> element. */
+  className?: string;
+}
+
+/**
+ * Shared SVG background shape used by MobileTopBar, SubHeaderBar, and
+ * MobileBottomNav. Draws a semi-transparent filled shape (rectangle + optional
+ * curved arc) as a single path so there are no sub-pixel seams between layers.
+ */
+export function ArcBackground({ variant, className }: ArcBackgroundProps) {
+  const path = variant === 'down' ? ARC_DOWN_PATH : variant === 'up' ? ARC_UP_PATH : RECT_PATH;
+  const hasArc = variant !== 'rect';
+
+  // "down" and "rect" anchor to the top (arc/content extends downward).
+  // "up" anchors to the bottom so the arc extends upward above the container.
+  const positionClass = variant === 'up'
+    ? 'absolute bottom-0 left-0 right-0'
+    : 'absolute inset-0';
+
+  return (
+    <svg
+      className={cn(positionClass, 'w-full pointer-events-none', className)}
+      viewBox="0 0 100 64"
+      preserveAspectRatio="none"
+      style={hasArc ? { height: `calc(100% + ${ARC_OVERHANG_PX}px)` } : { height: '100%' }}
+    >
+      <path d={path} className="fill-background/80" />
+    </svg>
+  );
+}

@@ -10,6 +10,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useLayoutSnapshot } from '@/contexts/LayoutContext';
+import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
 
 export function MobileBottomNav() {
@@ -42,19 +43,9 @@ export function MobileBottomNav() {
           'fixed bottom-0 left-0 right-0 z-40 sidebar:hidden safe-area-bottom will-change-transform',
           'transition-transform duration-300 ease-in-out',
         )}
-        style={isHidden ? { transform: 'translateY(calc(100% + 20px))' } : undefined}
+        style={isHidden ? { transform: `translateY(calc(100% + ${ARC_OVERHANG_PX}px))` } : undefined}
       >
-        {/* Single unified background: arc + rectangle drawn as one SVG shape.
-            Arc uses 12/32 ratio matching the top header arc (viewBox 0 0 100 12, height 20px).
-            No separate layers = no opacity overlap seam, no sub-pixel gap. */}
-        <svg
-          className="absolute left-0 right-0 bottom-0 w-full pointer-events-none"
-          viewBox="0 0 100 64"
-          preserveAspectRatio="none"
-          style={{ height: 'calc(100% + 20px)' }}
-        >
-          <path d="M0,20 Q50,0 100,20 L100,64 L0,64 Z" className="fill-background/80" />
-        </svg>
+        <ArcBackground variant="up" />
 
         <div className="h-11 flex items-center relative">
 

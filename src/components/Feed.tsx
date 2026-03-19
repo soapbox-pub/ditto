@@ -233,45 +233,45 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       {/* Tabs (logged in) or CTA (logged out, main feed only) */}
       {user ? (
         <SubHeaderBar>
-            <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
-            {!isKindSpecificPage && showDittoFeed && (
-              <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
-            )}
-            {!isKindSpecificPage && showCommunityFeed && (
-              <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
-            )}
-            {(isKindSpecificPage || showGlobalFeed) && (
-              <TabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
-            )}
-            {showSavedFeedTabs && savedFeeds.map((feed) => (
-              <TabButton
-                key={feed.id}
-                label={feed.label}
-                active={activeTab === feed.id}
-                onClick={() => handleSetActiveTab(feed.id)}
-              />
-            ))}
-            {showSavedFeedTabs && hashtags.map((tag) => (
-              <TabButton
-                key={`hashtag:${tag}`}
-                label={`#${tag}`}
-                active={activeTab === `hashtag:${tag}`}
-                onClick={() => handleSetActiveTab(`hashtag:${tag}`)}
-              />
-            ))}
-            {showSavedFeedTabs && geotags.map((tag) => (
-              <TabButton
-                key={`geotag:${tag}`}
-                label={tag}
-                active={activeTab === `geotag:${tag}`}
-                onClick={() => handleSetActiveTab(`geotag:${tag}`)}
-              >
-                <span className="flex items-center justify-center gap-1">
-                  <MapPin className="size-3.5" />
-                  {tag}
-                </span>
-              </TabButton>
-            ))}
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
+          {!isKindSpecificPage && showDittoFeed && (
+            <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
+          )}
+          {!isKindSpecificPage && showCommunityFeed && (
+            <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
+          )}
+          {(isKindSpecificPage || showGlobalFeed) && (
+            <TabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
+          )}
+          {showSavedFeedTabs && savedFeeds.map((feed) => (
+            <TabButton
+              key={feed.id}
+              label={feed.label}
+              active={activeTab === feed.id}
+              onClick={() => handleSetActiveTab(feed.id)}
+            />
+          ))}
+          {showSavedFeedTabs && hashtags.map((tag) => (
+            <TabButton
+              key={`hashtag:${tag}`}
+              label={`#${tag}`}
+              active={activeTab === `hashtag:${tag}`}
+              onClick={() => handleSetActiveTab(`hashtag:${tag}`)}
+            />
+          ))}
+          {showSavedFeedTabs && geotags.map((tag) => (
+            <TabButton
+              key={`geotag:${tag}`}
+              label={tag}
+              active={activeTab === `geotag:${tag}`}
+              onClick={() => handleSetActiveTab(`geotag:${tag}`)}
+            >
+              <span className="flex items-center justify-center gap-1">
+                <MapPin className="size-3.5" />
+                {tag}
+              </span>
+            </TabButton>
+          ))}
         </SubHeaderBar>
       ) : !kinds && (
         <LandingHero
