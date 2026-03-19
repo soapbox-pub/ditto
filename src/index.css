@@ -76,9 +76,11 @@
     }
   }
 
-  /* AI chat height on mobile: full viewport minus top bar, bottom nav (2.75rem), and safe-area insets */
+  /* AI chat height on mobile: full viewport minus top bar, extends behind bottom nav.
+     Padding-bottom keeps input above the nav. */
   .ai-chat-height {
-    height: calc(100dvh - 2.5rem - 2.75rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 2.5rem - env(safe-area-inset-top, 0px));
+    padding-bottom: calc(2.75rem + env(safe-area-inset-bottom, 0px));
   }
 
   /* Live stream page height on mobile: full viewport minus top bar, bottom nav, and safe-area insets */
