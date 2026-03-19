@@ -4,9 +4,11 @@
  * Hooks for Blobbi incubation task system.
  * 
  * When a user starts incubation:
- * 1. Set state to 'incubating'
- * 2. Add state_started_at timestamp
- * 3. Clear any previous task progress
+ * 1. Apply accumulated decay from last_decay_at to now
+ * 2. Set state to 'incubating'
+ * 3. Add state_started_at timestamp
+ * 4. Update last_decay_at to the same timestamp
+ * 5. Clear any previous task progress
  * 
  * Tasks are computed from Nostr events with created_at >= state_started_at
  */
@@ -23,6 +25,7 @@ import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
 } from '@/lib/blobbi';
+import { applyBlobbiDecay } from '@/lib/blobbi-decay';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,19 +110,41 @@ export function useStartIncubation({
         throw new Error('Failed to prepare companion for incubation');
       }
 
-      // ─── Build Updated Tags ───
+      // ─── Apply Accumulated Decay ───
+      // CRITICAL: Apply decay from last_decay_at to now before changing state
       const now = Math.floor(Date.now() / 1000);
       const nowStr = now.toString();
       
+      const decayResult = applyBlobbiDecay({
+        stage: canonical.companion.stage,
+        state: canonical.companion.state,
+        stats: canonical.companion.stats,
+        lastDecayAt: canonical.companion.lastDecayAt,
+        now,
+      });
+      
+      // ─── Build Updated Tags ───
       // Remove any existing task tags when starting fresh
       const cleanedTags = canonical.allTags.filter(tag => 
         tag[0] !== 'task' && tag[0] !== 'task_completed'
       );
       
+      // Build stats update with decayed values
+      // Eggs have fixed hunger and energy at 100
+      const statsUpdate: Record<string, string> = {
+        health: decayResult.stats.health.toString(),
+        hygiene: decayResult.stats.hygiene.toString(),
+        happiness: decayResult.stats.happiness.toString(),
+        hunger: '100',
+        energy: '100',
+      };
+      
       const newTags = updateBlobbiTags(cleanedTags, {
+        ...statsUpdate,
         state: 'incubating',
         state_started_at: nowStr,
         last_interaction: nowStr,
+        last_decay_at: nowStr,
       });
 
       // ─── Publish Event ───
