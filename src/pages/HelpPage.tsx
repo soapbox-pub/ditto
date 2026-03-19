@@ -19,15 +19,13 @@ export function HelpPage() {
   return (
     <main className="min-h-screen pb-16 sidebar:pb-0">
       {/* Page header */}
-      <div className="sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        <div className="flex items-center gap-4 px-4 pt-4 pb-3">
-          <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-            <ArrowLeft className="size-5" />
-          </Link>
-          <div className="flex items-center gap-2">
-            <HelpCircle className="size-5" />
-            <h1 className="text-xl font-bold">Help</h1>
-          </div>
+      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
+        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+          <ArrowLeft className="size-5" />
+        </Link>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <HelpCircle className="size-5" />
+          <h1 className="text-xl font-bold">Help</h1>
         </div>
       </div>
 
