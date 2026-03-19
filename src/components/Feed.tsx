@@ -234,7 +234,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       {/* Tabs (logged in) or CTA (logged out, main feed only) */}
       {user ? (
         <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
-          <div className="flex bg-background overflow-x-auto scrollbar-none">
+          <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
             <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
             {!isKindSpecificPage && showDittoFeed && (
               <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
@@ -282,7 +282,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
             preserveAspectRatio="none"
             style={{ height: 20 }}
           >
-            <path d="M0,0 Q50,12 100,0 Z" className="fill-background" />
+            <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
           </svg>
         </div>
       ) : !kinds && (
