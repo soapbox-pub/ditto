@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Bot, Send, Sparkles, Trash2, Palette, Type } from 'lucide-react';
+import { Bot, Send, Trash2, Palette, Type } from 'lucide-react';
 
 import { useShakespeare, type ChatMessage, type Model } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -209,7 +209,7 @@ export function AIChatPage() {
     description: 'Chat with AI assistant',
   });
 
-  useLayoutOptions({ noOverscroll: true, hasSubHeader: true });
+  useLayoutOptions({ noOverscroll: true });
 
   // Scroll to bottom on new messages
   const scrollToBottom = useCallback(() => {
@@ -414,23 +414,12 @@ export function AIChatPage() {
 
   return (
     <main className="flex flex-col ai-chat-height sidebar:h-dvh">
-      {/* Header — unified arc+rect SVG background, matching SubHeaderBar style */}
-      <div className="relative shrink-0">
-        <svg
-          className="absolute inset-0 w-full pointer-events-none"
-          viewBox="0 0 100 64"
-          preserveAspectRatio="none"
-          style={{ height: 'calc(100% + 20px)' }}
-        >
-          <path d="M0,0 L100,0 L100,44 Q50,64 0,44 Z" className="fill-background/80" />
-        </svg>
-        <div className="relative px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Sparkles className="size-4 text-primary" />
-            </div>
-            <h1 className="font-semibold text-lg">AI Chat</h1>
-          </div>
+      {/* Header */}
+      <div className="shrink-0 px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
+        <div className="flex items-center gap-2.5">
+          <Bot className="size-5 text-muted-foreground" />
+          <h1 className="font-semibold text-lg">AI Chat</h1>
+        </div>
 
           <div className="flex items-center gap-2">
             {/* Model selector */}
@@ -469,7 +458,6 @@ export function AIChatPage() {
               <Trash2 className="size-4" />
             </Button>
           </div>
-        </div>
       </div>
 
       {/* Messages Area */}
@@ -500,7 +488,7 @@ export function AIChatPage() {
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="shrink-0 border-t border-border bg-background p-4">
+      <div className="shrink-0 p-4">
         <div className="max-w-2xl mx-auto flex items-end gap-2">
           <Textarea
             ref={textareaRef}
@@ -561,7 +549,7 @@ function EmptyState() {
 
   return (
     <div className="flex flex-col items-center justify-center py-20 gap-8 text-center select-none animate-in fade-in duration-500">
-      <pre className="text-4xl font-mono font-bold text-primary leading-none">{'<[o_o]>'}</pre>
+      <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
       <div className="space-y-2">
         <h2 className="text-base font-semibold tracking-tight text-foreground">Dork AI</h2>
         <p className="text-sm text-muted-foreground">{greeting}</p>
