@@ -102,17 +102,6 @@ export function ThemesPage() {
 
   return (
     <main className="pb-16 sidebar:pb-0">
-      {/* Page header */}
-      <div className="flex items-center gap-4 px-4 pt-4 pb-5">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Sparkles className="size-5" />
-          <h1 className="text-xl font-bold">Themes</h1>
-        </div>
-      </div>
-
       {/* Tabs */}
       <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
         <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
@@ -123,6 +112,17 @@ export function ThemesPage() {
         <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
           <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
         </svg>
+      </div>
+
+      {/* Page header */}
+      <div className="flex items-center gap-4 px-4 pt-4 pb-5">
+        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+          <ArrowLeft className="size-5" />
+        </Link>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Sparkles className="size-5" />
+          <h1 className="text-xl font-bold">Themes</h1>
+        </div>
       </div>
 
       {/* Tab content */}
