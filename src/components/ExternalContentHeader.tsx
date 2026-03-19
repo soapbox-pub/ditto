@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Droplets, ExternalLink, FileText, Globe, MapPin, Play, User, Users, Wind } from 'lucide-react';
+import { BookOpen, Droplets, ExternalLink, FileText, Globe, MapPin, Package, Play, User, Users, Wind } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -653,11 +653,15 @@ export function ProfilePreview({ pubkey }: { pubkey: string }) {
 
 /** Extract a thumbnail URL from an addressable event's tags. */
 function extractThumbnail(tags: string[][]): string | undefined {
-  // 1. Explicit image/thumb tag
+  // 1. Explicit icon tag (used by zapstore kind 32267)
+  const iconTag = tags.find(([n]) => n === 'icon')?.[1];
+  if (iconTag) return iconTag;
+
+  // 2. Explicit image/thumb tag
   const imageTag = tags.find(([n]) => n === 'image' || n === 'thumb')?.[1];
   if (imageTag) return imageTag;
 
-  // 2. imeta tag (used by vines / kind 34236)
+  // 3. imeta tag (used by vines / kind 34236)
   const imetaTag = tags.find(([n]) => n === 'imeta');
   if (imetaTag) {
     for (let i = 1; i < imetaTag.length; i++) {
@@ -680,6 +684,12 @@ function hasVideo(tags: string[][]): boolean {
   return false;
 }
 
+/** Fallback labels for well-known kinds not in EXTRA_KINDS. */
+const WELL_KNOWN_KIND_LABELS: Record<number, string> = {
+  32267: 'App',
+  30063: 'Release',
+};
+
 export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
   const { data: event, isLoading } = useAddrEvent(addr);
   const author = useAuthor(addr.pubkey);
@@ -694,13 +704,15 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
     if (kindDef) return kindDef.label;
     const sub = EXTRA_KINDS.flatMap((d) => d.subKinds ?? []).find((s) => s.kind === addr.kind);
     if (sub) return sub.label;
-    return `Kind ${addr.kind}`;
+    return WELL_KNOWN_KIND_LABELS[addr.kind] ?? `Kind ${addr.kind}`;
   }, [kindDef, addr.kind]);
 
   const KindIcon = useMemo(() => {
     if (kindDef?.id) return CONTENT_KIND_ICONS[kindDef.id] ?? FileText;
+    // Fallback icons for well-known kinds not in EXTRA_KINDS
+    if (addr.kind === 32267 || addr.kind === 30063) return Package;
     return FileText;
-  }, [kindDef]);
+  }, [kindDef, addr.kind]);
 
   const title = event?.tags.find(([n]) => n === 'title')?.[1]
     || event?.tags.find(([n]) => n === 'name')?.[1]
