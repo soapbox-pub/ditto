@@ -21,7 +21,7 @@ export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
     <>
     {/* Fixed backing layer behind the header — stays at viewport top so the header
         has the same double-opacity look as the tab bar sitting over the content area */}
-    <div className="fixed top-0 left-0 right-0 bg-background/85 sidebar:hidden safe-area-top" style={{ zIndex: 19 }}>
+    <div className="fixed top-0 left-0 right-0 bg-background/85 sidebar:hidden safe-area-top" style={{ zIndex: 1 }}>
       <div className="h-12" />
     </div>
     <header className="sticky top-0 z-20 bg-background/80 sidebar:hidden safe-area-top">

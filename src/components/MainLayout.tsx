@@ -88,7 +88,7 @@ function MainLayoutInner() {
 
         {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
         <Suspense fallback={<PageSkeleton />}>
-          <div className={cn("relative flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
+          <div className={cn("relative z-10 flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
             <Outlet />
             {showFAB && (
               <div className="sticky bottom-fab sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
