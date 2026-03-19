@@ -45,13 +45,15 @@ export function MobileBottomNav() {
         )}
       >
         {/* Single unified background: arc + rectangle drawn as one SVG shape.
+            Arc uses 12/32 ratio matching the top header arc (viewBox 0 0 100 12, height 20px).
             No separate layers = no opacity overlap seam, no sub-pixel gap. */}
         <svg
-          className="absolute left-0 right-0 bottom-0 w-full h-[calc(100%+20px)] pointer-events-none"
-          viewBox="0 0 100 32"
+          className="absolute left-0 right-0 bottom-0 w-full pointer-events-none"
+          viewBox="0 0 100 64"
           preserveAspectRatio="none"
+          style={{ height: 'calc(100% + 20px)' }}
         >
-          <path d="M0,12 Q50,0 100,12 L100,32 L0,32 Z" className="fill-background/80" />
+          <path d="M0,20 Q50,0 100,20 L100,64 L0,64 Z" className="fill-background/80" />
         </svg>
 
         <div className="h-11 flex items-center relative">
