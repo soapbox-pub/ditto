@@ -47,16 +47,28 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
     <>
       <button
         onClick={handleClick}
-        className="relative size-16 transition-transform hover:scale-105 active:scale-95 drop-shadow-lg"
+        className="relative size-16 transition-transform hover:scale-105 active:scale-95"
+        style={{
+          filter: 'drop-shadow(0 4px 12px hsl(var(--primary) / 0.4)) drop-shadow(0 2px 4px hsl(var(--primary) / 0.2))',
+        }}
       >
         {/* Filled planet shape as the button background */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
-          overflow="visible"
           className="absolute inset-0 w-full h-full"
         >
           <defs>
+            {/* Gradient for planet body */}
+            <linearGradient id="planet-gradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" style={{ stopColor: 'hsl(var(--accent))' }} />
+              <stop offset="100%" style={{ stopColor: 'hsl(var(--primary))' }} />
+            </linearGradient>
+            {/* Gradient for ring */}
+            <linearGradient id="ring-gradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" style={{ stopColor: 'hsl(var(--primary))' }} />
+              <stop offset="100%" style={{ stopColor: 'hsl(var(--accent))' }} />
+            </linearGradient>
             {/* Mask: white = visible, black = cut out */}
             <mask id="planet-body-mask">
               <circle cx="12" cy="12" r="8" fill="white" />
@@ -74,13 +86,13 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
               />
             </mask>
           </defs>
-          {/* Planet body with ring gap cut out */}
-          <circle cx="12" cy="12" r="8" className="fill-accent" mask="url(#planet-body-mask)" />
-          {/* Ring — accent-colored */}
+          {/* Planet body with gradient fill and ring gap cut out */}
+          <circle cx="12" cy="12" r="8" fill="url(#planet-gradient)" mask="url(#planet-body-mask)" />
+          {/* Ring — gradient-colored */}
           <path
             d="M4.05 13c-1.7 1.8-2.5 3.5-1.8 4.5c1.1 1.9 6.4 1 11.8-2s8.9-7.1 7.7-9c-.6-1-2.4-1.2-4.7-.7"
             fill="none"
-            className="stroke-accent"
+            stroke="url(#ring-gradient)"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
