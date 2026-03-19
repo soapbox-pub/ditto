@@ -39,11 +39,24 @@ export function MobileBottomNav() {
 
       <nav
         className={cn(
-          'fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom',
+          'fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md sidebar:hidden safe-area-bottom',
           'transition-transform duration-300 ease-in-out',
           isHidden && 'translate-y-full',
         )}
       >
+        {/* Decorative semi-ellipse arc on top of the nav */}
+        <svg
+          className="absolute left-0 right-0 bottom-full w-full pointer-events-none"
+          viewBox="0 0 100 12"
+          preserveAspectRatio="none"
+          style={{ height: 20 }}
+        >
+          {/* Fill matching the nav background */}
+          <path d="M0,12 Q50,0 100,12 Z" className="fill-background/80" />
+          {/* Stroke matching the nav border */}
+          <path d="M0,12 Q50,0 100,12" className="fill-none stroke-border" vectorEffect="non-scaling-stroke" />
+        </svg>
+
         <div className="h-14 flex items-center">
 
           {/* Feed */}
