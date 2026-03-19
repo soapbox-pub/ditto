@@ -70,25 +70,35 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
               <stop offset="100%" style={{ stopColor: 'hsl(var(--accent))' }} />
             </linearGradient>
             {/* Mask: white = visible, black = cut out.
-                Strokes the full ring path in black to carve a gap where the ring
-                crosses the planet body. No pathLength/dash tricks — Safari-safe. */}
+                Only the FRONT arc segments (outside the circle) are stroked black
+                so the ring appears to pass in front there. The back arc (inside
+                the circle) is not masked, so the planet body covers it.
+                Two explicit path segments — no pathLength/dash tricks, Safari-safe. */}
             <mask id="planet-body-mask">
               <circle cx="12" cy="12" r="8" fill="white" />
+              {/* Front arc piece 1: bottom-left, outside circle */}
               <path
-                d="M4.05 13c-1.7 1.8-2.5 3.5-1.8 4.5c1.1 1.9 6.4 1 11.8-2s8.9-7.1 7.7-9c-.6-1-2.4-1.2-4.7-.7"
+                d="M4.05 13 C2.35 14.8 1.55 16.5 2.25 17.5 C2.84 18.53 4.66 18.74 7.06 18.24"
                 fill="none"
                 stroke="black"
                 strokeWidth="3"
                 strokeLinecap="round"
-                strokeLinejoin="round"
+              />
+              {/* Front arc piece 2: top-right, outside circle */}
+              <path
+                d="M19.98 11.03 C21.66 9.22 22.4 7.54 21.75 6.5 C21.15 5.5 19.35 5.3 17.05 5.8"
+                fill="none"
+                stroke="black"
+                strokeWidth="3"
+                strokeLinecap="round"
               />
             </mask>
           </defs>
-          {/* Planet body with gradient fill and ring gap cut out */}
+          {/* Planet body with gradient fill, front-arc gap cut out */}
           <circle cx="12" cy="12" r="8" fill="url(#planet-gradient)" mask="url(#planet-body-mask)" />
-          {/* Ring — gradient-colored */}
+          {/* Full ring as one continuous path — gradient flows smoothly */}
           <path
-            d="M4.05 13c-1.7 1.8-2.5 3.5-1.8 4.5c1.1 1.9 6.4 1 11.8-2s8.9-7.1 7.7-9c-.6-1-2.4-1.2-4.7-.7"
+            d="M4.05 13 C2.35 14.8 1.55 16.5 2.25 17.5 C2.84 18.53 4.66 18.74 7.06 18.24 C9.1 17.82 11.57 16.88 14.05 15.5 C16.51 14.14 18.57 12.54 19.98 11.03 C21.66 9.22 22.4 7.54 21.75 6.5 C21.15 5.5 19.35 5.3 17.05 5.8"
             fill="none"
             stroke="url(#ring-gradient)"
             strokeWidth="2"
