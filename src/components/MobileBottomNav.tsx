@@ -39,17 +39,18 @@ export function MobileBottomNav() {
 
       <nav
         className={cn(
-          'fixed bottom-0 left-0 right-0 z-40 bg-background/80 sidebar:hidden safe-area-bottom',
+          'fixed bottom-0 left-0 right-0 z-40 bg-background/80 sidebar:hidden safe-area-bottom will-change-transform',
           'transition-transform duration-300 ease-in-out',
           isHidden && 'translate-y-full',
         )}
       >
-        {/* Decorative semi-ellipse arc on top of the nav */}
+        {/* Decorative semi-ellipse arc on top of the nav.
+            Overlaps 1px into the nav bar to prevent sub-pixel seam during translate animation. */}
         <svg
-          className="absolute left-0 right-0 bottom-full w-full pointer-events-none"
+          className="absolute left-0 right-0 w-full pointer-events-none"
           viewBox="0 0 100 12"
           preserveAspectRatio="none"
-          style={{ height: 20 }}
+          style={{ height: 20, bottom: 'calc(100% - 1px)' }}
         >
           <path d="M0,12 Q50,0 100,12 Z" className="fill-background/80" />
         </svg>
