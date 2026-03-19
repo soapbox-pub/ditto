@@ -42,19 +42,19 @@
   
   /* FAB bottom offset: clears bottom nav + safe area inset on mobile */
   .bottom-fab {
-    bottom: calc(1.5rem + 3.5rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(1.5rem + 2.75rem + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Position above mobile bottom nav (h-14 = 3.5rem) + safe area */
+  /* Position above mobile bottom nav (h-11 = 2.75rem) + safe area */
   .bottom-mobile-nav {
-    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(2.75rem + env(safe-area-inset-bottom, 0px));
   }
 
   /* Bottom overscroll padding for the center column:
      clears the mobile bottom nav + safe area + generous extra space
      so content can be scrolled well past the bottom bar */
   .pb-overscroll {
-    padding-bottom: calc(10vh + 3.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(10vh + 2.75rem + env(safe-area-inset-bottom, 0px));
   }
 
   @media (min-width: 900px) {
@@ -76,20 +76,20 @@
     }
   }
 
-  /* AI chat height on mobile: full viewport minus top bar, bottom nav (3.5rem), and safe-area insets */
+  /* AI chat height on mobile: full viewport minus top bar, bottom nav (2.75rem), and safe-area insets */
   .ai-chat-height {
-    height: calc(100dvh - 2.5rem - 3.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 2.5rem - 2.75rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   }
 
   /* Live stream page height on mobile: full viewport minus top bar, bottom nav, and safe-area insets */
   .livestream-height {
-    height: calc(100dvh - 2.5rem - 3.5rem - env(safe-area-inset-bottom, 0px));
-    max-height: calc(100dvh - 2.5rem - 3.5rem - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 2.5rem - 2.75rem - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 2.5rem - 2.75rem - env(safe-area-inset-bottom, 0px));
   }
 
   /* Vine feed slide height: full viewport minus top bar, tab bar, bottom nav, and safe-area insets */
   .vine-slide-height {
-    height: calc(100dvh - env(safe-area-inset-top, 0px) - 2.5rem - 2.5rem - 3.5rem - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - 2.5rem - 2.5rem - 2.75rem - env(safe-area-inset-bottom, 0px));
     transition: height 300ms ease-in-out;
   }
 

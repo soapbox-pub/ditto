@@ -54,7 +54,7 @@ export function MobileBottomNav() {
           <path d="M0,12 Q50,0 100,12 Z" className="fill-background/80" />
         </svg>
 
-        <div className="h-14 flex items-center">
+        <div className="h-11 flex items-center">
 
           {/* Feed */}
           <Link
