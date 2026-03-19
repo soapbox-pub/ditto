@@ -45,12 +45,33 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
 
   return (
     <>
-      <Button
+      <button
         onClick={handleClick}
-        className="size-14 rounded-full shadow-lg bg-accent hover:bg-accent/90 text-accent-foreground transition-transform hover:scale-105 active:scale-95"
+        className="relative size-16 transition-transform hover:scale-105 active:scale-95 drop-shadow-lg"
       >
-        {icon ?? <Plus strokeWidth={4} />}
-      </Button>
+        {/* Filled planet shape as the button background */}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          className="absolute inset-0 w-full h-full"
+        >
+          {/* Planet body */}
+          <circle cx="12" cy="12" r="8" className="fill-accent" />
+          {/* Ring as a filled stroke so it has thickness */}
+          <path
+            d="M4.05 13c-1.7 1.8-2.5 3.5-1.8 4.5c1.1 1.9 6.4 1 11.8-2s8.9-7.1 7.7-9c-.6-1-2.4-1.2-4.7-.7"
+            fill="none"
+            className="stroke-accent"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        {/* Plus icon centered on the planet body */}
+        <span className="absolute inset-0 flex items-center justify-center text-accent-foreground">
+          {icon ?? <Plus strokeWidth={4} size={24} />}
+        </span>
+      </button>
 
       {/* Kind 1: Compose modal */}
       {kind === 1 && (
