@@ -41,8 +41,8 @@ export function MobileBottomNav() {
         className={cn(
           'fixed bottom-0 left-0 right-0 z-40 sidebar:hidden safe-area-bottom will-change-transform',
           'transition-transform duration-300 ease-in-out',
-          isHidden && 'translate-y-full',
         )}
+        style={isHidden ? { transform: 'translateY(calc(100% + 20px))' } : undefined}
       >
         {/* Single unified background: arc + rectangle drawn as one SVG shape.
             Arc uses 12/32 ratio matching the top header arc (viewBox 0 0 100 12, height 20px).
