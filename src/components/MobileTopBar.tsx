@@ -18,8 +18,11 @@ export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
   }, [location.pathname]);
 
   return (
-    <header className="sticky top-0 z-20 bg-background/80 sidebar:hidden safe-area-top">
-      <div className="flex items-center px-3 h-12">
+    <header className="sticky top-0 z-20 sidebar:hidden safe-area-top">
+      {/* Backing layer to match the double-opacity look of the tab bar over content */}
+      <div className="absolute inset-0 bg-background/85" />
+      <div className="absolute inset-0 bg-background/80" />
+      <div className="relative flex items-center px-3 h-12">
         {/* Left: hamburger menu icon */}
         <div className="flex items-center justify-center w-7 shrink-0">
           <button onClick={onAvatarClick} className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background text-muted-foreground hover:text-foreground transition-colors">
