@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, BookMarked, Loader2, Search, X } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -98,15 +99,10 @@ export function BooksPage() {
     <main className="pb-16 sidebar:pb-0">
       {/* Follows / Global tabs */}
       {user && (
-        <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
-          <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
-            <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
-            <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
-          </div>
-          <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
-            <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
-          </svg>
-        </div>
+        <SubHeaderBar>
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
+          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+        </SubHeaderBar>
       )}
 
       {/* Page header */}

@@ -24,6 +24,7 @@ import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -231,8 +232,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     <main className="flex-1 min-w-0">
       {/* Tabs (logged in) or CTA (logged out, main feed only) */}
       {user ? (
-        <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
-          <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
+        <SubHeaderBar>
             <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
             {!isKindSpecificPage && showDittoFeed && (
               <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
@@ -272,17 +272,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
                 </span>
               </TabButton>
             ))}
-          </div>
-          {/* Decorative semi-ellipse arc below the tabs */}
-          <svg
-            className="absolute left-0 right-0 top-full w-full pointer-events-none"
-            viewBox="0 0 100 12"
-            preserveAspectRatio="none"
-            style={{ height: 20 }}
-          >
-            <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
-          </svg>
-        </div>
+        </SubHeaderBar>
       ) : !kinds && (
         <LandingHero
           onLoginClick={() => setLoginDialogOpen(true)}

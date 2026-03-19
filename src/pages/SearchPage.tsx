@@ -45,6 +45,7 @@ import { ListPackPicker } from '@/components/SavedFeedFiltersEditor';
 
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { cn, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
@@ -409,22 +410,10 @@ export function SearchPage() {
 
   return (
     <main className="flex-1 min-w-0">
-      {/* Tabs — sticky at top, identical structure to Feed.tsx */}
-      <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
-        <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
-          <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
-          <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
-        </div>
-        {/* Decorative semi-ellipse arc below the tabs */}
-        <svg
-          className="absolute left-0 right-0 top-full w-full pointer-events-none"
-          viewBox="0 0 100 12"
-          preserveAspectRatio="none"
-          style={{ height: 20 }}
-        >
-          <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
-        </svg>
-      </div>
+      <SubHeaderBar>
+        <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
+        <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
+      </SubHeaderBar>
 
       {/* Search input bar — always rendered right after tabs, like ComposeBox on Feed */}
       <div className="px-4 py-3">
