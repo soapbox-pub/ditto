@@ -306,7 +306,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'Can I self-host Ditto?',
         answer: [
           'Yes! Because Ditto is open source, anyone can run their own instance. You get full control over your server, your data, and your community.',
-          'If you\'re interested, check out the [self-hosting guide](https://about.ditto.pub/guides/self-hosting) to get started.',
+          'If you\'re interested, check out the [self-hosting guide](https://about.ditto.pub/self-hosting) to get started.',
         ],
       },
       {

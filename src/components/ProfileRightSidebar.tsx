@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'lucide-react';
+import { LinkFooter } from '@/components/LinkFooter';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -597,15 +598,7 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
       )}
 
       {/* Footer — hidden when used as a fields-only preview */}
-      {mediaEvents !== undefined && (
-        <footer className="mt-auto pt-4 pb-4 text-left bg-background/85 rounded-xl p-3 -mx-1">
-          <p className="text-xs text-muted-foreground">
-            <a href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
-              Edit Ditto with Shakespeare
-            </a>
-          </p>
-        </footer>
-      )}
+      {mediaEvents !== undefined && <LinkFooter />}
     </aside>
   );
 }
