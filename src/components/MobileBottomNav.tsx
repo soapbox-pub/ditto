@@ -39,23 +39,22 @@ export function MobileBottomNav() {
 
       <nav
         className={cn(
-          'fixed bottom-0 left-0 right-0 z-40 bg-background/80 sidebar:hidden safe-area-bottom will-change-transform',
+          'fixed bottom-0 left-0 right-0 z-40 sidebar:hidden safe-area-bottom will-change-transform',
           'transition-transform duration-300 ease-in-out',
           isHidden && 'translate-y-full',
         )}
       >
-        {/* Decorative semi-ellipse arc on top of the nav.
-            Overlaps 1px into the nav bar to prevent sub-pixel seam during translate animation. */}
+        {/* Single unified background: arc + rectangle drawn as one SVG shape.
+            No separate layers = no opacity overlap seam, no sub-pixel gap. */}
         <svg
-          className="absolute left-0 right-0 w-full pointer-events-none"
-          viewBox="0 0 100 12"
+          className="absolute left-0 right-0 bottom-0 w-full h-[calc(100%+20px)] pointer-events-none"
+          viewBox="0 0 100 32"
           preserveAspectRatio="none"
-          style={{ height: 20, bottom: 'calc(100% - 1px)' }}
         >
-          <path d="M0,12 Q50,0 100,12 Z" className="fill-background/80" />
+          <path d="M0,12 Q50,0 100,12 L100,32 L0,32 Z" className="fill-background/80" />
         </svg>
 
-        <div className="h-11 flex items-center">
+        <div className="h-11 flex items-center relative">
 
           {/* Feed */}
           <Link
