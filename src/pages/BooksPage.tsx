@@ -18,6 +18,7 @@ import { usePrefetchBookSummaries } from '@/hooks/useBookSummary';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import type { ExtraKindDef } from '@/lib/extraKinds';
 
 type FeedTab = 'follows' | 'global';
@@ -44,6 +45,8 @@ export function BooksPage() {
     title: `Books | ${config.appName}`,
     description: 'Book reviews, ratings, and discussions from the Nostr community',
   });
+
+  useLayoutOptions({ hasSubHeader: true });
 
   const feedQuery = useBookFeed(activeTab);
 

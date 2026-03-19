@@ -31,6 +31,7 @@ import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
 import { Button } from '@/components/ui/button';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 type NotificationTab = 'all' | 'mentions';
 
@@ -41,6 +42,8 @@ export function NotificationsPage() {
     title: `Notifications | ${config.appName}`,
     description: 'Your Nostr notifications',
   });
+
+  useLayoutOptions({ hasSubHeader: true });
 
   const [activeTab, setActiveTab] = useState<NotificationTab>('all');
   const { user } = useCurrentUser();

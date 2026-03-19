@@ -50,7 +50,7 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
   });
 
   const fabClick = onFabClick ?? (resolvedDef ? () => setInfoOpen(true) : undefined);
-  useLayoutOptions({ showFAB, fabKind: primaryKind, fabHref, onFabClick: fabClick });
+  useLayoutOptions({ showFAB, fabKind: primaryKind, fabHref, onFabClick: fabClick, hasSubHeader: true });
 
   const kinds = Array.isArray(kind) ? kind : [kind];
 

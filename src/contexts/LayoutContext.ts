@@ -34,6 +34,12 @@ export interface LayoutOptions {
    * full-width page layouts (e.g. messaging).
    */
   noMaxWidth?: boolean;
+  /**
+   * If true, indicates the page renders its own sub-header with a decorative
+   * arc (e.g. tab bars). The mobile top bar will skip its own arc to avoid
+   * doubling up.
+   */
+  hasSubHeader?: boolean;
 }
 
 type Listener = () => void;
@@ -102,7 +108,8 @@ export function useLayoutOptions(options: LayoutOptions): void {
     prev.current.rightSidebar !== options.rightSidebar ||
     prev.current.scrollContainer !== options.scrollContainer ||
     prev.current.noOverscroll !== options.noOverscroll ||
-    prev.current.noMaxWidth !== options.noMaxWidth;
+    prev.current.noMaxWidth !== options.noMaxWidth ||
+    prev.current.hasSubHeader !== options.hasSubHeader;
 
   if (changed) {
     prev.current = options;

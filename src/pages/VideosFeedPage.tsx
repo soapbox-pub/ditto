@@ -719,7 +719,7 @@ export function VideosFeedPage() {
   const [feedTab, setFeedTab] = useFeedTab<FeedTab>('videos', ['follows', 'global']);
 
   useSeoMeta({ title: `Videos | ${config.appName}`, description: 'Videos and live streams on Nostr' });
-  useLayoutOptions({ showFAB: false, noOverscroll: true });
+  useLayoutOptions({ showFAB: false, noOverscroll: true, hasSubHeader: true });
   useEffect(() => { setShowAllVideos(false); }, [feedTab]);
 
   // ── Follows: chronological, small page ──

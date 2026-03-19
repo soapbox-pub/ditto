@@ -47,6 +47,7 @@ export function ThemesPage() {
     showFAB: activeTab === 'my-themes',
     onFabClick: handleFabClick,
     fabIcon: <Pencil strokeWidth={3} size={16} />,
+    hasSubHeader: true,
   });
 
   // Feed queries for follows/global tabs
