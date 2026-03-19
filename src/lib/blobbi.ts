@@ -1087,8 +1087,10 @@ export function mergeTagsForRepublish(
     newTagsMap.get(name)!.push(tag);
   }
   
-  // Start with existing unknown tags (tags we don't manage)
-  const unknownTags = existingTags.filter(tag => !MANAGED_TAG_NAMES.has(tag[0]));
+  // Start with existing unknown tags (tags we don't manage and that aren't deprecated)
+  const unknownTags = existingTags.filter(tag => 
+    !MANAGED_TAG_NAMES.has(tag[0]) && !DEPRECATED_BLOBBI_TAG_NAMES.has(tag[0])
+  );
   
   // Collect all new tags in order
   const result: string[][] = [];
@@ -1325,11 +1327,10 @@ export function buildMigrationTags(
   const resolvedName = nameTag ?? (legacyD ? deriveNameFromLegacyD(legacyD) : 'Unnamed Blobbi');
   newTags.push(['name', resolvedName]);
   
-  // Preserve core state tags
+  // Preserve core state tags (excluding deprecated tags like incubation_time, start_incubation)
   const coreStateTags = [
     'stage', 'state', 'visible_to_others', 'generation', 'breeding_ready',
     'experience', 'care_streak', 'hunger', 'happiness', 'health', 'hygiene', 'energy',
-    'incubation_time', 'start_incubation',
   ];
   
   for (const tagName of coreStateTags) {
@@ -1359,10 +1360,11 @@ export function buildMigrationTags(
   }
   
   // Preserve truly unknown tags for forward compatibility
-  // (tags not in managed set AND not in visual trait set)
+  // (tags not in managed set AND not in visual trait set AND not deprecated)
   const knownTagNames = new Set([
     ...MANAGED_BLOBBI_STATE_TAG_NAMES,
     ...VISUAL_TRAIT_TAG_NAMES,
+    ...DEPRECATED_BLOBBI_TAG_NAMES,
   ]);
   const unknownTags = legacyTags.filter(tag => !knownTagNames.has(tag[0]));
   
