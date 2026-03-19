@@ -92,6 +92,8 @@ function getKindLabel(rootKind: string | undefined): string {
   }
 
   if (kindNum === 7) return 'a reaction';
+  if (kindNum === 32267) return 'an app';
+  if (kindNum === 30063) return 'a release';
 
   const kindDef = EXTRA_KINDS.find((def) =>
     def.subKinds?.some((sub) => sub.kind === kindNum) || def.kind === kindNum,

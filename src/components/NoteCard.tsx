@@ -3,6 +3,7 @@ import {
   Award,
   MessageCircle,
   MoreHorizontal,
+  Package,
   Palette,
   Play,
   Radio,
@@ -57,6 +58,7 @@ import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
+import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { Badge } from "@/components/ui/badge";
@@ -250,6 +252,7 @@ export function NoteCard({
   const isPatch = event.kind === 1617;
   const isPullRequest = event.kind === 1618;
   const isCustomNip = event.kind === 30817;
+  const isZapstoreApp = event.kind === 32267;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip;
   const isTextNote =
     !isVine &&
@@ -271,7 +274,8 @@ export function NoteCard({
     !isPhoto &&
     !isVideo &&
     !isAudioKind &&
-    !isDevKind;
+    !isDevKind &&
+    !isZapstoreApp;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(
@@ -452,6 +456,8 @@ export function NoteCard({
           <PullRequestCard event={event} />
         ) : isCustomNip ? (
           <CustomNipCard event={event} />
+        ) : isZapstoreApp ? (
+          <ZapstoreAppContent event={event} compact />
         ) : (
           <TruncatedNoteContent
             event={event}
@@ -1554,6 +1560,10 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
       event && getEffectiveStreamStatus(event) === "live"
         ? "is streaming"
         : "streamed",
+  },
+  32267: {
+    icon: Package,
+    action: "published an app",
   },
 };
 
