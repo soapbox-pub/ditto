@@ -69,7 +69,7 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
         </svg>
         {/* Plus icon centered on the planet body */}
         <span className="absolute inset-0 flex items-center justify-center text-accent-foreground">
-          {icon ?? <Plus strokeWidth={4} size={24} />}
+          {icon ?? <Plus strokeWidth={4} size={20} />}
         </span>
       </button>
 
