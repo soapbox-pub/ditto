@@ -4,13 +4,19 @@ import { cn } from '@/lib/utils';
 export const ARC_OVERHANG_PX = 20;
 
 /** SVG path for a downward arc (used by top bar and sub-header bar). */
-export const ARC_DOWN_PATH = 'M0,0 L100,0 L100,44 Q50,64 0,44 Z';
+const ARC_DOWN_PATH = 'M0,0 L100,0 L100,44 Q50,64 0,44 Z';
 
 /** SVG path for an upward arc (used by bottom nav). */
-export const ARC_UP_PATH = 'M0,20 Q50,0 100,20 L100,64 L0,64 Z';
+const ARC_UP_PATH = 'M0,20 Q50,0 100,20 L100,64 L0,64 Z';
 
 /** SVG path for a plain rectangle with no arc. */
-export const RECT_PATH = 'M0,0 L100,0 L100,64 L0,64 Z';
+const RECT_PATH = 'M0,0 L100,0 L100,64 L0,64 Z';
+
+/** Pre-computed style for arc variants (avoids creating a new object on every render). */
+const arcHeightStyle: React.CSSProperties = { height: `calc(100% + ${ARC_OVERHANG_PX}px)` };
+
+/** Pre-computed style for non-arc (rect) variant. */
+const fullHeightStyle: React.CSSProperties = { height: '100%' };
 
 interface ArcBackgroundProps {
   /** Which arc shape to render. */
@@ -39,7 +45,7 @@ export function ArcBackground({ variant, className }: ArcBackgroundProps) {
       className={cn(positionClass, 'w-full pointer-events-none', className)}
       viewBox="0 0 100 64"
       preserveAspectRatio="none"
-      style={hasArc ? { height: `calc(100% + ${ARC_OVERHANG_PX}px)` } : { height: '100%' }}
+      style={hasArc ? arcHeightStyle : fullHeightStyle}
     >
       <path d={path} className="fill-background/80" />
     </svg>

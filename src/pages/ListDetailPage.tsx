@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import {
-  ArrowLeft, Users, UserPlus, Loader2, X, Share2, Check, Copy, Quote, PanelLeft, Trash2, Rss,
+  Users, UserPlus, Loader2, X, Rss, Share2, Check, Copy, Quote, PanelLeft, Trash2,
 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -22,6 +22,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { NoteCard } from '@/components/NoteCard';
+import { PageHeader } from '@/components/PageHeader';
 import { AddMembersDialog } from '@/components/AddMembersDialog';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -447,15 +448,7 @@ export function ListDetailPage() {
   if (isLoading) {
     return (
       <main>
-        <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden"
-          >
-            <ArrowLeft className="size-5" />
-          </button>
-          <Skeleton className="h-6 w-32" />
-        </div>
+        <PageHeader onBack={() => navigate(-1)} titleContent={<Skeleton className="h-6 w-32" />} />
         <div className="divide-y divide-border">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="px-4 py-3">
@@ -480,31 +473,29 @@ export function ListDetailPage() {
 
   return (
     <main>
-      {/* Sticky header */}
+      {/* Header */}
       <div>
-        <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-          <button
-            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/lists')}
-            className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden"
-          >
-            <ArrowLeft className="size-5" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold truncate">{list.title}</h1>
-            {decoded && (
-              <Link to={listAuthorProfileUrl} className="flex items-center gap-1.5 mt-0.5 group">
-                <Avatar shape={listAuthorAvatarShape} className="size-4">
-                  <AvatarImage src={listAuthorMetadata?.picture} alt={listAuthorName} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
-                    {listAuthorName[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-xs text-muted-foreground group-hover:underline truncate">
-                  {listAuthorName}
-                </span>
-              </Link>
-            )}
-          </div>
+        <PageHeader
+          onBack={() => window.history.length > 1 ? navigate(-1) : navigate('/lists')}
+          titleContent={
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-bold truncate">{list.title}</h1>
+              {decoded && (
+                <Link to={listAuthorProfileUrl} className="flex items-center gap-1.5 mt-0.5 group">
+                  <Avatar shape={listAuthorAvatarShape} className="size-4">
+                    <AvatarImage src={listAuthorMetadata?.picture} alt={listAuthorName} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                      {listAuthorName[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs text-muted-foreground group-hover:underline truncate">
+                    {listAuthorName}
+                  </span>
+                </Link>
+              )}
+            </div>
+          }
+        >
           <div className="flex items-center gap-1 shrink-0">
             {user && !isOwnList && (
               <Button
@@ -561,7 +552,7 @@ export function ListDetailPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
+        </PageHeader>
 
         {/* Description and image */}
         {(list.description || list.image) && (

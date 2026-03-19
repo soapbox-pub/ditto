@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Globe, Mail, Shield, Zap, Server, Hash } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { Globe, Mail, Shield, Zap, Server, Hash } from 'lucide-react';
+import { useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
@@ -13,6 +13,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
+import { PageHeader } from '@/components/PageHeader';
 import type { NostrEvent } from '@nostrify/nostrify';
 import NotFound from './NotFound';
 
@@ -135,42 +136,32 @@ export function RelayPage() {
   return (
     <main>
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 mt-4 mb-1">
-        <Link
-          to="/"
-          onClick={(e) => {
-            if (window.history.length > 1) {
-              e.preventDefault();
-              window.history.back();
-            }
-          }}
-          className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors sidebar:hidden"
-          aria-label="Go back"
-        >
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2.5 min-w-0">
-          {info?.icon ? (
-            <img
-              src={info.icon}
-              alt=""
-              className="size-8 rounded-full object-cover ring-1 ring-border"
-            />
-          ) : (
-            <div className="size-8 rounded-full bg-muted flex items-center justify-center ring-1 ring-border">
-              <Server className="size-4 text-muted-foreground" />
+      <PageHeader
+        onBack={() => window.history.length > 1 ? window.history.back() : undefined}
+        titleContent={
+          <div className="flex items-center gap-2.5 min-w-0">
+            {info?.icon ? (
+              <img
+                src={info.icon}
+                alt=""
+                className="size-8 rounded-full object-cover ring-1 ring-border"
+              />
+            ) : (
+              <div className="size-8 rounded-full bg-muted flex items-center justify-center ring-1 ring-border">
+                <Server className="size-4 text-muted-foreground" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold truncate leading-tight">
+                {info?.name ?? hostname}
+              </h1>
+              <p className="text-xs text-muted-foreground leading-tight truncate">
+                {hostname}
+              </p>
             </div>
-          )}
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold truncate leading-tight">
-              {info?.name ?? hostname}
-            </h1>
-            <p className="text-xs text-muted-foreground leading-tight truncate">
-              {hostname}
-            </p>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* NIP-11 Info Section */}
       {infoLoading ? (

@@ -1,6 +1,10 @@
 import { useId } from 'react';
 import { cn } from '@/lib/utils';
 
+/** Hoisted stop-color styles to avoid allocating new objects on every render. */
+const accentStopStyle: React.CSSProperties = { stopColor: 'hsl(var(--accent))' };
+const primaryStopStyle: React.CSSProperties = { stopColor: 'hsl(var(--primary))' };
+
 interface PlanetButtonProps {
   className?: string;
 }
@@ -25,12 +29,12 @@ export function PlanetButton({ className }: PlanetButtonProps) {
     >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" style={{ stopColor: 'hsl(var(--accent))' }} />
-          <stop offset="100%" style={{ stopColor: 'hsl(var(--primary))' }} />
+          <stop offset="0%" style={accentStopStyle} />
+          <stop offset="100%" style={primaryStopStyle} />
         </linearGradient>
         <linearGradient id={ringGradientId} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" style={{ stopColor: 'hsl(var(--primary))' }} />
-          <stop offset="100%" style={{ stopColor: 'hsl(var(--accent))' }} />
+          <stop offset="0%" style={primaryStopStyle} />
+          <stop offset="100%" style={accentStopStyle} />
         </linearGradient>
         {/* Mask: white = visible, black = cut out.
             The middle arc (crossing through the circle) is stroked black
