@@ -706,7 +706,7 @@ export function isValidBlobbiEvent(event: NostrEvent): boolean {
   if (b !== BLOBBI_ECOSYSTEM_NAMESPACE) return false;
   if (t !== BLOBBI_TOPIC_TAG) return false;
   if (!stage || !['egg', 'baby', 'adult'].includes(stage)) return false;
-  if (!state || !['active', 'sleeping', 'hibernating'].includes(state)) return false;
+  if (!state || !['active', 'sleeping', 'hibernating', 'incubating', 'evolving'].includes(state)) return false;
   if (!lastInteraction) return false;
   
   return true;
