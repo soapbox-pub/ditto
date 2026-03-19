@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import {
-  ArrowLeft, Users, UserPlus, Loader2, X, Share2, Check, Copy, Quote, PanelLeft, Trash2,
+  ArrowLeft, Users, UserPlus, Loader2, X, Share2, Check, Copy, Quote, PanelLeft, Trash2, Rss,
 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -41,8 +41,8 @@ import { getRepostKind } from '@/lib/feedUtils';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import { toast } from '@/hooks/useToast';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
-import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { UserList } from '@/hooks/useUserLists';
 import NotFound from './NotFound';
@@ -447,10 +447,10 @@ export function ListDetailPage() {
   if (isLoading) {
     return (
       <main>
-        <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-4 px-4 pt-4 pb-3 bg-background/80 backdrop-blur-md z-10')}>
+        <div className="flex items-center gap-4 px-4 mt-4 mb-1">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden"
+            className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden"
           >
             <ArrowLeft className="size-5" />
           </button>
@@ -481,8 +481,8 @@ export function ListDetailPage() {
   return (
     <main>
       {/* Sticky header */}
-      <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10')}>
-        <div className="flex items-center gap-4 px-4 pt-4 pb-3">
+      <div>
+        <div className="flex items-center gap-4 px-4 mt-4 mb-1">
           <button
             onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/lists')}
             className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden"
@@ -615,10 +615,31 @@ export function ListDetailPage() {
         )}
 
         {/* Tab bar */}
-        <div className="flex border-b border-border">
-          <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
-          <TabButton label="Members" active={activeTab === 'members'} onClick={() => setActiveTab('members')} />
-        </div>
+        <SubHeaderBar>
+          <TabButton
+            label="Feed"
+            active={activeTab === 'feed'}
+            onClick={() => setActiveTab('feed')}
+            indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              <Rss className="size-4" />
+              Feed
+            </span>
+          </TabButton>
+          <TabButton
+            label="Members"
+            active={activeTab === 'members'}
+            onClick={() => setActiveTab('members')}
+            indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              <Users className="size-4" />
+              Members
+              <span className="text-xs text-muted-foreground">({list.pubkeys.length})</span>
+            </span>
+          </TabButton>
+        </SubHeaderBar>
       </div>
 
       {/* Tab content */}

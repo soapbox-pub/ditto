@@ -5,6 +5,9 @@
 @layer base {
   :root {
     --radius: 0.75rem;
+    /* Mobile chrome dimensions — referenced by layout utility classes below */
+    --top-bar-height: 2.5rem;   /* MobileTopBar h-10 = 40px */
+    --bottom-nav-height: 2.75rem; /* MobileBottomNav h-11 = 44px */
   }
 }
 
@@ -42,19 +45,19 @@
   
   /* FAB bottom offset: clears bottom nav + safe area inset on mobile */
   .bottom-fab {
-    bottom: calc(1.5rem + 2.75rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(1.5rem + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Position above mobile bottom nav (h-11 = 2.75rem) + safe area */
+  /* Position above mobile bottom nav + safe area */
   .bottom-mobile-nav {
-    bottom: calc(2.75rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
   /* Bottom overscroll padding for the center column:
      clears the mobile bottom nav + safe area + generous extra space
      so content can be scrolled well past the bottom bar */
   .pb-overscroll {
-    padding-bottom: calc(10vh + 2.75rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(10vh + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
   @media (min-width: 900px) {
@@ -63,41 +66,41 @@
     }
   }
 
-  /* Mobile top bar height (40px) + safe area inset for sticky elements */
+  /* Mobile top bar height + safe area inset for sticky elements */
   .top-mobile-bar {
-    top: calc(2.5rem + env(safe-area-inset-top, 0px));
+    top: calc(var(--top-bar-height) + env(safe-area-inset-top, 0px));
   }
 
   /* Negative margin to pull content area up behind the mobile top bar (only when it's visible) */
   @media (max-width: 899px) {
     .-mt-mobile-bar {
-      margin-top: calc(-2.5rem - env(safe-area-inset-top, 0px));
-      padding-top: calc(2.5rem + env(safe-area-inset-top, 0px));
+      margin-top: calc(-1 * var(--top-bar-height) - env(safe-area-inset-top, 0px));
+      padding-top: calc(var(--top-bar-height) + env(safe-area-inset-top, 0px));
     }
   }
 
   /* AI chat height on mobile: full viewport minus top bar, extends behind bottom nav.
      Padding-bottom keeps input above the nav. */
   .ai-chat-height {
-    height: calc(100dvh - 2.5rem - env(safe-area-inset-top, 0px));
-    padding-bottom: calc(2.75rem + env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - var(--top-bar-height) - env(safe-area-inset-top, 0px));
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
   /* Live stream page height on mobile: full viewport minus top bar, bottom nav, and safe-area insets */
   .livestream-height {
-    height: calc(100dvh - 2.5rem - 2.75rem - env(safe-area-inset-bottom, 0px));
-    max-height: calc(100dvh - 2.5rem - 2.75rem - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
   }
 
   /* Vine feed slide height: full viewport minus top bar, tab bar, bottom nav, and safe-area insets */
   .vine-slide-height {
-    height: calc(100dvh - env(safe-area-inset-top, 0px) - 2.5rem - 2.5rem - 2.75rem - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - var(--top-bar-height) - var(--top-bar-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
     transition: height 300ms ease-in-out;
   }
 
   /* Expanded vine height when bottom nav is hidden */
   .vine-slide-height-expanded {
-    height: calc(100dvh - env(safe-area-inset-top, 0px) - 2.5rem - 2.5rem);
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - var(--top-bar-height) - var(--top-bar-height));
     transition: height 300ms ease-in-out;
   }
 }

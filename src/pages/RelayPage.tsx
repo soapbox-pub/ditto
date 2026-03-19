@@ -13,7 +13,6 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import NotFound from './NotFound';
 
@@ -135,8 +134,8 @@ export function RelayPage() {
 
   return (
     <main>
-      {/* Sticky header */}
-      <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-3 px-4 py-4 border-b border-border bg-background/80 backdrop-blur-md z-10')}>
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 mt-4 mb-1">
         <Link
           to="/"
           onClick={(e) => {
@@ -145,7 +144,7 @@ export function RelayPage() {
               window.history.back();
             }
           }}
-          className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
+          className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors sidebar:hidden"
           aria-label="Go back"
         >
           <ArrowLeft className="size-5" />
