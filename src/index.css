@@ -63,39 +63,39 @@
     }
   }
 
-  /* Mobile top bar height (48px) + safe area inset for sticky elements */
+  /* Mobile top bar height (40px) + safe area inset for sticky elements */
   .top-mobile-bar {
-    top: calc(3rem + env(safe-area-inset-top, 0px));
+    top: calc(2.5rem + env(safe-area-inset-top, 0px));
   }
 
   /* Negative margin to pull content area up behind the mobile top bar (only when it's visible) */
   @media (max-width: 899px) {
     .-mt-mobile-bar {
-      margin-top: calc(-3rem - env(safe-area-inset-top, 0px));
-      padding-top: calc(3rem + env(safe-area-inset-top, 0px));
+      margin-top: calc(-2.5rem - env(safe-area-inset-top, 0px));
+      padding-top: calc(2.5rem + env(safe-area-inset-top, 0px));
     }
   }
 
   /* AI chat height on mobile: full viewport minus top bar, bottom nav (3.5rem), and safe-area insets */
   .ai-chat-height {
-    height: calc(100dvh - 3rem - 3.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 2.5rem - 3.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   }
 
   /* Live stream page height on mobile: full viewport minus top bar, bottom nav, and safe-area insets */
   .livestream-height {
-    height: calc(100dvh - 3rem - 3.5rem - env(safe-area-inset-bottom, 0px));
-    max-height: calc(100dvh - 3rem - 3.5rem - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 2.5rem - 3.5rem - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 2.5rem - 3.5rem - env(safe-area-inset-bottom, 0px));
   }
 
   /* Vine feed slide height: full viewport minus top bar, tab bar, bottom nav, and safe-area insets */
   .vine-slide-height {
-    height: calc(100dvh - env(safe-area-inset-top, 0px) - 3rem - 2.5rem - 3.5rem - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - 2.5rem - 2.5rem - 3.5rem - env(safe-area-inset-bottom, 0px));
     transition: height 300ms ease-in-out;
   }
 
   /* Expanded vine height when bottom nav is hidden */
   .vine-slide-height-expanded {
-    height: calc(100dvh - env(safe-area-inset-top, 0px) - 3rem - 2.5rem);
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - 2.5rem - 2.5rem);
     transition: height 300ms ease-in-out;
   }
 }
