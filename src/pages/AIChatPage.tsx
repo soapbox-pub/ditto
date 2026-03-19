@@ -209,7 +209,7 @@ export function AIChatPage() {
     description: 'Chat with AI assistant',
   });
 
-  useLayoutOptions({ noOverscroll: true });
+  useLayoutOptions({ noOverscroll: true, hasSubHeader: true });
 
   // Scroll to bottom on new messages
   const scrollToBottom = useCallback(() => {
@@ -414,51 +414,61 @@ export function AIChatPage() {
 
   return (
     <main className="flex flex-col ai-chat-height sidebar:h-dvh">
-      {/* Header */}
-      <div className="shrink-0 border-b border-border bg-background/80 backdrop-blur-md px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Sparkles className="size-4 text-primary" />
+      {/* Header — unified arc+rect SVG background, matching SubHeaderBar style */}
+      <div className="relative shrink-0">
+        <svg
+          className="absolute inset-0 w-full pointer-events-none"
+          viewBox="0 0 100 64"
+          preserveAspectRatio="none"
+          style={{ height: 'calc(100% + 20px)' }}
+        >
+          <path d="M0,0 L100,0 L100,44 Q50,64 0,44 Z" className="fill-background/80" />
+        </svg>
+        <div className="relative px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Sparkles className="size-4 text-primary" />
+            </div>
+            <h1 className="font-semibold text-lg">AI Chat</h1>
           </div>
-          <h1 className="font-semibold text-lg">AI Chat</h1>
-        </div>
 
-        <div className="flex items-center gap-2">
-          {/* Model selector */}
-          <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
-            <SelectTrigger className="w-full sidebar:w-44 h-8 text-base md:text-xs">
-              <SelectValue placeholder={modelsLoading ? 'Loading models...' : 'Select model'} />
-            </SelectTrigger>
-            <SelectContent>
-              {models.map((model) => {
-                const totalCost = parseFloat(model.pricing.prompt) + parseFloat(model.pricing.completion);
-                const isFree = totalCost === 0;
-                return (
-                  <SelectItem key={model.id} value={model.id}>
-                    <span className="flex items-center gap-1.5">
-                      {model.name}
-                      {isFree && (
-                        <span className="text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-500/10 px-1 rounded">
-                          FREE
-                        </span>
-                      )}
-                    </span>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            {/* Model selector */}
+            <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
+              <SelectTrigger className="w-full sidebar:w-44 h-8 text-base md:text-xs">
+                <SelectValue placeholder={modelsLoading ? 'Loading models...' : 'Select model'} />
+              </SelectTrigger>
+              <SelectContent>
+                {models.map((model) => {
+                  const totalCost = parseFloat(model.pricing.prompt) + parseFloat(model.pricing.completion);
+                  const isFree = totalCost === 0;
+                  return (
+                    <SelectItem key={model.id} value={model.id}>
+                      <span className="flex items-center gap-1.5">
+                        {model.name}
+                        {isFree && (
+                          <span className="text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-500/10 px-1 rounded">
+                            FREE
+                          </span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            onClick={handleClear}
-            disabled={messages.length === 0}
-            title="Clear conversation"
-          >
-            <Trash2 className="size-4" />
-          </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={handleClear}
+              disabled={messages.length === 0}
+              title="Clear conversation"
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
