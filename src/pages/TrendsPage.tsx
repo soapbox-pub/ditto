@@ -1,5 +1,5 @@
 import { useSeoMeta } from "@unhead/react";
-import { Flame, Loader2, Swords, TrendingUp } from "lucide-react";
+import { ArrowLeft, Flame, Loader2, Swords, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { Link } from "react-router-dom";
@@ -65,10 +65,13 @@ export function TrendsPage() {
   return (
     <main className="">
       {/* Page header */}
-      <div className="px-4 py-3.5 sidebar:py-5">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
+        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+          <ArrowLeft className="size-5" />
+        </Link>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <TrendingUp className="size-5" />
-          <h1 className="font-bold text-xl">Trends</h1>
+          <h1 className="text-xl font-bold">Trends</h1>
         </div>
       </div>
 
