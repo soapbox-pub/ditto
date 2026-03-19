@@ -63,6 +63,17 @@ const SheetContent = React.forwardRef<
       {...props}
     >
       {children}
+      {/* Decorative vertical semi-ellipse arc on the right edge for left-side sheets */}
+      {side === "left" && (
+        <svg
+          className="absolute top-0 bottom-0 left-full h-full pointer-events-none"
+          viewBox="0 0 12 100"
+          preserveAspectRatio="none"
+          style={{ width: 20 }}
+        >
+          <path d="M0,0 Q12,50 0,100 Z" className="fill-background/80" />
+        </svg>
+      )}
       <SheetPrimitive.Close
         className={cn(
           "absolute opacity-70 transition-opacity hover:opacity-100 focus:outline-none disabled:pointer-events-none",
