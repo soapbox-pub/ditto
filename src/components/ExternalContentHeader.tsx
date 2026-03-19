@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, ExternalLink, FileText, Globe, MapPin, Play, User, Users } from 'lucide-react';
+import { BookOpen, Droplets, ExternalLink, FileText, Globe, MapPin, Play, User, Users, Wind } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -13,6 +13,7 @@ import { useBookInfo } from '@/hooks/useBookInfo';
 import { useAddrEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useWeather } from '@/hooks/useWeather';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo, getWikipediaTitle } from '@/lib/countries';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
@@ -195,6 +196,76 @@ function WikipediaExtract({ extract, articleUrl }: { extract: string; articleUrl
   );
 }
 
+function WeatherWidget({ code }: { code: string }) {
+  const { data: weather, isLoading } = useWeather(code);
+
+  if (isLoading) {
+    return (
+      <div className="mt-5 rounded-xl bg-secondary/50 p-4">
+        <div className="flex items-center gap-4">
+          <Skeleton className="size-12 rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!weather) return null;
+
+  return (
+    <div className="mt-5 rounded-xl bg-gradient-to-br from-secondary/60 to-secondary/30 border border-border/50 p-4 transition-all hover:border-border">
+      <div className="flex items-center gap-4">
+        {/* Weather icon + temperature */}
+        <div className="flex items-center gap-3">
+          <span className="text-4xl leading-none" role="img" aria-label={weather.description}>
+            {weather.icon}
+          </span>
+          <div>
+            <p className="text-2xl font-bold tabular-nums leading-tight">
+              {weather.temperature}°C
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {weather.description}
+            </p>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="h-10 w-px bg-border/60 mx-1" />
+
+        {/* Details */}
+        <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="text-foreground/60">Feels like</span>
+            <span className="font-medium text-foreground tabular-nums">{weather.apparentTemperature}°</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Droplets className="size-3 shrink-0" />
+            <span className="font-medium text-foreground tabular-nums">{weather.humidity}%</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Wind className="size-3 shrink-0" />
+            <span className="font-medium text-foreground tabular-nums">{weather.windSpeed} km/h</span>
+          </span>
+          {weather.city && (
+            <span className="flex items-center gap-1.5">
+              <MapPin className="size-3 shrink-0" />
+              <span className="truncate">{weather.city}</span>
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CountryContentHeader({ code }: { code: string }) {
   const info = getCountryInfo(code);
   const wikiTitle = getWikipediaTitle(code);
@@ -241,6 +312,9 @@ export function CountryContentHeader({ code }: { code: string }) {
             )}
           </div>
         </div>
+
+        {/* Current weather */}
+        <WeatherWidget code={code} />
 
         {/* Wikipedia extract */}
         {wikiLoading ? (
