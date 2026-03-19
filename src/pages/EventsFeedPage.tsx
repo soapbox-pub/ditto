@@ -105,18 +105,6 @@ export function EventsFeedPage() {
 
   return (
     <main className="max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <CalendarDays className="size-5" />
-          <h1 className="text-xl font-bold">Events</h1>
-        </div>
-        <KindInfoButton kindDef={eventsDef} icon={sidebarItemIcon('events', 'size-5')} />
-      </div>
-
       {/* Follows / Global tabs */}
       {user && (
         <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
@@ -129,6 +117,18 @@ export function EventsFeedPage() {
           </svg>
         </div>
       )}
+
+      {/* Header */}
+      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
+        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+          <ArrowLeft className="size-5" />
+        </Link>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <CalendarDays className="size-5" />
+          <h1 className="text-xl font-bold">Events</h1>
+        </div>
+        <KindInfoButton kindDef={eventsDef} icon={sidebarItemIcon('events', 'size-5')} />
+      </div>
 
       <PullToRefresh onRefresh={handleRefresh}>
         {showSkeleton ? (

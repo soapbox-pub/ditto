@@ -776,6 +776,17 @@ export function VideosFeedPage() {
 
   return (
     <main className="">
+      {/* Follows / Global tabs */}
+      <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
+        <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
+          <TabButton label="Follows" active={feedTab === 'follows'} onClick={() => setFeedTab('follows')} disabled={!user} />
+          <TabButton label="Global" active={feedTab === 'global'} onClick={() => setFeedTab('global')} />
+        </div>
+        <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
+          <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
+        </svg>
+      </div>
+
       {/* Header */}
       <div className="flex items-center gap-4 px-4 mt-4 mb-1">
         <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
@@ -786,17 +797,6 @@ export function VideosFeedPage() {
           <h1 className="text-xl font-bold">Videos</h1>
         </div>
         <KindInfoButton kindDef={videosDef} icon={sidebarItemIcon('videos', 'size-5')} />
-      </div>
-
-      {/* Follows / Global tabs */}
-      <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
-        <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
-          <TabButton label="Follows" active={feedTab === 'follows'} onClick={() => setFeedTab('follows')} disabled={!user} />
-          <TabButton label="Global" active={feedTab === 'global'} onClick={() => setFeedTab('global')} />
-        </div>
-        <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
-          <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
-        </svg>
       </div>
 
       {/* Live streams strip — follows tab filters by followed authors */}

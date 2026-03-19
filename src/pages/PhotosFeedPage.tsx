@@ -90,6 +90,17 @@ export function PhotosFeedPage() {
 
   return (
     <main className="">
+      {/* Tabs */}
+      <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
+        <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
+          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+        </div>
+        <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
+          <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
+        </svg>
+      </div>
+
       {/* Header */}
       <div className="flex items-center gap-4 px-4 mt-4 mb-1">
         <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
@@ -100,17 +111,6 @@ export function PhotosFeedPage() {
           <h1 className="text-xl font-bold">Photos</h1>
         </div>
         <KindInfoButton kindDef={photosDef} icon={sidebarItemIcon('photos', 'size-5')} />
-      </div>
-
-      {/* Tabs */}
-      <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
-        <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
-          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
-        </div>
-        <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
-          <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
-        </svg>
       </div>
 
       {/* Grid */}
