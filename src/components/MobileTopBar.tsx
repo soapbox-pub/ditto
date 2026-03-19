@@ -20,8 +20,22 @@ export function MobileTopBar({ onAvatarClick, showArc }: MobileTopBarProps) {
   }, [location.pathname]);
 
   return (
-    <header className="sticky top-0 z-20 bg-background/80 sidebar:hidden safe-area-top">
-      <div className="flex items-center px-3 h-10">
+    <header className="sticky top-0 z-20 sidebar:hidden safe-area-top">
+      {/* Unified background: rectangle (+ optional arc) as one SVG shape.
+          When showArc is false, sub-header provides its own arc so we just draw the rect. */}
+      <svg
+        className="absolute inset-0 w-full pointer-events-none"
+        viewBox="0 0 100 64"
+        preserveAspectRatio="none"
+        style={{ height: showArc ? 'calc(100% + 20px)' : '100%' }}
+      >
+        {showArc ? (
+          <path d="M0,0 L100,0 L100,44 Q50,64 0,44 Z" className="fill-background/80" />
+        ) : (
+          <rect x="0" y="0" width="100" height="64" className="fill-background/80" />
+        )}
+      </svg>
+      <div className="relative flex items-center px-3 h-10">
         {/* Left: hamburger menu icon */}
         <div className="flex items-center justify-center w-7 shrink-0">
           <button onClick={onAvatarClick} className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background text-muted-foreground hover:text-foreground transition-colors">
@@ -29,22 +43,16 @@ export function MobileTopBar({ onAvatarClick, showArc }: MobileTopBarProps) {
           </button>
         </div>
 
-      {/* Center: Ditto logo */}
-      <div className="flex-1 flex items-center justify-center">
-        <Link to="/" onClick={handleLogoClick}>
-          <DittoLogo size={28} />
-        </Link>
-      </div>
+        {/* Center: Ditto logo */}
+        <div className="flex-1 flex items-center justify-center">
+          <Link to="/" onClick={handleLogoClick}>
+            <DittoLogo size={28} />
+          </Link>
+        </div>
 
         {/* Right: spacer for symmetry */}
         <div className="w-7 shrink-0" />
       </div>
-      {/* Decorative arc — only shown when no sub-header provides its own */}
-      {showArc && (
-        <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
-          <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
-        </svg>
-      )}
     </header>
   );
 }

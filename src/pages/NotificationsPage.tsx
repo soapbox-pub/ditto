@@ -11,6 +11,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteCard } from '@/components/NoteCard';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -116,29 +117,18 @@ export function NotificationsPage() {
   return (
     <main className="">
       {/* Tab bar */}
-      <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
-        <div className="flex bg-background/80">
-          {tabs.map(({ key, label }) => (
-            <TabButton
-              key={key}
-              label={label}
-              active={activeTab === key}
-              onClick={() => setActiveTab(key)}
-              className="sidebar:py-5 sidebar:font-semibold"
-              indicatorClassName="sidebar:h-[3px]"
-            />
-          ))}
-        </div>
-        {/* Decorative semi-ellipse arc below the tabs */}
-        <svg
-          className="absolute left-0 right-0 top-full w-full pointer-events-none"
-          viewBox="0 0 100 12"
-          preserveAspectRatio="none"
-          style={{ height: 20 }}
-        >
-          <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
-        </svg>
-      </div>
+      <SubHeaderBar>
+        {tabs.map(({ key, label }) => (
+          <TabButton
+            key={key}
+            label={label}
+            active={activeTab === key}
+            onClick={() => setActiveTab(key)}
+            className="sidebar:py-5 sidebar:font-semibold"
+            indicatorClassName="sidebar:h-[3px]"
+          />
+        ))}
+      </SubHeaderBar>
 
       {/* Content */}
       <PullToRefresh onRefresh={handleRefresh}>

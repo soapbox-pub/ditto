@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { NoteCard } from '@/components/NoteCard';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -107,15 +108,10 @@ export function EventsFeedPage() {
     <main className="max-w-2xl mx-auto">
       {/* Follows / Global tabs */}
       {user && (
-        <div className="relative sticky top-mobile-bar sidebar:top-0 z-10">
-          <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
-            <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
-            <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
-          </div>
-          <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
-            <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
-          </svg>
-        </div>
+        <SubHeaderBar>
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
+          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+        </SubHeaderBar>
       )}
 
       {/* Header */}
