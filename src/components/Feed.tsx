@@ -283,7 +283,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
             style={{ height: 20 }}
           >
             <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
-            <path d="M0,0 Q50,12 100,0" className="fill-none stroke-border" vectorEffect="non-scaling-stroke" />
           </svg>
         </div>
       ) : !kinds && (
