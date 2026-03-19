@@ -13,6 +13,11 @@ import { useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
 
+/** Transform style applied when the bottom nav is hidden (scrolled away). */
+const hiddenStyle: React.CSSProperties = {
+  transform: `translateY(calc(100% + ${ARC_OVERHANG_PX}px))`,
+};
+
 export function MobileBottomNav() {
   const location = useLocation();
   const { user, metadata } = useCurrentUser();
@@ -43,7 +48,7 @@ export function MobileBottomNav() {
           'fixed bottom-0 left-0 right-0 z-40 sidebar:hidden safe-area-bottom will-change-transform',
           'transition-transform duration-300 ease-in-out',
         )}
-        style={isHidden ? { transform: `translateY(calc(100% + ${ARC_OVERHANG_PX}px))` } : undefined}
+        style={isHidden ? hiddenStyle : undefined}
       >
         <ArcBackground variant="up" />
 
