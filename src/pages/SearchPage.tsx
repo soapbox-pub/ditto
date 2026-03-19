@@ -408,11 +408,14 @@ export function SearchPage() {
   return (
     <main className="">
       {/* Tabs — sticky at top */}
-      <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
-        <div className="flex">
+      <div className={cn(STICKY_HEADER_CLASS, 'relative z-10')}>
+        <div className="flex bg-background/80 overflow-x-auto scrollbar-none">
           <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} className="sidebar:py-5" />
           <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} className="sidebar:py-5" />
         </div>
+        <svg className="absolute left-0 right-0 top-full w-full pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" style={{ height: 20 }}>
+          <path d="M0,0 Q50,12 100,0 Z" className="fill-background/80" />
+        </svg>
       </div>
 
       {/* ─── Posts Tab ─── */}
