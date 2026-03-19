@@ -2142,7 +2142,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         </div>
 
         {/* Tabs */}
-        <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border backdrop-blur-md z-10 overflow-x-auto scrollbar-none')}>
+        <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border bg-background/80 z-10 overflow-x-auto scrollbar-none')}>
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
             <div className="flex gap-1 px-2 py-2">
