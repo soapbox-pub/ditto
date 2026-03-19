@@ -37,5 +37,55 @@
       "type": "image/svg+xml",
       "purpose": "any"
     }
+  ],
+  "screenshots": [
+    {
+      "src": "https://blossom.ditto.pub/47fcb3bdc414ced245fbba53b0456d9bfdf112d711ecf5cc628361a47002392a.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "https://blossom.ditto.pub/e387a4c4566545c650477cee66e638131eb874a90761cf0a371e5abf1e2c7af2.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "https://blossom.ditto.pub/73585c9547868da215a91f8a13543251a20967a74f6e8329231544add50e3dee.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "https://blossom.ditto.pub/4216d18d5854444c64b482dbbac9e077a453f85a9d72d91bc6adf89fd1f42c36.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "https://blossom.ditto.pub/a7521e652d625c57cf66fd97ea92c66b8559bcedcb805aaf375bc047415625a3.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "https://blossom.ditto.pub/daf008f146391f0172b89595500f640b84eac4e146b2e081db80791819443fa0.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "https://blossom.ditto.pub/22c144a792e32559a838c8f69fbb4ae22264f47ff3d04341e656748d264064bc.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "https://blossom.ditto.pub/fa609e4a03e984063fbc6c474bd8a73bb088666b7c0e5561f993264f372c90ef.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
   ]
 }
