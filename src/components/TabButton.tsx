@@ -41,7 +41,7 @@ export function TabButton({ label, active, onClick, disabled, className, indicat
       onClick={handleClick}
       disabled={disabled}
       className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 px-4 whitespace-nowrap',
+        'flex-1 py-2 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40 px-4 whitespace-nowrap',
         active ? 'text-foreground' : 'text-muted-foreground',
         disabled && 'opacity-50 cursor-not-allowed hover:bg-transparent',
         className,
