@@ -1,7 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { Download, ExternalLink, Globe, Package, Shield } from 'lucide-react';
+import { ExternalLink, Globe, Package, Shield } from 'lucide-react';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -261,12 +261,12 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
         {appId && (
           <Button size="sm" variant="outline" className="gap-1.5" asChild>
             <a
-              href={`https://zapstore.dev/download?appId=${encodeURIComponent(appId)}`}
+              href={`https://zapstore.dev/apps/${encodeURIComponent(appId)}`}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
             >
-              <Download className="size-3.5" />
+              <ExternalLink className="size-3.5" />
               Zapstore
             </a>
           </Button>
