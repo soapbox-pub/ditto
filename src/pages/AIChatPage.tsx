@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Bot, Send, Trash2, Palette, Type } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Bot, Send, Trash2, Palette, Type } from 'lucide-react';
 
 import { useShakespeare, type ChatMessage, type Model } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -413,12 +414,17 @@ export function AIChatPage() {
   }
 
   return (
-    <main className="flex flex-col ai-chat-height sidebar:h-dvh">
+    <main className="flex flex-col ai-chat-height sidebar:h-dvh bg-secondary/50">
       {/* Header */}
       <div className="shrink-0 px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
-        <div className="flex items-center gap-2.5">
-          <Bot className="size-5 text-muted-foreground" />
-          <h1 className="font-semibold text-lg">AI Chat</h1>
+        <div className="flex items-center gap-4">
+          <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+            <ArrowLeft className="size-5" />
+          </Link>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <Bot className="size-5" />
+            <h1 className="text-xl font-bold">AI Chat</h1>
+          </div>
         </div>
 
           <div className="flex items-center gap-2">
