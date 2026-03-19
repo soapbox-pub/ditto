@@ -67,11 +67,11 @@ const SheetContent = React.forwardRef<
       {side === "left" && (
         <svg
           className="absolute top-0 bottom-0 left-full h-full pointer-events-none"
-          viewBox="0 0 12 100"
+          viewBox="0 0 20 100"
           preserveAspectRatio="none"
-          style={{ width: 20 }}
+          style={{ width: 36 }}
         >
-          <path d="M0,0 Q12,50 0,100 Z" className="fill-background/80" />
+          <path d="M0,0 Q20,50 0,100 Z" className="fill-background" />
         </svg>
       )}
       <SheetPrimitive.Close
