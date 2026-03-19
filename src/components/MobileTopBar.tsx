@@ -32,7 +32,7 @@ export function MobileTopBar({ onAvatarClick, showArc }: MobileTopBarProps) {
       {/* Center: Ditto logo */}
       <div className="flex-1 flex items-center justify-center">
         <Link to="/" onClick={handleLogoClick}>
-          <DittoLogo size={24} />
+          <DittoLogo size={28} />
         </Link>
       </div>
 
