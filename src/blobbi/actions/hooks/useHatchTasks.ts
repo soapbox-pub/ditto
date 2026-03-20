@@ -3,8 +3,12 @@
 /**
  * Hook to compute hatch task progress from Nostr events.
  * 
- * CRITICAL: Tags are only cache. Source of truth = Nostr events.
- * All tasks are computed dynamically from events with created_at >= state_started_at.
+ * CRITICAL ARCHITECTURE:
+ * - PERSISTENT TASKS: Based on Nostr events, can be cached in tags
+ * - DYNAMIC TASKS: Based on current stats, NEVER stored in tags
+ * 
+ * Tags are only cache for persistent tasks. Source of truth = Nostr events.
+ * All persistent tasks are computed dynamically from events with created_at >= state_started_at.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -25,8 +29,8 @@ export const KIND_PROFILE_METADATA = 0;
 /** Kind for short text notes */
 export const KIND_SHORT_TEXT_NOTE = 1;
 
-/** Required interactions to complete the interactions task */
-export const REQUIRED_INTERACTIONS = 7;
+/** Required interactions to complete the hatch interactions task */
+export const HATCH_REQUIRED_INTERACTIONS = 7;
 
 /** Required hashtags for the Blobbi post (excludes Blobbi name, which is dynamic) */
 export const BLOBBI_POST_REQUIRED_HASHTAGS = ['blobbi', 'ditto', 'nostr'];
@@ -34,11 +38,17 @@ export const BLOBBI_POST_REQUIRED_HASHTAGS = ['blobbi', 'ditto', 'nostr'];
 /** Prefix text for Blobbi hatch post */
 export const BLOBBI_POST_PREFIX = 'Hello Nostr! Posting to hatch';
 
+/** Stat threshold for hatch dynamic task (health, hygiene, happiness >= 70) */
+export const HATCH_STAT_THRESHOLD = 70;
+
+// Legacy export for backwards compatibility
+export const REQUIRED_INTERACTIONS = HATCH_REQUIRED_INTERACTIONS;
+
 /**
  * Sanitize a name into a valid hashtag format.
  * Must match the implementation in BlobbiPostModal.tsx.
  */
-function sanitizeToHashtag(name: string): string {
+export function sanitizeToHashtag(name: string): string {
   return name
     .toLowerCase()
     // Remove emojis and special characters, keep letters, numbers, underscores
@@ -54,6 +64,13 @@ function sanitizeToHashtag(name: string): string {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /**
+ * Task type classification.
+ * - persistent: Based on Nostr events, can be cached in tags
+ * - dynamic: Based on current stats, NEVER stored in tags
+ */
+export type TaskType = 'persistent' | 'dynamic';
+
+/**
  * Individual task definition.
  */
 export interface HatchTask {
@@ -66,6 +83,8 @@ export interface HatchTask {
   required: number;
   /** Whether the task is complete */
   completed: boolean;
+  /** Task type - persistent (event-based) or dynamic (stat-based) */
+  type: TaskType;
   /** Action to perform (if applicable) */
   action?: 'navigate' | 'open_modal' | 'external_link';
   /** Target for the action */
@@ -79,6 +98,11 @@ export interface HatchTask {
  */
 export interface HatchTasksResult {
   tasks: HatchTask[];
+  /** All persistent tasks are complete */
+  persistentTasksComplete: boolean;
+  /** Dynamic stat task is complete */
+  dynamicTaskComplete: boolean;
+  /** All tasks (persistent + dynamic) are complete - required to hatch */
   allCompleted: boolean;
   isLoading: boolean;
   error: Error | null;
@@ -107,7 +131,7 @@ function extractShapeFromMetadata(event: NostrEvent): string | undefined {
  * @param event - The Nostr event to validate
  * @param blobbiName - The Blobbi's name (will be sanitized and checked as hashtag)
  */
-function isValidBlobbiPost(event: NostrEvent, blobbiName: string): boolean {
+export function isValidHatchPost(event: NostrEvent, blobbiName: string): boolean {
   // Check content starts with prefix
   if (!event.content.startsWith(BLOBBI_POST_PREFIX)) {
     return false;
@@ -132,17 +156,23 @@ function isValidBlobbiPost(event: NostrEvent, blobbiName: string): boolean {
   return hashtags.includes(blobbiHashtag);
 }
 
+// Legacy function name for backwards compatibility
+export const isValidBlobbiPost = isValidHatchPost;
+
 // ─── Main Hook ────────────────────────────────────────────────────────────────
 
 /**
- * Hook to compute hatch task progress from Nostr events.
+ * Hook to compute hatch task progress from Nostr events and current stats.
  * 
- * Tasks:
+ * PERSISTENT TASKS (event-based, can be cached):
  * 1. Create Theme (kind 36767) - ≥1 event after start
  * 2. Color Moment (kind 3367) - ≥1 event after start
  * 3. Change Avatar Shape (kind 0) - shape changed between before/after start
- * 4. Create Post (kind 1) - ≥1 valid Blobbi post after start
+ * 4. Create Post (kind 1) - ≥1 valid Blobbi hatch post after start
  * 5. Interactions - 7 total (tracked via companion.tasks cache)
+ * 
+ * DYNAMIC TASK (stat-based, NEVER cached):
+ * 6. Maintain Stats - health >= 70, hygiene >= 70, happiness >= 70
  * 
  * @param companion - The Blobbi companion (must be incubating)
  * @param interactionCount - Current interaction count from companion tasks cache
@@ -242,10 +272,10 @@ export function useHatchTasks(
     refetchInterval: 60_000, // Refetch every minute
   });
   
-  // Compute tasks from query results
+  // ─── Compute PERSISTENT Tasks ───
   const tasks: HatchTask[] = [];
   
-  // 1. Create Theme
+  // 1. Create Theme (PERSISTENT)
   const hasTheme = (data?.themeEvents?.length ?? 0) >= 1;
   tasks.push({
     id: 'create_theme',
@@ -254,12 +284,13 @@ export function useHatchTasks(
     current: hasTheme ? 1 : 0,
     required: 1,
     completed: hasTheme,
+    type: 'persistent',
     action: 'navigate',
     actionTarget: '/themes',
     actionLabel: 'Create Theme',
   });
   
-  // 2. Color Moment
+  // 2. Color Moment (PERSISTENT)
   const hasColorMoment = (data?.colorMomentEvents?.length ?? 0) >= 1;
   tasks.push({
     id: 'color_moment',
@@ -268,24 +299,16 @@ export function useHatchTasks(
     current: hasColorMoment ? 1 : 0,
     required: 1,
     completed: hasColorMoment,
+    type: 'persistent',
     action: 'external_link',
-    actionTarget: 'https://espy.you/',
+    actionTarget: 'https://espy.social/',
     actionLabel: 'Open espy',
   });
   
-  // 3. Change Avatar Shape
-  // Requirements for completion:
-  // 1. There must be a kind 0 profile update with created_at >= state_started_at
-  // 2. The shape value must be different from what it was before incubation started
-  // 3. If there was no profile before start, any shape set after start counts
-  // 4. If shape is undefined/same after the update, task is NOT complete
+  // 3. Change Avatar Shape (PERSISTENT)
   const shapeBefore = data?.profileBefore ? extractShapeFromMetadata(data.profileBefore) : undefined;
   const shapeAfter = data?.profileAfter ? extractShapeFromMetadata(data.profileAfter) : undefined;
   
-  // Task completes only if:
-  // - There is a profile update after incubation started (profileAfter exists)
-  // - AND the shape after is defined (user actually set a shape)
-  // - AND the shape is different from before (actual change occurred)
   const hasPostStartProfileUpdate = !!data?.profileAfter;
   const hasNewShapeValue = shapeAfter !== undefined && shapeAfter !== '';
   const shapeActuallyChanged = shapeAfter !== shapeBefore;
@@ -297,15 +320,15 @@ export function useHatchTasks(
     current: shapeChanged ? 1 : 0,
     required: 1,
     completed: !!shapeChanged,
+    type: 'persistent',
     action: 'navigate',
     actionTarget: '/settings/profile',
     actionLabel: 'Edit Profile',
   });
   
-  // 4. Create Post
-  // Note: companion.name is used to validate the Blobbi name hashtag
+  // 4. Create Post (PERSISTENT)
   const blobbiName = companion?.name ?? '';
-  const validPosts = data?.postEvents?.filter(e => isValidBlobbiPost(e, blobbiName)) ?? [];
+  const validPosts = data?.postEvents?.filter(e => isValidHatchPost(e, blobbiName)) ?? [];
   const hasValidPost = validPosts.length >= 1;
   tasks.push({
     id: 'create_post',
@@ -314,28 +337,64 @@ export function useHatchTasks(
     current: hasValidPost ? 1 : 0,
     required: 1,
     completed: hasValidPost,
+    type: 'persistent',
     action: 'open_modal',
     actionTarget: 'blobbi_post',
     actionLabel: 'Create Post',
   });
   
-  // 5. Interactions
+  // 5. Interactions (PERSISTENT)
   const interactions = interactionCount ?? 0;
-  const interactionsCompleted = interactions >= REQUIRED_INTERACTIONS;
+  const interactionsCompleted = interactions >= HATCH_REQUIRED_INTERACTIONS;
   tasks.push({
     id: 'interactions',
     name: 'Interact with Blobbi',
-    description: `Care for your Blobbi ${REQUIRED_INTERACTIONS} times`,
-    current: Math.min(interactions, REQUIRED_INTERACTIONS),
-    required: REQUIRED_INTERACTIONS,
+    description: `Care for your Blobbi ${HATCH_REQUIRED_INTERACTIONS} times`,
+    current: Math.min(interactions, HATCH_REQUIRED_INTERACTIONS),
+    required: HATCH_REQUIRED_INTERACTIONS,
     completed: interactionsCompleted,
+    type: 'persistent',
     // No action - just interact with Blobbi
   });
   
-  const allCompleted = tasks.every(t => t.completed);
+  // ─── Compute DYNAMIC Task (stat-based, NEVER cached) ───
+  // 6. Maintain Stats - health >= 70, hygiene >= 70, happiness >= 70
+  const stats = companion?.stats ?? {};
+  const health = stats.health ?? 0;
+  const hygiene = stats.hygiene ?? 0;
+  const happiness = stats.happiness ?? 0;
+  
+  const statsOk = 
+    health >= HATCH_STAT_THRESHOLD &&
+    hygiene >= HATCH_STAT_THRESHOLD &&
+    happiness >= HATCH_STAT_THRESHOLD;
+  
+  // Calculate minimum stat for progress display
+  const minStat = Math.min(health, hygiene, happiness);
+  
+  tasks.push({
+    id: 'maintain_stats',
+    name: 'Keep Egg Healthy',
+    description: `Keep health, hygiene & happiness above ${HATCH_STAT_THRESHOLD}`,
+    current: statsOk ? HATCH_STAT_THRESHOLD : minStat,
+    required: HATCH_STAT_THRESHOLD,
+    completed: statsOk,
+    type: 'dynamic', // CRITICAL: Never persist this task
+    // No action - just care for your Blobbi
+  });
+  
+  // ─── Compute Completion States ───
+  const persistentTasks = tasks.filter(t => t.type === 'persistent');
+  const dynamicTasks = tasks.filter(t => t.type === 'dynamic');
+  
+  const persistentTasksComplete = persistentTasks.every(t => t.completed);
+  const dynamicTaskComplete = dynamicTasks.every(t => t.completed);
+  const allCompleted = persistentTasksComplete && dynamicTaskComplete;
   
   return {
     tasks,
+    persistentTasksComplete,
+    dynamicTaskComplete,
     allCompleted,
     isLoading,
     error: error as Error | null,
@@ -350,4 +409,12 @@ export function getInteractionCount(companion: BlobbiCompanion | null): number {
   if (!companion) return 0;
   const interactionTask = companion.tasks.find(t => t.name === 'interactions');
   return interactionTask?.value ?? 0;
+}
+
+/**
+ * Filter tasks to only persistent tasks (for tag sync).
+ * CRITICAL: Dynamic tasks must NEVER be synced to tags.
+ */
+export function filterPersistentTasks(tasks: HatchTask[]): HatchTask[] {
+  return tasks.filter(t => t.type === 'persistent');
 }

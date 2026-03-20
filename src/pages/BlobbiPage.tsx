@@ -46,6 +46,7 @@ import {
   InlineSingCard,
   BlobbiPostModal,
   StartIncubationDialog,
+  StartEvolutionDialog,
   BlobbiMissionsModal,
   useBlobbiUseInventoryItem,
   useBlobbiHatch,
@@ -53,9 +54,14 @@ import {
   useBlobbiDirectAction,
   useStartIncubation,
   useStopIncubation,
+  useStartEvolution,
+  useStopEvolution,
   useSyncHatchTaskCompletions,
   useHatchTasks,
+  useEvolveTasks,
   getInteractionCount,
+  getEvolveInteractionCount,
+  filterPersistentTasks,
   createMusicActivity,
   createSingActivity,
   createNoActivity,
@@ -66,6 +72,7 @@ import {
   type AudioSource,
   type BlobbiReactionState,
   type StartIncubationMode,
+  type HatchTask,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 
@@ -774,17 +781,36 @@ function BlobbiDashboard({
   // Incubation/Hatch task state
   const [showPostModal, setShowPostModal] = useState(false);
   const [showIncubationDialog, setShowIncubationDialog] = useState(false);
+  const [showEvolutionDialog, setShowEvolutionDialog] = useState(false);
   
-  // Incubation state detection
+  // State detection for tasks
+  // Note: isEvolving prop = mutation pending state, isEvolvingState = companion in evolving state
   const isIncubating = companion.state === 'incubating';
-  const canStartIncubation = isEgg && !isIncubating && companion.state !== 'evolving';
+  const isEvolvingState = companion.state === 'evolving';
+  const isBaby = companion.stage === 'baby';
+  const canStartIncubation = isEgg && !isIncubating && !isEvolvingState;
+  const canStartEvolution = isBaby && !isEvolvingState && !isIncubating;
   
-  // Hatch tasks hook - only active when incubating
-  const interactionCount = getInteractionCount(companion);
+  // Hatch tasks hook - only active when incubating (egg stage)
+  const hatchInteractionCount = getInteractionCount(companion);
   const hatchTasks = useHatchTasks(
     isIncubating ? companion : null,
-    interactionCount
+    hatchInteractionCount
   );
+  
+  // Evolve tasks hook - only active when evolving (baby stage)
+  const evolveInteractionCount = getEvolveInteractionCount(companion);
+  const evolveTasks = useEvolveTasks(
+    isEvolvingState ? companion : null,
+    evolveInteractionCount
+  );
+  
+  // Unified task access for current process
+  // Note: These are prepared for future unified task UI components
+  const _currentTasks: HatchTask[] = isIncubating ? hatchTasks.tasks : (isEvolvingState ? evolveTasks.tasks : []);
+  const _currentTasksLoading = isIncubating ? hatchTasks.isLoading : (isEvolvingState ? evolveTasks.isLoading : false);
+  const _currentTasksAllComplete = isIncubating ? hatchTasks.allCompleted : (isEvolvingState ? evolveTasks.allCompleted : false);
+  const refetchCurrentTasks = isIncubating ? hatchTasks.refetch : (isEvolvingState ? evolveTasks.refetch : () => {});
   
   // Start incubation hook
   const { mutateAsync: startIncubation, isPending: isStartingIncubation } = useStartIncubation({
@@ -798,6 +824,24 @@ function BlobbiDashboard({
   
   // Stop incubation hook
   const { mutateAsync: stopIncubation, isPending: isStoppingIncubation } = useStopIncubation({
+    companion,
+    ensureCanonicalBeforeAction,
+    updateCompanionEvent,
+    invalidateCompanion,
+    invalidateProfile,
+  });
+  
+  // Start evolution hook
+  const { mutateAsync: startEvolution, isPending: isStartingEvolution } = useStartEvolution({
+    companion,
+    ensureCanonicalBeforeAction,
+    updateCompanionEvent,
+    invalidateCompanion,
+    invalidateProfile,
+  });
+  
+  // Stop evolution hook
+  const { mutateAsync: stopEvolution, isPending: isStoppingEvolution } = useStopEvolution({
     companion,
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
@@ -819,9 +863,11 @@ function BlobbiDashboard({
   
   // Memoize the completion state to prevent unnecessary sync triggers
   // This creates a stable string that only changes when actual completions change
+  // CRITICAL: Only track PERSISTENT tasks for sync - dynamic tasks must NEVER be synced to tags
   const completedTaskIds = useMemo(() => {
-    if (!hatchTasks.tasks.length) return '';
-    return hatchTasks.tasks
+    const persistentTasks = filterPersistentTasks(hatchTasks.tasks);
+    if (!persistentTasks.length) return '';
+    return persistentTasks
       .filter(t => t.completed)
       .map(t => t.id)
       .sort()
@@ -830,9 +876,11 @@ function BlobbiDashboard({
   
   // Memoize tasksToSync - derived from completedTaskIds, NOT from hatchTasks.tasks directly
   // This ensures stability in the sync effect
+  // CRITICAL: Only sync PERSISTENT tasks - dynamic tasks must NEVER be synced to tags
   const tasksToSync = useMemo(() => {
-    if (!hatchTasks.tasks.length) return [];
-    return hatchTasks.tasks.map(t => ({
+    const persistentTasks = filterPersistentTasks(hatchTasks.tasks);
+    if (!persistentTasks.length) return [];
+    return persistentTasks.map(t => ({
       taskId: t.id,
       completed: t.completed,
     }));
@@ -840,21 +888,25 @@ function BlobbiDashboard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completedTaskIds]);
   
-  // Memoize remaining tasks count for UI badge
-  // Must depend on actual tasks array to reflect loading state and task changes correctly
+  // Memoize remaining PERSISTENT tasks count for UI badge
+  // Dynamic tasks (stat-based) are not counted as they can fluctuate
   const remainingTasksCount = useMemo(() => {
-    return hatchTasks.tasks.filter(t => !t.completed).length;
+    const persistentTasks = filterPersistentTasks(hatchTasks.tasks);
+    return persistentTasks.filter(t => !t.completed).length;
   }, [hatchTasks.tasks]);
   
-  // Determine if all tasks are complete (prevent false positives during loading/empty state)
+  // Determine if all tasks are complete for hatching
+  // CRITICAL: Must check hatchTasks.allCompleted which requires BOTH:
+  // - All persistent tasks complete (event-based)
+  // - Dynamic task complete (stat-based)
   const allTasksComplete = useMemo(() => {
     return (
       isIncubating &&
       !hatchTasks.isLoading &&
       hatchTasks.tasks.length > 0 &&
-      remainingTasksCount === 0
+      hatchTasks.allCompleted // This checks both persistent AND dynamic tasks
     );
-  }, [isIncubating, hatchTasks.isLoading, hatchTasks.tasks.length, remainingTasksCount]);
+  }, [isIncubating, hatchTasks.isLoading, hatchTasks.tasks.length, hatchTasks.allCompleted]);
   
   // Memoize cached completion state for comparison
   const cachedCompletedIds = useMemo(() => {
@@ -935,9 +987,25 @@ function BlobbiDashboard({
     }
   };
   
+  // Handler for starting evolution
+  const handleStartEvolution = async () => {
+    try {
+      await startEvolution();
+      setShowEvolutionDialog(false);
+    } catch (error) {
+      console.error('Failed to start evolution:', error);
+    }
+  };
+  
   // Handler for stopping incubation
   const handleStopIncubation = async () => {
     await stopIncubation();
+    setShowMissionsModal(false);
+  };
+  
+  // Handler for stopping evolution
+  const handleStopEvolution = async () => {
+    await stopEvolution();
     setShowMissionsModal(false);
   };
   
@@ -1115,20 +1183,23 @@ function BlobbiDashboard({
           onEvolve={
             // For eggs not yet incubating: show incubation dialog
             // For eggs incubating with all tasks complete: hatch action handled in HatchTasksPanel
-            // For baby: evolve to adult
+            // For baby not yet evolving: show evolution dialog
+            // For baby evolving with all tasks complete: evolve action handled in MissionsModal
             canStartIncubation
               ? () => setShowIncubationDialog(true)
-              : isEgg
-                ? onHatch
-                : onEvolve
+              : canStartEvolution
+                ? () => setShowEvolutionDialog(true)
+                : isEgg
+                  ? onHatch
+                  : onEvolve
           }
-          isTransitioning={isHatching || isEvolving || isStartingIncubation}
+          isTransitioning={isHatching || isEvolving || isStartingIncubation || isStartingEvolution}
           onInfo={() => setShowInfoModal(true)}
-          // Hide hatch button only when actively incubating (hatch is in HatchTasksPanel instead)
-          // Show button for eggs not yet incubating (to start incubation)
-          hideEvolveButton={isIncubating}
-          // When canStartIncubation is true, the button triggers incubation start
+          // Hide button when actively incubating or evolving (actions are in MissionsModal instead)
+          hideEvolveButton={isIncubating || isEvolvingState}
+          // When canStartIncubation or canStartEvolution is true, the button triggers the respective dialog
           isIncubationAction={canStartIncubation}
+          isEvolutionAction={canStartEvolution}
         />
         
         {/* Blobbi Name */}
@@ -1351,11 +1422,16 @@ function BlobbiDashboard({
         onOpenChange={setShowMissionsModal}
         companion={companion}
         hatchTasks={hatchTasks}
+        evolveTasks={evolveTasks}
         onOpenPostModal={() => setShowPostModal(true)}
         onHatch={onHatch}
         isHatching={isHatching}
+        onEvolve={onEvolve}
+        isEvolving={isEvolving}
         onStopIncubation={handleStopIncubation}
         isStoppingIncubation={isStoppingIncubation}
+        onStopEvolution={handleStopEvolution}
+        isStoppingEvolution={isStoppingEvolution}
       />
       
       {/* Shop Modal */}
@@ -1382,13 +1458,13 @@ function BlobbiDashboard({
         companion={companion}
       />
       
-      {/* Blobbi Post Modal - for hatch task */}
+      {/* Blobbi Post Modal - for hatch or evolve task */}
       <BlobbiPostModal
         open={showPostModal}
         onOpenChange={setShowPostModal}
         blobbiName={companion.name}
-        process="hatch"
-        onSuccess={() => hatchTasks.refetch()}
+        process={isEvolvingState ? 'evolve' : 'hatch'}
+        onSuccess={refetchCurrentTasks}
       />
       
       {/* Start Incubation Confirmation Dialog */}
@@ -1399,6 +1475,15 @@ function BlobbiDashboard({
         companions={companions}
         onConfirm={handleStartIncubation}
         isPending={isStartingIncubation}
+      />
+      
+      {/* Start Evolution Confirmation Dialog */}
+      <StartEvolutionDialog
+        open={showEvolutionDialog}
+        onOpenChange={setShowEvolutionDialog}
+        companion={companion}
+        onConfirm={handleStartEvolution}
+        isPending={isStartingEvolution}
       />
     </DashboardShell>
   );
@@ -1456,10 +1541,12 @@ interface BlobbiDashboardFloatingControlsProps {
   /** Whether a stage transition is in progress (hatch or evolve) */
   isTransitioning?: boolean;
   onInfo: () => void;
-  /** Whether to hide the evolve/hatch button (e.g., when incubating) */
+  /** Whether to hide the evolve/hatch button (e.g., when incubating or evolving) */
   hideEvolveButton?: boolean;
   /** Whether the button should show incubation action (for eggs not yet incubating) */
   isIncubationAction?: boolean;
+  /** Whether the button should show evolution action (for babies not yet evolving) */
+  isEvolutionAction?: boolean;
 }
 
 /**
@@ -1477,11 +1564,18 @@ function getEvolveIcon(stage: 'egg' | 'baby' | 'adult', _isIncubationAction?: bo
 }
 
 /**
- * Get the appropriate tooltip for the evolve/hatch button based on stage and incubation state.
+ * Get the appropriate tooltip for the evolve/hatch button based on stage and action state.
  */
-function getEvolveTooltip(stage: 'egg' | 'baby' | 'adult', isIncubationAction?: boolean): string {
+function getEvolveTooltip(
+  stage: 'egg' | 'baby' | 'adult', 
+  isIncubationAction?: boolean,
+  isEvolutionAction?: boolean
+): string {
   if (stage === 'egg') {
     return isIncubationAction ? 'Start Incubation' : 'Hatch';
+  }
+  if (stage === 'baby') {
+    return isEvolutionAction ? 'Start Evolution' : 'Evolve';
   }
   return 'Evolve';
 }
@@ -1501,6 +1595,7 @@ function BlobbiDashboardFloatingControls({
   onInfo,
   hideEvolveButton = false,
   isIncubationAction = false,
+  isEvolutionAction = false,
 }: BlobbiDashboardFloatingControlsProps) {
   // Left-side buttons
   const leftButtons: FloatingActionDef[] = [
@@ -1541,11 +1636,11 @@ function BlobbiDashboardFloatingControls({
   ];
 
   // Evolve/Hatch/Incubation button (emphasized, at the bottom of right cluster)
-  // Icon and tooltip are stage-aware and incubation-aware
+  // Icon and tooltip are stage-aware and action-state-aware
   const evolveButton: FloatingActionDef = {
     id: 'evolve',
     icon: getEvolveIcon(stage, isIncubationAction),
-    tooltip: getEvolveTooltip(stage, isIncubationAction),
+    tooltip: getEvolveTooltip(stage, isIncubationAction, isEvolutionAction),
     onClick: onEvolve,
     variant: 'accent',
   };
