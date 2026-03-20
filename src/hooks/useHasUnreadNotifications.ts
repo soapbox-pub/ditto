@@ -1,15 +1,19 @@
+import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
-import { LETTER_KIND } from '@/lib/letterTypes';
+import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
 
 /**
  * Lightweight hook that checks whether the user has any unread notifications.
  * Fetches at most 1 event (using `since` to filter at the relay level),
  * making it much cheaper than loading the full notification list.
+ *
+ * Respects the user's per-type notification preferences so that disabled
+ * types (e.g. reactions) don't trigger the unread dot.
  *
  * Use this in navigation components (sidebar, mobile bottom nav) for the dot indicator.
  * Use `useNotifications` on the actual notifications page where the full list is needed.
@@ -24,14 +28,21 @@ export function useHasUnreadNotifications(): boolean {
     ? (settings.notificationsCursor ?? 0)
     : null;
 
+  // Derive enabled kinds from preferences so disabled types don't trigger the dot
+  const enabledKinds = useMemo(
+    () => getEnabledNotificationKinds(settings?.notificationPreferences),
+    [settings?.notificationPreferences],
+  );
+  const kindsKey = [...enabledKinds].sort().join(',');
+
   const { data: hasUnread = false } = useQuery<boolean>({
-    queryKey: ['notifications-unread', user?.pubkey ?? ''],
+    queryKey: ['notifications-unread', user?.pubkey ?? '', kindsKey],
     queryFn: async ({ signal }) => {
       if (!user || notificationsCursor === null) return false;
 
       const events = await nostr.query(
         [{
-          kinds: [1, 6, 16, 7, 9735, 1111, 1222, 1244, LETTER_KIND],
+          kinds: enabledKinds,
           '#p': [user.pubkey],
           since: notificationsCursor + 1,
           limit: 1,

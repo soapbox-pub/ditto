@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 
@@ -6,10 +6,11 @@ import { useCurrentUser } from './useCurrentUser';
 import { useAppContext } from './useAppContext';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { getEffectiveRelays } from '@/lib/appRelays';
+import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
 
 /** Interface for the native DittoNotification Capacitor plugin. */
 interface DittoNotificationPlugin {
-  configure(options: { userPubkey?: string; relayUrls?: string[] }): Promise<void>;
+  configure(options: { userPubkey?: string; relayUrls?: string[]; enabledKinds?: number[] }): Promise<void>;
 }
 
 const DittoNotification = registerPlugin<DittoNotificationPlugin>('DittoNotification');
@@ -17,9 +18,10 @@ const DittoNotification = registerPlugin<DittoNotificationPlugin>('DittoNotifica
 /**
  * Manages the native Android notification service via Capacitor.
  *
- * Passes user pubkey + relay URLs to the DittoNotification plugin so it can
- * poll for events in the background. Respects the NIP-78 notificationsEnabled
- * setting (defaults to on).
+ * Passes user pubkey + relay URLs + enabled notification kinds to the
+ * DittoNotification plugin so it can poll for events in the background.
+ * Respects the NIP-78 notificationsEnabled setting (defaults to on) and
+ * per-type notification preferences.
  *
  * Web Push (nostr-push) is handled separately by usePushNotifications +
  * NotificationSettings — this hook is Capacitor-only.
@@ -30,6 +32,10 @@ export function useNativeNotifications(): void {
   const { settings } = useEncryptedSettings();
 
   const notificationsEnabled = settings?.notificationsEnabled ?? true;
+  const enabledKinds = useMemo(
+    () => getEnabledNotificationKinds(settings?.notificationPreferences),
+    [settings?.notificationPreferences],
+  );
 
   // Request native notification permission on first mount.
   useEffect(() => {
@@ -66,6 +72,7 @@ export function useNativeNotifications(): void {
     DittoNotification.configure({
       userPubkey: user.pubkey,
       relayUrls,
+      enabledKinds,
     });
-  }, [user, config.relayMetadata, config.useAppRelays, notificationsEnabled]);
+  }, [user, config.relayMetadata, config.useAppRelays, notificationsEnabled, enabledKinds]);
 }

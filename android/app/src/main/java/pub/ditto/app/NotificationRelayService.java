@@ -243,6 +243,7 @@ public class NotificationRelayService extends Service {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String userPubkey = prefs.getString("userPubkey", null);
         String relayUrlsJson = prefs.getString("relayUrls", null);
+        String enabledKindsJson = prefs.getString("enabledKinds", null);
 
         if (userPubkey == null || relayUrlsJson == null) {
             Log.d(TAG, "No config, skipping fetch");
@@ -268,10 +269,11 @@ public class NotificationRelayService extends Service {
             return;
         }
 
-        fetch(relayUrls.get(relayIndex), userPubkey);
+        List<Integer> enabledKinds = parseEnabledKinds(enabledKindsJson);
+        fetch(relayUrls.get(relayIndex), userPubkey, enabledKinds);
     }
 
-    private void fetch(String relayUrl, String userPubkey) {
+    private void fetch(String relayUrl, String userPubkey, List<Integer> enabledKinds) {
         long since = poller.getLastSeenTimestamp();
         if (since == 0) {
             since = (System.currentTimeMillis() / 1000) - 300; // 5 min ago on first run
@@ -284,7 +286,9 @@ public class NotificationRelayService extends Service {
         try {
             JSONObject filter = new JSONObject();
             JSONArray kinds = new JSONArray();
-            kinds.put(1); kinds.put(6); kinds.put(16); kinds.put(7); kinds.put(9735); kinds.put(1111); kinds.put(8211);
+            for (int kind : enabledKinds) {
+                kinds.put(kind);
+            }
             filter.put("kinds", kinds);
             JSONArray pTags = new JSONArray();
             pTags.put(userPubkey);
@@ -397,7 +401,8 @@ public class NotificationRelayService extends Service {
         }
 
         Log.d(TAG, "Retrying in " + backoffMs + "ms on relay " + relayIndex);
-        Runnable retry = () -> fetch(relayUrls.get(relayIndex), userPubkey);
+        // Re-read config from prefs on retry so enabled kinds stay current.
+        Runnable retry = this::runFetchCycle;
         handler.postDelayed(retry, backoffMs);
         backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
 
@@ -513,6 +518,33 @@ public class NotificationRelayService extends Service {
             Log.w(TAG, "Failed to parse relay URLs", e);
         }
         return urls;
+    }
+
+    /** Default kinds when no preference is set. */
+    private static final int[] DEFAULT_KINDS = {1, 6, 16, 7, 9735, 1111, 1222, 1244};
+
+    /**
+     * Parse the enabled notification kinds from JSON. Falls back to default
+     * kinds when the value is null or invalid.
+     */
+    private List<Integer> parseEnabledKinds(String json) {
+        List<Integer> kinds = new ArrayList<>();
+        if (json != null) {
+            try {
+                JSONArray arr = new JSONArray(json);
+                for (int i = 0; i < arr.length(); i++) {
+                    kinds.add(arr.getInt(i));
+                }
+            } catch (JSONException e) {
+                Log.w(TAG, "Failed to parse enabled kinds", e);
+            }
+        }
+        if (kinds.isEmpty()) {
+            for (int k : DEFAULT_KINDS) {
+                kinds.add(k);
+            }
+        }
+        return kinds;
     }
 
     private Notification buildForegroundNotification() {
