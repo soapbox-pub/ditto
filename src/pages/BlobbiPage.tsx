@@ -840,12 +840,21 @@ function BlobbiDashboard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completedTaskIds]);
   
-  // Memoize remaining tasks count for UI badge - derived from completedTaskIds for stability
+  // Memoize remaining tasks count for UI badge
+  // Must depend on actual tasks array to reflect loading state and task changes correctly
   const remainingTasksCount = useMemo(() => {
-    if (!hatchTasks.tasks.length) return 0;
     return hatchTasks.tasks.filter(t => !t.completed).length;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completedTaskIds]);
+  }, [hatchTasks.tasks]);
+  
+  // Determine if all tasks are complete (prevent false positives during loading/empty state)
+  const allTasksComplete = useMemo(() => {
+    return (
+      isIncubating &&
+      !hatchTasks.isLoading &&
+      hatchTasks.tasks.length > 0 &&
+      remainingTasksCount === 0
+    );
+  }, [isIncubating, hatchTasks.isLoading, hatchTasks.tasks.length, remainingTasksCount]);
   
   // Memoize cached completion state for comparison
   const cachedCompletedIds = useMemo(() => {
@@ -1255,7 +1264,7 @@ function BlobbiDashboard({
         needyBlobbiesCount={companions.filter(companionNeedsCare).length}
         isIncubating={isIncubating}
         remainingTasksCount={remainingTasksCount}
-        allTasksComplete={isIncubating && remainingTasksCount === 0}
+        allTasksComplete={allTasksComplete}
       />
       
       {/* Blobbi Selector Modal */}
@@ -1945,10 +1954,10 @@ function BlobbiBottomBar({
   allTasksComplete,
 }: BlobbiBottomBarProps) {
   // Determine what to show on missions badge:
-  // - If all tasks complete during incubation: show "?"
+  // - If all tasks complete during incubation: show "!"
   // - If tasks remaining: show count
   // - Otherwise: no badge
-  const missionsBadge = allTasksComplete ? '?' : (isIncubating && remainingTasksCount && remainingTasksCount > 0 ? remainingTasksCount : undefined);
+  const missionsBadge = allTasksComplete ? '!' : (isIncubating && remainingTasksCount && remainingTasksCount > 0 ? remainingTasksCount : undefined);
   
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30">
