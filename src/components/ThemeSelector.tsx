@@ -75,7 +75,7 @@ function ThemePreviewCard({
           />
         )}
         {/* Content preview area */}
-        <div className="p-1.5 space-y-1 relative">
+        <div className="p-1.5 pt-3 space-y-1 relative">
           {/* Simulated text lines */}
           <div
             className="h-1 w-3/4 rounded-full"

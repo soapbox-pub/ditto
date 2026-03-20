@@ -156,7 +156,7 @@ function ThemeMockup({
           />
         )}
         {/* Content preview area */}
-        <div className="p-6 space-y-4 relative">
+        <div className="p-6 pt-10 space-y-4 relative">
           {/* Simulated text lines */}
           <div
             className="h-4 w-3/4 rounded-full"
