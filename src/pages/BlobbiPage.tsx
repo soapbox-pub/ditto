@@ -65,6 +65,7 @@ import {
   type InlineActivityState,
   type AudioSource,
   type BlobbiReactionState,
+  type StartIncubationMode,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 
@@ -772,7 +773,6 @@ function BlobbiDashboard({
   const { mutateAsync: startIncubation, isPending: isStartingIncubation } = useStartIncubation({
     companion,
     profile,
-    companions,
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
     invalidateCompanion,
@@ -853,10 +853,10 @@ function BlobbiDashboard({
     });
   }, [completedTaskIds, cachedCompletedIds, hatchTasks.tasks, hatchTasks.isLoading, syncTaskCompletions]);
   
-  // Handler for starting incubation
-  const handleStartIncubation = async () => {
+  // Handler for starting incubation with explicit mode from dialog
+  const handleStartIncubation = async (mode: StartIncubationMode, stopOtherD?: string) => {
     try {
-      await startIncubation();
+      await startIncubation({ mode, stopOtherD });
       setShowIncubationDialog(false);
     } catch (error) {
       console.error('Failed to start incubation:', error);
@@ -1311,6 +1311,8 @@ function BlobbiDashboard({
       <BlobbiPostModal
         open={showPostModal}
         onOpenChange={setShowPostModal}
+        blobbiName={companion.name}
+        process="hatch"
         onSuccess={() => hatchTasks.refetch()}
       />
       

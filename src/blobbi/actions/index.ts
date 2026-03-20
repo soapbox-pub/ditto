@@ -24,12 +24,12 @@ export type {
   CanonicalActionResult,
 } from './hooks/useBlobbiStageTransition';
 
-export { useStartIncubation, useUpdateTaskProgress, useStopIncubation, useSyncHatchTaskCompletions } from './hooks/useBlobbiIncubation';
+export { useStartIncubation, useStopIncubation, useSyncHatchTaskCompletions } from './hooks/useBlobbiIncubation';
 export type {
+  StartIncubationMode,
+  StartIncubationRequest,
   UseStartIncubationParams,
   StartIncubationResult,
-  UseUpdateTaskProgressParams,
-  UpdateTaskProgressRequest,
   UseStopIncubationParams,
   StopIncubationResult,
   UseSyncHatchTaskCompletionsParams,

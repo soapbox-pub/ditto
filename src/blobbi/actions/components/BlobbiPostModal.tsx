@@ -1,15 +1,18 @@
 // src/blobbi/actions/components/BlobbiPostModal.tsx
 
 /**
- * Modal for creating a Blobbi hatch post.
+ * Modal for creating a Blobbi post (hatch or evolve).
  * 
  * Requirements:
- * - Prefilled with: "Hello Nostr! Posting to hatch #blobbi #ditto #nostr"
- * - User can ADD text but CANNOT delete the prefix or hashtags
+ * - Prefilled with stage-aware text:
+ *   - Hatch: "Hello Nostr! Posting to hatch #<blobbiName> #blobbi #ditto #nostr"
+ *   - Evolve: "Hello Nostr! Posting to evolve #<blobbiName> #blobbi #ditto #nostr"
+ * - User can ADD text but CANNOT delete the prefix or required hashtags
+ * - Blobbi name is sanitized into a valid hashtag format
  * - Enforced programmatically
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { X, Loader2, AlertCircle } from 'lucide-react';
 
 import {
@@ -26,63 +29,113 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
 import {
-  BLOBBI_POST_PREFIX,
   BLOBBI_POST_REQUIRED_HASHTAGS,
 } from '../hooks/useHatchTasks';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+/** The process type for the post */
+export type BlobbiPostProcess = 'hatch' | 'evolve';
+
 interface BlobbiPostModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The Blobbi's name (will be converted to hashtag) */
+  blobbiName: string;
+  /** The process type - 'hatch' for incubation, 'evolve' for evolution */
+  process?: BlobbiPostProcess;
   onSuccess?: () => void;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** The complete default post content */
-const DEFAULT_CONTENT = `${BLOBBI_POST_PREFIX} #${BLOBBI_POST_REQUIRED_HASHTAGS.join(' #')}`;
+/**
+ * Sanitize a name into a valid hashtag format.
+ * - Removes special characters
+ * - Replaces spaces with nothing (camelCase-like)
+ * - Ensures lowercase
+ * - Handles edge cases
+ */
+function sanitizeToHashtag(name: string): string {
+  return name
+    .toLowerCase()
+    // Remove emojis and special characters, keep letters, numbers, underscores
+    .replace(/[^\p{L}\p{N}_]/gu, '')
+    // Ensure it starts with a letter (prepend 'blobbi' if it starts with number)
+    .replace(/^(\d)/, 'blobbi$1')
+    // Limit length
+    .slice(0, 30)
+    // Fallback if empty
+    || 'myblobbi';
+}
+
+/**
+ * Build the required prefix text based on process type.
+ */
+function buildPrefix(process: BlobbiPostProcess): string {
+  return process === 'evolve'
+    ? 'Hello Nostr! Posting to evolve'
+    : 'Hello Nostr! Posting to hatch';
+}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function BlobbiPostModal({
   open,
   onOpenChange,
+  blobbiName,
+  process = 'hatch',
   onSuccess,
 }: BlobbiPostModalProps) {
   const { user } = useCurrentUser();
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
   
-  const [content, setContent] = useState(DEFAULT_CONTENT);
+  // Compute the required elements based on props
+  const blobbiHashtag = useMemo(() => sanitizeToHashtag(blobbiName), [blobbiName]);
+  const prefix = useMemo(() => buildPrefix(process), [process]);
+  
+  // All required hashtags including the Blobbi name (first)
+  const allRequiredHashtags = useMemo(() => 
+    [blobbiHashtag, ...BLOBBI_POST_REQUIRED_HASHTAGS],
+    [blobbiHashtag]
+  );
+  
+  // Build default content
+  const defaultContent = useMemo(() => 
+    `${prefix} #${allRequiredHashtags.join(' #')}`,
+    [prefix, allRequiredHashtags]
+  );
+  
+  const [content, setContent] = useState(defaultContent);
   const [validationError, setValidationError] = useState<string | null>(null);
   
-  // Reset content when modal opens
+  // Reset content when modal opens or props change
   useEffect(() => {
     if (open) {
-      setContent(DEFAULT_CONTENT);
+      setContent(defaultContent);
       setValidationError(null);
     }
-  }, [open]);
+  }, [open, defaultContent]);
   
   /**
    * Validate that the content still contains the required prefix and hashtags.
    */
   const validateContent = useCallback((text: string): string | null => {
     // Check prefix
-    if (!text.startsWith(BLOBBI_POST_PREFIX)) {
+    if (!text.startsWith(prefix)) {
       return 'The post must start with the required text';
     }
     
-    // Check hashtags are present
+    // Check all required hashtags are present (including Blobbi name)
     const lowerText = text.toLowerCase();
-    for (const tag of BLOBBI_POST_REQUIRED_HASHTAGS) {
+    for (const tag of allRequiredHashtags) {
       if (!lowerText.includes(`#${tag.toLowerCase()}`)) {
         return `Missing required hashtag: #${tag}`;
       }
     }
     
     return null;
-  }, []);
+  }, [prefix, allRequiredHashtags]);
   
   /**
    * Handle content change with validation.
@@ -130,16 +183,17 @@ export function BlobbiPostModal({
       // Build tags for the post
       const tags: string[][] = [];
       
-      // Add hashtags as 't' tags
-      for (const hashtag of BLOBBI_POST_REQUIRED_HASHTAGS) {
+      // Add all required hashtags as 't' tags
+      for (const hashtag of allRequiredHashtags) {
         tags.push(['t', hashtag.toLowerCase()]);
       }
       
       // Extract any additional hashtags the user added
       const additionalHashtags = content.match(/#(\w+)/g) || [];
+      const requiredLower = allRequiredHashtags.map(t => t.toLowerCase());
       for (const tag of additionalHashtags) {
         const tagValue = tag.slice(1).toLowerCase();
-        if (!BLOBBI_POST_REQUIRED_HASHTAGS.map(t => t.toLowerCase()).includes(tagValue)) {
+        if (!requiredLower.includes(tagValue)) {
           tags.push(['t', tagValue]);
         }
       }
@@ -152,7 +206,9 @@ export function BlobbiPostModal({
       
       toast({
         title: 'Post created!',
-        description: 'Your Blobbi hatch post has been published.',
+        description: process === 'evolve' 
+          ? 'Your Blobbi evolution post has been published.'
+          : 'Your Blobbi hatch post has been published.',
       });
       
       onOpenChange(false);
@@ -164,9 +220,14 @@ export function BlobbiPostModal({
         variant: 'destructive',
       });
     }
-  }, [user, content, validateContent, createEvent, onOpenChange, onSuccess]);
+  }, [user, content, validateContent, createEvent, onOpenChange, onSuccess, allRequiredHashtags, process]);
   
   const canPost = !validationError && content.trim().length > 0;
+  
+  const dialogTitle = process === 'evolve' ? 'Blobbi Evolution Post' : 'Blobbi Hatch Post';
+  const alertText = process === 'evolve'
+    ? "This special post announces your Blobbi's evolution! The highlighted text must remain in your post."
+    : "This special post announces your Blobbi's hatching journey! The highlighted text must remain in your post.";
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,7 +235,7 @@ export function BlobbiPostModal({
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-14 border-b">
           <DialogTitle className="text-base font-semibold">
-            Blobbi Hatch Post
+            {dialogTitle}
           </DialogTitle>
           <button
             onClick={() => onOpenChange(false)}
@@ -189,7 +250,7 @@ export function BlobbiPostModal({
           {/* Info alert */}
           <Alert className="border-primary/20 bg-primary/5">
             <AlertDescription className="text-sm">
-              This special post announces your Blobbi's hatching journey! The highlighted text must remain in your post.
+              {alertText}
             </AlertDescription>
           </Alert>
           
@@ -223,9 +284,9 @@ export function BlobbiPostModal({
           <div className="p-3 rounded-lg bg-muted/50 border border-dashed">
             <p className="text-xs text-muted-foreground mb-1">Required content:</p>
             <p className="text-sm font-medium">
-              <span className="text-primary">{BLOBBI_POST_PREFIX}</span>
+              <span className="text-primary">{prefix}</span>
               {' '}
-              {BLOBBI_POST_REQUIRED_HASHTAGS.map(tag => (
+              {allRequiredHashtags.map(tag => (
                 <span key={tag} className="text-blue-500">#{tag} </span>
               ))}
             </p>
