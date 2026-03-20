@@ -272,7 +272,7 @@ export function useEvolveTasks(
     completed: colorMomentsCompleted,
     type: 'persistent',
     action: 'external_link',
-    actionTarget: 'https://espy.social/',
+    actionTarget: 'https://espy.you/',
     actionLabel: 'Open espy',
   });
   
