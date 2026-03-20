@@ -8,7 +8,7 @@ import { isRepostKind } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
-import { DITTO_RELAY } from '@/lib/appRelays';
+import { DITTO_RELAYS } from '@/lib/appRelays';
 import { nip19 } from 'nostr-tools';
 
 interface StreamPostsOptions {
@@ -299,8 +299,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       try {
         const now = Math.floor(Date.now() / 1000);
         
-        // Use relay.ditto.pub directly for streaming to avoid pool's eoseTimeout
-        const dittoRelay = nostr.relay(DITTO_RELAY);
+        // Use Ditto relays directly for streaming to avoid pool's eoseTimeout
+        const dittoRelay = nostr.group(DITTO_RELAYS);
         
         for await (const msg of dittoRelay.req(
           [{ ...streamFilter, since: now, limit: 0 }],
