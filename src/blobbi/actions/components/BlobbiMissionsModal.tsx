@@ -3,8 +3,8 @@
 /**
  * Missions modal for Blobbi.
  * 
- * Shows incubation tasks when the current Blobbi is incubating,
- * otherwise shows an empty state with placeholder content.
+ * Shows incubation tasks when the current Blobbi is incubating (egg stage),
+ * evolve tasks when evolving (baby stage), or an empty state otherwise.
  */
 
 import { Target, Loader2, XCircle, AlertTriangle } from 'lucide-react';
@@ -25,7 +25,8 @@ import { useState } from 'react';
 
 import type { BlobbiCompanion } from '@/lib/blobbi';
 import type { HatchTasksResult } from '../hooks/useHatchTasks';
-import { HatchTasksPanel } from './HatchTasksPanel';
+import type { EvolveTasksResult } from '../hooks/useEvolveTasks';
+import { TasksPanel } from './TasksPanel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,16 +37,26 @@ interface BlobbiMissionsModalProps {
   companion: BlobbiCompanion;
   /** Hatch tasks result from useHatchTasks */
   hatchTasks: HatchTasksResult;
+  /** Evolve tasks result from useEvolveTasks */
+  evolveTasks: EvolveTasksResult;
   /** Called when user clicks "Create Post" action in tasks */
   onOpenPostModal: () => void;
-  /** Called when all tasks are complete and user clicks "Hatch" */
+  /** Called when all hatch tasks are complete and user clicks "Hatch" */
   onHatch: () => void;
   /** Whether hatching is in progress */
   isHatching: boolean;
+  /** Called when all evolve tasks are complete and user clicks "Evolve" */
+  onEvolve: () => void;
+  /** Whether evolving is in progress */
+  isEvolving: boolean;
   /** Called when user confirms stopping incubation */
   onStopIncubation: () => Promise<void>;
   /** Whether stop incubation is in progress */
   isStoppingIncubation: boolean;
+  /** Called when user confirms stopping evolution */
+  onStopEvolution: () => Promise<void>;
+  /** Whether stop evolution is in progress */
+  isStoppingEvolution: boolean;
 }
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
@@ -66,56 +77,137 @@ function MissionsEmptyState() {
   );
 }
 
-// ─── Incubation Content ───────────────────────────────────────────────────────
+// ─── Stop Process Confirmation Dialog ─────────────────────────────────────────
 
-interface IncubationContentProps {
-  companion: BlobbiCompanion;
-  hatchTasks: HatchTasksResult;
-  onOpenPostModal: () => void;
-  onHatch: () => void;
-  isHatching: boolean;
-  onStopIncubation: () => Promise<void>;
-  isStoppingIncubation: boolean;
+interface StopConfirmationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  companionName: string;
+  processType: 'incubation' | 'evolution';
+  onConfirm: () => Promise<void>;
+  isPending: boolean;
 }
 
-function IncubationContent({
+function StopConfirmationDialog({
+  open,
+  onOpenChange,
+  companionName,
+  processType,
+  onConfirm,
+  isPending,
+}: StopConfirmationDialogProps) {
+  const handleConfirm = async () => {
+    await onConfirm();
+    onOpenChange(false);
+  };
+
+  const label = processType === 'incubation' ? 'Incubation' : 'Evolution';
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="size-5 text-amber-500" />
+            Stop {label}?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2">
+            <p>
+              Are you sure you want to stop {processType === 'incubation' ? 'incubating' : 'evolving'}{' '}
+              <strong>{companionName}</strong>?
+            </p>
+            <p>
+              This will interrupt the {processType} process and clear all task progress.
+              You can restart {processType} later, but you'll need to complete the tasks again.
+            </p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleConfirm}
+            disabled={isPending}
+            className="bg-destructive hover:bg-destructive/90"
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="size-4 mr-2 animate-spin" />
+                Stopping...
+              </>
+            ) : (
+              `Stop ${label}`
+            )}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// ─── Process Content (Incubation or Evolution) ────────────────────────────────
+
+interface ProcessContentProps {
+  companion: BlobbiCompanion;
+  tasks: HatchTasksResult | EvolveTasksResult;
+  processType: 'incubation' | 'evolution';
+  onOpenPostModal: () => void;
+  onComplete: () => void;
+  isCompleting: boolean;
+  onStop: () => Promise<void>;
+  isStopping: boolean;
+}
+
+function ProcessContent({
   companion,
-  hatchTasks,
+  tasks,
+  processType,
   onOpenPostModal,
-  onHatch,
-  isHatching,
-  onStopIncubation,
-  isStoppingIncubation,
-}: IncubationContentProps) {
+  onComplete,
+  isCompleting,
+  onStop,
+  isStopping,
+}: ProcessContentProps) {
   const [showStopConfirmation, setShowStopConfirmation] = useState(false);
 
-  const handleStopConfirm = async () => {
-    await onStopIncubation();
-    setShowStopConfirmation(false);
-  };
+  const isIncubation = processType === 'incubation';
+  const emoji = isIncubation ? '🥚' : '🐣';
+  const title = isIncubation ? 'Hatch Tasks' : 'Evolve Tasks';
+  const description = isIncubation
+    ? 'Complete these tasks to hatch your Blobbi'
+    : 'Complete these tasks to evolve your Blobbi';
+  const completeLabel = isIncubation ? 'Hatch Your Blobbi!' : 'Evolve Your Blobbi!';
+  const completingLabel = isIncubation ? 'Hatching...' : 'Evolving...';
+  const completeEmoji = isIncubation ? '🐣' : '✨';
+  const stopLabel = isIncubation ? 'Stop Incubation' : 'Stop Evolution';
 
   return (
     <>
-      {/* Hatch Tasks Panel */}
-      <HatchTasksPanel
-        tasks={hatchTasks.tasks}
-        allCompleted={hatchTasks.allCompleted}
-        isLoading={hatchTasks.isLoading}
+      {/* Tasks Panel */}
+      <TasksPanel
+        tasks={tasks.tasks}
+        allCompleted={tasks.allCompleted}
+        isLoading={tasks.isLoading}
         onOpenPostModal={onOpenPostModal}
-        onHatch={onHatch}
-        isHatching={isHatching}
+        onComplete={onComplete}
+        isCompleting={isCompleting}
+        emoji={emoji}
+        title={title}
+        description={description}
+        completeLabel={completeLabel}
+        completingLabel={completingLabel}
+        completeEmoji={completeEmoji}
       />
 
-      {/* Stop Incubation Button */}
+      {/* Stop Process Button */}
       <div className="mt-6 pt-4 border-t border-border">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setShowStopConfirmation(true)}
-          disabled={isStoppingIncubation || isHatching}
+          disabled={isStopping || isCompleting}
           className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
         >
-          {isStoppingIncubation ? (
+          {isStopping ? (
             <>
               <Loader2 className="size-4 mr-2 animate-spin" />
               Stopping...
@@ -123,49 +215,21 @@ function IncubationContent({
           ) : (
             <>
               <XCircle className="size-4 mr-2" />
-              Stop Incubation
+              {stopLabel}
             </>
           )}
         </Button>
       </div>
 
-      {/* Stop Incubation Confirmation Dialog */}
-      <AlertDialog open={showStopConfirmation} onOpenChange={setShowStopConfirmation}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="size-5 text-amber-500" />
-              Stop Incubation?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>
-                Are you sure you want to stop incubating <strong>{companion.name}</strong>?
-              </p>
-              <p>
-                This will interrupt the incubation process and clear all task progress.
-                You can restart incubation later, but you'll need to complete the tasks again.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isStoppingIncubation}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleStopConfirm}
-              disabled={isStoppingIncubation}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              {isStoppingIncubation ? (
-                <>
-                  <Loader2 className="size-4 mr-2 animate-spin" />
-                  Stopping...
-                </>
-              ) : (
-                'Stop Incubation'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Stop Confirmation Dialog */}
+      <StopConfirmationDialog
+        open={showStopConfirmation}
+        onOpenChange={setShowStopConfirmation}
+        companionName={companion.name}
+        processType={processType}
+        onConfirm={onStop}
+        isPending={isStopping}
+      />
     </>
   );
 }
@@ -177,14 +241,32 @@ export function BlobbiMissionsModal({
   onOpenChange,
   companion,
   hatchTasks,
+  evolveTasks,
   onOpenPostModal,
   onHatch,
   isHatching,
+  onEvolve,
+  isEvolving,
   onStopIncubation,
   isStoppingIncubation,
+  onStopEvolution,
+  isStoppingEvolution,
 }: BlobbiMissionsModalProps) {
   const isIncubating = companion.state === 'incubating';
+  const isEvolvingState = companion.state === 'evolving';
   const isEgg = companion.stage === 'egg';
+  const isBaby = companion.stage === 'baby';
+
+  // Determine description text
+  const getDescription = () => {
+    if (isIncubating && isEgg) {
+      return `Complete tasks to hatch ${companion.name}`;
+    }
+    if (isEvolvingState && isBaby) {
+      return `Complete tasks to evolve ${companion.name}`;
+    }
+    return 'Complete missions to earn rewards';
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -195,22 +277,32 @@ export function BlobbiMissionsModal({
             Missions
           </DialogTitle>
           <DialogDescription>
-            {isIncubating && isEgg
-              ? `Complete tasks to hatch ${companion.name}`
-              : 'Complete missions to earn rewards'}
+            {getDescription()}
           </DialogDescription>
         </DialogHeader>
 
         <div className="pt-2">
           {isIncubating && isEgg ? (
-            <IncubationContent
+            <ProcessContent
               companion={companion}
-              hatchTasks={hatchTasks}
+              tasks={hatchTasks}
+              processType="incubation"
               onOpenPostModal={onOpenPostModal}
-              onHatch={onHatch}
-              isHatching={isHatching}
-              onStopIncubation={onStopIncubation}
-              isStoppingIncubation={isStoppingIncubation}
+              onComplete={onHatch}
+              isCompleting={isHatching}
+              onStop={onStopIncubation}
+              isStopping={isStoppingIncubation}
+            />
+          ) : isEvolvingState && isBaby ? (
+            <ProcessContent
+              companion={companion}
+              tasks={evolveTasks}
+              processType="evolution"
+              onOpenPostModal={onOpenPostModal}
+              onComplete={onEvolve}
+              isCompleting={isEvolving}
+              onStop={onStopEvolution}
+              isStopping={isStoppingEvolution}
             />
           ) : (
             <MissionsEmptyState />

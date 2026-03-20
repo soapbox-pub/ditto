@@ -462,6 +462,307 @@ export function useStopIncubation({
   });
 }
 
+// ─── Start Evolution Hook ─────────────────────────────────────────────────────
+
+/**
+ * Parameters for start evolution hook.
+ */
+export interface UseStartEvolutionParams {
+  companion: BlobbiCompanion | null;
+  /** Called to ensure companion is canonical (from migration helper) */
+  ensureCanonicalBeforeAction: () => Promise<{
+    companion: BlobbiCompanion;
+    content: string;
+    allTags: string[][];
+    wasMigrated: boolean;
+    profileAllTags: string[][];
+    profileStorage: import('@/lib/blobbi').StorageItem[];
+  } | null>;
+  /** Update companion event in local cache */
+  updateCompanionEvent: (event: NostrEvent) => void;
+  /** Invalidate companion queries */
+  invalidateCompanion: () => void;
+  /** Invalidate profile queries (needed if migration occurred) */
+  invalidateProfile: () => void;
+}
+
+/**
+ * Result of starting evolution.
+ */
+export interface StartEvolutionResult {
+  /** The Blobbi's name */
+  name: string;
+  /** Timestamp when evolution started */
+  stateStartedAt: number;
+}
+
+/**
+ * Hook to start the evolution process for a baby Blobbi.
+ * 
+ * This sets the Blobbi state to 'evolving' and records the start timestamp.
+ * Tasks will be computed based on events created after this timestamp.
+ * 
+ * Requirements:
+ * - Blobbi must be in baby stage
+ * - Blobbi must not already be evolving
+ * - User must be logged in
+ */
+export function useStartEvolution({
+  companion,
+  ensureCanonicalBeforeAction,
+  updateCompanionEvent,
+  invalidateCompanion,
+  invalidateProfile,
+}: UseStartEvolutionParams) {
+  const { user } = useCurrentUser();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+
+  return useMutation({
+    mutationFn: async (): Promise<StartEvolutionResult> => {
+      // ─── Validation ───
+      if (!user?.pubkey) {
+        throw new Error('You must be logged in to start evolution');
+      }
+
+      if (!companion) {
+        throw new Error('No companion selected');
+      }
+
+      if (companion.stage !== 'baby') {
+        throw new Error('Only baby Blobbis can evolve');
+      }
+
+      if (companion.state === 'evolving') {
+        throw new Error('This Blobbi is already evolving');
+      }
+
+      // ─── Ensure Canonical Before Action ───
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) {
+        throw new Error('Failed to prepare companion for evolution');
+      }
+
+      // ─── Apply Accumulated Decay ───
+      const now = Math.floor(Date.now() / 1000);
+      const nowStr = now.toString();
+      
+      const decayResult = applyBlobbiDecay({
+        stage: canonical.companion.stage,
+        state: canonical.companion.state,
+        stats: canonical.companion.stats,
+        lastDecayAt: canonical.companion.lastDecayAt,
+        now,
+      });
+      
+      // ─── Build Updated Tags ───
+      // Remove any existing task tags when starting fresh
+      const cleanedTags = canonical.allTags.filter(tag => 
+        tag[0] !== 'task' && tag[0] !== 'task_completed'
+      );
+      
+      // Build stats update with decayed values
+      const statsUpdate: Record<string, string> = {
+        health: decayResult.stats.health.toString(),
+        hygiene: decayResult.stats.hygiene.toString(),
+        happiness: decayResult.stats.happiness.toString(),
+        hunger: decayResult.stats.hunger.toString(),
+        energy: decayResult.stats.energy.toString(),
+      };
+      
+      const newTags = updateBlobbiTags(cleanedTags, {
+        ...statsUpdate,
+        state: 'evolving',
+        state_started_at: nowStr,
+        last_interaction: nowStr,
+        last_decay_at: nowStr,
+      });
+
+      // ─── Publish Event ───
+      const event = await publishEvent({
+        kind: KIND_BLOBBI_STATE,
+        content: canonical.content,
+        tags: newTags,
+      });
+
+      updateCompanionEvent(event);
+      invalidateCompanion();
+      
+      // Invalidate profile if migration occurred
+      if (canonical.wasMigrated) {
+        invalidateProfile();
+      }
+
+      return {
+        name: canonical.companion.name,
+        stateStartedAt: now,
+      };
+    },
+    onSuccess: ({ name }) => {
+      toast({
+        title: 'Evolution started!',
+        description: `${name} is now working towards evolution. Complete the tasks to evolve!`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to start evolution',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// ─── Stop Evolution Hook ──────────────────────────────────────────────────────
+
+/**
+ * Parameters for stop evolution hook.
+ */
+export interface UseStopEvolutionParams {
+  companion: BlobbiCompanion | null;
+  /** Called to ensure companion is canonical (from migration helper) */
+  ensureCanonicalBeforeAction: () => Promise<{
+    companion: BlobbiCompanion;
+    content: string;
+    allTags: string[][];
+    wasMigrated: boolean;
+    profileAllTags: string[][];
+    profileStorage: import('@/lib/blobbi').StorageItem[];
+  } | null>;
+  /** Update companion event in local cache */
+  updateCompanionEvent: (event: NostrEvent) => void;
+  /** Invalidate companion queries */
+  invalidateCompanion: () => void;
+  /** Invalidate profile queries (needed if migration occurred) */
+  invalidateProfile: () => void;
+}
+
+/**
+ * Result of stopping evolution.
+ */
+export interface StopEvolutionResult {
+  /** The Blobbi's name */
+  name: string;
+}
+
+/**
+ * Hook to stop/cancel the evolution process for a Blobbi.
+ * 
+ * This resets the Blobbi state to 'active' and clears all task progress tags.
+ * The user can restart evolution later, but will need to complete tasks again.
+ * 
+ * When stopping evolution:
+ * - Apply accumulated decay first
+ * - Set state back to 'active'
+ * - Remove state_started_at tag
+ * - Remove all task and task_completed tags
+ * 
+ * Requirements:
+ * - Blobbi must be in evolving state
+ * - User must be logged in
+ */
+export function useStopEvolution({
+  companion,
+  ensureCanonicalBeforeAction,
+  updateCompanionEvent,
+  invalidateCompanion,
+  invalidateProfile,
+}: UseStopEvolutionParams) {
+  const { user } = useCurrentUser();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+
+  return useMutation({
+    mutationFn: async (): Promise<StopEvolutionResult> => {
+      // ─── Validation ───
+      if (!user?.pubkey) {
+        throw new Error('You must be logged in to stop evolution');
+      }
+
+      if (!companion) {
+        throw new Error('No companion selected');
+      }
+
+      if (companion.state !== 'evolving') {
+        throw new Error('This Blobbi is not evolving');
+      }
+
+      // ─── Ensure Canonical Before Action ───
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) {
+        throw new Error('Failed to prepare companion');
+      }
+
+      // ─── Apply Accumulated Decay ───
+      const now = Math.floor(Date.now() / 1000);
+      const nowStr = now.toString();
+      
+      const decayResult = applyBlobbiDecay({
+        stage: canonical.companion.stage,
+        state: canonical.companion.state,
+        stats: canonical.companion.stats,
+        lastDecayAt: canonical.companion.lastDecayAt,
+        now,
+      });
+      
+      // ─── Build Updated Tags ───
+      // Remove task tags and state_started_at
+      const cleanedTags = canonical.allTags.filter(tag => 
+        tag[0] !== 'task' && 
+        tag[0] !== 'task_completed' && 
+        tag[0] !== 'state_started_at'
+      );
+      
+      // Build stats update with decayed values
+      const statsUpdate: Record<string, string> = {
+        health: decayResult.stats.health.toString(),
+        hygiene: decayResult.stats.hygiene.toString(),
+        happiness: decayResult.stats.happiness.toString(),
+        hunger: decayResult.stats.hunger.toString(),
+        energy: decayResult.stats.energy.toString(),
+      };
+      
+      const newTags = updateBlobbiTags(cleanedTags, {
+        ...statsUpdate,
+        state: 'active',
+        last_interaction: nowStr,
+        last_decay_at: nowStr,
+      });
+
+      // ─── Publish Event ───
+      const event = await publishEvent({
+        kind: KIND_BLOBBI_STATE,
+        content: canonical.content,
+        tags: newTags,
+      });
+
+      updateCompanionEvent(event);
+      invalidateCompanion();
+      
+      // Invalidate profile if migration occurred
+      if (canonical.wasMigrated) {
+        invalidateProfile();
+      }
+
+      return {
+        name: canonical.companion.name,
+      };
+    },
+    onSuccess: ({ name }) => {
+      toast({
+        title: 'Evolution stopped',
+        description: `${name} is no longer evolving. Task progress has been reset.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to stop evolution',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // ─── Sync Hatch Task Completions Hook ─────────────────────────────────────────
 
 /** Enable debug logging in development only */

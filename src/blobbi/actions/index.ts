@@ -8,8 +8,10 @@ export { SingModal } from './components/SingModal';
 export { InlineMusicPlayer } from './components/InlineMusicPlayer';
 export { InlineSingCard } from './components/InlineSingCard';
 export { HatchTasksPanel } from './components/HatchTasksPanel';
+export { TasksPanel } from './components/TasksPanel';
 export { BlobbiPostModal } from './components/BlobbiPostModal';
 export { StartIncubationDialog } from './components/StartIncubationDialog';
+export { StartEvolutionDialog } from './components/StartEvolutionDialog';
 export { BlobbiMissionsModal } from './components/BlobbiMissionsModal';
 export type { AudioSource } from './components/PlayMusicModal';
 
@@ -24,7 +26,13 @@ export type {
   CanonicalActionResult,
 } from './hooks/useBlobbiStageTransition';
 
-export { useStartIncubation, useStopIncubation, useSyncHatchTaskCompletions } from './hooks/useBlobbiIncubation';
+export { 
+  useStartIncubation, 
+  useStopIncubation, 
+  useStartEvolution,
+  useStopEvolution,
+  useSyncHatchTaskCompletions,
+} from './hooks/useBlobbiIncubation';
 export type {
   StartIncubationMode,
   StartIncubationRequest,
@@ -32,6 +40,10 @@ export type {
   StartIncubationResult,
   UseStopIncubationParams,
   StopIncubationResult,
+  UseStartEvolutionParams,
+  StartEvolutionResult,
+  UseStopEvolutionParams,
+  StopEvolutionResult,
   UseSyncHatchTaskCompletionsParams,
   TaskCompletionToSync,
 } from './hooks/useBlobbiIncubation';
@@ -39,13 +51,33 @@ export type {
 export { 
   useHatchTasks, 
   getInteractionCount,
+  filterPersistentTasks,
+  sanitizeToHashtag,
+  isValidHatchPost,
+  isValidBlobbiPost, // Legacy export
   KIND_THEME_DEFINITION,
   KIND_COLOR_MOMENT,
-  REQUIRED_INTERACTIONS,
+  HATCH_REQUIRED_INTERACTIONS,
+  HATCH_STAT_THRESHOLD,
+  REQUIRED_INTERACTIONS, // Legacy export
   BLOBBI_POST_PREFIX,
   BLOBBI_POST_REQUIRED_HASHTAGS,
 } from './hooks/useHatchTasks';
-export type { HatchTask, HatchTasksResult } from './hooks/useHatchTasks';
+export type { HatchTask, HatchTasksResult, TaskType } from './hooks/useHatchTasks';
+
+export {
+  useEvolveTasks,
+  getEvolveInteractionCount,
+  isValidEvolvePost,
+  KIND_WALL_EDIT,
+  EVOLVE_REQUIRED_THEMES,
+  EVOLVE_REQUIRED_COLOR_MOMENTS,
+  EVOLVE_REQUIRED_POSTS,
+  EVOLVE_REQUIRED_INTERACTIONS,
+  EVOLVE_STAT_THRESHOLD,
+  BLOBBI_EVOLVE_POST_PREFIX,
+} from './hooks/useEvolveTasks';
+export type { EvolveTasksResult } from './hooks/useEvolveTasks';
 
 export { useBlobbiDirectAction, DIRECT_ACTION_HAPPINESS_EFFECTS } from './hooks/useBlobbiDirectAction';
 export type { DirectActionRequest, DirectActionResult, UseBlobbiDirectActionParams } from './hooks/useBlobbiDirectAction';
