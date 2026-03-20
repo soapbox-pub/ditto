@@ -80,6 +80,23 @@ function getSelectedBlobbiKey(pubkey: string): string {
 /** Enable debug logging in development only */
 const DEBUG_BLOBBI = import.meta.env.DEV;
 
+/** Stat threshold below which a Blobbi is considered to need care */
+const CARE_THRESHOLD = 40;
+
+/**
+ * Check if a companion needs care based on stat thresholds.
+ * A Blobbi needs care if any stat is below CARE_THRESHOLD.
+ */
+function companionNeedsCare(companion: BlobbiCompanion): boolean {
+  const { stats } = companion;
+  return (
+    (stats.hunger !== undefined && stats.hunger < CARE_THRESHOLD) ||
+    (stats.happiness !== undefined && stats.happiness < CARE_THRESHOLD) ||
+    (stats.hygiene !== undefined && stats.hygiene < CARE_THRESHOLD) ||
+    (stats.health !== undefined && stats.health < CARE_THRESHOLD)
+  );
+}
+
 // ─── Page Component ───────────────────────────────────────────────────────────
 
 export function BlobbiPage() {
@@ -811,6 +828,25 @@ function BlobbiDashboard({
       .join(',');
   }, [hatchTasks.tasks]);
   
+  // Memoize tasksToSync - derived from completedTaskIds, NOT from hatchTasks.tasks directly
+  // This ensures stability in the sync effect
+  const tasksToSync = useMemo(() => {
+    if (!hatchTasks.tasks.length) return [];
+    return hatchTasks.tasks.map(t => ({
+      taskId: t.id,
+      completed: t.completed,
+    }));
+    // Intentionally depend on completedTaskIds (stable key) rather than tasks array
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completedTaskIds]);
+  
+  // Memoize remaining tasks count for UI badge - derived from completedTaskIds for stability
+  const remainingTasksCount = useMemo(() => {
+    if (!hatchTasks.tasks.length) return 0;
+    return hatchTasks.tasks.filter(t => !t.completed).length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completedTaskIds]);
+  
   // Memoize cached completion state for comparison
   const cachedCompletedIds = useMemo(() => {
     if (!companion) return '';
@@ -823,12 +859,13 @@ function BlobbiDashboard({
   // 2. Anti-loop ref (lastSyncedKeyRef) to prevent re-triggering after publish
   // 3. Early guards for loading/invalid states
   // 4. Diff check against cached state
+  // 5. Dependencies are ONLY stable primitives - NO array references
   useEffect(() => {
     // Guard: Not incubating
     if (companion?.state !== 'incubating') return;
     
-    // Guard: Still loading or no tasks
-    if (hatchTasks.isLoading || !hatchTasks.tasks.length) return;
+    // Guard: Still loading
+    if (hatchTasks.isLoading) return;
     
     // Guard: No completed tasks
     if (!completedTaskIds) return;
@@ -864,22 +901,20 @@ function BlobbiDashboard({
     // Mark as synced BEFORE calling sync to prevent race conditions
     lastSyncedKeyRef.current = completedTaskIds;
     
-    // Convert hatch tasks to sync format
-    const tasksToSync = hatchTasks.tasks.map(task => ({
-      taskId: task.id,
-      completed: task.completed,
-    }));
-    
     // Call sync (fire-and-forget, but log errors)
     syncTaskCompletions(tasksToSync).catch(err => {
       // On error, reset the ref so we can retry
       lastSyncedKeyRef.current = '';
       console.warn('Failed to sync task completions:', err);
     });
-    // Note: syncTaskCompletions is intentionally excluded from deps to prevent
-    // re-triggering when the mutation function reference changes
+    // CRITICAL: Dependencies are ONLY stable primitives and memoized values
+    // - completedTaskIds: stable string key
+    // - cachedCompletedIds: stable string key  
+    // - tasksToSync: memoized, keyed off completedTaskIds
+    // - hatchTasks.isLoading: boolean
+    // - companion?.state: string
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completedTaskIds, cachedCompletedIds, hatchTasks.tasks, hatchTasks.isLoading, companion?.state]);
+  }, [completedTaskIds, cachedCompletedIds, hatchTasks.isLoading, companion?.state]);
   
   // Handler for starting incubation with explicit mode from dialog
   const handleStartIncubation = async (mode: StartIncubationMode, stopOtherD?: string) => {
@@ -1217,8 +1252,10 @@ function BlobbiDashboard({
         onActionsClick={() => setShowActionsModal(true)}
         onShopClick={() => setShowShopModal(true)}
         onInventoryClick={() => setShowInventoryModal(true)}
-        blobbiesCount={companions.length}
-        remainingTasksCount={isIncubating ? hatchTasks.tasks.filter(t => !t.completed).length : undefined}
+        needyBlobbiesCount={companions.filter(companionNeedsCare).length}
+        isIncubating={isIncubating}
+        remainingTasksCount={remainingTasksCount}
+        allTasksComplete={isIncubating && remainingTasksCount === 0}
       />
       
       {/* Blobbi Selector Modal */}
@@ -1709,12 +1746,13 @@ interface BlobbiSelectorCardProps {
 
 function BlobbiSelectorCard({ companion, onSelect, isSelected }: BlobbiSelectorCardProps) {
   const isSleeping = companion.state === 'sleeping';
+  const needsCare = companionNeedsCare(companion);
   
   return (
     <button
       onClick={onSelect}
       className={cn(
-        'w-full p-4 rounded-xl text-left transition-all',
+        'w-full p-4 rounded-xl text-left transition-all relative',
         'bg-card/60 backdrop-blur-sm',
         'border border-border',
         'hover:border-primary/30 hover:bg-accent/50',
@@ -1722,6 +1760,13 @@ function BlobbiSelectorCard({ companion, onSelect, isSelected }: BlobbiSelectorC
         isSelected && 'border-primary ring-2 ring-primary/20 bg-accent/50'
       )}
     >
+      {/* Warning indicator for Blobbies needing care */}
+      {needsCare && (
+        <div className="absolute top-2 right-2 size-5 rounded-full bg-amber-500/20 flex items-center justify-center">
+          <AlertTriangle className="size-3.5 text-amber-500" />
+        </div>
+      )}
+      
       <div className="flex items-center gap-4">
         {/* Blobbi Visual */}
         <div className="shrink-0">
@@ -1878,9 +1923,14 @@ interface BlobbiBottomBarProps {
   onActionsClick: () => void;
   onShopClick: () => void;
   onInventoryClick: () => void;
-  blobbiesCount?: number;
-  /** Number of remaining (incomplete) tasks to show as badge on Missions button */
+  /** Number of Blobbies that need care (any stat below threshold) */
+  needyBlobbiesCount?: number;
+  /** Whether the current Blobbi is incubating */
+  isIncubating?: boolean;
+  /** Number of remaining (incomplete) tasks */
   remainingTasksCount?: number;
+  /** Whether all tasks are complete (show "?" badge) */
+  allTasksComplete?: boolean;
 }
 
 function BlobbiBottomBar({
@@ -1889,9 +1939,17 @@ function BlobbiBottomBar({
   onActionsClick,
   onShopClick,
   onInventoryClick,
-  blobbiesCount,
+  needyBlobbiesCount,
+  isIncubating,
   remainingTasksCount,
+  allTasksComplete,
 }: BlobbiBottomBarProps) {
+  // Determine what to show on missions badge:
+  // - If all tasks complete during incubation: show "?"
+  // - If tasks remaining: show count
+  // - Otherwise: no badge
+  const missionsBadge = allTasksComplete ? '?' : (isIncubating && remainingTasksCount && remainingTasksCount > 0 ? remainingTasksCount : undefined);
+  
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30">
       <div className="container mx-auto max-w-4xl px-4 pb-4">
@@ -1900,8 +1958,20 @@ function BlobbiBottomBar({
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
             {/* Left Group - aligned to end (closer to center) */}
             <div className="flex items-center justify-end gap-1">
-              <BottomBarButton onClick={onBlobbiesClick} icon={<Users className="size-4" />} label="Blobbies" badge={blobbiesCount} />
-              <BottomBarButton onClick={onMissionsClick} icon={<Target className="size-4" />} label="Missions" badge={remainingTasksCount} />
+              <BottomBarButton 
+                onClick={onBlobbiesClick} 
+                icon={<Users className="size-4" />} 
+                label="Blobbies" 
+                badge={needyBlobbiesCount && needyBlobbiesCount > 0 ? needyBlobbiesCount : undefined}
+                badgeVariant={needyBlobbiesCount && needyBlobbiesCount > 0 ? 'warning' : 'default'}
+              />
+              <BottomBarButton 
+                onClick={onMissionsClick} 
+                icon={<Target className="size-4" />} 
+                label="Missions" 
+                badge={missionsBadge}
+                badgeVariant={allTasksComplete ? 'success' : 'default'}
+              />
             </div>
             
             {/* Center Action Button */}
@@ -1930,10 +2000,23 @@ interface BottomBarButtonProps {
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
-  badge?: number;
+  /** Badge content - number or string (e.g., "?" for completed tasks) */
+  badge?: number | string;
+  /** Badge color variant */
+  badgeVariant?: 'default' | 'warning' | 'success';
 }
 
-function BottomBarButton({ onClick, icon, label, badge }: BottomBarButtonProps) {
+function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default' }: BottomBarButtonProps) {
+  // Determine if badge should show
+  const showBadge = badge !== undefined && (typeof badge === 'string' || badge > 0);
+  
+  // Badge color classes based on variant
+  const badgeColorClass = {
+    default: 'bg-primary text-primary-foreground',
+    warning: 'bg-amber-500 text-white',
+    success: 'bg-emerald-500 text-white',
+  }[badgeVariant];
+  
   return (
     <button
       onClick={onClick}
@@ -1941,8 +2024,11 @@ function BottomBarButton({ onClick, icon, label, badge }: BottomBarButtonProps) 
     >
       <div className="relative">
         {icon}
-        {badge !== undefined && badge > 0 && (
-          <span className="absolute -top-1 -right-2 size-4 flex items-center justify-center text-[10px] font-medium bg-primary text-primary-foreground rounded-full">
+        {showBadge && (
+          <span className={cn(
+            "absolute -top-1 -right-2 size-4 flex items-center justify-center text-[10px] font-medium rounded-full",
+            badgeColorClass
+          )}>
             {badge}
           </span>
         )}

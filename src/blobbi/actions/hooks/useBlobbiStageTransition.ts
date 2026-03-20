@@ -27,6 +27,19 @@ import {
 } from '@/lib/blobbi';
 import { applyBlobbiDecay } from '@/lib/blobbi-decay';
 
+// ─── Content Helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Generate the content string for a Blobbi at a given stage.
+ * Format: "{name} is a {stage} Blobbi."
+ * 
+ * Uses correct grammar: "an egg" vs "a baby/adult"
+ */
+function generateBlobbiContent(name: string, stage: BlobbiStage): string {
+  const article = stage === 'egg' ? 'an' : 'a';
+  return `${name} is ${article} ${stage} Blobbi.`;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /**
@@ -166,10 +179,14 @@ export function useBlobbiHatch({
         last_decay_at: nowStr,
       });
 
+      // ─── Generate New Content for Baby Stage ───
+      // CRITICAL: Content must reflect the new stage
+      const newContent = generateBlobbiContent(canonical.companion.name, 'baby');
+
       // ─── Publish Event ───
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
-        content: canonical.content,
+        content: newContent,
         tags: newTags,
       });
 
@@ -290,10 +307,14 @@ export function useBlobbiEvolve({
         last_decay_at: nowStr,
       });
 
+      // ─── Generate New Content for Adult Stage ───
+      // CRITICAL: Content must reflect the new stage
+      const newContent = generateBlobbiContent(canonical.companion.name, 'adult');
+
       // ─── Publish Event ───
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
-        content: canonical.content,
+        content: newContent,
         tags: newTags,
       });
 
