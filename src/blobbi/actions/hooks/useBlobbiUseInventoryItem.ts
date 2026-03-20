@@ -29,6 +29,8 @@ import {
   type InventoryAction,
   ACTION_METADATA,
 } from '../lib/blobbi-action-utils';
+import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';
+import { EVOLVE_REQUIRED_INTERACTIONS } from './useEvolveTasks';
 
 /**
  * Request payload for using an inventory item
@@ -271,10 +273,14 @@ export function useBlobbiUseInventoryItem({
       // ─── Update Blobbi State Event (kind 31124) ───
       const nowStr = now.toString();
       
-      // If incubating, increment the interaction counter for hatch tasks
-      const updatedTags = canonical.companion.state === 'incubating'
-        ? incrementInteractionTaskTags(canonical.allTags).updatedTags
-        : canonical.allTags;
+      // If incubating or evolving, increment the interaction counter for tasks
+      const companionState = canonical.companion.state;
+      let updatedTags = canonical.allTags;
+      if (companionState === 'incubating') {
+        updatedTags = incrementInteractionTaskTags(canonical.allTags, HATCH_REQUIRED_INTERACTIONS).updatedTags;
+      } else if (companionState === 'evolving') {
+        updatedTags = incrementInteractionTaskTags(canonical.allTags, EVOLVE_REQUIRED_INTERACTIONS).updatedTags;
+      }
       
       const blobbiTags = updateBlobbiTags(updatedTags, {
         ...statsUpdate,
