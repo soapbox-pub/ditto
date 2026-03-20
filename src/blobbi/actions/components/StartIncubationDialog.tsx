@@ -2,11 +2,14 @@
 
 /**
  * Dialog for confirming start of incubation.
- * Shows warning if:
- * - Current Blobbi is already incubating/evolving (restart warning)
- * - Another Blobbi in the collection is incubating (switch warning)
  * 
- * Only one Blobbi can incubate at a time - switching will stop the other's incubation.
+ * Determines the mode and passes it explicitly to the confirm callback:
+ * - 'start': Normal start, no other Blobbi incubating
+ * - 'restart': Restart same Blobbi (already incubating)
+ * - 'switch': Stop another Blobbi first, then start this one
+ * 
+ * The mode is determined by UI state, NOT auto-detected by the hook.
+ * This makes the flow explicit and predictable.
  */
 
 import { useMemo } from 'react';
@@ -24,6 +27,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 import type { BlobbiCompanion } from '@/lib/blobbi';
+import type { StartIncubationMode } from '../hooks/useBlobbiIncubation';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,7 +38,8 @@ interface StartIncubationDialogProps {
   companion: BlobbiCompanion | null;
   /** All companions in the collection (to check for other incubating Blobbis) */
   companions?: BlobbiCompanion[];
-  onConfirm: () => void;
+  /** Called with explicit mode and optional stopOtherD when confirmed */
+  onConfirm: (mode: StartIncubationMode, stopOtherD?: string) => void;
   isPending: boolean;
 }
 
@@ -61,12 +66,25 @@ export function StartIncubationDialog({
     ) ?? null;
   }, [companion, companions]);
   
-  // Determine dialog state
-  const hasOtherIncubating = otherIncubatingBlobbi !== null;
+  // Determine the mode based on current state
+  const mode: StartIncubationMode = useMemo(() => {
+    if (isAlreadyInTaskState) return 'restart';
+    if (otherIncubatingBlobbi) return 'switch';
+    return 'start';
+  }, [isAlreadyInTaskState, otherIncubatingBlobbi]);
   
-  // Determine title and description based on state
+  // Handle confirm with explicit mode
+  const handleConfirm = () => {
+    if (mode === 'switch' && otherIncubatingBlobbi) {
+      onConfirm(mode, otherIncubatingBlobbi.d);
+    } else {
+      onConfirm(mode);
+    }
+  };
+  
+  // Determine title and description based on mode
   const getDialogContent = () => {
-    if (isAlreadyInTaskState) {
+    if (mode === 'restart') {
       return {
         title: 'Restart Incubation?',
         icon: <AlertTriangle className="size-5 text-amber-500" />,
@@ -83,7 +101,7 @@ export function StartIncubationDialog({
       };
     }
     
-    if (hasOtherIncubating) {
+    if (mode === 'switch') {
       return {
         title: 'Switch Incubation?',
         icon: <ArrowRightLeft className="size-5 text-amber-500" />,
@@ -141,7 +159,7 @@ export function StartIncubationDialog({
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
-              onConfirm();
+              handleConfirm();
             }}
             disabled={isPending}
             className={content.buttonClass}

@@ -31,13 +31,30 @@ import { applyBlobbiDecay } from '@/lib/blobbi-decay';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /**
+ * Mode for starting incubation.
+ * This makes the intent explicit rather than auto-detecting behavior.
+ */
+export type StartIncubationMode = 
+  | 'start'              // Normal start (no other Blobbi incubating)
+  | 'restart'            // Restart same Blobbi (already incubating)
+  | 'switch';            // Switch from another incubating Blobbi
+
+/**
+ * Request to start incubation with explicit mode.
+ */
+export interface StartIncubationRequest {
+  /** Explicit mode for this operation */
+  mode: StartIncubationMode;
+  /** The d-tag of the other Blobbi to stop (required when mode === 'switch') */
+  stopOtherD?: string;
+}
+
+/**
  * Parameters for start incubation hook.
  */
 export interface UseStartIncubationParams {
   companion: BlobbiCompanion | null;
   profile: BlobbonautProfile | null;
-  /** All companions in the collection (for checking/stopping other incubating Blobbis) */
-  companions?: BlobbiCompanion[];
   /** Called to ensure companion is canonical (from migration helper) */
   ensureCanonicalBeforeAction: () => Promise<{
     companion: BlobbiCompanion;
@@ -63,6 +80,10 @@ export interface StartIncubationResult {
   name: string;
   /** Timestamp when incubation started */
   stateStartedAt: number;
+  /** Mode that was used */
+  mode: StartIncubationMode;
+  /** Name of other Blobbi that was stopped (if mode === 'switch') */
+  stoppedOtherName?: string;
 }
 
 // ─── Start Incubation Hook ────────────────────────────────────────────────────
@@ -73,8 +94,14 @@ export interface StartIncubationResult {
  * This sets the Blobbi state to 'incubating' and records the start timestamp.
  * Tasks will be computed based on events created after this timestamp.
  * 
- * If another Blobbi in the collection is already incubating, this hook will
- * automatically stop their incubation first (only one can incubate at a time).
+ * IMPORTANT: The mode must be explicitly specified by the caller (UI).
+ * This hook does NOT auto-detect whether to switch or restart.
+ * The UI dialog determines the mode and passes it explicitly.
+ * 
+ * Modes:
+ * - 'start': Normal start, no other Blobbi incubating
+ * - 'restart': Restart same Blobbi (already incubating), resets task progress
+ * - 'switch': Stop another Blobbi first, then start this one
  * 
  * Requirements:
  * - Blobbi must be in egg stage
@@ -83,7 +110,6 @@ export interface StartIncubationResult {
 export function useStartIncubation({
   companion,
   profile,
-  companions = [],
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
   invalidateCompanion,
@@ -94,7 +120,9 @@ export function useStartIncubation({
   const { mutateAsync: publishEvent } = useNostrPublish();
 
   return useMutation({
-    mutationFn: async (): Promise<StartIncubationResult> => {
+    mutationFn: async (request: StartIncubationRequest): Promise<StartIncubationResult> => {
+      const { mode, stopOtherD } = request;
+      
       // ─── Validation ───
       if (!user?.pubkey) {
         throw new Error('You must be logged in to start incubation');
@@ -112,34 +140,51 @@ export function useStartIncubation({
         throw new Error('Only eggs can be incubated');
       }
 
-      // ─── Stop Other Incubating Blobbi (if any) ───
-      // Only one Blobbi can incubate at a time
-      const otherIncubating = companions.find(c => 
-        c.d !== companion.d && 
-        c.state === 'incubating' &&
-        c.stage === 'egg'
-      );
-      
-      if (otherIncubating) {
+      // Validate switch mode requires stopOtherD
+      if (mode === 'switch' && !stopOtherD) {
+        throw new Error('Switch mode requires stopOtherD parameter');
+      }
+
+      let stoppedOtherName: string | undefined;
+
+      // ─── Stop Other Incubating Blobbi (switch mode only) ───
+      if (mode === 'switch' && stopOtherD) {
         // Fetch the current event for the other Blobbi
         const [otherEvent] = await nostr.query([{
           kinds: [KIND_BLOBBI_STATE],
           authors: [user.pubkey],
-          '#d': [otherIncubating.d],
+          '#d': [stopOtherD],
           limit: 1,
         }]);
         
         if (otherEvent) {
+          // Get name from the event for the result
+          const nameTag = otherEvent.tags.find(t => t[0] === 'name');
+          stoppedOtherName = nameTag?.[1] ?? stopOtherD;
+          
           // Stop the other Blobbi's incubation
           const now = Math.floor(Date.now() / 1000);
           const nowStr = now.toString();
           
+          // Parse stats from the event
+          const getTagValue = (tags: string[][], name: string): number => 
+            parseInt(tags.find(t => t[0] === name)?.[1] ?? '50', 10);
+          
+          const otherStats = {
+            hunger: getTagValue(otherEvent.tags, 'hunger'),
+            happiness: getTagValue(otherEvent.tags, 'happiness'),
+            health: getTagValue(otherEvent.tags, 'health'),
+            hygiene: getTagValue(otherEvent.tags, 'hygiene'),
+            energy: getTagValue(otherEvent.tags, 'energy'),
+          };
+          const otherLastDecayAt = getTagValue(otherEvent.tags, 'last_decay_at') || now;
+          
           // Apply decay to the other Blobbi
           const otherDecayResult = applyBlobbiDecay({
-            stage: otherIncubating.stage,
-            state: otherIncubating.state,
-            stats: otherIncubating.stats,
-            lastDecayAt: otherIncubating.lastDecayAt,
+            stage: 'egg',
+            state: 'incubating',
+            stats: otherStats,
+            lastDecayAt: otherLastDecayAt,
             now,
           });
           
@@ -193,7 +238,7 @@ export function useStartIncubation({
       });
       
       // ─── Build Updated Tags ───
-      // Remove any existing task tags when starting fresh
+      // Remove any existing task tags when starting fresh (for all modes)
       const cleanedTags = canonical.allTags.filter(tag => 
         tag[0] !== 'task' && tag[0] !== 'task_completed'
       );
@@ -234,13 +279,27 @@ export function useStartIncubation({
       return {
         name: canonical.companion.name,
         stateStartedAt: now,
+        mode,
+        stoppedOtherName,
       };
     },
-    onSuccess: ({ name }) => {
-      toast({
-        title: 'Incubation started!',
-        description: `${name} is now incubating. Complete the tasks to hatch!`,
-      });
+    onSuccess: ({ name, mode, stoppedOtherName }) => {
+      if (mode === 'switch' && stoppedOtherName) {
+        toast({
+          title: 'Switched incubation!',
+          description: `Stopped ${stoppedOtherName}, now incubating ${name}.`,
+        });
+      } else if (mode === 'restart') {
+        toast({
+          title: 'Incubation restarted!',
+          description: `${name}'s task progress has been reset.`,
+        });
+      } else {
+        toast({
+          title: 'Incubation started!',
+          description: `${name} is now incubating. Complete the tasks to hatch!`,
+        });
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -248,129 +307,6 @@ export function useStartIncubation({
         description: error.message,
         variant: 'destructive',
       });
-    },
-  });
-}
-
-// ─── Update Task Progress Hook ────────────────────────────────────────────────
-
-/**
- * Parameters for updating task progress.
- */
-export interface UseUpdateTaskProgressParams {
-  companion: BlobbiCompanion | null;
-  /** Called to ensure companion is canonical */
-  ensureCanonicalBeforeAction: () => Promise<{
-    companion: BlobbiCompanion;
-    content: string;
-    allTags: string[][];
-    wasMigrated: boolean;
-    profileAllTags: string[][];
-    profileStorage: import('@/lib/blobbi').StorageItem[];
-  } | null>;
-  /** Update companion event in local cache */
-  updateCompanionEvent: (event: NostrEvent) => void;
-  /** Invalidate companion queries */
-  invalidateCompanion: () => void;
-  /** Invalidate profile queries */
-  invalidateProfile: () => void;
-}
-
-/**
- * Request to update task progress.
- */
-export interface UpdateTaskProgressRequest {
-  /** Task name (e.g., 'interactions') */
-  taskName: string;
-  /** New value for the task */
-  value: number;
-  /** Whether the task is completed */
-  completed?: boolean;
-}
-
-/**
- * Hook to update task progress in the Blobbi event.
- * 
- * Note: This is used to sync computed task progress to the event tags.
- * The source of truth is always the computed progress from Nostr events.
- */
-export function useUpdateTaskProgress({
-  companion,
-  ensureCanonicalBeforeAction,
-  updateCompanionEvent,
-  invalidateCompanion,
-  invalidateProfile,
-}: UseUpdateTaskProgressParams) {
-  const { user } = useCurrentUser();
-  const { mutateAsync: publishEvent } = useNostrPublish();
-
-  return useMutation({
-    mutationFn: async ({ taskName, value, completed }: UpdateTaskProgressRequest) => {
-      if (!user?.pubkey) {
-        throw new Error('You must be logged in');
-      }
-
-      if (!companion) {
-        throw new Error('No companion selected');
-      }
-
-      if (companion.state !== 'incubating' && companion.state !== 'evolving') {
-        throw new Error('Blobbi is not in a task state');
-      }
-
-      const canonical = await ensureCanonicalBeforeAction();
-      if (!canonical) {
-        throw new Error('Failed to prepare companion');
-      }
-
-      // Build task tags
-      const existingTaskTags = canonical.allTags.filter(tag => 
-        tag[0] === 'task' || tag[0] === 'task_completed'
-      );
-      
-      // Remove old entry for this task
-      const filteredTaskTags = existingTaskTags.filter(tag => {
-        if (tag[0] === 'task') {
-          const [name] = tag[1]?.split(':') ?? [];
-          return name !== taskName;
-        }
-        if (tag[0] === 'task_completed') {
-          return tag[1] !== taskName;
-        }
-        return true;
-      });
-      
-      // Add updated task tag
-      const newTaskTags: string[][] = [...filteredTaskTags];
-      newTaskTags.push(['task', `${taskName}:${value}`]);
-      if (completed) {
-        newTaskTags.push(['task_completed', taskName]);
-      }
-      
-      // Build complete tags
-      const baseTags = canonical.allTags.filter(tag => 
-        tag[0] !== 'task' && tag[0] !== 'task_completed'
-      );
-      
-      const now = Math.floor(Date.now() / 1000);
-      const newTags = updateBlobbiTags([...baseTags, ...newTaskTags], {
-        last_interaction: now.toString(),
-      });
-
-      const event = await publishEvent({
-        kind: KIND_BLOBBI_STATE,
-        content: canonical.content,
-        tags: newTags,
-      });
-
-      updateCompanionEvent(event);
-      invalidateCompanion();
-      
-      if (canonical.wasMigrated) {
-        invalidateProfile();
-      }
-
-      return { taskName, value, completed };
     },
   });
 }

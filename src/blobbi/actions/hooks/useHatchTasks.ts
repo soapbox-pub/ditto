@@ -28,11 +28,28 @@ export const KIND_SHORT_TEXT_NOTE = 1;
 /** Required interactions to complete the interactions task */
 export const REQUIRED_INTERACTIONS = 7;
 
-/** Required hashtags for the Blobbi post */
+/** Required hashtags for the Blobbi post (excludes Blobbi name, which is dynamic) */
 export const BLOBBI_POST_REQUIRED_HASHTAGS = ['blobbi', 'ditto', 'nostr'];
 
 /** Prefix text for Blobbi hatch post */
 export const BLOBBI_POST_PREFIX = 'Hello Nostr! Posting to hatch';
+
+/**
+ * Sanitize a name into a valid hashtag format.
+ * Must match the implementation in BlobbiPostModal.tsx.
+ */
+function sanitizeToHashtag(name: string): string {
+  return name
+    .toLowerCase()
+    // Remove emojis and special characters, keep letters, numbers, underscores
+    .replace(/[^\p{L}\p{N}_]/gu, '')
+    // Ensure it starts with a letter (prepend 'blobbi' if it starts with number)
+    .replace(/^(\d)/, 'blobbi$1')
+    // Limit length
+    .slice(0, 30)
+    // Fallback if empty
+    || 'myblobbi';
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,9 +102,12 @@ function extractShapeFromMetadata(event: NostrEvent): string | undefined {
 
 /**
  * Check if a post is a valid Blobbi hatch post.
- * Must contain the required prefix and all required hashtags.
+ * Must contain the required prefix and all required hashtags including the Blobbi name.
+ * 
+ * @param event - The Nostr event to validate
+ * @param blobbiName - The Blobbi's name (will be sanitized and checked as hashtag)
  */
-function isValidBlobbiPost(event: NostrEvent): boolean {
+function isValidBlobbiPost(event: NostrEvent, blobbiName: string): boolean {
   // Check content starts with prefix
   if (!event.content.startsWith(BLOBBI_POST_PREFIX)) {
     return false;
@@ -98,9 +118,18 @@ function isValidBlobbiPost(event: NostrEvent): boolean {
     .filter(tag => tag[0] === 't')
     .map(tag => tag[1]?.toLowerCase());
   
-  return BLOBBI_POST_REQUIRED_HASHTAGS.every(required => 
+  // All required hashtags must be present
+  const hasRequiredHashtags = BLOBBI_POST_REQUIRED_HASHTAGS.every(required => 
     hashtags.includes(required.toLowerCase())
   );
+  
+  if (!hasRequiredHashtags) {
+    return false;
+  }
+  
+  // Blobbi name hashtag must also be present
+  const blobbiHashtag = sanitizeToHashtag(blobbiName);
+  return hashtags.includes(blobbiHashtag);
 }
 
 // ─── Main Hook ────────────────────────────────────────────────────────────────
@@ -274,7 +303,9 @@ export function useHatchTasks(
   });
   
   // 4. Create Post
-  const validPosts = data?.postEvents?.filter(isValidBlobbiPost) ?? [];
+  // Note: companion.name is used to validate the Blobbi name hashtag
+  const blobbiName = companion?.name ?? '';
+  const validPosts = data?.postEvents?.filter(e => isValidBlobbiPost(e, blobbiName)) ?? [];
   const hasValidPost = validPosts.length >= 1;
   tasks.push({
     id: 'create_post',
