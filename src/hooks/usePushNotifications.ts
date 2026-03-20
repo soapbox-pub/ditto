@@ -17,6 +17,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 
 import { NostrPushClient, serializePushSubscription, urlBase64ToUint8Array } from '@/lib/nostrPush';
 import { NOTIFICATION_TEMPLATES } from '@/lib/notificationTemplates';
+import type { EncryptedSettings } from '@/hooks/useEncryptedSettings';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,15 @@ function getOrCreateSubscriptionId(): string {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
+/** Maps notification template IDs to preference keys. */
+const TEMPLATE_ID_TO_PREF_KEY: Record<string, keyof NonNullable<EncryptedSettings['notificationPreferences']>> = {
+  reactions: 'reactions',
+  reposts: 'reposts',
+  zaps: 'zaps',
+  mentions: 'mentions',
+  comments: 'comments',
+};
+
 export interface UsePushNotificationsReturn {
   /** Current browser permission state. */
   permission: NotificationPermission;
@@ -57,6 +67,11 @@ export interface UsePushNotificationsReturn {
   enable: (userPubkey: string) => Promise<void>;
   /** Unsubscribe from Web Push and delete server registrations. */
   disable: () => Promise<void>;
+  /**
+   * Sync per-type subscription active states with nostr-push.
+   * Call this when notification type preferences change.
+   */
+  syncPreferences: (prefs: NonNullable<EncryptedSettings['notificationPreferences']>) => Promise<void>;
 }
 
 export function usePushNotifications(): UsePushNotificationsReturn {
@@ -227,5 +242,31 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     setEnabled(false);
   }, []);
 
-  return { permission, enabled, supported, enable, disable };
+  // ─── syncPreferences() ─────────────────────────────────────────────────────
+
+  const syncPreferences = useCallback(async (
+    prefs: NonNullable<EncryptedSettings['notificationPreferences']>,
+  ) => {
+    const client = clientRef.current;
+    const baseId = localStorage.getItem(SUBSCRIPTION_ID_KEY);
+    if (!client || !baseId) return;
+
+    await Promise.allSettled(
+      NOTIFICATION_TEMPLATES.map((tmpl) => {
+        const prefKey = TEMPLATE_ID_TO_PREF_KEY[tmpl.id];
+        // Default to active when the preference is absent
+        const isActive = prefKey ? prefs[prefKey] !== false : true;
+
+        return client.updateSubscription({
+          subscription_id: `${baseId}-${tmpl.id}`,
+          domain: DOMAIN,
+          updates: { is_active: isActive },
+        }).catch((err) => {
+          console.error(`[push] Failed to update ${tmpl.id} (is_active=${isActive}):`, err);
+        });
+      }),
+    );
+  }, []);
+
+  return { permission, enabled, supported, enable, disable, syncPreferences };
 }
