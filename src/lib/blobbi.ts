@@ -11,6 +11,22 @@ export const BLOBBI_CLIENT_TAG = 'blobbi';
 export const KIND_BLOBBI_STATE = 31124;
 export const KIND_BLOBBONAUT_PROFILE = 31125;
 
+// ─── Stat Bounds ──────────────────────────────────────────────────────────────
+
+/**
+ * Minimum stat value - stats can never go below this.
+ * The minimum of 1 (instead of 0) ensures:
+ * - Blobbi is never in an unrecoverable state
+ * - Visual feedback shows critical state without being "dead"
+ * - Recovery is always possible with any healing item
+ */
+export const STAT_MIN = 1;
+
+/**
+ * Maximum stat value - stats can never exceed this.
+ */
+export const STAT_MAX = 100;
+
 // Default stats for a new egg
 export const DEFAULT_EGG_STATS = {
   hunger: 100,

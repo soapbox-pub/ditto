@@ -44,14 +44,16 @@ import {
   PlayMusicModal,
   InlineMusicPlayer,
   InlineSingCard,
-  HatchTasksPanel,
   BlobbiPostModal,
   StartIncubationDialog,
+  BlobbiMissionsModal,
   useBlobbiUseInventoryItem,
   useBlobbiHatch,
   useBlobbiEvolve,
   useBlobbiDirectAction,
   useStartIncubation,
+  useStopIncubation,
+  useSyncHatchTaskCompletions,
   useHatchTasks,
   getInteractionCount,
   createMusicActivity,
@@ -770,11 +772,50 @@ function BlobbiDashboard({
   const { mutateAsync: startIncubation, isPending: isStartingIncubation } = useStartIncubation({
     companion,
     profile,
+    companions,
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
     invalidateCompanion,
     invalidateProfile,
   });
+  
+  // Stop incubation hook
+  const { mutateAsync: stopIncubation, isPending: isStoppingIncubation } = useStopIncubation({
+    companion,
+    ensureCanonicalBeforeAction,
+    updateCompanionEvent,
+    invalidateCompanion,
+    invalidateProfile,
+  });
+  
+  // Sync hatch task completions hook
+  const { mutateAsync: syncTaskCompletions } = useSyncHatchTaskCompletions({
+    companion,
+    ensureCanonicalBeforeAction,
+    updateCompanionEvent,
+    invalidateCompanion,
+    invalidateProfile,
+  });
+  
+  // Sync task completions when hatch tasks change
+  useEffect(() => {
+    if (!hatchTasks.tasks.length || hatchTasks.isLoading) return;
+    
+    // Convert hatch tasks to sync format
+    const tasksToSync = hatchTasks.tasks.map(task => ({
+      taskId: task.id,
+      completed: task.completed,
+    }));
+    
+    // Only sync if there are completed tasks
+    const hasCompletedTasks = tasksToSync.some(t => t.completed);
+    if (hasCompletedTasks) {
+      syncTaskCompletions(tasksToSync).catch(err => {
+        // Silent fail - this is just a cache sync
+        console.warn('Failed to sync task completions:', err);
+      });
+    }
+  }, [hatchTasks.tasks, hatchTasks.isLoading, syncTaskCompletions]);
   
   // Handler for starting incubation
   const handleStartIncubation = async () => {
@@ -784,6 +825,12 @@ function BlobbiDashboard({
     } catch (error) {
       console.error('Failed to start incubation:', error);
     }
+  };
+  
+  // Handler for stopping incubation
+  const handleStopIncubation = async () => {
+    await stopIncubation();
+    setShowMissionsModal(false);
   };
   
   // Handle opening an inventory action modal
@@ -1069,20 +1116,6 @@ function BlobbiDashboard({
           </div>
         )}
         
-        {/* Hatch Tasks Panel - for incubating eggs */}
-        {isEgg && isIncubating && (
-          <div className="mt-6">
-            <HatchTasksPanel
-              tasks={hatchTasks.tasks}
-              allCompleted={hatchTasks.allCompleted}
-              isLoading={hatchTasks.isLoading}
-              onOpenPostModal={() => setShowPostModal(true)}
-              onHatch={onHatch}
-              isHatching={isHatching}
-            />
-          </div>
-        )}
-        
 
         
         {/* Inline Activity Area - inside padded container for proper spacing above bottom bar */}
@@ -1201,13 +1234,17 @@ function BlobbiDashboard({
         isLoading={isDirectActionPending}
       />
       
-      {/* Placeholder Modals */}
-      <BlobbiPlaceholderModal
+      {/* Missions Modal */}
+      <BlobbiMissionsModal
         open={showMissionsModal}
         onOpenChange={setShowMissionsModal}
-        title="Missions"
-        description="Missions content will be added here."
-        icon={<Target className="size-8 text-primary" />}
+        companion={companion}
+        hatchTasks={hatchTasks}
+        onOpenPostModal={() => setShowPostModal(true)}
+        onHatch={onHatch}
+        isHatching={isHatching}
+        onStopIncubation={handleStopIncubation}
+        isStoppingIncubation={isStoppingIncubation}
       />
       
       {/* Shop Modal */}
@@ -1246,6 +1283,7 @@ function BlobbiDashboard({
         open={showIncubationDialog}
         onOpenChange={setShowIncubationDialog}
         companion={companion}
+        companions={companions}
         onConfirm={handleStartIncubation}
         isPending={isStartingIncubation}
       />
@@ -1841,42 +1879,6 @@ function BottomBarButton({ onClick, icon, label, badge }: BottomBarButtonProps) 
       </div>
       <span className="text-[10px] text-muted-foreground">{label}</span>
     </button>
-  );
-}
-
-// ─── Placeholder Modal ────────────────────────────────────────────────────────
-
-interface BlobbiPlaceholderModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  description: string;
-  icon?: React.ReactNode;
-}
-
-function BlobbiPlaceholderModal({
-  open,
-  onOpenChange,
-  title,
-  description,
-  icon,
-}: BlobbiPlaceholderModalProps) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col items-center gap-4 py-8 text-center">
-          {icon && (
-            <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-              {icon}
-            </div>
-          )}
-          <p className="text-muted-foreground">{description}</p>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
 

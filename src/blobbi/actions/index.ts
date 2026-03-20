@@ -10,6 +10,7 @@ export { InlineSingCard } from './components/InlineSingCard';
 export { HatchTasksPanel } from './components/HatchTasksPanel';
 export { BlobbiPostModal } from './components/BlobbiPostModal';
 export { StartIncubationDialog } from './components/StartIncubationDialog';
+export { BlobbiMissionsModal } from './components/BlobbiMissionsModal';
 export type { AudioSource } from './components/PlayMusicModal';
 
 // Hooks
@@ -23,12 +24,16 @@ export type {
   CanonicalActionResult,
 } from './hooks/useBlobbiStageTransition';
 
-export { useStartIncubation, useUpdateTaskProgress } from './hooks/useBlobbiIncubation';
+export { useStartIncubation, useUpdateTaskProgress, useStopIncubation, useSyncHatchTaskCompletions } from './hooks/useBlobbiIncubation';
 export type {
   UseStartIncubationParams,
   StartIncubationResult,
   UseUpdateTaskProgressParams,
   UpdateTaskProgressRequest,
+  UseStopIncubationParams,
+  StopIncubationResult,
+  UseSyncHatchTaskCompletionsParams,
+  TaskCompletionToSync,
 } from './hooks/useBlobbiIncubation';
 
 export { 
@@ -71,6 +76,9 @@ export {
   type MusicTrackSource,
 } from './lib/blobbi-activity-state';
 
+// Re-export stat bounds from canonical source
+export { STAT_MIN, STAT_MAX } from '@/lib/blobbi';
+
 // Utilities
 export {
   // Types
@@ -82,8 +90,6 @@ export {
   type ItemUsabilityResult,
   type IncrementInteractionResult,
   // Constants
-  STAT_MIN,
-  STAT_MAX,
   ACTION_TO_ITEM_TYPE,
   ACTION_METADATA,
   DIRECT_ACTION_METADATA,
