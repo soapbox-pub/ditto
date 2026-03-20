@@ -2,10 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useParams, Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -61,6 +61,7 @@ import { usePublishTheme } from '@/hooks/usePublishTheme';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStatus } from '@/hooks/useUserStatus';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useNip85UserStats } from '@/hooks/useNip85Stats';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
@@ -810,6 +811,7 @@ export function ProfilePage() {
   const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [followingModalOpen, setFollowingModalOpen] = useState(false);
+  const [followersModalOpen, setFollowersModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Determine if the URL param is a NIP-05 identifier (contains @ or is a domain-like string)
@@ -869,7 +871,140 @@ export function ProfilePage() {
   const [tabEditMode, setTabEditMode] = useState(false);
 
   // All tabs as a flat ordered list for the drag UI — core tabs have isCore=true and can't be removed
-  type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
+// ----- Followers List Modal (paginated via kind:3 #p queries) -----
+
+const FOLLOWERS_PAGE_SIZE = 20;
+
+interface FollowersPage {
+  pubkeys: string[];
+  oldestTimestamp: number | undefined;
+}
+
+interface FollowersListModalProps {
+  pubkey: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  displayName: string;
+}
+
+function FollowersListModal({ pubkey, open, onOpenChange, displayName }: FollowersListModalProps) {
+  const { nostr } = useNostr();
+
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = useInfiniteQuery<FollowersPage, Error>({
+    queryKey: ['followers-list', pubkey],
+    queryFn: async ({ pageParam, signal }) => {
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
+
+      const filter: import('@nostrify/nostrify').NostrFilter = {
+        kinds: [3],
+        '#p': [pubkey],
+        limit: FOLLOWERS_PAGE_SIZE,
+        ...(pageParam ? { until: pageParam as number } : {}),
+      };
+
+      const events = await nostr.query([filter], { signal: querySignal });
+
+      // Deduplicate by author (kind 3 is replaceable — keep latest per author)
+      const seen = new Set<string>();
+      const unique: NostrEvent[] = [];
+      const sorted = [...events].sort((a, b) => b.created_at - a.created_at);
+      for (const ev of sorted) {
+        if (!seen.has(ev.pubkey)) {
+          seen.add(ev.pubkey);
+          unique.push(ev);
+        }
+      }
+
+      const oldestTimestamp = sorted.length > 0
+        ? sorted[sorted.length - 1].created_at
+        : undefined;
+
+      return {
+        pubkeys: unique.map((ev) => ev.pubkey),
+        oldestTimestamp,
+      };
+    },
+    getNextPageParam: (lastPage) => {
+      if (lastPage.pubkeys.length === 0 || lastPage.oldestTimestamp === undefined) {
+        return undefined;
+      }
+      return lastPage.oldestTimestamp - 1;
+    },
+    initialPageParam: undefined as number | undefined,
+    enabled: open && !!pubkey,
+    staleTime: 60 * 1000,
+  });
+
+  // Deduplicate across pages
+  const allFollowers = useMemo(() => {
+    if (!data) return [];
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const page of data.pages) {
+      for (const pk of page.pubkeys) {
+        if (!seen.has(pk)) {
+          seen.add(pk);
+          result.push(pk);
+        }
+      }
+    }
+    return result;
+  }, [data]);
+
+  const { ref: loadMoreRef, inView } = useInView({ threshold: 0 });
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <DialogTitle className="text-base font-bold">{displayName}'s followers</DialogTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full size-8"
+            onClick={() => onOpenChange(false)}
+          >
+            <X className="size-4" />
+          </Button>
+        </div>
+        <ScrollArea className="max-h-[60vh]">
+          {isLoading ? (
+            <div className="py-12 flex justify-center">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : allFollowers.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground text-sm">
+              No followers found.
+            </div>
+          ) : (
+            <>
+              {allFollowers.map((pk) => <FollowingUserRow key={pk} pubkey={pk} />)}
+              {hasNextPage && (
+                <div ref={loadMoreRef} className="py-4 flex justify-center">
+                  {isFetchingNextPage && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
+                </div>
+              )}
+            </>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
   const DEFAULT_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
   const [localTabs, setLocalTabs] = useState<EditableTab[]>([]);
@@ -1094,6 +1229,10 @@ export function ProfilePage() {
     const pubkeys = supplementary?.following ?? [];
     return { pubkeys, count: pubkeys.length };
   }, [supplementary?.following]);
+
+  // NIP-85 user stats (followers count)
+  const { data: userStats } = useNip85UserStats(pubkey);
+  const followersCount = userStats?.followers ?? 0;
 
   const isOwnProfile = user?.pubkey === pubkey;
 
@@ -1884,7 +2023,7 @@ export function ProfilePage() {
                 </div>
               )}
 
-              {/* Following count + Streak indicator */}
+              {/* Following / Followers count + Streak indicator */}
               <div className="flex items-center gap-4 mt-2">
                 {profileFollowing && profileFollowing.count > 0 && (
                   <button
@@ -1892,9 +2031,18 @@ export function ProfilePage() {
                     onClick={() => setFollowingModalOpen(true)}
                     title={`${profileFollowing.count} following`}
                   >
-                    <Users className="size-4 text-primary" />
                     <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(profileFollowing.count)}</span>
                     <span className="text-sm text-muted-foreground">following</span>
+                  </button>
+                )}
+                {followersCount > 0 && (
+                  <button
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                    onClick={() => setFollowersModalOpen(true)}
+                    title={`${followersCount} followers`}
+                  >
+                    <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(followersCount)}</span>
+                    <span className="text-sm text-muted-foreground">followers</span>
                   </button>
                 )}
                 {streak > 1 && (
@@ -2304,6 +2452,16 @@ export function ProfilePage() {
             pubkeys={profileFollowing.pubkeys}
             open={followingModalOpen}
             onOpenChange={setFollowingModalOpen}
+            displayName={displayName}
+          />
+        )}
+
+        {/* Followers List Modal */}
+        {pubkey && followersCount > 0 && (
+          <FollowersListModal
+            pubkey={pubkey}
+            open={followersModalOpen}
+            onOpenChange={setFollowersModalOpen}
             displayName={displayName}
           />
         )}
