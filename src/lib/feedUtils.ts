@@ -66,6 +66,36 @@ export interface FeedItem {
   sortTimestamp: number;
 }
 
+/** d-tags reserved by NIP-51 for other purposes — hide these kind 30000 events from feeds. */
+const DEPRECATED_DTAGS = new Set(['mute', 'pin', 'bookmark', 'communities']);
+
+/** Returns true if a kind 30000 event is a deprecated/junk list that should be hidden. */
+function isDeprecatedFollowSet(event: NostrEvent): boolean {
+  if (event.kind !== 30000) return false;
+  const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+  if (DEPRECATED_DTAGS.has(dTag)) return true;
+  const hasPTags = event.tags.some(([n]) => n === 'p');
+  const hasTitle = event.tags.some(([n]) => n === 'title' || n === 'name');
+  if (!hasPTags && !hasTitle) return true;
+  return false;
+}
+
+/**
+ * Returns true if a feed event should be hidden at the feed level.
+ * This pre-filters events BEFORE they are rendered as NoteCards,
+ * preventing unnecessary component mounts and layout shifts from
+ * components that would return null.
+ */
+export function shouldHideFeedEvent(event: NostrEvent): boolean {
+  // Deprecated kind 30000 follow sets
+  if (isDeprecatedFollowSet(event)) return true;
+  // Unlisted magic decks (kind 37381)
+  if (event.kind === 37381 && event.tags.some(([n, v]) => n === 't' && v === 'unlisted')) return true;
+  // Hidden geocaches (kind 37516)
+  if (event.kind === 37516 && event.tags.some(([n, v]) => n === 't' && v === 'hidden')) return true;
+  return false;
+}
+
 /**
  * Tries to parse the original event from a kind 6 or kind 16 repost's content.
  * Returns undefined if the content is empty or not valid JSON.

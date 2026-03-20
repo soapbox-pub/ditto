@@ -22,7 +22,7 @@ import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { isRepostKind } from '@/lib/feedUtils';
+import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { TabButton } from '@/components/TabButton';
 import { DITTO_RELAYS } from '@/lib/appRelays';
@@ -201,6 +201,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         .filter((event) => {
           if (seen.has(event.id)) return false;
           seen.add(event.id);
+          if (shouldHideFeedEvent(event)) return false;
           if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
           return true;
         })
@@ -213,6 +214,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
         if (!key || seen.has(key)) return false;
         seen.add(key);
+        if (shouldHideFeedEvent(item.event)) return false;
         if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
         return true;
       });
