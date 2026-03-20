@@ -31,7 +31,7 @@ export {
   useStopIncubation, 
   useStartEvolution,
   useStopEvolution,
-  useSyncHatchTaskCompletions,
+  useSyncTaskCompletions,
 } from './hooks/useBlobbiIncubation';
 export type {
   StartIncubationMode,
@@ -44,9 +44,12 @@ export type {
   StartEvolutionResult,
   UseStopEvolutionParams,
   StopEvolutionResult,
-  UseSyncHatchTaskCompletionsParams,
+  UseSyncTaskCompletionsParams,
   TaskCompletionToSync,
 } from './hooks/useBlobbiIncubation';
+
+export { useActiveTaskProcess, filterPersistentTasks as filterPersistentTasksFromProcess, filterDynamicTasks } from './hooks/useActiveTaskProcess';
+export type { TaskProcessType, TaskProcessConfig, ActiveTaskProcessResult } from './hooks/useActiveTaskProcess';
 
 export { 
   useHatchTasks, 

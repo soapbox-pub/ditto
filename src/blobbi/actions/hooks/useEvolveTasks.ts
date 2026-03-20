@@ -336,7 +336,7 @@ export function useEvolveTasks(
     completed: hasWallEdit,
     type: 'persistent',
     action: 'navigate',
-    actionTarget: '/settings/wall',
+    actionTarget: '/settings/profile',
     actionLabel: 'Edit Wall',
   });
   

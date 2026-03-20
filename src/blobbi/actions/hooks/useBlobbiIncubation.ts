@@ -771,7 +771,7 @@ const DEBUG_TASK_SYNC = import.meta.env.DEV;
 /**
  * Parameters for syncing task completions (works for both hatch and evolve).
  */
-export interface UseSyncHatchTaskCompletionsParams {
+export interface UseSyncTaskCompletionsParams {
   companion: BlobbiCompanion | null;
   /** Called to ensure companion is canonical */
   ensureCanonicalBeforeAction: () => Promise<{
@@ -823,13 +823,13 @@ export interface SyncTaskCompletionsResult {
  * Source of truth = computed task state from Nostr events.
  * Tags = cache layer for faster access.
  */
-export function useSyncHatchTaskCompletions({
+export function useSyncTaskCompletions({
   companion,
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
   invalidateCompanion,
   invalidateProfile,
-}: UseSyncHatchTaskCompletionsParams) {
+}: UseSyncTaskCompletionsParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
 

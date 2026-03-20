@@ -56,12 +56,12 @@ import {
   useStopIncubation,
   useStartEvolution,
   useStopEvolution,
-  useSyncHatchTaskCompletions,
+  useSyncTaskCompletions,
   useHatchTasks,
   useEvolveTasks,
+  useActiveTaskProcess,
   getInteractionCount,
   getEvolveInteractionCount,
-  filterPersistentTasks,
   createMusicActivity,
   createSingActivity,
   createNoActivity,
@@ -72,7 +72,6 @@ import {
   type AudioSource,
   type BlobbiReactionState,
   type StartIncubationMode,
-  type HatchTask,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 
@@ -805,12 +804,17 @@ function BlobbiDashboard({
     evolveInteractionCount
   );
   
-  // Unified task access for current process
-  // Note: These are prepared for future unified task UI components
-  const _currentTasks: HatchTask[] = isIncubating ? hatchTasks.tasks : (isEvolvingState ? evolveTasks.tasks : []);
-  const _currentTasksLoading = isIncubating ? hatchTasks.isLoading : (isEvolvingState ? evolveTasks.isLoading : false);
-  const _currentTasksAllComplete = isIncubating ? hatchTasks.allCompleted : (isEvolvingState ? evolveTasks.allCompleted : false);
-  const refetchCurrentTasks = isIncubating ? hatchTasks.refetch : (isEvolvingState ? evolveTasks.refetch : () => {});
+  // ─── Unified Task Process Abstraction ───
+  // This hook consolidates all scattered if/else logic for hatch vs evolve tasks
+  // It provides:
+  // - Unified config (type, isActive, interactionThreshold)
+  // - Unified tasks array
+  // - Badge count (includes ALL tasks: persistent + dynamic)
+  // - Sync data (includes ONLY persistent tasks)
+  const taskProcess = useActiveTaskProcess(companion, hatchTasks, evolveTasks);
+  
+  // Extract commonly used values for convenience
+  const refetchCurrentTasks = taskProcess.refetch;
   
   // Start incubation hook
   const { mutateAsync: startIncubation, isPending: isStartingIncubation } = useStartIncubation({
@@ -850,7 +854,7 @@ function BlobbiDashboard({
   });
   
   // Sync hatch task completions hook
-  const { mutateAsync: syncTaskCompletions } = useSyncHatchTaskCompletions({
+  const { mutateAsync: syncTaskCompletions } = useSyncTaskCompletions({
     companion,
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
@@ -861,73 +865,24 @@ function BlobbiDashboard({
   // Anti-loop protection: track the last synced key to prevent infinite loops
   const lastSyncedKeyRef = useRef<string>('');
   
-  // Memoize the completion state to prevent unnecessary sync triggers
-  // This creates a stable string that only changes when actual completions change
-  // CRITICAL: Only track PERSISTENT tasks for sync - dynamic tasks must NEVER be synced to tags
-  // Works for BOTH incubating (hatch) and evolving processes
-  const completedTaskIds = useMemo(() => {
-    // Determine which tasks to use based on current process
-    const activeTasks = isIncubating ? hatchTasks.tasks : (isEvolvingState ? evolveTasks.tasks : []);
-    const persistentTasks = filterPersistentTasks(activeTasks);
-    if (!persistentTasks.length) return '';
-    return persistentTasks
-      .filter(t => t.completed)
-      .map(t => t.id)
-      .sort()
-      .join(',');
-  }, [isIncubating, isEvolvingState, hatchTasks.tasks, evolveTasks.tasks]);
-  
-  // Memoize tasksToSync - derived from completedTaskIds, NOT from tasks arrays directly
-  // This ensures stability in the sync effect
-  // CRITICAL: Only sync PERSISTENT tasks - dynamic tasks must NEVER be synced to tags
-  // Works for BOTH incubating (hatch) and evolving processes
-  const tasksToSync = useMemo(() => {
-    // Determine which tasks to use based on current process
-    const activeTasks = isIncubating ? hatchTasks.tasks : (isEvolvingState ? evolveTasks.tasks : []);
-    const persistentTasks = filterPersistentTasks(activeTasks);
-    if (!persistentTasks.length) return [];
-    return persistentTasks.map(t => ({
-      taskId: t.id,
-      completed: t.completed,
-    }));
-    // Intentionally depend on completedTaskIds (stable key) rather than tasks array
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completedTaskIds]);
-  
-  // Memoize remaining PERSISTENT tasks count for UI badge
-  // Dynamic tasks (stat-based) are not counted as they can fluctuate
-  // Works for BOTH incubating (hatch) and evolving processes
-  const remainingTasksCount = useMemo(() => {
-    // Determine which tasks to use based on current process
-    const activeTasks = isIncubating ? hatchTasks.tasks : (isEvolvingState ? evolveTasks.tasks : []);
-    const persistentTasks = filterPersistentTasks(activeTasks);
-    return persistentTasks.filter(t => !t.completed).length;
-  }, [isIncubating, isEvolvingState, hatchTasks.tasks, evolveTasks.tasks]);
-  
-  // Determine if all tasks are complete for the active process
-  // CRITICAL: Must check allCompleted which requires BOTH:
-  // - All persistent tasks complete (event-based)
-  // - Dynamic task complete (stat-based)
-  // Works for BOTH incubating (hatch) and evolving processes
-  const allTasksComplete = useMemo(() => {
-    if (isIncubating) {
-      return !hatchTasks.isLoading && hatchTasks.tasks.length > 0 && hatchTasks.allCompleted;
-    }
-    if (isEvolvingState) {
-      return !evolveTasks.isLoading && evolveTasks.tasks.length > 0 && evolveTasks.allCompleted;
-    }
-    return false;
-  }, [isIncubating, isEvolvingState, hatchTasks.isLoading, hatchTasks.tasks.length, hatchTasks.allCompleted, evolveTasks.isLoading, evolveTasks.tasks.length, evolveTasks.allCompleted]);
+  // ─── Extract values from taskProcess ───
+  // These replace the previous duplicated useMemo blocks
+  // IMPORTANT CHANGE: remainingTasksCount NOW includes dynamic tasks (for badge)
+  // This was a bug - dynamic tasks should count in badge but never sync to tags
+  const { 
+    completedPersistentTaskIds: completedTaskIds,  // Stable key for anti-loop
+    tasksToSync,                                    // Only persistent tasks (for sync)
+    remainingTasksCount,                            // ALL tasks including dynamic (for badge)
+    allCompleted: allTasksComplete,                 // All tasks (persistent + dynamic) complete
+    isLoading: activeTasksLoading,                  // Loading state
+    config: { isActive: isInTaskProcess },          // Whether in a task process
+  } = taskProcess;
   
   // Memoize cached completion state for comparison
   const cachedCompletedIds = useMemo(() => {
     if (!companion) return '';
     return [...companion.tasksCompleted].sort().join(',');
   }, [companion]);
-  
-  // Determine if we're in an active task process (incubating or evolving)
-  const isInTaskProcess = isIncubating || isEvolvingState;
-  const activeTasksLoading = isIncubating ? hatchTasks.isLoading : (isEvolvingState ? evolveTasks.isLoading : true);
   
   // Sync task completions only when there's an actual diff
   // CRITICAL: This effect uses multiple layers of protection against infinite loops:
