@@ -763,13 +763,13 @@ export function useStopEvolution({
   });
 }
 
-// ─── Sync Hatch Task Completions Hook ─────────────────────────────────────────
+// ─── Sync Task Completions Hook ───────────────────────────────────────────────
 
 /** Enable debug logging in development only */
 const DEBUG_TASK_SYNC = import.meta.env.DEV;
 
 /**
- * Parameters for syncing hatch task completions.
+ * Parameters for syncing task completions (works for both hatch and evolve).
  */
 export interface UseSyncHatchTaskCompletionsParams {
   companion: BlobbiCompanion | null;
@@ -791,7 +791,7 @@ export interface UseSyncHatchTaskCompletionsParams {
 }
 
 /**
- * Task completions to sync (from useHatchTasks).
+ * Task completions to sync (from useHatchTasks or useEvolveTasks).
  */
 export interface TaskCompletionToSync {
   taskId: string;
@@ -811,12 +811,14 @@ export interface SyncTaskCompletionsResult {
 }
 
 /**
- * Hook to sync hatch task completions to kind 31124 tags.
+ * Hook to sync persistent task completions to kind 31124 tags.
+ * Works for both hatch (incubating) and evolve (evolving) processes.
  * 
  * CRITICAL: This is a cache-only sync. It must be:
  * 1. Fully idempotent - calling multiple times with same data = no-op
  * 2. Diff-based - only publish when tags would actually change
  * 3. Safe - no last_interaction update (this is cache sync, not user action)
+ * 4. Only sync PERSISTENT tasks - dynamic tasks must NEVER be synced
  * 
  * Source of truth = computed task state from Nostr events.
  * Tags = cache layer for faster access.
@@ -842,15 +844,16 @@ export function useSyncHatchTaskCompletions({
         return { synced: [], skipped: true, skipReason: 'no_companion' };
       }
 
-      if (companion.state !== 'incubating') {
-        return { synced: [], skipped: true, skipReason: 'not_incubating' };
+      // Must be in an active task process (incubating or evolving)
+      if (companion.state !== 'incubating' && companion.state !== 'evolving') {
+        return { synced: [], skipped: true, skipReason: 'not_in_task_process' };
       }
 
       // ─── Compute Diff ───
       // Get cached completions from companion.tasksCompleted (parsed from tags)
       const cachedCompletions = new Set(companion.tasksCompleted);
       
-      // Get computed completions from hatch tasks
+      // Get computed completions from tasks (works for both hatch and evolve)
       const computedCompletions = tasksToSync
         .filter(t => t.completed)
         .map(t => t.taskId);

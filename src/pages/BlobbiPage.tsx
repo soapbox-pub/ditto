@@ -864,21 +864,27 @@ function BlobbiDashboard({
   // Memoize the completion state to prevent unnecessary sync triggers
   // This creates a stable string that only changes when actual completions change
   // CRITICAL: Only track PERSISTENT tasks for sync - dynamic tasks must NEVER be synced to tags
+  // Works for BOTH incubating (hatch) and evolving processes
   const completedTaskIds = useMemo(() => {
-    const persistentTasks = filterPersistentTasks(hatchTasks.tasks);
+    // Determine which tasks to use based on current process
+    const activeTasks = isIncubating ? hatchTasks.tasks : (isEvolvingState ? evolveTasks.tasks : []);
+    const persistentTasks = filterPersistentTasks(activeTasks);
     if (!persistentTasks.length) return '';
     return persistentTasks
       .filter(t => t.completed)
       .map(t => t.id)
       .sort()
       .join(',');
-  }, [hatchTasks.tasks]);
+  }, [isIncubating, isEvolvingState, hatchTasks.tasks, evolveTasks.tasks]);
   
-  // Memoize tasksToSync - derived from completedTaskIds, NOT from hatchTasks.tasks directly
+  // Memoize tasksToSync - derived from completedTaskIds, NOT from tasks arrays directly
   // This ensures stability in the sync effect
   // CRITICAL: Only sync PERSISTENT tasks - dynamic tasks must NEVER be synced to tags
+  // Works for BOTH incubating (hatch) and evolving processes
   const tasksToSync = useMemo(() => {
-    const persistentTasks = filterPersistentTasks(hatchTasks.tasks);
+    // Determine which tasks to use based on current process
+    const activeTasks = isIncubating ? hatchTasks.tasks : (isEvolvingState ? evolveTasks.tasks : []);
+    const persistentTasks = filterPersistentTasks(activeTasks);
     if (!persistentTasks.length) return [];
     return persistentTasks.map(t => ({
       taskId: t.id,
@@ -890,29 +896,38 @@ function BlobbiDashboard({
   
   // Memoize remaining PERSISTENT tasks count for UI badge
   // Dynamic tasks (stat-based) are not counted as they can fluctuate
+  // Works for BOTH incubating (hatch) and evolving processes
   const remainingTasksCount = useMemo(() => {
-    const persistentTasks = filterPersistentTasks(hatchTasks.tasks);
+    // Determine which tasks to use based on current process
+    const activeTasks = isIncubating ? hatchTasks.tasks : (isEvolvingState ? evolveTasks.tasks : []);
+    const persistentTasks = filterPersistentTasks(activeTasks);
     return persistentTasks.filter(t => !t.completed).length;
-  }, [hatchTasks.tasks]);
+  }, [isIncubating, isEvolvingState, hatchTasks.tasks, evolveTasks.tasks]);
   
-  // Determine if all tasks are complete for hatching
-  // CRITICAL: Must check hatchTasks.allCompleted which requires BOTH:
+  // Determine if all tasks are complete for the active process
+  // CRITICAL: Must check allCompleted which requires BOTH:
   // - All persistent tasks complete (event-based)
   // - Dynamic task complete (stat-based)
+  // Works for BOTH incubating (hatch) and evolving processes
   const allTasksComplete = useMemo(() => {
-    return (
-      isIncubating &&
-      !hatchTasks.isLoading &&
-      hatchTasks.tasks.length > 0 &&
-      hatchTasks.allCompleted // This checks both persistent AND dynamic tasks
-    );
-  }, [isIncubating, hatchTasks.isLoading, hatchTasks.tasks.length, hatchTasks.allCompleted]);
+    if (isIncubating) {
+      return !hatchTasks.isLoading && hatchTasks.tasks.length > 0 && hatchTasks.allCompleted;
+    }
+    if (isEvolvingState) {
+      return !evolveTasks.isLoading && evolveTasks.tasks.length > 0 && evolveTasks.allCompleted;
+    }
+    return false;
+  }, [isIncubating, isEvolvingState, hatchTasks.isLoading, hatchTasks.tasks.length, hatchTasks.allCompleted, evolveTasks.isLoading, evolveTasks.tasks.length, evolveTasks.allCompleted]);
   
   // Memoize cached completion state for comparison
   const cachedCompletedIds = useMemo(() => {
     if (!companion) return '';
     return [...companion.tasksCompleted].sort().join(',');
   }, [companion]);
+  
+  // Determine if we're in an active task process (incubating or evolving)
+  const isInTaskProcess = isIncubating || isEvolvingState;
+  const activeTasksLoading = isIncubating ? hatchTasks.isLoading : (isEvolvingState ? evolveTasks.isLoading : true);
   
   // Sync task completions only when there's an actual diff
   // CRITICAL: This effect uses multiple layers of protection against infinite loops:
@@ -921,12 +936,13 @@ function BlobbiDashboard({
   // 3. Early guards for loading/invalid states
   // 4. Diff check against cached state
   // 5. Dependencies are ONLY stable primitives - NO array references
+  // Works for BOTH incubating (hatch) and evolving processes
   useEffect(() => {
-    // Guard: Not incubating
-    if (companion?.state !== 'incubating') return;
+    // Guard: Not in an active task process
+    if (!isInTaskProcess) return;
     
     // Guard: Still loading
-    if (hatchTasks.isLoading) return;
+    if (activeTasksLoading) return;
     
     // Guard: No completed tasks
     if (!completedTaskIds) return;
@@ -972,10 +988,10 @@ function BlobbiDashboard({
     // - completedTaskIds: stable string key
     // - cachedCompletedIds: stable string key  
     // - tasksToSync: memoized, keyed off completedTaskIds
-    // - hatchTasks.isLoading: boolean
-    // - companion?.state: string
+    // - isInTaskProcess: derived boolean
+    // - activeTasksLoading: derived boolean
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completedTaskIds, cachedCompletedIds, hatchTasks.isLoading, companion?.state]);
+  }, [completedTaskIds, cachedCompletedIds, isInTaskProcess, activeTasksLoading]);
   
   // Handler for starting incubation with explicit mode from dialog
   const handleStartIncubation = async (mode: StartIncubationMode, stopOtherD?: string) => {
@@ -1333,7 +1349,7 @@ function BlobbiDashboard({
         onShopClick={() => setShowShopModal(true)}
         onInventoryClick={() => setShowInventoryModal(true)}
         needyBlobbiesCount={companions.filter(companionNeedsCare).length}
-        isIncubating={isIncubating}
+        isInTaskProcess={isInTaskProcess}
         remainingTasksCount={remainingTasksCount}
         allTasksComplete={allTasksComplete}
       />
@@ -2029,11 +2045,11 @@ interface BlobbiBottomBarProps {
   onInventoryClick: () => void;
   /** Number of Blobbies that need care (any stat below threshold) */
   needyBlobbiesCount?: number;
-  /** Whether the current Blobbi is incubating */
-  isIncubating?: boolean;
-  /** Number of remaining (incomplete) tasks */
+  /** Whether the current Blobbi is in an active task process (incubating or evolving) */
+  isInTaskProcess?: boolean;
+  /** Number of remaining (incomplete) persistent tasks */
   remainingTasksCount?: number;
-  /** Whether all tasks are complete (show "?" badge) */
+  /** Whether all tasks are complete (show "!" badge) */
   allTasksComplete?: boolean;
 }
 
@@ -2044,15 +2060,16 @@ function BlobbiBottomBar({
   onShopClick,
   onInventoryClick,
   needyBlobbiesCount,
-  isIncubating,
+  isInTaskProcess,
   remainingTasksCount,
   allTasksComplete,
 }: BlobbiBottomBarProps) {
   // Determine what to show on missions badge:
-  // - If all tasks complete during incubation: show "!"
-  // - If tasks remaining: show count
+  // - If all tasks complete during active process: show "!"
+  // - If tasks remaining during active process: show count
   // - Otherwise: no badge
-  const missionsBadge = allTasksComplete ? '!' : (isIncubating && remainingTasksCount && remainingTasksCount > 0 ? remainingTasksCount : undefined);
+  // Works for BOTH incubating (hatch) and evolving processes
+  const missionsBadge = allTasksComplete ? '!' : (isInTaskProcess && remainingTasksCount && remainingTasksCount > 0 ? remainingTasksCount : undefined);
   
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30">
