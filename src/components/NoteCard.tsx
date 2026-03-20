@@ -471,14 +471,15 @@ export function NoteCard({
     </>
   );
 
-  // Shared author info block
+  // Shared author info block — min-h-[42px] keeps the container the same height
+  // whether the skeleton or the resolved profile is rendered, preventing layout shifts.
   const authorInfo = author.isLoading ? (
-    <div className="min-w-0 space-y-1.5">
+    <div className="min-w-0 min-h-[42px] flex flex-col justify-center space-y-1.5">
       <Skeleton className="h-4 w-28" />
       <Skeleton className="h-3 w-36" />
     </div>
   ) : (
-    <div className="min-w-0 flex-1">
+    <div className="min-w-0 flex-1 min-h-[42px] flex flex-col justify-center">
       <div className="flex items-center gap-1.5">
         <ProfileHoverCard pubkey={event.pubkey} asChild>
           <Link

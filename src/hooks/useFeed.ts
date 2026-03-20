@@ -345,8 +345,10 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
     },
     initialPageParam: undefined as number | undefined,
     enabled: followsReady,
-    staleTime: 30 * 1000,
-    refetchInterval: 60 * 1000,
+    staleTime: 60 * 1000,
+    // No refetchInterval — automatic background refetches cause the entire
+    // feed to re-sort and jump.  Users can pull-to-refresh for fresh content.
+    refetchOnWindowFocus: false,
     gcTime: 30 * 60 * 1000, // 30 min — don't GC feed data while the app is open
     placeholderData: (prev) => prev, // keep showing previous data during refetches
   });
