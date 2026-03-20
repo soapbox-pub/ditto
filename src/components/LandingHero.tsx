@@ -61,13 +61,8 @@ function ThemeSwatch({
             className="absolute inset-0 w-full h-full object-cover opacity-40"
           />
         )}
-        {/* Simulated header bar */}
-        <div
-          className="h-2 w-full relative"
-          style={{ backgroundColor: hsl(tokens.card) }}
-        />
         {/* Content area */}
-        <div className="p-1.5 space-y-0.5 relative">
+        <div className="p-1.5 pt-2.5 space-y-0.5 relative">
           <div
             className="h-0.5 w-3/4 rounded-full"
             style={{ backgroundColor: hsl(tokens.foreground), opacity: 0.5 }}
@@ -83,11 +78,6 @@ function ThemeSwatch({
             />
           </div>
         </div>
-        {/* Sidebar strip */}
-        <div
-          className="absolute right-0 top-0 bottom-0 w-3"
-          style={{ backgroundColor: hsl(tokens.secondary) }}
-        />
       </div>
       {/* Label */}
       <p className={cn(

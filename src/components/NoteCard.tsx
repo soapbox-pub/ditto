@@ -3,6 +3,7 @@ import {
   Award,
   MessageCircle,
   MoreHorizontal,
+  Package,
   Palette,
   Play,
   Radio,
@@ -57,6 +58,7 @@ import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
+import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { Badge } from "@/components/ui/badge";
@@ -250,6 +252,7 @@ export function NoteCard({
   const isPatch = event.kind === 1617;
   const isPullRequest = event.kind === 1618;
   const isCustomNip = event.kind === 30817;
+  const isZapstoreApp = event.kind === 32267;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip;
   const isTextNote =
     !isVine &&
@@ -271,7 +274,8 @@ export function NoteCard({
     !isPhoto &&
     !isVideo &&
     !isAudioKind &&
-    !isDevKind;
+    !isDevKind &&
+    !isZapstoreApp;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(
@@ -452,6 +456,8 @@ export function NoteCard({
           <PullRequestCard event={event} />
         ) : isCustomNip ? (
           <CustomNipCard event={event} />
+        ) : isZapstoreApp ? (
+          <ZapstoreAppContent event={event} compact />
         ) : (
           <TruncatedNoteContent
             event={event}
@@ -465,14 +471,15 @@ export function NoteCard({
     </>
   );
 
-  // Shared author info block
+  // Shared author info block — min-h-[42px] keeps the container the same height
+  // whether the skeleton or the resolved profile is rendered, preventing layout shifts.
   const authorInfo = author.isLoading ? (
-    <div className="min-w-0 space-y-1.5">
+    <div className="min-w-0 min-h-[42px] flex flex-col justify-center space-y-1.5">
       <Skeleton className="h-4 w-28" />
       <Skeleton className="h-3 w-36" />
     </div>
   ) : (
-    <div className="min-w-0 flex-1">
+    <div className="min-w-0 flex-1 min-h-[42px] flex flex-col justify-center">
       <div className="flex items-center gap-1.5">
         <ProfileHoverCard pubkey={event.pubkey} asChild>
           <Link
@@ -1554,6 +1561,10 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
       event && getEffectiveStreamStatus(event) === "live"
         ? "is streaming"
         : "streamed",
+  },
+  32267: {
+    icon: Package,
+    action: "published an app",
   },
 };
 

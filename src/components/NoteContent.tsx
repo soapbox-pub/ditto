@@ -690,9 +690,11 @@ export function NoteContent({
   );
 }
 
-/** Inline image thumbnail that opens the shared lightbox on click. */
+/** Inline image thumbnail that opens the shared lightbox on click.
+ *  Uses a min-height placeholder to prevent layout shifts while loading. */
 function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEvent) => void }) {
   const { src, onError } = useBlossomFallback(url);
+  const [loaded, setLoaded] = useState(false);
 
   return (
     <button
@@ -700,13 +702,16 @@ function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEv
       className="block my-2 rounded-lg overflow-hidden w-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       onClick={onClick}
     >
-      <img
-        src={src}
-        alt=""
-        className="block w-full h-auto rounded-lg hover:opacity-90 transition-opacity"
-        loading="lazy"
-        onError={onError}
-      />
+      <div className={cn('relative w-full rounded-lg overflow-hidden', !loaded && 'bg-muted')} style={!loaded ? { minHeight: 200 } : undefined}>
+        <img
+          src={src}
+          alt=""
+          className="block w-full h-auto rounded-lg hover:opacity-90 transition-opacity"
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+          onError={() => { setLoaded(true); onError(); }}
+        />
+      </div>
     </button>
   );
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, ExternalLink, FileText, Globe, MapPin, Play, User, Users } from 'lucide-react';
+import { BookOpen, Droplets, ExternalLink, FileText, Globe, MapPin, Package, Play, User, Users, Wind } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -13,6 +13,7 @@ import { useBookInfo } from '@/hooks/useBookInfo';
 import { useAddrEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useWeather } from '@/hooks/useWeather';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo, getWikipediaTitle } from '@/lib/countries';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
@@ -195,6 +196,76 @@ function WikipediaExtract({ extract, articleUrl }: { extract: string; articleUrl
   );
 }
 
+function WeatherWidget({ code }: { code: string }) {
+  const { data: weather, isLoading } = useWeather(code);
+
+  if (isLoading) {
+    return (
+      <div className="mt-5 rounded-xl bg-secondary/50 p-4">
+        <div className="flex items-center gap-4">
+          <Skeleton className="size-12 rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!weather) return null;
+
+  return (
+    <div className="mt-5 rounded-xl bg-gradient-to-br from-secondary/60 to-secondary/30 border border-border/50 p-4 transition-all hover:border-border">
+      <div className="flex items-center gap-4">
+        {/* Weather icon + temperature */}
+        <div className="flex items-center gap-3">
+          <span className="text-4xl leading-none" role="img" aria-label={weather.description}>
+            {weather.icon}
+          </span>
+          <div>
+            <p className="text-2xl font-bold tabular-nums leading-tight">
+              {weather.temperature}°C
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {weather.description}
+            </p>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="h-10 w-px bg-border/60 mx-1" />
+
+        {/* Details */}
+        <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="text-foreground/60">Feels like</span>
+            <span className="font-medium text-foreground tabular-nums">{weather.apparentTemperature}°</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Droplets className="size-3 shrink-0" />
+            <span className="font-medium text-foreground tabular-nums">{weather.humidity}%</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Wind className="size-3 shrink-0" />
+            <span className="font-medium text-foreground tabular-nums">{weather.windSpeed} km/h</span>
+          </span>
+          {weather.city && (
+            <span className="flex items-center gap-1.5">
+              <MapPin className="size-3 shrink-0" />
+              <span className="truncate">{weather.city}</span>
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CountryContentHeader({ code }: { code: string }) {
   const info = getCountryInfo(code);
   const wikiTitle = getWikipediaTitle(code);
@@ -241,6 +312,9 @@ export function CountryContentHeader({ code }: { code: string }) {
             )}
           </div>
         </div>
+
+        {/* Current weather */}
+        <WeatherWidget code={code} />
 
         {/* Wikipedia extract */}
         {wikiLoading ? (
@@ -579,11 +653,15 @@ export function ProfilePreview({ pubkey }: { pubkey: string }) {
 
 /** Extract a thumbnail URL from an addressable event's tags. */
 function extractThumbnail(tags: string[][]): string | undefined {
-  // 1. Explicit image/thumb tag
+  // 1. Explicit icon tag (used by zapstore kind 32267)
+  const iconTag = tags.find(([n]) => n === 'icon')?.[1];
+  if (iconTag) return iconTag;
+
+  // 2. Explicit image/thumb tag
   const imageTag = tags.find(([n]) => n === 'image' || n === 'thumb')?.[1];
   if (imageTag) return imageTag;
 
-  // 2. imeta tag (used by vines / kind 34236)
+  // 3. imeta tag (used by vines / kind 34236)
   const imetaTag = tags.find(([n]) => n === 'imeta');
   if (imetaTag) {
     for (let i = 1; i < imetaTag.length; i++) {
@@ -606,6 +684,12 @@ function hasVideo(tags: string[][]): boolean {
   return false;
 }
 
+/** Fallback labels for well-known kinds not in EXTRA_KINDS. */
+const WELL_KNOWN_KIND_LABELS: Record<number, string> = {
+  32267: 'App',
+  30063: 'Release',
+};
+
 export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
   const { data: event, isLoading } = useAddrEvent(addr);
   const author = useAuthor(addr.pubkey);
@@ -620,13 +704,15 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
     if (kindDef) return kindDef.label;
     const sub = EXTRA_KINDS.flatMap((d) => d.subKinds ?? []).find((s) => s.kind === addr.kind);
     if (sub) return sub.label;
-    return `Kind ${addr.kind}`;
+    return WELL_KNOWN_KIND_LABELS[addr.kind] ?? `Kind ${addr.kind}`;
   }, [kindDef, addr.kind]);
 
   const KindIcon = useMemo(() => {
     if (kindDef?.id) return CONTENT_KIND_ICONS[kindDef.id] ?? FileText;
+    // Fallback icons for well-known kinds not in EXTRA_KINDS
+    if (addr.kind === 32267 || addr.kind === 30063) return Package;
     return FileText;
-  }, [kindDef]);
+  }, [kindDef, addr.kind]);
 
   const title = event?.tags.find(([n]) => n === 'title')?.[1]
     || event?.tags.find(([n]) => n === 'name')?.[1]
