@@ -25,7 +25,7 @@ import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { TabButton } from '@/components/TabButton';
-import { DITTO_RELAY } from '@/lib/appRelays';
+import { DITTO_RELAYS } from '@/lib/appRelays';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
@@ -415,7 +415,7 @@ function HashtagFeedContent({ tag }: { tag: string }) {
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
     queryKey: ['hashtag-feed', tag, kindsKey],
     queryFn: async ({ signal }) => {
-      const ditto = nostr.relay(DITTO_RELAY);
+      const ditto = nostr.group(DITTO_RELAYS);
       return ditto.query(
         [{ kinds, '#t': [tag.toLowerCase()], limit: 40 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
@@ -465,7 +465,7 @@ function GeotagFeedContent({ tag }: { tag: string }) {
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
     queryKey: ['geotag-feed', tag, kindsKey],
     queryFn: async ({ signal }) => {
-      const ditto = nostr.relay(DITTO_RELAY);
+      const ditto = nostr.group(DITTO_RELAYS);
       const filter = { kinds, limit: 40 } as Record<string, unknown>;
       filter['#g'] = [tag];
       return ditto.query([filter as Parameters<typeof ditto.query>[0][number]], {

@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DITTO_RELAY } from '@/lib/appRelays';
+import { DITTO_RELAYS } from '@/lib/appRelays';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useInterests } from '@/hooks/useInterests';
@@ -78,7 +78,7 @@ export function TagFeedPage({
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
     queryKey: ['tag-feed', filterKey, tag, kindsKey],
     queryFn: async ({ signal }) => {
-      const ditto = nostr.relay(DITTO_RELAY);
+      const ditto = nostr.group(DITTO_RELAYS);
       const tagFilter: NostrFilter = { kinds, limit: 40, ...(search ? { search } : {}) };
       // NostrFilter uses `#${letter}` index signature — assign after construction to satisfy TS
       (tagFilter as Record<string, unknown>)[filterKey] = [tag];
