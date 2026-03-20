@@ -14,6 +14,7 @@
  */
 
 import type { BlobbiStage, BlobbiState, BlobbiStats } from './blobbi';
+import { STAT_MIN, STAT_MAX } from './blobbi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -186,13 +187,6 @@ export const CRITICAL_THRESHOLDS = {
     health: 30,
   },
 } as const;
-
-// ─── Constants: Stat Bounds ───────────────────────────────────────────────────
-
-/** Minimum stat value - stats can never go below this */
-export const STAT_MIN = 1;
-/** Maximum stat value - stats can never exceed this */
-export const STAT_MAX = 100;
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 

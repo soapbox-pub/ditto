@@ -1,6 +1,6 @@
 // src/blobbi/actions/lib/blobbi-action-utils.ts
 
-import type { BlobbiCompanion, BlobbiStats, StorageItem } from '@/lib/blobbi';
+import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStats, type StorageItem } from '@/lib/blobbi';
 import type { ItemEffect, ShopItemCategory } from '@/blobbi/shop/types/shop.types';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 
@@ -83,17 +83,7 @@ export const ALL_ACTION_METADATA: Record<BlobbiAction, { label: string; descript
 };
 
 // ─── Stat Helpers ─────────────────────────────────────────────────────────────
-
-/**
- * Minimum stat value - prevents soft-lock by ensuring recovery is always possible.
- * Stats cannot drop below this value through decay or effects.
- */
-export const STAT_MIN = 1;
-
-/**
- * Maximum stat value.
- */
-export const STAT_MAX = 100;
+// STAT_MIN and STAT_MAX are imported from @/lib/blobbi (single source of truth)
 
 /**
  * Clamp a stat value between STAT_MIN (1) and STAT_MAX (100).
