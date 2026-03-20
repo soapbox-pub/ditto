@@ -22,7 +22,7 @@ import type { BlobbiCompanion } from '@/lib/blobbi';
 
 /** Kind for theme definition events */
 export const KIND_THEME_DEFINITION = 36767;
-/** Kind for color moment events (espy.social) */
+/** Kind for color moment events (espy.you) */
 export const KIND_COLOR_MOMENT = 3367;
 /** Kind for profile metadata */
 export const KIND_PROFILE_METADATA = 0;
@@ -301,7 +301,7 @@ export function useHatchTasks(
     completed: hasColorMoment,
     type: 'persistent',
     action: 'external_link',
-    actionTarget: 'https://espy.social/',
+    actionTarget: 'https://espy.you/',
     actionLabel: 'Open espy',
   });
   
