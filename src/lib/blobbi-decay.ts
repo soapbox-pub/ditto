@@ -187,13 +187,21 @@ export const CRITICAL_THRESHOLDS = {
   },
 } as const;
 
+// ─── Constants: Stat Bounds ───────────────────────────────────────────────────
+
+/** Minimum stat value - stats can never go below this */
+export const STAT_MIN = 1;
+/** Maximum stat value - stats can never exceed this */
+export const STAT_MAX = 100;
+
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
 /**
- * Clamp a value to the 0-100 range.
+ * Clamp a value to the STAT_MIN-STAT_MAX range (1-100).
+ * Stats can never reach true zero - minimum is always 1.
  */
 function clamp(value: number): number {
-  return Math.max(0, Math.min(100, value));
+  return Math.max(STAT_MIN, Math.min(STAT_MAX, value));
 }
 
 /**

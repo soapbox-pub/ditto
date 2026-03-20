@@ -1340,15 +1340,15 @@ export function buildMigrationTags(
     }
   }
   
-  // EXPLICITLY preserve visual trait tags for backwards compatibility
-  // These are TRANSITIONAL - seed is the future source of truth
-  // Do not overwrite if they exist in the legacy event
-  for (const visualTag of VISUAL_TRAIT_TAG_NAMES) {
-    const value = getTagValue(legacyTags, visualTag);
-    if (value !== undefined) {
-      newTags.push([visualTag, value]);
-    }
-  }
+  // ALWAYS include visual trait tags - derived from seed, with legacy tag fallbacks
+  // This ensures every migrated event has complete visual traits for consistent rendering
+  const visualTraits = deriveVisualTraits(legacyTags, seed);
+  newTags.push(['base_color', visualTraits.baseColor]);
+  newTags.push(['secondary_color', visualTraits.secondaryColor]);
+  newTags.push(['eye_color', visualTraits.eyeColor]);
+  newTags.push(['pattern', visualTraits.pattern]);
+  newTags.push(['special_mark', visualTraits.specialMark]);
+  newTags.push(['size', visualTraits.size]);
   
   // Update timestamps
   newTags.push(['last_interaction', now]);
