@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Footprints, Camera, PictureInPicture2, ArrowLeft, AlertTriangle } from 'lucide-react';
 // Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
@@ -797,6 +797,9 @@ function BlobbiDashboard({
     invalidateProfile,
   });
   
+  // Anti-loop protection: track the last synced key to prevent infinite loops
+  const lastSyncedKeyRef = useRef<string>('');
+  
   // Memoize the completion state to prevent unnecessary sync triggers
   // This creates a stable string that only changes when actual completions change
   const completedTaskIds = useMemo(() => {
@@ -815,15 +818,22 @@ function BlobbiDashboard({
   }, [companion]);
   
   // Sync task completions only when there's an actual diff
-  // CRITICAL: This effect must be stable and idempotent
+  // CRITICAL: This effect uses multiple layers of protection against infinite loops:
+  // 1. Stable string keys (completedTaskIds) instead of array references
+  // 2. Anti-loop ref (lastSyncedKeyRef) to prevent re-triggering after publish
+  // 3. Early guards for loading/invalid states
+  // 4. Diff check against cached state
   useEffect(() => {
-    // Skip if still loading or no tasks
+    // Guard: Not incubating
+    if (companion?.state !== 'incubating') return;
+    
+    // Guard: Still loading or no tasks
     if (hatchTasks.isLoading || !hatchTasks.tasks.length) return;
     
-    // Skip if no completed tasks
+    // Guard: No completed tasks
     if (!completedTaskIds) return;
     
-    // Skip if computed matches cached (no diff)
+    // Guard: Computed matches cached (no diff)
     if (completedTaskIds === cachedCompletedIds) {
       if (DEBUG_BLOBBI) {
         console.log('[BlobbiPage] Task sync skipped: no diff', {
@@ -834,12 +844,25 @@ function BlobbiDashboard({
       return;
     }
     
+    // ANTI-LOOP: Skip if we already synced this exact state
+    // This prevents the loop: publish -> cache update -> re-render -> publish again
+    if (lastSyncedKeyRef.current === completedTaskIds) {
+      if (DEBUG_BLOBBI) {
+        console.log('[BlobbiPage] Task sync skipped: already synced this key', completedTaskIds);
+      }
+      return;
+    }
+    
     if (DEBUG_BLOBBI) {
       console.log('[BlobbiPage] Task sync triggered:', {
         computed: completedTaskIds,
         cached: cachedCompletedIds,
+        lastSynced: lastSyncedKeyRef.current,
       });
     }
+    
+    // Mark as synced BEFORE calling sync to prevent race conditions
+    lastSyncedKeyRef.current = completedTaskIds;
     
     // Convert hatch tasks to sync format
     const tasksToSync = hatchTasks.tasks.map(task => ({
@@ -847,11 +870,16 @@ function BlobbiDashboard({
       completed: task.completed,
     }));
     
+    // Call sync (fire-and-forget, but log errors)
     syncTaskCompletions(tasksToSync).catch(err => {
-      // Silent fail - this is just a cache sync
+      // On error, reset the ref so we can retry
+      lastSyncedKeyRef.current = '';
       console.warn('Failed to sync task completions:', err);
     });
-  }, [completedTaskIds, cachedCompletedIds, hatchTasks.tasks, hatchTasks.isLoading, syncTaskCompletions]);
+    // Note: syncTaskCompletions is intentionally excluded from deps to prevent
+    // re-triggering when the mutation function reference changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completedTaskIds, cachedCompletedIds, hatchTasks.tasks, hatchTasks.isLoading, companion?.state]);
   
   // Handler for starting incubation with explicit mode from dialog
   const handleStartIncubation = async (mode: StartIncubationMode, stopOtherD?: string) => {
@@ -1190,6 +1218,7 @@ function BlobbiDashboard({
         onShopClick={() => setShowShopModal(true)}
         onInventoryClick={() => setShowInventoryModal(true)}
         blobbiesCount={companions.length}
+        remainingTasksCount={isIncubating ? hatchTasks.tasks.filter(t => !t.completed).length : undefined}
       />
       
       {/* Blobbi Selector Modal */}
@@ -1850,6 +1879,8 @@ interface BlobbiBottomBarProps {
   onShopClick: () => void;
   onInventoryClick: () => void;
   blobbiesCount?: number;
+  /** Number of remaining (incomplete) tasks to show as badge on Missions button */
+  remainingTasksCount?: number;
 }
 
 function BlobbiBottomBar({
@@ -1859,6 +1890,7 @@ function BlobbiBottomBar({
   onShopClick,
   onInventoryClick,
   blobbiesCount,
+  remainingTasksCount,
 }: BlobbiBottomBarProps) {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30">
@@ -1869,7 +1901,7 @@ function BlobbiBottomBar({
             {/* Left Group - aligned to end (closer to center) */}
             <div className="flex items-center justify-end gap-1">
               <BottomBarButton onClick={onBlobbiesClick} icon={<Users className="size-4" />} label="Blobbies" badge={blobbiesCount} />
-              <BottomBarButton onClick={onMissionsClick} icon={<Target className="size-4" />} label="Missions" />
+              <BottomBarButton onClick={onMissionsClick} icon={<Target className="size-4" />} label="Missions" badge={remainingTasksCount} />
             </div>
             
             {/* Center Action Button */}
@@ -1909,7 +1941,7 @@ function BottomBarButton({ onClick, icon, label, badge }: BottomBarButtonProps) 
     >
       <div className="relative">
         {icon}
-        {badge !== undefined && badge > 1 && (
+        {badge !== undefined && badge > 0 && (
           <span className="absolute -top-1 -right-2 size-4 flex items-center justify-center text-[10px] font-medium bg-primary text-primary-foreground rounded-full">
             {badge}
           </span>
