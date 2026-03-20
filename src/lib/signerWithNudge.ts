@@ -129,18 +129,19 @@ function showNudgeToast(opts: {
   }
 
   // We need to capture the dismiss function so the onCancel callback inside
-  // the component can dismiss the toast. We use a mutable ref pattern.
-  let dismissFn: (() => void) | undefined;
+  // the component can dismiss the toast. We use a mutable ref pattern (object
+  // wrapper) so the closure captures the container rather than the value.
+  const dismissRef: { fn: (() => void) | undefined } = { fn: undefined };
 
   const description = createElement(NudgeToastContent, {
     description: descriptionText,
     android,
     relayOk,
-    onCancel: () => { dismissFn?.(); onCancel(); },
+    onCancel: () => { dismissRef.fn?.(); onCancel(); },
   });
 
   const { dismiss } = toast({ title, description, duration: Infinity });
-  dismissFn = dismiss;
+  dismissRef.fn = dismiss;
 
   return { dismiss };
 }

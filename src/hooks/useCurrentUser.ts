@@ -1,4 +1,4 @@
-import { type NLoginBunker, type NLoginType, NUser, useNostrLogin } from '@nostrify/react/login';
+import { type NLoginType, NUser, useNostrLogin } from '@nostrify/react/login';
 import { useNostr } from '@nostrify/react';
 import { NRelay1 } from '@nostrify/nostrify';
 import { useCallback, useMemo } from 'react';
@@ -23,7 +23,7 @@ export function useCurrentUser() {
         // Called at nudge time to check whether any of the bunker's relay
         // WebSockets are OPEN. Relay instances are shared with the main pool
         // so pool.relays will contain them once they have been opened.
-        const bunkerRelays = (login as NLoginBunker).data.relays;
+        const bunkerRelays = (login as Extract<NLoginType, { type: 'bunker' }>).data.relays;
         isBunkerConnected = () => bunkerRelays.some((url) => {
           const relay = nostr.relay(url);
           return relay instanceof NRelay1 && relay.socket.readyState === WebSocket.OPEN;
