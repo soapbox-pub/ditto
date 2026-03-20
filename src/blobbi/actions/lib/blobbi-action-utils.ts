@@ -557,6 +557,9 @@ export function previewCleanForEgg(
 /** Required interactions to complete the interactions hatch task */
 const INTERACTION_TASK_REQUIRED = 7;
 
+/** Enable debug logging in development only */
+const DEBUG_INTERACTION_TASK = import.meta.env.DEV;
+
 /**
  * Result of incrementing interaction task tags
  */
@@ -567,6 +570,8 @@ export interface IncrementInteractionResult {
   newCount: number;
   /** Whether the task is now complete */
   isCompleted: boolean;
+  /** Previous count before increment */
+  previousCount: number;
 }
 
 /**
@@ -575,9 +580,17 @@ export interface IncrementInteractionResult {
  * This is used by both useBlobbiDirectAction and useBlobbiUseInventoryItem
  * to track progress on the "Interact with Blobbi" hatch task.
  * 
+ * CRITICAL: This function is called during actual user actions (not retroactive sync).
+ * It always increments by 1 because each call represents a real interaction.
+ * 
  * Tag format:
  * - Progress: ["task", "interactions:N"]
  * - Completion: ["task_completed", "interactions"]
+ * 
+ * Idempotency notes:
+ * - This is NOT idempotent by design - each call = one interaction
+ * - Duplicate task_completed tags are prevented by filtering before add
+ * - Multiple task:interactions tags are prevented by filtering before add
  * 
  * @param currentTags - Current tags array from the Blobbi state
  * @returns Updated tags array with incremented interaction count
@@ -587,26 +600,38 @@ export function incrementInteractionTaskTags(currentTags: string[][]): Increment
   const interactionTag = currentTags.find(tag => 
     tag[0] === 'task' && tag[1]?.startsWith('interactions:')
   );
-  const currentCount = interactionTag 
+  const previousCount = interactionTag 
     ? parseInt(interactionTag[1].split(':')[1] || '0', 10)
     : 0;
-  const newCount = currentCount + 1;
+  const newCount = previousCount + 1;
   
-  // Remove old interaction task tag and add new one
+  // Check if already completed (task_completed tag exists)
+  const alreadyCompleted = currentTags.some(tag => 
+    tag[0] === 'task_completed' && tag[1] === 'interactions'
+  );
+  
+  // Remove old interaction task tag (prevent duplicates) and add new one
   let updatedTags = currentTags.filter(tag => 
     !(tag[0] === 'task' && tag[1]?.startsWith('interactions:'))
   );
   updatedTags = [...updatedTags, ['task', `interactions:${newCount}`]];
   
-  // Mark as completed if reached required count
+  // Mark as completed if reached required count AND not already marked
   const isCompleted = newCount >= INTERACTION_TASK_REQUIRED;
-  if (isCompleted) {
-    // Remove any existing task_completed for interactions (avoid duplicates)
-    updatedTags = updatedTags.filter(tag => 
-      !(tag[0] === 'task_completed' && tag[1] === 'interactions')
-    );
+  if (isCompleted && !alreadyCompleted) {
+    // Only add if not already present (handled by filter, but double-check)
     updatedTags = [...updatedTags, ['task_completed', 'interactions']];
   }
   
-  return { updatedTags, newCount, isCompleted };
+  if (DEBUG_INTERACTION_TASK) {
+    console.log('[InteractionTask] Increment:', {
+      previousCount,
+      newCount,
+      isCompleted,
+      alreadyCompleted,
+      addedCompletionTag: isCompleted && !alreadyCompleted,
+    });
+  }
+  
+  return { updatedTags, newCount, isCompleted, previousCount };
 }

@@ -528,6 +528,9 @@ export function useStopIncubation({
 
 // ─── Sync Hatch Task Completions Hook ─────────────────────────────────────────
 
+/** Enable debug logging in development only */
+const DEBUG_TASK_SYNC = import.meta.env.DEV;
+
 /**
  * Parameters for syncing hatch task completions.
  */
@@ -559,16 +562,27 @@ export interface TaskCompletionToSync {
 }
 
 /**
+ * Result of sync operation.
+ */
+export interface SyncTaskCompletionsResult {
+  /** Task IDs that were synced (empty if nothing needed) */
+  synced: string[];
+  /** Whether sync was skipped (no diff) */
+  skipped: boolean;
+  /** Reason for skip (for debugging) */
+  skipReason?: string;
+}
+
+/**
  * Hook to sync hatch task completions to kind 31124 tags.
  * 
- * This hook watches for newly completed tasks and syncs them to the Blobbi state
- * event as `task_completed` tags. This is a cache sync operation - the source of
- * truth is always the computed task state from Nostr events.
+ * CRITICAL: This is a cache-only sync. It must be:
+ * 1. Fully idempotent - calling multiple times with same data = no-op
+ * 2. Diff-based - only publish when tags would actually change
+ * 3. Safe - no last_interaction update (this is cache sync, not user action)
  * 
- * Usage:
- * 1. Call this hook in a component that has access to hatch tasks
- * 2. Call syncCompletions(tasks) whenever tasks change
- * 3. The hook will publish updated events for any newly completed tasks
+ * Source of truth = computed task state from Nostr events.
+ * Tags = cache layer for faster access.
  */
 export function useSyncHatchTaskCompletions({
   companion,
@@ -581,60 +595,87 @@ export function useSyncHatchTaskCompletions({
   const { mutateAsync: publishEvent } = useNostrPublish();
 
   return useMutation({
-    mutationFn: async (tasksToSync: TaskCompletionToSync[]) => {
+    mutationFn: async (tasksToSync: TaskCompletionToSync[]): Promise<SyncTaskCompletionsResult> => {
+      // ─── Early Guards ───
       if (!user?.pubkey) {
-        throw new Error('You must be logged in');
+        return { synced: [], skipped: true, skipReason: 'no_user' };
       }
 
       if (!companion) {
-        throw new Error('No companion selected');
+        return { synced: [], skipped: true, skipReason: 'no_companion' };
       }
 
       if (companion.state !== 'incubating') {
-        // Only sync during incubation
-        return { synced: [] };
+        return { synced: [], skipped: true, skipReason: 'not_incubating' };
       }
 
-      // Get current cached completions from companion
+      // ─── Compute Diff ───
+      // Get cached completions from companion.tasksCompleted (parsed from tags)
       const cachedCompletions = new Set(companion.tasksCompleted);
+      
+      // Get computed completions from hatch tasks
+      const computedCompletions = tasksToSync
+        .filter(t => t.completed)
+        .map(t => t.taskId);
+      
+      // Find tasks that are computed as complete but NOT in cache
+      const missingFromCache = computedCompletions.filter(id => !cachedCompletions.has(id));
 
-      // Find tasks that are completed but not cached
-      const newlyCompleted = tasksToSync.filter(t => 
-        t.completed && !cachedCompletions.has(t.taskId)
-      );
-
-      if (newlyCompleted.length === 0) {
-        // Nothing to sync
-        return { synced: [] };
+      if (DEBUG_TASK_SYNC) {
+        console.log('[TaskSync] Diff check:', {
+          cachedCompletions: Array.from(cachedCompletions),
+          computedCompletions,
+          missingFromCache,
+        });
       }
 
-      // Ensure canonical before action
+      // If no diff, skip entirely
+      if (missingFromCache.length === 0) {
+        if (DEBUG_TASK_SYNC) {
+          console.log('[TaskSync] Skipped: no diff between computed and cached');
+        }
+        return { synced: [], skipped: true, skipReason: 'no_diff' };
+      }
+
+      // ─── Ensure Canonical ───
       const canonical = await ensureCanonicalBeforeAction();
       if (!canonical) {
-        throw new Error('Failed to prepare companion');
+        return { synced: [], skipped: true, skipReason: 'canonical_failed' };
       }
 
-      // Add task_completed tags for newly completed tasks
-      let updatedTags = [...canonical.allTags];
-      
-      for (const task of newlyCompleted) {
-        // Check if already has this completion tag (avoid duplicates)
-        const hasTag = updatedTags.some(tag => 
-          tag[0] === 'task_completed' && tag[1] === task.taskId
-        );
-        
-        if (!hasTag) {
-          updatedTags = [...updatedTags, ['task_completed', task.taskId]];
+      // ─── Build Updated Tags ───
+      // Re-check against canonical.allTags (may have updated since companion was parsed)
+      const existingCompletionTags = new Set(
+        canonical.allTags
+          .filter(tag => tag[0] === 'task_completed')
+          .map(tag => tag[1])
+      );
+
+      // Filter to only truly missing tags
+      const tagsToAdd = missingFromCache.filter(id => !existingCompletionTags.has(id));
+
+      if (tagsToAdd.length === 0) {
+        if (DEBUG_TASK_SYNC) {
+          console.log('[TaskSync] Skipped: all tags already exist in canonical');
         }
+        return { synced: [], skipped: true, skipReason: 'tags_already_exist' };
       }
 
-      // Update last_interaction timestamp
-      const now = Math.floor(Date.now() / 1000);
-      updatedTags = updateBlobbiTags(updatedTags, {
-        last_interaction: now.toString(),
-      });
+      // Add only the missing task_completed tags
+      // CRITICAL: Do NOT update last_interaction - this is cache sync, not user action
+      const updatedTags = [
+        ...canonical.allTags,
+        ...tagsToAdd.map(id => ['task_completed', id]),
+      ];
 
-      // Publish updated event
+      if (DEBUG_TASK_SYNC) {
+        console.log('[TaskSync] Publishing:', {
+          tagsToAdd,
+          totalTags: updatedTags.length,
+        });
+      }
+
+      // ─── Publish ───
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
         content: canonical.content,
@@ -648,7 +689,11 @@ export function useSyncHatchTaskCompletions({
         invalidateProfile();
       }
 
-      return { synced: newlyCompleted.map(t => t.taskId) };
+      if (DEBUG_TASK_SYNC) {
+        console.log('[TaskSync] Published successfully:', tagsToAdd);
+      }
+
+      return { synced: tagsToAdd, skipped: false };
     },
   });
 }

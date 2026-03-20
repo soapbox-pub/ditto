@@ -797,9 +797,49 @@ function BlobbiDashboard({
     invalidateProfile,
   });
   
-  // Sync task completions when hatch tasks change
+  // Memoize the completion state to prevent unnecessary sync triggers
+  // This creates a stable string that only changes when actual completions change
+  const completedTaskIds = useMemo(() => {
+    if (!hatchTasks.tasks.length) return '';
+    return hatchTasks.tasks
+      .filter(t => t.completed)
+      .map(t => t.id)
+      .sort()
+      .join(',');
+  }, [hatchTasks.tasks]);
+  
+  // Memoize cached completion state for comparison
+  const cachedCompletedIds = useMemo(() => {
+    if (!companion) return '';
+    return [...companion.tasksCompleted].sort().join(',');
+  }, [companion]);
+  
+  // Sync task completions only when there's an actual diff
+  // CRITICAL: This effect must be stable and idempotent
   useEffect(() => {
-    if (!hatchTasks.tasks.length || hatchTasks.isLoading) return;
+    // Skip if still loading or no tasks
+    if (hatchTasks.isLoading || !hatchTasks.tasks.length) return;
+    
+    // Skip if no completed tasks
+    if (!completedTaskIds) return;
+    
+    // Skip if computed matches cached (no diff)
+    if (completedTaskIds === cachedCompletedIds) {
+      if (DEBUG_BLOBBI) {
+        console.log('[BlobbiPage] Task sync skipped: no diff', {
+          computed: completedTaskIds,
+          cached: cachedCompletedIds,
+        });
+      }
+      return;
+    }
+    
+    if (DEBUG_BLOBBI) {
+      console.log('[BlobbiPage] Task sync triggered:', {
+        computed: completedTaskIds,
+        cached: cachedCompletedIds,
+      });
+    }
     
     // Convert hatch tasks to sync format
     const tasksToSync = hatchTasks.tasks.map(task => ({
@@ -807,15 +847,11 @@ function BlobbiDashboard({
       completed: task.completed,
     }));
     
-    // Only sync if there are completed tasks
-    const hasCompletedTasks = tasksToSync.some(t => t.completed);
-    if (hasCompletedTasks) {
-      syncTaskCompletions(tasksToSync).catch(err => {
-        // Silent fail - this is just a cache sync
-        console.warn('Failed to sync task completions:', err);
-      });
-    }
-  }, [hatchTasks.tasks, hatchTasks.isLoading, syncTaskCompletions]);
+    syncTaskCompletions(tasksToSync).catch(err => {
+      // Silent fail - this is just a cache sync
+      console.warn('Failed to sync task completions:', err);
+    });
+  }, [completedTaskIds, cachedCompletedIds, hatchTasks.tasks, hatchTasks.isLoading, syncTaskCompletions]);
   
   // Handler for starting incubation
   const handleStartIncubation = async () => {
