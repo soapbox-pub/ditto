@@ -2,7 +2,7 @@ import { useSeoMeta } from '@unhead/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, Loader2, Plus, Trash2, ChevronDown, GripVertical,
-  Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye, AlertTriangle,
+  Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye, AlertTriangle, CloudSun,
 } from 'lucide-react';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { Link, Navigate } from 'react-router-dom';
@@ -148,6 +148,15 @@ const FIELD_PRESETS: FieldPreset[] = [
     defaultLabel: '',
     type: 'text',
     valuePlaceholder: 'https://...',
+  },
+  {
+    id: 'weather',
+    label: 'Weather',
+    description: 'Connect a Nostr weather station',
+    icon: CloudSun,
+    defaultLabel: 'Weather',
+    type: 'text',
+    valuePlaceholder: 'npub1... or naddr1... (#station-id optional)',
   },
 ];
 

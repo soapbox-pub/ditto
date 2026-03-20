@@ -92,6 +92,8 @@ import type { AddrCoords } from '@/hooks/useEvent';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
+import { isWeatherFieldLabel } from '@/lib/weatherStation';
+import { WeatherStationCard } from '@/components/WeatherStationCard';
 
 const STREAK_WINDOW_HOURS = 24;
 const STREAK_DISPLAY_LIMIT = 99;
@@ -577,6 +579,10 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
     );
   }
 
+  if (isWeatherFieldLabel(field.label)) {
+    return <WeatherFieldInline value={field.value} />;
+  }
+
   // Nostr URI: render embedded event
   const nostrEmbed = parseNostrUri(field.value);
   if (nostrEmbed) {
@@ -669,6 +675,10 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
       <span className="text-sm truncate">{field.value}</span>
     </div>
   );
+}
+
+function WeatherFieldInline({ value }: { value: string }) {
+  return <WeatherStationCard value={value} compact />;
 }
 
 // ----- Pinned Label -----
