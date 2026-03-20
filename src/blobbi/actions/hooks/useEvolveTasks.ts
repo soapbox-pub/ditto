@@ -39,8 +39,8 @@ export const EVOLVE_REQUIRED_THEMES = 3;
 /** Required color moments for evolve task */
 export const EVOLVE_REQUIRED_COLOR_MOMENTS = 3;
 
-/** Required posts for evolve task */
-export const EVOLVE_REQUIRED_POSTS = 3;
+/** Required posts for evolve task (lighter than hatch - just 1 evolve-specific post) */
+export const EVOLVE_REQUIRED_POSTS = 1;
 
 /** Required interactions for evolve task */
 export const EVOLVE_REQUIRED_INTERACTIONS = 21;
@@ -135,7 +135,7 @@ export function isValidEvolvePost(event: NostrEvent, blobbiName: string): boolea
  * PERSISTENT TASKS (event-based, can be cached):
  * 1. Create 3 Themes (kind 36767)
  * 2. Create 3 Color Moments (kind 3367)
- * 3. Create 3 Evolve Posts (kind 1)
+ * 3. Create 1 Evolve Post (kind 1) - lighter than hatch, evolve-specific
  * 4. Interact 21 times (tracked via companion.tasks cache)
  * 5. Use Blobbi Shape (kind 0) - shape starts with "blobbi:"
  * 6. Edit Wall once (kind 16769)
@@ -184,7 +184,7 @@ export function useEvolveTasks(
           kinds: [KIND_SHORT_TEXT_NOTE],
           authors: [pubkey],
           since: stateStartedAt,
-          limit: 100, // Higher limit for evolve (need 3)
+          limit: 50, // Only need 1 valid evolve post
         },
         // Wall edits after start
         {
@@ -276,15 +276,15 @@ export function useEvolveTasks(
     actionLabel: 'Open espy',
   });
   
-  // 3. Create 3 Evolve Posts (PERSISTENT)
+  // 3. Create 1 Evolve Post (PERSISTENT) - lighter than hatch
   const blobbiName = companion?.name ?? '';
   const validPosts = data?.postEvents?.filter(e => isValidEvolvePost(e, blobbiName)) ?? [];
   const postCount = validPosts.length;
   const postsCompleted = postCount >= EVOLVE_REQUIRED_POSTS;
   tasks.push({
     id: 'create_posts',
-    name: 'Create Posts',
-    description: `Share ${EVOLVE_REQUIRED_POSTS} posts about evolving`,
+    name: 'Share Evolution',
+    description: 'Post about your Blobbi evolving',
     current: Math.min(postCount, EVOLVE_REQUIRED_POSTS),
     required: EVOLVE_REQUIRED_POSTS,
     completed: postsCompleted,
