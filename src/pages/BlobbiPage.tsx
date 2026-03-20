@@ -1171,6 +1171,8 @@ function BlobbiDashboard({
           // When canStartIncubation or canStartEvolution is true, the button triggers the respective dialog
           isIncubationAction={canStartIncubation}
           isEvolutionAction={canStartEvolution}
+          // DEV ONLY: Instant stage transition (bypasses tasks)
+          onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
         />
         
         {/* Blobbi Name */}
@@ -1518,6 +1520,8 @@ interface BlobbiDashboardFloatingControlsProps {
   isIncubationAction?: boolean;
   /** Whether the button should show evolution action (for babies not yet evolving) */
   isEvolutionAction?: boolean;
+  /** DEV ONLY: Instant stage transition callback (bypasses tasks) */
+  onDevInstantTransition?: () => void;
 }
 
 /**
@@ -1567,6 +1571,7 @@ function BlobbiDashboardFloatingControls({
   hideEvolveButton = false,
   isIncubationAction = false,
   isEvolutionAction = false,
+  onDevInstantTransition,
 }: BlobbiDashboardFloatingControlsProps) {
   // Left-side buttons
   const leftButtons: FloatingActionDef[] = [
@@ -1667,6 +1672,35 @@ function BlobbiDashboardFloatingControls({
             </TooltipTrigger>
             <TooltipContent side="left">
               <p>{isTransitioning ? 'Transitioning...' : evolveButton.tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+        
+        {/* DEV ONLY: Instant stage transition button */}
+        {/* Bypasses incubation/evolution tasks for quick testing */}
+        {import.meta.env.DEV && stage !== 'adult' && onDevInstantTransition && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onDevInstantTransition}
+                disabled={isTransitioning}
+                className="size-10 rounded-full bg-amber-500/10 backdrop-blur-sm border-dashed border-amber-500/50 hover:bg-amber-500/20 hover:border-amber-500/70 transition-all shadow-sm text-amber-600 dark:text-amber-400 disabled:opacity-50"
+              >
+                {isTransitioning ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : stage === 'egg' ? (
+                  <Egg className="size-4" />
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p className="text-amber-600 dark:text-amber-400">
+                {stage === 'egg' ? 'Dev Hatch' : 'Dev Evolve'}
+              </p>
             </TooltipContent>
           </Tooltip>
         )}
