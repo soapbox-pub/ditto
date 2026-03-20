@@ -2023,18 +2023,8 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </div>
               )}
 
-              {/* Following / Followers count + Streak indicator */}
-              <div className="flex items-center gap-4 mt-2">
-                {profileFollowing && profileFollowing.count > 0 && (
-                  <button
-                    className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-                    onClick={() => setFollowingModalOpen(true)}
-                    title={`${profileFollowing.count} following`}
-                  >
-                    <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(profileFollowing.count)}</span>
-                    <span className="text-sm text-muted-foreground">following</span>
-                  </button>
-                )}
+               {/* Followers / Following count + Streak indicator */}
+               <div className="flex items-center gap-4 mt-2">
                 {followersCount > 0 && (
                   <button
                     className="flex items-center gap-1 hover:opacity-80 transition-opacity"
@@ -2043,6 +2033,16 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   >
                     <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(followersCount)}</span>
                     <span className="text-sm text-muted-foreground">followers</span>
+                  </button>
+                )}
+                {profileFollowing && profileFollowing.count > 0 && (
+                  <button
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                    onClick={() => setFollowingModalOpen(true)}
+                    title={`${profileFollowing.count} following`}
+                  >
+                    <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(profileFollowing.count)}</span>
+                    <span className="text-sm text-muted-foreground">following</span>
                   </button>
                 )}
                 {streak > 1 && (
