@@ -167,12 +167,12 @@ export function AdvancedSettings() {
                       toast({ title: 'CORS proxy updated' });
                     }
                   }}
-                  placeholder="https://proxy.shakespeare.diy/?url={href}"
+                  placeholder="https://ditto.pub/api/proxy/?url={href}"
                   className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
                   <span className="font-medium">Default: </span>
-                  <span className="font-mono break-all">https://proxy.shakespeare.diy/?url={'{href}'}</span>
+                  <span className="font-mono break-all">https://ditto.pub/api/proxy/?url={'{href}'}</span>
                 </div>
               </div>
             </div>
