@@ -109,12 +109,12 @@ export function AdvancedSettings() {
                       toast({ title: 'Favicon URL updated' });
                     }
                   }}
-                  placeholder="https://fetch.ditto.pub/favicon/{hostname}"
+                  placeholder="https://ditto.pub/api/favicon/{hostname}"
                   className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
                   <span className="font-medium">Default: </span>
-                  <span className="font-mono break-all">https://fetch.ditto.pub/favicon/{'{hostname}'}</span>
+                  <span className="font-mono break-all">https://ditto.pub/api/favicon/{'{hostname}'}</span>
                 </div>
               </div>
 
@@ -138,12 +138,12 @@ export function AdvancedSettings() {
                       toast({ title: 'Link preview URL updated' });
                     }
                   }}
-                  placeholder="https://fetch.ditto.pub/link/{url}"
+                  placeholder="https://ditto.pub/api/link-preview/{url}"
                   className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
                   <span className="font-medium">Default: </span>
-                  <span className="font-mono break-all">https://fetch.ditto.pub/link/{'{url}'}</span>
+                  <span className="font-mono break-all">https://ditto.pub/api/link-preview/{'{url}'}</span>
                 </div>
               </div>
 
