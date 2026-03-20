@@ -20,6 +20,8 @@ import { getContentWarning } from '@/lib/contentWarning';
 import { MiniAudioPlayer, isAudioUrl, isImageUrl, isVideoUrl } from '@/components/MiniAudioPlayer';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { parseDimToAspectRatio } from '@/components/MediaCollage';
+import { isWeatherFieldLabel } from '@/lib/weatherStation';
+import { WeatherStationCard } from '@/components/WeatherStationCard';
 
 /** Simple email regex for display purposes. */
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -345,6 +347,10 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
     );
   }
 
+  if (isWeatherFieldLabel(field.label)) {
+    return <WeatherFieldRow value={field.value} />;
+  }
+
   // Nostr URI: render embedded event
   const nostrEmbed = parseNostrUri(field.value);
   if (nostrEmbed) {
@@ -444,6 +450,10 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
       )}
     </div>
   );
+}
+
+function WeatherFieldRow({ value }: { value: string }) {
+  return <WeatherStationCard value={value} />;
 }
 
 /** Compute justified rows for the sidebar collage. */
