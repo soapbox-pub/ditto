@@ -68,7 +68,7 @@ export function EmbeddedNaddr({ addr, className }: EmbeddedNaddrProps) {
   }
 
   if (isError || !event) {
-    return <EmbeddedNaddrTombstone className={className} />;
+    return <EmbeddedNaddrTombstone addr={addr} className={className} />;
   }
 
   // For follow packs / starter packs, render the same NoteCard used in feeds (without actions)
@@ -201,13 +201,38 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
 }
 
 /** Tombstone shown when an addressable event could not be loaded. */
-function EmbeddedNaddrTombstone({ className }: { className?: string }) {
+function EmbeddedNaddrTombstone({ addr, className }: { addr: AddrCoords; className?: string }) {
+  const navigate = useNavigate();
+
+  const naddrId = useMemo(
+    () => nip19.naddrEncode({
+      kind: addr.kind,
+      pubkey: addr.pubkey,
+      identifier: addr.identifier,
+    }),
+    [addr],
+  );
+
   return (
     <div
       className={cn(
         'rounded-2xl border border-dashed border-border overflow-hidden',
+        'hover:bg-secondary/40 transition-colors cursor-pointer',
         className,
       )}
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/${naddrId}`);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/${naddrId}`);
+        }
+      }}
     >
       <div className="px-3.5 py-4 flex items-center gap-2 text-muted-foreground">
         <MessageSquareOff className="size-4 shrink-0" />

@@ -74,13 +74,8 @@ function ThemePreviewCard({
             className="absolute inset-0 w-full h-full object-cover opacity-40"
           />
         )}
-        {/* Simulated header bar */}
-        <div
-          className="h-2.5 w-full relative"
-          style={{ backgroundColor: hsl(tokens.card) }}
-        />
         {/* Content preview area */}
-        <div className="p-1.5 space-y-1 relative">
+        <div className="p-1.5 pt-3 space-y-1 relative">
           {/* Simulated text lines */}
           <div
             className="h-1 w-3/4 rounded-full"
@@ -98,11 +93,6 @@ function ThemePreviewCard({
             />
           </div>
         </div>
-        {/* Simulated sidebar strip */}
-        <div
-          className="absolute right-0 top-0 bottom-0 w-4"
-          style={{ backgroundColor: hsl(tokens.secondary) }}
-        />
 
         {/* Active check mark */}
         {isActive && (

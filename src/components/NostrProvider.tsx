@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { NostrEvent, NostrFilter, NPool, NRelay1 } from '@nostrify/nostrify';
 import { NostrContext } from '@nostrify/react';
 import { useAppContext } from '@/hooks/useAppContext';
-import { getEffectiveRelays, DITTO_RELAY, DIVINE_RELAY } from '@/lib/appRelays';
+import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { NostrBatcher } from '@/lib/NostrBatcher';
 
 interface NostrProviderProps {
@@ -42,18 +42,24 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 
         // Search queries must go to search relays
         if (filters.some((f) => "search" in f)) {
-          return new Map([[DITTO_RELAY, filters]]);
+          return new Map(DITTO_RELAYS.map(url => [url, filters]));
         }
 
         // Include divine relay for kind 34236 queries, which are addressable short videos
         if (filters.every((f) => f?.kinds?.length === 1 && f?.kinds[0] === 34236)) {
-          return new Map([DITTO_RELAY, DIVINE_RELAY].map(url => [url, filters]));
+          return new Map([...DITTO_RELAYS, DIVINE_RELAY].map(url => [url, filters]));
         }
 
         // Route to all read relays
         const readRelays = effectiveRelays.current.relays
           .filter(r => r.read)
           .map(r => r.url);
+
+        // Include zapstore relay for kind 32267 (apps) and 30063 (releases)
+        const ZAPSTORE_KINDS = [32267, 30063];
+        if (filters.every((f) => f?.kinds?.every((k) => ZAPSTORE_KINDS.includes(k)))) {
+          return new Map([ZAPSTORE_RELAY, ...readRelays].map(url => [url, filters]));
+        }
 
         for (const url of readRelays) {
           routes.set(url, filters);

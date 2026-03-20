@@ -155,14 +155,9 @@ function ThemeMockup({
             className="absolute inset-0 w-full h-full object-cover opacity-40"
           />
         )}
-        {/* Simulated header bar: 2.5 * 4 = 10 -> h-10 */}
-        <div
-          className="h-10 w-full relative"
-          style={{ backgroundColor: hsl(tokens.card) }}
-        />
-        {/* Content preview area: p-1.5 * 4 = p-6, space-y-1 * 4 = space-y-4 */}
-        <div className="p-6 space-y-4 relative">
-          {/* Simulated text lines: h-1 * 4 = h-4 */}
+        {/* Content preview area */}
+        <div className="p-6 pt-10 space-y-4 relative">
+          {/* Simulated text lines */}
           <div
             className="h-4 w-3/4 rounded-full"
             style={{ backgroundColor: hsl(tokens.foreground), opacity: 0.6 }}
@@ -171,7 +166,7 @@ function ThemeMockup({
             className="h-4 w-1/2 rounded-full"
             style={{ backgroundColor: hsl(tokens.mutedForeground), opacity: 0.4 }}
           />
-          {/* Simulated button: h-2 * 4 = h-8, w-8 * 4 = w-32 */}
+          {/* Simulated button */}
           <div className="pt-2">
             <div
               className="h-8 w-32 rounded"
@@ -179,11 +174,6 @@ function ThemeMockup({
             />
           </div>
         </div>
-        {/* Simulated sidebar strip: w-4 * 4 = w-16 */}
-        <div
-          className="absolute right-0 top-0 bottom-0 w-16"
-          style={{ backgroundColor: hsl(tokens.secondary) }}
-        />
       </div>
 
       {/* Title + description bar */}

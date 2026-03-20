@@ -73,6 +73,7 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { WebxdcEmbed } from "@/components/WebxdcEmbed";
 import { ZapDialog } from "@/components/ZapDialog";
+import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
 import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
@@ -112,6 +113,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 30817) return "Custom NIP";
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
+  if (kind === 32267) return "App Details";
   return "Post Details";
 }
 
@@ -801,6 +803,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isPatch = event.kind === 1617;
   const isPullRequest = event.kind === 1618;
   const isCustomNip = event.kind === 30817;
+  const isZapstoreApp = event.kind === 32267;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip;
   const isTextNote =
     !isVine &&
@@ -818,7 +821,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isReaction &&
     !isVideo &&
     !isCommunity &&
-    !isDevKind;
+    !isDevKind &&
+    !isZapstoreApp;
 
   const videos = useMemo(
     () => (isTextNote ? extractVideoUrls(event.content) : []),
@@ -1401,6 +1405,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <div className="mt-3">
                 <CustomNipCard event={event} preview={false} />
               </div>
+            ) : isZapstoreApp ? (
+              <ZapstoreAppContent event={event} />
             ) : isVine ||
               isPoll ||
               isGeocache ||

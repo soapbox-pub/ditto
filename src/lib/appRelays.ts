@@ -3,8 +3,17 @@ import type { RelayMetadata } from '@/contexts/AppContext';
 /** Relay used for NIP-50 search, trending, and streaming queries. */
 export const DITTO_RELAY = 'wss://relay.ditto.pub/';
 
+/** All Ditto relays used for search, trending, and streaming queries. */
+export const DITTO_RELAYS: string[] = [
+  'wss://relay.ditto.pub/',
+  'wss://relay.dreamith.to/',
+];
+
 /** Relay used for kind 34236 addressable short video events, used by divine */
 export const DIVINE_RELAY = 'wss://divine.video/';
+
+/** Relay used for Zapstore app metadata (kind 32267) and releases (kind 30063). */
+export const ZAPSTORE_RELAY = 'wss://relay.zapstore.dev';
 
 /** Normalize a relay URL for deduplication (lowercase, strip trailing slash). */
 function normalizeUrl(url: string): string {
@@ -18,6 +27,7 @@ function normalizeUrl(url: string): string {
 export const APP_RELAYS: RelayMetadata = {
   relays: [
     { url: 'wss://relay.ditto.pub/', read: true, write: true },
+    { url: 'wss://relay.dreamith.to/', read: true, write: true },
     { url: 'wss://relay.primal.net/', read: true, write: true },
     { url: 'wss://relay.damus.io/', read: true, write: true },
     { url: 'wss://nos.lol/', read: true, write: false },
