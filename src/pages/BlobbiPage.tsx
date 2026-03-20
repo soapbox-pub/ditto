@@ -176,34 +176,51 @@ function BlobbiContent() {
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
   
   // STEP 6: Selection Priority
-  // 1) localStorage selection (if valid and exists in collection)
-  // 2) first item from profile.has that exists in companionsByD
+  // 1) localStorage selection (if valid and exists in collection) - USER SELECTION ALWAYS WINS
+  // 2) first item from profile.has that exists in companionsByD - DEFAULT ONLY, never persisted
   // 3) undefined (show selector)
+  //
+  // CRITICAL: Default selection must NEVER overwrite localStorage.
+  // User selection persists only via handleSelectBlobbi, not via this computed value.
   const selectedD = useMemo(() => {
     if (!profile) return undefined;
     
     // Priority 1: localStorage selection (if it exists in loaded collection)
+    // USER SELECTION ALWAYS WINS - this is the authoritative source
     if (storedSelectedD && companionsByD[storedSelectedD]) {
+      if (DEBUG_BLOBBI) {
+        console.log('[BlobbiPage] selectedD: using localStorage selection:', storedSelectedD);
+      }
       return storedSelectedD;
     }
     
     // Priority 2: First item from profile.has that exists in companionsByD
+    // This is a DEFAULT - it should NOT be persisted to localStorage
     for (const d of profile.has) {
       if (companionsByD[d]) {
+        if (DEBUG_BLOBBI) {
+          console.log('[BlobbiPage] selectedD: using default from profile.has:', d, 
+            '(storedSelectedD was:', storedSelectedD, 
+            storedSelectedD ? (companionsByD[storedSelectedD] ? 'exists' : 'NOT in companionsByD') : 'null', ')');
+        }
         return d;
       }
     }
     
     // Priority 3: No valid selection
+    if (DEBUG_BLOBBI) {
+      console.log('[BlobbiPage] selectedD: no valid selection available');
+    }
     return undefined;
   }, [profile, storedSelectedD, companionsByD]);
   
-  // Auto-save selection to localStorage when it changes
-  useEffect(() => {
-    if (selectedD && selectedD !== storedSelectedD) {
-      setStoredSelectedD(selectedD);
-    }
-  }, [selectedD, storedSelectedD, setStoredSelectedD]);
+  // NOTE: We intentionally do NOT auto-save the computed selectedD to localStorage.
+  // This prevents the default selection from overwriting user selections during:
+  // - WebSocket updates
+  // - Query refetches  
+  // - Race conditions where storedSelectedD is not yet in companionsByD
+  //
+  // User selections are only persisted via handleSelectBlobbi (line ~232).
   
   // Get the selected companion from the collection
   const companion = selectedD ? companionsByD[selectedD] ?? null : null;
@@ -229,10 +246,14 @@ function BlobbiContent() {
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   
   // Handler for selecting a Blobbi from the selector
+  // This is the ONLY place where user selection is persisted to localStorage
   const handleSelectBlobbi = useCallback((d: string) => {
+    if (DEBUG_BLOBBI) {
+      console.log('[BlobbiPage] handleSelectBlobbi: user selected:', d, '(previous storedSelectedD was:', storedSelectedD, ')');
+    }
     setStoredSelectedD(d);
     setShowSelector(false);
-  }, [setStoredSelectedD]);
+  }, [setStoredSelectedD, storedSelectedD]);
   
   // ─── Helper: Ensure Canonical Before Action ───
   // Centralized migration helper that auto-migrates legacy pets before any action
