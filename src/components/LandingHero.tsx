@@ -62,7 +62,7 @@ function ThemeSwatch({
           />
         )}
         {/* Content area */}
-        <div className="p-1.5 space-y-0.5 relative">
+        <div className="p-1.5 pt-2.5 space-y-0.5 relative">
           <div
             className="h-0.5 w-3/4 rounded-full"
             style={{ backgroundColor: hsl(tokens.foreground), opacity: 0.5 }}
