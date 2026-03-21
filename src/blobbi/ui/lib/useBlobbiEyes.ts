@@ -33,11 +33,20 @@ export interface EyePosition {
   y: number;
 }
 
+/**
+ * Controls how the Blobbi's eyes behave
+ * - 'follow-pointer': Eyes track the mouse cursor (default)
+ * - 'forward': Eyes look straight ahead (for photos/export)
+ */
+export type BlobbiLookMode = 'follow-pointer' | 'forward';
+
 export interface UseBlobbiEyesOptions {
   /** Whether the Blobbi is sleeping (disables animation) */
   isSleeping?: boolean;
   /** Maximum eye movement in pixels (default: 2) */
   maxMovement?: number;
+  /** Controls eye tracking behavior (default: 'follow-pointer') */
+  lookMode?: BlobbiLookMode;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -198,7 +207,7 @@ export function useBlobbiEyes(
   containerRef: React.RefObject<HTMLDivElement | null>,
   options: UseBlobbiEyesOptions = {}
 ): void {
-  const { isSleeping = false, maxMovement = DEFAULT_MAX_MOVEMENT } = options;
+  const { isSleeping = false, maxMovement = DEFAULT_MAX_MOVEMENT, lookMode = 'follow-pointer' } = options;
 
   // Animation frame ref for cleanup
   const animationRef = useRef<number | null>(null);
@@ -328,22 +337,28 @@ export function useBlobbiEyes(
       blinkStateRef.current = updateBlinkState(blinkStateRef.current, timestamp);
       const blinkScaleY = calculateBlinkScale(blinkStateRef.current, timestamp);
 
-      // ─── Calculate Mouse Tracking ───────────────────────────────────────
-      // Get Blobbi center position
-      const rect = containerRef.current.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
+      // ─── Calculate Eye Position ───────────────────────────────────────
+      let eyeX = 0;
+      let eyeY = 0;
 
-      // Calculate direction to mouse
-      const dx = globalMouseX - centerX;
-      const dy = globalMouseY - centerY;
+      if (lookMode === 'follow-pointer') {
+        // Get Blobbi center position
+        const rect = containerRef.current.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
 
-      // Calculate angle to mouse
-      const angle = Math.atan2(dy, dx);
+        // Calculate direction to mouse
+        const dx = globalMouseX - centerX;
+        const dy = globalMouseY - centerY;
 
-      // Calculate eye position (instant, no interpolation)
-      const eyeX = Math.cos(angle) * maxMovement;
-      const eyeY = Math.sin(angle) * maxMovement * VERTICAL_SCALE;
+        // Calculate angle to mouse
+        const angle = Math.atan2(dy, dx);
+
+        // Calculate eye position (instant, no interpolation)
+        eyeX = Math.cos(angle) * maxMovement;
+        eyeY = Math.sin(angle) * maxMovement * VERTICAL_SCALE;
+      }
+      // 'forward' mode: eyes stay at (0, 0) - looking straight ahead
 
       // ─── Apply Tracking Transform (pupils only) ──────────────────────────
       // Only translate - no scale here. Eye whites stay fixed.
@@ -390,5 +405,5 @@ export function useBlobbiEyes(
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isSleeping, maxMovement, containerRef]);
+  }, [isSleeping, maxMovement, lookMode, containerRef]);
 }

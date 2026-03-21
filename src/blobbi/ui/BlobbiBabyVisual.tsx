@@ -10,7 +10,7 @@ import { useMemo, useRef } from 'react';
 
 import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
 import { addEyeAnimation } from './lib/eye-animation';
-import { useBlobbiEyes } from './lib/useBlobbiEyes';
+import { useBlobbiEyes, type BlobbiLookMode } from './lib/useBlobbiEyes';
 import { cn } from '@/lib/utils';
 import type { Blobbi } from '@/types/blobbi';
 import { isBlobbiSleeping } from '@/types/blobbi';
@@ -27,6 +27,8 @@ export interface BlobbiBabyVisualProps {
   blobbi: Blobbi;
   /** Reaction state for music/sing animations */
   reaction?: BabyReactionState;
+  /** Controls eye tracking behavior (default: 'follow-pointer') */
+  lookMode?: BlobbiLookMode;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -41,7 +43,7 @@ export interface BlobbiBabyVisualProps {
  * - Eyes always track the mouse cursor (instant, real-time)
  * - Renders safely using dangerouslySetInnerHTML
  */
-export function BlobbiBabyVisual({ blobbi, reaction = 'idle', className }: BlobbiBabyVisualProps) {
+export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', className }: BlobbiBabyVisualProps) {
   const isSleeping = isBlobbiSleeping(blobbi);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -53,6 +55,7 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', className }: Blobb
   useBlobbiEyes(containerRef, {
     isSleeping,
     maxMovement: 2,
+    lookMode,
   });
 
   // Memoize the customized SVG to avoid unnecessary processing
