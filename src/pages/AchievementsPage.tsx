@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import {
   BADGE_DEFINITION_KIND,
+  BADGE_ACCOUNT_PUBKEY,
   getBadgeTier,
   getBadgeATag,
   isAchievementBadge,
@@ -205,7 +206,7 @@ export function AchievementsPage() {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const isLoggedIn = !!user;
-  const adminPubkey = config.nip85StatsPubkey;
+  const adminPubkey = BADGE_ACCOUNT_PUBKEY;
 
   useSeoMeta({
     title: `Achievements | ${config.appName}`,

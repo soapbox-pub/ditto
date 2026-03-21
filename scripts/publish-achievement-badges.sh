@@ -30,7 +30,7 @@ if [ -z "$NOSTR_SECRET_KEY" ]; then
   exit 1
 fi
 
-RELAYS="wss://relay.ditto.pub wss://relay.primal.net wss://relay.damus.io"
+RELAYS="wss://relay.ditto.pub"
 
 publish() {
   local dtag="$1" name="$2" desc="$3" image="$4" category="$5" tier="${6:-}"

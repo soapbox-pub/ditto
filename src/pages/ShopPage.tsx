@@ -25,7 +25,7 @@ import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeFeed } from '@/hooks/useBadgeFeed';
 import { SHOP_CATEGORIES } from '@/lib/shopCategories';
 import { parseBadgeDefinition, type BadgeData } from '@/components/BadgeContent';
-import { BADGE_DEFINITION_KIND, getBadgePrice, getBadgeSupply, getBadgeCategory, isShopBadge } from '@/lib/badgeUtils';
+import { BADGE_DEFINITION_KIND, BADGE_ACCOUNT_PUBKEY, getBadgePrice, getBadgeSupply, getBadgeCategory, isShopBadge } from '@/lib/badgeUtils';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ function ShopContent() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchText, setSearchText] = useState('');
 
-  const adminPubkey = config.nip85StatsPubkey;
+  const adminPubkey = BADGE_ACCOUNT_PUBKEY;
 
   const { data: rawBadges, isLoading } = useQuery({
     queryKey: ['shop-badges', adminPubkey],
