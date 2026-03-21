@@ -18,6 +18,9 @@ import { FloatingMusicNotes } from './FloatingMusicNotes';
 import { cn } from '@/lib/utils';
 import type { BlobbiCompanion } from '@/lib/blobbi';
 import type { Blobbi } from '@/types/blobbi';
+import type { BlobbiLookMode } from './lib/useBlobbiEyes';
+
+export type { BlobbiLookMode };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +41,8 @@ export interface BlobbiStageVisualProps {
   animated?: boolean;
   /** Reaction state for music/sing animations */
   reaction?: BlobbiReaction;
+  /** Controls eye tracking behavior (default: 'follow-pointer') */
+  lookMode?: BlobbiLookMode;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -108,6 +113,7 @@ export function BlobbiStageVisual({
   size = 'md',
   animated = false,
   reaction = 'idle',
+  lookMode = 'follow-pointer',
   className,
 }: BlobbiStageVisualProps) {
   const { stage } = companion;
@@ -157,6 +163,7 @@ export function BlobbiStageVisual({
         <BlobbiBabyVisual
           blobbi={blobbiForVisual}
           reaction={effectiveReaction}
+          lookMode={lookMode}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />
@@ -177,6 +184,7 @@ export function BlobbiStageVisual({
         <BlobbiAdultVisual
           blobbi={blobbiForVisual}
           reaction={effectiveReaction}
+          lookMode={lookMode}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />

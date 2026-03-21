@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
+import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 import { cn } from '@/lib/utils';
 
 import {
@@ -760,6 +761,7 @@ function BlobbiDashboard({
   const [showShopModal, setShowShopModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
   
   // Adoption flow modal state
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
@@ -1150,7 +1152,7 @@ function BlobbiDashboard({
         <BlobbiDashboardFloatingControls
           stage={companion.stage}
           onSetAsCompanion={() => console.log('TODO: set as companion')}
-          onTakePhoto={() => console.log('TODO: take photo')}
+          onTakePhoto={() => setShowPhotoModal(true)}
           onOpenPiP={() => console.log('TODO: open PiP')}
           onEvolve={
             // For eggs not yet incubating: show incubation dialog
@@ -1439,6 +1441,13 @@ function BlobbiDashboard({
         blobbiName={companion.name}
         process={isEvolvingState ? 'evolve' : 'hatch'}
         onSuccess={refetchCurrentTasks}
+      />
+      
+      {/* Blobbi Photo Modal - polaroid-style photo capture */}
+      <BlobbiPhotoModal
+        open={showPhotoModal}
+        onOpenChange={setShowPhotoModal}
+        companion={companion}
       />
       
       {/* Start Incubation Confirmation Dialog */}
