@@ -1,6 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { PageHeader } from '@/components/PageHeader';
 import { IntroImage } from '@/components/IntroImage';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -21,19 +20,18 @@ export function MagicSettingsPage() {
   return (
     <main className="">
       {/* Header with back link */}
-      <div className="px-4 pt-4 pb-3">
-        <div className="flex items-center gap-4">
-          <Link to="/settings" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
-            <ArrowLeft className="size-5" />
-          </Link>
-          <div>
+      <PageHeader
+        backTo="/settings"
+        alwaysShowBack
+        titleContent={
+          <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold">Magic</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Harness the mystical energies of your device. Imbue your cursor with elemental fire.
             </p>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="p-4">
         {/* Intro */}
