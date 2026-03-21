@@ -11,9 +11,9 @@ export const DVM_JOB_RESULT_KIND = 6950;
 
 /**
  * Hex pubkey for the Ditto Badge account that issues achievement and shop badges.
- * npub10qdp2fc9ta6vraczxrcs8prqnv69fru2k6s2dj48gqjcylulmtjsg9arpj
+ * npub1tn2ylw8sc42ew6rfzv4hwt47r4jza6jqadj7s2fmhf2q8xg7rscqqzmjlg
  */
-export const BADGE_ACCOUNT_PUBKEY = '781a1527055f74c1f70230f10384609b34548f8ab6a0a6caa74025827f9fdae5';
+export const BADGE_ACCOUNT_PUBKEY = '5cd44fb8f0c555976869132b772ebe1d642eea40eb65e8293bba5403991e1c30';
 
 /**
  * Build the canonical `a` tag value for a kind 30009 badge definition.
