@@ -43,6 +43,8 @@ export interface BlobbiStageVisualProps {
   reaction?: BlobbiReaction;
   /** Controls eye tracking behavior (default: 'follow-pointer') */
   lookMode?: BlobbiLookMode;
+  /** Disable blinking animation (for photo/export mode) */
+  disableBlink?: boolean;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -114,6 +116,7 @@ export function BlobbiStageVisual({
   animated = false,
   reaction = 'idle',
   lookMode = 'follow-pointer',
+  disableBlink = false,
   className,
 }: BlobbiStageVisualProps) {
   const { stage } = companion;
@@ -158,6 +161,7 @@ export function BlobbiStageVisual({
           blobbi={blobbiForVisual}
           reaction={effectiveReaction}
           lookMode={lookMode}
+          disableBlink={disableBlink}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />
@@ -173,6 +177,7 @@ export function BlobbiStageVisual({
           blobbi={blobbiForVisual}
           reaction={effectiveReaction}
           lookMode={lookMode}
+          disableBlink={disableBlink}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />

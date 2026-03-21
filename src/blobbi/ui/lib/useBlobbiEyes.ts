@@ -47,6 +47,8 @@ export interface UseBlobbiEyesOptions {
   maxMovement?: number;
   /** Controls eye tracking behavior (default: 'follow-pointer') */
   lookMode?: BlobbiLookMode;
+  /** Disable blinking animation (for photo/export mode) */
+  disableBlink?: boolean;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -207,7 +209,7 @@ export function useBlobbiEyes(
   containerRef: React.RefObject<HTMLDivElement | null>,
   options: UseBlobbiEyesOptions = {}
 ): void {
-  const { isSleeping = false, maxMovement = DEFAULT_MAX_MOVEMENT, lookMode = 'follow-pointer' } = options;
+  const { isSleeping = false, maxMovement = DEFAULT_MAX_MOVEMENT, lookMode = 'follow-pointer', disableBlink = false } = options;
 
   // Animation frame ref for cleanup
   const animationRef = useRef<number | null>(null);
@@ -322,20 +324,25 @@ export function useBlobbiEyes(
         return;
       }
 
-      // ─── Initialize Blink State ─────────────────────────────────────────
-      if (!blinkStateRef.current) {
-        blinkStateRef.current = {
-          phase: 'open',
-          phaseStartTime: timestamp,
-          nextBlinkTime: timestamp + getNextBlinkInterval(),
-          pendingDoubleBlink: false,
-          scaleY: 1,
-        };
-      }
+      // ─── Calculate Blink Scale ─────────────────────────────────────────
+      let blinkScaleY = 1; // Default: eyes fully open
 
-      // ─── Update Blink State ─────────────────────────────────────────────
-      blinkStateRef.current = updateBlinkState(blinkStateRef.current, timestamp);
-      const blinkScaleY = calculateBlinkScale(blinkStateRef.current, timestamp);
+      if (!disableBlink) {
+        // Initialize blink state if needed
+        if (!blinkStateRef.current) {
+          blinkStateRef.current = {
+            phase: 'open',
+            phaseStartTime: timestamp,
+            nextBlinkTime: timestamp + getNextBlinkInterval(),
+            pendingDoubleBlink: false,
+            scaleY: 1,
+          };
+        }
+
+        // Update blink state machine
+        blinkStateRef.current = updateBlinkState(blinkStateRef.current, timestamp);
+        blinkScaleY = calculateBlinkScale(blinkStateRef.current, timestamp);
+      }
 
       // ─── Calculate Eye Position ───────────────────────────────────────
       let eyeX = 0;
@@ -405,5 +412,5 @@ export function useBlobbiEyes(
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isSleeping, maxMovement, lookMode, containerRef]);
+  }, [isSleeping, maxMovement, lookMode, disableBlink, containerRef]);
 }
