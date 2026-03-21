@@ -134,7 +134,7 @@ const hardcodedConfig: AppConfig = {
   useAppBlossomServers: true,
   faviconUrl: "https://ditto.pub/api/favicon/{hostname}",
   linkPreviewUrl: "https://ditto.pub/api/link-preview/{url}",
-  corsProxy: "https://ditto.pub/api/proxy/?url={href}",
+  corsProxy: "https://proxy.shakespeare.diy/?url={href}",
   contentWarningPolicy: "blur",
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || "",
   sentryEnabled: true,
