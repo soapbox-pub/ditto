@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Film, Radio, Play, Eye } from 'lucide-react';
+import { Film, Radio, Play, Eye } from 'lucide-react';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
@@ -645,19 +645,10 @@ function ShortsPlayer({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose, activeIndex, events.length]);
 
-  // Same structure as VinesFeedPage: tab bar + snap container, filling the feed column
+  // Same structure as VinesFeedPage: PageHeader + snap container, filling the feed column
   return (
     <div className="flex-1 min-w-0 flex flex-col">
-      {/* Tab bar — same chrome as VinesTabBar, back button replaces tabs */}
-      <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 shrink-0">
-        <button
-          onClick={onClose}
-          className="flex items-center gap-1.5 px-4 py-3.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="size-4" />
-          Back to Videos
-        </button>
-      </div>
+      <PageHeader title="Videos" icon={<Film className="size-5" />} onBack={onClose} alwaysShowBack />
 
       {/* Snap-scroll VineCard column — identical sizing to VinesFeedPage */}
       <div
@@ -721,7 +712,10 @@ export function VideosFeedPage() {
   const [feedTab, setFeedTab] = useFeedTab<FeedTab>('videos', ['follows', 'global']);
 
   useSeoMeta({ title: `Videos | ${config.appName}`, description: 'Videos and live streams on Nostr' });
-  useLayoutOptions({ showFAB: false, noOverscroll: true, hasSubHeader: true });
+
+  const [shortsPlayerIndex, setShortsPlayerIndex] = useState<number | null>(null);
+  const shortsOpen = shortsPlayerIndex !== null;
+  useLayoutOptions({ showFAB: false, noOverscroll: true, hasSubHeader: !shortsOpen });
   useEffect(() => { setShowAllVideos(false); }, [feedTab]);
 
   // ── Follows: chronological, small page ──
@@ -755,7 +749,6 @@ export function VideosFeedPage() {
   const normalVideos = useMemo(() => videoEvents.filter((e) => e.kind === 21), [videoEvents]);
   const shorts = useMemo(() => videoEvents.filter((e) => e.kind === 22), [videoEvents]);
 
-  const [shortsPlayerIndex, setShortsPlayerIndex] = useState<number | null>(null);
   const [showAllVideos, setShowAllVideos] = useState(false);
   const { data: streams } = useClassifiedStreams(feedTab);
   const hasStreams = streams.live.length + streams.planned.length + streams.past.length > 0;
