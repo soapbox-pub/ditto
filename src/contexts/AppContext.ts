@@ -142,6 +142,8 @@ export interface FeedSettings {
   feedIncludeBadgeDefinitions: boolean;
   /** Include profile badges (kind 30008) in the follows/global feed */
   feedIncludeProfileBadges: boolean;
+  /** Include Request to Vanish events (kind 62) in the follows/global feed */
+  feedIncludeVanish: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }
