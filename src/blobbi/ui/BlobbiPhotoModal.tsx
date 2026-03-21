@@ -160,11 +160,19 @@ export function BlobbiPhotoModal({
       const filename = `${companion.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.png`;
       const file = dataUrlToFile(dataUrl, filename);
 
-      // Upload to Blossom
+      // Upload to Blossom - returns NIP-94 compatible tags
       const tags = await uploadFile(file);
-      const [[, url]] = tags;
 
-      // Build imeta tag from NIP-94 tags
+      // Extract URL from the 'url' tag (NIP-94 format)
+      // The upload hook returns tags like [['url', '...'], ['m', '...'], ['x', '...'], ...]
+      const urlTag = tags.find((tag) => tag[0] === 'url');
+      if (!urlTag || !urlTag[1]) {
+        throw new Error('Upload succeeded but no URL was returned');
+      }
+      const url = urlTag[1];
+
+      // Build imeta tag from all NIP-94 tags
+      // Format: ['imeta', 'url https://...', 'm image/png', 'x abc123', ...]
       const imetaFields = tags.map((tag) => `${tag[0]} ${tag[1]}`);
 
       // Create the post content
