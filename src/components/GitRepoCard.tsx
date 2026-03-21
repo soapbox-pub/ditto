@@ -1,12 +1,5 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import {
-	BookMarked,
-	Copy,
-	ExternalLink,
-	GitFork,
-	Globe,
-	Wand2,
-} from "lucide-react";
+import { Copy, ExternalLink, Globe, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -32,10 +25,6 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 	const cloneUrls = event.tags
 		.filter(([n]) => n === "clone")
 		.map(([, v]) => v);
-	const hashtags = event.tags
-		.filter(([n]) => n === "t")
-		.map(([, v]) => v)
-		.filter((t) => t !== "personal-fork" && t !== "shakespeare");
 	const isPersonalFork = event.tags.some(
 		([n, v]) => n === "t" && v === "personal-fork",
 	);
@@ -66,9 +55,9 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 	return (
 		<div className="mt-2 rounded-2xl border border-border overflow-hidden">
 			<div className="px-3.5 py-3 space-y-2">
-				{/* Row 1: icon + name + badge */}
+				{/* Name + fork badge */}
 				<div className="flex items-center gap-2 min-w-0">
-					{isApp && faviconUrl && !faviconError ? (
+					{isApp && faviconUrl && !faviconError && (
 						<img
 							src={faviconUrl}
 							alt=""
@@ -76,49 +65,22 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 							loading="lazy"
 							onError={() => setFaviconError(true)}
 						/>
-					) : (
-						<BookMarked className="size-4 text-muted-foreground shrink-0" />
 					)}
 					<span className="font-semibold text-sm text-primary truncate leading-snug">
 						{displayName}
 					</span>
-					{isPersonalFork ? (
+					{isPersonalFork && (
 						<span className="shrink-0 rounded-full border border-border px-2 py-0 text-[11px] text-muted-foreground leading-relaxed">
 							Fork
-						</span>
-					) : (
-						<span className="shrink-0 rounded-full border border-border px-2 py-0 text-[11px] text-muted-foreground leading-relaxed">
-							Public
 						</span>
 					)}
 				</div>
 
-				{/* Row 2: description */}
+				{/* Description */}
 				{description && (
 					<p className="text-[13px] text-muted-foreground line-clamp-2 leading-relaxed">
 						{description}
 					</p>
-				)}
-
-				{/* Row 3: hashtags as inline metadata (like GitHub's language/stars row) */}
-				{hashtags.length > 0 && (
-					<div className="flex items-center gap-3 flex-wrap">
-						{hashtags.slice(0, 5).map((tag) => (
-							<span
-								key={tag}
-								className="inline-flex items-center gap-1 text-xs text-muted-foreground"
-							>
-								<span className="size-2.5 rounded-full bg-primary/60 shrink-0" />
-								{tag}
-							</span>
-						))}
-						{isPersonalFork && (
-							<span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-								<GitFork className="size-3" />
-								Fork
-							</span>
-						)}
-					</div>
 				)}
 
 				{/* Clone URL -- hidden for apps */}
