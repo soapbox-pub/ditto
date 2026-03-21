@@ -115,10 +115,7 @@ export function SettingsPage() {
   }
 
   return (
-    <main
-      className="relative isolate min-h-screen pb-16 sidebar:pb-0"
-      style={{ background: 'radial-gradient(ellipse 100% 300px at 50% 0%, hsl(var(--primary) / 0.06), transparent), radial-gradient(ellipse 100% 300px at 50% 100%, hsl(var(--primary) / 0.06), transparent)' }}
-    >
+    <main className="relative min-h-screen pb-16 sidebar:pb-0">
       {/* Page header */}
       <PageHeader title="Settings" icon={<Settings className="size-5" />} backTo="/" />
 
