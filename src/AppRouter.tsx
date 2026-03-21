@@ -13,6 +13,7 @@ import { useProfileUrl } from "./hooks/useProfileUrl";
 import { getExtraKindDef } from "./lib/extraKinds";
 import { AdvancedSettingsPage } from "./pages/AdvancedSettingsPage";
 import { AIChatPage } from "./pages/AIChatPage";
+import { BadgeCreatedPage } from "./pages/BadgeCreatedPage";
 import { BadgeManagePage } from "./pages/BadgeManagePage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { BooksPage } from "./pages/BooksPage";
@@ -209,6 +210,7 @@ export function AppRouter() {
             <Route path="/world" element={<WorldPage />} />
             <Route path="/badges" element={<Navigate to="/shop" replace />} />
             <Route path="/badges/create" element={<BadgeCreatePage />} />
+            <Route path="/badges/created" element={<BadgeCreatedPage />} />
             <Route path="/badges/manage" element={<BadgeManagePage />} />
             <Route path="/achievements" element={<AchievementsPage />} />
             <Route path="/shop" element={<ShopPage />} />

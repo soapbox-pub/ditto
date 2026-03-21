@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { ShoppingBag, Search, Check, Zap, Sparkles, Loader2, ArrowLeft, Plus, Settings2 } from 'lucide-react';
+import { ShoppingBag, Search, Check, Zap, Sparkles, Loader2, ArrowLeft, Plus, Settings2, Pencil } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -34,7 +34,6 @@ type ShopTab = 'shop' | 'follows' | 'global';
 // ─── Shop Tab Content ──────────────────────────────────────────────────────────
 
 function ShopContent() {
-  const { config } = useAppContext();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { refs: ownedBadgeRefs } = useProfileBadges(user?.pubkey);
@@ -89,7 +88,7 @@ function ShopContent() {
   return (
     <div className="px-4 py-5 space-y-5">
       {/* Quick actions */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button variant="outline" size="sm" className="gap-1.5" asChild>
           <Link to="/badges/create">
             <Plus className="size-3.5" />
@@ -100,6 +99,12 @@ function ShopContent() {
           <Link to="/badges/manage">
             <Settings2 className="size-3.5" />
             My Badges
+          </Link>
+        </Button>
+        <Button variant="outline" size="sm" className="gap-1.5" asChild>
+          <Link to="/badges/created">
+            <Pencil className="size-3.5" />
+            Created Badges
           </Link>
         </Button>
       </div>
