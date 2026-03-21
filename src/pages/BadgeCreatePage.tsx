@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
-import { Award, Upload, Loader2, Check, Share, Copy, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Award, Upload, Loader2, Check, Share, Copy, Users } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useSeoMeta } from '@unhead/react';
@@ -291,6 +292,9 @@ export function BadgeCreatePage() {
   return (
     <div className="max-w-lg mx-auto px-4 py-8">
       <div className="flex items-center gap-3 mb-6">
+        <Link to="/shop" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
+          <ArrowLeft className="size-5" />
+        </Link>
         <div className="inline-flex items-center justify-center size-10 rounded-xl bg-primary/10">
           <Award className="size-5 text-primary" />
         </div>
