@@ -98,7 +98,7 @@ export function TestApp({ children }: TestAppProps) {
     useAppBlossomServers: true,
     faviconUrl: "https://ditto.pub/api/favicon/{hostname}",
     linkPreviewUrl: "https://ditto.pub/api/link-preview/{url}",
-    corsProxy: "https://ditto.pub/api/proxy/?url={href}",
+    corsProxy: "https://proxy.shakespeare.diy/?url={href}",
     magicMouse: false,
     contentWarningPolicy: "blur",
     sentryDsn: "",
