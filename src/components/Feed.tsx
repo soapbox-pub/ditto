@@ -280,6 +280,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         />
       )}
 
+      {/* Compose box and header render *after* the tab bar so that tabs stay
+          at the top as the primary navigation element on every feed page.
+          This is intentional — see commits 3e7edf65, 82fe6f2f. */}
       {!hideCompose && <ComposeBox compact />}
 
       {header}
