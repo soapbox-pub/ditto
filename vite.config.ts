@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv, type Plugin } from "vite";
+import { defineConfig, type Plugin } from "vite";
 
 import { DittoConfigSchema } from "./src/lib/schemas";
 
@@ -92,78 +92,6 @@ function mergePublicDir(externalDir: string): Plugin {
   };
 }
 
-/**
- * All static routes in the application (no dynamic params).
- * Used to generate a sitemap.xml at build time.
- */
-const staticRoutes = [
-  '/',
-  '/feed',
-  '/notifications',
-  '/search',
-  '/trends',
-  '/settings',
-  '/settings/profile',
-  '/settings/feed',
-  '/settings/content',
-  '/settings/wallet',
-  '/settings/notifications',
-  '/settings/advanced',
-  '/settings/magic',
-  '/settings/network',
-  '/lists',
-  '/events',
-  '/photos',
-  '/videos',
-  '/vines',
-  '/music',
-  '/podcasts',
-  '/polls',
-  '/treasures',
-  '/colors',
-  '/packs',
-  '/webxdc',
-  '/articles',
-  '/decks',
-  '/emojis',
-  '/development',
-  '/themes',
-  '/bookmarks',
-  '/ai-chat',
-  '/world',
-  '/badges',
-  '/books',
-  '/help',
-];
-
-/**
- * Vite plugin that generates a sitemap.xml in the build output.
- * Set the PUBLIC_URL env var (e.g. "https://ditto.pub") to enable.
- * Skipped when PUBLIC_URL is not set.
- */
-function generateSitemap(origin: string): Plugin {
-  return {
-    name: 'ditto:sitemap',
-    writeBundle(options) {
-      const outDir = options.dir ?? path.resolve('dist');
-
-      const urls = staticRoutes
-        .map((route) => `  <url>\n    <loc>${new URL(route, origin).href}</loc>\n  </url>`)
-        .join('\n');
-
-      const xml = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-        urls,
-        '</urlset>',
-        '',
-      ].join('\n');
-
-      fs.writeFileSync(path.join(outDir, 'sitemap.xml'), xml);
-    },
-  };
-}
-
 const dittoConfig = loadDittoConfig();
 const publicDir = process.env.PUBLIC_DIR;
 
@@ -178,10 +106,7 @@ function getVersion(): string {
 
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
-  const publicUrl = env.PUBLIC_URL;
-
+export default defineConfig(() => {
   return {
   server: {
     host: "::",
@@ -190,7 +115,6 @@ export default defineConfig(({ mode }) => {
   plugins: [
     react(),
     ...(publicDir ? [mergePublicDir(publicDir)] : []),
-    ...(publicUrl ? [generateSitemap(publicUrl)] : []),
   ],
   define: {
     __DITTO_CONFIG__: JSON.stringify(dittoConfig ?? null),

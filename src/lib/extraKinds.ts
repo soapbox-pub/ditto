@@ -346,6 +346,17 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     blurb: 'Curated lists of people to follow. Browse or create your own.',
     sites: [{ url: 'https://following.space', name: 'following.space' }, { url: 'https://following.party', name: 'following.party' }],
   },
+  {
+    kind: 62,
+    id: 'vanish',
+    feedKey: 'feedIncludeVanish',
+    label: 'Requests to Vanish',
+    description: 'NIP-62 account erasure announcements',
+    addressable: false,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'When someone permanently leaves Nostr, their Request to Vanish event signals the end of their identity on the network.',
+  },
   // Whimsy
   {
     kind: 3367,
