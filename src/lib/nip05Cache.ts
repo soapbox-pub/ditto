@@ -1,4 +1,4 @@
-import { openDB, type IDBPDatabase } from 'idb';
+import { openDatabase, STORE } from '@/lib/db';
 
 // ============================================================================
 // NIP-05 IndexedDB Cache
@@ -8,15 +8,6 @@ import { openDB, type IDBPDatabase } from 'idb';
 // Each entry stores a `lastVerified` timestamp so the caller can decide when
 // to re-check.
 // ============================================================================
-
-const getDBName = () => {
-  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'default';
-  return `nostr-nip05-cache-${hostname}`;
-};
-
-const DB_NAME = getDBName();
-const DB_VERSION = 1;
-const STORE_NAME = 'nip05';
 
 export interface Nip05CacheEntry {
   /** The NIP-05 identifier (e.g. "user@domain.com") */
@@ -44,7 +35,7 @@ export function hydrateNip05Cache(): Promise<void> {
   hydratePromise = (async () => {
     try {
       const db = await openDatabase();
-      const entries: Nip05CacheEntry[] = await db.getAll(STORE_NAME);
+      const entries: Nip05CacheEntry[] = await db.getAll(STORE.NIP05);
       for (const entry of entries) {
         memoryCache.set(entry.identifier, entry);
       }
@@ -78,7 +69,7 @@ export async function setNip05Cached(identifier: string, pubkey: string): Promis
 
   try {
     const db = await openDatabase();
-    await db.put(STORE_NAME, entry, identifier);
+    await db.put(STORE.NIP05, entry, identifier);
   } catch {
     // Write failure is non-critical — the in-memory cache still works.
   }
@@ -93,7 +84,7 @@ export async function deleteNip05Cached(identifier: string): Promise<void> {
 
   try {
     const db = await openDatabase();
-    await db.delete(STORE_NAME, identifier);
+    await db.delete(STORE.NIP05, identifier);
   } catch {
     // Non-critical.
   }
@@ -105,22 +96,8 @@ export async function clearNip05Cache(): Promise<void> {
 
   try {
     const db = await openDatabase();
-    await db.clear(STORE_NAME);
+    await db.clear(STORE.NIP05);
   } catch {
     // Non-critical.
   }
-}
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-async function openDatabase(): Promise<IDBPDatabase> {
-  return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    },
-  });
 }

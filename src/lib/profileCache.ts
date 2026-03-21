@@ -1,5 +1,6 @@
-import { openDB, type IDBPDatabase } from 'idb';
 import type { NostrEvent } from '@nostrify/nostrify';
+
+import { openDatabase, STORE } from '@/lib/db';
 
 // ============================================================================
 // Kind 0 Profile IndexedDB Cache
@@ -9,15 +10,6 @@ import type { NostrEvent } from '@nostrify/nostrify';
 // Each entry stores the raw NostrEvent plus a `lastFetched` timestamp so the
 // caller can decide when to re-check.
 // ============================================================================
-
-const getDBName = () => {
-  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'default';
-  return `nostr-profile-cache-${hostname}`;
-};
-
-const DB_NAME = getDBName();
-const DB_VERSION = 1;
-const STORE_NAME = 'profiles';
 
 export interface ProfileCacheEntry {
   /** Hex pubkey of the profile author */
@@ -45,7 +37,7 @@ export function hydrateProfileCache(): Promise<void> {
   hydratePromise = (async () => {
     try {
       const db = await openDatabase();
-      const entries: ProfileCacheEntry[] = await db.getAll(STORE_NAME);
+      const entries: ProfileCacheEntry[] = await db.getAll(STORE.PROFILES);
       for (const entry of entries) {
         memoryCache.set(entry.pubkey, entry);
       }
@@ -86,7 +78,7 @@ export async function setProfileCached(event: NostrEvent): Promise<void> {
 
   try {
     const db = await openDatabase();
-    await db.put(STORE_NAME, entry, event.pubkey);
+    await db.put(STORE.PROFILES, entry, event.pubkey);
   } catch {
     // Write failure is non-critical — the in-memory cache still works.
   }
@@ -98,7 +90,7 @@ export async function deleteProfileCached(pubkey: string): Promise<void> {
 
   try {
     const db = await openDatabase();
-    await db.delete(STORE_NAME, pubkey);
+    await db.delete(STORE.PROFILES, pubkey);
   } catch {
     // Non-critical.
   }
@@ -110,22 +102,8 @@ export async function clearProfileCache(): Promise<void> {
 
   try {
     const db = await openDatabase();
-    await db.clear(STORE_NAME);
+    await db.clear(STORE.PROFILES);
   } catch {
     // Non-critical.
   }
-}
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-async function openDatabase(): Promise<IDBPDatabase> {
-  return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    },
-  });
 }
