@@ -26,6 +26,7 @@ import {
   DEFAULT_EGG_STATS,
 } from '@/lib/blobbi';
 import { applyBlobbiDecay } from '@/lib/blobbi-decay';
+import { validateAndRepairBlobbiTags } from '@/lib/blobbi-tag-schema';
 
 // ─── Content Helpers ──────────────────────────────────────────────────────────
 
@@ -170,15 +171,8 @@ export function useBlobbiHatch({
       // This preserves ALL identity attributes (personality, trait, favorite_food, etc.)
       const nowStr = now.toString();
       
-      // Remove only task-related and state-specific tags
-      // Keep ALL other tags including identity/personality attributes
-      const cleanedTags = canonical.allTags.filter(tag => 
-        tag[0] !== 'task' && 
-        tag[0] !== 'task_completed' && 
-        tag[0] !== 'state_started_at'
-      );
-      
-      const newTags = updateBlobbiTags(cleanedTags, {
+      // Build the updated tags using the central merge function
+      const mergedTags = updateBlobbiTags(canonical.allTags, {
         stage: 'baby',
         state: 'active', // Newly hatched babies are awake
         hunger: babyStats.hunger.toString(),
@@ -189,6 +183,26 @@ export function useBlobbiHatch({
         last_interaction: nowStr,
         last_decay_at: nowStr,
       });
+      
+      // ─── Validate and Repair Tags ───
+      // Use the tag integrity guard to ensure all persistent tags are preserved
+      // and task-related tags are properly cleaned up for stage transitions
+      const repairResult = validateAndRepairBlobbiTags(
+        mergedTags,
+        canonical.allTags,
+        { cleanupTaskTags: true }
+      );
+      
+      if (repairResult.errors.length > 0) {
+        console.error('[Hatch] Tag validation errors:', repairResult.errors);
+        throw new Error(`Tag validation failed: ${repairResult.errors.join(', ')}`);
+      }
+      
+      if (repairResult.repaired && import.meta.env.DEV) {
+        console.log('[Hatch] Tag repairs applied:', repairResult.repairs);
+      }
+      
+      const newTags = repairResult.tags;
 
       // ─── Generate New Content for Baby Stage ───
       // CRITICAL: Content must reflect the new stage
@@ -309,15 +323,8 @@ export function useBlobbiEvolve({
       // This preserves ALL identity attributes (personality, trait, favorite_food, etc.)
       const nowStr = now.toString();
       
-      // Remove only task-related and state-specific tags
-      // Keep ALL other tags including identity/personality attributes
-      const cleanedTags = canonical.allTags.filter(tag => 
-        tag[0] !== 'task' && 
-        tag[0] !== 'task_completed' && 
-        tag[0] !== 'state_started_at'
-      );
-      
-      const newTags = updateBlobbiTags(cleanedTags, {
+      // Build the updated tags using the central merge function
+      const mergedTags = updateBlobbiTags(canonical.allTags, {
         stage: 'adult',
         state: 'active', // Evolution completes with active state
         hunger: adultStats.hunger.toString(),
@@ -328,6 +335,26 @@ export function useBlobbiEvolve({
         last_interaction: nowStr,
         last_decay_at: nowStr,
       });
+      
+      // ─── Validate and Repair Tags ───
+      // Use the tag integrity guard to ensure all persistent tags are preserved
+      // and task-related tags are properly cleaned up for stage transitions
+      const repairResult = validateAndRepairBlobbiTags(
+        mergedTags,
+        canonical.allTags,
+        { cleanupTaskTags: true }
+      );
+      
+      if (repairResult.errors.length > 0) {
+        console.error('[Evolve] Tag validation errors:', repairResult.errors);
+        throw new Error(`Tag validation failed: ${repairResult.errors.join(', ')}`);
+      }
+      
+      if (repairResult.repaired && import.meta.env.DEV) {
+        console.log('[Evolve] Tag repairs applied:', repairResult.repairs);
+      }
+      
+      const newTags = repairResult.tags;
 
       // ─── Generate New Content for Adult Stage ───
       // CRITICAL: Content must reflect the new stage

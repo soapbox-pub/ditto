@@ -724,6 +724,252 @@ export function validateRequiredTags(tags: string[][]): { valid: boolean; missin
   };
 }
 
+// ─── Tag Integrity Guard ──────────────────────────────────────────────────────
+
+/**
+ * Result of tag validation and repair.
+ */
+export interface TagRepairResult {
+  /** The repaired tags (ready for publishing) */
+  tags: string[][];
+  /** Whether any repairs were made */
+  repaired: boolean;
+  /** List of repairs that were made */
+  repairs: string[];
+  /** List of issues that could not be repaired */
+  errors: string[];
+}
+
+/**
+ * System-required tags that can be recovered with default values.
+ * These are protocol-level tags that have well-defined defaults.
+ */
+const RECOVERABLE_SYSTEM_TAGS: Record<string, string> = {
+  b: 'blobbi:ecosystem:v1',
+  t: 'blobbi',
+  client: 'blobbi',
+};
+
+/**
+ * Tags that should NEVER be invented if they don't exist.
+ * Per spec: Do NOT invent personality/trait/adult_type for existing Blobbis.
+ */
+const NEVER_INVENT_TAGS = new Set([
+  // Personality tags - generated at creation only
+  'personality',
+  'trait',
+  'favorite_food',
+  'voice_type',
+  'mood',
+  // Evolution tags - computed during evolve only
+  'adult_type',
+  // Extension tags - set by specific features only
+  'theme',
+  'crossover_app',
+  // Identity tags that are user-set or derived once
+  'name',
+  'seed',
+  'd',
+]);
+
+/**
+ * Validate and repair Blobbi tags before publishing.
+ * 
+ * This function ensures tag integrity by:
+ * 1. Removing deprecated tags
+ * 2. Recovering missing required system tags (b, t, client) with defaults
+ * 3. Recovering missing required tags from previousTags if available
+ * 4. Preserving all persistent tags
+ * 5. NEVER inventing personality/trait/adult_type values
+ * 
+ * @param tags - The current tags to validate and repair
+ * @param previousTags - Optional previous canonical tags for recovery
+ * @param options - Optional configuration for repair behavior
+ * @returns TagRepairResult with repaired tags and repair log
+ * 
+ * @example
+ * ```typescript
+ * const result = validateAndRepairBlobbiTags(newTags, canonical.allTags);
+ * if (result.errors.length > 0) {
+ *   console.error('Cannot publish:', result.errors);
+ *   return;
+ * }
+ * await publishEvent({ kind: KIND_BLOBBI_STATE, tags: result.tags, ... });
+ * ```
+ */
+export function validateAndRepairBlobbiTags(
+  tags: string[][],
+  previousTags?: string[][],
+  options?: {
+    /** If true, removes task-related tags (for stage transitions) */
+    cleanupTaskTags?: boolean;
+  }
+): TagRepairResult {
+  const repairs: string[] = [];
+  const errors: string[] = [];
+  
+  // Build a map of current tags for quick lookup
+  const tagMap = new Map<string, string[][]>();
+  for (const tag of tags) {
+    const name = tag[0];
+    if (!tagMap.has(name)) {
+      tagMap.set(name, []);
+    }
+    tagMap.get(name)!.push(tag);
+  }
+  
+  // Build a map of previous tags for recovery
+  const previousTagMap = new Map<string, string>();
+  if (previousTags) {
+    for (const tag of previousTags) {
+      // For single-value tags, just store the last value
+      // Multi-value tags (task, task_completed) are handled specially
+      if (tag[0] !== 'task' && tag[0] !== 'task_completed') {
+        previousTagMap.set(tag[0], tag[1]);
+      }
+    }
+  }
+  
+  // Get deprecated and task cleanup tag sets
+  const deprecatedTags = getDeprecatedTagNames();
+  const taskCleanupTags = options?.cleanupTaskTags ? getTransitionCleanupTagNames() : new Set<string>();
+  
+  // Step 1: Filter out deprecated tags and task tags (if cleanup requested)
+  const filteredTags: string[][] = [];
+  for (const tag of tags) {
+    const name = tag[0];
+    
+    if (deprecatedTags.has(name)) {
+      repairs.push(`Removed deprecated tag: ${name}`);
+      continue;
+    }
+    
+    if (taskCleanupTags.has(name)) {
+      repairs.push(`Removed task tag during transition: ${name}`);
+      continue;
+    }
+    
+    filteredTags.push(tag);
+  }
+  
+  // Rebuild tag map after filtering
+  tagMap.clear();
+  for (const tag of filteredTags) {
+    const name = tag[0];
+    if (!tagMap.has(name)) {
+      tagMap.set(name, []);
+    }
+    tagMap.get(name)!.push(tag);
+  }
+  
+  // Step 2: Check for required tags and attempt recovery
+  const requiredTags = getRequiredTagNames();
+  const repairedTags = [...filteredTags];
+  
+  for (const requiredTag of requiredTags) {
+    if (tagMap.has(requiredTag)) {
+      // Tag exists, validate it's not empty
+      const tagValue = tagMap.get(requiredTag)![0]?.[1];
+      if (!tagValue || tagValue.trim() === '') {
+        // Try to recover from previous tags or defaults
+        const recovered = recoverTagValue(requiredTag, previousTagMap);
+        if (recovered !== null) {
+          // Remove the empty tag and add recovered value
+          const index = repairedTags.findIndex(t => t[0] === requiredTag);
+          if (index !== -1) {
+            repairedTags[index] = [requiredTag, recovered];
+            repairs.push(`Repaired empty ${requiredTag} tag from ${previousTagMap.has(requiredTag) ? 'previous tags' : 'defaults'}`);
+          }
+        } else {
+          errors.push(`Required tag '${requiredTag}' is empty and cannot be recovered`);
+        }
+      }
+    } else {
+      // Tag is missing, attempt recovery
+      const recovered = recoverTagValue(requiredTag, previousTagMap);
+      if (recovered !== null) {
+        repairedTags.push([requiredTag, recovered]);
+        repairs.push(`Recovered missing ${requiredTag} tag from ${previousTagMap.has(requiredTag) ? 'previous tags' : 'defaults'}`);
+      } else {
+        errors.push(`Required tag '${requiredTag}' is missing and cannot be recovered`);
+      }
+    }
+  }
+  
+  // Step 3: Recover persistent tags from previous tags (if they existed before)
+  // NEVER invent values for tags in NEVER_INVENT_TAGS
+  if (previousTags) {
+    const persistentTags = getPersistentTagNames();
+    const currentTagNames = new Set(repairedTags.map(t => t[0]));
+    
+    for (const [tagName, tagValue] of previousTagMap.entries()) {
+      // Skip if already present in current tags
+      if (currentTagNames.has(tagName)) continue;
+      
+      // Skip non-persistent tags
+      if (!persistentTags.has(tagName)) continue;
+      
+      // Skip task-related tags if cleanup is requested
+      if (taskCleanupTags.has(tagName)) continue;
+      
+      // Recover the persistent tag
+      repairedTags.push([tagName, tagValue]);
+      repairs.push(`Recovered persistent tag: ${tagName}`);
+    }
+  }
+  
+  return {
+    tags: repairedTags,
+    repaired: repairs.length > 0,
+    repairs,
+    errors,
+  };
+}
+
+/**
+ * Attempt to recover a tag value from previous tags or system defaults.
+ * 
+ * Recovery strategy:
+ * 1. If tag exists in previousTags, use that value
+ * 2. If tag is a recoverable system tag, use the default
+ * 3. Otherwise, return null (cannot recover)
+ * 
+ * NEVER invents values for personality/trait/adult_type tags.
+ */
+function recoverTagValue(
+  tagName: string,
+  previousTagMap: Map<string, string>
+): string | null {
+  // First, try to recover from previous tags
+  if (previousTagMap.has(tagName)) {
+    const value = previousTagMap.get(tagName)!;
+    if (value && value.trim() !== '') {
+      return value;
+    }
+  }
+  
+  // Never invent certain tags
+  if (NEVER_INVENT_TAGS.has(tagName)) {
+    return null;
+  }
+  
+  // Try system defaults for recoverable tags
+  if (tagName in RECOVERABLE_SYSTEM_TAGS) {
+    return RECOVERABLE_SYSTEM_TAGS[tagName];
+  }
+  
+  return null;
+}
+
+/**
+ * Check if tags pass validation without repairing.
+ * Use this for quick validation checks.
+ */
+export function isValidBlobbiTagSet(tags: string[][]): boolean {
+  const result = validateAndRepairBlobbiTags(tags);
+  return result.errors.length === 0;
+}
+
 // ─── Schema Summary for Documentation ─────────────────────────────────────────
 
 /**

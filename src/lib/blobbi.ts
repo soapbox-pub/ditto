@@ -2,6 +2,8 @@ import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { validateAndRepairBlobbiTags } from './blobbi-tag-schema';
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const BLOBBI_ECOSYSTEM_NAMESPACE = 'blobbi:ecosystem:v1';
@@ -1153,11 +1155,27 @@ export function updateBlobbiTags(
 
 /**
  * Merge tags for republishing a Kind 31124 Blobbi State event.
- * Preserves unknown tags and applies updates to managed tags.
+ * Preserves unknown tags, applies updates to managed tags, and validates the result.
+ * 
+ * This function automatically:
+ * - Preserves existing managed tags that aren't being updated
+ * - Applies updates
+ * - Preserves unknown tags (for forward compatibility)
+ * - Filters out deprecated tags
+ * - Validates and repairs the final tag set
+ * 
+ * @param existingTags - Current tags from the event
+ * @param updates - Tags to update (will override existing by tag name)
+ * @param options - Optional configuration
+ * @returns Validated and repaired tag array
  */
 export function mergeBlobbiStateTagsForRepublish(
   existingTags: string[][],
-  updates: Record<string, string | string[]>
+  updates: Record<string, string | string[]>,
+  options?: {
+    /** If true, skips validation (use with caution) */
+    skipValidation?: boolean;
+  }
 ): string[][] {
   const newTags: string[][] = [];
   const updateKeys = new Set(Object.keys(updates));
@@ -1187,7 +1205,28 @@ export function mergeBlobbiStateTagsForRepublish(
     !DEPRECATED_BLOBBI_TAG_NAMES.has(tag[0])
   );
   
-  return [...newTags, ...unknownTags];
+  const mergedTags = [...newTags, ...unknownTags];
+  
+  // Skip validation if requested (for internal use)
+  if (options?.skipValidation) {
+    return mergedTags;
+  }
+  
+  // Validate and repair the final tag set
+  // Use existingTags as the recovery source for missing required tags
+  const result = validateAndRepairBlobbiTags(mergedTags, existingTags);
+  
+  // Log repairs in development
+  if (import.meta.env.DEV && result.repaired) {
+    console.log('[Blobbi] Tag repairs applied:', result.repairs);
+  }
+  
+  // Log errors (these are non-fatal but should be monitored)
+  if (result.errors.length > 0) {
+    console.warn('[Blobbi] Tag validation errors:', result.errors);
+  }
+  
+  return result.tags;
 }
 
 /**
@@ -1416,7 +1455,23 @@ export function buildMigrationTags(
   ]);
   const unknownTags = legacyTags.filter(tag => !knownTagNames.has(tag[0]));
   
-  return [...newTags, ...unknownTags];
+  const assembledTags = [...newTags, ...unknownTags];
+  
+  // ─── Validate and Repair Tags ───
+  // Use the tag integrity guard to ensure all required tags are present
+  // and deprecated tags are removed
+  const repairResult = validateAndRepairBlobbiTags(assembledTags, legacyTags);
+  
+  if (import.meta.env.DEV) {
+    if (repairResult.repaired) {
+      console.log('[Migration] Tag repairs applied:', repairResult.repairs);
+    }
+    if (repairResult.errors.length > 0) {
+      console.warn('[Migration] Tag validation errors:', repairResult.errors);
+    }
+  }
+  
+  return repairResult.tags;
 }
 
 /**
