@@ -7,6 +7,7 @@ import { parseAuthorEvent } from './useAuthor';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { getPaginationCursor, parseRepostContent, isRepostKind, type FeedItem } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
+import { setProfileCached } from '@/lib/profileCache';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
@@ -127,6 +128,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
           if (!queryClient.getQueryData(['author', meta.pubkey])) {
             queryClient.setQueryData(['author', meta.pubkey], parseAuthorEvent(meta));
           }
+          // Persist to IndexedDB (fire-and-forget)
+          void setProfileCached(meta);
         }
 
         // Build map of pubkey -> NIP-05 identifier

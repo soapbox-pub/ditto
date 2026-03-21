@@ -2,6 +2,7 @@ import { type NostrEvent, type NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
+import { setProfileCached } from '@/lib/profileCache';
 
 export interface AuthorData {
   pubkey: string;
@@ -53,6 +54,8 @@ export function useAuthors(pubkeys: string[]) {
         authorMap.set(event.pubkey, { pubkey: event.pubkey, ...parsed });
         // Seed individual author cache
         queryClient.setQueryData(['author', event.pubkey], parsed);
+        // Persist to IndexedDB (fire-and-forget)
+        void setProfileCached(event);
       }
 
       return authorMap;
