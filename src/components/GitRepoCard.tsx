@@ -66,7 +66,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 							onError={() => setFaviconError(true)}
 						/>
 					)}
-					<span className="font-semibold text-sm text-primary truncate leading-snug">
+					<span className="font-semibold text-sm truncate leading-snug">
 						{displayName}
 					</span>
 					{isPersonalFork && (
