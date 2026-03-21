@@ -1361,13 +1361,27 @@ export function buildMigrationTags(
   const resolvedName = nameTag ?? (legacyD ? deriveNameFromLegacyD(legacyD) : 'Unnamed Blobbi');
   newTags.push(['name', resolvedName]);
   
-  // Preserve core state tags (excluding deprecated tags like incubation_time, start_incubation)
-  const coreStateTags = [
-    'stage', 'state', 'visible_to_others', 'generation', 'breeding_ready',
-    'experience', 'care_streak', 'hunger', 'happiness', 'health', 'hygiene', 'energy',
+  // Preserve all persistent tags from the legacy event
+  // This includes: state, stats, progression, social, personality, evolution, and extension tags
+  // Per blobbi-tag-schema.md: Do NOT invent values for tags that don't exist
+  const persistentTagNames = [
+    // State/lifecycle tags
+    'stage', 'state',
+    // Stat tags
+    'hunger', 'happiness', 'health', 'hygiene', 'energy',
+    // Progression tags
+    'experience', 'care_streak',
+    // Social/flag tags
+    'visible_to_others', 'generation', 'breeding_ready',
+    // Personality tags (preserve if they exist, do NOT generate)
+    'personality', 'trait', 'favorite_food', 'voice_type', 'mood',
+    // Evolution tags
+    'adult_type',
+    // Extension tags
+    'theme', 'crossover_app',
   ];
   
-  for (const tagName of coreStateTags) {
+  for (const tagName of persistentTagNames) {
     const value = getTagValue(legacyTags, tagName);
     if (value !== undefined) {
       newTags.push([tagName, value]);
