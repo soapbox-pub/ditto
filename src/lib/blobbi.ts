@@ -1013,20 +1013,32 @@ export function buildEggTags(
 /**
  * Tags managed by the client for Kind 31124 (Blobbi State).
  * These tags are controlled by the application and may be overwritten.
+ * 
+ * @see blobbi-tag-schema.ts for the complete canonical schema documentation
  */
 export const MANAGED_BLOBBI_STATE_TAG_NAMES = new Set([
-  'd', 'b', 't', 'client', 'name', 'stage', 'state', 'seed',
-  'visible_to_others', 'generation', 'breeding_ready', 'experience',
-  'care_streak', 'hunger', 'happiness', 'health', 'hygiene', 'energy',
-  'last_interaction', 'last_decay_at',
-  // Task system tags (state_started_at is the single source of truth for process timing)
-  'state_started_at', 'task', 'task_completed',
-  // Visual trait tags (required for consistent rendering)
+  // System / metadata tags
+  'd', 'b', 't', 'client',
+  // Core identity tags
+  'name', 'seed', 'generation',
+  // Lifecycle state tags
+  'stage', 'state', 'last_interaction', 'last_decay_at',
+  // Stat tags
+  'hunger', 'happiness', 'health', 'hygiene', 'energy',
+  // Visual trait tags (derived from seed, stored for fast rendering)
   'base_color', 'secondary_color', 'eye_color', 'pattern', 'special_mark', 'size',
   // Identity/personality tags (MUST persist across stage transitions)
   'personality', 'trait', 'favorite_food', 'voice_type', 'mood',
-  // Adult-specific tags (added during evolve)
+  // Progression tags
+  'experience', 'care_streak',
+  // Social/flag tags
+  'visible_to_others', 'breeding_ready',
+  // Task system tags (removed after stage transitions)
+  'state_started_at', 'task', 'task_completed',
+  // Evolution tags (adult only)
   'adult_type',
+  // Extension tags (for themes/crossovers)
+  'theme', 'crossover_app',
 ]);
 
 /**
