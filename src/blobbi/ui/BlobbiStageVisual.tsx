@@ -152,12 +152,6 @@ export function BlobbiStageVisual({
 
   // Baby stage
   if (stage === 'baby' && blobbiForVisual) {
-    console.log('[BlobbiStageVisual][baby]', {
-      companion,
-      blobbiForVisual,
-      visualTraits: companion.visualTraits,
-    });
-
     return (
       <div className={cn('relative', containerClass, className)}>
         <BlobbiBabyVisual
@@ -173,12 +167,6 @@ export function BlobbiStageVisual({
 
   // Adult stage
   if (stage === 'adult' && blobbiForVisual) {
-    console.log('[BlobbiStageVisual][adult]', {
-      companion,
-      blobbiForVisual,
-      visualTraits: companion.visualTraits,
-    });
-
     return (
       <div className={cn('relative', containerClass, className)}>
         <BlobbiAdultVisual
