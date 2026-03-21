@@ -3,8 +3,9 @@
 # Publish all Ditto achievement badge definitions (kind 30009) to relays.
 #
 # Usage:
-#   export NOSTR_SECRET_KEY="nsec1..."   # or hex secret key for the Ditto Badge account
 #   ./scripts/publish-achievement-badges.sh
+#
+# You will be prompted for the nsec. It is not saved anywhere.
 #
 # The badge account is: npub10qdp2fc9ta6vraczxrcs8prqnv69fru2k6s2dj48gqjcylulmtjsg9arpj
 #
@@ -18,9 +19,14 @@
 
 set -euo pipefail
 
-if [ -z "${NOSTR_SECRET_KEY:-}" ]; then
-  echo "Error: NOSTR_SECRET_KEY is not set."
-  echo "Export it first:  export NOSTR_SECRET_KEY='nsec1...'"
+echo "Enter the nsec or hex secret key for the Ditto Badge account:"
+echo "(npub10qdp2fc9ta6vraczxrcs8prqnv69fru2k6s2dj48gqjcylulmtjsg9arpj)"
+read -rs NOSTR_SECRET_KEY
+export NOSTR_SECRET_KEY
+echo ""
+
+if [ -z "$NOSTR_SECRET_KEY" ]; then
+  echo "Error: no key entered."
   exit 1
 fi
 
