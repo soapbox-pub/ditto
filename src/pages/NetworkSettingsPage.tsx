@@ -32,7 +32,7 @@ export function NetworkSettingsPage() {
             <ArrowLeft className="size-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold">Network</h1>
+            <h1 className="text-xl font-bold flex items-center gap-1.5">Network <HelpTip faqId="what-is-nostr" /></h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Relays are servers that store and distribute content across the Nostr network. Blossom servers handle file uploads.
             </p>

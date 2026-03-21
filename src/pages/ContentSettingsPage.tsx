@@ -23,8 +23,8 @@ export function ContentSettingsPage() {
           </Link>
           <div>
             <h1 className="text-xl font-bold flex items-center gap-1.5">Home Feed <HelpTip faqId="fyp" /></h1>
-            <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
-              Nostr supports many content types beyond text posts. Customize which appear in your home feed. <HelpTip faqId="what-is-nostr" iconSize="size-3.5" />
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Nostr supports many content types beyond text posts. Customize which appear in your home feed.
             </p>
           </div>
         </div>
