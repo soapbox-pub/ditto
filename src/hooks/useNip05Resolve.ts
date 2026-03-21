@@ -18,12 +18,19 @@ async function fetchNostrJson(url: URL, signal: AbortSignal): Promise<Record<str
   return null;
 }
 
+/** Entries older than this are not trusted at all — show a skeleton instead. */
+const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+
 /**
  * Resolves a NIP-05 identifier to a pubkey by fetching the domain's
  * .well-known/nostr.json endpoint.
  *
  * Successful resolutions are persisted in IndexedDB so subsequent page
  * loads can render verified NIP-05 names instantly (no loading skeleton).
+ * Entries younger than `staleTime` (1 h) render without any network
+ * request.  Entries between 1 h and 7 days old render immediately while
+ * a background re-check runs.  Entries older than 7 days are discarded
+ * and a fresh verification is required.
  *
  * Accepts formats:
  * - `user@domain.com` → looks up `user` at `domain.com`
@@ -32,6 +39,9 @@ async function fetchNostrJson(url: URL, signal: AbortSignal): Promise<Record<str
 export function useNip05Resolve(identifier: string | undefined) {
   // Read cache synchronously so TanStack Query can skip the pending state.
   const cached = identifier ? getNip05Cached(identifier) : undefined;
+
+  // Discard entries that are too old to trust — force a fresh verification.
+  const usableCache = cached && (Date.now() - cached.lastVerified < MAX_CACHE_AGE) ? cached : undefined;
 
   return useQuery<string | null>({
     queryKey: ['nip05-resolve', identifier],
@@ -100,10 +110,14 @@ export function useNip05Resolve(identifier: string | undefined) {
     retry: 1,
 
     // Seed from IndexedDB cache so the first render already has data.
-    ...(cached
+    // TanStack Query compares initialDataUpdatedAt against staleTime:
+    //   - < 1 h old  → fresh, no network request
+    //   - 1 h – 7 d  → renders cached value, background refetch
+    //   - > 7 d      → usableCache is undefined, normal pending/skeleton
+    ...(usableCache
       ? {
-        initialData: cached.pubkey,
-        initialDataUpdatedAt: cached.lastVerified,
+        initialData: usableCache.pubkey,
+        initialDataUpdatedAt: usableCache.lastVerified,
       }
       : {}),
   });
