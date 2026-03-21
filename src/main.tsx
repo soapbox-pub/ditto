@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client';
 // Import polyfills first
 import './lib/polyfills.ts';
 
+// Kick off NIP-05 cache hydration early so it's ready before components render.
+import { hydrateNip05Cache } from '@/lib/nip05Cache';
+hydrateNip05Cache();
+
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import App from './App.tsx';
 import './index.css';
