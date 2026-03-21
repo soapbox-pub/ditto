@@ -109,6 +109,7 @@ const hardcodedConfig: AppConfig = {
     showProfileBadges: true,
     feedIncludeBadgeDefinitions: true,
     feedIncludeProfileBadges: true,
+    feedIncludeVanish: true,
     followsFeedShowReplies: true,
   },
   sidebarOrder: [
@@ -132,8 +133,8 @@ const hardcodedConfig: AppConfig = {
     updatedAt: 0,
   },
   useAppBlossomServers: true,
-  faviconUrl: "https://fetch.ditto.pub/favicon/{hostname}",
-  linkPreviewUrl: "https://fetch.ditto.pub/link/{url}",
+  faviconUrl: "https://ditto.pub/api/favicon/{hostname}",
+  linkPreviewUrl: "https://ditto.pub/api/link-preview/{url}",
   corsProxy: "https://proxy.shakespeare.diy/?url={href}",
   contentWarningPolicy: "blur",
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || "",

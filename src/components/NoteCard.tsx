@@ -1,6 +1,10 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
+  FileCode,
+  FileText,
+  GitBranch,
+  GitPullRequest,
   MessageCircle,
   MoreHorizontal,
   Package,
@@ -58,6 +62,7 @@ import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
+import { VanishEventContent } from "@/components/VanishEventContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
@@ -253,6 +258,7 @@ export function NoteCard({
   const isPullRequest = event.kind === 1618;
   const isCustomNip = event.kind === 30817;
   const isZapstoreApp = event.kind === 32267;
+  const isVanish = event.kind === 62;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip;
   const isTextNote =
     !isVine &&
@@ -275,7 +281,8 @@ export function NoteCard({
     !isVideo &&
     !isAudioKind &&
     !isDevKind &&
-    !isZapstoreApp;
+    !isZapstoreApp &&
+    !isVanish;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(
@@ -622,6 +629,37 @@ export function NoteCard({
       </button>
     </div>
   );
+
+  // ── Vanish layout (kind 62) — dramatic card, no author row ──
+  if (isVanish) {
+    return (
+      <article
+        className={cn(
+          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        <VanishEventContent event={event} compact />
+        {!compact && (
+          <>
+            {actionButtons}
+            <NoteMoreMenu
+              event={event}
+              open={moreMenuOpen}
+              onOpenChange={setMoreMenuOpen}
+            />
+            <ReplyComposeModal
+              event={event}
+              open={replyOpen}
+              onOpenChange={setReplyOpen}
+            />
+          </>
+        )}
+      </article>
+    );
+  }
 
   // ── Reaction layout (kind 7) — compact activity-style card ──
   if (isReaction) {
@@ -1565,6 +1603,30 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   32267: {
     icon: Package,
     action: "published an app",
+  },
+  30617: {
+    icon: GitBranch,
+    action: "shared a",
+    noun: "repository",
+    nounRoute: "/development",
+  },
+  1617: {
+    icon: FileText,
+    action: "submitted a",
+    noun: "patch",
+    nounRoute: "/development",
+  },
+  1618: {
+    icon: GitPullRequest,
+    action: "opened a",
+    noun: "pull request",
+    nounRoute: "/development",
+  },
+  30817: {
+    icon: FileCode,
+    action: "proposed a",
+    noun: "NIP",
+    nounRoute: "/development",
   },
 };
 

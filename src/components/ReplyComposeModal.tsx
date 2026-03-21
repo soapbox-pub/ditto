@@ -158,7 +158,63 @@ function EmbeddedPost({ event }: { event: NostrEvent }) {
     );
   }
 
+  // Kind 62 (Request to Vanish) — show a compact vanish preview
+  if (event.kind === 62) {
+    return <EmbeddedVanishPost event={event} />;
+  }
+
   return <EmbeddedNote event={event} />;
+}
+
+/** Compact embedded preview for NIP-62 vanish events in the reply composer. */
+function EmbeddedVanishPost({ event }: { event: NostrEvent }) {
+  const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
+  const isGlobal = event.tags.some(([n, v]) => n === 'relay' && v === 'ALL_RELAYS');
+  const reason = event.content || undefined;
+
+  return (
+    <div className="mx-4 mb-2 rounded-xl border-2 border-red-500/30 overflow-hidden">
+      {/* Top caution stripe */}
+      <div className="vanish-stripes h-1.5" />
+
+      <div className="px-3 py-2.5 bg-red-500/[0.04] dark:bg-red-500/[0.06] space-y-1.5">
+        {/* Header row */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="relative shrink-0">
+            <div className="size-8 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+              <span className="text-sm font-black vanish-glitch-text text-red-500 dark:text-red-400" data-text="///">///</span>
+            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-red-600 flex items-center justify-center">
+              <span className="text-[7px] font-black text-white leading-none">!</span>
+            </div>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-red-500 dark:text-red-400 leading-tight">
+              {isGlobal ? 'Global Request to Vanish' : 'Request to Vanish'}
+            </p>
+            <p className="text-[11px] text-muted-foreground font-mono truncate mt-0.5">
+              {npub}
+            </p>
+          </div>
+
+          <span className="text-[11px] text-muted-foreground shrink-0">
+            {timeAgo(event.created_at)}
+          </span>
+        </div>
+
+        {/* Reason if available */}
+        {reason && (
+          <p className="text-xs text-muted-foreground italic line-clamp-2 pl-[42px]">
+            &ldquo;{reason}&rdquo;
+          </p>
+        )}
+      </div>
+
+      {/* Bottom caution stripe */}
+      <div className="vanish-stripes h-1.5" />
+    </div>
+  );
 }
 
 /** Compact embedded preview for regular note events. */
