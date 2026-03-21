@@ -69,6 +69,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { VanishEventContent } from "@/components/VanishEventContent";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { WebxdcEmbed } from "@/components/WebxdcEmbed";
@@ -99,6 +100,9 @@ const BADGE_DEFINITION_KIND = 30009;
 /** Kind 31985 = Bookstr book reviews. */
 const BOOK_REVIEW_KIND = 31985;
 
+/** NIP-62 Request to Vanish. */
+const VANISH_KIND = 62;
+
 /** Map a kind number to a human-readable shell title for the loading state. */
 function shellTitleForKind(kind?: number): string {
   if (!kind) return "Loading...";
@@ -114,6 +118,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
   if (kind === 32267) return "App Details";
+  if (kind === VANISH_KIND) return "Request to Vanish";
   return "Post Details";
 }
 
@@ -804,6 +809,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isPullRequest = event.kind === 1618;
   const isCustomNip = event.kind === 30817;
   const isZapstoreApp = event.kind === 32267;
+  const isVanish = event.kind === VANISH_KIND;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip;
   const isTextNote =
     !isVine &&
@@ -822,7 +828,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isVideo &&
     !isCommunity &&
     !isDevKind &&
-    !isZapstoreApp;
+    !isZapstoreApp &&
+    !isVanish;
 
   const videos = useMemo(
     () => (isTextNote ? extractVideoUrls(event.content) : []),
@@ -1305,8 +1312,88 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         </article>
       )}
 
+      {/* Kind 62 — Request to Vanish: dramatic full-width display, no author row */}
+      {isVanish && (
+        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+          <VanishEventContent event={event} />
+
+          {/* Date row */}
+          <div className="py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground flex items-center gap-1.5">
+            <span>{formatFullDate(event.created_at)}</span>
+          </div>
+
+          {/* Action buttons — same as standard post detail */}
+          <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
+            <button
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="Reply"
+              onClick={() => setReplyOpen(true)}
+            >
+              <MessageCircle className="size-5" />
+              {stats?.replies ? (
+                <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
+              ) : null}
+            </button>
+
+            <RepostMenu event={event}>
+              {(isReposted: boolean) => (
+                <button
+                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
+                  title={isReposted ? "Undo repost" : "Reposts"}
+                >
+                  <RepostIcon className="size-5" />
+                  {repostTotal ? (
+                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
+                  ) : null}
+                </button>
+              )}
+            </RepostMenu>
+
+            <ReactionButton
+              eventId={event.id}
+              eventPubkey={event.pubkey}
+              eventKind={event.kind}
+              reactionCount={stats?.reactions}
+            />
+
+            <button
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
+              title="Share"
+              onClick={handleShare}
+            >
+              <Share2 className="size-5" />
+            </button>
+
+            <button
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="More"
+              onClick={() => setMoreMenuOpen(true)}
+            >
+              <MoreHorizontal className="size-5" />
+            </button>
+          </div>
+
+          <NoteMoreMenu
+            event={event}
+            open={moreMenuOpen}
+            onOpenChange={setMoreMenuOpen}
+          />
+          <ReplyComposeModal
+            event={event}
+            open={replyOpen}
+            onOpenChange={setReplyOpen}
+          />
+          <InteractionsModal
+            eventId={event.id}
+            open={interactionsOpen}
+            onOpenChange={setInteractionsOpen}
+            initialTab={interactionsTab}
+          />
+        </article>
+      )}
+
       {/* Main post — expanded Ditto-style view */}
-      {!isReaction && (
+      {!isReaction && !isVanish && (
         <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
           {/* Author row */}
           <div className="flex items-center gap-3">
