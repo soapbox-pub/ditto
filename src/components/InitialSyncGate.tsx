@@ -358,6 +358,7 @@ function SetupQuestionnaire({
       showProfileBadges: true,
       feedIncludeBadgeDefinitions: false,
       feedIncludeProfileBadges: false,
+      feedIncludeVanish: true,
       followsFeedShowReplies: true,
     };
 
