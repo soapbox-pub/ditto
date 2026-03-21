@@ -107,20 +107,36 @@ export const BlobbiPolaroidCard = forwardRef<HTMLDivElement, BlobbiPolaroidCardP
         </div>
 
         {/* Caption area - positioned at bottom of polaroid frame */}
+        {/* Uses inline styles for consistent html-to-image export */}
         <div
-          className="absolute left-0 right-0 flex flex-col items-center justify-center"
           style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
             bottom: 0,
             height: FRAME_PADDING_BOTTOM,
             paddingBottom: 12,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: CARD_WIDTH,
           }}
         >
           {/* Blobbi name - handwritten style */}
           <p
-            className="text-xl font-medium text-gray-800 text-center truncate max-w-[90%]"
             style={{
               fontFamily: "'Permanent Marker', 'Comic Sans MS', cursive, sans-serif",
+              fontSize: '1.25rem',
+              fontWeight: 500,
+              color: '#1f2937',
+              textAlign: 'center',
               letterSpacing: '0.02em',
+              maxWidth: '90%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              margin: 0,
             }}
           >
             {displayCaption}
@@ -128,13 +144,29 @@ export const BlobbiPolaroidCard = forwardRef<HTMLDivElement, BlobbiPolaroidCardP
 
           {/* Optional stage badge */}
           {showStage && (
-            <span className="mt-1 text-xs text-gray-500 uppercase tracking-wider">
+            <span
+              style={{
+                marginTop: 4,
+                fontSize: '0.75rem',
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {stageLabel}
             </span>
           )}
 
-          {/* Date - subtle timestamp */}
-          <div className="mt-1.5 text-[10px] text-gray-400">
+          {/* Date - subtle timestamp, forced single line */}
+          <div
+            style={{
+              marginTop: 6,
+              fontSize: 10,
+              color: '#9ca3af',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {new Date().toLocaleDateString('en-US', {
               month: 'short',
               day: 'numeric',
