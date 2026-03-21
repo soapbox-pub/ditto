@@ -17,6 +17,9 @@ import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
 import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
 
+/** NIP-62 Request to Vanish. */
+const VANISH_KIND = 62;
+
 /** Kinds that render as a full NoteCard instead of the generic embed card. */
 const NOTECARD_KINDS = new Set([30000, 39089]);
 
@@ -98,6 +101,11 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
         <NoteCard event={event} compact className="rounded-2xl border border-border !border-b overflow-hidden" />
       </div>
     );
+  }
+
+  // NIP-62 vanish events get their own dramatic inline card
+  if (event.kind === VANISH_KIND) {
+    return <EmbeddedVanishCard event={event} className={className} />;
   }
 
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} />;
@@ -345,6 +353,89 @@ function MaybeProfileHoverCard({ pubkey, disabled, children }: { pubkey: string;
     <ProfileHoverCard pubkey={pubkey} asChild>
       {children}
     </ProfileHoverCard>
+  );
+}
+
+/** Inline embedded card for NIP-62 Request to Vanish events. */
+function EmbeddedVanishCard({
+  event,
+  className,
+}: {
+  event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][] };
+  className?: string;
+}) {
+  const navigate = useNavigate();
+  const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  const isGlobal = event.tags.some(([n, v]) => n === 'relay' && v === 'ALL_RELAYS');
+  const reason = event.content || undefined;
+
+  return (
+    <div
+      className={cn(
+        'group block rounded-2xl border-2 border-red-500/30 overflow-hidden',
+        'hover:border-red-500/50 transition-colors cursor-pointer',
+        className,
+      )}
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/${neventId}`);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/${neventId}`);
+        }
+      }}
+    >
+      {/* Top caution stripe */}
+      <div className="vanish-stripes h-1.5" />
+
+      <div className="px-3.5 py-3 space-y-2 bg-red-500/[0.04] dark:bg-red-500/[0.06]">
+        {/* Header row */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          {/* Glitch icon */}
+          <div className="relative shrink-0">
+            <div className="size-8 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+              <span className="text-sm font-black vanish-glitch-text text-red-500 dark:text-red-400" data-text="///">///</span>
+            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-red-600 flex items-center justify-center">
+              <span className="text-[7px] font-black text-white leading-none">!</span>
+            </div>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-red-500 dark:text-red-400 leading-tight">
+              {isGlobal ? 'Global Request to Vanish' : 'Request to Vanish'}
+            </p>
+            <p className="text-[11px] text-muted-foreground font-mono truncate mt-0.5">
+              {npub}
+            </p>
+          </div>
+
+          <span className="text-[11px] text-muted-foreground shrink-0">
+            {timeAgo(event.created_at)}
+          </span>
+        </div>
+
+        {/* Reason quote if available */}
+        {reason && (
+          <p className="text-xs text-muted-foreground italic line-clamp-2 pl-[42px]">
+            &ldquo;{reason}&rdquo;
+          </p>
+        )}
+      </div>
+
+      {/* Bottom caution stripe */}
+      <div className="vanish-stripes h-1.5" />
+    </div>
   );
 }
 
