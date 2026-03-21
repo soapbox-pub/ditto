@@ -1,6 +1,10 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
+  FileCode,
+  FileText,
+  GitBranch,
+  GitPullRequest,
   MessageCircle,
   MoreHorizontal,
   Package,
@@ -1565,6 +1569,30 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   32267: {
     icon: Package,
     action: "published an app",
+  },
+  30617: {
+    icon: GitBranch,
+    action: "shared a",
+    noun: "repository",
+    nounRoute: "/development",
+  },
+  1617: {
+    icon: FileText,
+    action: "submitted a",
+    noun: "patch",
+    nounRoute: "/development",
+  },
+  1618: {
+    icon: GitPullRequest,
+    action: "opened a",
+    noun: "pull request",
+    nounRoute: "/development",
+  },
+  30817: {
+    icon: FileCode,
+    action: "proposed a",
+    noun: "NIP",
+    nounRoute: "/development",
   },
 };
 
