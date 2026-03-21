@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, Search, Check, Zap, Sparkles } from 'lucide-react';
+import { useInView } from 'react-intersection-observer';
+import { useQueryClient } from '@tanstack/react-query';
+import { ShoppingBag, Search, Check, Zap, Sparkles, Loader2, ArrowLeft, Plus, Settings2 } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -12,15 +14,26 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { NoteCard } from '@/components/NoteCard';
+import { PullToRefresh } from '@/components/PullToRefresh';
+import { FeedEmptyState } from '@/components/FeedEmptyState';
+import { TabButton } from '@/components/TabButton';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProfileBadges } from '@/hooks/useProfileBadges';
+import { useBadgeFeed } from '@/hooks/useBadgeFeed';
 import { SHOP_CATEGORIES } from '@/lib/shopCategories';
 import { parseBadgeDefinition, type BadgeData } from '@/components/BadgeContent';
 import { BADGE_DEFINITION_KIND, getBadgePrice, getBadgeSupply, getBadgeCategory, isShopBadge } from '@/lib/badgeUtils';
 
-export function ShopPage() {
+// ─── Types ─────────────────────────────────────────────────────────────────────
+
+type ShopTab = 'shop' | 'follows' | 'global';
+
+// ─── Shop Tab Content ──────────────────────────────────────────────────────────
+
+function ShopContent() {
   const { config } = useAppContext();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
@@ -28,8 +41,6 @@ export function ShopPage() {
 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchText, setSearchText] = useState('');
-
-  useSeoMeta({ title: 'Badge Shop' });
 
   const adminPubkey = config.nip85StatsPubkey;
 
@@ -47,13 +58,11 @@ export function ShopPage() {
     staleTime: 2 * 60_000,
   });
 
-  // Set of owned badge aTags for O(1) lookup
   const ownedATags = useMemo(
     () => new Set(ownedBadgeRefs.map((r) => r.aTag)),
     [ownedBadgeRefs],
   );
 
-  // Parse, filter by category and search
   const filteredBadges = useMemo(() => {
     if (!rawBadges) return [];
 
@@ -78,16 +87,21 @@ export function ShopPage() {
   }, [rawBadges, selectedCategory, searchText]);
 
   return (
-    <div className="container max-w-5xl mx-auto px-4 py-8 space-y-6">
-      {/* Page header */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center size-10 rounded-xl bg-primary/10">
-          <ShoppingBag className="size-5 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Badge Shop</h1>
-          <p className="text-sm text-muted-foreground">Collect badges to show off on your profile</p>
-        </div>
+    <div className="px-4 py-5 space-y-5">
+      {/* Quick actions */}
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" className="gap-1.5" asChild>
+          <Link to="/badges/create">
+            <Plus className="size-3.5" />
+            Create Badge
+          </Link>
+        </Button>
+        <Button variant="outline" size="sm" className="gap-1.5" asChild>
+          <Link to="/badges/manage">
+            <Settings2 className="size-3.5" />
+            My Badges
+          </Link>
+        </Button>
       </div>
 
       {/* Category filter pills */}
@@ -171,7 +185,6 @@ export function ShopPage() {
             return (
               <Link key={aTag} to={`/${naddr}`} className="group">
                 <Card className="overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
-                  {/* Badge image */}
                   <div className="aspect-square overflow-hidden bg-secondary/20">
                     {heroImage ? (
                       <img
@@ -189,17 +202,14 @@ export function ShopPage() {
                   </div>
 
                   <CardContent className="p-3 space-y-1.5">
-                    {/* Name */}
                     <p className="font-semibold text-sm leading-snug truncate">{badge.name}</p>
 
-                    {/* Description */}
                     {badge.description && (
                       <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                         {badge.description}
                       </p>
                     )}
 
-                    {/* Price / Owned + Supply */}
                     <div className="flex items-center justify-between pt-1">
                       {owned ? (
                         <Badge variant="secondary" className="gap-1 text-xs font-medium">
@@ -230,5 +240,169 @@ export function ShopPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// ─── NoteCard Skeleton ─────────────────────────────────────────────────────────
+
+function NoteCardSkeleton() {
+  return (
+    <div className="px-4 py-3 border-b border-border">
+      <div className="flex items-center gap-3">
+        <Skeleton className="size-11 rounded-full shrink-0" />
+        <div className="min-w-0 space-y-1.5">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-3 w-36" />
+        </div>
+      </div>
+      <div className="mt-2 space-y-1.5">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-4/5" />
+      </div>
+      <div className="flex items-center gap-6 mt-3 -ml-2">
+        <Skeleton className="h-4 w-8" />
+        <Skeleton className="h-4 w-8" />
+        <Skeleton className="h-4 w-8" />
+        <Skeleton className="h-4 w-8" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ──────────────────────────────────────────────────────────────────────
+
+export function ShopPage() {
+  const { config } = useAppContext();
+  const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
+
+  const [activeTab, setActiveTab] = useState<ShopTab>(() => {
+    try {
+      const stored = sessionStorage.getItem('ditto:feed-tab:shop');
+      if (stored === 'shop' || stored === 'follows' || stored === 'global') return stored;
+    } catch { /* ignore */ }
+    return 'shop';
+  });
+
+  const handleSetTab = useCallback((tab: ShopTab) => {
+    setActiveTab(tab);
+    try { sessionStorage.setItem('ditto:feed-tab:shop', tab); } catch { /* ignore */ }
+  }, []);
+
+  useSeoMeta({
+    title: `Badge Shop | ${config.appName}`,
+    description: 'Collect badges, discover new ones, and show them off on your profile',
+  });
+
+  // Feed query for follows/global tabs
+  const feedTab = activeTab === 'follows' ? 'follows' : 'global';
+  const feedQuery = useBadgeFeed(feedTab);
+
+  const {
+    data: rawData,
+    isPending,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = feedQuery;
+
+  // Auto-fetch page 2 for smoother scrolling
+  useEffect(() => {
+    if (activeTab !== 'shop' && hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) {
+      fetchNextPage();
+    }
+  }, [activeTab, hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
+
+  // Intersection observer for infinite scroll
+  const { ref: scrollRef, inView } = useInView({
+    threshold: 0,
+    rootMargin: '400px',
+  });
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Flatten and deduplicate feed events
+  const feedEvents = useMemo(() => {
+    if (!rawData?.pages) return [];
+    const seen = new Set<string>();
+    return (rawData.pages as NostrEvent[][])
+      .flat()
+      .filter((event) => {
+        if (seen.has(event.id)) return false;
+        seen.add(event.id);
+        return true;
+      });
+  }, [rawData?.pages]);
+
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['badge-feed', feedTab] });
+  }, [queryClient, feedTab]);
+
+  const showSkeleton = activeTab !== 'shop' && (isPending || (isLoading && !rawData));
+
+  return (
+    <main className="pb-16 sidebar:pb-0">
+      {/* Page header */}
+      <div className="flex items-center gap-4 px-4 pt-4 pb-5">
+        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+          <ArrowLeft className="size-5" />
+        </Link>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <ShoppingBag className="size-5" />
+          <h1 className="text-xl font-bold">Badge Shop</h1>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+        <TabButton label="Shop" active={activeTab === 'shop'} onClick={() => handleSetTab('shop')} />
+        <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetTab('follows')} disabled={!user} />
+        <TabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetTab('global')} />
+      </div>
+
+      {/* Tab content */}
+      {activeTab === 'shop' ? (
+        <ShopContent />
+      ) : (
+        <PullToRefresh onRefresh={handleRefresh}>
+          {showSkeleton ? (
+            <div className="divide-y divide-border">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <NoteCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : feedEvents.length > 0 ? (
+            <div>
+              {feedEvents.map((event) => (
+                <NoteCard key={event.id} event={event} />
+              ))}
+              {hasNextPage && (
+                <div ref={scrollRef} className="py-4">
+                  {isFetchingNextPage && (
+                    <div className="flex justify-center">
+                      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <FeedEmptyState
+              message={
+                activeTab === 'follows'
+                  ? 'No badge activity from people you follow yet.'
+                  : 'No badge activity found. Be the first to create one!'
+              }
+              onSwitchToGlobal={activeTab === 'follows' ? () => handleSetTab('global') : undefined}
+            />
+          )}
+        </PullToRefresh>
+      )}
+    </main>
   );
 }

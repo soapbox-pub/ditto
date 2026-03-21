@@ -15,6 +15,7 @@ const DEFAULT_SIDEBAR_ORDER = SIDEBAR_ITEMS
 /** Map of legacy sidebar item IDs to their current replacements. */
 const SIDEBAR_ID_MIGRATIONS: Record<string, string> = {
   'emoji-packs': 'emojis',
+  'badges': 'shop',
 };
 
 /**

@@ -14,7 +14,6 @@ import { getExtraKindDef } from "./lib/extraKinds";
 import { AdvancedSettingsPage } from "./pages/AdvancedSettingsPage";
 import { AIChatPage } from "./pages/AIChatPage";
 import { BadgeManagePage } from "./pages/BadgeManagePage";
-import { BadgesFeedPage } from "./pages/BadgesFeedPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { BooksPage } from "./pages/BooksPage";
 import { ContentPage } from "./pages/ContentPage";
@@ -208,7 +207,7 @@ export function AppRouter() {
             <Route path="/bookmarks" element={<BookmarksPage />} />
             <Route path="/ai-chat" element={<AIChatPage />} />
             <Route path="/world" element={<WorldPage />} />
-            <Route path="/badges" element={<BadgesFeedPage />} />
+            <Route path="/badges" element={<Navigate to="/shop" replace />} />
             <Route path="/badges/create" element={<BadgeCreatePage />} />
             <Route path="/badges/manage" element={<BadgeManagePage />} />
             <Route path="/achievements" element={<AchievementsPage />} />
