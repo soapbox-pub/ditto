@@ -738,6 +738,8 @@ export interface TagRepairResult {
   repairs: string[];
   /** List of issues that could not be repaired */
   errors: string[];
+  /** The detected final stage */
+  finalStage: BlobbiStage | null;
 }
 
 /**
@@ -773,14 +775,31 @@ const NEVER_INVENT_TAGS = new Set([
 ]);
 
 /**
+ * Valid states for each stage. Used to validate/repair state after transitions.
+ */
+const VALID_STATES_BY_STAGE: Record<BlobbiStage, Set<string>> = {
+  egg: new Set(['active', 'sleeping', 'hibernating', 'incubating']),
+  baby: new Set(['active', 'sleeping', 'hibernating', 'evolving']),
+  adult: new Set(['active', 'sleeping', 'hibernating']),
+};
+
+/**
+ * Task-process states that should NOT remain after stage transitions.
+ */
+const TASK_PROCESS_STATES = new Set(['incubating', 'evolving']);
+
+/**
  * Validate and repair Blobbi tags before publishing.
  * 
  * This function ensures tag integrity by:
  * 1. Removing deprecated tags
- * 2. Recovering missing required system tags (b, t, client) with defaults
- * 3. Recovering missing required tags from previousTags if available
- * 4. Preserving all persistent tags
- * 5. NEVER inventing personality/trait/adult_type values
+ * 2. Removing task tags when cleanupTaskTags is true
+ * 3. Stage-aware validation: removes tags not valid for the final stage
+ * 4. Semantic cleanup: ensures state is valid after transitions
+ * 5. Recovering missing required system tags (b, t, client) with defaults
+ * 6. Recovering missing required tags from previousTags if available
+ * 7. Preserving persistent tags that are valid for the final stage
+ * 8. NEVER inventing personality/trait/adult_type values
  * 
  * @param tags - The current tags to validate and repair
  * @param previousTags - Optional previous canonical tags for recovery
@@ -789,7 +808,7 @@ const NEVER_INVENT_TAGS = new Set([
  * 
  * @example
  * ```typescript
- * const result = validateAndRepairBlobbiTags(newTags, canonical.allTags);
+ * const result = validateAndRepairBlobbiTags(newTags, canonical.allTags, { cleanupTaskTags: true });
  * if (result.errors.length > 0) {
  *   console.error('Cannot publish:', result.errors);
  *   return;
@@ -807,6 +826,7 @@ export function validateAndRepairBlobbiTags(
 ): TagRepairResult {
   const repairs: string[] = [];
   const errors: string[] = [];
+  const isDev = import.meta.env.DEV;
   
   // Build a map of current tags for quick lookup
   const tagMap = new Map<string, string[][]>();
@@ -834,8 +854,8 @@ export function validateAndRepairBlobbiTags(
   const deprecatedTags = getDeprecatedTagNames();
   const taskCleanupTags = options?.cleanupTaskTags ? getTransitionCleanupTagNames() : new Set<string>();
   
-  // Step 1: Filter out deprecated tags and task tags (if cleanup requested)
-  const filteredTags: string[][] = [];
+  // ─── Step 1: Filter out deprecated tags and task tags (if cleanup requested) ───
+  let filteredTags: string[][] = [];
   for (const tag of tags) {
     const name = tag[0];
     
@@ -852,6 +872,72 @@ export function validateAndRepairBlobbiTags(
     filteredTags.push(tag);
   }
   
+  // ─── Step 2: Detect the final stage ───
+  const stageTag = filteredTags.find(t => t[0] === 'stage');
+  const finalStage = (stageTag?.[1] as BlobbiStage) || null;
+  
+  if (!finalStage || !['egg', 'baby', 'adult'].includes(finalStage)) {
+    errors.push(`Invalid or missing stage tag: '${finalStage}'`);
+    // Cannot proceed with stage-aware validation without a valid stage
+    return {
+      tags: filteredTags,
+      repaired: repairs.length > 0,
+      repairs,
+      errors,
+      finalStage: null,
+    };
+  }
+  
+  // ─── Step 3: Stage-aware tag filtering ───
+  // Remove tags that are not valid for the final stage
+  const stageFilteredTags: string[][] = [];
+  
+  for (const tag of filteredTags) {
+    const name = tag[0];
+    
+    // Check if this tag is valid for the current stage
+    const schema = getTagSchema(name);
+    if (schema && !schema.stages.includes(finalStage)) {
+      repairs.push(`Removed tag '${name}' (not valid for stage '${finalStage}')`);
+      if (isDev) {
+        console.warn(`[Blobbi] Removed invalid-for-stage tag: ${name} (stage: ${finalStage})`);
+      }
+      continue;
+    }
+    
+    stageFilteredTags.push(tag);
+  }
+  
+  filteredTags = stageFilteredTags;
+  
+  // ─── Step 4: Semantic cleanup - validate state after transitions ───
+  if (options?.cleanupTaskTags) {
+    const stateTagIndex = filteredTags.findIndex(t => t[0] === 'state');
+    if (stateTagIndex !== -1) {
+      const currentState = filteredTags[stateTagIndex][1];
+      
+      // After hatch/evolve, state must not be a task-process state
+      if (TASK_PROCESS_STATES.has(currentState)) {
+        filteredTags[stateTagIndex] = ['state', 'active'];
+        repairs.push(`Repaired state from '${currentState}' to 'active' (task process completed)`);
+        if (isDev) {
+          console.warn(`[Blobbi] Fixed invalid state '${currentState}' -> 'active' after transition`);
+        }
+      }
+      
+      // Validate state is valid for the stage
+      const validStates = VALID_STATES_BY_STAGE[finalStage];
+      const newState = filteredTags[stateTagIndex][1];
+      if (!validStates.has(newState)) {
+        filteredTags[stateTagIndex] = ['state', 'active'];
+        repairs.push(`Repaired invalid state '${newState}' to 'active' for stage '${finalStage}'`);
+        if (isDev) {
+          console.warn(`[Blobbi] Fixed invalid state '${newState}' -> 'active' for stage ${finalStage}`);
+        }
+      }
+    }
+  }
+  
   // Rebuild tag map after filtering
   tagMap.clear();
   for (const tag of filteredTags) {
@@ -862,11 +948,17 @@ export function validateAndRepairBlobbiTags(
     tagMap.get(name)!.push(tag);
   }
   
-  // Step 2: Check for required tags and attempt recovery
+  // ─── Step 5: Check for required tags and attempt recovery ───
   const requiredTags = getRequiredTagNames();
   const repairedTags = [...filteredTags];
   
   for (const requiredTag of requiredTags) {
+    // Skip required tags that aren't valid for this stage
+    const schema = getTagSchema(requiredTag);
+    if (schema && !schema.stages.includes(finalStage)) {
+      continue;
+    }
+    
     if (tagMap.has(requiredTag)) {
       // Tag exists, validate it's not empty
       const tagValue = tagMap.get(requiredTag)![0]?.[1];
@@ -878,7 +970,8 @@ export function validateAndRepairBlobbiTags(
           const index = repairedTags.findIndex(t => t[0] === requiredTag);
           if (index !== -1) {
             repairedTags[index] = [requiredTag, recovered];
-            repairs.push(`Repaired empty ${requiredTag} tag from ${previousTagMap.has(requiredTag) ? 'previous tags' : 'defaults'}`);
+            const source = previousTagMap.has(requiredTag) ? 'previous tags' : 'defaults';
+            repairs.push(`Repaired empty ${requiredTag} tag from ${source}`);
           }
         } else {
           errors.push(`Required tag '${requiredTag}' is empty and cannot be recovered`);
@@ -889,14 +982,16 @@ export function validateAndRepairBlobbiTags(
       const recovered = recoverTagValue(requiredTag, previousTagMap);
       if (recovered !== null) {
         repairedTags.push([requiredTag, recovered]);
-        repairs.push(`Recovered missing ${requiredTag} tag from ${previousTagMap.has(requiredTag) ? 'previous tags' : 'defaults'}`);
+        const source = previousTagMap.has(requiredTag) ? 'previous tags' : 'defaults';
+        repairs.push(`Recovered missing ${requiredTag} tag from ${source}`);
       } else {
         errors.push(`Required tag '${requiredTag}' is missing and cannot be recovered`);
       }
     }
   }
   
-  // Step 3: Recover persistent tags from previous tags (if they existed before)
+  // ─── Step 6: Recover persistent tags from previous tags (if they existed before) ───
+  // Only recover tags that are valid for the final stage
   // NEVER invent values for tags in NEVER_INVENT_TAGS
   if (previousTags) {
     const persistentTags = getPersistentTagNames();
@@ -912,10 +1007,24 @@ export function validateAndRepairBlobbiTags(
       // Skip task-related tags if cleanup is requested
       if (taskCleanupTags.has(tagName)) continue;
       
+      // Skip tags that are not valid for the final stage
+      const schema = getTagSchema(tagName);
+      if (schema && !schema.stages.includes(finalStage)) {
+        if (isDev) {
+          console.warn(`[Blobbi] Skipped recovering '${tagName}' (not valid for stage '${finalStage}')`);
+        }
+        continue;
+      }
+      
       // Recover the persistent tag
       repairedTags.push([tagName, tagValue]);
       repairs.push(`Recovered persistent tag: ${tagName}`);
     }
+  }
+  
+  // ─── Final dev diagnostics ───
+  if (isDev && repairs.length > 0) {
+    console.warn('[Blobbi] Tag repairs applied:', repairs);
   }
   
   return {
@@ -923,6 +1032,7 @@ export function validateAndRepairBlobbiTags(
     repaired: repairs.length > 0,
     repairs,
     errors,
+    finalStage,
   };
 }
 
