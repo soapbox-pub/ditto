@@ -1,5 +1,12 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { Copy, ExternalLink, GitBranch, Globe, Wand2 } from "lucide-react";
+import {
+	BookMarked,
+	Copy,
+	ExternalLink,
+	GitFork,
+	Globe,
+	Wand2,
+} from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -58,38 +65,61 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 
 	return (
 		<div className="mt-2 rounded-2xl border border-border overflow-hidden">
-			<div className="px-3.5 py-3 space-y-2.5">
-				{/* Header: icon/favicon + title */}
-				<div className="flex items-start gap-2.5">
+			<div className="px-3.5 py-3 space-y-2">
+				{/* Row 1: icon + name + badge */}
+				<div className="flex items-center gap-2 min-w-0">
 					{isApp && faviconUrl && !faviconError ? (
 						<img
 							src={faviconUrl}
 							alt=""
-							className="size-8 rounded-lg object-cover shrink-0"
+							className="size-5 rounded object-cover shrink-0"
 							loading="lazy"
 							onError={() => setFaviconError(true)}
 						/>
 					) : (
-						<GitBranch className="size-4 text-violet-600 dark:text-violet-400 shrink-0 mt-0.5" />
+						<BookMarked className="size-4 text-muted-foreground shrink-0" />
 					)}
-					<div className="min-w-0 flex-1">
-						<div className="flex items-center gap-2 flex-wrap">
-							<span className="font-semibold text-sm leading-snug">
-								{displayName}
+					<span className="font-semibold text-sm text-primary truncate leading-snug">
+						{displayName}
+					</span>
+					{isPersonalFork ? (
+						<span className="shrink-0 rounded-full border border-border px-2 py-0 text-[11px] text-muted-foreground leading-relaxed">
+							Fork
+						</span>
+					) : (
+						<span className="shrink-0 rounded-full border border-border px-2 py-0 text-[11px] text-muted-foreground leading-relaxed">
+							Public
+						</span>
+					)}
+				</div>
+
+				{/* Row 2: description */}
+				{description && (
+					<p className="text-[13px] text-muted-foreground line-clamp-2 leading-relaxed">
+						{description}
+					</p>
+				)}
+
+				{/* Row 3: hashtags as inline metadata (like GitHub's language/stars row) */}
+				{hashtags.length > 0 && (
+					<div className="flex items-center gap-3 flex-wrap">
+						{hashtags.slice(0, 5).map((tag) => (
+							<span
+								key={tag}
+								className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+							>
+								<span className="size-2.5 rounded-full bg-primary/60 shrink-0" />
+								{tag}
 							</span>
-							{isPersonalFork && (
-								<span className="text-[10px] font-medium text-muted-foreground bg-muted rounded px-1.5 py-0">
-									Fork
-								</span>
-							)}
-						</div>
-						{description && (
-							<p className="text-[13px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
-								{description}
-							</p>
+						))}
+						{isPersonalFork && (
+							<span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+								<GitFork className="size-3" />
+								Fork
+							</span>
 						)}
 					</div>
-				</div>
+				)}
 
 				{/* Clone URL -- hidden for apps */}
 				{!isApp && cloneUrls[0] && (
@@ -114,90 +144,73 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 					</div>
 				)}
 
-				{/* Tags */}
-				{hashtags.length > 0 && (
-					<div className="flex flex-wrap gap-1">
-						{hashtags.slice(0, 6).map((tag) => (
-							<span
-								key={tag}
-								className="text-[11px] text-muted-foreground"
+				{/* Action buttons */}
+				{(hasShakespeare || isApp || webUrls[0] || cloneUrls[0]) && (
+					<div className="flex flex-wrap gap-2 pt-0.5">
+						{hasShakespeare && (
+							<button
+								type="button"
+								className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+								onClick={(e) => {
+									e.stopPropagation();
+									window.open(
+										shakespeareUrl,
+										"_blank",
+										"noopener,noreferrer",
+									);
+								}}
 							>
-								#{tag}
-							</span>
-						))}
-						{hashtags.length > 6 && (
-							<span className="text-[11px] text-muted-foreground/50">
-								+{hashtags.length - 6} more
-							</span>
+								<Wand2 className="size-3" />
+								Edit with Shakespeare
+							</button>
 						)}
+						{isApp ? (
+							<button
+								type="button"
+								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
+								onClick={(e) => {
+									e.stopPropagation();
+									window.open(
+										webUrls[0],
+										"_blank",
+										"noopener,noreferrer",
+									);
+								}}
+							>
+								<ExternalLink className="size-3" />
+								Open App
+							</button>
+						) : webUrls[0] ? (
+							<button
+								type="button"
+								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
+								onClick={(e) => {
+									e.stopPropagation();
+									window.open(
+										webUrls[0],
+										"_blank",
+										"noopener,noreferrer",
+									);
+								}}
+							>
+								<Globe className="size-3" />
+								Browse Repository
+							</button>
+						) : !hasShakespeare && cloneUrls[0] ? (
+							<button
+								type="button"
+								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
+								onClick={(e) => {
+									e.stopPropagation();
+									handleCopy(cloneUrls[0]);
+								}}
+							>
+								<Copy className="size-3" />
+								{copied ? "Copied!" : "Copy Clone URL"}
+							</button>
+						) : null}
 					</div>
 				)}
-
-				{/* Action buttons */}
-				<div className="flex flex-wrap gap-2">
-					{hasShakespeare && (
-						<button
-							type="button"
-							className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-							onClick={(e) => {
-								e.stopPropagation();
-								window.open(
-									shakespeareUrl,
-									"_blank",
-									"noopener,noreferrer",
-								);
-							}}
-						>
-							<Wand2 className="size-3" />
-							Edit with Shakespeare
-						</button>
-					)}
-					{isApp ? (
-						<button
-							type="button"
-							className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
-							onClick={(e) => {
-								e.stopPropagation();
-								window.open(
-									webUrls[0],
-									"_blank",
-									"noopener,noreferrer",
-								);
-							}}
-						>
-							<ExternalLink className="size-3" />
-							Open App
-						</button>
-					) : webUrls[0] ? (
-						<button
-							type="button"
-							className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
-							onClick={(e) => {
-								e.stopPropagation();
-								window.open(
-									webUrls[0],
-									"_blank",
-									"noopener,noreferrer",
-								);
-							}}
-						>
-							<Globe className="size-3" />
-							Browse Repository
-						</button>
-					) : !hasShakespeare && cloneUrls[0] ? (
-						<button
-							type="button"
-							className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
-							onClick={(e) => {
-								e.stopPropagation();
-								handleCopy(cloneUrls[0]);
-							}}
-						>
-							<Copy className="size-3" />
-							{copied ? "Copied!" : "Copy Clone URL"}
-						</button>
-					) : null}
-				</div>
 			</div>
 		</div>
 	);
