@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Footprints, Camera, PictureInPicture2, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle } from 'lucide-react';
+// TODO: Re-import when features are implemented: Footprints, PictureInPicture2
 // Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
 // Note: Sparkles kept for BlobbiBottomBar center action button
 // Note: Plus kept for AdoptAnotherBlobbiCard
@@ -1562,9 +1563,9 @@ function getEvolveTooltip(
 function BlobbiDashboardFloatingControls({
   stage,
   onBack,
-  onSetAsCompanion,
+  onSetAsCompanion: _onSetAsCompanion, // TODO: Re-enable when companion feature is implemented
   onTakePhoto,
-  onOpenPiP,
+  onOpenPiP: _onOpenPiP, // TODO: Re-enable when PiP feature is implemented
   onEvolve,
   isTransitioning = false,
   onInfo,
@@ -1585,24 +1586,26 @@ function BlobbiDashboardFloatingControls({
 
   // Right-side buttons (top cluster)
   const rightButtons: FloatingActionDef[] = [
-    {
-      id: 'set-companion',
-      icon: <Footprints className="size-4" />,
-      tooltip: 'Set as Companion',
-      onClick: onSetAsCompanion,
-    },
+    // TODO: Re-enable when companion feature is implemented
+    // {
+    //   id: 'set-companion',
+    //   icon: <Footprints className="size-4" />,
+    //   tooltip: 'Set as Companion',
+    //   onClick: onSetAsCompanion,
+    // },
     {
       id: 'photo',
       icon: <Camera className="size-4" />,
       tooltip: 'Take a Photo',
       onClick: onTakePhoto,
     },
-    {
-      id: 'pip',
-      icon: <PictureInPicture2 className="size-4" />,
-      tooltip: 'Open PiP',
-      onClick: onOpenPiP,
-    },
+    // TODO: Re-enable when PiP feature is implemented
+    // {
+    //   id: 'pip',
+    //   icon: <PictureInPicture2 className="size-4" />,
+    //   tooltip: 'Open PiP',
+    //   onClick: onOpenPiP,
+    // },
     {
       id: 'info',
       icon: <Info className="size-4" />,
