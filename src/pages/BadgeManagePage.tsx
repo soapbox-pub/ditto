@@ -56,7 +56,7 @@ export function BadgeManagePage() {
     <main>
       {/* Sticky header */}
       <div className={cn('sidebar:sticky sidebar:top-0', 'flex items-center gap-4 px-4 pt-4 pb-5 bg-background/80 backdrop-blur-md z-10')}>
-        <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+        <Link to="/shop" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
           <ArrowLeft className="size-5" />
         </Link>
         <div className="flex items-center gap-2">
