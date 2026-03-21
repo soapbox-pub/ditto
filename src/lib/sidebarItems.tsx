@@ -26,10 +26,12 @@ import {
   Scroll,
   Search,
   Settings,
+  ShoppingBag,
   Smile,
   SmilePlus,
   Sparkles,
   TrendingUp,
+  Trophy,
   User,
 } from "lucide-react";
 import { CardsIcon } from "@/components/icons/CardsIcon";
@@ -139,6 +141,8 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "treasures", label: "Treasures", path: "/treasures", icon: ChestIcon },
   { id: "emojis", label: "Emojis", path: "/emojis", icon: SmilePlus },
   { id: "development", label: "Development", path: "/development", icon: Code },
+  { id: "achievements", label: "Achievements", path: "/achievements", icon: Trophy },
+  { id: "shop", label: "Badge Shop", path: "/shop", icon: ShoppingBag },
   { id: "badges", label: "Badges", path: "/badges", icon: Award },
   { id: "world", label: "World", path: "/world", icon: Earth },
 ];

@@ -13,6 +13,7 @@ import { useProfileUrl } from "./hooks/useProfileUrl";
 import { getExtraKindDef } from "./lib/extraKinds";
 import { AdvancedSettingsPage } from "./pages/AdvancedSettingsPage";
 import { AIChatPage } from "./pages/AIChatPage";
+import { BadgeManagePage } from "./pages/BadgeManagePage";
 import { BadgesFeedPage } from "./pages/BadgesFeedPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { BooksPage } from "./pages/BooksPage";
@@ -51,6 +52,9 @@ import { VideosFeedPage } from "./pages/VideosFeedPage";
 import { VinesFeedPage } from "./pages/VinesFeedPage";
 import { WalletSettingsPage } from "./pages/WalletSettingsPage";
 import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
+import { ShopPage } from "./pages/ShopPage";
+import { AchievementsPage } from "./pages/AchievementsPage";
+import { BadgeCreatePage } from "./pages/BadgeCreatePage";
 import { WorldPage } from "./pages/WorldPage";
 
 const pollsDef = getExtraKindDef("polls")!;
@@ -205,6 +209,10 @@ export function AppRouter() {
             <Route path="/ai-chat" element={<AIChatPage />} />
             <Route path="/world" element={<WorldPage />} />
             <Route path="/badges" element={<BadgesFeedPage />} />
+            <Route path="/badges/create" element={<BadgeCreatePage />} />
+            <Route path="/badges/manage" element={<BadgeManagePage />} />
+            <Route path="/achievements" element={<AchievementsPage />} />
+            <Route path="/shop" element={<ShopPage />} />
             <Route path="/books" element={<BooksPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />

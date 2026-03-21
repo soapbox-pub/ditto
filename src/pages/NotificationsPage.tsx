@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageSquare, Loader2 } from 'lucide-react';
+import { Zap, AtSign, MessageSquare, Loader2, Award } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -182,6 +182,10 @@ function GroupedNotificationView({ group }: { group: GroupedNotificationItem }) 
       return <MentionNotification item={group.actors[0]} isNew={group.isNew} />;
     case 1111:
       return <CommentNotification item={group.actors[0]} isNew={group.isNew} />;
+    case 8:
+      return solo
+        ? <BadgeAwardNotification item={group.actors[0]} isNew={group.isNew} />
+        : <BadgeAwardNotificationGroup group={group} />;
     default:
       return null;
   }
@@ -575,6 +579,38 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
         />
       </div>
       <NoteCard event={item.event} className="border-0" />
+    </NotificationWrapper>
+  );
+}
+
+// ──────────────────────────────────────
+// Badge Award Notification (single actor)
+// ──────────────────────────────────────
+function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  return (
+    <NotificationWrapper isNew={isNew}>
+      <div className="px-4 pt-3 pb-3">
+        <NotificationHeader
+          actorPubkey={item.event.pubkey}
+          icon={<Award className="size-4 text-primary" />}
+          action="awarded you a badge"
+        />
+      </div>
+    </NotificationWrapper>
+  );
+}
+
+// ──────────────────────────────────────
+// Badge Award Notification (grouped)
+// ──────────────────────────────────────
+function BadgeAwardNotificationGroup({ group }: { group: GroupedNotificationItem }) {
+  return (
+    <NotificationWrapper isNew={group.isNew}>
+      <GroupHeader
+        actors={group.actors}
+        icon={<Award className="size-4 text-primary" />}
+        action="awarded you badges"
+      />
     </NotificationWrapper>
   );
 }

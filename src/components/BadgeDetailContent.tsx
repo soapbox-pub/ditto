@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, Copy, Check, Users } from 'lucide-react';
+import { Award, Copy, Check, Users, Zap, Gift } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
@@ -14,10 +14,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
 import { useToast } from '@/hooks/useToast';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { usePendingBadges } from '@/hooks/usePendingBadges';
+import { useAcceptBadge } from '@/hooks/useAcceptBadge';
 import { genUserName } from '@/lib/genUserName';
+import { getBadgePrice, getBadgeSupply, isShopBadge, isAchievementBadge } from '@/lib/badgeUtils';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { parseBadgeDefinition } from '@/components/BadgeContent';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { AwardBadgeDialog } from '@/components/AwardBadgeDialog';
 
 /**
  * Full detail view for a NIP-58 badge definition (kind 30009).
@@ -26,7 +31,10 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const { nostr } = useNostr();
   const { toast } = useToast();
+  const { user } = useCurrentUser();
+  const acceptBadge = useAcceptBadge();
   const [copied, setCopied] = useState(false);
+  const [awardDialogOpen, setAwardDialogOpen] = useState(false);
 
   const badge = useMemo(() => parseBadgeDefinition(event), [event]);
 
@@ -38,6 +46,15 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
 
   // Query kind 8 badge award events referencing this badge definition
   const badgeATag = badge ? `30009:${event.pubkey}:${badge.identifier}` : '';
+
+  const { pendingBadges } = usePendingBadges(user?.pubkey);
+  const pendingForUser = pendingBadges.find((p) => p.aTag === badgeATag);
+  const isIssuer = user?.pubkey === event.pubkey;
+  const price = getBadgePrice(event);
+  const supply = getBadgeSupply(event);
+  const isShop = isShopBadge(event);
+  const isAchievement = isAchievementBadge(event);
+
   const awardsQuery = useQuery({
     queryKey: ['badge-awards', badgeATag],
     queryFn: async () => {
@@ -143,7 +160,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
         )}
 
         {/* Stats */}
-        <div className="flex items-center gap-3 mt-4">
+        <div className="flex items-center gap-3 mt-4 flex-wrap">
           {awardsQuery.isLoading ? (
             <Skeleton className="h-4 w-24" />
           ) : awardedPubkeys.length > 0 ? (
@@ -157,10 +174,57 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
               No awards yet
             </span>
           )}
+          {isAchievement && (
+            <Badge variant="secondary" className="gap-1">
+              <Award className="size-3" />
+              Achievement
+            </Badge>
+          )}
+          {isShop && (
+            <Badge variant="secondary" className="gap-1">
+              <Gift className="size-3" />
+              Shop Badge{price ? ` · ${price} sats` : ''}
+            </Badge>
+          )}
+          {supply && (
+            <span className="text-sm text-muted-foreground">
+              {supply.sold !== undefined
+                ? `${supply.total - supply.sold} / ${supply.total} remaining`
+                : `${supply.total} total`}
+            </span>
+          )}
         </div>
 
         {/* Actions */}
         <div className="flex gap-2 mt-3">
+          {pendingForUser && (
+            <Button
+              variant="default"
+              size="sm"
+              disabled={acceptBadge.isPending}
+              onClick={() => {
+                acceptBadge.mutate(
+                  { aTag: badgeATag, awardEventId: pendingForUser.awardEvent.id },
+                  { onSuccess: () => toast({ title: 'Badge accepted!' }) },
+                );
+              }}
+            >
+              <Check className="size-4 mr-1.5" />
+              Accept Badge
+            </Button>
+          )}
+          {isIssuer && (
+            <Button variant="outline" size="sm" onClick={() => setAwardDialogOpen(true)}>
+              <Gift className="size-4 mr-1.5" />
+              Award to…
+            </Button>
+          )}
+          {isShop && price && (
+            <Badge variant="outline" className="gap-1 text-sm">
+              <Zap className="size-3" />
+              {price} sats
+            </Badge>
+          )}
           <Button variant="outline" size="icon" onClick={handleCopyLink}>
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
           </Button>
@@ -197,6 +261,13 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
           )}
         </div>
       )}
+
+      <AwardBadgeDialog
+        open={awardDialogOpen}
+        onOpenChange={setAwardDialogOpen}
+        badgeATag={badgeATag}
+        badgeName={badge.name}
+      />
     </div>
   );
 }
