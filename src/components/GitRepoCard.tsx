@@ -1,7 +1,6 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { Copy, ExternalLink, GitBranch, Globe, Wand2 } from "lucide-react";
+import { BookMarked, Copy, ExternalLink, Globe, Wand2 } from "lucide-react";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 interface GitRepoCardProps {
@@ -23,11 +22,9 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 	const name = event.tags.find(([n]) => n === "name")?.[1];
 	const description = event.tags.find(([n]) => n === "description")?.[1];
 	const webUrls = event.tags.filter(([n]) => n === "web").map(([, v]) => v);
-	const cloneUrls = event.tags.filter(([n]) => n === "clone").map(([, v]) => v);
-	const hashtags = event.tags
-		.filter(([n]) => n === "t")
-		.map(([, v]) => v)
-		.filter((t) => t !== "personal-fork" && t !== "shakespeare");
+	const cloneUrls = event.tags
+		.filter(([n]) => n === "clone")
+		.map(([, v]) => v);
 	const isPersonalFork = event.tags.some(
 		([n, v]) => n === "t" && v === "personal-fork",
 	);
@@ -43,9 +40,12 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 	const displayName = name || dTag;
 
 	const [faviconError, setFaviconError] = useState(false);
+	const [copied, setCopied] = useState(false);
 
 	const handleCopy = (url: string) => {
 		navigator.clipboard.writeText(url);
+		setCopied(true);
+		setTimeout(() => setCopied(false), 2000);
 	};
 
 	const shakespeareUrl = cloneUrls[0]
@@ -53,136 +53,128 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 		: "https://shakespeare.diy";
 
 	return (
-		<div className="space-y-3 mt-1">
-			{/* Header: icon/favicon + title */}
-			<div className="flex items-start gap-3">
-				{isApp && faviconUrl && !faviconError ? (
-					<img
-						src={faviconUrl}
-						alt=""
-						className="size-10 rounded-lg object-cover shrink-0"
-						loading="lazy"
-						onError={() => setFaviconError(true)}
-					/>
-				) : (
-					<GitBranch className="size-5 text-primary shrink-0 mt-0.5" />
-				)}
-				<div className="min-w-0 flex-1">
-					<div className="flex items-center gap-2 flex-wrap">
-						<span className="font-semibold text-base leading-tight">
-							{displayName}
+		<div className="mt-2 rounded-2xl border border-border overflow-hidden">
+			<div className="px-3.5 py-3 space-y-2">
+				{/* Name + fork badge */}
+				<div className="flex items-center gap-2 min-w-0">
+					{isApp && faviconUrl && !faviconError ? (
+						<img
+							src={faviconUrl}
+							alt=""
+							className="size-5 rounded object-cover shrink-0"
+							loading="lazy"
+							onError={() => setFaviconError(true)}
+						/>
+					) : (
+						<BookMarked className="size-4 text-muted-foreground shrink-0" />
+					)}
+					<span className="font-semibold text-sm truncate leading-snug">
+						{displayName}
+					</span>
+					{isPersonalFork && (
+						<span className="shrink-0 rounded-full border border-border px-2 py-0 text-[11px] text-muted-foreground leading-relaxed">
+							Fork
 						</span>
-						{isPersonalFork && (
-							<Badge variant="outline" className="text-xs px-2 py-0">
-								Fork
-							</Badge>
-						)}
-					</div>
-					{description && (
-						<p className="text-sm text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
-							{description}
-						</p>
 					)}
 				</div>
-			</div>
 
-			{/* Tags section */}
-			{hashtags.length > 0 && (
-				<div className="space-y-1.5">
-					<h4 className="text-sm font-medium text-muted-foreground">Tags</h4>
-					<div className="flex flex-wrap gap-1.5">
-						{hashtags.slice(0, 6).map((tag) => (
-							<Badge key={tag} variant="secondary" className="text-xs">
-								{tag}
-							</Badge>
-						))}
-						{hashtags.length > 6 && (
-							<Badge
-								variant="outline"
-								className="text-xs text-muted-foreground"
-							>
-								+{hashtags.length - 6} more
-							</Badge>
-						)}
-					</div>
-				</div>
-			)}
+				{/* Description */}
+				{description && (
+					<p className="text-[13px] text-muted-foreground line-clamp-2 leading-relaxed">
+						{description}
+					</p>
+				)}
 
-			{/* Clone URL section — hidden for apps */}
-			{!isApp && cloneUrls[0] && (
-				<div className="space-y-1.5">
-					<h4 className="text-sm font-medium text-muted-foreground">Clone</h4>
-					<div className="flex items-center gap-2">
-						<code className="flex-1 bg-muted px-2.5 py-1.5 rounded-md text-xs font-mono truncate">
+				{/* Clone URL -- hidden for apps */}
+				{!isApp && cloneUrls[0] && (
+					<div className="group/clone flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
+						<code className="flex-1 text-[11px] font-mono text-muted-foreground truncate select-all">
 							{cloneUrls[0]}
 						</code>
 						<Button
 							variant="ghost"
 							size="sm"
-							className="h-7 w-7 p-0 shrink-0"
+							className="h-5 w-5 p-0 shrink-0 opacity-50 group-hover/clone:opacity-100 transition-opacity"
 							onClick={(e) => {
 								e.stopPropagation();
 								handleCopy(cloneUrls[0]);
 							}}
 						>
-							<Copy className="size-3.5" />
+							<Copy className="size-3" />
+							<span className="sr-only">
+								{copied ? "Copied" : "Copy"}
+							</span>
 						</Button>
 					</div>
-				</div>
-			)}
-
-			{/* Action buttons */}
-			<div className="flex flex-wrap gap-2 pt-1">
-				{hasShakespeare && (
-					<button
-						type="button"
-						className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-						onClick={(e) => {
-							e.stopPropagation();
-							window.open(shakespeareUrl, "_blank", "noopener,noreferrer");
-						}}
-					>
-						<Wand2 className="size-4" />
-						Edit with Shakespeare
-					</button>
 				)}
-				{isApp ? (
-					<button
-						type="button"
-						className="flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium hover:bg-secondary/60 transition-colors"
-						onClick={(e) => {
-							e.stopPropagation();
-							window.open(webUrls[0], "_blank", "noopener,noreferrer");
-						}}
-					>
-						<ExternalLink className="size-4" />
-						Open App
-					</button>
-				) : webUrls[0] ? (
-					<button
-						type="button"
-						className="flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium hover:bg-secondary/60 transition-colors"
-						onClick={(e) => {
-							e.stopPropagation();
-							window.open(webUrls[0], "_blank", "noopener,noreferrer");
-						}}
-					>
-						<Globe className="size-4" />
-						Browse Repository
-					</button>
-				) : !hasShakespeare && cloneUrls[0] ? (
-					<button
-						type="button"
-						className="flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium hover:bg-secondary/60 transition-colors"
-						onClick={(e) => {
-							e.stopPropagation();
-							handleCopy(cloneUrls[0]);
-						}}
-					>
-						<Copy className="size-4" />
-						Copy Clone URL
-					</button>
-				) : null}
+
+				{/* Action buttons */}
+				{(hasShakespeare || isApp || webUrls[0] || cloneUrls[0]) && (
+					<div className="flex flex-wrap gap-2 pt-0.5">
+						{hasShakespeare && (
+							<button
+								type="button"
+								className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+								onClick={(e) => {
+									e.stopPropagation();
+									window.open(
+										shakespeareUrl,
+										"_blank",
+										"noopener,noreferrer",
+									);
+								}}
+							>
+								<Wand2 className="size-3" />
+								Edit with Shakespeare
+							</button>
+						)}
+						{isApp ? (
+							<button
+								type="button"
+								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
+								onClick={(e) => {
+									e.stopPropagation();
+									window.open(
+										webUrls[0],
+										"_blank",
+										"noopener,noreferrer",
+									);
+								}}
+							>
+								<ExternalLink className="size-3" />
+								Open App
+							</button>
+						) : webUrls[0] ? (
+							<button
+								type="button"
+								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
+								onClick={(e) => {
+									e.stopPropagation();
+									window.open(
+										webUrls[0],
+										"_blank",
+										"noopener,noreferrer",
+									);
+								}}
+							>
+								<Globe className="size-3" />
+								Browse Repository
+							</button>
+						) : !hasShakespeare && cloneUrls[0] ? (
+							<button
+								type="button"
+								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
+								onClick={(e) => {
+									e.stopPropagation();
+									handleCopy(cloneUrls[0]);
+								}}
+							>
+								<Copy className="size-3" />
+								{copied ? "Copied!" : "Copy Clone URL"}
+							</button>
+						) : null}
+					</div>
+				)}
 			</div>
 		</div>
 	);

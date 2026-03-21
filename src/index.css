@@ -186,4 +186,93 @@
   animation: confetti-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
+/* ── NIP-62 Request to Vanish ───────────────────────────────────────────────── */
+
+/* Animated caution stripes — red/dark diagonal bands that scroll */
+.vanish-stripes {
+  background: repeating-linear-gradient(
+    -45deg,
+    hsl(0 72% 51% / 0.7),
+    hsl(0 72% 51% / 0.7) 10px,
+    hsl(0 72% 51% / 0.25) 10px,
+    hsl(0 72% 51% / 0.25) 20px
+  );
+  background-size: 28.28px 28.28px;
+  animation: vanish-stripe-scroll 1.5s linear infinite;
+}
+
+:is(.dark) .vanish-stripes {
+  background: repeating-linear-gradient(
+    -45deg,
+    hsl(0 72% 51% / 0.6),
+    hsl(0 72% 51% / 0.6) 10px,
+    hsl(0 72% 51% / 0.15) 10px,
+    hsl(0 72% 51% / 0.15) 20px
+  );
+  background-size: 28.28px 28.28px;
+  animation: vanish-stripe-scroll 1.5s linear infinite;
+}
+
+@keyframes vanish-stripe-scroll {
+  from { background-position: 0 0; }
+  to { background-position: 28.28px 0; }
+}
+
+/* Glitch text effect on the /// symbol */
+.vanish-glitch-text {
+  position: relative;
+  animation: vanish-glitch 3s ease-in-out infinite;
+}
+
+@keyframes vanish-glitch {
+  0%, 90%, 100% { opacity: 1; transform: translate(0); }
+  92% { opacity: 0.8; transform: translate(-2px, 1px); }
+  94% { opacity: 0.6; transform: translate(2px, -1px); }
+  96% { opacity: 0.9; transform: translate(-1px, -1px); }
+  98% { opacity: 1; transform: translate(1px, 0); }
+}
+
+/* Ring pulse animation for the icon */
+.vanish-ring-pulse {
+  animation: vanish-ring 3s ease-out infinite;
+}
+
+.vanish-ring-pulse-delayed {
+  animation: vanish-ring 3s ease-out 1.5s infinite;
+}
+
+@keyframes vanish-ring {
+  0% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.15); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+/* Slow blink for the status dot */
+.vanish-blink {
+  animation: vanish-blink-kf 2s ease-in-out infinite;
+}
+
+@keyframes vanish-blink-kf {
+  0%, 40%, 100% { opacity: 1; }
+  50%, 90% { opacity: 0.2; }
+}
+
+/* Reduced motion: disable all vanish animations */
+@media (prefers-reduced-motion: reduce) {
+  .vanish-stripes {
+    animation: none;
+  }
+  .vanish-glitch-text {
+    animation: none;
+  }
+  .vanish-ring-pulse,
+  .vanish-ring-pulse-delayed {
+    animation: none;
+    opacity: 0;
+  }
+  .vanish-blink {
+    animation: none;
+  }
+}
+
 
