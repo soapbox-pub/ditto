@@ -1,5 +1,5 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { Copy, ExternalLink, Globe, Wand2 } from "lucide-react";
+import { BookMarked, Copy, ExternalLink, Globe, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -57,7 +57,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 			<div className="px-3.5 py-3 space-y-2">
 				{/* Name + fork badge */}
 				<div className="flex items-center gap-2 min-w-0">
-					{isApp && faviconUrl && !faviconError && (
+					{isApp && faviconUrl && !faviconError ? (
 						<img
 							src={faviconUrl}
 							alt=""
@@ -65,6 +65,8 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 							loading="lazy"
 							onError={() => setFaviconError(true)}
 						/>
+					) : (
+						<BookMarked className="size-4 text-muted-foreground shrink-0" />
 					)}
 					<span className="font-semibold text-sm truncate leading-snug">
 						{displayName}
