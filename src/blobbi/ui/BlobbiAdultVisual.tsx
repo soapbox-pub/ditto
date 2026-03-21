@@ -31,6 +31,8 @@ export interface BlobbiAdultVisualProps {
   reaction?: AdultReactionState;
   /** Controls eye tracking behavior (default: 'follow-pointer') */
   lookMode?: BlobbiLookMode;
+  /** Disable blinking animation (for photo/export mode) */
+  disableBlink?: boolean;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -46,7 +48,7 @@ export interface BlobbiAdultVisualProps {
  * - Eyes always track the mouse cursor (instant, real-time)
  * - Renders safely using dangerouslySetInnerHTML
  */
-export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', className }: BlobbiAdultVisualProps) {
+export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, className }: BlobbiAdultVisualProps) {
   const isSleeping = isBlobbiSleeping(blobbi);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -59,6 +61,7 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
     isSleeping,
     maxMovement: 2.5, // Slightly more movement for larger adult form
     lookMode,
+    disableBlink,
   });
 
   // Memoize the customized SVG to avoid unnecessary processing

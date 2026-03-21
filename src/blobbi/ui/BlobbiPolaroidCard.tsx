@@ -96,12 +96,13 @@ export const BlobbiPolaroidCard = forwardRef<HTMLDivElement, BlobbiPolaroidCardP
             }}
           />
 
-          {/* Blobbi visual - centered, forward looking for photo */}
+          {/* Blobbi visual - centered, forward looking, no blink for photo */}
           <BlobbiStageVisual
             companion={companion}
             size="lg"
             animated={false} // No animations for photo capture
             lookMode="forward" // Eyes look straight ahead
+            disableBlink // Eyes stay fully open (no blinking during capture)
             className="size-48 z-10"
           />
         </div>
