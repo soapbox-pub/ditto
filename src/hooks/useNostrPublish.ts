@@ -28,6 +28,12 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
           created_at: t.created_at ?? Math.floor(Date.now() / 1000),
         });
 
+        if (event.pubkey !== user.pubkey) {
+          throw new Error(
+            "Signed event pubkey does not match the currently selected account. Please check your signer configuration.",
+          );
+        }
+
         await nostr.event(event, { signal: AbortSignal.timeout(5000) });
         return event;
       } else {
