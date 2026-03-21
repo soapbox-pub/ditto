@@ -575,7 +575,7 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
           {isUser ? (
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
           ) : (
-            <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
+            <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
               <Markdown rehypePlugins={[rehypeSanitize]}>
                 {message.content}
               </Markdown>
