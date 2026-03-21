@@ -1023,6 +1023,10 @@ export const MANAGED_BLOBBI_STATE_TAG_NAMES = new Set([
   'state_started_at', 'task', 'task_completed',
   // Visual trait tags (required for consistent rendering)
   'base_color', 'secondary_color', 'eye_color', 'pattern', 'special_mark', 'size',
+  // Identity/personality tags (MUST persist across stage transitions)
+  'personality', 'trait', 'favorite_food', 'voice_type', 'mood',
+  // Adult-specific tags (added during evolve)
+  'adult_type',
 ]);
 
 /**
@@ -1052,6 +1056,7 @@ export const VISUAL_TRAIT_TAG_NAMES = [
  * - fees: Obsolete fee tracking field
  * - incubation_time: Obsolete; task system uses state_started_at instead
  * - start_incubation: Obsolete; replaced by state_started_at
+ * - interact_6_progress: Legacy interaction tracking; replaced by ["task", "interactions:N"]
  */
 export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
   'shell_integrity',
@@ -1061,6 +1066,7 @@ export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
   'fees',
   'incubation_time',
   'start_incubation',
+  'interact_6_progress',
 ]);
 
 /**

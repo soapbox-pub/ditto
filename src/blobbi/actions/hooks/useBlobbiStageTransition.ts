@@ -166,8 +166,19 @@ export function useBlobbiHatch({
       };
 
       // ─── Build Updated Tags ───
+      // CRITICAL: Start from canonical.allTags and only remove task/state-specific tags
+      // This preserves ALL identity attributes (personality, trait, favorite_food, etc.)
       const nowStr = now.toString();
-      const newTags = updateBlobbiTags(canonical.allTags, {
+      
+      // Remove only task-related and state-specific tags
+      // Keep ALL other tags including identity/personality attributes
+      const cleanedTags = canonical.allTags.filter(tag => 
+        tag[0] !== 'task' && 
+        tag[0] !== 'task_completed' && 
+        tag[0] !== 'state_started_at'
+      );
+      
+      const newTags = updateBlobbiTags(cleanedTags, {
         stage: 'baby',
         state: 'active', // Newly hatched babies are awake
         hunger: babyStats.hunger.toString(),
@@ -294,10 +305,21 @@ export function useBlobbiEvolve({
       const adultStats = decayResult.stats;
 
       // ─── Build Updated Tags ───
+      // CRITICAL: Start from canonical.allTags and only remove task/state-specific tags
+      // This preserves ALL identity attributes (personality, trait, favorite_food, etc.)
       const nowStr = now.toString();
-      const newTags = updateBlobbiTags(canonical.allTags, {
+      
+      // Remove only task-related and state-specific tags
+      // Keep ALL other tags including identity/personality attributes
+      const cleanedTags = canonical.allTags.filter(tag => 
+        tag[0] !== 'task' && 
+        tag[0] !== 'task_completed' && 
+        tag[0] !== 'state_started_at'
+      );
+      
+      const newTags = updateBlobbiTags(cleanedTags, {
         stage: 'adult',
-        // State is preserved (sleeping/active)
+        state: 'active', // Evolution completes with active state
         hunger: adultStats.hunger.toString(),
         happiness: adultStats.happiness.toString(),
         health: adultStats.health.toString(),
