@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useId, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronUp, LogOut, UserPlus, Loader2 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -32,11 +32,10 @@ import { resolveTheme, resolveThemeConfig } from '@/themes';
 /** Total width of the drawer background layer: 300px drawer + 36px arc overhang. */
 const DRAWER_BG_WIDTH = 336;
 
-/** Shared clip-path style for the drawer arc background layers. */
-const drawerClipStyle: React.CSSProperties = {
-  width: DRAWER_BG_WIDTH,
-  clipPath: 'url(#drawer-arc-clip)',
-};
+/** Build the shared clip-path style for the drawer arc background layers. */
+function drawerClipStyle(clipId: string): React.CSSProperties {
+  return { width: DRAWER_BG_WIDTH, clipPath: `url(#${clipId})` };
+}
 
 interface MobileDrawerProps {
   open: boolean;
@@ -44,6 +43,8 @@ interface MobileDrawerProps {
 }
 
 export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
+  const clipId = `${useId()}-drawer-arc-clip`;
+  const clipStyle = drawerClipStyle(clipId);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, metadata, event: currentUserEvent } = useCurrentUser();
@@ -115,7 +116,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               drawer while the extra 36px overflows for the curved bulge. */}
           <svg className="absolute" width="0" height="0" aria-hidden="true">
             <defs>
-              <clipPath id="drawer-arc-clip" clipPathUnits="objectBoundingBox">
+              <clipPath id={clipId} clipPathUnits="objectBoundingBox">
                 <path d="M0,0 L0.893,0 Q1,0.5 0.893,1 L0,1 Z" />
               </clipPath>
             </defs>
@@ -125,12 +126,12 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               seamlessly through both regions. */}
           <div
             className="absolute top-0 left-0 bottom-0 pointer-events-none bg-background"
-            style={{ ...bgStyle, ...drawerClipStyle }}
+            style={{ ...bgStyle, ...clipStyle }}
           />
           {hasBgImage && (
             <div
               className="absolute top-0 left-0 bottom-0 bg-background/70 pointer-events-none"
-              style={drawerClipStyle}
+              style={clipStyle}
             />
           )}
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>

@@ -88,6 +88,12 @@ function MainLayoutInner() {
 
         {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
         <Suspense fallback={<PageSkeleton />}>
+          {/* -mt-mobile-bar pulls content up behind the mobile top bar so the
+              transparent SVG header arc and page content overlap seamlessly.
+              The corresponding padding-top (set in CSS) prevents content from
+              being hidden. This depends on MobileTopBar having a transparent /
+              semi-transparent background — a solid top bar would obscure the
+              content underneath. Only active below the sidebar breakpoint. */}
           <div className={cn("relative flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85 -mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
             <Outlet />
             {showFAB && (
