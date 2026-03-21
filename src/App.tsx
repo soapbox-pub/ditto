@@ -18,6 +18,7 @@ import { PlausibleProvider } from "@/components/PlausibleProvider";
 import { SentryProvider } from "@/components/SentryProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useNsecPasteGuard } from "@/hooks/useNsecPasteGuard";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
 import { PROTOCOL_MODE } from "@/lib/dmConstants";
@@ -155,6 +156,8 @@ const defaultConfig: AppConfig = {
 };
 
 export function App() {
+  useNsecPasteGuard();
+
   useEffect(() => {
     // Initialize StatusBar for mobile apps
     if (Capacitor.isNativePlatform()) {
