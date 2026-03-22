@@ -115,8 +115,9 @@ export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps)
           // Software/games: fixed-size iframe scaled down with CSS transform.
           <div className="relative overflow-hidden bg-black" style={{ height: scaledH }}>
             <iframe
-              src={`https://archive.org/embed/${identifier}`}
+              src={`https://archive.org/embed/${identifier}&autoplay=1`}
               title="Internet Archive"
+              allow="autoplay"
               allowFullScreen
               style={{
                 width: nativeW,
@@ -131,8 +132,9 @@ export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps)
           // Videos and other media: standard responsive iframe.
           <div className="relative w-full" style={{ paddingBottom }}>
             <iframe
-              src={`https://archive.org/embed/${identifier}`}
+              src={`https://archive.org/embed/${identifier}&autoplay=1`}
               title="Internet Archive"
+              allow="autoplay"
               allowFullScreen
               className="absolute inset-0 w-full h-full"
             />
