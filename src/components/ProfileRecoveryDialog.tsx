@@ -18,7 +18,7 @@ import { genUserName } from '@/lib/genUserName';
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from '@/lib/themeEvent';
 import { coreToTokens } from '@/themes';
 import { cn } from '@/lib/utils';
-import { Check, Loader2, RotateCcw, User, Palette } from 'lucide-react';
+import { Check, Loader2, RotateCcw, User, Users, Palette } from 'lucide-react';
 
 /**
  * Query all events matching a filter using `req()` instead of `query()`.
@@ -254,6 +254,77 @@ function ThemeSnapshotCard({
   );
 }
 
+// ─── Follows Snapshot Card ─────────────────────────────────────────────
+
+function FollowsSnapshotCard({
+  event,
+  isCurrent,
+  onRestore,
+  isRestoring,
+}: {
+  event: NostrEvent;
+  isCurrent: boolean;
+  onRestore: () => void;
+  isRestoring: boolean;
+}) {
+  const followCount = useMemo(
+    () => event.tags.filter(([name]) => name === 'p').length,
+    [event.tags],
+  );
+
+  return (
+    <div
+      className={cn(
+        'group relative rounded-xl border p-4 transition-all',
+        isCurrent
+          ? 'border-primary/40 bg-primary/5'
+          : 'border-border hover:border-primary/20 hover:bg-secondary/30',
+      )}
+    >
+      {isCurrent && (
+        <div className="absolute top-3 right-3 flex items-center gap-1 text-xs font-medium text-primary">
+          <Check className="size-3.5" />
+          Current
+        </div>
+      )}
+
+      <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center size-11 shrink-0 rounded-full bg-primary/10">
+          <Users className="size-5 text-primary" />
+        </div>
+
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="font-semibold text-sm">
+            {followCount.toLocaleString()} {followCount === 1 ? 'follow' : 'follows'}
+          </div>
+          <div className="text-[11px] text-muted-foreground/70">
+            {formatDate(event.created_at)}
+          </div>
+        </div>
+      </div>
+
+      {!isCurrent && (
+        <div className="mt-3 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs rounded-lg gap-1.5"
+            onClick={onRestore}
+            disabled={isRestoring}
+          >
+            {isRestoring ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="size-3.5" />
+            )}
+            Restore
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Empty State ──────────────────────────────────────────────────────
 
 function EmptyState({ label }: { label: string }) {
@@ -455,6 +526,90 @@ function ThemeHistoryTab({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Follows History Tab ──────────────────────────────────────────────
+
+function FollowsHistoryTab({ onClose }: { onClose: () => void }) {
+  const { nostr } = useNostr();
+  const { user } = useCurrentUser();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+
+  const pubkey = user?.pubkey;
+
+  const followsHistory = useQuery<NostrEvent[]>({
+    queryKey: ['profile-recovery', 'kind3', pubkey],
+    queryFn: async () => {
+      if (!pubkey) return [];
+      const events = await queryAllEvents(
+        nostr,
+        [{ kinds: [3], authors: [pubkey] }],
+        AbortSignal.timeout(10000),
+      );
+      return events.sort((a, b) => b.created_at - a.created_at);
+    },
+    enabled: !!pubkey,
+    staleTime: 30_000,
+  });
+
+  const followsEvents = followsHistory.data ?? [];
+  const currentFollowsId = followsEvents[0]?.id;
+
+  const handleRestore = async (event: NostrEvent) => {
+    setRestoringId(event.id);
+    try {
+      await publishEvent({
+        kind: event.kind,
+        content: event.content,
+        tags: event.tags,
+        created_at: Math.floor(Date.now() / 1000),
+      });
+
+      toast({
+        title: 'Follow list restored',
+        description: `Successfully restored from ${formatDate(event.created_at)}.`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['profile-recovery', 'kind3', pubkey] });
+      queryClient.invalidateQueries({ queryKey: ['follow-list'] });
+
+      onClose();
+    } catch (error) {
+      console.error('Failed to restore event:', error);
+      toast({
+        title: 'Restore failed',
+        description: 'Could not republish the event. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setRestoringId(null);
+    }
+  };
+
+  if (followsHistory.isLoading) {
+    return <SnapshotSkeleton />;
+  }
+
+  if (followsEvents.length === 0) {
+    return <EmptyState label="No follow list history found. Your relay may not store historical events." />;
+  }
+
+  return (
+    <>
+      {followsEvents.map((event) => (
+        <FollowsSnapshotCard
+          key={event.id}
+          event={event}
+          isCurrent={event.id === currentFollowsId}
+          onRestore={() => handleRestore(event)}
+          isRestoring={restoringId === event.id}
+        />
+      ))}
+    </>
+  );
+}
+
 // ─── Main Dialog ──────────────────────────────────────────────────────
 
 export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDialogProps) {
@@ -474,6 +629,10 @@ export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDia
                 <User className="size-3.5" />
                 Profile
               </TabsTrigger>
+              <TabsTrigger value="follows" className="flex-1 gap-1.5">
+                <Users className="size-3.5" />
+                Follows
+              </TabsTrigger>
               <TabsTrigger value="theme" className="flex-1 gap-1.5">
                 <Palette className="size-3.5" />
                 Theme
@@ -486,6 +645,10 @@ export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDia
           <ScrollArea className="h-[420px]">
             <TabsContent value="profile" className="m-0 p-4 space-y-3">
               <ProfileHistoryTab onClose={close} />
+            </TabsContent>
+
+            <TabsContent value="follows" className="m-0 p-4 space-y-3">
+              <FollowsHistoryTab onClose={close} />
             </TabsContent>
 
             <TabsContent value="theme" className="m-0 p-4 space-y-3">
