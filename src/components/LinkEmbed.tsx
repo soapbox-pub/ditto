@@ -27,6 +27,8 @@ interface LinkEmbedProps {
   showDiscuss?: boolean;
   /** When true, hides the thumbnail image in generic link preview cards. */
   hideImage?: boolean;
+  /** When true, clicking the link preview opens the URL externally instead of navigating to /i/. */
+  externalLink?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -41,7 +43,7 @@ interface LinkEmbedProps {
  * - Mastodon post URLs → `MastodonEmbed` (native card via Mastodon API)
  * - Everything else → `LinkPreview` (OEmbed link preview card)
  */
-export function LinkEmbed({ url, className, showDiscuss = true, hideImage }: LinkEmbedProps) {
+export function LinkEmbed({ url, className, showDiscuss = true, hideImage, externalLink }: LinkEmbedProps) {
   const youtubeId = useMemo(() => extractYouTubeId(url), [url]);
   const tweetId = useMemo(() => extractTweetId(url), [url]);
   const blueskyPost = useMemo(() => extractBlueskyPost(url), [url]);
@@ -66,8 +68,7 @@ export function LinkEmbed({ url, className, showDiscuss = true, hideImage }: Lin
   } else if (redditUrl) {
     embed = <RedditEmbed url={redditUrl} />;
   } else {
-    // LinkPreview has its own built-in Discuss button
-    return <LinkPreview url={url} className={className} hideImage={hideImage} />;
+    return <LinkPreview url={url} className={className} hideImage={hideImage} externalLink={externalLink} />;
   }
 
   return (
