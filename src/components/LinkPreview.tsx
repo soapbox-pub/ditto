@@ -78,6 +78,24 @@ export function LinkPreview({ url, className, hideImage, externalLink }: LinkPre
           <ExternalFavicon url={url} size={14} className="shrink-0" />
           <span className="truncate">{domain}</span>
           <ExternalLink className="size-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+          {/* Open externally button — only when the card navigates to /i/ */}
+          {!externalLink && (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                'ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full',
+                'text-xs text-muted-foreground',
+                'hover:bg-primary/10 hover:text-primary transition-colors',
+              )}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink className="size-3" />
+              <span>Open</span>
+            </a>
+          )}
         </div>
 
         {/* Title */}
