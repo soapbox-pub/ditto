@@ -1,10 +1,38 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import { cn } from '@/lib/utils';
 
 interface ArchiveOrgEmbedProps {
   identifier: string;
   className?: string;
+}
+
+/** Fetch the aspect ratio of the primary media file from the archive.org metadata API. */
+function useArchiveOrgAspectRatio(identifier: string) {
+  return useQuery({
+    queryKey: ['archive-org-aspect', identifier],
+    queryFn: async ({ signal }) => {
+      const res = await fetch(`https://archive.org/metadata/${identifier}/files`, { signal });
+      if (!res.ok) return null;
+
+      const files: { width?: string; height?: string; source?: string }[] = await res.json();
+
+      // Prefer the original source file with dimensions, fall back to any file with dimensions.
+      const withDims = files.filter((f) => f.width && f.height);
+      const original = withDims.find((f) => f.source === 'original') ?? withDims[0];
+      if (!original) return null;
+
+      const w = Number(original.width);
+      const h = Number(original.height);
+      if (!w || !h) return null;
+
+      return (h / w) * 100;
+    },
+    staleTime: 1000 * 60 * 60,
+    gcTime: 1000 * 60 * 60 * 24,
+    retry: false,
+  });
 }
 
 /**
@@ -16,21 +44,27 @@ interface ArchiveOrgEmbedProps {
  * Archive.org provides:
  * - Thumbnail: `https://archive.org/services/img/{identifier}`
  * - Embed:     `https://archive.org/embed/{identifier}`
+ * - Metadata:  `https://archive.org/metadata/{identifier}/files`
  *
  * The embed page renders the appropriate player for the content type
  * (video, audio, software emulation, book reader, etc.).
+ *
+ * The component fetches metadata to determine the correct aspect ratio
+ * of the original media, falling back to 16:9 while loading or on error.
  */
 export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps) {
   const [activated, setActivated] = useState(false);
+  const { data: aspectPadding } = useArchiveOrgAspectRatio(identifier);
 
   const thumbnailSrc = `https://archive.org/services/img/${identifier}`;
+  const paddingBottom = aspectPadding ?? 56.25; // 16:9 fallback
 
   return (
     <div
       className={cn('rounded-2xl overflow-hidden border border-border', className)}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+      <div className="relative w-full" style={{ paddingBottom: `${paddingBottom}%` }}>
         {activated ? (
           <iframe
             src={`https://archive.org/embed/${identifier}`}
