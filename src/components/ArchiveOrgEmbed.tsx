@@ -8,15 +8,17 @@ interface ArchiveOrgEmbedProps {
   className?: string;
 }
 
-/** Fetch the aspect ratio of the primary media file from the archive.org metadata API. */
-function useArchiveOrgAspectRatio(identifier: string) {
+/** Fetch the dimensions of the primary media file from the archive.org metadata API. */
+function useArchiveOrgDimensions(identifier: string) {
   return useQuery({
-    queryKey: ['archive-org-aspect', identifier],
-    queryFn: async ({ signal }) => {
+    queryKey: ['archive-org-dims', identifier],
+    queryFn: async ({ signal }): Promise<{ width: number; height: number } | null> => {
       const res = await fetch(`https://archive.org/metadata/${identifier}/files`, { signal });
       if (!res.ok) return null;
 
-      const files: { width?: string; height?: string; source?: string }[] = await res.json();
+      const json: { result?: unknown[] } = await res.json();
+      const files: { width?: string; height?: string; source?: string }[] =
+        (Array.isArray(json) ? json : Array.isArray(json.result) ? json.result : []) as { width?: string; height?: string; source?: string }[];
 
       // Prefer the original source file with dimensions, fall back to any file with dimensions.
       const withDims = files.filter((f) => f.width && f.height);
@@ -27,7 +29,7 @@ function useArchiveOrgAspectRatio(identifier: string) {
       const h = Number(original.height);
       if (!w || !h) return null;
 
-      return (h / w) * 100;
+      return { width: w, height: h };
     },
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 24,
@@ -54,17 +56,22 @@ function useArchiveOrgAspectRatio(identifier: string) {
  */
 export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps) {
   const [activated, setActivated] = useState(false);
-  const { data: aspectPadding } = useArchiveOrgAspectRatio(identifier);
+  const { data: dims } = useArchiveOrgDimensions(identifier);
 
   const thumbnailSrc = `https://archive.org/services/img/${identifier}`;
-  const paddingBottom = aspectPadding ?? 56.25; // 16:9 fallback
+
+  // Use the native content aspect ratio when available, with a 16:9 fallback.
+  // The archive.org embed page is designed to fill the iframe, scaling the
+  // content (emulator canvas, video player, etc.) to fit the available space.
+  // We constrain to a max height of 80vh so very tall content stays usable.
+  const aspectRatio = dims ? `${dims.width} / ${dims.height}` : '16 / 9';
 
   return (
     <div
       className={cn('rounded-2xl overflow-hidden border border-border', className)}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="relative w-full" style={{ paddingBottom: `${paddingBottom}%` }}>
+      <div className="relative w-full" style={{ aspectRatio, maxHeight: '80vh' }}>
         {activated ? (
           <iframe
             src={`https://archive.org/embed/${identifier}`}
