@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, UserRoundCheck, MessageSquare } from 'lucide-react';
+import { Search, UserRoundCheck, MessageSquare, FileText, Hash } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -9,13 +9,16 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { genUserName } from '@/lib/genUserName';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
-import { getNostrIdentifierPath, isFullUrl } from '@/lib/nostrIdentifier';
+import { isFullUrl, detectIdentifier, type IdentifierMatch } from '@/lib/nostrIdentifier';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getProfileUrl } from '@/lib/profileUrl';
 import { searchCountry, type CountryEntry } from '@/lib/countries';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNip05Resolve } from '@/hooks/useNip05Resolve';
+import { useAuthor } from '@/hooks/useAuthor';
+import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { cn } from '@/lib/utils';
 
 interface ProfileSearchDropdownProps {
@@ -48,17 +51,39 @@ export function ProfileSearchDropdown({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const { data: profiles, isFetching, followedPubkeys } = useSearchProfiles(query);
+  const { data: rawProfiles, isFetching, followedPubkeys } = useSearchProfiles(query);
 
   // Country suggestion (local, synchronous) — suppressed when hideCountry is true
   const countryMatchRaw = useMemo(() => searchCountry(query), [query]);
   const countryMatch = hideCountry ? null : countryMatchRaw;
-  const profileCount = profiles?.length ?? 0;
-  // Show country at top only for exact matches; otherwise at bottom (after profiles)
-  const countryAtTop = !!countryMatch && (countryMatch.exact || profileCount === 0);
 
   // URL detection — show "Comment on" option when query is a full URL
   const queryIsUrl = useMemo(() => isFullUrl(query), [query]);
+
+  // Identifier detection — NIP-05, NIP-19, hex
+  const identifierMatch = useMemo(() => detectIdentifier(query), [query]);
+
+  // Resolve NIP-05 identifier pubkey at the parent so we can deduplicate
+  const nip05Identifier = identifierMatch?.type === 'nip05' ? identifierMatch.identifier : undefined;
+  const { data: nip05Pubkey } = useNip05Resolve(nip05Identifier);
+
+  // The pubkey that the identifier item will show (for deduplication)
+  const identifierPubkey = useMemo(() => {
+    if (!identifierMatch) return undefined;
+    if (identifierMatch.type === 'npub' || identifierMatch.type === 'nprofile') return identifierMatch.pubkey;
+    if (identifierMatch.type === 'nip05' && nip05Pubkey) return nip05Pubkey;
+    return undefined;
+  }, [identifierMatch, nip05Pubkey]);
+
+  // Filter out the identifier-resolved profile from search results to avoid duplication
+  const profiles = useMemo(() => {
+    if (!rawProfiles || !identifierPubkey) return rawProfiles;
+    return rawProfiles.filter((p) => p.pubkey !== identifierPubkey);
+  }, [rawProfiles, identifierPubkey]);
+
+  const profileCount = profiles?.length ?? 0;
+  // Show country at top only for exact matches; otherwise at bottom (after profiles)
+  const countryAtTop = !!countryMatch && (countryMatch.exact || profileCount === 0);
 
   // Show dropdown when we have results, or when text search is enabled and there's a query
   useEffect(() => {
@@ -101,28 +126,26 @@ export function ProfileSearchDropdown({
     setQuery('');
     inputRef.current?.blur();
 
-    // If the input is a Nostr identifier (NIP-19 or NIP-05), navigate directly
-    const identifierPath = getNostrIdentifierPath(query);
-    if (identifierPath) {
-      navigate(identifierPath);
-      return;
-    }
-
     if (!enableTextSearch) return;
     navigate(`/search?q=${encodeURIComponent(query.trim())}`);
   }, [enableTextSearch, query, navigate]);
 
-  // Total selectable items: profiles + optional country + optional URL comment
+  // Total selectable items: identifier? + URL comment? + country?(top) + profiles + country?(bottom)
   const hasCountry = !!countryMatch;
   const hasUrlComment = queryIsUrl && enableTextSearch;
-  const totalItems = profileCount + (hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0);
+  const hasIdentifier = !!identifierMatch;
+  const totalItems = profileCount + (hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0) + (hasIdentifier ? 1 : 0);
 
   // Map selectedIndex to what it refers to.
-  // When enableTextSearch with URL: [commentUrl, country?(top), ...profiles, country?(bottom)]
-  // The "Comment on" item sits at index 0 (right after the always-highlighted "Search for")
-  const urlCommentIndex = 0;
-  const countryIndex = countryAtTop ? (hasUrlComment ? 1 : 0) : profileCount + (hasUrlComment ? 1 : 0);
-  const profileStartIndex = (countryAtTop && hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0);
+  // Order: [identifier?, commentUrl?, country?(top), ...profiles, country?(bottom)]
+  let nextIdx = 0;
+  const identifierIndex = hasIdentifier ? nextIdx++ : -1;
+  const urlCommentIndex = hasUrlComment ? nextIdx++ : -1;
+  const countryTopIndex = (hasCountry && countryAtTop) ? nextIdx++ : -1;
+  const profileStartIndex = nextIdx;
+  nextIdx += profileCount;
+  const countryBottomIndex = (hasCountry && !countryAtTop) ? nextIdx++ : -1;
+  const countryIndex = countryAtTop ? countryTopIndex : countryBottomIndex;
 
   const handleCommentOnUrl = useCallback(() => {
     if (!queryIsUrl) return;
@@ -138,6 +161,13 @@ export function ProfileSearchDropdown({
     navigate(`/i/iso3166:${country.code}`);
   }, [navigate]);
 
+  const handleSelectIdentifier = useCallback((path: string) => {
+    setOpen(false);
+    setQuery('');
+    inputRef.current?.blur();
+    navigate(path);
+  }, [navigate]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -149,7 +179,12 @@ export function ProfileSearchDropdown({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (open && selectedIndex >= 0 && selectedIndex < totalItems) {
-        if (hasUrlComment && selectedIndex === urlCommentIndex) {
+        if (hasIdentifier && selectedIndex === identifierIndex) {
+          // Handled by the IdentifierItem component via its onClick
+          // which calls handleSelectIdentifier — trigger via DOM click
+          const items = listRef.current?.querySelectorAll('[data-search-item]');
+          (items?.[selectedIndex] as HTMLElement)?.click();
+        } else if (hasUrlComment && selectedIndex === urlCommentIndex) {
           handleCommentOnUrl();
         } else if (hasCountry && selectedIndex === countryIndex) {
           handleSelectCountry(countryMatch!.country);
@@ -235,13 +270,20 @@ export function ProfileSearchDropdown({
       </div>
 
       {/* Dropdown results — only when text search is not enabled */}
-      {!enableTextSearch && open && (hasCountry || (profiles && profiles.length > 0)) && (
+      {!enableTextSearch && open && (hasIdentifier || hasCountry || (profiles && profiles.length > 0)) && (
         <div
           ref={listRef}
           role="listbox"
           className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
         >
           <div className="max-h-[320px] overflow-y-auto py-1">
+            {hasIdentifier && (
+              <IdentifierItem
+                match={identifierMatch!}
+                isSelected={selectedIndex === identifierIndex}
+                onNavigate={handleSelectIdentifier}
+              />
+            )}
             {hasCountry && countryAtTop && (
               <CountryItem
                 country={countryMatch!.country}
@@ -290,6 +332,15 @@ export function ProfileSearchDropdown({
               </span>
             </button>
 
+            {/* Identifier suggestion — NIP-05, NIP-19, hex */}
+            {hasIdentifier && (
+              <IdentifierItem
+                match={identifierMatch!}
+                isSelected={selectedIndex === identifierIndex}
+                onNavigate={handleSelectIdentifier}
+              />
+            )}
+
             {/* Comment on URL option — shown when query is a full URL */}
             {hasUrlComment && (
               <CommentOnUrlItem
@@ -332,7 +383,7 @@ export function ProfileSearchDropdown({
       )}
 
       {/* Empty state — only when text search is not enabled */}
-      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && !hasCountry && profiles && profiles.length === 0 && (
+      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && !hasIdentifier && !hasCountry && profiles && profiles.length === 0 && (
         <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
           <div className="py-6 text-center text-sm text-muted-foreground">
             No profiles found
@@ -340,6 +391,292 @@ export function ProfileSearchDropdown({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Autocomplete item for a detected Nostr identifier (NIP-05, NIP-19, hex).
+ * Resolves the identifier in the background and renders a profile or event preview.
+ */
+function IdentifierItem({
+  match,
+  isSelected,
+  onNavigate,
+}: {
+  match: IdentifierMatch;
+  isSelected: boolean;
+  onNavigate: (path: string) => void;
+}) {
+  switch (match.type) {
+    case 'nip05':
+      return <Nip05IdentifierItem identifier={match.identifier} isSelected={isSelected} onNavigate={onNavigate} />;
+    case 'npub':
+    case 'nprofile':
+      return <PubkeyIdentifierItem pubkey={match.pubkey} raw={match.raw} isSelected={isSelected} onNavigate={onNavigate} />;
+    case 'note':
+      return <EventIdentifierItem eventId={match.eventId} raw={match.raw} isSelected={isSelected} onNavigate={onNavigate} />;
+    case 'nevent':
+      return <EventIdentifierItem eventId={match.eventId} relays={match.relays} authorHint={match.authorHint} raw={match.raw} isSelected={isSelected} onNavigate={onNavigate} />;
+    case 'naddr':
+      return <AddrIdentifierItem addr={match.addr} relays={match.relays} raw={match.raw} isSelected={isSelected} onNavigate={onNavigate} />;
+    case 'hex':
+      return <HexIdentifierItem hex={match.hex} isSelected={isSelected} onNavigate={onNavigate} />;
+  }
+}
+
+function Nip05IdentifierItem({
+  identifier,
+  isSelected,
+  onNavigate,
+}: {
+  identifier: string;
+  isSelected: boolean;
+  onNavigate: (path: string) => void;
+}) {
+  const { data: pubkey, isLoading } = useNip05Resolve(identifier);
+  const author = useAuthor(pubkey ?? undefined);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name || metadata?.display_name || (pubkey ? genUserName(pubkey) : identifier);
+  const tags = author.data?.event?.tags ?? [];
+
+  if (isLoading) {
+    return (
+      <div data-search-item className={cn(
+        'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors',
+        isSelected ? 'bg-accent text-accent-foreground' : '',
+      )}>
+        <div className="size-10 shrink-0 rounded-full bg-secondary animate-pulse" />
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="h-4 w-24 bg-secondary animate-pulse rounded" />
+          <div className="h-3 w-32 bg-secondary animate-pulse rounded" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!pubkey) return null; // NIP-05 didn't resolve — don't show
+
+  return (
+    <button
+      data-search-item
+      role="option"
+      aria-selected={isSelected}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+      onClick={() => onNavigate(`/${identifier}`)}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <Avatar shape={getAvatarShape(metadata)} className="size-10 shrink-0">
+        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarFallback className="bg-primary/20 text-primary text-sm">
+          {displayName[0]?.toUpperCase() || '?'}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <span className="font-semibold text-sm truncate block">
+          <EmojifiedText tags={tags}>{displayName}</EmojifiedText>
+        </span>
+        <span className="text-xs text-muted-foreground truncate block">{identifier}</span>
+      </div>
+    </button>
+  );
+}
+
+function PubkeyIdentifierItem({
+  pubkey,
+  raw,
+  isSelected,
+  onNavigate,
+}: {
+  pubkey: string;
+  raw: string;
+  isSelected: boolean;
+  onNavigate: (path: string) => void;
+}) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const tags = author.data?.event?.tags ?? [];
+
+  return (
+    <button
+      data-search-item
+      role="option"
+      aria-selected={isSelected}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+      onClick={() => onNavigate(`/${raw}`)}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <Avatar shape={getAvatarShape(metadata)} className="size-10 shrink-0">
+        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarFallback className="bg-primary/20 text-primary text-sm">
+          {displayName[0]?.toUpperCase() || '?'}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <span className="font-semibold text-sm truncate block">
+          {author.isLoading ? (
+            <span className="text-muted-foreground">Loading profile...</span>
+          ) : (
+            <EmojifiedText tags={tags}>{displayName}</EmojifiedText>
+          )}
+        </span>
+        <span className="text-xs text-muted-foreground truncate block font-mono">
+          {raw.slice(0, 8)}...{raw.slice(-4)}
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function EventIdentifierItem({
+  eventId,
+  relays,
+  authorHint,
+  raw,
+  isSelected,
+  onNavigate,
+}: {
+  eventId: string;
+  relays?: string[];
+  authorHint?: string;
+  raw: string;
+  isSelected: boolean;
+  onNavigate: (path: string) => void;
+}) {
+  const { data: event, isLoading } = useEvent(eventId, relays, authorHint);
+  const author = useAuthor(event?.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name || metadata?.display_name || (event ? genUserName(event.pubkey) : undefined);
+
+  return (
+    <button
+      data-search-item
+      role="option"
+      aria-selected={isSelected}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+      onClick={() => onNavigate(`/${raw}`)}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <div className="size-10 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
+        <FileText className="size-4 text-primary" />
+      </div>
+      <div className="flex-1 min-w-0">
+        {isLoading ? (
+          <span className="text-sm text-muted-foreground">Loading event...</span>
+        ) : event ? (
+          <>
+            <span className="text-sm truncate block">{event.content.slice(0, 80) || `Kind ${event.kind} event`}</span>
+            <span className="text-xs text-muted-foreground truncate block">
+              {displayName ? `by ${displayName}` : raw.slice(0, 8) + '...' + raw.slice(-4)}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="text-sm font-medium truncate block">Go to event</span>
+            <span className="text-xs text-muted-foreground truncate block font-mono">
+              {raw.slice(0, 8)}...{raw.slice(-4)}
+            </span>
+          </>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function AddrIdentifierItem({
+  addr,
+  relays,
+  raw,
+  isSelected,
+  onNavigate,
+}: {
+  addr: AddrCoords;
+  relays?: string[];
+  raw: string;
+  isSelected: boolean;
+  onNavigate: (path: string) => void;
+}) {
+  const { data: event, isLoading } = useAddrEvent(addr, relays);
+  const author = useAuthor(event?.pubkey ?? addr.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name || metadata?.display_name || genUserName(addr.pubkey);
+
+  // Try to get a title from tags
+  const title = event?.tags.find(([t]) => t === 'title')?.[1];
+
+  return (
+    <button
+      data-search-item
+      role="option"
+      aria-selected={isSelected}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+      onClick={() => onNavigate(`/${raw}`)}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <div className="size-10 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
+        <FileText className="size-4 text-primary" />
+      </div>
+      <div className="flex-1 min-w-0">
+        {isLoading ? (
+          <span className="text-sm text-muted-foreground">Loading...</span>
+        ) : (
+          <>
+            <span className="text-sm truncate block">
+              {title || event?.content.slice(0, 80) || `Kind ${addr.kind} event`}
+            </span>
+            <span className="text-xs text-muted-foreground truncate block">
+              by {displayName}
+            </span>
+          </>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function HexIdentifierItem({
+  hex,
+  isSelected,
+  onNavigate,
+}: {
+  hex: string;
+  isSelected: boolean;
+  onNavigate: (path: string) => void;
+}) {
+  return (
+    <button
+      data-search-item
+      role="option"
+      aria-selected={isSelected}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+      onClick={() => onNavigate(`/${hex}`)}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <div className="size-10 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
+        <Hash className="size-4 text-primary" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <span className="text-sm font-medium truncate block">Go to identifier</span>
+        <span className="text-xs text-muted-foreground truncate block font-mono">
+          {hex.slice(0, 8)}...{hex.slice(-4)}
+        </span>
+      </div>
+    </button>
   );
 }
 
