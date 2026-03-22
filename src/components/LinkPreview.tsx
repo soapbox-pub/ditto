@@ -10,10 +10,10 @@ interface LinkPreviewProps {
   className?: string;
   /** When true, hides the thumbnail image in the preview card. */
   hideImage?: boolean;
-  /** When true, clicking the card opens the URL in a new tab instead of navigating to the /i/ comment page. */
-  externalLink?: boolean;
-  /** When true, hides the Discuss/Open action button. */
-  hideActions?: boolean;
+  /** When true, clicking the card navigates to the /i/ comment page instead of opening the URL externally. */
+  navigateToComments?: boolean;
+  /** When true, shows an action button (Discuss or Open) in the domain bar. Defaults to true. */
+  showActions?: boolean;
 }
 
 /** Extracts the display domain from a URL (e.g. "www.example.com" -> "example.com"). */
@@ -27,7 +27,7 @@ function displayDomain(url: string): string {
 }
 
 /** Rich link preview card rendered from OEmbed data. */
-export function LinkPreview({ url, className, hideImage, externalLink, hideActions }: LinkPreviewProps) {
+export function LinkPreview({ url, className, hideImage, navigateToComments, showActions = true }: LinkPreviewProps) {
   const { data, isLoading } = useLinkPreview(url);
   const navigate = useNavigate();
 
@@ -40,7 +40,7 @@ export function LinkPreview({ url, className, hideImage, externalLink, hideActio
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (externalLink) return; // let the <a> handle it natively
+    if (!navigateToComments) return; // let the <a> handle it natively
     e.preventDefault();
     navigate(`/i/${encodeURIComponent(url)}`);
   };
@@ -48,8 +48,8 @@ export function LinkPreview({ url, className, hideImage, externalLink, hideActio
   return (
     <a
       href={url}
-      target={externalLink ? '_blank' : undefined}
-      rel={externalLink ? 'noopener noreferrer' : undefined}
+      target={navigateToComments ? undefined : '_blank'}
+      rel={navigateToComments ? undefined : 'noopener noreferrer'}
       className={cn(
         'group block rounded-2xl border border-border overflow-hidden',
         'hover:bg-secondary/40 transition-colors',
@@ -75,13 +75,29 @@ export function LinkPreview({ url, className, hideImage, externalLink, hideActio
 
       {/* Text content */}
       <div className="px-3.5 py-2.5 space-y-0.5">
-        {/* Domain + favicon */}
+        {/* Domain + favicon + action button */}
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <ExternalFavicon url={url} size={14} className="shrink-0" />
           <span className="truncate">{domain}</span>
 
-          {hideActions ? null : externalLink ? (
-            /* Discuss button — when card opens externally, offer navigation to /i/ */
+          {showActions && (navigateToComments ? (
+            /* Open externally — card navigates to /i/, so offer the external link */
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                'ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full',
+                'text-xs text-muted-foreground',
+                'hover:bg-primary/10 hover:text-primary transition-colors',
+              )}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink className="size-3" />
+              <span>Open</span>
+            </a>
+          ) : (
+            /* Discuss — card opens externally, so offer navigation to /i/ */
             <button
               type="button"
               className={cn(
@@ -98,23 +114,7 @@ export function LinkPreview({ url, className, hideImage, externalLink, hideActio
               <MessageSquare className="size-3" />
               <span>Discuss</span>
             </button>
-          ) : (
-            /* Open button — when card navigates to /i/, offer opening externally */
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                'ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full',
-                'text-xs text-muted-foreground',
-                'hover:bg-primary/10 hover:text-primary transition-colors',
-              )}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ExternalLink className="size-3" />
-              <span>Open</span>
-            </a>
-          )}
+          ))}
         </div>
 
         {/* Title */}
