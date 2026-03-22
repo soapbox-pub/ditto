@@ -3,11 +3,13 @@
 /**
  * Missions modal for Blobbi.
  * 
- * Shows incubation tasks when the current Blobbi is incubating (egg stage),
- * evolve tasks when evolving (baby stage), or an empty state otherwise.
+ * Shows:
+ * - Daily missions (always visible, separate reward system)
+ * - Incubation tasks when the current Blobbi is incubating (egg stage)
+ * - Evolve tasks when evolving (baby stage)
  */
 
-import { Target, Loader2, XCircle, AlertTriangle } from 'lucide-react';
+import { Target, Loader2, XCircle, AlertTriangle, Calendar, Coins } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -21,12 +23,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
 
 import type { BlobbiCompanion } from '@/lib/blobbi';
 import type { HatchTasksResult } from '../hooks/useHatchTasks';
 import type { EvolveTasksResult } from '../hooks/useEvolveTasks';
 import { TasksPanel } from './TasksPanel';
+import { DailyMissionsPanel } from './DailyMissionsPanel';
+import { useDailyMissions } from '../hooks/useDailyMissions';
+import { toast } from '@/hooks/useToast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,20 +65,53 @@ interface BlobbiMissionsModalProps {
   isStoppingEvolution: boolean;
 }
 
-// ─── Empty State ──────────────────────────────────────────────────────────────
+// ─── Daily Missions Section ───────────────────────────────────────────────────
 
-function MissionsEmptyState() {
+interface DailyMissionsSectionProps {
+  disabled?: boolean;
+}
+
+function DailyMissionsSection({ disabled }: DailyMissionsSectionProps) {
+  const {
+    missions,
+    todayClaimedReward,
+    totalPotentialReward,
+    claimReward,
+  } = useDailyMissions();
+
+  const handleClaimReward = (missionId: string) => {
+    const earned = claimReward(missionId);
+    if (earned > 0) {
+      toast({
+        title: 'Reward claimed!',
+        description: `You earned ${earned} coins.`,
+      });
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center gap-4 py-12 text-center">
-      <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-        <Target className="size-8 text-primary" />
+    <div className="space-y-4">
+      {/* Section header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Calendar className="size-4 text-primary" />
+          <h3 className="font-semibold text-sm">Daily Missions</h3>
+        </div>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Coins className="size-3" />
+          <span>
+            {todayClaimedReward} / {totalPotentialReward} earned
+          </span>
+        </div>
       </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold text-lg">No Active Missions</h3>
-        <p className="text-muted-foreground max-w-xs">
-          Start incubating an egg to unlock hatch tasks, or check back later for new missions!
-        </p>
-      </div>
+
+      {/* Mission list */}
+      <DailyMissionsPanel
+        missions={missions}
+        onClaimReward={handleClaimReward}
+        todayCoins={todayClaimedReward}
+        disabled={disabled}
+      />
     </div>
   );
 }
@@ -257,16 +296,9 @@ export function BlobbiMissionsModal({
   const isEgg = companion.stage === 'egg';
   const isBaby = companion.stage === 'baby';
 
-  // Determine description text
-  const getDescription = () => {
-    if (isIncubating && isEgg) {
-      return `Complete tasks to hatch ${companion.name}`;
-    }
-    if (isEvolvingState && isBaby) {
-      return `Complete tasks to evolve ${companion.name}`;
-    }
-    return 'Complete missions to earn rewards';
-  };
+  // Check if there's an active hatch/evolve process
+  const hasActiveProcess = (isIncubating && isEgg) || (isEvolvingState && isBaby);
+  const isProcessBusy = isHatching || isEvolving || isStoppingIncubation || isStoppingEvolution;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -277,35 +309,43 @@ export function BlobbiMissionsModal({
             Missions
           </DialogTitle>
           <DialogDescription>
-            {getDescription()}
+            Complete missions to earn rewards for {companion.name}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="pt-2">
-          {isIncubating && isEgg ? (
-            <ProcessContent
-              companion={companion}
-              tasks={hatchTasks}
-              processType="incubation"
-              onOpenPostModal={onOpenPostModal}
-              onComplete={onHatch}
-              isCompleting={isHatching}
-              onStop={onStopIncubation}
-              isStopping={isStoppingIncubation}
-            />
-          ) : isEvolvingState && isBaby ? (
-            <ProcessContent
-              companion={companion}
-              tasks={evolveTasks}
-              processType="evolution"
-              onOpenPostModal={onOpenPostModal}
-              onComplete={onEvolve}
-              isCompleting={isEvolving}
-              onStop={onStopEvolution}
-              isStopping={isStoppingEvolution}
-            />
-          ) : (
-            <MissionsEmptyState />
+        <div className="pt-2 space-y-6">
+          {/* Daily Missions Section - Always visible */}
+          <DailyMissionsSection disabled={isProcessBusy} />
+
+          {/* Hatch/Evolve Process Section - Only when active */}
+          {hasActiveProcess && (
+            <>
+              <Separator />
+              
+              {isIncubating && isEgg ? (
+                <ProcessContent
+                  companion={companion}
+                  tasks={hatchTasks}
+                  processType="incubation"
+                  onOpenPostModal={onOpenPostModal}
+                  onComplete={onHatch}
+                  isCompleting={isHatching}
+                  onStop={onStopIncubation}
+                  isStopping={isStoppingIncubation}
+                />
+              ) : isEvolvingState && isBaby ? (
+                <ProcessContent
+                  companion={companion}
+                  tasks={evolveTasks}
+                  processType="evolution"
+                  onOpenPostModal={onOpenPostModal}
+                  onComplete={onEvolve}
+                  isCompleting={isEvolving}
+                  onStop={onStopEvolution}
+                  isStopping={isStoppingEvolution}
+                />
+              ) : null}
+            </>
           )}
         </div>
       </DialogContent>

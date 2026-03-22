@@ -156,3 +156,17 @@ export {
   getActionForItem,
   incrementInteractionTaskTags,
 } from './lib/blobbi-action-utils';
+
+// Daily Missions
+export { useDailyMissions } from './hooks/useDailyMissions';
+export type { UseDailyMissionsResult } from './hooks/useDailyMissions';
+export {
+  trackDailyMissionProgress,
+  trackMultipleDailyMissionActions,
+} from './lib/daily-mission-tracker';
+export type {
+  DailyMission,
+  DailyMissionAction,
+  DailyMissionDefinition,
+  DailyMissionsState,
+} from './lib/daily-missions';
