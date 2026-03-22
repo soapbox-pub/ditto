@@ -421,7 +421,7 @@ function CommentOnUrlItem({
       </div>
       <div className="flex-1 min-w-0">
         <span className="text-sm font-medium truncate block">
-          Comment on this link
+          {preview?.title ?? 'Comment on this link'}
         </span>
         <span className="text-xs text-muted-foreground truncate block">
           {(() => {
