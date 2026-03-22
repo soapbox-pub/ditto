@@ -284,7 +284,7 @@ export function useEventStats(eventId: string | undefined) {
         reposts: nip85.data.repostCount,
         quotes: 0,
         reactions: nip85.data.reactionCount,
-        zapAmount: 0,
+        zapAmount: nip85.data.zapAmount,
         zapCount: nip85.data.zapCount,
         reactionEmojis: [],
       };
