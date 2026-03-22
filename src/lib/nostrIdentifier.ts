@@ -34,6 +34,20 @@ function looksLikeNip05(value: string): boolean {
 }
 
 /**
+ * Checks whether a string looks like a full URL (http:// or https://).
+ */
+export function isFullUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return false;
+  try {
+    new URL(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * If `input` is a Nostr identifier (NIP-19 bech32 or NIP-05 address),
  * returns the path the app should navigate to (e.g. `/npub1...` or `/user@domain.com`).
  *

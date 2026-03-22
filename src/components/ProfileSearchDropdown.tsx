@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, UserRoundCheck } from 'lucide-react';
+import { Search, UserRoundCheck, MessageSquare } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -9,10 +9,12 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { genUserName } from '@/lib/genUserName';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
-import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
+import { getNostrIdentifierPath, isFullUrl } from '@/lib/nostrIdentifier';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getProfileUrl } from '@/lib/profileUrl';
 import { searchCountry, type CountryEntry } from '@/lib/countries';
+import { useLinkPreview } from '@/hooks/useLinkPreview';
+import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
@@ -54,6 +56,9 @@ export function ProfileSearchDropdown({
   const profileCount = profiles?.length ?? 0;
   // Show country at top only for exact matches; otherwise at bottom (after profiles)
   const countryAtTop = !!countryMatch && (countryMatch.exact || profileCount === 0);
+
+  // URL detection — show "Comment on" option when query is a full URL
+  const queryIsUrl = useMemo(() => isFullUrl(query), [query]);
 
   // Show dropdown when we have results, or when text search is enabled and there's a query
   useEffect(() => {
@@ -107,15 +112,25 @@ export function ProfileSearchDropdown({
     navigate(`/search?q=${encodeURIComponent(query.trim())}`);
   }, [enableTextSearch, query, navigate]);
 
-  // Total selectable items: profiles + optional country
+  // Total selectable items: profiles + optional country + optional URL comment
   const hasCountry = !!countryMatch;
-  const totalItems = profileCount + (hasCountry ? 1 : 0);
+  const hasUrlComment = queryIsUrl && enableTextSearch;
+  const totalItems = profileCount + (hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0);
 
   // Map selectedIndex to what it refers to.
-  // When countryAtTop: [country, ...profiles]
-  // When country at bottom: [...profiles, country]
-  const countryIndex = countryAtTop ? 0 : profileCount;
-  const profileStartIndex = countryAtTop && hasCountry ? 1 : 0;
+  // When enableTextSearch with URL: [commentUrl, country?(top), ...profiles, country?(bottom)]
+  // The "Comment on" item sits at index 0 (right after the always-highlighted "Search for")
+  const urlCommentIndex = 0;
+  const countryIndex = countryAtTop ? (hasUrlComment ? 1 : 0) : profileCount + (hasUrlComment ? 1 : 0);
+  const profileStartIndex = (countryAtTop && hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0);
+
+  const handleCommentOnUrl = useCallback(() => {
+    if (!queryIsUrl) return;
+    setOpen(false);
+    setQuery('');
+    inputRef.current?.blur();
+    navigate(`/i/${encodeURIComponent(query.trim())}`);
+  }, [queryIsUrl, query, navigate]);
 
   const handleSelectCountry = useCallback((country: CountryEntry) => {
     setOpen(false);
@@ -134,7 +149,9 @@ export function ProfileSearchDropdown({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (open && selectedIndex >= 0 && selectedIndex < totalItems) {
-        if (hasCountry && selectedIndex === countryIndex) {
+        if (hasUrlComment && selectedIndex === urlCommentIndex) {
+          handleCommentOnUrl();
+        } else if (hasCountry && selectedIndex === countryIndex) {
           handleSelectCountry(countryMatch!.country);
         } else {
           const profileIdx = selectedIndex - profileStartIndex;
@@ -273,6 +290,15 @@ export function ProfileSearchDropdown({
               </span>
             </button>
 
+            {/* Comment on URL option — shown when query is a full URL */}
+            {hasUrlComment && (
+              <CommentOnUrlItem
+                url={query.trim()}
+                isSelected={selectedIndex === urlCommentIndex}
+                onClick={handleCommentOnUrl}
+              />
+            )}
+
             {/* Country result (top — exact match only) */}
             {hasCountry && countryAtTop && (
               <CountryItem
@@ -346,6 +372,62 @@ function CountryItem({
       <div className="flex-1 min-w-0">
         <span className="font-semibold text-sm truncate">{country.name}</span>
         <div className="text-xs text-muted-foreground">{country.code}</div>
+      </div>
+    </button>
+  );
+}
+
+function CommentOnUrlItem({
+  url,
+  isSelected,
+  onClick,
+}: {
+  url: string;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const { data: preview } = useLinkPreview(url);
+  const thumbnailUrl = preview?.thumbnail_url;
+
+  return (
+    <button
+      data-search-item
+      role="option"
+      aria-selected={isSelected}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+      onClick={onClick}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <div className="size-10 shrink-0 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center">
+        {thumbnailUrl ? (
+          <img
+            src={thumbnailUrl}
+            alt=""
+            className="size-10 object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+            }}
+          />
+        ) : null}
+        <div
+          className={cn('items-center justify-center size-10', thumbnailUrl ? 'hidden' : 'flex')}
+        >
+          <ExternalFavicon url={url} size={18} fallback={<MessageSquare className="size-4 text-primary" />} />
+        </div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <span className="text-sm font-medium truncate block">
+          Comment on this link
+        </span>
+        <span className="text-xs text-muted-foreground truncate block">
+          {(() => {
+            try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
+          })()}
+        </span>
       </div>
     </button>
   );
