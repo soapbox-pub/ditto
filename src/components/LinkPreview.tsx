@@ -77,7 +77,6 @@ export function LinkPreview({ url, className, hideImage, externalLink }: LinkPre
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <ExternalFavicon url={url} size={14} className="shrink-0" />
           <span className="truncate">{domain}</span>
-          <ExternalLink className="size-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
 
           {/* Open externally button — only when the card navigates to /i/ */}
           {!externalLink && (
