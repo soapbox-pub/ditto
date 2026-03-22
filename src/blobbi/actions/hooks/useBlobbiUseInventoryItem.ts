@@ -29,6 +29,8 @@ import {
   type InventoryAction,
   ACTION_METADATA,
 } from '../lib/blobbi-action-utils';
+import { trackMultipleDailyMissionActions } from '../lib/daily-mission-tracker';
+import type { DailyMissionAction } from '../lib/daily-missions';
 import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';
 import { EVOLVE_REQUIRED_INTERACTIONS } from './useEvolveTasks';
 
@@ -333,6 +335,13 @@ export function useBlobbiUseInventoryItem({
         title: `${actionMeta.label} successful!`,
         description: `Used ${itemName}${quantityText} on your Blobbi.`,
       });
+
+      // Track daily mission progress
+      // 'interact' is always tracked, plus the specific action if it maps to a daily mission
+      const dailyActions: DailyMissionAction[] = ['interact'];
+      if (action === 'feed') dailyActions.push('feed');
+      if (action === 'clean') dailyActions.push('clean');
+      trackMultipleDailyMissionActions(dailyActions, user?.pubkey);
     },
     onError: (error: Error) => {
       toast({

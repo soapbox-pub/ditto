@@ -19,6 +19,8 @@ import {
   incrementInteractionTaskTags,
   type DirectAction,
 } from '../lib/blobbi-action-utils';
+import { trackMultipleDailyMissionActions } from '../lib/daily-mission-tracker';
+import type { DailyMissionAction } from '../lib/daily-missions';
 import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';
 import { EVOLVE_REQUIRED_INTERACTIONS } from './useEvolveTasks';
 
@@ -186,6 +188,13 @@ export function useBlobbiDirectAction({
         title: `${actionMeta.label} complete!`,
         description: `Your Blobbi's happiness increased by ${happinessChange}!`,
       });
+
+      // Track daily mission progress
+      // 'interact' is always tracked, plus the specific action
+      const dailyActions: DailyMissionAction[] = ['interact'];
+      if (action === 'sing') dailyActions.push('sing');
+      if (action === 'play_music') dailyActions.push('play_music');
+      trackMultipleDailyMissionActions(dailyActions, user?.pubkey);
     },
     onError: (error: Error) => {
       toast({

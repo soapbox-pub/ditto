@@ -26,6 +26,7 @@ import { useUploadFile } from '@/hooks/useUploadFile';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
+import { trackDailyMissionProgress } from '@/blobbi/actions';
 import type { BlobbiCompanion } from '@/lib/blobbi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -189,6 +190,9 @@ export function BlobbiPhotoModal({
         title: 'Posted!',
         description: 'Your Blobbi photo has been shared.',
       });
+
+      // Track daily mission progress for photo action
+      trackDailyMissionProgress('take_photo', 1, user.pubkey);
 
       // Close the modal after successful post
       onOpenChange(false);

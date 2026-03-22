@@ -68,6 +68,7 @@ import {
   createSingActivity,
   createNoActivity,
   getActionForItem,
+  trackDailyMissionProgress,
   type InventoryAction,
   type DirectAction,
   type InlineActivityState,
@@ -356,6 +357,11 @@ function BlobbiContent() {
           ? 'Your Blobbi is now awake and active!'
           : 'Your Blobbi is taking a rest.',
       });
+      
+      // Track daily mission progress for sleep action (only when putting to sleep)
+      if (!isCurrentlySleeping) {
+        trackDailyMissionProgress('sleep', 1, user?.pubkey);
+      }
     } catch (error) {
       console.error('Failed to update state:', error);
       toast({

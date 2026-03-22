@@ -32,6 +32,7 @@ import { z } from 'zod';
 import { IntroImage } from '@/components/IntroImage';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { isValidAvatarShape } from '@/lib/avatarShape';
+import { trackDailyMissionProgress } from '@/blobbi/actions';
 
 // Extended form schema that includes custom fields and avatar shape
 const formSchema = n.metadata().extend({
@@ -246,6 +247,11 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
         kind: 0,
         content: JSON.stringify(data),
       });
+
+      // Track daily mission progress if user set a blobbi shape as their avatar
+      if (shape && shape.startsWith('blobbi:')) {
+        trackDailyMissionProgress('change_shape', 1, user.pubkey);
+      }
 
       // Invalidate queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ['logins'] });
