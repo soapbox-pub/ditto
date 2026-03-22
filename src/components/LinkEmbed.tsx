@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 
+import { ArchiveOrgEmbed } from '@/components/ArchiveOrgEmbed';
 import { BlueskyEmbed } from '@/components/BlueskyEmbed';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { LinkPreview } from '@/components/LinkPreview';
@@ -17,6 +18,7 @@ import {
   extractMastodonPost,
   extractSpotifyEmbed,
   extractRedditPost,
+  extractArchiveOrgId,
 } from '@/lib/linkEmbed';
 import { cn } from '@/lib/utils';
 
@@ -50,6 +52,7 @@ export function LinkEmbed({ url, className, navigateToComments, showActions = tr
   const mastodonUrl = useMemo(() => extractMastodonPost(url), [url]);
   const spotifyEmbed = useMemo(() => extractSpotifyEmbed(url), [url]);
   const redditUrl = useMemo(() => extractRedditPost(url), [url]);
+  const archiveOrgId = useMemo(() => extractArchiveOrgId(url), [url]);
 
   let embed: React.ReactNode;
 
@@ -67,6 +70,8 @@ export function LinkEmbed({ url, className, navigateToComments, showActions = tr
     embed = <SpotifyEmbed type={spotifyEmbed.type} id={spotifyEmbed.id} />;
   } else if (redditUrl) {
     embed = <RedditEmbed url={redditUrl} />;
+  } else if (archiveOrgId) {
+    embed = <ArchiveOrgEmbed identifier={archiveOrgId} />;
   } else {
     return <LinkPreview url={url} className={className} hideImage={hideImage} navigateToComments={navigateToComments} showActions={showActions} />;
   }
