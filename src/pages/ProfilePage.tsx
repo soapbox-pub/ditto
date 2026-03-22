@@ -1167,7 +1167,11 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     fetchNextPage: fetchNextFeedPage,
     hasNextPage: hasNextFeedPage,
     isFetchingNextPage: isFetchingNextFeedPage,
-  } = useProfileFeed(pubkey, hasTabs);
+  } = useProfileFeed(
+    pubkey,
+    (['posts', 'replies', 'media', 'likes', 'wall', 'badges'].includes(activeTab) ? activeTab : 'posts') as CoreProfileTab,
+    hasTabs,
+  );
 
   // Kind 0 — resolved from the author cache (seeded by the feed query above).
   const author = useAuthor(pubkey);
@@ -1652,6 +1656,18 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const currentLoading = activeTab === 'wall' ? wallPending : activeTab === 'likes' ? likesPending : activeTab === 'media' ? mediaPending : feedPending;
   const hasMore = activeTab === 'wall' ? hasNextWallPage : activeTab === 'likes' ? hasNextLikesPage : activeTab === 'media' ? hasNextMediaPage : hasNextFeedPage;
   const isFetchingMore = activeTab === 'wall' ? isFetchingNextWallPage : activeTab === 'likes' ? isFetchingNextLikesPage : activeTab === 'media' ? isFetchingNextMediaPage : isFetchingNextFeedPage;
+
+  // Auto-fetch next page when client-side filtering (e.g. removing replies
+  // from the "posts" tab) leaves fewer visible items than the page size.
+  // This prevents the user from seeing a near-empty page with a large gap.
+  const MIN_VISIBLE_ITEMS = 5;
+  useEffect(() => {
+    if (currentLoading || isFetchingMore) return;
+    if (activeTab === 'wall' || activeTab === 'likes' || activeTab === 'media') return;
+    if (currentItems.length < MIN_VISIBLE_ITEMS && hasNextFeedPage && !isFetchingNextFeedPage) {
+      fetchNextFeedPage();
+    }
+  }, [currentItems.length, currentLoading, isFetchingMore, activeTab, hasNextFeedPage, isFetchingNextFeedPage, fetchNextFeedPage]);
 
   const handleRefresh = useCallback(async () => {
     if (!pubkey) return;
