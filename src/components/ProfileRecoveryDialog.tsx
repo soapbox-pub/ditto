@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter, NostrMetadata } from '@nostrify/nostrify';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -18,6 +18,33 @@ import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from '@/lib/themeEvent';
 import { coreToTokens } from '@/themes';
 import { cn } from '@/lib/utils';
 import { Check, Loader2, RotateCcw, User, Palette } from 'lucide-react';
+
+/**
+ * Query all events matching a filter using `req()` instead of `query()`.
+ * This bypasses NSet deduplication in NPool.query(), which discards older
+ * versions of replaceable events. We need all historical versions for recovery.
+ */
+async function queryAllEvents(
+  nostr: { req(filters: NostrFilter[], opts?: { signal?: AbortSignal }): AsyncIterable<['EVENT', string, NostrEvent] | ['EOSE', string] | ['CLOSED', string, string]> },
+  filters: NostrFilter[],
+  signal: AbortSignal,
+): Promise<NostrEvent[]> {
+  const events: NostrEvent[] = [];
+  const seen = new Set<string>();
+
+  for await (const msg of nostr.req(filters, { signal })) {
+    if (msg[0] === 'EOSE' || msg[0] === 'CLOSED') break;
+    if (msg[0] === 'EVENT') {
+      const event = msg[2];
+      if (!seen.has(event.id)) {
+        seen.add(event.id);
+        events.push(event);
+      }
+    }
+  }
+
+  return events;
+}
 
 interface ProfileRecoveryDialogProps {
   open: boolean;
@@ -272,11 +299,12 @@ function ProfileHistoryTab({ onClose }: { onClose: () => void }) {
     queryKey: ['profile-recovery', 'kind0', pubkey],
     queryFn: async () => {
       if (!pubkey) return [];
-      const events = await nostr.query(
+      const events = await queryAllEvents(
+        nostr,
         [{ kinds: [0], authors: [pubkey] }],
-        { signal: AbortSignal.timeout(10000) },
+        AbortSignal.timeout(10000),
       );
-      return [...events].sort((a, b) => b.created_at - a.created_at);
+      return events.sort((a, b) => b.created_at - a.created_at);
     },
     enabled: !!pubkey,
     staleTime: 30_000,
@@ -355,11 +383,12 @@ function ThemeHistoryTab({ onClose }: { onClose: () => void }) {
     queryKey: ['profile-recovery', 'kind16767', pubkey],
     queryFn: async () => {
       if (!pubkey) return [];
-      const events = await nostr.query(
+      const events = await queryAllEvents(
+        nostr,
         [{ kinds: [ACTIVE_THEME_KIND], authors: [pubkey] }],
-        { signal: AbortSignal.timeout(10000) },
+        AbortSignal.timeout(10000),
       );
-      return [...events]
+      return events
         .sort((a, b) => b.created_at - a.created_at)
         .filter((e) => parseActiveProfileTheme(e) !== null);
     },
