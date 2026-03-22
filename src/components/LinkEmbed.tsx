@@ -23,14 +23,12 @@ import { cn } from '@/lib/utils';
 interface LinkEmbedProps {
   url: string;
   className?: string;
-  /** Show a "Discuss" link to the /i/:uri page. Defaults to true. */
-  showDiscuss?: boolean;
+  /** When true, clicking the link preview navigates to /i/ instead of opening externally. */
+  navigateToComments?: boolean;
+  /** When true, shows an action button (Discuss or Open). Defaults to true. */
+  showActions?: boolean;
   /** When true, hides the thumbnail image in generic link preview cards. */
   hideImage?: boolean;
-  /** When true, clicking the link preview opens the URL externally instead of navigating to /i/. */
-  externalLink?: boolean;
-  /** When true, hides the Discuss/Open action button on generic link previews. */
-  hideActions?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -45,7 +43,7 @@ interface LinkEmbedProps {
  * - Mastodon post URLs → `MastodonEmbed` (native card via Mastodon API)
  * - Everything else → `LinkPreview` (OEmbed link preview card)
  */
-export function LinkEmbed({ url, className, showDiscuss = true, hideImage, externalLink = true, hideActions }: LinkEmbedProps) {
+export function LinkEmbed({ url, className, navigateToComments, showActions = true, hideImage }: LinkEmbedProps) {
   const youtubeId = useMemo(() => extractYouTubeId(url), [url]);
   const tweetId = useMemo(() => extractTweetId(url), [url]);
   const blueskyPost = useMemo(() => extractBlueskyPost(url), [url]);
@@ -70,13 +68,13 @@ export function LinkEmbed({ url, className, showDiscuss = true, hideImage, exter
   } else if (redditUrl) {
     embed = <RedditEmbed url={redditUrl} />;
   } else {
-    return <LinkPreview url={url} className={className} hideImage={hideImage} externalLink={externalLink} hideActions={hideActions} />;
+    return <LinkPreview url={url} className={className} hideImage={hideImage} navigateToComments={navigateToComments} showActions={showActions} />;
   }
 
   return (
     <div className={cn('space-y-0', className)}>
       {embed}
-      {showDiscuss && <DiscussBar url={url} />}
+      {showActions && <DiscussBar url={url} />}
     </div>
   );
 }

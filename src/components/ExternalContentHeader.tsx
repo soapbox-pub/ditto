@@ -26,7 +26,7 @@ import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 // ---------------------------------------------------------------------------
 
 export function UrlContentHeader({ url }: { url: string }) {
-  return <LinkEmbed url={url} showDiscuss={false} externalLink hideActions />;
+  return <LinkEmbed url={url} showActions={false} />;
 }
 
 export function BookContentHeader({ isbn }: { isbn: string }) {
