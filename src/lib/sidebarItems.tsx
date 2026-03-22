@@ -1,4 +1,5 @@
 import {
+  Archive,
   Award,
   BarChart3,
   Bell,
@@ -141,6 +142,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "development", label: "Development", path: "/development", icon: Code },
   { id: "badges", label: "Badges", path: "/badges", icon: Award },
   { id: "world", label: "World", path: "/world", icon: Earth },
+  { id: "archive", label: "Archive", path: "/archive", icon: Archive },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */
