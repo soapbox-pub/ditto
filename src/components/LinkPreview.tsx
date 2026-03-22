@@ -1,4 +1,4 @@
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -12,6 +12,8 @@ interface LinkPreviewProps {
   hideImage?: boolean;
   /** When true, clicking the card opens the URL in a new tab instead of navigating to the /i/ comment page. */
   externalLink?: boolean;
+  /** When true, hides the Discuss/Open action button. */
+  hideActions?: boolean;
 }
 
 /** Extracts the display domain from a URL (e.g. "www.example.com" -> "example.com"). */
@@ -25,7 +27,7 @@ function displayDomain(url: string): string {
 }
 
 /** Rich link preview card rendered from OEmbed data. */
-export function LinkPreview({ url, className, hideImage, externalLink }: LinkPreviewProps) {
+export function LinkPreview({ url, className, hideImage, externalLink, hideActions }: LinkPreviewProps) {
   const { data, isLoading } = useLinkPreview(url);
   const navigate = useNavigate();
 
@@ -78,8 +80,26 @@ export function LinkPreview({ url, className, hideImage, externalLink }: LinkPre
           <ExternalFavicon url={url} size={14} className="shrink-0" />
           <span className="truncate">{domain}</span>
 
-          {/* Open externally button — only when the card navigates to /i/ */}
-          {!externalLink && (
+          {hideActions ? null : externalLink ? (
+            /* Discuss button — when card opens externally, offer navigation to /i/ */
+            <button
+              type="button"
+              className={cn(
+                'ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full',
+                'text-xs text-muted-foreground',
+                'hover:bg-primary/10 hover:text-primary transition-colors',
+              )}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate(`/i/${encodeURIComponent(url)}`);
+              }}
+            >
+              <MessageSquare className="size-3" />
+              <span>Discuss</span>
+            </button>
+          ) : (
+            /* Open button — when card navigates to /i/, offer opening externally */
             <a
               href={url}
               target="_blank"
