@@ -4,6 +4,7 @@ import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { LinkPreview } from '@/components/LinkPreview';
 import { ReactionEmoji } from '@/components/CustomEmoji';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
@@ -446,13 +447,26 @@ function UrlCommentContext({ url, className }: { url: string; className?: string
     <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
       <span className="shrink-0">Commenting on</span>
       <ExternalFavicon url={url} size={14} className="shrink-0" />
-      <Link
-        to={link}
-        className="text-primary hover:underline truncate"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {title || fallbackHost}
-      </Link>
+      <HoverCard openDelay={300} closeDelay={150}>
+        <HoverCardTrigger asChild>
+          <Link
+            to={link}
+            className="text-primary hover:underline truncate cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {title || fallbackHost}
+          </Link>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          className="w-80 p-0 rounded-2xl shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <LinkPreview url={url} className="border-0 rounded-none" />
+        </HoverCardContent>
+      </HoverCard>
     </div>
   );
 }
