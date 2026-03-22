@@ -1,49 +1,29 @@
-import { type NLoginType, NUser, useNostrLogin } from '@nostrify/react/login';
-import { useNostr } from '@nostrify/react';
-import { NConnectSigner, NSecSigner } from '@nostrify/nostrify';
-import { nip19 } from 'nostr-tools';
-import { useCallback, useMemo } from 'react';
+import { useNostr } from "@nostrify/react";
+import { type NLoginType, NUser, useNostrLogin } from "@nostrify/react/login";
+import { useCallback, useMemo } from "react";
 
-import { useAuthor } from './useAuthor.ts';
+import { useAuthor } from "./useAuthor.ts";
 
 export function useCurrentUser() {
   const { nostr } = useNostr();
   const { logins } = useNostrLogin();
 
-  const loginToUser = useCallback((login: NLoginType): NUser  => {
-    switch (login.type) {
-      case 'nsec': // Nostr login with secret key
-        return NUser.fromNsecLogin(login);
-      case 'bunker': {
-        // Workaround for upstream bug in NUser.fromBunkerLogin():
-        // It passes `login.pubkey` (user pubkey) to NConnectSigner instead of
-        // `login.data.bunkerPubkey`. For signers where these differ (e.g. Primal
-        // Signer), all signing requests fail after page reload because the
-        // NConnectSigner encrypts requests to the wrong pubkey.
-        const clientSk = nip19.decode(login.data.clientNsec) as {
-          type: 'nsec';
-          data: Uint8Array;
-        };
-        const clientSigner = new NSecSigner(clientSk.data);
-
-        return new NUser(
-          login.type,
-          login.pubkey,
-          new NConnectSigner({
-            relay: nostr.group(login.data.relays),
-            pubkey: login.data.bunkerPubkey, // FIX: use bunker pubkey, not user pubkey
-            signer: clientSigner,
-            timeout: 60_000,
-          }),
-        );
+  const loginToUser = useCallback(
+    (login: NLoginType): NUser => {
+      switch (login.type) {
+        case "nsec": // Nostr login with secret key
+          return NUser.fromNsecLogin(login);
+        case "bunker": // Nostr login with NIP-46 "bunker://" URI
+          return NUser.fromBunkerLogin(login, nostr);
+        case "extension": // Nostr login with NIP-07 browser extension
+          return NUser.fromExtensionLogin(login);
+        // Other login types can be defined here
+        default:
+          throw new Error(`Unsupported login type: ${login.type}`);
       }
-      case 'extension': // Nostr login with NIP-07 browser extension
-        return NUser.fromExtensionLogin(login);
-      // Other login types can be defined here
-      default:
-        throw new Error(`Unsupported login type: ${login.type}`);
-    }
-  }, [nostr]);
+    },
+    [nostr],
+  );
 
   const users = useMemo(() => {
     const users: NUser[] = [];
@@ -53,7 +33,7 @@ export function useCurrentUser() {
         const user = loginToUser(login);
         users.push(user);
       } catch (error) {
-        console.warn('Skipped invalid login', login.id, error);
+        console.warn("Skipped invalid login", login.id, error);
       }
     }
 
