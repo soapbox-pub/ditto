@@ -54,8 +54,8 @@ export function useAuthors(pubkeys: string[]) {
         authorMap.set(event.pubkey, { pubkey: event.pubkey, ...parsed });
         // Seed individual author cache
         queryClient.setQueryData(['author', event.pubkey], parsed);
-        // Persist to IndexedDB (fire-and-forget)
-        void setProfileCached(event);
+        // Persist to IndexedDB with pre-parsed metadata (fire-and-forget)
+        void setProfileCached(event, parsed.metadata);
       }
 
       return authorMap;
