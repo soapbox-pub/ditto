@@ -95,7 +95,15 @@ export function NotificationsPage() {
       );
     }
     if (activeTab === 'mentions') {
-      filtered = filtered.filter((group) => group.kind === 1 || group.kind === 1111);
+      filtered = filtered.filter((group) => {
+        // Kind 1111 comments always count as mentions
+        if (group.kind === 1111) return true;
+        // Kind 1: only include pure mentions, not replies
+        if (group.kind === 1) {
+          return !isReplyEvent(group.actors[0].event);
+        }
+        return false;
+      });
     }
     return filtered;
   }, [groupedItems, activeTab, muteItems]);
