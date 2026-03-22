@@ -16,9 +16,8 @@ function useArchiveOrgDimensions(identifier: string) {
       const res = await fetch(`https://archive.org/metadata/${identifier}/files`, { signal });
       if (!res.ok) return null;
 
-      const json: { result?: unknown[] } = await res.json();
-      const files: { width?: string; height?: string; source?: string }[] =
-        (Array.isArray(json) ? json : Array.isArray(json.result) ? json.result : []) as { width?: string; height?: string; source?: string }[];
+      const json: { result: { width?: string; height?: string; source?: string }[] } = await res.json();
+      const files = json.result;
 
       // Prefer the original source file with dimensions, fall back to any file with dimensions.
       const withDims = files.filter((f) => f.width && f.height);
