@@ -8,27 +8,41 @@ interface ArchiveOrgEmbedProps {
   className?: string;
 }
 
-/** Fetch the dimensions of the primary media file from the archive.org metadata API. */
-function useArchiveOrgDimensions(identifier: string) {
+interface ArchiveOrgMeta {
+  /** Native width/height of the primary media file, if available. */
+  dims: { width: number; height: number } | null;
+  /** The item's mediatype (e.g. "software", "movies", "audio", "texts"). */
+  mediatype: string | null;
+}
+
+/** Fetch metadata for an archive.org item: dimensions and mediatype. */
+function useArchiveOrgMeta(identifier: string) {
   return useQuery({
-    queryKey: ['archive-org-dims', identifier],
-    queryFn: async ({ signal }): Promise<{ width: number; height: number } | null> => {
-      const res = await fetch(`https://archive.org/metadata/${identifier}/files`, { signal });
-      if (!res.ok) return null;
+    queryKey: ['archive-org-meta', identifier],
+    queryFn: async ({ signal }): Promise<ArchiveOrgMeta> => {
+      const res = await fetch(`https://archive.org/metadata/${identifier}`, { signal });
+      if (!res.ok) return { dims: null, mediatype: null };
 
-      const json: { result: { width?: string; height?: string; source?: string }[] } = await res.json();
-      const files = json.result;
+      const json: {
+        metadata?: { mediatype?: string };
+        files?: { width?: string; height?: string; source?: string }[];
+      } = await res.json();
 
-      // Prefer the original source file with dimensions, fall back to any file with dimensions.
+      const mediatype = json.metadata?.mediatype ?? null;
+
+      // Extract dimensions from the files list.
+      const files = json.files ?? [];
       const withDims = files.filter((f) => f.width && f.height);
       const original = withDims.find((f) => f.source === 'original') ?? withDims[0];
-      if (!original) return null;
 
-      const w = Number(original.width);
-      const h = Number(original.height);
-      if (!w || !h) return null;
+      let dims: { width: number; height: number } | null = null;
+      if (original) {
+        const w = Number(original.width);
+        const h = Number(original.height);
+        if (w && h) dims = { width: w, height: h };
+      }
 
-      return { width: w, height: h };
+      return { dims, mediatype };
     },
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 24,
@@ -45,19 +59,21 @@ function useArchiveOrgDimensions(identifier: string) {
  * Archive.org provides:
  * - Thumbnail: `https://archive.org/services/img/{identifier}`
  * - Embed:     `https://archive.org/embed/{identifier}`
- * - Metadata:  `https://archive.org/metadata/{identifier}/files`
+ * - Metadata:  `https://archive.org/metadata/{identifier}`
  *
  * The embed page renders the appropriate player for the content type
  * (video, audio, software emulation, book reader, etc.).
  *
- * Unlike YouTube, the archive.org embed renders content at its native pixel
- * size and doesn't scale to fill the iframe. To handle narrow viewports we
- * give the iframe its native dimensions and use CSS `transform: scale()` to
- * shrink it to fit the container width.
+ * For software/games, the archive.org embed renders content at its native
+ * pixel size and doesn't scale to fill the iframe. We use CSS
+ * `transform: scale()` to shrink these to fit narrow viewports.
+ *
+ * For videos and other media, the embed page has a responsive player,
+ * so we use a standard responsive iframe approach.
  */
 export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps) {
   const [activated, setActivated] = useState(false);
-  const { data: dims } = useArchiveOrgDimensions(identifier);
+  const { data: meta } = useArchiveOrgMeta(identifier);
   const [containerWidth, setContainerWidth] = useState(0);
 
   // Measure the outer container width on mount/resize via ResizeObserver.
@@ -69,7 +85,6 @@ export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps)
       }
     });
     ro.observe(node);
-    // Capture initial width synchronously.
     setContainerWidth(node.getBoundingClientRect().width);
     observerRef.current = ro;
   }, []);
@@ -77,16 +92,17 @@ export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps)
 
   const thumbnailSrc = `https://archive.org/services/img/${identifier}`;
 
-  // Native dimensions (fallback to a common 4:3 size).
-  const nativeW = dims?.width ?? 640;
-  const nativeH = dims?.height ?? 480;
+  // Software/games need the transform-scale approach because their embed
+  // renders at fixed native pixel dimensions.
+  const isSoftware = meta?.mediatype === 'software';
 
-  // Scale factor: shrink when the container is narrower than the native width.
+  const nativeW = meta?.dims?.width ?? 640;
+  const nativeH = meta?.dims?.height ?? 480;
+  const paddingBottom = `${(nativeH / nativeW) * 100}%`;
+
+  // Scale factor for software embeds.
   const scale = containerWidth > 0 ? Math.min(1, containerWidth / nativeW) : 1;
   const scaledH = nativeH * scale;
-
-  // Padding-bottom for the thumbnail facade (before activation).
-  const paddingBottom = `${(nativeH / nativeW) * 100}%`;
 
   return (
     <div
@@ -95,20 +111,33 @@ export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps)
       onClick={(e) => e.stopPropagation()}
     >
       {activated ? (
-        <div className="relative overflow-hidden bg-black" style={{ height: scaledH }}>
-          <iframe
-            src={`https://archive.org/embed/${identifier}`}
-            title="Internet Archive"
-            allowFullScreen
-            style={{
-              width: nativeW,
-              height: nativeH,
-              transform: `scale(${scale})`,
-              transformOrigin: 'top left',
-              border: 'none',
-            }}
-          />
-        </div>
+        isSoftware ? (
+          // Software/games: fixed-size iframe scaled down with CSS transform.
+          <div className="relative overflow-hidden bg-black" style={{ height: scaledH }}>
+            <iframe
+              src={`https://archive.org/embed/${identifier}`}
+              title="Internet Archive"
+              allowFullScreen
+              style={{
+                width: nativeW,
+                height: nativeH,
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+                border: 'none',
+              }}
+            />
+          </div>
+        ) : (
+          // Videos and other media: standard responsive iframe.
+          <div className="relative w-full" style={{ paddingBottom }}>
+            <iframe
+              src={`https://archive.org/embed/${identifier}`}
+              title="Internet Archive"
+              allowFullScreen
+              className="absolute inset-0 w-full h-full"
+            />
+          </div>
+        )
       ) : (
         <div className="relative w-full" style={{ paddingBottom }}>
           <button
