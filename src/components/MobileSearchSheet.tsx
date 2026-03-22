@@ -187,6 +187,20 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
         {/* Results list — reversed so closest to input = most relevant */}
         {hasResults && (
           <div data-mobile-search-results className="flex flex-col-reverse bg-popover/95 rounded-2xl mx-6 mb-0.5 overflow-hidden max-h-[55vh] overflow-y-auto shadow-lg">
+            {hasIdentifier && (
+              <MobileIdentifierItem
+                match={identifierMatch!}
+                isSelected={selectedIndex === identifierIndex}
+                onNavigate={handleSelectIdentifier}
+              />
+            )}
+            {hasUrlComment && (
+              <MobileCommentOnUrlItem
+                url={query.trim()}
+                isSelected={selectedIndex === urlCommentIndex}
+                onClick={handleCommentOnUrl}
+              />
+            )}
             {hasCountry && countryAtTop && (
               <SearchCountryItem
                 country={countryMatch!.country}
@@ -208,20 +222,6 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
                 country={countryMatch!.country}
                 isSelected={selectedIndex === countryIndex}
                 onClick={handleSelectCountry}
-              />
-            )}
-            {hasUrlComment && (
-              <MobileCommentOnUrlItem
-                url={query.trim()}
-                isSelected={selectedIndex === urlCommentIndex}
-                onClick={handleCommentOnUrl}
-              />
-            )}
-            {hasIdentifier && (
-              <MobileIdentifierItem
-                match={identifierMatch!}
-                isSelected={selectedIndex === identifierIndex}
-                onNavigate={handleSelectIdentifier}
               />
             )}
           </div>
