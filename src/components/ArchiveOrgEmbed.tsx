@@ -60,17 +60,16 @@ export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps)
   const thumbnailSrc = `https://archive.org/services/img/${identifier}`;
 
   // Use the native content aspect ratio when available, with a 16:9 fallback.
-  // The archive.org embed page is designed to fill the iframe, scaling the
-  // content (emulator canvas, video player, etc.) to fit the available space.
-  // We constrain to a max height of 80vh so very tall content stays usable.
-  const aspectRatio = dims ? `${dims.width} / ${dims.height}` : '16 / 9';
+  // Expressed as a bottom-padding percentage so the container always scales
+  // relative to the parent width (works reliably across all viewports).
+  const paddingBottom = dims ? `${(dims.height / dims.width) * 100}%` : '56.25%';
 
   return (
     <div
       className={cn('rounded-2xl overflow-hidden border border-border', className)}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="relative w-full" style={{ aspectRatio, maxHeight: '80vh' }}>
+      <div className="relative w-full" style={{ paddingBottom }}>
         {activated ? (
           <iframe
             src={`https://archive.org/embed/${identifier}`}
