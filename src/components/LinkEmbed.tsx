@@ -43,7 +43,7 @@ interface LinkEmbedProps {
  * - Mastodon post URLs → `MastodonEmbed` (native card via Mastodon API)
  * - Everything else → `LinkPreview` (OEmbed link preview card)
  */
-export function LinkEmbed({ url, className, showDiscuss = true, hideImage, externalLink }: LinkEmbedProps) {
+export function LinkEmbed({ url, className, showDiscuss = true, hideImage, externalLink = true }: LinkEmbedProps) {
   const youtubeId = useMemo(() => extractYouTubeId(url), [url]);
   const tweetId = useMemo(() => extractTweetId(url), [url]);
   const blueskyPost = useMemo(() => extractBlueskyPost(url), [url]);
