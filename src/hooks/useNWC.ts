@@ -19,10 +19,15 @@ export interface NWCInfo {
   notifications?: string[];
 }
 
-export function useNWCInternal() {
+export function useNWCInternal(userPubkey?: string) {
   const { toast } = useToast();
-  const [connections, setConnections] = useLocalStorage<NWCConnection[]>('nwc-connections', []);
-  const [activeConnection, setActiveConnection] = useLocalStorage<string | null>('nwc-active-connection', null);
+  // Scope wallet connections per user so switching accounts doesn't leak wallets.
+  // When no user is logged in, use a 'global' fallback key (connections won't
+  // be accessible without a user anyway since zap actions require login).
+  const storagePrefix = userPubkey ? `nwc-connections:${userPubkey}` : 'nwc-connections';
+  const activePrefix = userPubkey ? `nwc-active-connection:${userPubkey}` : 'nwc-active-connection';
+  const [connections, setConnections] = useLocalStorage<NWCConnection[]>(storagePrefix, []);
+  const [activeConnection, setActiveConnection] = useLocalStorage<string | null>(activePrefix, null);
   const [connectionInfo, setConnectionInfo] = useState<Record<string, NWCInfo>>({});
 
   // Add new connection
