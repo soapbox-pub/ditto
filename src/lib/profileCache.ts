@@ -1,4 +1,4 @@
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 
 import { openDatabase, STORE } from '@/lib/db';
 
@@ -7,8 +7,11 @@ import { openDatabase, STORE } from '@/lib/db';
 //
 // Caches kind 0 profile events so repeat visits render author names, avatars,
 // and other metadata instantly instead of showing loading skeletons.
-// Each entry stores the raw NostrEvent plus a `lastFetched` timestamp so the
-// caller can decide when to re-check.
+// Each entry stores the raw NostrEvent, the pre-parsed metadata, and a
+// `lastFetched` timestamp so the caller can decide when to re-check.
+//
+// Storing the parsed metadata avoids re-running expensive Zod validation
+// on every render when used as TanStack Query `initialData`.
 // ============================================================================
 
 export interface ProfileCacheEntry {
@@ -16,6 +19,8 @@ export interface ProfileCacheEntry {
   pubkey: string;
   /** The raw kind 0 NostrEvent */
   event: NostrEvent;
+  /** Pre-parsed metadata (avoids re-running Zod on every render) */
+  metadata?: NostrMetadata;
   /** Unix-ms timestamp of the last successful fetch */
   lastFetched: number;
 }
@@ -57,12 +62,15 @@ export function getProfileCached(pubkey: string): ProfileCacheEntry | undefined 
 }
 
 /**
- * Persist a kind 0 profile event.
+ * Persist a kind 0 profile event with its pre-parsed metadata.
  * Only writes if the event is newer than (or equal to) what we already have,
  * so out-of-order arrivals don't downgrade the cache.
  * Updates both the in-memory mirror and IndexedDB.
+ *
+ * Passing `metadata` is optional but recommended — it avoids re-running Zod
+ * validation when the cached entry is later used as TanStack Query `initialData`.
  */
-export async function setProfileCached(event: NostrEvent): Promise<void> {
+export async function setProfileCached(event: NostrEvent, metadata?: NostrMetadata): Promise<void> {
   const existing = memoryCache.get(event.pubkey);
   if (existing && existing.event.created_at > event.created_at) {
     return; // Don't overwrite a newer event with an older one.
@@ -71,6 +79,7 @@ export async function setProfileCached(event: NostrEvent): Promise<void> {
   const entry: ProfileCacheEntry = {
     pubkey: event.pubkey,
     event,
+    metadata,
     lastFetched: Date.now(),
   };
 

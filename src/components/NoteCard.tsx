@@ -17,7 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArticleContent } from "@/components/ArticleContent";
 import {
@@ -159,7 +159,7 @@ function isDeprecatedFollowSet(event: NostrEvent): boolean {
   return false;
 }
 
-export function NoteCard({
+export const NoteCard = memo(function NoteCard({
   event,
   className,
   repostedBy,
@@ -957,7 +957,7 @@ export function NoteCard({
       )}
     </article>
   );
-}
+});
 
 const MAX_HEIGHT = 400; // px — posts taller than this get truncated
 
