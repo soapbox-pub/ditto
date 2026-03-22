@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, UserRoundCheck, X } from 'lucide-react';
+import { Search, UserRoundCheck, X, MessageSquare } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -8,9 +8,11 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { genUserName } from '@/lib/genUserName';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
-import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
+import { getNostrIdentifierPath, isFullUrl } from '@/lib/nostrIdentifier';
 import { getProfileUrl } from '@/lib/profileUrl';
 import { searchCountry, type CountryEntry } from '@/lib/countries';
+import { useLinkPreview } from '@/hooks/useLinkPreview';
+import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
@@ -34,9 +36,15 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   const hasCountry = !!countryMatch;
   // Show country at top only for exact matches; otherwise at bottom (after profiles)
   const countryAtTop = hasCountry && (countryMatch.exact || profileCount === 0);
-  const totalItems = profileCount + (hasCountry ? 1 : 0);
-  const countryIndex = countryAtTop ? 0 : profileCount;
-  const profileStartIndex = countryAtTop && hasCountry ? 1 : 0;
+
+  // URL detection — show "Comment on" option when query is a full URL
+  const queryIsUrl = useMemo(() => isFullUrl(query), [query]);
+  const hasUrlComment = queryIsUrl;
+
+  const totalItems = profileCount + (hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0);
+  const urlCommentIndex = 0;
+  const countryIndex = countryAtTop ? (hasUrlComment ? 1 : 0) : profileCount + (hasUrlComment ? 1 : 0);
+  const profileStartIndex = (countryAtTop && hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0);
 
   // Focus input when opened
   useEffect(() => {
@@ -59,6 +67,12 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
     setQuery('');
     onClose();
   }, [onClose]);
+
+  const handleCommentOnUrl = useCallback(() => {
+    if (!queryIsUrl) return;
+    handleClose();
+    navigate(`/i/${encodeURIComponent(query.trim())}`);
+  }, [queryIsUrl, query, navigate, handleClose]);
 
   const handleSelectCountry = useCallback((country: CountryEntry) => {
     handleClose();
@@ -96,7 +110,9 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (selectedIndex >= 0 && selectedIndex < totalItems) {
-        if (hasCountry && selectedIndex === countryIndex) {
+        if (hasUrlComment && selectedIndex === urlCommentIndex) {
+          handleCommentOnUrl();
+        } else if (hasCountry && selectedIndex === countryIndex) {
           handleSelectCountry(countryMatch!.country);
         } else {
           handleSelect(profiles![selectedIndex - profileStartIndex]);
@@ -116,7 +132,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
     }
   };
 
-  const hasResults = query.trim().length > 0 && (hasCountry || (profiles && profiles.length > 0));
+  const hasResults = query.trim().length > 0 && (hasUrlComment || hasCountry || (profiles && profiles.length > 0));
 
   if (!open) return null;
 
@@ -155,6 +171,13 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
                 country={countryMatch!.country}
                 isSelected={selectedIndex === countryIndex}
                 onClick={handleSelectCountry}
+              />
+            )}
+            {hasUrlComment && (
+              <MobileCommentOnUrlItem
+                url={query.trim()}
+                isSelected={selectedIndex === urlCommentIndex}
+                onClick={handleCommentOnUrl}
               />
             )}
           </div>
@@ -232,6 +255,61 @@ function SearchCountryItem({
       <div className="flex-1 min-w-0">
         <span className="font-semibold text-sm truncate">{country.name}</span>
         <div className="text-xs text-muted-foreground">{country.code}</div>
+      </div>
+    </button>
+  );
+}
+
+function MobileCommentOnUrlItem({
+  url,
+  isSelected,
+  onClick,
+}: {
+  url: string;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const { data: preview } = useLinkPreview(url);
+  const thumbnailUrl = preview?.thumbnail_url;
+
+  return (
+    <button
+      role="option"
+      aria-selected={isSelected}
+      className={cn(
+        'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+      onClick={onClick}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <div className="size-9 shrink-0 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center">
+        {thumbnailUrl ? (
+          <img
+            src={thumbnailUrl}
+            alt=""
+            className="size-9 object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+            }}
+          />
+        ) : null}
+        <div
+          className={cn('items-center justify-center size-9', thumbnailUrl ? 'hidden' : 'flex')}
+        >
+          <ExternalFavicon url={url} size={16} fallback={<MessageSquare className="size-3.5 text-primary" />} />
+        </div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <span className="text-sm font-medium truncate block">
+          Comment on this link
+        </span>
+        <span className="text-xs text-muted-foreground truncate block">
+          {(() => {
+            try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
+          })()}
+        </span>
       </div>
     </button>
   );
