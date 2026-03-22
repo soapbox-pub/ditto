@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageSquare, Loader2 } from 'lucide-react';
+import { Zap, AtSign, MessageSquare, MessageCircle, Loader2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -19,6 +19,7 @@ import { useNotifications, type GroupedNotificationItem, type NotificationItem }
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
+import { isReplyEvent } from '@/lib/nostrEvents';
 import { getAvatarShape, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { formatNumber } from '@/lib/formatNumber';
@@ -539,16 +540,21 @@ function ZapNotificationGroup({ group }: { group: GroupedNotificationItem }) {
 }
 
 // ──────────────────────────────────────
-// Mention Notification (always standalone)
+// Kind 1 Notification (reply or mention, always standalone)
 // ──────────────────────────────────────
 function MentionNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const isReply = isReplyEvent(item.event);
+
   return (
     <NotificationWrapper isNew={isNew}>
       <div className="px-4 pt-3">
         <NotificationHeader
           actorPubkey={item.event.pubkey}
-          icon={<AtSign className="size-4 text-primary" />}
-          action="mentioned you"
+          icon={isReply
+            ? <MessageCircle className="size-4 text-primary" />
+            : <AtSign className="size-4 text-primary" />
+          }
+          action={isReply ? 'replied to your note' : 'mentioned you'}
         />
       </div>
       <NoteCard event={item.event} className="border-0" />
