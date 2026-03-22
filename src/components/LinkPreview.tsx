@@ -1,4 +1,4 @@
-import { ExternalLink, MessageSquare } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -10,6 +10,8 @@ interface LinkPreviewProps {
   className?: string;
   /** When true, hides the thumbnail image in the preview card. */
   hideImage?: boolean;
+  /** When true, clicking the card opens the URL in a new tab instead of navigating to the /i/ comment page. */
+  externalLink?: boolean;
 }
 
 /** Extracts the display domain from a URL (e.g. "www.example.com" -> "example.com"). */
@@ -23,7 +25,7 @@ function displayDomain(url: string): string {
 }
 
 /** Rich link preview card rendered from OEmbed data. */
-export function LinkPreview({ url, className, hideImage }: LinkPreviewProps) {
+export function LinkPreview({ url, className, hideImage, externalLink }: LinkPreviewProps) {
   const { data, isLoading } = useLinkPreview(url);
   const navigate = useNavigate();
 
@@ -34,17 +36,24 @@ export function LinkPreview({ url, className, hideImage }: LinkPreviewProps) {
   const domain = data?.provider_name || displayDomain(url);
   const image = data?.thumbnail_url;
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (externalLink) return; // let the <a> handle it natively
+    e.preventDefault();
+    navigate(`/i/${encodeURIComponent(url)}`);
+  };
+
   return (
     <a
       href={url}
-      target="_blank"
-      rel="noopener noreferrer"
+      target={externalLink ? '_blank' : undefined}
+      rel={externalLink ? 'noopener noreferrer' : undefined}
       className={cn(
         'group block rounded-2xl border border-border overflow-hidden',
         'hover:bg-secondary/40 transition-colors',
         className,
       )}
-      onClick={(e) => e.stopPropagation()}
+      onClick={handleClick}
     >
       {/* Thumbnail image */}
       {image && !hideImage && (
@@ -69,24 +78,6 @@ export function LinkPreview({ url, className, hideImage }: LinkPreviewProps) {
           <ExternalFavicon url={url} size={14} className="shrink-0" />
           <span className="truncate">{domain}</span>
           <ExternalLink className="size-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-
-          {/* Discuss button */}
-          <button
-            type="button"
-            className={cn(
-              'ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full',
-              'text-xs text-muted-foreground',
-              'hover:bg-primary/10 hover:text-primary transition-colors',
-            )}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              navigate(`/i/${encodeURIComponent(url)}`);
-            }}
-          >
-            <MessageSquare className="size-3" />
-            <span>Discuss</span>
-          </button>
         </div>
 
         {/* Title */}
