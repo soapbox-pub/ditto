@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { Globe, Mail, Shield, Zap, Server, Hash } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
@@ -85,6 +85,7 @@ function useRelayFeed(relayUrl: string | undefined, kinds: number[]) {
 
 export function RelayPage() {
   const { config } = useAppContext();
+  const navigate = useNavigate();
   const { '*': rawParam } = useParams();
   const { feedSettings } = useFeedSettings();
   const { muteItems } = useMuteList();
@@ -137,7 +138,7 @@ export function RelayPage() {
     <main>
       {/* Header */}
       <PageHeader
-        onBack={() => window.history.length > 1 ? window.history.back() : undefined}
+        onBack={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
         titleContent={
           <div className="flex items-center gap-2.5 min-w-0">
             {info?.icon ? (

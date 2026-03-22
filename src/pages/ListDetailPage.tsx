@@ -44,6 +44,7 @@ import { toast } from '@/hooks/useToast';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { UserList } from '@/hooks/useUserLists';
 import NotFound from './NotFound';
@@ -297,6 +298,8 @@ export function ListDetailPage() {
   const [quoteOpen, setQuoteOpen] = useState(false);
   const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
 
+  useLayoutOptions({ hasSubHeader: true });
+
   // Decode the naddr to get the d-tag identifier and author
   const decoded = useMemo(() => {
     if (!naddr) return null;
@@ -474,8 +477,7 @@ export function ListDetailPage() {
   return (
     <main>
       {/* Header */}
-      <div>
-        <PageHeader
+      <PageHeader
           onBack={() => window.history.length > 1 ? navigate(-1) : navigate('/lists')}
           titleContent={
             <div className="flex-1 min-w-0">
@@ -631,7 +633,6 @@ export function ListDetailPage() {
             </span>
           </TabButton>
         </SubHeaderBar>
-      </div>
 
       {/* Tab content */}
       {activeTab === 'feed' ? (
