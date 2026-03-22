@@ -464,7 +464,7 @@ function UrlCommentContext({ url, className }: { url: string; className?: string
           className="w-80 p-0 rounded-2xl shadow-lg"
           onClick={(e) => e.stopPropagation()}
         >
-          <LinkPreview url={url} className="border-0 rounded-none" externalLink />
+          <LinkPreview url={url} className="border-0 rounded-none" />
         </HoverCardContent>
       </HoverCard>
     </div>
