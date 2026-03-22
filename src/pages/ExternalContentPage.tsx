@@ -327,7 +327,7 @@ export function ExternalContentPage() {
   }
 
   return (
-    <main className="overflow-x-hidden">
+    <main className="">
       {/* Precipitation overlay for country pages */}
       {precipitation?.type && (
         <PrecipitationEffect type={precipitation.type} intensity={precipitation.intensity} />
