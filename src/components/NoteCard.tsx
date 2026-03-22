@@ -62,7 +62,7 @@ import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
-import { VanishEventContent } from "@/components/VanishEventContent";
+import { VanishCardCompact } from "@/components/VanishEventContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
@@ -632,7 +632,7 @@ export const NoteCard = memo(function NoteCard({
 
   // ── Vanish layout (kind 62) — dramatic card, no author row ──
   if (isVanish) {
-    // Threaded vanish (ancestor in a reply thread — needs connector line)
+    // Threaded vanish (ancestor in a reply thread — needs connector line + avatar column)
     if (threaded || threadedLast) {
       return (
         <article
@@ -646,38 +646,13 @@ export const NoteCard = memo(function NoteCard({
         >
           <div className="flex gap-3">
             <div className="flex flex-col items-center">
-              {/* Glitch icon matching VanishEventContent compact style */}
-              <div className="relative shrink-0">
-                <div className="size-10 rounded-full bg-red-500/10 border-2 border-red-500/30 flex items-center justify-center">
-                  <span className="text-lg vanish-glitch-text" data-text="///">///</span>
-                </div>
-                <div className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full bg-red-600 flex items-center justify-center">
-                  <span className="text-[8px] font-black text-white leading-none">!</span>
-                </div>
-              </div>
+              {avatarElement}
               {threaded && (
                 <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
               )}
             </div>
             <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
-              {/* Stripes are inside the bordered container so they don't escape visually */}
-              <div className="rounded-xl border-2 border-red-500/30 bg-red-500/5 overflow-hidden">
-                <div className="vanish-stripes h-1.5" />
-                <div className="p-3">
-                  <p className="text-sm font-bold text-red-500 dark:text-red-400">
-                    {event.tags.some(([n, v]) => n === 'relay' && v === 'ALL_RELAYS') ? 'Global Request to Vanish' : 'Request to Vanish'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5 font-mono truncate">
-                    {nip19.npubEncode(event.pubkey)}
-                  </p>
-                  {event.content && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2 italic">
-                      &ldquo;{event.content}&rdquo;
-                    </p>
-                  )}
-                </div>
-                <div className="vanish-stripes h-1.5" />
-              </div>
+              <VanishCardCompact event={event} timestamp={timeAgo(event.created_at)} />
               {!compact && (
                 <>
                   {actionButtons}
@@ -700,7 +675,7 @@ export const NoteCard = memo(function NoteCard({
         onClick={handleCardClick}
         onAuxClick={handleAuxClick}
       >
-        <VanishEventContent event={event} compact />
+        <VanishCardCompact event={event} />
         {!compact && (
           <>
             {actionButtons}
