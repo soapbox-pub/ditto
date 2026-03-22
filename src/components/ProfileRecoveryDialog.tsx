@@ -256,9 +256,9 @@ function SnapshotSkeleton() {
   );
 }
 
-// ─── Main Dialog ──────────────────────────────────────────────────────
+// ─── Profile History Tab ──────────────────────────────────────────────
 
-export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDialogProps) {
+function ProfileHistoryTab({ onClose }: { onClose: () => void }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -268,7 +268,6 @@ export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDia
 
   const pubkey = user?.pubkey;
 
-  // Query all historical kind 0 events (no limit = relay returns all historical)
   const profileHistory = useQuery<NostrEvent[]>({
     queryKey: ['profile-recovery', 'kind0', pubkey],
     queryFn: async () => {
@@ -277,39 +276,16 @@ export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDia
         [{ kinds: [0], authors: [pubkey] }],
         { signal: AbortSignal.timeout(10000) },
       );
-      // Sort newest first
       return [...events].sort((a, b) => b.created_at - a.created_at);
     },
-    enabled: !!pubkey && open,
-    staleTime: 30_000,
-  });
-
-  // Query all historical kind 16767 events (no limit = relay returns all historical)
-  const themeHistory = useQuery<NostrEvent[]>({
-    queryKey: ['profile-recovery', 'kind16767', pubkey],
-    queryFn: async () => {
-      if (!pubkey) return [];
-      const events = await nostr.query(
-        [{ kinds: [ACTIVE_THEME_KIND], authors: [pubkey] }],
-        { signal: AbortSignal.timeout(10000) },
-      );
-      // Sort newest first, filter out events that don't parse as valid themes
-      return [...events]
-        .sort((a, b) => b.created_at - a.created_at)
-        .filter((e) => parseActiveProfileTheme(e) !== null);
-    },
-    enabled: !!pubkey && open,
+    enabled: !!pubkey,
     staleTime: 30_000,
   });
 
   const profileEvents = profileHistory.data ?? [];
-  const themeEvents = themeHistory.data ?? [];
-
   const currentProfileId = profileEvents[0]?.id;
-  const currentThemeId = themeEvents[0]?.id;
 
-  /** Restore an event by bumping its created_at and republishing. */
-  const handleRestore = async (event: NostrEvent, type: 'profile' | 'theme') => {
+  const handleRestore = async (event: NostrEvent) => {
     setRestoringId(event.id);
     try {
       await publishEvent({
@@ -320,20 +296,14 @@ export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDia
       });
 
       toast({
-        title: type === 'profile' ? 'Profile restored' : 'Theme restored',
+        title: 'Profile restored',
         description: `Successfully restored from ${formatDate(event.created_at)}.`,
       });
 
-      // Invalidate relevant queries so the UI updates
-      if (type === 'profile') {
-        queryClient.invalidateQueries({ queryKey: ['profile-recovery', 'kind0', pubkey] });
-        queryClient.invalidateQueries({ queryKey: ['author', pubkey] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ['profile-recovery', 'kind16767', pubkey] });
-        queryClient.invalidateQueries({ queryKey: ['activeProfileTheme', pubkey] });
-      }
+      queryClient.invalidateQueries({ queryKey: ['profile-recovery', 'kind0', pubkey] });
+      queryClient.invalidateQueries({ queryKey: ['author', pubkey] });
 
-      onOpenChange(false);
+      onClose();
     } catch (error) {
       console.error('Failed to restore event:', error);
       toast({
@@ -345,6 +315,119 @@ export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDia
       setRestoringId(null);
     }
   };
+
+  if (profileHistory.isLoading) {
+    return <SnapshotSkeleton />;
+  }
+
+  if (profileEvents.length === 0) {
+    return <EmptyState label="No profile history found. Your relay may not store historical events." />;
+  }
+
+  return (
+    <>
+      {profileEvents.map((event) => (
+        <ProfileSnapshotCard
+          key={event.id}
+          event={event}
+          isCurrent={event.id === currentProfileId}
+          onRestore={() => handleRestore(event)}
+          isRestoring={restoringId === event.id}
+        />
+      ))}
+    </>
+  );
+}
+
+// ─── Theme History Tab ────────────────────────────────────────────────
+
+function ThemeHistoryTab({ onClose }: { onClose: () => void }) {
+  const { nostr } = useNostr();
+  const { user } = useCurrentUser();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+
+  const pubkey = user?.pubkey;
+
+  const themeHistory = useQuery<NostrEvent[]>({
+    queryKey: ['profile-recovery', 'kind16767', pubkey],
+    queryFn: async () => {
+      if (!pubkey) return [];
+      const events = await nostr.query(
+        [{ kinds: [ACTIVE_THEME_KIND], authors: [pubkey] }],
+        { signal: AbortSignal.timeout(10000) },
+      );
+      return [...events]
+        .sort((a, b) => b.created_at - a.created_at)
+        .filter((e) => parseActiveProfileTheme(e) !== null);
+    },
+    enabled: !!pubkey,
+    staleTime: 30_000,
+  });
+
+  const themeEvents = themeHistory.data ?? [];
+  const currentThemeId = themeEvents[0]?.id;
+
+  const handleRestore = async (event: NostrEvent) => {
+    setRestoringId(event.id);
+    try {
+      await publishEvent({
+        kind: event.kind,
+        content: event.content,
+        tags: event.tags,
+        created_at: Math.floor(Date.now() / 1000),
+      });
+
+      toast({
+        title: 'Theme restored',
+        description: `Successfully restored from ${formatDate(event.created_at)}.`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['profile-recovery', 'kind16767', pubkey] });
+      queryClient.invalidateQueries({ queryKey: ['activeProfileTheme', pubkey] });
+
+      onClose();
+    } catch (error) {
+      console.error('Failed to restore event:', error);
+      toast({
+        title: 'Restore failed',
+        description: 'Could not republish the event. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setRestoringId(null);
+    }
+  };
+
+  if (themeHistory.isLoading) {
+    return <SnapshotSkeleton />;
+  }
+
+  if (themeEvents.length === 0) {
+    return <EmptyState label="No theme history found. Your relay may not store historical events." />;
+  }
+
+  return (
+    <>
+      {themeEvents.map((event) => (
+        <ThemeSnapshotCard
+          key={event.id}
+          event={event}
+          isCurrent={event.id === currentThemeId}
+          onRestore={() => handleRestore(event)}
+          isRestoring={restoringId === event.id}
+        />
+      ))}
+    </>
+  );
+}
+
+// ─── Main Dialog ──────────────────────────────────────────────────────
+
+export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDialogProps) {
+  const close = () => onOpenChange(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -371,39 +454,11 @@ export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDia
 
           <ScrollArea className="h-[420px]">
             <TabsContent value="profile" className="m-0 p-4 space-y-3">
-              {profileHistory.isLoading ? (
-                <SnapshotSkeleton />
-              ) : profileEvents.length === 0 ? (
-                <EmptyState label="No profile history found. Your relay may not store historical events." />
-              ) : (
-                profileEvents.map((event) => (
-                  <ProfileSnapshotCard
-                    key={event.id}
-                    event={event}
-                    isCurrent={event.id === currentProfileId}
-                    onRestore={() => handleRestore(event, 'profile')}
-                    isRestoring={restoringId === event.id}
-                  />
-                ))
-              )}
+              <ProfileHistoryTab onClose={close} />
             </TabsContent>
 
             <TabsContent value="theme" className="m-0 p-4 space-y-3">
-              {themeHistory.isLoading ? (
-                <SnapshotSkeleton />
-              ) : themeEvents.length === 0 ? (
-                <EmptyState label="No theme history found. Your relay may not store historical events." />
-              ) : (
-                themeEvents.map((event) => (
-                  <ThemeSnapshotCard
-                    key={event.id}
-                    event={event}
-                    isCurrent={event.id === currentThemeId}
-                    onRestore={() => handleRestore(event, 'theme')}
-                    isRestoring={restoringId === event.id}
-                  />
-                ))
-              )}
+              <ThemeHistoryTab onClose={close} />
             </TabsContent>
           </ScrollArea>
         </Tabs>
