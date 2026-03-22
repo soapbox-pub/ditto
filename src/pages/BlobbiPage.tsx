@@ -1403,6 +1403,8 @@ function BlobbiDashboard({
         open={showMissionsModal}
         onOpenChange={setShowMissionsModal}
         companion={companion}
+        profile={profile}
+        updateProfileEvent={updateProfileEvent}
         hatchTasks={hatchTasks}
         evolveTasks={evolveTasks}
         onOpenPostModal={() => setShowPostModal(true)}

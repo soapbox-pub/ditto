@@ -160,6 +160,8 @@ export {
 // Daily Missions
 export { useDailyMissions } from './hooks/useDailyMissions';
 export type { UseDailyMissionsResult } from './hooks/useDailyMissions';
+export { useClaimMissionReward } from './hooks/useClaimMissionReward';
+export type { ClaimMissionRequest, ClaimMissionResult } from './hooks/useClaimMissionReward';
 export {
   trackDailyMissionProgress,
   trackMultipleDailyMissionActions,

@@ -83,7 +83,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Interact with your Blobbi 6 times (feed, clean, play, etc.)',
     action: 'interact',
     requiredCount: 6,
-    reward: 100,
+    reward: 30,
     weight: 10,
   },
   {
@@ -92,7 +92,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Feed your Blobbi 2 times',
     action: 'feed',
     requiredCount: 2,
-    reward: 80,
+    reward: 20,
     weight: 10,
   },
   {
@@ -101,7 +101,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Clean your Blobbi 1 time',
     action: 'clean',
     requiredCount: 1,
-    reward: 80,
+    reward: 20,
     weight: 10,
   },
 
@@ -112,7 +112,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Sing a song to your Blobbi',
     action: 'sing',
     requiredCount: 1,
-    reward: 90,
+    reward: 25,
     weight: 6,
   },
   {
@@ -121,7 +121,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Play a song for your Blobbi to enjoy',
     action: 'play_music',
     requiredCount: 1,
-    reward: 90,
+    reward: 25,
     weight: 6,
   },
   {
@@ -130,7 +130,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Put your Blobbi to sleep',
     action: 'sleep',
     requiredCount: 1,
-    reward: 85,
+    reward: 20,
     weight: 6,
   },
 
@@ -141,7 +141,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Set your profile avatar to a Blobbi shape',
     action: 'change_shape',
     requiredCount: 1,
-    reward: 110,
+    reward: 40,
     weight: 2,
   },
 
@@ -152,7 +152,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Take a polaroid photo of your Blobbi',
     action: 'take_photo',
     requiredCount: 1,
-    reward: 100,
+    reward: 35,
     weight: 1,
   },
 ];

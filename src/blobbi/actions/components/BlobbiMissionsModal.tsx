@@ -26,13 +26,14 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
 
-import type { BlobbiCompanion } from '@/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile } from '@/lib/blobbi';
+import type { NostrEvent } from '@nostrify/nostrify';
 import type { HatchTasksResult } from '../hooks/useHatchTasks';
 import type { EvolveTasksResult } from '../hooks/useEvolveTasks';
 import { TasksPanel } from './TasksPanel';
 import { DailyMissionsPanel } from './DailyMissionsPanel';
 import { useDailyMissions } from '../hooks/useDailyMissions';
-import { toast } from '@/hooks/useToast';
+import { useClaimMissionReward } from '../hooks/useClaimMissionReward';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,10 @@ interface BlobbiMissionsModalProps {
   onOpenChange: (open: boolean) => void;
   /** Current companion being viewed */
   companion: BlobbiCompanion;
+  /** Current Blobbonaut profile (required for coin updates) */
+  profile: BlobbonautProfile | null;
+  /** Callback to update profile in query cache after claiming */
+  updateProfileEvent: (event: NostrEvent) => void;
   /** Hatch tasks result from useHatchTasks */
   hatchTasks: HatchTasksResult;
   /** Evolve tasks result from useEvolveTasks */
@@ -68,25 +73,25 @@ interface BlobbiMissionsModalProps {
 // ─── Daily Missions Section ───────────────────────────────────────────────────
 
 interface DailyMissionsSectionProps {
+  profile: BlobbonautProfile | null;
+  updateProfileEvent: (event: NostrEvent) => void;
   disabled?: boolean;
 }
 
-function DailyMissionsSection({ disabled }: DailyMissionsSectionProps) {
+function DailyMissionsSection({ profile, updateProfileEvent, disabled }: DailyMissionsSectionProps) {
   const {
     missions,
     todayClaimedReward,
     totalPotentialReward,
-    claimReward,
   } = useDailyMissions();
 
+  const { mutate: claimReward, isPending: isClaiming } = useClaimMissionReward(
+    profile,
+    updateProfileEvent
+  );
+
   const handleClaimReward = (missionId: string) => {
-    const earned = claimReward(missionId);
-    if (earned > 0) {
-      toast({
-        title: 'Reward claimed!',
-        description: `You earned ${earned} coins.`,
-      });
-    }
+    claimReward({ missionId });
   };
 
   return (
@@ -110,7 +115,7 @@ function DailyMissionsSection({ disabled }: DailyMissionsSectionProps) {
         missions={missions}
         onClaimReward={handleClaimReward}
         todayCoins={todayClaimedReward}
-        disabled={disabled}
+        disabled={disabled || isClaiming}
       />
     </div>
   );
@@ -279,6 +284,8 @@ export function BlobbiMissionsModal({
   open,
   onOpenChange,
   companion,
+  profile,
+  updateProfileEvent,
   hatchTasks,
   evolveTasks,
   onOpenPostModal,
@@ -315,7 +322,11 @@ export function BlobbiMissionsModal({
 
         <div className="pt-2 space-y-6">
           {/* Daily Missions Section - Always visible */}
-          <DailyMissionsSection disabled={isProcessBusy} />
+          <DailyMissionsSection 
+            profile={profile}
+            updateProfileEvent={updateProfileEvent}
+            disabled={isProcessBusy} 
+          />
 
           {/* Hatch/Evolve Process Section - Only when active */}
           {hasActiveProcess && (
