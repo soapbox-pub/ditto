@@ -28,6 +28,15 @@ export function LinkFooter() {
         </Link>
         {' · '}
         <a
+          href="https://gitlab.com/soapbox-pub/ditto"
+          className="text-primary hover:underline"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Source
+        </a>
+        {' · '}
+        <a
           href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git"
           className="text-primary hover:underline"
           target="_blank"
