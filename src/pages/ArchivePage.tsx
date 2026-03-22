@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Gamepad2, Film, Mic, BookOpen, Monitor, Sparkles, Play, ExternalLink, Clock } from 'lucide-react';
+import { Archive, ArrowLeft, Gamepad2, Film, Mic, Monitor, Sparkles, Play, ExternalLink, Clock } from 'lucide-react';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { cn } from '@/lib/utils';
@@ -69,7 +69,7 @@ const CATEGORIES: Record<Category, CategoryMeta> = {
   },
   software: {
     label: 'Software History',
-    icon: <BookOpen className="size-4" />,
+    icon: <Archive className="size-4" />,
     gradient: 'from-blue-500/20 to-indigo-500/20',
     accent: 'text-blue-600 dark:text-blue-400',
   },
@@ -447,74 +447,11 @@ function ArchiveCard({ item }: { item: ArchiveItem }) {
   );
 }
 
-/** A single featured "hero" item rendered larger. */
-function FeaturedCard({ item }: { item: ArchiveItem }) {
-  const meta = CATEGORIES[item.category];
-
-  return (
-    <Link
-      to={dittoUrl(item.identifier)}
-      className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10"
-    >
-      <div className={cn('relative aspect-video overflow-hidden bg-gradient-to-br', meta.gradient)}>
-        <img
-          src={thumbnailUrl(item.identifier)}
-          alt={item.title}
-          loading="lazy"
-          className="absolute inset-0 w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
-        />
-
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-
-        {/* Hover play */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-primary/90 rounded-full p-4 shadow-xl">
-            <Play className="size-7 text-primary-foreground ml-0.5" fill="currentColor" />
-          </div>
-        </div>
-
-        {/* Bottom info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className={cn('px-2 py-0.5 rounded-md bg-white/20 backdrop-blur-sm text-xs font-medium text-white flex items-center gap-1')}>
-              {meta.icon}
-              {meta.label}
-            </span>
-            {item.year && (
-              <span className="px-2 py-0.5 rounded-md bg-white/20 backdrop-blur-sm text-xs font-medium text-white flex items-center gap-1">
-                <Clock className="size-3" />
-                {item.year}
-              </span>
-            )}
-          </div>
-          <h3 className="text-lg font-bold text-white drop-shadow-md leading-tight">
-            {item.title}
-          </h3>
-          <p className="text-sm text-white/80 mt-1 line-clamp-2 drop-shadow-sm">
-            {item.tagline}
-          </p>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
 const CATEGORY_ORDER: (Category | 'all')[] = ['all', 'games', 'films', 'animation', 'audio', 'tv', 'software'];
-
-/** The featured items shown as hero cards at the top. */
-const FEATURED_IDS = [
-  'msdos_Oregon_Trail_The_1990',
-  'Nosferatu_most_complete_version_93_mins.',
-  'gd77-05-08.sbd.hicks.4982.sbeok.shnf',
-];
 
 export function ArchivePage() {
   const { config } = useAppContext();
@@ -525,15 +462,9 @@ export function ArchivePage() {
     description: 'Explore the best of the Internet Archive — classic games, films, music, and more.',
   });
 
-  const featured = useMemo(
-    () => ITEMS.filter((item) => FEATURED_IDS.includes(item.identifier)),
-    [],
-  );
-
   const filtered = useMemo(() => {
-    const base = ITEMS.filter((item) => !FEATURED_IDS.includes(item.identifier));
-    if (activeCategory === 'all') return base;
-    return base.filter((item) => item.category === activeCategory);
+    if (activeCategory === 'all') return ITEMS;
+    return ITEMS.filter((item) => item.category === activeCategory);
   }, [activeCategory]);
 
   return (
@@ -545,7 +476,7 @@ export function ArchivePage() {
         </Link>
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <div className="size-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-            <BookOpen className="size-4 text-primary" />
+            <Archive className="size-4 text-primary" />
           </div>
           <div>
             <h1 className="text-xl font-bold leading-tight">Archive</h1>
@@ -561,15 +492,6 @@ export function ArchivePage() {
         >
           <ExternalLink className="size-4" />
         </a>
-      </div>
-
-      {/* Featured hero row */}
-      <div className="px-4 pt-2 pb-4">
-        <div className="space-y-3">
-          {featured.map((item) => (
-            <FeaturedCard key={item.identifier} item={item} />
-          ))}
-        </div>
       </div>
 
       {/* Category filter pills */}
