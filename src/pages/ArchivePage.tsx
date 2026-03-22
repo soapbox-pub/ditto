@@ -1,9 +1,12 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
-import { Archive, ArrowLeft, Gamepad2, Film, Mic, Monitor, Sparkles, Play, ExternalLink, Clock } from 'lucide-react';
+import { Archive, ArrowLeft, Gamepad2, Film, Mic, Monitor, Sparkles, Play, ExternalLink, Clock, Search, X, Loader2 } from 'lucide-react';
 
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useArchiveSearch, type ArchiveSearchResult } from '@/hooks/useArchiveSearch';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -448,6 +451,195 @@ function ArchiveCard({ item }: { item: ArchiveItem }) {
 }
 
 // ---------------------------------------------------------------------------
+// Search bar
+// ---------------------------------------------------------------------------
+
+/** Maps archive.org mediatype to a human-friendly label. */
+function mediatypeLabel(mediatype: string): string {
+  switch (mediatype) {
+    case 'software': return 'Software';
+    case 'movies': return 'Video';
+    case 'audio': return 'Audio';
+    case 'etree': return 'Live Music';
+    case 'texts': return 'Text';
+    default: return mediatype;
+  }
+}
+
+function ArchiveSearchBar() {
+  const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const { data: results, isFetching } = useArchiveSearch(debouncedQuery);
+
+  // 400ms debounce (slightly longer than book search since archive.org can be slower)
+  const handleChange = useCallback((value: string) => {
+    setQuery(value);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedQuery(value.trim());
+    }, 400);
+  }, []);
+
+  useEffect(() => {
+    return () => clearTimeout(debounceRef.current);
+  }, []);
+
+  // Open dropdown when we have results
+  useEffect(() => {
+    if (debouncedQuery.length >= 2 && results && results.length > 0) {
+      setDropdownOpen(true);
+    } else if (debouncedQuery.length >= 2 && results && results.length === 0 && !isFetching) {
+      setDropdownOpen(true);
+    }
+  }, [debouncedQuery, results, isFetching]);
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = useCallback((identifier: string) => {
+    setQuery('');
+    setDebouncedQuery('');
+    setDropdownOpen(false);
+    inputRef.current?.blur();
+    navigate(dittoUrl(identifier));
+  }, [navigate]);
+
+  const handleClear = useCallback(() => {
+    setQuery('');
+    setDebouncedQuery('');
+    setDropdownOpen(false);
+    inputRef.current?.focus();
+  }, []);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setDropdownOpen(false);
+      inputRef.current?.blur();
+    }
+    if (e.key === 'Enter' && results && results.length > 0) {
+      e.preventDefault();
+      handleSelect(results[0].identifier);
+    }
+  }, [results, handleSelect]);
+
+  return (
+    <div ref={containerRef} className="relative px-4 pb-3">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+        <Input
+          ref={inputRef}
+          type="text"
+          placeholder="Search the Internet Archive..."
+          value={query}
+          onChange={(e) => handleChange(e.target.value)}
+          onFocus={() => {
+            if (debouncedQuery.length >= 2) setDropdownOpen(true);
+          }}
+          onKeyDown={handleKeyDown}
+          className="pl-9 pr-9 h-9 text-base md:text-sm"
+        />
+        {query ? (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            <X className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+
+      {/* Search results dropdown */}
+      {dropdownOpen && debouncedQuery.length >= 2 && (
+        <div className="absolute left-4 right-4 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+          {isFetching && (!results || results.length === 0) ? (
+            <div className="divide-y divide-border">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+                  <Skeleton className="w-10 h-10 rounded shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <Skeleton className="h-3.5 w-3/4" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : results && results.length > 0 ? (
+            <div className="divide-y divide-border max-h-80 overflow-y-auto">
+              {results.map((result) => (
+                <ArchiveSearchResultItem
+                  key={result.identifier}
+                  result={result}
+                  onSelect={handleSelect}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              No results found for &ldquo;{debouncedQuery}&rdquo;
+            </div>
+          )}
+
+          {/* Loading indicator when results exist but we're refetching */}
+          {isFetching && results && results.length > 0 && (
+            <div className="flex justify-center py-2 border-t border-border">
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ArchiveSearchResultItem({ result, onSelect }: { result: ArchiveSearchResult; onSelect: (id: string) => void }) {
+  return (
+    <button
+      type="button"
+      className="flex items-center gap-3 px-3 py-2.5 w-full text-left hover:bg-secondary/60 transition-colors"
+      onClick={() => onSelect(result.identifier)}
+    >
+      <img
+        src={thumbnailUrl(result.identifier)}
+        alt=""
+        className="w-10 h-10 rounded object-cover bg-secondary shrink-0"
+        loading="lazy"
+        onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+      />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{result.title}</p>
+        <p className="text-xs text-muted-foreground truncate">
+          {mediatypeLabel(result.mediatype)}
+          {result.downloads > 0 && <> &middot; {formatDownloads(result.downloads)} downloads</>}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+/** Format a download count into a compact human-readable string. */
+function formatDownloads(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return String(n);
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -493,6 +685,9 @@ export function ArchivePage() {
           <ExternalLink className="size-4" />
         </a>
       </div>
+
+      {/* Search bar */}
+      <ArchiveSearchBar />
 
       {/* Category filter pills */}
       <div className="sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
