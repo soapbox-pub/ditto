@@ -484,12 +484,13 @@ function EventNotFound({
 
   const handleRetry = useCallback(
     async (targetUrl: string) => {
-      const url = targetUrl.trim();
+      let url = targetUrl.trim();
       if (!url) return;
 
+      // Auto-prepend wss:// if no protocol is specified
       if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-        setRetryError("Relay URL must start with wss:// or ws://");
-        return;
+        url = `wss://${url}`;
+        setRelayUrl(url);
       }
 
       setIsRetrying(true);

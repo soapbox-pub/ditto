@@ -40,6 +40,7 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { formatTime } from '@/lib/formatTime';
 import { DITTO_RELAY } from '@/lib/appRelays';
+import { resizeImage } from '@/lib/resizeImage';
 
 const MAX_CHARS = 5000;
 
@@ -510,9 +511,21 @@ export function ComposeBox({
       // Blossom servers may reject uploads with an empty Content-Type, so we re-wrap the file
       // with the correct MIME type before uploading.
       const isXdc = file.name.endsWith('.xdc');
-      const uploadableFile = isXdc && !file.type
-        ? new File([file], file.name, { type: 'application/x-webxdc' })
-        : file;
+      const isImage = file.type.startsWith('image/');
+
+      let uploadableFile: File;
+      let resizedDim: string | undefined;
+
+      if (isXdc && !file.type) {
+        uploadableFile = new File([file], file.name, { type: 'application/x-webxdc' });
+      } else if (isImage) {
+        // Resize & convert images to JPEG before uploading for better performance.
+        const resized = await resizeImage(file);
+        uploadableFile = resized.file;
+        resizedDim = resized.dimensions;
+      } else {
+        uploadableFile = file;
+      }
 
       const tags = await uploadFile(uploadableFile);
       let [[, url]] = tags;
@@ -526,10 +539,11 @@ export function ComposeBox({
         if (urlTag) urlTag[1] = url;
       }
 
-      // Compute dim + blurhash from the original file and inject into NIP-94 tags
-      if (!isXdc) {
-        const { dim, blurhash } = await getImageMeta(uploadableFile);
-        if (dim) tags.push(['dim', dim]);
+      // Compute dim + blurhash and inject into NIP-94 tags
+      if (!isXdc && isImage) {
+        // Use dimensions from resizeImage; compute blurhash from the resized file
+        if (resizedDim) tags.push(['dim', resizedDim]);
+        const { blurhash } = await getImageMeta(uploadableFile);
         if (blurhash) tags.push(['blurhash', blurhash]);
       }
 

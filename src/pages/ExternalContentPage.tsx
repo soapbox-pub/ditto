@@ -32,6 +32,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
+import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -262,7 +263,13 @@ export function ExternalContentPage() {
     return parseExternalUri(uri);
   }, [uri]);
 
-  useSeoMeta({ title: content ? seoTitle(content, config.appName) : `External Content | ${config.appName}` });
+  // Fetch link preview for URL content to get the actual page title.
+  const linkPreviewUrl = content?.type === 'url' ? content.value : null;
+  const { data: linkPreview } = useLinkPreview(linkPreviewUrl);
+
+  const pageTitle = linkPreview?.title ?? (content ? headerLabel(content) : 'External Content');
+
+  useSeoMeta({ title: content ? (linkPreview?.title ? `${linkPreview.title} | ${config.appName}` : seoTitle(content, config.appName)) : `External Content | ${config.appName}` });
 
   // Build the NIP-73 identifier for comments.
   // For URLs, the raw URL is used. For others, the full prefixed identifier.
@@ -337,7 +344,7 @@ export function ExternalContentPage() {
         >
           <ArrowLeft className="size-5" />
         </Link>
-        <h1 className="text-xl font-bold truncate">{headerLabel(content)}</h1>
+        <h1 className="text-xl font-bold truncate">{pageTitle}</h1>
       </div>
 
       <div className="px-4 space-y-6 pb-4">

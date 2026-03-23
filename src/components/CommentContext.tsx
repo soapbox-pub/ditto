@@ -4,12 +4,15 @@ import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { LinkPreview } from '@/components/LinkPreview';
 import { ReactionEmoji } from '@/components/CustomEmoji';
+import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAddrEvent, useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useBookInfo } from '@/hooks/useBookInfo';
+import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo } from '@/lib/countries';
@@ -370,19 +373,16 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
     return <IsbnCommentContext identifier={identifier} className={className} />;
   }
 
+  // URL identifiers get special treatment — show page title with favicon
+  if (identifier.startsWith('http://') || identifier.startsWith('https://')) {
+    return <UrlCommentContext url={identifier} className={className} />;
+  }
+
   // Determine display text and link
   let displayText: string;
   let link: string | undefined;
 
-  if (identifier.startsWith('http://') || identifier.startsWith('https://')) {
-    try {
-      const url = new URL(identifier);
-      displayText = url.hostname + (url.pathname !== '/' ? url.pathname : '');
-      link = `/i/${encodeURIComponent(identifier)}`;
-    } catch {
-      displayText = identifier;
-    }
-  } else if (identifier.startsWith('iso3166:')) {
+  if (identifier.startsWith('iso3166:')) {
     const code = identifier.slice('iso3166:'.length);
     const info = getCountryInfo(code);
     if (info) {
@@ -416,6 +416,57 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
       ) : (
         <span className="truncate">{displayText}</span>
       )}
+    </div>
+  );
+}
+
+/** Comment context for URL identifiers — fetches and displays the page title with favicon. */
+function UrlCommentContext({ url, className }: { url: string; className?: string }) {
+  const { data: preview, isLoading } = useLinkPreview(url);
+  const link = `/i/${encodeURIComponent(url)}`;
+
+  let fallbackHost: string;
+  try {
+    fallbackHost = new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    fallbackHost = url;
+  }
+
+  if (isLoading) {
+    return (
+      <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
+        <span className="shrink-0">Commenting on</span>
+        <Skeleton className="h-3.5 w-24 inline-block" />
+      </div>
+    );
+  }
+
+  const title = preview?.title;
+
+  return (
+    <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
+      <span className="shrink-0">Commenting on</span>
+      <ExternalFavicon url={url} size={14} className="shrink-0" />
+      <HoverCard openDelay={300} closeDelay={150}>
+        <HoverCardTrigger asChild>
+          <Link
+            to={link}
+            className="text-primary hover:underline truncate cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {title || fallbackHost}
+          </Link>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          className="w-80 p-0 rounded-2xl shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <LinkPreview url={url} className="border-0 rounded-none" navigateToComments />
+        </HoverCardContent>
+      </HoverCard>
     </div>
   );
 }

@@ -26,6 +26,18 @@ export function useUploadFile() {
       const uploader = new BlossomUploader({
         servers,
         signer: user.signer,
+        // Custom fetch with a 30-second per-server timeout.  Without this,
+        // a hanging server blocks that promise indefinitely.  Promise.any()
+        // still resolves as soon as any server succeeds, but the timeout
+        // ensures all promises eventually settle so the AggregateError path
+        // fires promptly when every server is slow or down.
+        fetch: (input, init) => globalThis.fetch(input, {
+          ...init,
+          signal: AbortSignal.any([
+            init?.signal ?? AbortSignal.timeout(30_000),
+            AbortSignal.timeout(30_000),
+          ]),
+        }),
       });
 
       const tags = await uploader.upload(file);

@@ -42,10 +42,12 @@ export function useAuthor(pubkey: string | undefined) {
         throw new Error('Profile not found');
       }
 
-      // Persist to IndexedDB (fire-and-forget).
-      void setProfileCached(event);
+      const parsed = parseAuthorEvent(event);
 
-      return parseAuthorEvent(event);
+      // Persist to IndexedDB with pre-parsed metadata (fire-and-forget).
+      void setProfileCached(event, parsed.metadata);
+
+      return parsed;
     },
     enabled: !!pubkey,
     staleTime: 5 * 60 * 1000,   // 5 minutes
@@ -53,13 +55,15 @@ export function useAuthor(pubkey: string | undefined) {
     retry: 1,
 
     // Seed from IndexedDB cache so the first render already has data.
+    // Uses the pre-parsed metadata from the cache to avoid re-running
+    // Zod validation on every render.
     // TanStack Query compares initialDataUpdatedAt against staleTime:
     //   - < 5 min old → fresh, no network request
     //   - 5 min – 7 d → renders cached value, background refetch
     //   - > 7 d       → usableCache is undefined, normal pending/skeleton
     ...(usableCache
       ? {
-        initialData: parseAuthorEvent(usableCache.event),
+        initialData: { event: usableCache.event, metadata: usableCache.metadata },
         initialDataUpdatedAt: usableCache.lastFetched,
       }
       : {}),

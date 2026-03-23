@@ -126,10 +126,11 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         // for NIP-05 verification, so downstream useAuthor() calls are instant.
         for (const meta of metadataEvents) {
           if (!queryClient.getQueryData(['author', meta.pubkey])) {
-            queryClient.setQueryData(['author', meta.pubkey], parseAuthorEvent(meta));
+            const parsed = parseAuthorEvent(meta);
+            queryClient.setQueryData(['author', meta.pubkey], parsed);
+            // Persist to IndexedDB with pre-parsed metadata (fire-and-forget)
+            void setProfileCached(meta, parsed.metadata);
           }
-          // Persist to IndexedDB (fire-and-forget)
-          void setProfileCached(meta);
         }
 
         // Build map of pubkey -> NIP-05 identifier
