@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BLOBBI_ADOPTION_COST } from '@/lib/blobbi';
+import { formatCompactNumber } from '@/lib/utils';
 
 import type { BlobbiEggPreview } from '../lib/blobbi-preview';
 import { previewToBlobbiCompanion } from '../lib/blobbi-preview';
@@ -68,23 +69,23 @@ export function BlobbiAdoptionConfirmDialog({
           </div>
           
           {/* Cost Breakdown */}
-          <div className="p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
-            <div className="flex items-center justify-between mb-3">
+          <div className="p-3 sm:p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+            <div className="flex items-center justify-between gap-2 mb-3">
               <span className="text-sm text-muted-foreground">Current Balance</span>
-              <span className="font-semibold flex items-center gap-1">
-                <Coins className="size-4 text-amber-500" />
-                {coins} coins
+              <span className="font-semibold flex items-center gap-1 whitespace-nowrap">
+                <Coins className="size-4 text-amber-500 shrink-0" />
+                {formatCompactNumber(coins)} coins
               </span>
             </div>
-            <div className="flex items-center justify-between mb-3 text-destructive">
+            <div className="flex items-center justify-between gap-2 mb-3 text-destructive">
               <span className="text-sm">Adoption Cost</span>
-              <span className="font-semibold">-{BLOBBI_ADOPTION_COST} coins</span>
+              <span className="font-semibold whitespace-nowrap">-{formatCompactNumber(BLOBBI_ADOPTION_COST)} coins</span>
             </div>
-            <div className="border-t border-amber-500/20 pt-3 flex items-center justify-between">
+            <div className="border-t border-amber-500/20 pt-3 flex items-center justify-between gap-2">
               <span className="text-sm font-medium">After Adoption</span>
-              <span className="font-bold flex items-center gap-1">
-                <Coins className="size-4 text-amber-500" />
-                {coinsAfterAdoption} coins
+              <span className="font-bold flex items-center gap-1 whitespace-nowrap">
+                <Coins className="size-4 text-amber-500 shrink-0" />
+                {formatCompactNumber(coinsAfterAdoption)} coins
               </span>
             </div>
           </div>

@@ -10,6 +10,7 @@
  */
 
 import { Target, Loader2, XCircle, AlertTriangle, Calendar, Coins } from 'lucide-react';
+import { formatCompactNumber } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -95,17 +96,17 @@ function DailyMissionsSection({ profile, updateProfileEvent, disabled }: DailyMi
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-hidden">
       {/* Section header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <Calendar className="size-4 text-primary" />
+          <Calendar className="size-4 text-primary shrink-0" />
           <h3 className="font-semibold text-sm">Daily Missions</h3>
         </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Coins className="size-3" />
-          <span>
-            {todayClaimedReward} / {totalPotentialReward} earned
+          <Coins className="size-3 shrink-0" />
+          <span className="whitespace-nowrap">
+            {formatCompactNumber(todayClaimedReward)} / {formatCompactNumber(totalPotentialReward)} earned
           </span>
         </div>
       </div>
@@ -309,18 +310,18 @@ export function BlobbiMissionsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-lg w-[calc(100%-2rem)] max-h-[85vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Target className="size-5" />
+            <Target className="size-5 shrink-0" />
             Missions
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="break-words">
             Complete missions to earn rewards for {companion.name}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="pt-2 space-y-6">
+        <div className="pt-2 space-y-6 overflow-hidden">
           {/* Daily Missions Section - Always visible */}
           <DailyMissionsSection 
             profile={profile}

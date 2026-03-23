@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 
 import type { ShopItem } from '../types/shop.types';
-import { cn } from '@/lib/utils';
+import { cn, formatCompactNumber } from '@/lib/utils';
 
 interface BlobbiPurchaseDialogProps {
   open: boolean;
@@ -81,19 +81,19 @@ export function BlobbiPurchaseDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg w-[calc(100%-2rem)]">
         <DialogHeader>
           <DialogTitle>Purchase Item</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Item Preview */}
-          <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
-            <div className="text-5xl">{item.icon}</div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg">{item.name}</h3>
+          <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg bg-muted/50">
+            <div className="text-4xl sm:text-5xl shrink-0">{item.icon}</div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-base sm:text-lg truncate">{item.name}</h3>
               <p className="text-sm text-muted-foreground">
-                {item.price} coins each
+                {formatCompactNumber(item.price)} coins each
               </p>
             </div>
           </div>
@@ -136,16 +136,16 @@ export function BlobbiPurchaseDialog({
           </div>
 
           {/* Total Cost */}
-          <div className="p-4 rounded-lg bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/20">
-            <div className="flex items-center justify-between">
+          <div className="p-3 sm:p-4 rounded-lg bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/20">
+            <div className="flex items-center justify-between gap-2">
               <span className="font-medium">Total Cost</span>
-              <span className="text-lg font-bold">
-                {totalCost} coins
+              <span className="text-base sm:text-lg font-bold whitespace-nowrap">
+                {formatCompactNumber(totalCost)} coins
               </span>
             </div>
             {!isAffordable && (
               <p className="text-xs text-destructive mt-2">
-                Insufficient coins! You need {totalCost - availableCoins} more.
+                Insufficient coins! You need {formatCompactNumber(totalCost - availableCoins)} more.
               </p>
             )}
           </div>

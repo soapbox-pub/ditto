@@ -16,7 +16,7 @@ import type { ShopItem, ShopItemCategory } from '../types/shop.types';
 import type { BlobbonautProfile } from '@/lib/blobbi';
 import { getShopItemsByType } from '../lib/blobbi-shop-items';
 import { useBlobbiPurchaseItem } from '../hooks/useBlobbiPurchaseItem';
-import { cn } from '@/lib/utils';
+import { cn, formatCompactNumber } from '@/lib/utils';
 
 interface BlobbiShopModalProps {
   open: boolean;
@@ -72,63 +72,63 @@ export function BlobbiShopModal({ open, onOpenChange, profile }: BlobbiShopModal
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0">
+        <DialogContent className="max-w-2xl w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0">
           {/* Header */}
-          <DialogHeader className="px-6 pt-6 pb-4 border-b">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                  <ShoppingBag className="size-5 text-primary" />
+          <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="size-9 sm:size-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center shrink-0">
+                  <ShoppingBag className="size-4 sm:size-5 text-primary" />
                 </div>
-                <DialogTitle className="text-2xl">Blobbi Shop</DialogTitle>
+                <DialogTitle className="text-xl sm:text-2xl truncate">Blobbi Shop</DialogTitle>
               </div>
-              <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 text-base px-4 py-1">
-                {availableCoins} coins
+              <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 text-sm sm:text-base px-3 sm:px-4 py-1 shrink-0">
+                {formatCompactNumber(availableCoins)} coins
               </Badge>
             </div>
           </DialogHeader>
 
           {/* Category Tabs */}
-          <div className="px-6 pt-4">
-            <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="px-4 sm:px-6 pt-3 sm:pt-4">
+            <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 -mx-1 px-1">
               {CATEGORIES.map(category => {
                 const isActive = activeCategory === category.type;
                 const itemCount = getShopItemsByType(category.type).length;
 
-                return (
-                  <button
-                    key={category.type}
-                    onClick={() => setActiveCategory(category.type)}
-                    className={cn(
-                      'flex items-center gap-2 px-4 py-2 rounded-lg transition-all whitespace-nowrap',
-                      'border',
-                      isActive
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted'
-                    )}
-                  >
-                    {category.icon}
-                    <span className="font-medium">{category.label}</span>
-                    <Badge variant="secondary" className="ml-1 text-xs">
-                      {itemCount}
-                    </Badge>
-                  </button>
-                );
+                  return (
+                    <button
+                      key={category.type}
+                      onClick={() => setActiveCategory(category.type)}
+                      className={cn(
+                        'flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all whitespace-nowrap',
+                        'border text-sm sm:text-base',
+                        isActive
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted'
+                      )}
+                    >
+                      {category.icon}
+                      <span className="font-medium hidden xs:inline">{category.label}</span>
+                      <Badge variant="secondary" className="ml-0.5 sm:ml-1 text-xs">
+                        {itemCount}
+                      </Badge>
+                    </button>
+                  );
               })}
             </div>
           </div>
 
           {/* Accessories Coming Soon Banner */}
           {activeCategory === 'accessory' && (
-            <div className="mx-6 mt-4 p-6 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
-              <div className="flex items-start gap-4">
-                <div className="size-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-3xl relative">
+            <div className="mx-4 sm:mx-6 mt-3 sm:mt-4 p-4 sm:p-6 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="size-12 sm:size-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-2xl sm:text-3xl relative shrink-0">
                   🎨
-                  <div className="absolute -top-1 -right-1 text-xl">✨</div>
+                  <div className="absolute -top-1 -right-1 text-base sm:text-xl">✨</div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold mb-1">Accessories Coming Soon!</h3>
-                  <p className="text-sm text-muted-foreground">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold mb-1">Accessories Coming Soon!</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Get ready to customize your Blobbi's appearance with amazing accessories and cosmetic items.
                   </p>
                 </div>
@@ -137,7 +137,7 @@ export function BlobbiShopModal({ open, onOpenChange, profile }: BlobbiShopModal
           )}
 
           {/* Items List */}
-          <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
             <div className="space-y-2">
               {items.map(item => (
                 <BlobbiShopItemRow

@@ -117,16 +117,16 @@ export function BlobbiActionInventoryModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[85vh] flex flex-col p-0">
+      <DialogContent className="max-w-md w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0">
         {/* Header */}
-        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
           <div className="flex items-center gap-3">
-            <div className="size-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-2xl">
+            <div className="size-9 sm:size-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-xl sm:text-2xl shrink-0">
               {actionMeta.icon}
             </div>
-            <div>
-              <DialogTitle className="text-xl">{actionMeta.label}</DialogTitle>
-              <p className="text-sm text-muted-foreground">
+            <div className="min-w-0">
+              <DialogTitle className="text-lg sm:text-xl">{actionMeta.label}</DialogTitle>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">
                 {actionMeta.description}
               </p>
             </div>
@@ -134,7 +134,7 @@ export function BlobbiActionInventoryModal({
         </DialogHeader>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
           {/* Stage Restriction Message */}
           {!canUse && stageMessage && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -258,82 +258,131 @@ function BlobbiInventoryUseRow({
   const hasChanges = normalStatChanges.length > 0 || eggStatChanges.length > 0;
 
   return (
-    <div className="flex items-center gap-4 p-4 rounded-xl border bg-card/60 backdrop-blur-sm hover:border-primary/30 transition-colors">
-      {/* Item Icon */}
-      <div className="relative shrink-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full blur-xl" />
-        <div className="relative size-14 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-3xl">
-          {item.icon}
-        </div>
-      </div>
-
-      {/* Item Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-semibold truncate">{item.name}</h3>
-          <Badge variant="secondary" className="text-xs shrink-0">
-            x{item.quantity}
-          </Badge>
-        </div>
-
-        {/* Effect Preview */}
-        {hasChanges && (
-          <div className="flex flex-wrap gap-x-3 gap-y-1">
-            {/* Normal stat changes */}
-            {normalStatChanges.map(({ stat, delta }) => (
-              <span key={stat} className="text-xs">
-                <span
-                  className={cn(
-                    'font-medium',
-                    delta > 0
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-red-600 dark:text-red-400'
-                  )}
-                >
-                  {delta > 0 ? '+' : ''}
-                  {delta}
-                </span>{' '}
-                <span className="text-muted-foreground capitalize">
-                  {stat.replace('_', ' ')}
-                </span>
-              </span>
-            ))}
-            {/* Egg stat changes (health for medicine) */}
-            {eggStatChanges.map(({ stat, delta }) => (
-              <span key={stat} className="text-xs">
-                <span
-                  className={cn(
-                    'font-medium',
-                    delta > 0
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-red-600 dark:text-red-400'
-                  )}
-                >
-                  {delta > 0 ? '+' : ''}
-                  {delta}
-                </span>{' '}
-                <span className="text-muted-foreground capitalize">
-                  {stat.replace('_', ' ')}
-                </span>
-              </span>
-            ))}
+    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border bg-card/60 backdrop-blur-sm hover:border-primary/30 transition-colors">
+      {/* Top row on mobile: Icon + Info + Button */}
+      <div className="flex items-center gap-3 sm:contents">
+        {/* Item Icon */}
+        <div className="relative shrink-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full blur-xl" />
+          <div className="relative size-10 sm:size-14 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-2xl sm:text-3xl">
+            {item.icon}
           </div>
-        )}
+        </div>
+
+        {/* Item Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
+            <h3 className="font-semibold text-sm sm:text-base truncate">{item.name}</h3>
+            <Badge variant="secondary" className="text-xs shrink-0">
+              x{item.quantity}
+            </Badge>
+          </div>
+
+          {/* Effect Preview - shown inline on desktop */}
+          <div className="hidden sm:block">
+            {hasChanges && (
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                {/* Normal stat changes */}
+                {normalStatChanges.map(({ stat, delta }) => (
+                  <span key={stat} className="text-xs">
+                    <span
+                      className={cn(
+                        'font-medium',
+                        delta > 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-red-600 dark:text-red-400'
+                      )}
+                    >
+                      {delta > 0 ? '+' : ''}
+                      {delta}
+                    </span>{' '}
+                    <span className="text-muted-foreground capitalize">
+                      {stat.replace('_', ' ')}
+                    </span>
+                  </span>
+                ))}
+                {/* Egg stat changes (health for medicine) */}
+                {eggStatChanges.map(({ stat, delta }) => (
+                  <span key={stat} className="text-xs">
+                    <span
+                      className={cn(
+                        'font-medium',
+                        delta > 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-red-600 dark:text-red-400'
+                      )}
+                    >
+                      {delta > 0 ? '+' : ''}
+                      {delta}
+                    </span>{' '}
+                    <span className="text-muted-foreground capitalize">
+                      {stat.replace('_', ' ')}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Use Button */}
+        <Button
+          size="sm"
+          onClick={onUse}
+          disabled={disabled}
+          className="shrink-0"
+        >
+          {isUsing ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            'Use'
+          )}
+        </Button>
       </div>
 
-      {/* Use Button */}
-      <Button
-        size="sm"
-        onClick={onUse}
-        disabled={disabled}
-        className="shrink-0"
-      >
-        {isUsing ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          'Use'
-        )}
-      </Button>
+      {/* Effect Preview - shown below on mobile */}
+      {hasChanges && (
+        <div className="sm:hidden flex flex-wrap gap-x-3 gap-y-1 pl-13">
+          {/* Normal stat changes */}
+          {normalStatChanges.map(({ stat, delta }) => (
+            <span key={stat} className="text-xs">
+              <span
+                className={cn(
+                  'font-medium',
+                  delta > 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-red-600 dark:text-red-400'
+                )}
+              >
+                {delta > 0 ? '+' : ''}
+                {delta}
+              </span>{' '}
+              <span className="text-muted-foreground capitalize">
+                {stat.replace('_', ' ')}
+              </span>
+            </span>
+          ))}
+          {/* Egg stat changes (health for medicine) */}
+          {eggStatChanges.map(({ stat, delta }) => (
+            <span key={stat} className="text-xs">
+              <span
+                className={cn(
+                  'font-medium',
+                  delta > 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-red-600 dark:text-red-400'
+                )}
+              >
+                {delta > 0 ? '+' : ''}
+                {delta}
+              </span>{' '}
+              <span className="text-muted-foreground capitalize">
+                {stat.replace('_', ' ')}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -435,17 +484,17 @@ function BlobbiUseItemConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm w-[calc(100%-2rem)]">
         <DialogHeader>
           <DialogTitle>{actionMeta.label}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {/* Item Preview */}
-          <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
-            <div className="text-4xl">{item.icon}</div>
-            <div className="flex-1">
-              <h3 className="font-semibold">{item.name}</h3>
+          <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg bg-muted/50">
+            <div className="text-3xl sm:text-4xl shrink-0">{item.icon}</div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold truncate">{item.name}</h3>
               <p className="text-sm text-muted-foreground">
                 {item.quantity} in inventory
               </p>
