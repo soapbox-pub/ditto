@@ -26,6 +26,7 @@ import {
   type NewsItem,
 } from '@/hooks/useWikipediaFeatured';
 import { useWikipediaSearch, type WikipediaSearchResult } from '@/hooks/useWikipediaSearch';
+import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -197,7 +198,7 @@ function ArticleCard({ page, badge, badgeIcon }: {
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
-            <BookOpen className="size-10 text-muted-foreground/20" />
+            <WikipediaIcon className="size-10 text-muted-foreground/20" />
           </div>
         )}
 
@@ -487,7 +488,7 @@ function WikipediaSearchBar() {
                     />
                   ) : (
                     <div className="w-10 h-10 rounded bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center shrink-0">
-                      <BookOpen className="size-4 text-muted-foreground/50" />
+                      <WikipediaIcon className="size-4 text-muted-foreground/50" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
@@ -639,7 +640,7 @@ export function WikipediaPage() {
         </Link>
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <div className="size-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/10 flex items-center justify-center">
-            <BookOpen className="size-4 text-blue-600 dark:text-blue-400" />
+            <WikipediaIcon className="size-4 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
             <h1 className="text-xl font-bold leading-tight">Wikipedia</h1>

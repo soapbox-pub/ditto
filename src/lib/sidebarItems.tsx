@@ -36,6 +36,7 @@ import {
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
 import { PlanetIcon } from "@/components/icons/PlanetIcon";
+import { WikipediaIcon } from "@/components/icons/WikipediaIcon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -166,7 +167,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "badges", label: "Badges", path: "/badges", icon: Award },
   { id: "world", label: "World", path: "/world", icon: Earth },
   { id: "archive", label: "Archive", path: "/archive", icon: Archive },
-  { id: "wikipedia", label: "Wikipedia", path: "/wikipedia", icon: BookOpen },
+  { id: "wikipedia", label: "Wikipedia", path: "/wikipedia", icon: WikipediaIcon },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */
