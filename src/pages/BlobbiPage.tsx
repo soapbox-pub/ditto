@@ -578,6 +578,7 @@ function BlobbiContent() {
           onSelect={handleSelectBlobbi}
           isLoading={companionFetching}
           onAdopt={() => setShowAdoptionFlow(true)}
+          currentCompanion={profile?.currentCompanion}
         />
         
         {/* Adoption Flow Modal */}
@@ -609,6 +610,7 @@ function BlobbiContent() {
           onSelect={handleSelectBlobbi}
           isLoading={companionFetching}
           onAdopt={() => setShowAdoptionFlow(true)}
+          currentCompanion={profile?.currentCompanion}
         />
         
         {/* Adoption Flow Modal */}
@@ -976,12 +978,20 @@ function BlobbiDashboard({
     setIsUpdatingCompanion(true);
     
     try {
-      // Toggle logic: if already companion, unset; otherwise, set this Blobbi as companion
-      const newCompanionValue = isCurrentCompanion ? '' : companion.d;
+      let updatedTags: string[][];
       
-      const updatedTags = updateBlobbonautTags(profile.allTags, {
-        current_companion: newCompanionValue,
-      });
+      if (isCurrentCompanion) {
+        // Remove companion: filter out all current_companion tags entirely
+        // First apply any other updates (none in this case), then filter out the tag
+        updatedTags = updateBlobbonautTags(profile.allTags, {})
+          .filter(tag => tag[0] !== 'current_companion');
+      } else {
+        // Set companion: first remove any existing current_companion tags, then add the new one
+        const tagsWithoutCompanion = profile.allTags.filter(tag => tag[0] !== 'current_companion');
+        updatedTags = updateBlobbonautTags(tagsWithoutCompanion, {
+          current_companion: companion.d,
+        });
+      }
       
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
@@ -1400,6 +1410,7 @@ function BlobbiDashboard({
                   companion={c}
                   onSelect={() => onSelectBlobbi(c.d)}
                   isSelected={c.d === selectedD}
+                  isCurrentCompanion={c.d === profile?.currentCompanion}
                 />
               ))}
               
@@ -1899,9 +1910,11 @@ interface BlobbiSelectorPageProps {
   onSelect: (d: string) => void;
   isLoading?: boolean;
   onAdopt?: () => void;
+  /** The d-tag of the current companion (for indicator) */
+  currentCompanion?: string;
 }
 
-function BlobbiSelectorPage({ companions, onSelect, isLoading, onAdopt }: BlobbiSelectorPageProps) {
+function BlobbiSelectorPage({ companions, onSelect, isLoading, onAdopt, currentCompanion }: BlobbiSelectorPageProps) {
   return (
     <DashboardShell>
       {/* Header */}
@@ -1923,11 +1936,12 @@ function BlobbiSelectorPage({ companions, onSelect, isLoading, onAdopt }: Blobbi
       {/* Blobbi List */}
       <div className="flex-1 p-4 sm:p-6">
         <div className="grid gap-3 max-w-lg mx-auto">
-          {companions.map((companion) => (
+          {companions.map((c) => (
             <BlobbiSelectorCard
-              key={companion.d}
-              companion={companion}
-              onSelect={() => onSelect(companion.d)}
+              key={c.d}
+              companion={c}
+              onSelect={() => onSelect(c.d)}
+              isCurrentCompanion={c.d === currentCompanion}
             />
           ))}
           
@@ -1947,9 +1961,11 @@ interface BlobbiSelectorCardProps {
   companion: BlobbiCompanion;
   onSelect: () => void;
   isSelected?: boolean;
+  /** Whether this Blobbi is set as the user's current companion */
+  isCurrentCompanion?: boolean;
 }
 
-function BlobbiSelectorCard({ companion, onSelect, isSelected }: BlobbiSelectorCardProps) {
+function BlobbiSelectorCard({ companion, onSelect, isSelected, isCurrentCompanion }: BlobbiSelectorCardProps) {
   const isSleeping = companion.state === 'sleeping';
   const needsCare = companionNeedsCare(companion);
   
@@ -1965,9 +1981,26 @@ function BlobbiSelectorCard({ companion, onSelect, isSelected }: BlobbiSelectorC
         isSelected && 'border-primary ring-2 ring-primary/20 bg-accent/50'
       )}
     >
+      {/* Current companion indicator */}
+      {isCurrentCompanion && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="absolute top-2 left-2 size-5 rounded-full bg-green-500/20 flex items-center justify-center">
+              <Footprints className="size-3.5 text-green-500" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p>Current companion</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+      
       {/* Warning indicator for Blobbies needing care */}
       {needsCare && (
-        <div className="absolute top-2 right-2 size-5 rounded-full bg-amber-500/20 flex items-center justify-center">
+        <div className={cn(
+          'absolute top-2 size-5 rounded-full bg-amber-500/20 flex items-center justify-center',
+          isCurrentCompanion ? 'right-2' : 'right-2'
+        )}>
           <AlertTriangle className="size-3.5 text-amber-500" />
         </div>
       )}
