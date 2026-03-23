@@ -23,6 +23,7 @@ import { ArticleContent } from "@/components/ArticleContent";
 import { AudioVisualizer } from "@/components/AudioVisualizer";
 import { BadgeDetailContent } from "@/components/BadgeDetailContent";
 import { CalendarEventDetailPage } from "@/components/CalendarEventDetailPage";
+import { ComposeBox } from "@/components/ComposeBox";
 import {
   ColorMomentContent,
   ColorMomentEyeButton,
@@ -347,12 +348,12 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
     );
   }
 
-  // NIP-58 profile badges get a NoteCard view (same as the feed)
+  // NIP-58 profile badges get a NoteCard view (same as the feed) + comments
   if (resolvedEvent.kind === BADGE_PROFILE_KIND) {
     return (
       <PostDetailShell title="Badge Collection">
         <MutedContentGuard event={resolvedEvent}>
-          <NoteCard event={resolvedEvent} />
+          <ProfileBadgesDetailView event={resolvedEvent} />
         </MutedContentGuard>
       </PostDetailShell>
     );
@@ -364,6 +365,52 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
         <PostDetailContent event={resolvedEvent} />
       </MutedContentGuard>
     </PostDetailShell>
+  );
+}
+
+/** NoteCard + NIP-22 comments section for kind 30008 profile badges detail page. */
+function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
+  const { muteItems } = useMuteList();
+  const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
+
+  const orderedReplies = useMemo(() => {
+    const topLevel = commentsData?.topLevelComments ?? [];
+    const filtered = muteItems.length > 0
+      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
+      : topLevel;
+    return [...filtered]
+      .sort((a, b) => a.created_at - b.created_at)
+      .map((reply) => {
+        const directReplies = commentsData?.getDirectReplies(reply.id) ?? [];
+        return {
+          reply,
+          firstSubReply: directReplies[0] as NostrEvent | undefined,
+        };
+      });
+  }, [commentsData, muteItems]);
+
+  return (
+    <div>
+      <NoteCard event={event} />
+      <div className="border-t border-border">
+        <ComposeBox compact replyTo={event} />
+      </div>
+      <div className="pb-16 sidebar:pb-0">
+        {commentsLoading ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <ReplyCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : orderedReplies.length > 0 ? (
+          <ThreadedReplyList replies={orderedReplies} />
+        ) : (
+          <div className="py-12 text-center text-muted-foreground text-sm">
+            No replies yet. Be the first to reply!
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
