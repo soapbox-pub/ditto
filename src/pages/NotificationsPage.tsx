@@ -28,6 +28,8 @@ import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
 import { useAcceptBadge } from '@/hooks/useAcceptBadge';
 import { useProfileBadges } from '@/hooks/useProfileBadges';
+import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
+import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
 import { Button } from '@/components/ui/button';
 
 type NotificationTab = 'all' | 'mentions';
@@ -588,6 +590,37 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
 }
 
 // ──────────────────────────────────────
+// Badge Award helpers
+// ──────────────────────────────────────
+
+/** Extract pubkey and identifier from a kind 8 award event's `a` tag. */
+function parseBadgeATag(event: NostrEvent): { pubkey: string; identifier: string } | undefined {
+  const aVal = event.tags.find(([n, v]) => n === 'a' && v?.startsWith(`${BADGE_DEFINITION_KIND}:`))?.[1];
+  if (!aVal) return undefined;
+  const parts = aVal.split(':');
+  if (parts.length < 3 || !parts[1] || !parts[2]) return undefined;
+  return { pubkey: parts[1], identifier: parts[2] };
+}
+
+/** Turn a d-tag slug like "first-post" into "First Post". */
+function unslugify(slug: string): string {
+  return slug
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Hook: resolve the display name for a single badge award event. */
+function useBadgeAwardName(awardEvent: NostrEvent): string | undefined {
+  const parsed = useMemo(() => parseBadgeATag(awardEvent), [awardEvent]);
+  const refs = useMemo(() => (parsed ? [parsed] : []), [parsed]);
+  const { badgeMap } = useBadgeDefinitions(refs);
+
+  if (!parsed) return undefined;
+  const aTag = `${BADGE_DEFINITION_KIND}:${parsed.pubkey}:${parsed.identifier}`;
+  return badgeMap.get(aTag)?.name || unslugify(parsed.identifier);
+}
+
+// ──────────────────────────────────────
 // Accept Badge Button (shared by single and grouped badge notifications)
 // ──────────────────────────────────────
 function AcceptBadgeButton({ awardEvent }: { awardEvent: NostrEvent }) {
@@ -635,6 +668,8 @@ function AcceptBadgeButton({ awardEvent }: { awardEvent: NostrEvent }) {
 // Badge Award Notification (single actor)
 // ──────────────────────────────────────
 function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const badgeName = useBadgeAwardName(item.event);
+
   return (
     <NotificationWrapper isNew={isNew}>
       <div className="px-4 pt-3 pb-3">
@@ -643,7 +678,7 @@ function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew
             <NotificationHeader
               actorPubkey={item.event.pubkey}
               icon={<Award className="size-4 text-primary" />}
-              action="awarded you a badge"
+              action={badgeName ? `awarded you the "${badgeName}" badge` : 'awarded you a badge'}
             />
           </div>
           <div className="shrink-0">
@@ -659,6 +694,17 @@ function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew
 // Badge Award Notification (grouped)
 // ──────────────────────────────────────
 function BadgeAwardNotificationGroup({ group }: { group: GroupedNotificationItem }) {
+  const badgeRefs = useMemo(() => {
+    const refs: Array<{ pubkey: string; identifier: string }> = [];
+    for (const actor of group.actors) {
+      const parsed = parseBadgeATag(actor.event);
+      if (parsed) refs.push(parsed);
+    }
+    return refs;
+  }, [group.actors]);
+
+  const { badgeMap } = useBadgeDefinitions(badgeRefs);
+
   return (
     <NotificationWrapper isNew={group.isNew}>
       <GroupHeader
@@ -666,10 +712,26 @@ function BadgeAwardNotificationGroup({ group }: { group: GroupedNotificationItem
         icon={<Award className="size-4 text-primary" />}
         action="awarded you badges"
       />
-      <div className="px-4 pb-3 flex flex-wrap gap-2">
-        {group.actors.map((actor) => (
-          <AcceptBadgeButton key={actor.event.id} awardEvent={actor.event} />
-        ))}
+      <div className="px-4 pb-3 space-y-2">
+        {group.actors.map((actor) => {
+          const parsed = parseBadgeATag(actor.event);
+          const aTag = parsed ? `${BADGE_DEFINITION_KIND}:${parsed.pubkey}:${parsed.identifier}` : undefined;
+          const badgeName = aTag ? badgeMap.get(aTag)?.name : undefined;
+          const displayName = badgeName || (parsed ? unslugify(parsed.identifier) : undefined);
+
+          return (
+            <div key={actor.event.id} className="flex items-center justify-between gap-2">
+              {displayName && (
+                <span className="text-xs text-muted-foreground truncate">
+                  {displayName}
+                </span>
+              )}
+              <div className="shrink-0 ml-auto">
+                <AcceptBadgeButton awardEvent={actor.event} />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </NotificationWrapper>
   );

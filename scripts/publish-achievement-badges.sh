@@ -7,7 +7,7 @@
 #
 # You will be prompted for the nsec. It is not saved anywhere.
 #
-# The badge account is: npub10qdp2fc9ta6vraczxrcs8prqnv69fru2k6s2dj48gqjcylulmtjsg9arpj
+# The badge account is: npub1tn2ylw8sc42ew6rfzv4hwt47r4jza6jqadj7s2fmhf2q8xg7rscqqzmjlg
 #
 # Each badge is published as a kind 30009 addressable event with:
 #   - ["t", "achievement"]  -- marks it as an achievement badge
@@ -20,7 +20,7 @@
 set -euo pipefail
 
 echo "Enter the nsec or hex secret key for the Ditto Badge account:"
-echo "(npub10qdp2fc9ta6vraczxrcs8prqnv69fru2k6s2dj48gqjcylulmtjsg9arpj)"
+echo "(npub1tn2ylw8sc42ew6rfzv4hwt47r4jza6jqadj7s2fmhf2q8xg7rscqqzmjlg)"
 read -rs NOSTR_SECRET_KEY
 export NOSTR_SECRET_KEY
 echo ""
