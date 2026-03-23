@@ -59,6 +59,19 @@ export function nostrUriToNip19(uri: string): string {
   return uri.startsWith("nostr:") ? uri.slice(6) : uri;
 }
 
+/**
+ * Returns true if the given sidebar order ID is an external content identifier
+ * (i-tag value): an https:// URL or a prefixed identifier like `iso3166:US`.
+ */
+export function isExternalUri(id: string): boolean {
+  return (
+    id.startsWith("https://") ||
+    id.startsWith("http://") ||
+    id.startsWith("iso3166:") ||
+    id.startsWith("isbn:")
+  );
+}
+
 /** A sidebar-capable item with everything needed for display and navigation. */
 export interface SidebarItemDef {
   /** Unique identifier stored in sidebarOrder. */
@@ -222,6 +235,11 @@ export function isItemActive(
   if (isNostrUri(id)) {
     const nip19Id = nostrUriToNip19(id);
     return pathname === `/${nip19Id}`;
+  }
+
+  // External content items: active when pathname matches /i/<encoded-value>
+  if (isExternalUri(id)) {
+    return pathname === `/i/${encodeURIComponent(id)}` || pathname === `/i/${id}`;
   }
 
   if (id === "profile") return !!profilePath && pathname === profilePath;
