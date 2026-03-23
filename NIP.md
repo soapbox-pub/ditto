@@ -7,7 +7,7 @@
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
-| 30009 | Badge Definition     | NIP-58 badge definition with custom tag extensions    |
+
 
 ---
 
@@ -280,49 +280,5 @@ The `shape` field is added to the JSON content of a kind 0 event alongside stand
 - The `shape` field is purely cosmetic and has no protocol-level significance.
 - Clients MAY choose not to support this extension, in which case avatars render as circles as usual.
 
----
 
-## Kind 30009: Badge Definition Tag Extensions
-
-### Summary
-
-This project uses standard NIP-58 badge definitions (kind 30009) with additional custom tags to support categorization and tiered badges. The core event structure follows NIP-58 exactly; these tags are additive and do not alter the standard `d`, `name`, `description`, `image`, and `thumb` tags.
-
-### Custom Tags
-
-| Tag      | Format                                     | Description                                                     |
-|----------|--------------------------------------------|-----------------------------------------------------------------|
-| `t`      | `["t", "<category>"]`                      | Category for filtering (e.g. `"social"`, `"content"`, `"achievement"`, `"shop"`) |
-| `tier`   | `["tier", "<level>"]`                      | Badge tier: `"bronze"`, `"silver"`, `"gold"`, or `"diamond"` |
-
-A badge may have multiple `t` tags for cross-categorization.
-
-### Example
-
-```json
-{
-  "kind": 30009,
-  "content": "",
-  "tags": [
-    ["d", "first-post"],
-    ["name", "First Post"],
-    ["description", "Publish your first text note on Nostr"],
-    ["image", "https://example.com/first-post.png"],
-    ["t", "achievement"],
-    ["t", "content"],
-    ["tier", "bronze"],
-    ["alt", "Badge definition: First Post"]
-  ]
-}
-```
-
-### Querying
-
-Badge definitions for a specific issuer can be queried with optional `t` tag filtering:
-
-```
-{ kinds: [30009], authors: [<issuer-pubkey>], #t: ["achievement"] }
-```
-
-Categories are filtered client-side after fetching, since relay-level queries can only match one `t` value at a time.
 

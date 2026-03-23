@@ -18,25 +18,3 @@ export function getBadgeATag(event: NostrEvent): string {
 export function isAwardedTo(awardEvent: NostrEvent, pubkey: string): boolean {
   return awardEvent.tags.some(([n, v]) => n === 'p' && v === pubkey);
 }
-
-/** Check if a badge is a "shop" badge (has `t` tag "shop"). */
-export function isShopBadge(event: NostrEvent): boolean {
-  return event.tags.some(([n, v]) => n === 't' && v === 'shop');
-}
-
-/** Check if a badge is a Ditto achievement badge (has `t` tag "achievement"). */
-export function isAchievementBadge(event: NostrEvent): boolean {
-  return event.tags.some(([n, v]) => n === 't' && v === 'achievement');
-}
-
-/** Get the tier of an achievement badge (bronze, silver, gold, diamond). */
-export type BadgeTier = 'bronze' | 'silver' | 'gold' | 'diamond';
-
-export function getBadgeTier(event: NostrEvent): BadgeTier | undefined {
-  const tierTag = event.tags.find(([n]) => n === 'tier');
-  const tier = tierTag?.[1]?.toLowerCase();
-  if (tier === 'bronze' || tier === 'silver' || tier === 'gold' || tier === 'diamond') {
-    return tier;
-  }
-  return undefined;
-}

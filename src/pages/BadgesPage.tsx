@@ -28,7 +28,6 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { TabButton } from '@/components/TabButton';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
-import { BadgeTierPill } from '@/components/BadgeTierPill';
 import { AwardBadgeDialog } from '@/components/AwardBadgeDialog';
 import { CreateBadgeDialog } from '@/components/CreateBadgeDialog';
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -50,7 +49,7 @@ import { useToast } from '@/hooks/useToast';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
-import { BADGE_DEFINITION_KIND, getBadgeATag, getBadgeTier } from '@/lib/badgeUtils';
+import { BADGE_DEFINITION_KIND, getBadgeATag } from '@/lib/badgeUtils';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -367,7 +366,6 @@ function PendingBadgeRow({ pending, badge, onDismiss }: {
 }) {
   const { toast } = useToast();
   const { mutate: acceptBadge, isPending: isAccepting } = useAcceptBadge();
-  const tier = badge?.event ? getBadgeTier(badge.event) : undefined;
 
   const handleAccept = () => {
     acceptBadge(
@@ -389,7 +387,6 @@ function PendingBadgeRow({ pending, badge, onDismiss }: {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium truncate">{badge?.name ?? pending.identifier}</span>
-          {tier && <BadgeTierPill tier={tier} />}
         </div>
         <div className="flex items-center gap-2">
           <IssuerName pubkey={pending.issuerPubkey} />
@@ -508,8 +505,6 @@ function AcceptedBadgeRow({ ref_, index, total, badge, onMoveUp, onMoveDown, onR
   onMoveDown: () => void;
   onRemove: () => void;
 }) {
-  const tier = badge?.event ? getBadgeTier(badge.event) : undefined;
-
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-accent/30 transition-colors group">
       <span className="text-xs font-mono text-muted-foreground w-5 text-center shrink-0">{index + 1}</span>
@@ -519,10 +514,7 @@ function AcceptedBadgeRow({ ref_, index, total, badge, onMoveUp, onMoveDown, onR
         <Skeleton className="size-10 rounded-lg shrink-0" />
       )}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium truncate">{badge?.name ?? ref_.identifier}</span>
-          {tier && <BadgeTierPill tier={tier} />}
-        </div>
+        <span className="text-sm font-medium truncate block">{badge?.name ?? ref_.identifier}</span>
         <IssuerName pubkey={ref_.pubkey} />
       </div>
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
