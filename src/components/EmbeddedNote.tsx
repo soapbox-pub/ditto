@@ -15,6 +15,7 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
+import { LinkPreview } from '@/components/LinkPreview';
 import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
 
 /** Kinds that render as a full NoteCard instead of the generic embed card. */
@@ -126,19 +127,30 @@ function EmbeddedNoteCard({
     [event.id, event.pubkey],
   );
 
-  // Truncate long content, stripping media URLs and nested nostr event references
+  // Extract the first non-media URL for a link preview card
+  const firstLinkUrl = useMemo(() => {
+    const allUrls = event.content.match(/https?:\/\/[^\s]+/g) || [];
+    return allUrls.find((u) => !IMETA_MEDIA_URL_REGEX.test(u)) ?? null;
+  }, [event.content]);
+
+  // Truncate long content, stripping media URLs, the previewed link, and nested nostr event references
   const truncatedContent = useMemo(() => {
-    const cleaned = event.content
+    let text = event.content
       // Strip media URLs (same extensions as NoteContent's MEDIA_URL_REGEX)
       .replace(new RegExp(IMETA_MEDIA_URL_REGEX.source, 'gi'), '')
       // Strip embedded event references (nevent / note) so they don't nest
-      .replace(/nostr:(nevent1|note1)[023456789acdefghjklmnpqrstuvwxyz]+/g, '')
+      .replace(/nostr:(nevent1|note1)[023456789acdefghjklmnpqrstuvwxyz]+/g, '');
+    // Strip the URL that will be shown as a link preview card
+    if (firstLinkUrl) {
+      text = text.replace(firstLinkUrl, '');
+    }
+    const cleaned = text
       // Collapse leftover whitespace
       .replace(/\n{3,}/g, '\n\n')
       .trim();
     if (cleaned.length <= MAX_CONTENT_LENGTH) return cleaned;
     return cleaned.slice(0, MAX_CONTENT_LENGTH).trimEnd() + '…';
-  }, [event.content]);
+  }, [event.content, firstLinkUrl]);
 
   // Extract first image for a small thumbnail
   const firstImage = useMemo(() => {
@@ -152,9 +164,11 @@ function EmbeddedNoteCard({
     const auds = extractAudioUrls(event.content).length;
     const apps = (event.content.match(/https?:\/\/[^\s]+\.xdc(\?[^\s]*)?/gi) || []).length;
     const allUrls = event.content.match(/https?:\/\/[^\s]+/g) || [];
-    const links = allUrls.filter((u) => !IMETA_MEDIA_URL_REGEX.test(u)).length;
+    const nonMediaLinks = allUrls.filter((u) => !IMETA_MEDIA_URL_REGEX.test(u)).length;
+    // Subtract 1 if we're showing a link preview card for the first URL
+    const links = firstLinkUrl ? nonMediaLinks - 1 : nonMediaLinks;
     return { imgs, vids, auds, apps, links };
-  }, [event.content]);
+  }, [event.content, firstLinkUrl]);
 
   // NIP-36 content-warning check
   const cwTag = event.tags.find(([name]) => name === 'content-warning');
@@ -254,6 +268,13 @@ function EmbeddedNoteCard({
         ) : truncatedContent ? (
           <EmbedContentPreview text={truncatedContent} disableHoverCards={disableHoverCards} />
         ) : null}
+
+        {/* Link preview card for the first non-media URL */}
+        {!hasCW && firstLinkUrl && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <LinkPreview url={firstLinkUrl} className="mt-1.5" />
+          </div>
+        )}
 
         {/* Attachment indicators for stripped media/links */}
         {!hasCW && (attachments.imgs > (firstImage ? 1 : 0) || attachments.vids > 0 || attachments.auds > 0 || attachments.apps > 0 || attachments.links > 0) && (
