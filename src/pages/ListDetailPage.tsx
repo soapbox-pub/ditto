@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import {
-  ArrowLeft, Users, UserPlus, Loader2, X, Rss, Share2, Check, Copy, Quote, PanelLeft,
+  ArrowLeft, Users, UserPlus, Loader2, X, Rss, Share2, Check, Copy, Quote, PanelLeft, Trash2,
 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -293,7 +293,7 @@ export function ListDetailPage() {
   const [copied, setCopied] = useState(false);
   const [cloning, setCloning] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
-  const { addToSidebar, orderedItems } = useFeedSettings();
+  const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
 
   // Decode the naddr to get the d-tag identifier and author
   const decoded = useMemo(() => {
@@ -327,6 +327,12 @@ export function ListDetailPage() {
     addToSidebar(nostrUri);
     toast({ title: 'Added to sidebar' });
   }, [nostrUri, isInSidebar, addToSidebar]);
+
+  const handleRemoveFromSidebar = useCallback(() => {
+    if (!nostrUri || !isInSidebar) return;
+    removeFromSidebar(nostrUri);
+    toast({ title: 'Removed from sidebar' });
+  }, [nostrUri, isInSidebar, removeFromSidebar]);
 
   // For own lists, use the local cache
   const ownList = useMemo(
@@ -517,11 +523,18 @@ export function ListDetailPage() {
                   <Quote className="size-4" />
                   Quote post
                 </DropdownMenuItem>
-                {nostrUri && !isInSidebar && (
-                  <DropdownMenuItem onClick={handleAddToSidebar} className="gap-3">
-                    <PanelLeft className="size-4" />
-                    Add to sidebar
-                  </DropdownMenuItem>
+                {nostrUri && (
+                  isInSidebar ? (
+                    <DropdownMenuItem onClick={handleRemoveFromSidebar} className="gap-3">
+                      <Trash2 className="size-4" />
+                      Remove from sidebar
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={handleAddToSidebar} className="gap-3">
+                      <PanelLeft className="size-4" />
+                      Add to sidebar
+                    </DropdownMenuItem>
+                  )
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
