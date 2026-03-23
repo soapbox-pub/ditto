@@ -23,6 +23,7 @@ import { isEventMuted } from '@/lib/muteHelpers';
 import { useNostr } from '@nostrify/react';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 
 /** Parse a follow pack / starter pack event into structured data. */
 function parsePackEvent(event: NostrEvent) {
@@ -237,7 +238,7 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
   }, [event, toast]);
 
   return (
-    <div>
+    <>
       {/* Hero image */}
       {image && (
         <div className="w-full overflow-hidden bg-muted border-b border-border">
@@ -334,10 +335,10 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
       </div>
 
       {/* Tab bar */}
-      <div className="flex border-t border-b border-border">
+      <SubHeaderBar>
         <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
         <TabButton label="Members" active={activeTab === 'members'} onClick={() => setActiveTab('members')} />
-      </div>
+      </SubHeaderBar>
 
       {/* Tab content */}
       {activeTab === 'feed' ? (
@@ -351,7 +352,7 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
           currentUserPubkey={user?.pubkey}
         />
       )}
-    </div>
+    </>
   );
 }
 
