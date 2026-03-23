@@ -134,6 +134,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     startDrag,
     updateDrag,
     endDrag,
+    setPosition,
   } = useBlobbiCompanionMotion({
     initialX: hasEnteredOnce ? restingPosition.x : entryPosition.x,
     groundY,
@@ -170,6 +171,9 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
         if (progress < 1) {
           requestAnimationFrame(animate);
         } else {
+          // Sync motion position to where entry animation ended
+          // This prevents the teleport when transitioning to motion-controlled movement
+          setPosition(restingPosition);
           setIsEntering(false);
           setHasEnteredOnce(true);
         }
