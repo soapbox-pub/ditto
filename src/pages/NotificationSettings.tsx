@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Bell, BellOff, AlertTriangle, Heart, Repeat2, Zap, AtSign, MessageSquare, Users } from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, AlertTriangle, Heart, Repeat2, Zap, AtSign, MessageSquare, Users, Award } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { Switch } from '@/components/ui/switch';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -10,7 +10,7 @@ import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { toast } from '@/hooks/useToast';
 
-type NotificationPrefKey = 'reactions' | 'reposts' | 'zaps' | 'mentions' | 'comments';
+type NotificationPrefKey = 'reactions' | 'reposts' | 'zaps' | 'mentions' | 'comments' | 'badges';
 
 interface NotificationTypeRow {
   key: NotificationPrefKey;
@@ -55,6 +55,13 @@ const NOTIFICATION_TYPES: NotificationTypeRow[] = [
     kinds: [1111],
     description: 'When someone comments on or replies to your posts',
     icon: <MessageSquare className="size-5" />,
+  },
+  {
+    key: 'badges',
+    label: 'Badge Awards',
+    kinds: [8],
+    description: 'When someone awards you a badge',
+    icon: <Award className="size-5" />,
   },
 ];
 

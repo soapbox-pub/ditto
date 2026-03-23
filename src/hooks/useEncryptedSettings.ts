@@ -45,6 +45,7 @@ export interface EncryptedSettings {
     zaps?: boolean;
     mentions?: boolean;
     comments?: boolean;
+    badges?: boolean;
     onlyFollowing?: boolean;
   };
   /** Last sync timestamp */
