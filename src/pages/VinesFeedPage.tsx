@@ -276,7 +276,7 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
   const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
-  const { data: stats } = useEventStats(event.id);
+  const { data: stats } = useEventStats(event.id, event);
   const canZapAuthor = user && canZap(metadata);
 
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
