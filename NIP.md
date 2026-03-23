@@ -7,6 +7,9 @@
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
+| 30009 | Badge Definition     | NIP-58 badge definition with custom tag extensions    |
+| 5950  | DVM Job Request      | NIP-90 DVM request for achievement badge claims       |
+| 6950  | DVM Job Result       | NIP-90 DVM result for achievement badge claims        |
 
 ---
 
@@ -278,4 +281,145 @@ The `shape` field is added to the JSON content of a kind 0 event alongside stand
 - When `shape` is set to an unrecognized or invalid value, clients MUST fall back to a circle. This ensures forward compatibility.
 - The `shape` field is purely cosmetic and has no protocol-level significance.
 - Clients MAY choose not to support this extension, in which case avatars render as circles as usual.
+
+---
+
+## Kind 30009: Badge Definition Tag Extensions
+
+### Summary
+
+This project uses standard NIP-58 badge definitions (kind 30009) with additional custom tags to support categorization, tiered achievements, and shop functionality. The core event structure follows NIP-58 exactly; these tags are additive and do not alter the standard `d`, `name`, `description`, `image`, and `thumb` tags.
+
+### Custom Tags
+
+| Tag      | Format                                     | Description                                                     |
+|----------|--------------------------------------------|-----------------------------------------------------------------|
+| `t`      | `["t", "shop"]`                            | Marks the badge as a shop badge (browseable in the badge shop)  |
+| `t`      | `["t", "achievement"]`                     | Marks the badge as an achievement (claimable via DVM)           |
+| `t`      | `["t", "<category>"]`                      | Category for filtering (e.g. `"social"`, `"content"`, `"flags"`, `"crypto"`) |
+| `tier`   | `["tier", "<level>"]`                      | Achievement tier: `"bronze"`, `"silver"`, `"gold"`, or `"diamond"` |
+
+A badge may have multiple `t` tags. For example, a shop badge in the "flags" category would have both `["t", "shop"]` and `["t", "flags"]`.
+
+### Achievement Categories
+
+Achievement badges use `t` tags with these category values: `social`, `profile`, `content`, `engagement`, `community`, `exploration`.
+
+### Shop Categories
+
+Shop badges use `t` tags with these category values: `flags`, `identity`, `causes`, `interests`, `animals`, `crypto`, `memes`, `nostr`, `limited`.
+
+### Example: Achievement Badge
+
+```json
+{
+  "kind": 30009,
+  "content": "",
+  "tags": [
+    ["d", "first-post"],
+    ["name", "First Post"],
+    ["description", "Publish your first text note on Nostr"],
+    ["image", "https://example.com/first-post.png"],
+    ["t", "achievement"],
+    ["t", "content"],
+    ["tier", "bronze"],
+    ["alt", "Badge definition: First Post"]
+  ]
+}
+```
+
+### Example: Shop Badge
+
+```json
+{
+  "kind": 30009,
+  "content": "",
+  "tags": [
+    ["d", "bitcoin-flag"],
+    ["name", "Bitcoin Flag"],
+    ["description", "Show your support for Bitcoin"],
+    ["image", "https://example.com/bitcoin-flag.png"],
+    ["t", "shop"],
+    ["t", "crypto"],
+    ["alt", "Badge definition: Bitcoin Flag"]
+  ]
+}
+```
+
+### Querying
+
+Shop badges are queried by filtering for the `t=shop` tag scoped to a trusted badge issuer:
+
+```
+{ kinds: [30009], authors: [<issuer-pubkey>], #t: ["shop"] }
+```
+
+Achievement badges are queried similarly with `t=achievement`:
+
+```
+{ kinds: [30009], authors: [<issuer-pubkey>], #t: ["achievement"] }
+```
+
+Categories are filtered client-side after fetching, since relay-level queries can only match one `t` value at a time.
+
+---
+
+## DVM Achievement Claim (Kinds 5950 / 6950)
+
+### Summary
+
+Achievement badges are claimed through a DVM (Data Vending Machine) flow using standard NIP-90 kinds 5950 (job request) and 6950 (job result). The custom job type is `claim-achievement`.
+
+### Job Request (Kind 5950)
+
+The user publishes a kind 5950 event to request verification and awarding of an achievement badge.
+
+```json
+{
+  "kind": 5950,
+  "content": "",
+  "tags": [
+    ["i", "30009:<issuer-pubkey>:<badge-identifier>", "event"],
+    ["param", "action", "claim-achievement"],
+    ["p", "<issuer-pubkey>"]
+  ]
+}
+```
+
+| Tag     | Description                                                                 |
+|---------|-----------------------------------------------------------------------------|
+| `i`     | The `a`-tag coordinate of the badge definition being claimed                |
+| `param` | Action parameter: always `"claim-achievement"` for this job type            |
+| `p`     | The badge issuer's pubkey (DVM operator that should process the request)    |
+
+### Job Result (Kind 6950)
+
+The DVM responds with a kind 6950 event indicating whether the achievement was verified and awarded.
+
+```json
+{
+  "kind": 6950,
+  "content": "Achievement verified! Badge awarded.",
+  "tags": [
+    ["e", "<job-request-event-id>"],
+    ["p", "<requester-pubkey>"],
+    ["status", "success"]
+  ]
+}
+```
+
+| Tag      | Description                                                               |
+|----------|---------------------------------------------------------------------------|
+| `e`      | Reference to the original kind 5950 job request event                     |
+| `p`      | The pubkey of the user who requested the claim                            |
+| `status` | `"success"` if the achievement was verified and badge awarded, `"error"` otherwise |
+| `content`| Human-readable message describing the result                              |
+
+### Flow
+
+1. User publishes a kind 5950 job request referencing the badge definition's `a`-tag coordinate.
+2. The DVM (badge bot) receives the request, verifies the user has met the achievement criteria (e.g. published a first post, followed N users, etc.), and if verified, publishes a kind 8 badge award event.
+3. The DVM publishes a kind 6950 result event referencing the job request with a `status` tag.
+4. The client listens for the kind 6950 result (filtered by `authors: [issuer]` and `#e: [jobEventId]`) with a 30-second timeout.
+5. On success, the user can accept the badge into their kind 30008 profile badges.
 

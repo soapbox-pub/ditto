@@ -175,7 +175,7 @@ function getEnabledNotificationKinds(
   if (p.zaps !== false)       kinds.push(9735);
   if (p.mentions !== false)   kinds.push(1);
   if (p.comments !== false)   kinds.push(1111, 1222, 1244);
-  kinds.push(8); // Badge awards are always enabled
+  if (p.badges !== false)     kinds.push(8);
 
   // Always fall back to all kinds so the query never sends an empty kinds array
   return kinds.length > 0 ? kinds : [...ALL_NOTIFICATION_KINDS];

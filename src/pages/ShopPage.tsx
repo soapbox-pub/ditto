@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { ShoppingBag, Search, Check, Zap, Sparkles, Loader2, ArrowLeft, Plus, Settings2, Pencil } from 'lucide-react';
+import { ShoppingBag, Search, Check, Sparkles, Loader2, ArrowLeft, Plus, Settings2, Pencil } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -25,7 +25,7 @@ import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeFeed } from '@/hooks/useBadgeFeed';
 import { SHOP_CATEGORIES } from '@/lib/shopCategories';
 import { parseBadgeDefinition, type BadgeData } from '@/components/BadgeContent';
-import { BADGE_DEFINITION_KIND, BADGE_ACCOUNT_PUBKEY, getBadgePrice, getBadgeSupply, getBadgeCategory, isShopBadge } from '@/lib/badgeUtils';
+import { BADGE_DEFINITION_KIND, BADGE_ACCOUNT_PUBKEY, getBadgeCategory, isShopBadge } from '@/lib/badgeUtils';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -47,6 +47,7 @@ function ShopContent() {
     queryKey: ['shop-badges', adminPubkey],
     queryFn: async ({ signal }) => {
       if (!adminPubkey) return [];
+      // Limit is high but scoped to a single author — revisit if badge catalog grows large
       const events = await nostr.query(
         [{ kinds: [BADGE_DEFINITION_KIND], authors: [adminPubkey], '#t': ['shop'], limit: 200 }],
         { signal },
@@ -175,8 +176,6 @@ function ShopContent() {
           {filteredBadges.map(({ event, badge }) => {
             const aTag = `${BADGE_DEFINITION_KIND}:${event.pubkey}:${badge.identifier}`;
             const owned = ownedATags.has(aTag);
-            const price = getBadgePrice(event);
-            const supply = getBadgeSupply(event);
             const heroImage = badge.image
               ?? badge.thumbs.find((t) => t.dimensions === '512x512')?.url
               ?? badge.thumbs[0]?.url;
@@ -215,28 +214,14 @@ function ShopContent() {
                       </p>
                     )}
 
-                    <div className="flex items-center justify-between pt-1">
-                      {owned ? (
+                    {owned && (
+                      <div className="pt-1">
                         <Badge variant="secondary" className="gap-1 text-xs font-medium">
                           <Check className="size-3" />
                           Owned
                         </Badge>
-                      ) : price !== null ? (
-                        <span className="inline-flex items-center gap-1 text-sm font-semibold text-amber-500">
-                          <Zap className="size-3.5 fill-amber-500" />
-                          {price.toLocaleString()} sats
-                        </span>
-                      ) : null}
-
-                      {supply && (
-                        <span className="text-[10px] text-muted-foreground tabular-nums">
-                          {supply.sold !== undefined
-                            ? `${Math.max(0, supply.total - supply.sold)} / ${supply.total}`
-                            : `/ ${supply.total}`}
-                          {' '}left
-                        </span>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </Link>

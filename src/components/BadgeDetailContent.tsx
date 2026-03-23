@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, Copy, Check, Users, Zap, Gift } from 'lucide-react';
+import { Award, Copy, Check, Users, Gift } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
@@ -18,7 +18,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePendingBadges } from '@/hooks/usePendingBadges';
 import { useAcceptBadge } from '@/hooks/useAcceptBadge';
 import { genUserName } from '@/lib/genUserName';
-import { getBadgePrice, getBadgeSupply, isShopBadge, isAchievementBadge } from '@/lib/badgeUtils';
+import { isShopBadge, isAchievementBadge } from '@/lib/badgeUtils';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { parseBadgeDefinition } from '@/components/BadgeContent';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -50,8 +50,6 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const { pendingBadges } = usePendingBadges(user?.pubkey);
   const pendingForUser = pendingBadges.find((p) => p.aTag === badgeATag);
   const isIssuer = user?.pubkey === event.pubkey;
-  const price = getBadgePrice(event);
-  const supply = getBadgeSupply(event);
   const isShop = isShopBadge(event);
   const isAchievement = isAchievementBadge(event);
 
@@ -183,15 +181,8 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
           {isShop && (
             <Badge variant="secondary" className="gap-1">
               <Gift className="size-3" />
-              Shop Badge{price ? ` · ${price} sats` : ''}
+              Shop Badge
             </Badge>
-          )}
-          {supply && (
-            <span className="text-sm text-muted-foreground">
-              {supply.sold !== undefined
-                ? `${supply.total - supply.sold} / ${supply.total} remaining`
-                : `${supply.total} total`}
-            </span>
           )}
         </div>
 
@@ -218,12 +209,6 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
               <Gift className="size-4 mr-1.5" />
               Award to…
             </Button>
-          )}
-          {isShop && price && (
-            <Badge variant="outline" className="gap-1 text-sm">
-              <Zap className="size-3" />
-              {price} sats
-            </Badge>
           )}
           <Button variant="outline" size="icon" onClick={handleCopyLink}>
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
