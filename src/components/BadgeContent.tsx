@@ -41,7 +41,7 @@ interface BadgeContentProps {
 
 /**
  * Renders a NIP-58 badge definition (kind 30009) as a showcase card in the feed.
- * Features a centered badge image with a rotating spotlight effect behind it.
+ * Features a centered badge image with rotating light rays radiating outward.
  */
 export function BadgeContent({ event }: BadgeContentProps) {
   const badge = useMemo(() => parseBadgeDefinition(event), [event]);
@@ -55,22 +55,31 @@ export function BadgeContent({ event }: BadgeContentProps) {
   return (
     <div className="mt-3">
       {/* Showcase area */}
-      <div className="relative flex flex-col items-center py-8 overflow-hidden rounded-2xl bg-gradient-to-b from-secondary/40 via-background to-background">
-        {/* Rotating spotlight */}
+      <div className="relative isolate flex flex-col items-center py-10 overflow-hidden rounded-2xl bg-gradient-to-b from-secondary/30 to-background">
+        {/* Rotating light rays — outer div centers, inner div rotates */}
         <div
-          className="absolute animate-badge-spotlight pointer-events-none"
+          className="absolute -z-10 pointer-events-none"
+          aria-hidden="true"
           style={{
-            width: 240,
-            height: 240,
+            width: 360,
+            height: 360,
             top: '50%',
             left: '50%',
-            marginTop: -120 - 12,
-            marginLeft: -120,
-            background: 'conic-gradient(from 0deg, transparent 0deg, hsl(var(--primary) / 0.12) 30deg, transparent 60deg, transparent 180deg, hsl(var(--primary) / 0.08) 210deg, transparent 240deg)',
-            borderRadius: '50%',
-            filter: 'blur(20px)',
+            transform: 'translate(-50%, -55%)',
           }}
-        />
+        >
+          <div
+            className="w-full h-full animate-badge-spotlight"
+            style={{
+              background: `repeating-conic-gradient(
+                hsl(var(--primary) / 0.08) 0deg 6deg,
+                transparent 6deg 18deg
+              )`,
+              maskImage: 'radial-gradient(circle, black 15%, transparent 70%)',
+              WebkitMaskImage: 'radial-gradient(circle, black 15%, transparent 70%)',
+            }}
+          />
+        </div>
 
         {/* Badge image */}
         <div className="relative z-[1]">
