@@ -1,4 +1,5 @@
 import {
+  Archive,
   Award,
   BarChart3,
   Bell,
@@ -47,6 +48,29 @@ export const SIDEBAR_DIVIDER_ID = "divider";
 /** Returns true if the given sidebar order ID is a divider sentinel. */
 export function isSidebarDivider(id: string): boolean {
   return id === SIDEBAR_DIVIDER_ID;
+}
+
+/** Returns true if the given sidebar order ID is a `nostr:` URI. */
+export function isNostrUri(id: string): boolean {
+  return id.startsWith("nostr:");
+}
+
+/** Extracts the NIP-19 bech32 identifier from a `nostr:` URI. Returns the raw string if not a nostr: URI. */
+export function nostrUriToNip19(uri: string): string {
+  return uri.startsWith("nostr:") ? uri.slice(6) : uri;
+}
+
+/**
+ * Returns true if the given sidebar order ID is an external content identifier
+ * (i-tag value): an https:// URL or a prefixed identifier like `iso3166:US`.
+ */
+export function isExternalUri(id: string): boolean {
+  return (
+    id.startsWith("https://") ||
+    id.startsWith("http://") ||
+    id.startsWith("iso3166:") ||
+    id.startsWith("isbn:")
+  );
 }
 
 /** A sidebar-capable item with everything needed for display and navigation. */
@@ -143,6 +167,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "development", label: "Development", path: "/development", icon: Code },
   { id: "badges", label: "Badges", path: "/badges", icon: Award },
   { id: "world", label: "World", path: "/world", icon: Earth },
+  { id: "archive", label: "Archive", path: "/archive", icon: Archive },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */
@@ -208,6 +233,17 @@ export function isItemActive(
   profilePath?: string,
   homePage?: string,
 ): boolean {
+  // Nostr URI items: active when pathname matches /<nip19>
+  if (isNostrUri(id)) {
+    const nip19Id = nostrUriToNip19(id);
+    return pathname === `/${nip19Id}`;
+  }
+
+  // External content items: active when pathname matches /i/<encoded-value>
+  if (isExternalUri(id)) {
+    return pathname === `/i/${encodeURIComponent(id)}` || pathname === `/i/${id}`;
+  }
+
   if (id === "profile") return !!profilePath && pathname === profilePath;
   if (id === "settings") return pathname.startsWith("/settings");
 

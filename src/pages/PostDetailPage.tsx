@@ -23,6 +23,7 @@ import { ArticleContent } from "@/components/ArticleContent";
 import { AudioVisualizer } from "@/components/AudioVisualizer";
 import { BadgeDetailContent } from "@/components/BadgeDetailContent";
 import { CalendarEventDetailPage } from "@/components/CalendarEventDetailPage";
+import { ComposeBox } from "@/components/ComposeBox";
 import {
   ColorMomentContent,
   ColorMomentEyeButton,
@@ -97,6 +98,9 @@ const CALENDAR_EVENT_KINDS = new Set([31922, 31923]);
 /** NIP-58 Badge Definition. */
 const BADGE_DEFINITION_KIND = 30009;
 
+/** NIP-58 Profile Badges. */
+const BADGE_PROFILE_KIND = 30008;
+
 /** Kind 31985 = Bookstr book reviews. */
 const BOOK_REVIEW_KIND = 31985;
 
@@ -116,6 +120,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 1618) return "Pull Request";
   if (kind === 30817) return "Custom NIP";
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
+  if (kind === BADGE_PROFILE_KIND) return "Badge Collection";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
   if (kind === 32267) return "App Details";
   if (kind === VANISH_KIND) return "Request to Vanish";
@@ -343,12 +348,69 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
     );
   }
 
+  // NIP-58 profile badges get a NoteCard view (same as the feed) + comments
+  if (resolvedEvent.kind === BADGE_PROFILE_KIND) {
+    return (
+      <PostDetailShell title="Badge Collection">
+        <MutedContentGuard event={resolvedEvent}>
+          <ProfileBadgesDetailView event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
+    );
+  }
+
   return (
     <PostDetailShell title={loadingTitle}>
       <MutedContentGuard event={resolvedEvent}>
         <PostDetailContent event={resolvedEvent} />
       </MutedContentGuard>
     </PostDetailShell>
+  );
+}
+
+/** NoteCard + NIP-22 comments section for kind 30008 profile badges detail page. */
+function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
+  const { muteItems } = useMuteList();
+  const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
+
+  const orderedReplies = useMemo(() => {
+    const topLevel = commentsData?.topLevelComments ?? [];
+    const filtered = muteItems.length > 0
+      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
+      : topLevel;
+    return [...filtered]
+      .sort((a, b) => a.created_at - b.created_at)
+      .map((reply) => {
+        const directReplies = commentsData?.getDirectReplies(reply.id) ?? [];
+        return {
+          reply,
+          firstSubReply: directReplies[0] as NostrEvent | undefined,
+        };
+      });
+  }, [commentsData, muteItems]);
+
+  return (
+    <div>
+      <NoteCard event={event} />
+      <div className="border-t border-border">
+        <ComposeBox compact replyTo={event} />
+      </div>
+      <div className="pb-16 sidebar:pb-0">
+        {commentsLoading ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <ReplyCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : orderedReplies.length > 0 ? (
+          <ThreadedReplyList replies={orderedReplies} />
+        ) : (
+          <div className="py-12 text-center text-muted-foreground text-sm">
+            No replies yet. Be the first to reply!
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -860,7 +922,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     );
   }, [imetaMap, isTextNote]);
 
-  const { data: stats } = useEventStats(event.id);
+  const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
 
   // Derive top 3 reaction emojis from actual interaction events (NIP-85 doesn't provide these)

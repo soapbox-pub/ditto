@@ -61,7 +61,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { user } = useCurrentUser();
 
-  const stats = useEventStats(event.id);
+  const stats = useEventStats(event.id, event);
   const { muteItems } = useMuteList();
 
   const [replyOpen, setReplyOpen] = useState(false);

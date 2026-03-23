@@ -231,6 +231,8 @@ export interface AppConfig {
   plausibleEndpoint: string;
   /** Saved home feed tabs. Cached locally so they appear instantly on load. */
   savedFeeds: SavedFeed[];
+  /** Image upload quality: "compressed" resizes/optimizes, "original" uploads as-is. Default: "compressed". */
+  imageQuality: 'compressed' | 'original';
 }
 
 export interface AppContextType {

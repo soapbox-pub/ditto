@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -46,7 +46,7 @@ import { ListPackPicker } from '@/components/SavedFeedFiltersEditor';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { TabButton } from '@/components/TabButton';
-import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
+// getNostrIdentifierPath removed — identifiers are now handled as autocomplete suggestions
 import { cn, STICKY_HEADER_CLASS, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
 import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
@@ -91,7 +91,6 @@ export function SearchPage() {
     description: 'Search Nostr',
   });
 
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Derive tab directly from URL — single source of truth
@@ -244,13 +243,9 @@ export function SearchPage() {
     }
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // If the search query is a Nostr identifier, redirect immediately
-  useEffect(() => {
-    const path = getNostrIdentifierPath(debouncedSearchQuery);
-    if (path) {
-      navigate(path, { replace: true });
-    }
-  }, [debouncedSearchQuery, navigate]);
+  // NOTE: Previously this redirected NIP-19/NIP-05 identifiers away from the
+  // search page. Now identifiers are handled as autocomplete suggestions in the
+  // search dropdowns, and submitting always performs a text search.
 
   const protocols = useMemo(() => [platform], [platform]);
 

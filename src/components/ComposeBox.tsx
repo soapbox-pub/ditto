@@ -31,6 +31,7 @@ import { usePostComment } from '@/hooks/usePostComment';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
+import { useAppContext } from '@/hooks/useAppContext';
 import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
 import { extractWebxdcMeta } from '@/lib/webxdcMeta';
@@ -184,6 +185,8 @@ export function ComposeBox({
   const customEmojis = useMemo(() => customEmojisEnabled ? allCustomEmojis : [], [customEmojisEnabled, allCustomEmojis]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { config } = useAppContext();
+  const imageQuality = config.imageQuality;
 
   const [content, setContent] = useState(initialContent);
   const [expanded, setExpanded] = useState(false);
@@ -518,8 +521,8 @@ export function ComposeBox({
 
       if (isXdc && !file.type) {
         uploadableFile = new File([file], file.name, { type: 'application/x-webxdc' });
-      } else if (isImage) {
-        // Resize & convert images to JPEG before uploading for better performance.
+      } else if (isImage && imageQuality === 'compressed') {
+        // Resize & optimize images before uploading for better performance.
         const resized = await resizeImage(file);
         uploadableFile = resized.file;
         resizedDim = resized.dimensions;
@@ -583,7 +586,7 @@ export function ComposeBox({
     } catch {
       toast({ title: 'Upload failed', description: 'Could not upload file.', variant: 'destructive' });
     }
-  }, [uploadFile, expand, toast]);
+  }, [uploadFile, expand, toast, imageQuality]);
 
   const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
@@ -1553,6 +1556,7 @@ export function ComposeBox({
                     </div>
                   </PopoverContent>
                 </Popover>
+
               </div>
 
               {/* Spacer */}

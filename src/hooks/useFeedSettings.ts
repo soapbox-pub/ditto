@@ -2,7 +2,7 @@ import { type FeedSettings } from "@/contexts/AppContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { SIDEBAR_ITEMS, SIDEBAR_ITEM_IDS, SIDEBAR_DIVIDER_ID } from "@/lib/sidebarItems";
+import { SIDEBAR_ITEMS, SIDEBAR_ITEM_IDS, SIDEBAR_DIVIDER_ID, isNostrUri, isExternalUri } from "@/lib/sidebarItems";
 import { useCallback, useMemo } from "react";
 
 // ── Order computation ─────────────────────────────────────────────────────────
@@ -15,6 +15,8 @@ const DEFAULT_SIDEBAR_ORDER = SIDEBAR_ITEMS
 /** Map of legacy sidebar item IDs to their current replacements. */
 const SIDEBAR_ID_MIGRATIONS: Record<string, string> = {
   'emoji-packs': 'emojis',
+  'shop': 'badges',
+  'achievements': 'badges',
 };
 
 /**
@@ -47,7 +49,7 @@ function computeOrderedItems(
     if (seen.has(item)) continue;
     seen.add(item);
 
-    if (SIDEBAR_ITEM_IDS.has(item)) {
+    if (SIDEBAR_ITEM_IDS.has(item) || isNostrUri(item) || isExternalUri(item)) {
       ordered.push(item);
     }
     // else: unknown entry — skip
