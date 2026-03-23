@@ -97,6 +97,9 @@ const CALENDAR_EVENT_KINDS = new Set([31922, 31923]);
 /** NIP-58 Badge Definition. */
 const BADGE_DEFINITION_KIND = 30009;
 
+/** NIP-58 Profile Badges. */
+const BADGE_PROFILE_KIND = 30008;
+
 /** Kind 31985 = Bookstr book reviews. */
 const BOOK_REVIEW_KIND = 31985;
 
@@ -116,6 +119,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 1618) return "Pull Request";
   if (kind === 30817) return "Custom NIP";
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
+  if (kind === BADGE_PROFILE_KIND) return "Badge Collection";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
   if (kind === 32267) return "App Details";
   if (kind === VANISH_KIND) return "Request to Vanish";
@@ -338,6 +342,17 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
       <PostDetailShell title="Badge Details">
         <MutedContentGuard event={resolvedEvent}>
           <BadgeDetailContent event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
+    );
+  }
+
+  // NIP-58 profile badges get a NoteCard view (same as the feed)
+  if (resolvedEvent.kind === BADGE_PROFILE_KIND) {
+    return (
+      <PostDetailShell title="Badge Collection">
+        <MutedContentGuard event={resolvedEvent}>
+          <NoteCard event={resolvedEvent} />
         </MutedContentGuard>
       </PostDetailShell>
     );
