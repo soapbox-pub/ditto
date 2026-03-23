@@ -48,6 +48,8 @@ interface UseBlobbiCompanionMotionResult {
   updateDrag: (position: Position) => void;
   /** End dragging */
   endDrag: () => void;
+  /** Set position directly (for entry animation sync) */
+  setPosition: (position: Position) => void;
 }
 
 /**
@@ -129,10 +131,21 @@ export function useBlobbiCompanionMotion({
     setMotion(prev => endDragMotion(prev, groundY));
   }, [groundY]);
   
+  // Set position directly (used after entry animation completes)
+  const setPosition = useCallback((position: Position) => {
+    setMotion(prev => ({
+      ...prev,
+      position: { ...position },
+      velocity: { x: 0, y: 0 },
+      isGrounded: true,
+    }));
+  }, []);
+  
   return {
     motion,
     startDrag,
     updateDrag,
     endDrag,
+    setPosition,
   };
 }

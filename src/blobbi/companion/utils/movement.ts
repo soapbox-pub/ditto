@@ -36,7 +36,9 @@ export function calculateGroundY(
 }
 
 /**
- * Calculate the entry position (off-screen left, behind sidebar).
+ * Calculate the entry position (behind the sidebar).
+ * The companion starts just behind the sidebar's left edge,
+ * so it appears to emerge from behind the sidebar.
  */
 export function calculateEntryPosition(
   viewportHeight: number,
@@ -45,7 +47,9 @@ export function calculateEntryPosition(
 ): Position {
   const groundY = calculateGroundY(viewportHeight, companionSize, config);
   return {
-    x: -companionSize, // Start off-screen to the left
+    // Start just behind the sidebar (partially hidden)
+    // padding.left is the sidebar width, so start at half that minus the companion size
+    x: (config.padding.left / 2) - companionSize,
     y: groundY,
   };
 }
