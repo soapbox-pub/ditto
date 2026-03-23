@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X, Footprints } from 'lucide-react';
 // TODO: Re-import when features are implemented: Footprints, PictureInPicture2
 // Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
 // Note: Sparkles kept for BlobbiBottomBar center action button
@@ -31,7 +31,9 @@ import { cn } from '@/lib/utils';
 
 import {
   KIND_BLOBBI_STATE,
+  KIND_BLOBBONAUT_PROFILE,
   updateBlobbiTags,
+  updateBlobbonautTags,
   type BlobbiCompanion,
   type BlobbonautProfile,
 } from '@/lib/blobbi';
@@ -652,6 +654,7 @@ function BlobbiContent() {
       onEvolve={handleEvolve}
       isHatching={isHatching}
       isEvolving={isEvolving}
+      publishEvent={publishEvent}
       updateProfileEvent={updateProfileEvent}
       updateCompanionEvent={updateCompanionEvent}
       invalidateProfile={invalidateProfile}
@@ -712,6 +715,7 @@ interface BlobbiDashboardProps {
   isHatching: boolean;
   isEvolving: boolean;
   // Adoption flow props
+  publishEvent: (params: { kind: number; content: string; tags: string[][] }) => Promise<import('@nostrify/nostrify').NostrEvent>;
   updateProfileEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   updateCompanionEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   invalidateProfile: () => void;
@@ -748,6 +752,7 @@ function BlobbiDashboard({
   onEvolve,
   isHatching,
   isEvolving,
+  publishEvent,
   updateProfileEvent,
   updateCompanionEvent,
   invalidateProfile,
@@ -957,6 +962,54 @@ function BlobbiDashboard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completedTaskIds, cachedCompletedIds, isInTaskProcess, activeTasksLoading]);
   
+  // ─── Set as Companion ───
+  // Determines if this Blobbi is currently set as the user's companion
+  const isCurrentCompanion = profile?.currentCompanion === companion.d;
+  
+  // State for tracking companion update in progress
+  const [isUpdatingCompanion, setIsUpdatingCompanion] = useState(false);
+  
+  // Handler for toggling the current companion
+  const handleSetAsCompanion = useCallback(async () => {
+    if (!profile) return;
+    
+    setIsUpdatingCompanion(true);
+    
+    try {
+      // Toggle logic: if already companion, unset; otherwise, set this Blobbi as companion
+      const newCompanionValue = isCurrentCompanion ? '' : companion.d;
+      
+      const updatedTags = updateBlobbonautTags(profile.allTags, {
+        current_companion: newCompanionValue,
+      });
+      
+      const event = await publishEvent({
+        kind: KIND_BLOBBONAUT_PROFILE,
+        content: '',
+        tags: updatedTags,
+      });
+      
+      updateProfileEvent(event);
+      invalidateProfile();
+      
+      toast({
+        title: isCurrentCompanion ? 'Companion unset' : 'Companion set!',
+        description: isCurrentCompanion 
+          ? `${companion.name} is no longer your companion`
+          : `${companion.name} is now your companion`,
+      });
+    } catch (error) {
+      console.error('Failed to update companion:', error);
+      toast({
+        title: 'Failed to update companion',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdatingCompanion(false);
+    }
+  }, [profile, isCurrentCompanion, companion.d, companion.name, publishEvent, updateProfileEvent, invalidateProfile]);
+  
   // Handler for starting incubation with explicit mode from dialog
   const handleStartIncubation = async (mode: StartIncubationMode, stopOtherD?: string) => {
     try {
@@ -1157,7 +1210,9 @@ function BlobbiDashboard({
         {/* Floating Dashboard Controls */}
         <BlobbiDashboardFloatingControls
           stage={companion.stage}
-          onSetAsCompanion={() => console.log('TODO: set as companion')}
+          onSetAsCompanion={handleSetAsCompanion}
+          isCurrentCompanion={isCurrentCompanion}
+          isUpdatingCompanion={isUpdatingCompanion}
           onTakePhoto={() => setShowPhotoModal(true)}
           onOpenPiP={() => console.log('TODO: open PiP')}
           onEvolve={
@@ -1533,12 +1588,17 @@ interface FloatingActionDef {
   tooltip: string;
   onClick: () => void;
   variant?: 'default' | 'accent';
+  disabled?: boolean;
 }
 
 interface BlobbiDashboardFloatingControlsProps {
   stage: 'egg' | 'baby' | 'adult';
   onBack?: () => void;
   onSetAsCompanion: () => void;
+  /** Whether this Blobbi is currently set as the user's companion */
+  isCurrentCompanion: boolean;
+  /** Whether the companion update is in progress */
+  isUpdatingCompanion?: boolean;
   onTakePhoto: () => void;
   onOpenPiP: () => void;
   onEvolve: () => void;
@@ -1593,7 +1653,9 @@ function getEvolveTooltip(
 function BlobbiDashboardFloatingControls({
   stage,
   onBack,
-  onSetAsCompanion: _onSetAsCompanion, // TODO: Re-enable when companion feature is implemented
+  onSetAsCompanion,
+  isCurrentCompanion,
+  isUpdatingCompanion = false,
   onTakePhoto,
   onOpenPiP: _onOpenPiP, // TODO: Re-enable when PiP feature is implemented
   onEvolve,
@@ -1616,13 +1678,13 @@ function BlobbiDashboardFloatingControls({
 
   // Right-side buttons (top cluster)
   const rightButtons: FloatingActionDef[] = [
-    // TODO: Re-enable when companion feature is implemented
-    // {
-    //   id: 'set-companion',
-    //   icon: <Footprints className="size-4" />,
-    //   tooltip: 'Set as Companion',
-    //   onClick: onSetAsCompanion,
-    // },
+    {
+      id: 'set-companion',
+      icon: <Footprints className={cn('size-4', isCurrentCompanion && 'text-green-500')} />,
+      tooltip: isCurrentCompanion ? 'Current Companion' : 'Set as Companion',
+      onClick: onSetAsCompanion,
+      disabled: isUpdatingCompanion,
+    },
     {
       id: 'photo',
       icon: <Camera className="size-4" />,
@@ -1678,6 +1740,7 @@ function BlobbiDashboardFloatingControls({
             key={btn.id}
             tooltip={btn.tooltip}
             onClick={btn.onClick}
+            disabled={btn.disabled}
           >
             {btn.icon}
           </QuickActionButton>
