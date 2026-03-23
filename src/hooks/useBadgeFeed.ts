@@ -8,8 +8,8 @@ import { BADGE_DEFINITION_KIND, BADGE_PROFILE_KIND } from '@/lib/badgeUtils';
 
 const PAGE_SIZE = 20;
 
-/** Hook to fetch a feed of badge-related Nostr events with infinite scroll and follows/global tabs. */
-export function useBadgeFeed(tab: 'follows' | 'global' = 'global') {
+/** Hook to fetch a feed of badge-related Nostr events with infinite scroll. */
+export function useBadgeFeed(tab: 'follows' = 'follows') {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
