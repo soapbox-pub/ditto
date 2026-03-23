@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarChart3, Plus, ChevronLeft } from 'lucide-react';
+import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarChart3, Plus, ChevronLeft, ImageDown, ImageUp } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -203,6 +203,7 @@ export function ComposeBox({
   ]);
   const [pollType, setPollType] = useState<'singlechoice' | 'multiplechoice'>('singlechoice');
   const [pollDuration, setPollDuration] = useState<7 | 3 | 1 | 0>(7);
+  const [imageQuality, setImageQuality] = useState<'compressed' | 'original'>('compressed');
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const [_uploadedFileTags, setUploadedFileTags] = useState<string[][]>([]);
   /** Maps uploaded file URLs to their NIP-94 tags (grouped per upload). */
@@ -518,8 +519,8 @@ export function ComposeBox({
 
       if (isXdc && !file.type) {
         uploadableFile = new File([file], file.name, { type: 'application/x-webxdc' });
-      } else if (isImage) {
-        // Resize & convert images to JPEG before uploading for better performance.
+      } else if (isImage && imageQuality === 'compressed') {
+        // Resize & optimize images before uploading for better performance.
         const resized = await resizeImage(file);
         uploadableFile = resized.file;
         resizedDim = resized.dimensions;
@@ -583,7 +584,7 @@ export function ComposeBox({
     } catch {
       toast({ title: 'Upload failed', description: 'Could not upload file.', variant: 'destructive' });
     }
-  }, [uploadFile, expand, toast]);
+  }, [uploadFile, expand, toast, imageQuality]);
 
   const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
@@ -1553,6 +1554,26 @@ export function ComposeBox({
                     </div>
                   </PopoverContent>
                 </Popover>
+
+                {/* Image quality toggle */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setImageQuality((q) => q === 'compressed' ? 'original' : 'compressed')}
+                      disabled={!user}
+                      className={cn(
+                        'p-2 rounded-full transition-colors disabled:opacity-40',
+                        imageQuality === 'original'
+                          ? 'text-primary bg-primary/10'
+                          : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
+                      )}
+                    >
+                      {imageQuality === 'original' ? <ImageUp className="size-[18px]" /> : <ImageDown className="size-[18px]" />}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>{imageQuality === 'original' ? 'Original quality' : 'Compressed'}</TooltipContent>
+                </Tooltip>
               </div>
 
               {/* Spacer */}
