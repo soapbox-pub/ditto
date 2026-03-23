@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { GripVertical, X, Globe } from 'lucide-react';
+import { GripVertical, X, Globe, BookOpen } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useMemo } from 'react';
@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { parseExternalUri, headerLabel } from '@/lib/externalContent';
 import { getCountryInfo } from '@/lib/countries';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
+import { useBookInfo } from '@/hooks/useBookInfo';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -45,12 +46,21 @@ function ExternalSidebarIcon({ id }: { id: string }) {
     );
   }
 
+  if (content.type === 'isbn') {
+    return <BookOpen className="size-5 shrink-0" />;
+  }
+
   return <Globe className="size-6 shrink-0" />;
 }
 
 function ExternalSidebarLabel({ id }: { id: string }) {
   const content = useMemo(() => parseExternalUri(id), [id]);
-  return <span className="truncate">{headerLabel(content)}</span>;
+  const isbn = content.type === 'isbn' ? content.value.replace('isbn:', '') : null;
+  const { data: book } = useBookInfo(isbn);
+
+  const label = content.type === 'isbn' && book?.title ? book.title : headerLabel(content);
+
+  return <span className="truncate">{label}</span>;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
