@@ -971,9 +971,22 @@ function BlobbiDashboard({
   // State for tracking companion update in progress
   const [isUpdatingCompanion, setIsUpdatingCompanion] = useState(false);
   
+  // Check if this Blobbi can be set as companion (must be baby or adult, not egg)
+  const canBeCompanion = companion.stage === 'baby' || companion.stage === 'adult';
+  
   // Handler for toggling the current companion
   const handleSetAsCompanion = useCallback(async () => {
     if (!profile) return;
+    
+    // Validate stage when setting (not when unsetting)
+    if (!isCurrentCompanion && !canBeCompanion) {
+      toast({
+        title: 'Cannot set as companion',
+        description: 'Only hatched Blobbis (baby or adult) can be set as your companion.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     setIsUpdatingCompanion(true);
     
@@ -1018,7 +1031,7 @@ function BlobbiDashboard({
     } finally {
       setIsUpdatingCompanion(false);
     }
-  }, [profile, isCurrentCompanion, companion.d, companion.name, publishEvent, updateProfileEvent, invalidateProfile]);
+  }, [profile, isCurrentCompanion, canBeCompanion, companion.d, companion.name, publishEvent, updateProfileEvent, invalidateProfile]);
   
   // Handler for starting incubation with explicit mode from dialog
   const handleStartIncubation = async (mode: StartIncubationMode, stopOtherD?: string) => {
@@ -1687,14 +1700,21 @@ function BlobbiDashboardFloatingControls({
     }] : []),
   ];
 
+  // Check if this Blobbi can be set as companion (eggs cannot)
+  const canBeCompanion = stage !== 'egg';
+  
   // Right-side buttons (top cluster)
   const rightButtons: FloatingActionDef[] = [
     {
       id: 'set-companion',
       icon: <Footprints className={cn('size-4', isCurrentCompanion && 'text-green-500')} />,
-      tooltip: isCurrentCompanion ? 'Current Companion' : 'Set as Companion',
+      tooltip: isCurrentCompanion 
+        ? 'Current Companion' 
+        : canBeCompanion 
+          ? 'Set as Companion' 
+          : 'Hatch first to set as companion',
       onClick: onSetAsCompanion,
-      disabled: isUpdatingCompanion,
+      disabled: isUpdatingCompanion || (!isCurrentCompanion && !canBeCompanion),
     },
     {
       id: 'photo',
