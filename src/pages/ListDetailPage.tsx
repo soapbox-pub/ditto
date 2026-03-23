@@ -361,6 +361,13 @@ export function ListDetailPage() {
   const list = isOwnList ? ownList : (remoteListQuery.data ?? null);
   const isLoading = isOwnList ? ownListsLoading : remoteListQuery.isLoading;
 
+  // Fetch the list author's profile
+  const listAuthor = useAuthor(decoded?.pubkey ?? '');
+  const listAuthorMetadata = listAuthor.data?.metadata;
+  const listAuthorName = listAuthorMetadata?.name || listAuthorMetadata?.display_name || (decoded ? genUserName(decoded.pubkey) : '');
+  const listAuthorAvatarShape = getAvatarShape(listAuthorMetadata);
+  const listAuthorProfileUrl = useProfileUrl(decoded?.pubkey ?? '', listAuthorMetadata);
+
   // Fetch preview avatars for the member stack
   const previewPubkeys = useMemo(() => (list?.pubkeys ?? []).slice(0, 8), [list?.pubkeys]);
   const { data: previewMembersMap } = useAuthors(previewPubkeys);
@@ -484,6 +491,19 @@ export function ListDetailPage() {
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold truncate">{list.title}</h1>
+            {decoded && (
+              <Link to={listAuthorProfileUrl} className="flex items-center gap-1.5 mt-0.5 group">
+                <Avatar shape={listAuthorAvatarShape} className="size-4">
+                  <AvatarImage src={listAuthorMetadata?.picture} alt={listAuthorName} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                    {listAuthorName[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-xs text-muted-foreground group-hover:underline truncate">
+                  {listAuthorName}
+                </span>
+              </Link>
+            )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {user && !isOwnList && (
