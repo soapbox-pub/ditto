@@ -125,6 +125,25 @@ export function extractArchiveOrgId(url: string): string | null {
   }
 }
 
+/**
+ * Extract a Wikipedia article title from a Wikipedia URL, or null if not a Wikipedia article link.
+ * Supports en.wikipedia.org/wiki/{title} and other language subdomains.
+ */
+export function extractWikipediaTitle(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    // Match {lang}.wikipedia.org
+    if (!host.endsWith('.wikipedia.org')) return null;
+    // Match /wiki/{title} — ignore special pages, talk pages, etc.
+    const match = u.pathname.match(/^\/wiki\/([^:][^#]*)$/);
+    if (!match) return null;
+    return decodeURIComponent(match[1].replace(/_/g, ' '));
+  } catch {
+    return null;
+  }
+}
+
 /** Returns true if the URL should be rendered as a rich embed rather than a plain link. */
 export function isEmbeddableUrl(url: string): boolean {
   return !!extractYouTubeId(url) || !!extractTweetId(url) || !!extractBlueskyPost(url)
