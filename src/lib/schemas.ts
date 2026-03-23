@@ -307,6 +307,7 @@ export const EncryptedSettingsSchema = z.looseObject({
     zaps: z.boolean().optional(),
     mentions: z.boolean().optional(),
     comments: z.boolean().optional(),
+    badges: z.boolean().optional(),
     onlyFollowing: z.boolean().optional(),
   }).optional(),
   lastSync: z.number().optional(),

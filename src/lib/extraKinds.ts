@@ -403,11 +403,11 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'badges',
     showKey: 'showBadges',
     label: 'Badges',
-    description: 'Achievement badges and awards (NIP-58)',
+    description: 'Badges and awards (NIP-58)',
     route: 'badges',
     addressable: true,
     section: 'whimsy',
-    blurb: 'Discover achievement badges created on Nostr. Badge issuers award them for recognition, participation, or appreciation.',
+    blurb: 'Discover badges created on Nostr. Badge issuers award them for recognition, participation, or appreciation.',
     subKinds: [
       {
         kind: 30009,
