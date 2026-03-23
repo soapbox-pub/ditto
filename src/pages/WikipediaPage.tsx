@@ -8,8 +8,6 @@ import {
   ExternalLink,
   Eye,
   FlameKindling,
-  ImageIcon,
-  Lightbulb,
   Loader2,
   Newspaper,
   Search,
@@ -27,8 +25,6 @@ import {
   type WikiPage,
   type OnThisDayEvent,
   type NewsItem,
-  type DykItem,
-  type PictureOfTheDay,
 } from '@/hooks/useWikipediaFeatured';
 import { useWikipediaSearch, type WikipediaSearchResult } from '@/hooks/useWikipediaSearch';
 import { cn } from '@/lib/utils';
@@ -37,7 +33,7 @@ import { cn } from '@/lib/utils';
 // Types
 // ---------------------------------------------------------------------------
 
-type Section = 'all' | 'featured' | 'mostread' | 'onthisday' | 'news' | 'dyk' | 'image';
+type Section = 'all' | 'featured' | 'mostread' | 'onthisday' | 'news';
 
 interface SectionMeta {
   label: string;
@@ -53,11 +49,9 @@ const SECTIONS: Record<Exclude<Section, 'all'>, SectionMeta> = {
   mostread: { label: 'Trending', icon: <TrendingUp className="size-3.5" /> },
   onthisday: { label: 'On This Day', icon: <Calendar className="size-3.5" /> },
   news: { label: 'In the News', icon: <Newspaper className="size-3.5" /> },
-  dyk: { label: 'Did You Know', icon: <Lightbulb className="size-3.5" /> },
-  image: { label: 'Picture', icon: <ImageIcon className="size-3.5" /> },
 };
 
-const SECTION_ORDER: Section[] = ['all', 'featured', 'mostread', 'news', 'onthisday', 'dyk', 'image'];
+const SECTION_ORDER: Section[] = ['all', 'featured', 'mostread', 'news', 'onthisday'];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -212,46 +206,6 @@ function FeaturedArticleCard({ page }: { page: WikiPage }) {
 }
 
 // ---------------------------------------------------------------------------
-// Picture of the Day
-// ---------------------------------------------------------------------------
-
-function PictureOfTheDayCard({ image }: { image: PictureOfTheDay }) {
-  return (
-    <a
-      href={image.file_page}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
-    >
-      <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-emerald-500/10 to-teal-500/10">
-        <img
-          src={image.thumbnail.source}
-          alt={image.description?.text ?? 'Picture of the Day'}
-          loading="lazy"
-          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-        />
-        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white text-xs font-medium flex items-center gap-1">
-          <ImageIcon className="size-3" />
-          Picture of the Day
-        </div>
-      </div>
-      <div className="p-4 space-y-1">
-        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
-          {image.description?.text ?? ''}
-        </p>
-        {image.artist && (
-          <p className="text-xs text-muted-foreground/70">
-            By {image.artist.text}
-            {image.license && <> &middot; {image.license.type}</>}
-          </p>
-        )}
-      </div>
-    </a>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // On This Day entry
 // ---------------------------------------------------------------------------
 
@@ -337,30 +291,6 @@ function NewsCard({ item }: { item: NewsItem }) {
             />
           </Link>
         )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Did You Know card
-// ---------------------------------------------------------------------------
-
-function DykCard({ item }: { item: DykItem }) {
-  const cleanText = useMemo(() => {
-    return item.text.replace(/^\.\.\. /, '').trim();
-  }, [item.text]);
-
-  return (
-    <div className="rounded-2xl border border-border overflow-hidden bg-card p-4">
-      <div className="flex items-start gap-3">
-        <div className="shrink-0 mt-0.5">
-          <Lightbulb className="size-4 text-amber-500" />
-        </div>
-        <p className="text-sm leading-relaxed">
-          <span className="text-muted-foreground">...that </span>
-          {cleanText}
-        </p>
       </div>
     </div>
   );
@@ -619,11 +549,6 @@ export function WikipediaPage() {
     return feed?.news ?? [];
   }, [feed?.news]);
 
-  const dykItems = useMemo(() => {
-    if (!feed?.dyk) return [];
-    return feed.dyk.slice(0, 6);
-  }, [feed?.dyk]);
-
   const showSection = (s: Exclude<Section, 'all'>) => activeSection === 'all' || activeSection === s;
 
   return (
@@ -693,17 +618,6 @@ export function WikipediaPage() {
             </section>
           )}
 
-          {/* Picture of the Day */}
-          {showSection('image') && feed?.image && (
-            <section>
-              <SectionHeading
-                icon={<ImageIcon className="size-3.5 text-emerald-500" />}
-                title="Picture of the Day"
-              />
-              <PictureOfTheDayCard image={feed.image} />
-            </section>
-          )}
-
           {/* Most Read */}
           {showSection('mostread') && mostReadArticles.length > 0 && (
             <section>
@@ -756,21 +670,6 @@ export function WikipediaPage() {
             </section>
           )}
 
-          {/* Did You Know */}
-          {showSection('dyk') && dykItems.length > 0 && (
-            <section>
-              <SectionHeading
-                icon={<Lightbulb className="size-3.5 text-amber-500" />}
-                title="Did You Know?"
-              />
-              <div className="space-y-3">
-                {dykItems.map((item, i) => (
-                  <DykCard key={i} item={item} />
-                ))}
-              </div>
-            </section>
-          )}
-
           {/* Empty state for filtered view */}
           {activeSection !== 'all' && !isLoading && (
             (() => {
@@ -778,9 +677,7 @@ export function WikipediaPage() {
                 (activeSection === 'featured' && !feed?.tfa) ||
                 (activeSection === 'mostread' && mostReadArticles.length === 0) ||
                 (activeSection === 'onthisday' && onThisDayEvents.length === 0) ||
-                (activeSection === 'news' && newsItems.length === 0) ||
-                (activeSection === 'dyk' && dykItems.length === 0) ||
-                (activeSection === 'image' && !feed?.image);
+                (activeSection === 'news' && newsItems.length === 0);
 
               return isEmpty ? (
                 <div className="py-16 text-center">
