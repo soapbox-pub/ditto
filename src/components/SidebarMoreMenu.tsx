@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Check, SeparatorHorizontal, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Pencil, Check, SeparatorHorizontal, Search, ChevronDown, ChevronUp, LinkIcon } from 'lucide-react';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { sidebarItemIcon, itemPath } from '@/lib/sidebarItems';
 import type { HiddenSidebarItem } from '@/hooks/useFeedSettings';
+import { nip19 } from 'nostr-tools';
 
 interface SidebarMoreMenuProps {
   editing: boolean;
@@ -108,9 +109,40 @@ export function SidebarMoreMenu({
   const [query, setQuery] = useState('');
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [addQuery, setAddQuery] = useState('');
+  const [nostrLinkInput, setNostrLinkInput] = useState(false);
+  const [nostrLinkValue, setNostrLinkValue] = useState('');
+  const [nostrLinkError, setNostrLinkError] = useState('');
 
   const filtered = hiddenItems.filter((item) => item.label.toLowerCase().includes(query.toLowerCase()));
   const addFiltered = hiddenItems.filter((item) => item.label.toLowerCase().includes(addQuery.toLowerCase()));
+
+  const handleAddNostrLink = () => {
+    const raw = nostrLinkValue.trim();
+    if (!raw) return;
+
+    // Strip "nostr:" prefix if present for validation
+    const bech32 = raw.startsWith('nostr:') ? raw.slice(6) : raw;
+
+    // Validate it's a valid NIP-19 identifier
+    try {
+      const decoded = nip19.decode(bech32);
+      const validTypes = ['npub', 'nprofile', 'note', 'nevent', 'naddr'];
+      if (!validTypes.includes(decoded.type)) {
+        setNostrLinkError('Unsupported identifier type');
+        return;
+      }
+    } catch {
+      setNostrLinkError('Invalid Nostr identifier');
+      return;
+    }
+
+    // Normalize to "nostr:" prefixed form
+    const nostrUri = `nostr:${bech32}`;
+    onAdd(nostrUri);
+    setNostrLinkInput(false);
+    setNostrLinkValue('');
+    setNostrLinkError('');
+  };
 
   const main = useScrollCarets(true);
   const add = useScrollCarets();
@@ -143,6 +175,53 @@ export function SidebarMoreMenu({
           <SeparatorHorizontal className="size-4" />
           <span>Add divider</span>
         </button>
+        {nostrLinkInput ? (
+          <div className="flex flex-col gap-1 px-4 py-2 bg-background/85 rounded-2xl">
+            <div className="flex items-center gap-2">
+              <LinkIcon className="size-4 text-muted-foreground shrink-0" />
+              <input
+                value={nostrLinkValue}
+                onChange={(e) => { setNostrLinkValue(e.target.value); setNostrLinkError(''); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddNostrLink();
+                  } else if (e.key === 'Escape') {
+                    setNostrLinkInput(false);
+                    setNostrLinkValue('');
+                    setNostrLinkError('');
+                  }
+                }}
+                placeholder="npub1..., nevent1..., naddr1..."
+                className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                autoFocus
+              />
+            </div>
+            {nostrLinkError && <p className="text-xs text-destructive pl-6">{nostrLinkError}</p>}
+            <div className="flex items-center gap-1.5 pl-6">
+              <button
+                onClick={handleAddNostrLink}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Add
+              </button>
+              <button
+                onClick={() => { setNostrLinkInput(false); setNostrLinkValue(''); setNostrLinkError(''); }}
+                className="text-xs text-muted-foreground hover:underline"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setNostrLinkInput(true)}
+            className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85"
+          >
+            <LinkIcon className="size-4" />
+            <span>Add Nostr link</span>
+          </button>
+        )}
         <button onClick={onDoneEditing} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-primary font-medium hover:bg-primary/10 bg-background/85">
           <Check className="size-4" />
           <span>Done editing</span>
