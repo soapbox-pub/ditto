@@ -245,6 +245,7 @@ export const AppConfigSchema = z.object({
       return result.success ? [result.data] : [];
     })
   ).optional().default([]),
+  imageQuality: z.enum(['compressed', 'original']),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────
