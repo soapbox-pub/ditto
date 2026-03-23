@@ -19,9 +19,9 @@ export function isAwardedTo(awardEvent: NostrEvent, pubkey: string): boolean {
   return awardEvent.tags.some(([n, v]) => n === 'p' && v === pubkey);
 }
 
-/** Check if a badge is a "shop" badge (has a price tag). */
+/** Check if a badge is a "shop" badge (has `t` tag "shop"). */
 export function isShopBadge(event: NostrEvent): boolean {
-  return event.tags.some(([n]) => n === 'price');
+  return event.tags.some(([n, v]) => n === 't' && v === 'shop');
 }
 
 /** Check if a badge is a Ditto achievement badge (has `t` tag "achievement"). */

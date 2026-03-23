@@ -286,28 +286,18 @@ The `shape` field is added to the JSON content of a kind 0 event alongside stand
 
 ### Summary
 
-This project uses standard NIP-58 badge definitions (kind 30009) with additional custom tags to support categorization, tiered achievements, and shop functionality. The core event structure follows NIP-58 exactly; these tags are additive and do not alter the standard `d`, `name`, `description`, `image`, and `thumb` tags.
+This project uses standard NIP-58 badge definitions (kind 30009) with additional custom tags to support categorization and tiered badges. The core event structure follows NIP-58 exactly; these tags are additive and do not alter the standard `d`, `name`, `description`, `image`, and `thumb` tags.
 
 ### Custom Tags
 
 | Tag      | Format                                     | Description                                                     |
 |----------|--------------------------------------------|-----------------------------------------------------------------|
-| `t`      | `["t", "shop"]`                            | Marks the badge as a shop badge (browseable in the badge shop)  |
-| `t`      | `["t", "achievement"]`                     | Marks the badge as an achievement (claimable via DVM)           |
-| `t`      | `["t", "<category>"]`                      | Category for filtering (e.g. `"social"`, `"content"`, `"flags"`, `"crypto"`) |
-| `tier`   | `["tier", "<level>"]`                      | Achievement tier: `"bronze"`, `"silver"`, `"gold"`, or `"diamond"` |
+| `t`      | `["t", "<category>"]`                      | Category for filtering (e.g. `"social"`, `"content"`, `"achievement"`, `"shop"`) |
+| `tier`   | `["tier", "<level>"]`                      | Badge tier: `"bronze"`, `"silver"`, `"gold"`, or `"diamond"` |
 
-A badge may have multiple `t` tags. For example, a shop badge in the "flags" category would have both `["t", "shop"]` and `["t", "flags"]`.
+A badge may have multiple `t` tags for cross-categorization.
 
-### Achievement Categories
-
-Achievement badges use `t` tags with these category values: `social`, `profile`, `content`, `engagement`, `community`, `exploration`.
-
-### Shop Categories
-
-Shop badges use `t` tags with these category values: `flags`, `identity`, `causes`, `interests`, `animals`, `crypto`, `memes`, `nostr`, `limited`.
-
-### Example: Achievement Badge
+### Example
 
 ```json
 {
@@ -326,33 +316,9 @@ Shop badges use `t` tags with these category values: `flags`, `identity`, `cause
 }
 ```
 
-### Example: Shop Badge
-
-```json
-{
-  "kind": 30009,
-  "content": "",
-  "tags": [
-    ["d", "bitcoin-flag"],
-    ["name", "Bitcoin Flag"],
-    ["description", "Show your support for Bitcoin"],
-    ["image", "https://example.com/bitcoin-flag.png"],
-    ["t", "shop"],
-    ["t", "crypto"],
-    ["alt", "Badge definition: Bitcoin Flag"]
-  ]
-}
-```
-
 ### Querying
 
-Shop badges are queried by filtering for the `t=shop` tag scoped to a trusted badge issuer:
-
-```
-{ kinds: [30009], authors: [<issuer-pubkey>], #t: ["shop"] }
-```
-
-Achievement badges are queried similarly with `t=achievement`:
+Badge definitions for a specific issuer can be queried with optional `t` tag filtering:
 
 ```
 { kinds: [30009], authors: [<issuer-pubkey>], #t: ["achievement"] }
