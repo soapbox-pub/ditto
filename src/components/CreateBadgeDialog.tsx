@@ -205,7 +205,7 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
                 </div>
 
                 {imageUrl && (
-                  <div className="mx-auto w-20 h-20 rounded-xl overflow-hidden bg-secondary/10 border border-border">
+                  <div className="mx-auto w-20 h-20 rounded-xl overflow-hidden">
                     <img src={imageUrl} alt={badgeName} className="w-full h-full object-cover" />
                   </div>
                 )}

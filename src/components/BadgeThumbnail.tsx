@@ -22,7 +22,7 @@ export function BadgeThumbnail({ badge, size = 48, className }: BadgeThumbnailPr
       src={thumbUrl}
       alt={badge.name}
       className={cn(
-        'rounded-lg object-cover border border-border bg-background',
+        'rounded-lg object-cover',
         className,
       )}
       style={{ width: size, height: size }}
