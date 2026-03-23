@@ -1,6 +1,9 @@
 import type { NostrEvent } from '@nostrify/nostrify';
+import { nip19 } from 'nostr-tools';
+import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Radio, Search, Terminal, Users, WandSparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Clock, Play, Radio, Search, Terminal, Users, WandSparkles } from 'lucide-react';
 
 /** Parse a spell timestamp value into human-readable text. */
 function formatTimestamp(value: string): string {
@@ -32,7 +35,15 @@ interface SpellContentProps {
 }
 
 export function SpellContent({ event }: SpellContentProps) {
+  const navigate = useNavigate();
   const { tags } = event;
+
+  const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey });
+
+  const handleRun = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/spells/run/${neventId}`);
+  };
 
   const name = tags.find(([t]) => t === 'name')?.[1];
   const cmd = tags.find(([t]) => t === 'cmd')?.[1];
@@ -134,6 +145,19 @@ export function SpellContent({ event }: SpellContentProps) {
           ))}
         </div>
       )}
+
+      {/* Run button */}
+      <div>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="gap-1.5"
+          onClick={handleRun}
+        >
+          <Play className="size-3.5" />
+          Run Spell
+        </Button>
+      </div>
     </div>
   );
 }
