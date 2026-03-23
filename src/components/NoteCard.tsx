@@ -69,6 +69,7 @@ import { ReactionButton } from "@/components/ReactionButton";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
+import { SpellContent } from "@/components/SpellContent";
 import { ThemeContent } from "@/components/ThemeContent";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
@@ -428,6 +429,7 @@ export const NoteCard = memo(function NoteCard({
   const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
+  const isSpell = event.kind === 777;
   const isVanish = event.kind === 62;
   const isZap = event.kind === 9735;
   const isProfile = event.kind === 0;
@@ -462,6 +464,7 @@ export const NoteCard = memo(function NoteCard({
     !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
+    !isSpell &&
     !isVanish &&
     !isZap &&
     !isProfile &&
@@ -631,6 +634,8 @@ export const NoteCard = memo(function NoteCard({
           </Suspense>
         ) : isNsite ? (
           <NsiteCard event={event} />
+        ) : isSpell ? (
+          <SpellContent event={event} />
         ) : isZapstoreApp ? (
           <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
             <div className="px-3.5 pb-3.5 pt-3">

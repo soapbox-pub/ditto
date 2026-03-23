@@ -67,6 +67,7 @@ const ProfileSettings = lazy(() => import("./pages/ProfileSettings").then(m => (
 const RelayPage = lazy(() => import("./pages/RelayPage").then(m => ({ default: m.RelayPage })));
 const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const SpellsFeedPage = lazy(() => import("./pages/SpellsFeedPage").then(m => ({ default: m.SpellsFeedPage })));
 const ThemesPage = lazy(() => import("./pages/ThemesPage").then(m => ({ default: m.ThemesPage })));
 const TreasuresPage = lazy(() => import("./pages/TreasuresPage").then(m => ({ default: m.TreasuresPage })));
 const TrendsPage = lazy(() => import("./pages/TrendsPage").then(m => ({ default: m.TrendsPage })));
@@ -267,6 +268,7 @@ export function AppRouter() {
             <Route path="/letters" element={<LettersPage />} />
             <Route path="/letters/compose" element={<LetterComposePage />} />
             <Route path="/settings/letters" element={<LetterPreferencesPage />} />
+            <Route path="/spells" element={<SpellsFeedPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/safety" element={<CSAEPolicyPage />} />

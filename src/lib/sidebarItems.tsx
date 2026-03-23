@@ -34,6 +34,7 @@ import {
   Sparkles,
   TrendingUp,
   User,
+  WandSparkles,
 } from "lucide-react";
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
@@ -150,6 +151,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     requiresAuth: true,
   },
   { id: 'blobbi', label: 'Blobbi', path: '/blobbi', icon: Egg, requiresAuth: true },
+  { id: "spells", label: "Spells", path: "/spells", icon: WandSparkles },
   { id: "help", label: "Help", path: "/help", icon: HelpCircle },
   // Content types
   { id: "events", label: "Events", path: "/events", icon: CalendarDays },
