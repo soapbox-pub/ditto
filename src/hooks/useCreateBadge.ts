@@ -16,10 +16,6 @@ interface CreateBadgeParams {
   imageUrl?: string;
   /** Optional thumbnail URLs with dimensions. */
   thumbs?: Array<{ url: string; dimensions?: string }>;
-  /** Optional price in sats (makes it a shop badge). */
-  price?: number;
-  /** Optional supply cap (limited edition). */
-  supply?: number;
   /** Optional category tags. */
   categories?: string[];
 }
@@ -52,15 +48,6 @@ export function useCreateBadge() {
         for (const thumb of params.thumbs) {
           tags.push(['thumb', thumb.url, ...(thumb.dimensions ? [thumb.dimensions] : [])]);
         }
-      }
-
-      if (params.price !== undefined) {
-        tags.push(['price', params.price.toString()]);
-        tags.push(['t', 'shop']);
-      }
-
-      if (params.supply !== undefined) {
-        tags.push(['supply', params.supply.toString()]);
       }
 
       if (params.categories) {
