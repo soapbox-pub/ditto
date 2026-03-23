@@ -33,6 +33,7 @@ async function searchWikipedia(
     prop: 'pageimages|description',
     piprop: 'thumbnail',
     pithumbsize: '80',
+    pilicense: 'any',
     format: 'json',
     origin: '*',
   });
