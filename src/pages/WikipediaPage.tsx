@@ -248,10 +248,7 @@ function FeaturedArticleCard({ page }: { page: WikiPage }) {
           </div>
         )}
 
-        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white text-xs font-medium flex items-center gap-1">
-          <Star className="size-3" />
-          Today&apos;s Featured Article
-        </div>
+
       </div>
 
       <div className="p-4 space-y-2">
