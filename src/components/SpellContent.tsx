@@ -2,8 +2,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Clock, Play, Radio, Search, Terminal, Users, WandSparkles } from 'lucide-react';
+import { Clock, Radio, Search, Terminal, Users, WandSparkles } from 'lucide-react';
 
 /** Parse a spell timestamp value into human-readable text. */
 function formatTimestamp(value: string): string {
@@ -59,12 +58,16 @@ export function SpellContent({ event }: SpellContentProps) {
 
   return (
     <div className="space-y-3">
-      {/* Spell name */}
+      {/* Spell name — clickable to run the spell */}
       {name && (
-        <div className="flex items-center gap-2">
-          <WandSparkles className="size-4 text-primary shrink-0" />
-          <span className="font-semibold text-sm">{name}</span>
-        </div>
+        <button
+          type="button"
+          onClick={handleRun}
+          className="flex items-center gap-2 group cursor-pointer"
+        >
+          <WandSparkles className="size-4 text-primary shrink-0 group-hover:scale-110 transition-transform" />
+          <span className="font-semibold text-sm group-hover:text-primary transition-colors">{name}</span>
+        </button>
       )}
 
       {/* Description from content */}
@@ -146,18 +149,6 @@ export function SpellContent({ event }: SpellContentProps) {
         </div>
       )}
 
-      {/* Run button */}
-      <div>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="gap-1.5"
-          onClick={handleRun}
-        >
-          <Play className="size-3.5" />
-          Run Spell
-        </Button>
-      </div>
     </div>
   );
 }
