@@ -47,7 +47,6 @@ export function useAcceptBadge() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile-badges', user?.pubkey] });
-      queryClient.invalidateQueries({ queryKey: ['badge-awards-to', user?.pubkey] });
     },
   });
 }
