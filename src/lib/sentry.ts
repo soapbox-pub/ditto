@@ -37,16 +37,9 @@ export async function initializeSentry(dsn: string): Promise<void> {
       dsn,
       integrations: [
         Sentry.browserTracingIntegration(),
-        Sentry.replayIntegration({
-          maskAllText: true,
-          blockAllMedia: true,
-        }),
       ],
       // Performance Monitoring
       tracesSampleRate: 0.1, // Capture 10% of transactions for performance monitoring
-      // Session Replay
-      replaysSessionSampleRate: 0.1, // Sample 10% of sessions
-      replaysOnErrorSampleRate: 1.0, // Sample 100% of sessions with errors
       // Environment
       environment: import.meta.env.MODE,
       // Release

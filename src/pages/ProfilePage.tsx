@@ -5,7 +5,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -67,6 +67,7 @@ import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
+import { ProfileRecoveryDialog } from '@/components/ProfileRecoveryDialog';
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
@@ -156,6 +157,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const userMuted = isMuted('pubkey', pubkey);
   const [reportOpen, setReportOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
 
   const close = () => onOpenChange(false);
 
@@ -196,6 +198,11 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     setTimeout(() => setAddToListOpen(true), 150);
   };
 
+  const handleRecovery = () => {
+    close();
+    setTimeout(() => setRecoveryOpen(true), 150);
+  };
+
   return (
   <>
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -219,6 +226,20 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             onClick={handleAddToList}
           />
         </div>
+
+        {isOwnProfile && (
+          <>
+            <Separator />
+
+            <div className="py-1">
+              <MenuRow
+                icon={<RotateCcw className="size-5" />}
+                label="Profile recovery"
+                onClick={handleRecovery}
+              />
+            </div>
+          </>
+        )}
 
         {!isOwnProfile && (
           <>
@@ -262,6 +283,13 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
       open={addToListOpen}
       onOpenChange={setAddToListOpen}
     />
+
+    {isOwnProfile && (
+      <ProfileRecoveryDialog
+        open={recoveryOpen}
+        onOpenChange={setRecoveryOpen}
+      />
+    )}
   </>
   );
 }
@@ -1139,7 +1167,11 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     fetchNextPage: fetchNextFeedPage,
     hasNextPage: hasNextFeedPage,
     isFetchingNextPage: isFetchingNextFeedPage,
-  } = useProfileFeed(pubkey, hasTabs);
+  } = useProfileFeed(
+    pubkey,
+    (['posts', 'replies', 'media', 'likes', 'wall', 'badges'].includes(activeTab) ? activeTab : 'posts') as CoreProfileTab,
+    hasTabs,
+  );
 
   // Kind 0 — resolved from the author cache (seeded by the feed query above).
   const author = useAuthor(pubkey);
@@ -1624,6 +1656,18 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const currentLoading = activeTab === 'wall' ? wallPending : activeTab === 'likes' ? likesPending : activeTab === 'media' ? mediaPending : feedPending;
   const hasMore = activeTab === 'wall' ? hasNextWallPage : activeTab === 'likes' ? hasNextLikesPage : activeTab === 'media' ? hasNextMediaPage : hasNextFeedPage;
   const isFetchingMore = activeTab === 'wall' ? isFetchingNextWallPage : activeTab === 'likes' ? isFetchingNextLikesPage : activeTab === 'media' ? isFetchingNextMediaPage : isFetchingNextFeedPage;
+
+  // Auto-fetch next page when client-side filtering (e.g. removing replies
+  // from the "posts" tab) leaves fewer visible items than the page size.
+  // This prevents the user from seeing a near-empty page with a large gap.
+  const MIN_VISIBLE_ITEMS = 5;
+  useEffect(() => {
+    if (currentLoading || isFetchingMore) return;
+    if (activeTab === 'wall' || activeTab === 'likes' || activeTab === 'media') return;
+    if (currentItems.length < MIN_VISIBLE_ITEMS && hasNextFeedPage && !isFetchingNextFeedPage) {
+      fetchNextFeedPage();
+    }
+  }, [currentItems.length, currentLoading, isFetchingMore, activeTab, hasNextFeedPage, isFetchingNextFeedPage, fetchNextFeedPage]);
 
   const handleRefresh = useCallback(async () => {
     if (!pubkey) return;

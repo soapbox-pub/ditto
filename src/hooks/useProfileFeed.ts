@@ -17,6 +17,14 @@ interface ProfileFeedPage {
 
 const PAGE_SIZE = 15;
 
+/**
+ * Over-fetch multiplier: we ask the relay for more events than `PAGE_SIZE`
+ * to compensate for events that will be discarded by client-side tab
+ * filtering (e.g. replies removed from the "posts" tab). This prevents
+ * large time gaps in the visible feed.
+ */
+const OVER_FETCH_MULTIPLIER = 3;
+
 export type ProfileTab = 'posts' | 'replies' | 'media' | 'likes' | 'wall' | 'badges';
 
 /** Kinds that are inherently media (video/image) content. */
@@ -50,19 +58,40 @@ export function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
 }
 
 /**
+ * Return the subset of enabled kinds appropriate for the active profile tab.
+ * For "posts" we exclude kind 1111 (always filtered out as comments).
+ * For "replies" we include everything.
+ */
+function getKindsForTab(allKinds: number[], tab: ProfileTab): number[] {
+  switch (tab) {
+    case 'posts':
+      // Exclude kind 1111 — comments are always hidden on the posts tab
+      return allKinds.filter((k) => k !== 1111);
+    case 'replies':
+    default:
+      return allKinds;
+  }
+}
+
+/**
  * Infinite-scroll hook for profile posts/replies/media.
  * Fetches paginated events for a given pubkey and tab.
+ *
+ * The active tab is used to narrow the relay query to only relevant kinds
+ * and to over-fetch, compensating for events discarded by client-side
+ * filtering (e.g. reply events on the "posts" tab).
  */
-export function useProfileFeed(pubkey: string | undefined, enabled = true) {
+export function useProfileFeed(pubkey: string | undefined, activeTab: ProfileTab, enabled = true) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { feedSettings } = useFeedSettings();
 
-  const profileKinds = getEnabledFeedKinds(feedSettings);
+  const allKinds = getEnabledFeedKinds(feedSettings);
+  const profileKinds = getKindsForTab(allKinds, activeTab);
   const kindsKey = [...profileKinds].sort().join(',');
 
   return useInfiniteQuery<ProfileFeedPage, Error>({
-    queryKey: ['profile-feed', pubkey ?? '', kindsKey],
+    queryKey: ['profile-feed', pubkey ?? '', kindsKey, activeTab],
     queryFn: async ({ pageParam, signal }) => {
       if (!pubkey) return { items: [], oldestQueryTimestamp: Math.floor(Date.now() / 1000), rawCount: 0 };
 
@@ -78,7 +107,10 @@ export function useProfileFeed(pubkey: string | undefined, enabled = true) {
         }
       }
 
-      const fetchLimit = PAGE_SIZE;
+      // Over-fetch to compensate for client-side filtering (e.g. replies
+      // discarded from the "posts" tab). This prevents the pagination
+      // cursor from jumping over time ranges that contain visible posts.
+      const fetchLimit = PAGE_SIZE * OVER_FETCH_MULTIPLIER;
 
       const feedFilter: Record<string, unknown> = {
         kinds: profileKinds,

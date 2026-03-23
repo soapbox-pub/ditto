@@ -17,7 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArticleContent } from "@/components/ArticleContent";
 import {
@@ -62,7 +62,7 @@ import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
-import { VanishEventContent } from "@/components/VanishEventContent";
+import { VanishCardCompact } from "@/components/VanishEventContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
@@ -159,7 +159,7 @@ function isDeprecatedFollowSet(event: NostrEvent): boolean {
   return false;
 }
 
-export function NoteCard({
+export const NoteCard = memo(function NoteCard({
   event,
   className,
   repostedBy,
@@ -632,6 +632,40 @@ export function NoteCard({
 
   // ── Vanish layout (kind 62) — dramatic card, no author row ──
   if (isVanish) {
+    // Threaded vanish (ancestor in a reply thread — needs connector line + avatar column)
+    if (threaded || threadedLast) {
+      return (
+        <article
+          className={cn(
+            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+            threaded ? "pb-0" : "pb-3 border-b border-border",
+            className,
+          )}
+          onClick={handleCardClick}
+          onAuxClick={handleAuxClick}
+        >
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {avatarElement}
+              {threaded && (
+                <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
+              )}
+            </div>
+            <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
+              <VanishCardCompact event={event} timestamp={timeAgo(event.created_at)} />
+              {!compact && (
+                <>
+                  {actionButtons}
+                  <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+                  <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+                </>
+              )}
+            </div>
+          </div>
+        </article>
+      );
+    }
+
     return (
       <article
         className={cn(
@@ -641,7 +675,7 @@ export function NoteCard({
         onClick={handleCardClick}
         onAuxClick={handleAuxClick}
       >
-        <VanishEventContent event={event} compact />
+        <VanishCardCompact event={event} />
         {!compact && (
           <>
             {actionButtons}
@@ -957,7 +991,7 @@ export function NoteCard({
       )}
     </article>
   );
-}
+});
 
 const MAX_HEIGHT = 400; // px — posts taller than this get truncated
 

@@ -1,4 +1,5 @@
 import {
+  Archive,
   BarChart3,
   Bell,
   Blocks,
@@ -143,6 +144,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "shop", label: "Badge Shop", path: "/shop", icon: ShoppingBag },
   { id: "achievements", label: "Achievements", path: "/achievements", icon: Trophy },
   { id: "world", label: "World", path: "/world", icon: Earth },
+  { id: "archive", label: "Archive", path: "/archive", icon: Archive },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */
