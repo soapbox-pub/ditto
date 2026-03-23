@@ -109,18 +109,50 @@ export function SidebarMoreMenu({
   const [query, setQuery] = useState('');
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [addQuery, setAddQuery] = useState('');
-  const [nostrLinkInput, setNostrLinkInput] = useState(false);
-  const [nostrLinkValue, setNostrLinkValue] = useState('');
-  const [nostrLinkError, setNostrLinkError] = useState('');
+  const [linkInput, setLinkInput] = useState(false);
+  const [linkValue, setLinkValue] = useState('');
+  const [linkError, setLinkError] = useState('');
 
   const filtered = hiddenItems.filter((item) => item.label.toLowerCase().includes(query.toLowerCase()));
   const addFiltered = hiddenItems.filter((item) => item.label.toLowerCase().includes(addQuery.toLowerCase()));
 
-  const handleAddNostrLink = () => {
-    const raw = nostrLinkValue.trim();
+  const handleAddLink = () => {
+    const raw = linkValue.trim();
     if (!raw) return;
 
-    // Strip "nostr:" prefix if present for validation
+    // External content: URLs
+    if (raw.startsWith('https://') || raw.startsWith('http://')) {
+      onAdd(raw);
+      setLinkInput(false);
+      setLinkValue('');
+      setLinkError('');
+      return;
+    }
+
+    // External content: iso3166 codes
+    if (raw.startsWith('iso3166:')) {
+      const code = raw.slice('iso3166:'.length);
+      if (!/^[A-Za-z]{2}(-[A-Za-z0-9]+)?$/.test(code)) {
+        setLinkError('Invalid country/region code');
+        return;
+      }
+      onAdd(raw);
+      setLinkInput(false);
+      setLinkValue('');
+      setLinkError('');
+      return;
+    }
+
+    // External content: isbn
+    if (raw.startsWith('isbn:')) {
+      onAdd(raw);
+      setLinkInput(false);
+      setLinkValue('');
+      setLinkError('');
+      return;
+    }
+
+    // Nostr: strip "nostr:" prefix if present for validation
     const bech32 = raw.startsWith('nostr:') ? raw.slice(6) : raw;
 
     // Validate it's a valid NIP-19 identifier
@@ -128,20 +160,20 @@ export function SidebarMoreMenu({
       const decoded = nip19.decode(bech32);
       const validTypes = ['npub', 'nprofile', 'note', 'nevent', 'naddr'];
       if (!validTypes.includes(decoded.type)) {
-        setNostrLinkError('Unsupported identifier type');
+        setLinkError('Unsupported identifier type');
         return;
       }
     } catch {
-      setNostrLinkError('Invalid Nostr identifier');
+      setLinkError('Invalid identifier');
       return;
     }
 
     // Normalize to "nostr:" prefixed form
     const nostrUri = `nostr:${bech32}`;
     onAdd(nostrUri);
-    setNostrLinkInput(false);
-    setNostrLinkValue('');
-    setNostrLinkError('');
+    setLinkInput(false);
+    setLinkValue('');
+    setLinkError('');
   };
 
   const main = useScrollCarets(true);
@@ -175,38 +207,38 @@ export function SidebarMoreMenu({
           <SeparatorHorizontal className="size-4" />
           <span>Add divider</span>
         </button>
-        {nostrLinkInput ? (
+        {linkInput ? (
           <div className="flex flex-col gap-1 px-4 py-2 bg-background/85 rounded-2xl">
             <div className="flex items-center gap-2">
               <LinkIcon className="size-4 text-muted-foreground shrink-0" />
               <input
-                value={nostrLinkValue}
-                onChange={(e) => { setNostrLinkValue(e.target.value); setNostrLinkError(''); }}
+                value={linkValue}
+                onChange={(e) => { setLinkValue(e.target.value); setLinkError(''); }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    handleAddNostrLink();
+                    handleAddLink();
                   } else if (e.key === 'Escape') {
-                    setNostrLinkInput(false);
-                    setNostrLinkValue('');
-                    setNostrLinkError('');
+                    setLinkInput(false);
+                    setLinkValue('');
+                    setLinkError('');
                   }
                 }}
-                placeholder="npub1..., nevent1..., naddr1..."
+                placeholder="URL, npub1..., iso3166:US, ..."
                 className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                 autoFocus
               />
             </div>
-            {nostrLinkError && <p className="text-xs text-destructive pl-6">{nostrLinkError}</p>}
+            {linkError && <p className="text-xs text-destructive pl-6">{linkError}</p>}
             <div className="flex items-center gap-1.5 pl-6">
               <button
-                onClick={handleAddNostrLink}
+                onClick={handleAddLink}
                 className="text-xs font-medium text-primary hover:underline"
               >
                 Add
               </button>
               <button
-                onClick={() => { setNostrLinkInput(false); setNostrLinkValue(''); setNostrLinkError(''); }}
+                onClick={() => { setLinkInput(false); setLinkValue(''); setLinkError(''); }}
                 className="text-xs text-muted-foreground hover:underline"
               >
                 Cancel
@@ -215,11 +247,11 @@ export function SidebarMoreMenu({
           </div>
         ) : (
           <button
-            onClick={() => setNostrLinkInput(true)}
+            onClick={() => setLinkInput(true)}
             className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85"
           >
             <LinkIcon className="size-4" />
-            <span>Add Nostr link</span>
+            <span>Add link</span>
           </button>
         )}
         <button onClick={onDoneEditing} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-primary font-medium hover:bg-primary/10 bg-background/85">
