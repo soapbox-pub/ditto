@@ -117,9 +117,9 @@ export function BlobbiActionInventoryModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0">
-        {/* Header */}
-        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
+      <DialogContent className="max-w-md w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0">
+        {/* Header - Sticky */}
+        <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b pr-12">
           <div className="flex items-center gap-3">
             <div className="size-9 sm:size-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-xl sm:text-2xl shrink-0">
               {actionMeta.icon}
@@ -133,8 +133,8 @@ export function BlobbiActionInventoryModal({
           </div>
         </DialogHeader>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
+        {/* Content - Scrollable */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
           {/* Stage Restriction Message */}
           {!canUse && stageMessage && (
             <div className="flex flex-col items-center justify-center py-12 text-center">

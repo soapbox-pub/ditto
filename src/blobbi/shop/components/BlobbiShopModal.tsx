@@ -72,9 +72,9 @@ export function BlobbiShopModal({ open, onOpenChange, profile }: BlobbiShopModal
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0">
-          {/* Header */}
-          <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
+        <DialogContent className="max-w-2xl w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0">
+          {/* Header - Sticky */}
+          <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b pr-12">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <div className="size-9 sm:size-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center shrink-0">
@@ -82,15 +82,15 @@ export function BlobbiShopModal({ open, onOpenChange, profile }: BlobbiShopModal
                 </div>
                 <DialogTitle className="text-xl sm:text-2xl truncate">Blobbi Shop</DialogTitle>
               </div>
-              <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 text-sm sm:text-base px-3 sm:px-4 py-1 shrink-0">
+              <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 text-sm sm:text-base px-3 sm:px-4 py-1 shrink-0 mr-1">
                 {formatCompactNumber(availableCoins)} coins
               </Badge>
             </div>
           </DialogHeader>
 
-          {/* Category Tabs */}
-          <div className="px-4 sm:px-6 pt-3 sm:pt-4">
-            <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+          {/* Category Tabs - Part of sticky header area */}
+          <div className="sticky top-[60px] sm:top-[72px] z-10 bg-background px-4 sm:px-6 pt-3 sm:pt-4 pb-2 border-b">
+            <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 -mx-1 px-1">
               {CATEGORIES.map(category => {
                 const isActive = activeCategory === category.type;
                 const itemCount = getShopItemsByType(category.type).length;
@@ -118,35 +118,38 @@ export function BlobbiShopModal({ open, onOpenChange, profile }: BlobbiShopModal
             </div>
           </div>
 
-          {/* Accessories Coming Soon Banner */}
-          {activeCategory === 'accessory' && (
-            <div className="mx-4 sm:mx-6 mt-3 sm:mt-4 p-4 sm:p-6 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div className="size-12 sm:size-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-2xl sm:text-3xl relative shrink-0">
-                  🎨
-                  <div className="absolute -top-1 -right-1 text-base sm:text-xl">✨</div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-base sm:text-lg font-semibold mb-1">Accessories Coming Soon!</h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    Get ready to customize your Blobbi's appearance with amazing accessories and cosmetic items.
-                  </p>
+          {/* Scrollable Content Area */}
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {/* Accessories Coming Soon Banner */}
+            {activeCategory === 'accessory' && (
+              <div className="mx-4 sm:mx-6 mt-3 sm:mt-4 p-4 sm:p-6 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <div className="size-12 sm:size-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-2xl sm:text-3xl relative shrink-0">
+                    🎨
+                    <div className="absolute -top-1 -right-1 text-base sm:text-xl">✨</div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-semibold mb-1">Accessories Coming Soon!</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Get ready to customize your Blobbi's appearance with amazing accessories and cosmetic items.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Items List */}
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
-            <div className="space-y-2">
-              {items.map(item => (
-                <BlobbiShopItemRow
-                  key={item.id}
-                  item={item}
-                  availableCoins={availableCoins}
-                  onPurchaseClick={handlePurchaseClick}
-                />
-              ))}
+            {/* Items List */}
+            <div className="px-4 sm:px-6 py-3 sm:py-4">
+              <div className="space-y-2">
+                {items.map(item => (
+                  <BlobbiShopItemRow
+                    key={item.id}
+                    item={item}
+                    availableCoins={availableCoins}
+                    onPurchaseClick={handlePurchaseClick}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </DialogContent>

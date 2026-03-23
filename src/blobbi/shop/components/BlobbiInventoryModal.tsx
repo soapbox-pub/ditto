@@ -122,9 +122,9 @@ export function BlobbiInventoryModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0">
-        {/* Header */}
-        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
+      <DialogContent className="max-w-2xl w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0">
+        {/* Header - Sticky */}
+        <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b pr-12">
           <div className="flex items-center gap-3">
             <div className="size-9 sm:size-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center shrink-0">
               <Package className="size-4 sm:size-5 text-primary" />
@@ -138,8 +138,8 @@ export function BlobbiInventoryModal({
           </div>
         </DialogHeader>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
+        {/* Content - Scrollable */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
           {isEmpty ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="size-20 rounded-3xl bg-muted/50 flex items-center justify-center mb-4">

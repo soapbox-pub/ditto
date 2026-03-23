@@ -310,8 +310,9 @@ export function BlobbiMissionsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg w-[calc(100%-2rem)] max-h-[85vh] overflow-y-auto overflow-x-hidden">
-        <DialogHeader>
+      <DialogContent className="max-w-lg w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+        {/* Header - Sticky */}
+        <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b pr-12">
           <DialogTitle className="flex items-center gap-2">
             <Target className="size-5 shrink-0" />
             Missions
@@ -321,7 +322,8 @@ export function BlobbiMissionsModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="pt-2 space-y-6 overflow-hidden">
+        {/* Content - Scrollable */}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-3 sm:py-4 space-y-6">
           {/* Daily Missions Section - Always visible */}
           <DailyMissionsSection 
             profile={profile}

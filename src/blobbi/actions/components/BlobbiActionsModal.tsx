@@ -44,12 +44,15 @@ export function BlobbiActionsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
+      <DialogContent className="max-w-sm w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0">
+        {/* Header - Sticky */}
+        <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b pr-12">
           <DialogTitle>Blobbi Actions</DialogTitle>
           <p className="text-sm text-muted-foreground">{companion.name}</p>
         </DialogHeader>
-        <div className="grid gap-3 pt-2">
+        {/* Content - Scrollable */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="grid gap-3">
           {/* Feed Action - hidden for eggs */}
           {!isEgg && (
             <Button
@@ -181,6 +184,7 @@ export function BlobbiActionsModal({
               </div>
             </Button>
           )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
