@@ -49,6 +49,16 @@ export function isSidebarDivider(id: string): boolean {
   return id === SIDEBAR_DIVIDER_ID;
 }
 
+/** Returns true if the given sidebar order ID is a `nostr:` URI. */
+export function isNostrUri(id: string): boolean {
+  return id.startsWith("nostr:");
+}
+
+/** Extracts the NIP-19 bech32 identifier from a `nostr:` URI. Returns the raw string if not a nostr: URI. */
+export function nostrUriToNip19(uri: string): string {
+  return uri.startsWith("nostr:") ? uri.slice(6) : uri;
+}
+
 /** A sidebar-capable item with everything needed for display and navigation. */
 export interface SidebarItemDef {
   /** Unique identifier stored in sidebarOrder. */
@@ -208,6 +218,12 @@ export function isItemActive(
   profilePath?: string,
   homePage?: string,
 ): boolean {
+  // Nostr URI items: active when pathname matches /<nip19>
+  if (isNostrUri(id)) {
+    const nip19Id = nostrUriToNip19(id);
+    return pathname === `/${nip19Id}`;
+  }
+
   if (id === "profile") return !!profilePath && pathname === profilePath;
   if (id === "settings") return pathname.startsWith("/settings");
 
