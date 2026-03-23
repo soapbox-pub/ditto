@@ -166,6 +166,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "badges", label: "Badges", path: "/badges", icon: Award },
   { id: "world", label: "World", path: "/world", icon: Earth },
   { id: "archive", label: "Archive", path: "/archive", icon: Archive },
+  { id: "wikipedia", label: "Wikipedia", path: "/wikipedia", icon: BookOpen },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */

@@ -1,0 +1,824 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useSeoMeta } from '@unhead/react';
+import {
+  ArrowLeft,
+  BookOpen,
+  Calendar,
+  ExternalLink,
+  Eye,
+  FlameKindling,
+  ImageIcon,
+  Lightbulb,
+  Loader2,
+  Newspaper,
+  Search,
+  Sparkles,
+  Star,
+  TrendingUp,
+  X,
+} from 'lucide-react';
+
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useAppContext } from '@/hooks/useAppContext';
+import {
+  useWikipediaFeatured,
+  type WikiPage,
+  type OnThisDayEvent,
+  type NewsItem,
+  type DykItem,
+  type PictureOfTheDay,
+} from '@/hooks/useWikipediaFeatured';
+import { useWikipediaSearch, type WikipediaSearchResult } from '@/hooks/useWikipediaSearch';
+import { cn } from '@/lib/utils';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type Section = 'all' | 'featured' | 'mostread' | 'onthisday' | 'news' | 'dyk' | 'image';
+
+interface SectionMeta {
+  label: string;
+  icon: React.ReactNode;
+}
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const SECTIONS: Record<Exclude<Section, 'all'>, SectionMeta> = {
+  featured: { label: 'Featured', icon: <Star className="size-3.5" /> },
+  mostread: { label: 'Trending', icon: <TrendingUp className="size-3.5" /> },
+  onthisday: { label: 'On This Day', icon: <Calendar className="size-3.5" /> },
+  news: { label: 'In the News', icon: <Newspaper className="size-3.5" /> },
+  dyk: { label: 'Did You Know', icon: <Lightbulb className="size-3.5" /> },
+  image: { label: 'Picture', icon: <ImageIcon className="size-3.5" /> },
+};
+
+const SECTION_ORDER: Section[] = ['all', 'featured', 'mostread', 'news', 'onthisday', 'dyk', 'image'];
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function wikiPageUrl(page: WikiPage): string {
+  return page.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${page.title}`;
+}
+
+function dittoUrl(url: string): string {
+  return `/i/${encodeURIComponent(url)}`;
+}
+
+function dittoWikiUrl(page: WikiPage): string {
+  return dittoUrl(wikiPageUrl(page));
+}
+
+function formatViews(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return String(n);
+}
+
+function truncateExtract(text: string, maxLen = 150): string {
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen).replace(/\s+\S*$/, '') + '\u2026';
+}
+
+// ---------------------------------------------------------------------------
+// Section pill
+// ---------------------------------------------------------------------------
+
+function SectionPill({ section, active, onClick }: {
+  section: Section;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const meta = section === 'all'
+    ? { label: 'All', icon: <Sparkles className="size-3.5" /> }
+    : SECTIONS[section];
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap shrink-0',
+        active
+          ? 'bg-primary text-primary-foreground shadow-sm'
+          : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground',
+      )}
+    >
+      {meta.icon}
+      {meta.label}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Article card (used for featured, most-read, on-this-day, news links)
+// ---------------------------------------------------------------------------
+
+function ArticleCard({ page, badge, badgeIcon }: {
+  page: WikiPage;
+  badge?: string;
+  badgeIcon?: React.ReactNode;
+}) {
+  return (
+    <Link
+      to={dittoWikiUrl(page)}
+      className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+    >
+      {/* Thumbnail */}
+      <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/10">
+        {page.thumbnail ? (
+          <img
+            src={page.thumbnail.source}
+            alt={page.normalizedtitle}
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <BookOpen className="size-10 text-muted-foreground/20" />
+          </div>
+        )}
+
+        {/* Top-right badge */}
+        {badge && (
+          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white text-xs font-medium flex items-center gap-1">
+            {badgeIcon}
+            {badge}
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="p-3 space-y-1">
+        <h3 className="font-semibold text-sm leading-tight group-hover:text-primary transition-colors line-clamp-1">
+          {page.normalizedtitle ?? page.titles?.normalized ?? page.title.replace(/_/g, ' ')}
+        </h3>
+        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+          {page.description ?? truncateExtract(page.extract)}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Featured article (hero card)
+// ---------------------------------------------------------------------------
+
+function FeaturedArticleCard({ page }: { page: WikiPage }) {
+  return (
+    <Link
+      to={dittoWikiUrl(page)}
+      className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+    >
+      <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-amber-500/10 to-orange-500/10">
+        {page.thumbnail ? (
+          <img
+            src={page.originalimage?.source ?? page.thumbnail.source}
+            alt={page.normalizedtitle}
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Star className="size-12 text-muted-foreground/20" />
+          </div>
+        )}
+
+        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white text-xs font-medium flex items-center gap-1">
+          <Star className="size-3" />
+          Today&apos;s Featured Article
+        </div>
+      </div>
+
+      <div className="p-4 space-y-2">
+        <h3 className="font-bold text-base leading-tight group-hover:text-primary transition-colors">
+          {page.normalizedtitle ?? page.titles?.normalized ?? page.title.replace(/_/g, ' ')}
+        </h3>
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+          {truncateExtract(page.extract, 280)}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Picture of the Day
+// ---------------------------------------------------------------------------
+
+function PictureOfTheDayCard({ image }: { image: PictureOfTheDay }) {
+  return (
+    <a
+      href={image.file_page}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+    >
+      <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-emerald-500/10 to-teal-500/10">
+        <img
+          src={image.thumbnail.source}
+          alt={image.description?.text ?? 'Picture of the Day'}
+          loading="lazy"
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white text-xs font-medium flex items-center gap-1">
+          <ImageIcon className="size-3" />
+          Picture of the Day
+        </div>
+      </div>
+      <div className="p-4 space-y-1">
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+          {image.description?.text ?? ''}
+        </p>
+        {image.artist && (
+          <p className="text-xs text-muted-foreground/70">
+            By {image.artist.text}
+            {image.license && <> &middot; {image.license.type}</>}
+          </p>
+        )}
+      </div>
+    </a>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// On This Day entry
+// ---------------------------------------------------------------------------
+
+function OnThisDayCard({ event }: { event: OnThisDayEvent }) {
+  const mainPage = event.pages[0];
+
+  return (
+    <div className="rounded-2xl border border-border overflow-hidden bg-card">
+      <div className="flex items-start gap-3 p-4">
+        {/* Year pill */}
+        <div className="shrink-0 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-bold tabular-nums">
+          {event.year}
+        </div>
+        <div className="flex-1 min-w-0 space-y-2">
+          <p className="text-sm leading-relaxed">{event.text}</p>
+          {mainPage && (
+            <Link
+              to={dittoWikiUrl(mainPage)}
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <BookOpen className="size-3" />
+              {mainPage.normalizedtitle ?? mainPage.title.replace(/_/g, ' ')}
+            </Link>
+          )}
+        </div>
+        {mainPage?.thumbnail && (
+          <Link to={dittoWikiUrl(mainPage)} className="shrink-0">
+            <img
+              src={mainPage.thumbnail.source}
+              alt=""
+              className="w-14 h-14 rounded-lg object-cover"
+              loading="lazy"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// News card
+// ---------------------------------------------------------------------------
+
+function NewsCard({ item }: { item: NewsItem }) {
+  // Extract clean text from HTML story
+  const storyText = useMemo(() => {
+    return item.story
+      .replace(/<!--.*?-->/g, '') // remove comments
+      .replace(/<\/?[^>]+(>|$)/g, '') // strip HTML tags
+      .trim();
+  }, [item.story]);
+
+  const mainLink = item.links[0];
+
+  return (
+    <div className="rounded-2xl border border-border overflow-hidden bg-card">
+      <div className="flex items-start gap-3 p-4">
+        <div className="shrink-0 mt-0.5">
+          <Newspaper className="size-4 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0 space-y-2">
+          <p className="text-sm leading-relaxed">{storyText}</p>
+          {mainLink && (
+            <Link
+              to={dittoWikiUrl(mainLink)}
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <BookOpen className="size-3" />
+              {mainLink.normalizedtitle ?? mainLink.title.replace(/_/g, ' ')}
+            </Link>
+          )}
+        </div>
+        {mainLink?.thumbnail && (
+          <Link to={dittoWikiUrl(mainLink)} className="shrink-0">
+            <img
+              src={mainLink.thumbnail.source}
+              alt=""
+              className="w-14 h-14 rounded-lg object-cover"
+              loading="lazy"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Did You Know card
+// ---------------------------------------------------------------------------
+
+function DykCard({ item }: { item: DykItem }) {
+  const cleanText = useMemo(() => {
+    return item.text.replace(/^\.\.\. /, '').trim();
+  }, [item.text]);
+
+  return (
+    <div className="rounded-2xl border border-border overflow-hidden bg-card p-4">
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 mt-0.5">
+          <Lightbulb className="size-4 text-amber-500" />
+        </div>
+        <p className="text-sm leading-relaxed">
+          <span className="text-muted-foreground">...that </span>
+          {cleanText}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Search bar
+// ---------------------------------------------------------------------------
+
+function WikipediaSearchBar() {
+  const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const { data: results, isFetching } = useWikipediaSearch(debouncedQuery);
+
+  const handleChange = useCallback((value: string) => {
+    setQuery(value);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedQuery(value.trim());
+    }, 300);
+  }, []);
+
+  useEffect(() => {
+    return () => clearTimeout(debounceRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (debouncedQuery.length >= 2 && results && results.length > 0) {
+      setDropdownOpen(true);
+    } else if (debouncedQuery.length >= 2 && results && results.length === 0 && !isFetching) {
+      setDropdownOpen(true);
+    }
+  }, [debouncedQuery, results, isFetching]);
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = useCallback((result: WikipediaSearchResult) => {
+    setQuery('');
+    setDebouncedQuery('');
+    setDropdownOpen(false);
+    inputRef.current?.blur();
+    navigate(dittoUrl(result.url));
+  }, [navigate]);
+
+  const handleClear = useCallback(() => {
+    setQuery('');
+    setDebouncedQuery('');
+    setDropdownOpen(false);
+    inputRef.current?.focus();
+  }, []);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setDropdownOpen(false);
+      inputRef.current?.blur();
+    }
+    if (e.key === 'Enter' && results && results.length > 0) {
+      e.preventDefault();
+      handleSelect(results[0]);
+    }
+  }, [results, handleSelect]);
+
+  return (
+    <div ref={containerRef} className="relative px-4 pb-3">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+        <Input
+          ref={inputRef}
+          type="text"
+          placeholder="Search Wikipedia..."
+          value={query}
+          onChange={(e) => handleChange(e.target.value)}
+          onFocus={() => {
+            if (debouncedQuery.length >= 2) setDropdownOpen(true);
+          }}
+          onKeyDown={handleKeyDown}
+          className="pl-9 pr-9 h-9 text-base md:text-sm"
+        />
+        {query ? (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            <X className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+
+      {/* Search results dropdown */}
+      {dropdownOpen && debouncedQuery.length >= 2 && (
+        <div className="absolute left-4 right-4 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+          {isFetching && (!results || results.length === 0) ? (
+            <div className="divide-y divide-border">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+                  <Skeleton className="w-10 h-10 rounded shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <Skeleton className="h-3.5 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : results && results.length > 0 ? (
+            <div className="divide-y divide-border max-h-80 overflow-y-auto">
+              {results.map((result) => (
+                <button
+                  key={result.title}
+                  type="button"
+                  className="flex items-center gap-3 px-3 py-2.5 w-full text-left hover:bg-secondary/60 transition-colors"
+                  onClick={() => handleSelect(result)}
+                >
+                  <div className="w-10 h-10 rounded bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center shrink-0">
+                    <BookOpen className="size-4 text-muted-foreground/50" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{result.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">{result.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              No results found for &ldquo;{debouncedQuery}&rdquo;
+            </div>
+          )}
+
+          {isFetching && results && results.length > 0 && (
+            <div className="flex justify-center py-2 border-t border-border">
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Section heading
+// ---------------------------------------------------------------------------
+
+function SectionHeading({ icon, title, subtitle }: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center">
+        {icon}
+      </div>
+      <div>
+        <h2 className="text-sm font-bold leading-tight">{title}</h2>
+        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Loading skeleton
+// ---------------------------------------------------------------------------
+
+function WikipediaLoadingSkeleton() {
+  return (
+    <div className="px-4 pt-4 pb-4 space-y-6">
+      {/* Featured skeleton */}
+      <div className="rounded-2xl border border-border overflow-hidden bg-card">
+        <Skeleton className="aspect-[16/9] w-full" />
+        <div className="p-4 space-y-2">
+          <Skeleton className="h-5 w-2/3" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-4/5" />
+        </div>
+      </div>
+
+      {/* Grid skeleton */}
+      <div className="grid grid-cols-2 gap-3 sidebar:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="rounded-2xl border border-border overflow-hidden bg-card">
+            <Skeleton className="aspect-[4/3] w-full" />
+            <div className="p-3 space-y-1">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* List skeleton */}
+      <div className="space-y-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="rounded-2xl border border-border p-4">
+            <div className="flex items-start gap-3">
+              <Skeleton className="w-10 h-6 rounded-lg" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+              <Skeleton className="w-14 h-14 rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
+export function WikipediaPage() {
+  const { config } = useAppContext();
+  const [activeSection, setActiveSection] = useState<Section>('all');
+  const { data: feed, isLoading, isError } = useWikipediaFeatured();
+
+  useSeoMeta({
+    title: `Wikipedia | ${config.appName}`,
+    description: 'Explore today\'s featured Wikipedia content \u2014 trending articles, on this day, in the news, and more.',
+  });
+
+  // Filter most-read to remove "Main Page" and "Special:" pages
+  const mostReadArticles = useMemo(() => {
+    if (!feed?.mostread?.articles) return [];
+    return feed.mostread.articles
+      .filter((a) => a.title !== 'Main_Page' && !a.title.startsWith('Special:'))
+      .slice(0, 12);
+  }, [feed?.mostread?.articles]);
+
+  const onThisDayEvents = useMemo(() => {
+    if (!feed?.onthisday) return [];
+    return feed.onthisday.slice(0, 8);
+  }, [feed?.onthisday]);
+
+  const newsItems = useMemo(() => {
+    return feed?.news ?? [];
+  }, [feed?.news]);
+
+  const dykItems = useMemo(() => {
+    if (!feed?.dyk) return [];
+    return feed.dyk.slice(0, 6);
+  }, [feed?.dyk]);
+
+  const showSection = (s: Exclude<Section, 'all'>) => activeSection === 'all' || activeSection === s;
+
+  return (
+    <main className="pb-16 sidebar:pb-0">
+      {/* Header */}
+      <div className="flex items-center gap-4 px-4 pt-4 pb-2">
+        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+          <ArrowLeft className="size-5" />
+        </Link>
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <div className="size-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/10 flex items-center justify-center">
+            <BookOpen className="size-4 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold leading-tight">Wikipedia</h1>
+            <p className="text-xs text-muted-foreground">Today&apos;s featured content</p>
+          </div>
+        </div>
+        <a
+          href="https://en.wikipedia.org"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+          title="Visit Wikipedia"
+        >
+          <ExternalLink className="size-4" />
+        </a>
+      </div>
+
+      {/* Search bar */}
+      <WikipediaSearchBar />
+
+      {/* Section filter pills */}
+      <div className="sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
+        <div className="flex gap-2 px-4 py-2.5 overflow-x-auto">
+          {SECTION_ORDER.map((s) => (
+            <SectionPill
+              key={s}
+              section={s}
+              active={activeSection === s}
+              onClick={() => setActiveSection(s)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      {isLoading ? (
+        <WikipediaLoadingSkeleton />
+      ) : isError ? (
+        <div className="px-4 pt-8 pb-16 text-center">
+          <FlameKindling className="size-10 mx-auto mb-3 text-muted-foreground/30" />
+          <p className="text-muted-foreground text-sm">
+            Couldn&apos;t load today&apos;s Wikipedia content. Try again later.
+          </p>
+        </div>
+      ) : (
+        <div className="px-4 pt-4 pb-4 space-y-6">
+          {/* Today's Featured Article */}
+          {showSection('featured') && feed?.tfa && (
+            <section>
+              <SectionHeading
+                icon={<Star className="size-3.5 text-amber-500" />}
+                title="Today's Featured Article"
+              />
+              <FeaturedArticleCard page={feed.tfa} />
+            </section>
+          )}
+
+          {/* Picture of the Day */}
+          {showSection('image') && feed?.image && (
+            <section>
+              <SectionHeading
+                icon={<ImageIcon className="size-3.5 text-emerald-500" />}
+                title="Picture of the Day"
+              />
+              <PictureOfTheDayCard image={feed.image} />
+            </section>
+          )}
+
+          {/* Most Read */}
+          {showSection('mostread') && mostReadArticles.length > 0 && (
+            <section>
+              <SectionHeading
+                icon={<TrendingUp className="size-3.5 text-primary" />}
+                title="Trending"
+                subtitle="Most read articles today"
+              />
+              <div className="grid grid-cols-2 gap-3 sidebar:grid-cols-3">
+                {mostReadArticles.map((page) => (
+                  <ArticleCard
+                    key={page.pageid}
+                    page={page}
+                    badge={page.views ? `${formatViews(page.views)} views` : undefined}
+                    badgeIcon={<Eye className="size-3" />}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* In the News */}
+          {showSection('news') && newsItems.length > 0 && (
+            <section>
+              <SectionHeading
+                icon={<Newspaper className="size-3.5 text-sky-500" />}
+                title="In the News"
+              />
+              <div className="space-y-3">
+                {newsItems.map((item, i) => (
+                  <NewsCard key={i} item={item} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* On This Day */}
+          {showSection('onthisday') && onThisDayEvents.length > 0 && (
+            <section>
+              <SectionHeading
+                icon={<Calendar className="size-3.5 text-violet-500" />}
+                title="On This Day"
+                subtitle={new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+              />
+              <div className="space-y-3">
+                {onThisDayEvents.map((event, i) => (
+                  <OnThisDayCard key={i} event={event} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Did You Know */}
+          {showSection('dyk') && dykItems.length > 0 && (
+            <section>
+              <SectionHeading
+                icon={<Lightbulb className="size-3.5 text-amber-500" />}
+                title="Did You Know?"
+              />
+              <div className="space-y-3">
+                {dykItems.map((item, i) => (
+                  <DykCard key={i} item={item} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Empty state for filtered view */}
+          {activeSection !== 'all' && !isLoading && (
+            (() => {
+              const isEmpty =
+                (activeSection === 'featured' && !feed?.tfa) ||
+                (activeSection === 'mostread' && mostReadArticles.length === 0) ||
+                (activeSection === 'onthisday' && onThisDayEvents.length === 0) ||
+                (activeSection === 'news' && newsItems.length === 0) ||
+                (activeSection === 'dyk' && dykItems.length === 0) ||
+                (activeSection === 'image' && !feed?.image);
+
+              return isEmpty ? (
+                <div className="py-16 text-center">
+                  <Sparkles className="size-10 mx-auto mb-3 text-muted-foreground/30" />
+                  <p className="text-muted-foreground text-sm">No content available for this section today.</p>
+                </div>
+              ) : null;
+            })()
+          )}
+        </div>
+      )}
+
+      {/* Attribution footer */}
+      <div className="px-4 pb-8">
+        <div className="rounded-xl border border-dashed border-border bg-secondary/30 px-4 py-3 text-center">
+          <p className="text-xs text-muted-foreground">
+            Content provided by{' '}
+            <a
+              href="https://en.wikipedia.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-foreground transition-colors"
+            >
+              Wikipedia
+            </a>
+            , the free encyclopedia. Text is available under the{' '}
+            <a
+              href="https://en.wikipedia.org/wiki/Wikipedia:Text_of_the_Creative_Commons_Attribution-ShareAlike_4.0_International_License"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-foreground transition-colors"
+            >
+              CC BY-SA 4.0
+            </a>
+            {' '}license.
+          </p>
+        </div>
+      </div>
+    </main>
+  );
+}
