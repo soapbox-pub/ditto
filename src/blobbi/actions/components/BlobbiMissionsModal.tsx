@@ -9,8 +9,8 @@
  * - Evolve tasks when evolving (baby stage)
  */
 
-import { Target, Loader2, XCircle, AlertTriangle, Calendar, Coins, X } from 'lucide-react';
-import { formatCompactNumber } from '@/lib/utils';
+import { Target, Loader2, XCircle, AlertTriangle, Calendar, Coins, X, ChevronDown } from 'lucide-react';
+import { formatCompactNumber, cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Separator } from '@/components/ui/separator';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useState } from 'react';
 
 import type { BlobbiCompanion, BlobbonautProfile } from '@/lib/blobbi';
@@ -77,9 +77,11 @@ interface DailyMissionsSectionProps {
   profile: BlobbonautProfile | null;
   updateProfileEvent: (event: NostrEvent) => void;
   disabled?: boolean;
+  defaultOpen?: boolean;
 }
 
-function DailyMissionsSection({ profile, updateProfileEvent, disabled }: DailyMissionsSectionProps) {
+function DailyMissionsSection({ profile, updateProfileEvent, disabled, defaultOpen = true }: DailyMissionsSectionProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const {
     missions,
     todayClaimedReward,
@@ -96,29 +98,39 @@ function DailyMissionsSection({ profile, updateProfileEvent, disabled }: DailyMi
   };
 
   return (
-    <div className="space-y-4 overflow-hidden">
-      {/* Section header */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Calendar className="size-4 text-primary shrink-0" />
-          <h3 className="font-semibold text-sm">Daily Missions</h3>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="overflow-hidden">
+      {/* Section header - Clickable */}
+      <CollapsibleTrigger className="w-full">
+        <div className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">
+          <div className="flex items-center gap-2">
+            <Calendar className="size-4 text-primary shrink-0" />
+            <h3 className="font-semibold text-sm">Daily Missions</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Coins className="size-3 shrink-0" />
+              <span className="whitespace-nowrap">
+                {formatCompactNumber(todayClaimedReward)} / {formatCompactNumber(totalPotentialReward)}
+              </span>
+            </div>
+            <ChevronDown className={cn(
+              "size-4 text-muted-foreground transition-transform duration-200",
+              isOpen && "rotate-180"
+            )} />
+          </div>
         </div>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Coins className="size-3 shrink-0" />
-          <span className="whitespace-nowrap">
-            {formatCompactNumber(todayClaimedReward)} / {formatCompactNumber(totalPotentialReward)} earned
-          </span>
-        </div>
-      </div>
+      </CollapsibleTrigger>
 
       {/* Mission list */}
-      <DailyMissionsPanel
-        missions={missions}
-        onClaimReward={handleClaimReward}
-        todayCoins={todayClaimedReward}
-        disabled={disabled || isClaiming}
-      />
-    </div>
+      <CollapsibleContent className="pt-3">
+        <DailyMissionsPanel
+          missions={missions}
+          onClaimReward={handleClaimReward}
+          todayCoins={todayClaimedReward}
+          disabled={disabled || isClaiming}
+        />
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -200,6 +212,7 @@ interface ProcessContentProps {
   isCompleting: boolean;
   onStop: () => Promise<void>;
   isStopping: boolean;
+  defaultOpen?: boolean;
 }
 
 function ProcessContent({
@@ -211,7 +224,9 @@ function ProcessContent({
   isCompleting,
   onStop,
   isStopping,
+  defaultOpen = true,
 }: ProcessContentProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [showStopConfirmation, setShowStopConfirmation] = useState(false);
 
   const isIncubation = processType === 'incubation';
@@ -225,46 +240,76 @@ function ProcessContent({
   const completeEmoji = isIncubation ? '🐣' : '✨';
   const stopLabel = isIncubation ? 'Stop Incubation' : 'Stop Evolution';
 
-  return (
-    <>
-      {/* Tasks Panel */}
-      <TasksPanel
-        tasks={tasks.tasks}
-        allCompleted={tasks.allCompleted}
-        isLoading={tasks.isLoading}
-        onOpenPostModal={onOpenPostModal}
-        onComplete={onComplete}
-        isCompleting={isCompleting}
-        emoji={emoji}
-        title={title}
-        description={description}
-        completeLabel={completeLabel}
-        completingLabel={completingLabel}
-        completeEmoji={completeEmoji}
-      />
+  const completedCount = tasks.tasks.filter(t => t.completed).length;
+  const totalTasks = tasks.tasks.length;
 
-      {/* Stop Process Button */}
-      <div className="mt-6 pt-4 border-t border-border">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowStopConfirmation(true)}
-          disabled={isStopping || isCompleting}
-          className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-        >
-          {isStopping ? (
-            <>
-              <Loader2 className="size-4 mr-2 animate-spin" />
-              Stopping...
-            </>
-          ) : (
-            <>
-              <XCircle className="size-4 mr-2" />
-              {stopLabel}
-            </>
-          )}
-        </Button>
-      </div>
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="overflow-hidden">
+      {/* Section header - Clickable */}
+      <CollapsibleTrigger className="w-full">
+        <div className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{emoji}</span>
+            <h3 className="font-semibold text-sm">{title}</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              "text-xs font-medium px-2 py-0.5 rounded-full",
+              tasks.allCompleted 
+                ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                : "bg-muted text-muted-foreground"
+            )}>
+              {completedCount}/{totalTasks}
+            </span>
+            <ChevronDown className={cn(
+              "size-4 text-muted-foreground transition-transform duration-200",
+              isOpen && "rotate-180"
+            )} />
+          </div>
+        </div>
+      </CollapsibleTrigger>
+
+      {/* Tasks content */}
+      <CollapsibleContent className="pt-3">
+        {/* Tasks Panel */}
+        <TasksPanel
+          tasks={tasks.tasks}
+          allCompleted={tasks.allCompleted}
+          isLoading={tasks.isLoading}
+          onOpenPostModal={onOpenPostModal}
+          onComplete={onComplete}
+          isCompleting={isCompleting}
+          emoji={emoji}
+          title={title}
+          description={description}
+          completeLabel={completeLabel}
+          completingLabel={completingLabel}
+          completeEmoji={completeEmoji}
+        />
+
+        {/* Stop Process Button */}
+        <div className="mt-6 pt-4 border-t border-border">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowStopConfirmation(true)}
+            disabled={isStopping || isCompleting}
+            className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          >
+            {isStopping ? (
+              <>
+                <Loader2 className="size-4 mr-2 animate-spin" />
+                Stopping...
+              </>
+            ) : (
+              <>
+                <XCircle className="size-4 mr-2" />
+                {stopLabel}
+              </>
+            )}
+          </Button>
+        </div>
+      </CollapsibleContent>
 
       {/* Stop Confirmation Dialog */}
       <StopConfirmationDialog
@@ -275,7 +320,7 @@ function ProcessContent({
         onConfirm={onStop}
         isPending={isStopping}
       />
-    </>
+    </Collapsible>
   );
 }
 
@@ -331,19 +376,18 @@ export function BlobbiMissionsModal({
         </DialogHeader>
 
         {/* Content - Scrollable */}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-3 sm:py-4 space-y-6">
-          {/* Daily Missions Section - Always visible */}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-3 sm:py-4 space-y-4">
+          {/* Daily Missions Section - Always visible, expanded by default */}
           <DailyMissionsSection 
             profile={profile}
             updateProfileEvent={updateProfileEvent}
-            disabled={isProcessBusy} 
+            disabled={isProcessBusy}
+            defaultOpen={true}
           />
 
-          {/* Hatch/Evolve Process Section - Only when active */}
+          {/* Hatch/Evolve Process Section - Only when active, expanded by default */}
           {hasActiveProcess && (
             <>
-              <Separator />
-              
               {isIncubating && isEgg ? (
                 <ProcessContent
                   companion={companion}
@@ -354,6 +398,7 @@ export function BlobbiMissionsModal({
                   isCompleting={isHatching}
                   onStop={onStopIncubation}
                   isStopping={isStoppingIncubation}
+                  defaultOpen={true}
                 />
               ) : isEvolvingState && isBaby ? (
                 <ProcessContent
@@ -365,6 +410,7 @@ export function BlobbiMissionsModal({
                   isCompleting={isEvolving}
                   onStop={onStopEvolution}
                   isStopping={isStoppingEvolution}
+                  defaultOpen={true}
                 />
               ) : null}
             </>
