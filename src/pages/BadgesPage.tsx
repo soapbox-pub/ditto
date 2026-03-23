@@ -205,7 +205,7 @@ function MyBadgesContent({ onOpenCreate, pendingBadges, pendingCount, isLoadingP
   const { badgeMap, isLoading: isLoadingDefs } = useBadgeDefinitions(refs);
 
   // Pending badges (data passed down from parent to share with tab counter)
-  const pendingRefs = pendingBadges.map((p) => ({ pubkey: p.issuerPubkey, identifier: p.identifier }));
+  const pendingRefs = useMemo(() => pendingBadges.map((p) => ({ pubkey: p.issuerPubkey, identifier: p.identifier })), [pendingBadges]);
   const { badgeMap: pendingBadgeMap, isLoading: isLoadingPendingDefs } = useBadgeDefinitions(pendingRefs);
 
   // Created badges
@@ -444,27 +444,23 @@ function AcceptedBadgeList({ refs, setRefs, badgeMap }: {
 
   const moveUp = useCallback((index: number) => {
     if (index <= 0) return;
-    setRefs((prev) => {
-      const next = [...prev];
-      [next[index - 1], next[index]] = [next[index], next[index - 1]];
-      reorderBadges(next.map((r) => ({ aTag: r.aTag, eTag: r.eTag })), {
-        onError: () => toast({ title: 'Failed to reorder badges', variant: 'destructive' }),
-      });
-      return next;
+    const next = [...refs];
+    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+    setRefs(next);
+    reorderBadges(next.map((r) => ({ aTag: r.aTag, eTag: r.eTag })), {
+      onError: () => toast({ title: 'Failed to reorder badges', variant: 'destructive' }),
     });
-  }, [setRefs, reorderBadges, toast]);
+  }, [refs, setRefs, reorderBadges, toast]);
 
   const moveDown = useCallback((index: number) => {
-    setRefs((prev) => {
-      if (index >= prev.length - 1) return prev;
-      const next = [...prev];
-      [next[index], next[index + 1]] = [next[index + 1], next[index]];
-      reorderBadges(next.map((r) => ({ aTag: r.aTag, eTag: r.eTag })), {
-        onError: () => toast({ title: 'Failed to reorder badges', variant: 'destructive' }),
-      });
-      return next;
+    if (index >= refs.length - 1) return;
+    const next = [...refs];
+    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+    setRefs(next);
+    reorderBadges(next.map((r) => ({ aTag: r.aTag, eTag: r.eTag })), {
+      onError: () => toast({ title: 'Failed to reorder badges', variant: 'destructive' }),
     });
-  }, [setRefs, reorderBadges, toast]);
+  }, [refs, setRefs, reorderBadges, toast]);
 
   const handleRemove = useCallback((aTag: string) => {
     setRefs((prev) => prev.filter((r) => r.aTag !== aTag));
