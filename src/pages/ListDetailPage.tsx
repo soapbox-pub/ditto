@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import {
-  ArrowLeft, Users, UserPlus, Loader2, X, Rss, Share2, Check, Copy, Quote,
+  ArrowLeft, Users, UserPlus, Loader2, X, Rss, Share2, Check, Copy, Quote, PanelLeft,
 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -39,6 +39,7 @@ import { shareOrCopy } from '@/lib/share';
 import { getRepostKind } from '@/lib/feedUtils';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import { toast } from '@/hooks/useToast';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { TabButton } from '@/components/TabButton';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -292,6 +293,7 @@ export function ListDetailPage() {
   const [copied, setCopied] = useState(false);
   const [cloning, setCloning] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
+  const { addToSidebar, orderedItems } = useFeedSettings();
 
   // Decode the naddr to get the d-tag identifier and author
   const decoded = useMemo(() => {
@@ -308,6 +310,23 @@ export function ListDetailPage() {
   }, [naddr]);
 
   const isOwnList = !!(decoded && user && decoded.pubkey === user.pubkey);
+
+  // Nostr URI for "Add to sidebar"
+  const nostrUri = useMemo(() => {
+    if (!naddr) return null;
+    return `nostr:${naddr}`;
+  }, [naddr]);
+
+  const isInSidebar = useMemo(
+    () => !!nostrUri && orderedItems.includes(nostrUri),
+    [nostrUri, orderedItems],
+  );
+
+  const handleAddToSidebar = useCallback(() => {
+    if (!nostrUri || isInSidebar) return;
+    addToSidebar(nostrUri);
+    toast({ title: 'Added to sidebar' });
+  }, [nostrUri, isInSidebar, addToSidebar]);
 
   // For own lists, use the local cache
   const ownList = useMemo(
@@ -498,6 +517,12 @@ export function ListDetailPage() {
                   <Quote className="size-4" />
                   Quote post
                 </DropdownMenuItem>
+                {nostrUri && !isInSidebar && (
+                  <DropdownMenuItem onClick={handleAddToSidebar} className="gap-3">
+                    <PanelLeft className="size-4" />
+                    Add to sidebar
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
