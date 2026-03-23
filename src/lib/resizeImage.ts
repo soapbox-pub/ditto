@@ -5,7 +5,7 @@ const MAX_DIMENSION = 1920;
 const JPEG_QUALITY = 0.85;
 
 interface ResizedImage {
-  /** The resized image as a JPEG File. */
+  /** The optimized image file (JPEG or PNG, whichever is smaller). */
   file: File;
   /** Pixel dimensions string, e.g. "1920x1080". */
   dimensions: string;
@@ -13,19 +13,17 @@ interface ResizedImage {
 
 /**
  * Resize an image file so its longest side is at most {@link MAX_DIMENSION}
- * pixels, and convert it to JPEG.
+ * pixels, and encode it in the smallest format between JPEG and PNG.
  *
- * If the image is already within the size limit **and** is already JPEG, the
- * original file is returned as-is (no quality loss from re-encoding).
+ * If the image already fits within the dimension limit, the original file
+ * is returned unchanged (no re-encoding overhead).
  */
 export async function resizeImage(file: File): Promise<ResizedImage> {
   const bitmap = await createImageBitmap(file);
   const { width, height } = bitmap;
 
-  const alreadySmall = width <= MAX_DIMENSION && height <= MAX_DIMENSION;
-  const alreadyJpeg = file.type === 'image/jpeg';
-
-  if (alreadySmall && alreadyJpeg) {
+  // Already within limits — return the original file as-is.
+  if (width <= MAX_DIMENSION && height <= MAX_DIMENSION) {
     bitmap.close();
     return {
       file,
@@ -33,15 +31,10 @@ export async function resizeImage(file: File): Promise<ResizedImage> {
     };
   }
 
-  // Compute scaled dimensions, preserving aspect ratio.
-  let newWidth = width;
-  let newHeight = height;
-
-  if (!alreadySmall) {
-    const scale = MAX_DIMENSION / Math.max(width, height);
-    newWidth = Math.round(width * scale);
-    newHeight = Math.round(height * scale);
-  }
+  // Scale down preserving aspect ratio.
+  const scale = MAX_DIMENSION / Math.max(width, height);
+  const newWidth = Math.round(width * scale);
+  const newHeight = Math.round(height * scale);
 
   const canvas = document.createElement('canvas');
   canvas.width = newWidth;
@@ -56,22 +49,35 @@ export async function resizeImage(file: File): Promise<ResizedImage> {
   ctx.drawImage(bitmap, 0, 0, newWidth, newHeight);
   bitmap.close();
 
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error('Failed to encode JPEG'))),
-      'image/jpeg',
-      JPEG_QUALITY,
-    );
-  });
+  // Encode as both JPEG and PNG in parallel, then pick the smaller one.
+  const [jpegBlob, pngBlob] = await Promise.all([
+    canvasToBlob(canvas, 'image/jpeg', JPEG_QUALITY),
+    canvasToBlob(canvas, 'image/png'),
+  ]);
 
-  const resizedFile = new File([blob], replaceExtension(file.name, '.jpg'), {
-    type: 'image/jpeg',
+  const best = jpegBlob.size <= pngBlob.size
+    ? { blob: jpegBlob, ext: '.jpg', mime: 'image/jpeg' as const }
+    : { blob: pngBlob, ext: '.png', mime: 'image/png' as const };
+
+  const resizedFile = new File([best.blob], replaceExtension(file.name, best.ext), {
+    type: best.mime,
   });
 
   return {
     file: resizedFile,
     dimensions: `${newWidth}x${newHeight}`,
   };
+}
+
+/** Promisified `canvas.toBlob`. */
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number): Promise<Blob> {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error(`Failed to encode ${type}`))),
+      type,
+      quality,
+    );
+  });
 }
 
 /** Replace or append a file extension. */
