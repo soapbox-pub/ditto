@@ -40,44 +40,62 @@ interface BadgeContentProps {
 }
 
 /**
- * Renders a NIP-58 badge definition (kind 30009) as a large card in the feed,
- * matching the music track / podcast episode card style.
+ * Renders a NIP-58 badge definition (kind 30009) as a showcase card in the feed.
+ * Features a centered badge image with a rotating spotlight effect behind it.
  */
 export function BadgeContent({ event }: BadgeContentProps) {
   const badge = useMemo(() => parseBadgeDefinition(event), [event]);
 
   if (!badge) return null;
 
-  // Use the full image for the large hero area, fall back to largest thumbnail
   const heroImage = badge.image
     ?? badge.thumbs.find((t) => t.dimensions === '512x512')?.url
     ?? badge.thumbs[0]?.url;
 
   return (
-    <div className="mt-3 rounded-2xl border border-border overflow-hidden">
-      {/* Large badge artwork */}
-      {heroImage ? (
-        <div className="aspect-square max-h-[280px] w-full overflow-hidden bg-secondary/10">
-          <img
-            src={heroImage}
-            alt={badge.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-            decoding="async"
-          />
-        </div>
-      ) : (
-        <div className="flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[140px]">
-          <Award className="size-10 text-primary/20" />
-        </div>
-      )}
+    <div className="mt-3">
+      {/* Showcase area */}
+      <div className="relative flex flex-col items-center py-8 overflow-hidden rounded-2xl bg-gradient-to-b from-secondary/40 via-background to-background">
+        {/* Rotating spotlight */}
+        <div
+          className="absolute animate-badge-spotlight pointer-events-none"
+          style={{
+            width: 240,
+            height: 240,
+            top: '50%',
+            left: '50%',
+            marginTop: -120 - 12,
+            marginLeft: -120,
+            background: 'conic-gradient(from 0deg, transparent 0deg, hsl(var(--primary) / 0.12) 30deg, transparent 60deg, transparent 180deg, hsl(var(--primary) / 0.08) 210deg, transparent 240deg)',
+            borderRadius: '50%',
+            filter: 'blur(20px)',
+          }}
+        />
 
-      {/* Badge info */}
-      <div className="p-3.5 space-y-1.5">
-        <p className="text-[15px] font-semibold leading-snug truncate">{badge.name}</p>
-        {badge.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2">{badge.description}</p>
-        )}
+        {/* Badge image */}
+        <div className="relative z-[1]">
+          {heroImage ? (
+            <img
+              src={heroImage}
+              alt={badge.name}
+              className="size-28 rounded-2xl object-cover drop-shadow-lg"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <div className="size-28 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
+              <Award className="size-12 text-primary/30" />
+            </div>
+          )}
+        </div>
+
+        {/* Badge info */}
+        <div className="relative z-[1] mt-4 text-center px-6 max-w-xs">
+          <p className="text-[15px] font-semibold leading-snug">{badge.name}</p>
+          {badge.description && (
+            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{badge.description}</p>
+          )}
+        </div>
       </div>
     </div>
   );
