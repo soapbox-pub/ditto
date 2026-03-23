@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Globe, Heart, MessageSquare, Repeat2, Star, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Globe, Heart, MessageSquare, MoreHorizontal, Repeat2, Star, AlertTriangle, PanelLeft, Trash2 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ThreadedReplyList } from '@/components/ThreadedReplyList';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
@@ -36,6 +39,7 @@ import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { getDisplayName } from '@/lib/getDisplayName';
@@ -73,6 +77,19 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const identifier = content.value;
+  const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
+
+  const isInSidebar = orderedItems.includes(identifier);
+
+  const handleAddToSidebar = useCallback(() => {
+    addToSidebar(identifier);
+    toast({ title: 'Added to sidebar' });
+  }, [identifier, addToSidebar, toast]);
+
+  const handleRemoveFromSidebar = useCallback(() => {
+    removeFromSidebar(identifier);
+    toast({ title: 'Removed from sidebar' });
+  }, [identifier, removeFromSidebar, toast]);
 
   const userReactionData = useExternalUserReaction(content);
   const reactionCount = useExternalReactionCount(content);
@@ -223,6 +240,34 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
           </button>
         </BookReviewFormDialog>
       )}
+
+      {/* Spacer pushes the 3-dots menu to the right */}
+      <div className="flex-1" />
+
+      {/* 3-dots menu with sidebar action */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="p-2 rounded-full transition-colors text-muted-foreground hover:text-primary hover:bg-primary/10"
+            title="More"
+          >
+            <MoreHorizontal className="size-5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          {isInSidebar ? (
+            <DropdownMenuItem onClick={handleRemoveFromSidebar} className="gap-3">
+              <Trash2 className="size-4" />
+              Remove from sidebar
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onClick={handleAddToSidebar} className="gap-3">
+              <PanelLeft className="size-4" />
+              Add to sidebar
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {shareOpen && (
         <ReplyComposeModal
