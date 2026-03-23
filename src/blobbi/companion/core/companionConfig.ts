@@ -13,9 +13,15 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
   
   // Viewport padding
   padding: {
-    left: 80,   // Account for sidebar
+    left: 80,   // Minimum left padding in main content area
     right: 20,
     bottom: 20,
+  },
+  
+  // Layout reference points
+  layout: {
+    sidebarWidth: 300,        // Width of the left sidebar
+    maxContentWidth: 1200,    // Max width of the main layout container
   },
   
   // Walking speed (pixels per second)
@@ -51,8 +57,8 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
     mouseFollowChance: 0.15,    // 15% chance to start following mouse
   },
   
-  // Entry animation from sidebar
-  entryAnimationDuration: 600, // ms
+  // Entry animation - playful "squeezing out" from previous page
+  entryAnimationDuration: 2200, // ms - slower for the full sequence
 };
 
 /**

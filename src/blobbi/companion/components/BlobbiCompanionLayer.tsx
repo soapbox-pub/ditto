@@ -47,8 +47,8 @@ export function BlobbiCompanionLayer() {
   
   // Calculate entry positions
   const entryStartPosition = useMemo(() => 
-    calculateEntryPosition(viewport.height, config.size, config),
-    [viewport.height, config]
+    calculateEntryPosition(viewport.width, viewport.height, config.size, config),
+    [viewport.width, viewport.height, config]
   );
   
   const entryEndPosition = useMemo(() =>
