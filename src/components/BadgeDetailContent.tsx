@@ -31,7 +31,6 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
 import { formatNumber } from '@/lib/formatNumber';
-import { isShopBadge, isAchievementBadge } from '@/lib/badgeUtils';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { parseBadgeDefinition } from '@/components/BadgeContent';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -67,8 +66,6 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const { pendingBadges } = usePendingBadges(user?.pubkey);
   const pendingForUser = pendingBadges.find((p) => p.aTag === badgeATag);
   const isIssuer = user?.pubkey === event.pubkey;
-  const isShop = isShopBadge(event);
-  const isAchievement = isAchievementBadge(event);
 
   // Stats for action bar
   const { data: stats } = useEventStats(event.id, event);
@@ -238,18 +235,6 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
               <Users className="size-4" />
               No awards yet
             </span>
-          )}
-          {isAchievement && (
-            <Badge variant="secondary" className="gap-1">
-              <Award className="size-3" />
-              Achievement
-            </Badge>
-          )}
-          {isShop && (
-            <Badge variant="secondary" className="gap-1">
-              <Gift className="size-3" />
-              Shop Badge
-            </Badge>
           )}
         </div>
 
