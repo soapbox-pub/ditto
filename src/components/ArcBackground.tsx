@@ -47,7 +47,7 @@ export function ArcBackground({ variant, className }: ArcBackgroundProps) {
       preserveAspectRatio="none"
       style={hasArc ? arcHeightStyle : fullHeightStyle}
     >
-      <path d={path} className="fill-background/80" />
+      <path d={path} className="fill-background/95" />
     </svg>
   );
 }
