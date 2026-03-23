@@ -1,7 +1,7 @@
 // src/blobbi/actions/components/BlobbiActionInventoryModal.tsx
 
 import { useMemo, useState } from 'react';
-import { Loader2, ShoppingBag, Minus, Plus } from 'lucide-react';
+import { Loader2, ShoppingBag, Minus, Plus, X } from 'lucide-react';
 
 import {
   Dialog,
@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -117,19 +118,25 @@ export function BlobbiActionInventoryModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-md w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden">
         {/* Header - Sticky */}
-        <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b pr-12">
-          <div className="flex items-center gap-3">
-            <div className="size-9 sm:size-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-xl sm:text-2xl shrink-0">
-              {actionMeta.icon}
+        <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="size-9 sm:size-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-xl sm:text-2xl shrink-0">
+                {actionMeta.icon}
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-lg sm:text-xl">{actionMeta.label}</DialogTitle>
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                  {actionMeta.description}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <DialogTitle className="text-lg sm:text-xl">{actionMeta.label}</DialogTitle>
-              <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                {actionMeta.description}
-              </p>
-            </div>
+            <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 shrink-0">
+              <X className="size-5" />
+              <span className="sr-only">Close</span>
+            </DialogClose>
           </div>
         </DialogHeader>
 
