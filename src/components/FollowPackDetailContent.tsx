@@ -9,12 +9,17 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { NoteCard } from '@/components/NoteCard';
+import { TabButton } from '@/components/TabButton';
 import { useToast } from '@/hooks/useToast';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useStreamPosts } from '@/hooks/useStreamPosts';
+import { useMuteList } from '@/hooks/useMuteList';
+import { isEventMuted } from '@/lib/muteHelpers';
 import { useNostr } from '@nostrify/react';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -28,6 +33,113 @@ function parsePackEvent(event: NostrEvent) {
   const pubkeys = event.tags.filter(([n]) => n === 'p').map(([, pk]) => pk);
 
   return { title, description, image, pubkeys };
+}
+
+type Tab = 'feed' | 'members';
+
+// ─── Feed Tab ─────────────────────────────────────────────────────────────────
+
+function PackFeedTab({ pubkeys }: { pubkeys: string[] }) {
+  const { muteItems } = useMuteList();
+
+  const { posts, isLoading } = useStreamPosts('', {
+    includeReplies: false,
+    mediaType: 'all',
+    authorPubkeys: pubkeys,
+  });
+
+  const filteredPosts = useMemo(() => {
+    if (muteItems.length === 0) return posts;
+    return posts.filter((e) => !isEventMuted(e, muteItems));
+  }, [posts, muteItems]);
+
+  if (pubkeys.length === 0) {
+    return (
+      <div className="py-16 text-center text-muted-foreground">
+        <Users className="size-8 mx-auto mb-2 opacity-50" />
+        <p className="text-sm">No members in this pack yet.</p>
+      </div>
+    );
+  }
+
+  if (isLoading && filteredPosts.length === 0) {
+    return (
+      <div className="divide-y divide-border">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="px-4 py-3">
+            <div className="flex gap-3">
+              <Skeleton className="size-11 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (filteredPosts.length === 0) {
+    return (
+      <div className="py-16 text-center text-muted-foreground text-sm">
+        No posts from pack members yet.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {filteredPosts.map((event) => (
+        <NoteCard key={event.id} event={event} />
+      ))}
+    </div>
+  );
+}
+
+// ─── Members Tab ──────────────────────────────────────────────────────────────
+
+function PackMembersTab({
+  pubkeys,
+  membersMap,
+  membersLoading,
+  followedPubkeys,
+  currentUserPubkey,
+}: {
+  pubkeys: string[];
+  membersMap: Map<string, { metadata?: NostrMetadata }> | undefined;
+  membersLoading: boolean;
+  followedPubkeys: Set<string>;
+  currentUserPubkey: string | undefined;
+}) {
+  if (membersLoading) {
+    return (
+      <div className="divide-y divide-border">
+        {Array.from({ length: Math.min(pubkeys.length, 8) }).map((_, i) => (
+          <MemberCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-border">
+      {pubkeys.map((pk) => {
+        const member = membersMap?.get(pk);
+        const isFollowed = followedPubkeys.has(pk);
+        return (
+          <MemberCard
+            key={pk}
+            pubkey={pk}
+            metadata={member?.metadata}
+            isFollowed={isFollowed}
+            isSelf={pk === currentUserPubkey}
+          />
+        );
+      })}
+    </div>
+  );
 }
 
 /**
@@ -59,6 +171,7 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
     [pubkeys, followedPubkeys],
   );
 
+  const [activeTab, setActiveTab] = useState<Tab>('feed');
   const [isFollowingAll, setIsFollowingAll] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -220,36 +333,24 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
         </div>
       </div>
 
-      {/* Members list */}
-      <div className="border-t border-border">
-        <div className="px-4 py-3">
-          <h3 className="text-[15px] font-bold">Members</h3>
-        </div>
-
-        {membersLoading ? (
-          <div className="divide-y divide-border">
-            {Array.from({ length: Math.min(pubkeys.length, 8) }).map((_, i) => (
-              <MemberCardSkeleton key={i} />
-            ))}
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {pubkeys.map((pk) => {
-              const member = membersMap?.get(pk);
-              const isFollowed = followedPubkeys.has(pk);
-              return (
-                <MemberCard
-                  key={pk}
-                  pubkey={pk}
-                  metadata={member?.metadata}
-                  isFollowed={isFollowed}
-                  isSelf={pk === user?.pubkey}
-                />
-              );
-            })}
-          </div>
-        )}
+      {/* Tab bar */}
+      <div className="flex border-t border-b border-border">
+        <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
+        <TabButton label="Members" active={activeTab === 'members'} onClick={() => setActiveTab('members')} />
       </div>
+
+      {/* Tab content */}
+      {activeTab === 'feed' ? (
+        <PackFeedTab pubkeys={pubkeys} />
+      ) : (
+        <PackMembersTab
+          pubkeys={pubkeys}
+          membersMap={membersMap}
+          membersLoading={membersLoading}
+          followedPubkeys={followedPubkeys}
+          currentUserPubkey={user?.pubkey}
+        />
+      )}
     </div>
   );
 }
