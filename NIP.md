@@ -8,7 +8,6 @@
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
 
-
 ---
 
 ## Kind 36767: Theme Definition
@@ -279,6 +278,4 @@ The `shape` field is added to the JSON content of a kind 0 event alongside stand
 - When `shape` is set to an unrecognized or invalid value, clients MUST fall back to a circle. This ensures forward compatibility.
 - The `shape` field is purely cosmetic and has no protocol-level significance.
 - Clients MAY choose not to support this extension, in which case avatars render as circles as usual.
-
-
 

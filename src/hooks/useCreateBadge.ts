@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -16,8 +16,6 @@ interface CreateBadgeParams {
   imageUrl?: string;
   /** Optional thumbnail URLs with dimensions. */
   thumbs?: Array<{ url: string; dimensions?: string }>;
-  /** Optional category tags. */
-  categories?: string[];
 }
 
 /**
@@ -26,6 +24,7 @@ interface CreateBadgeParams {
 export function useCreateBadge() {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (params: CreateBadgeParams) => {
@@ -50,17 +49,15 @@ export function useCreateBadge() {
         }
       }
 
-      if (params.categories) {
-        for (const cat of params.categories) {
-          tags.push(['t', cat]);
-        }
-      }
-
       return publishEvent({
         kind: BADGE_DEFINITION_KIND,
         content: '',
         tags,
       } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['badge-feed'] });
+      queryClient.invalidateQueries({ queryKey: ['my-created-badges'] });
     },
   });
 }

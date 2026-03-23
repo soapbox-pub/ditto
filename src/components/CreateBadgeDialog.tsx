@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useRef } from 'react';
 import { Award, Upload, Loader2, Check, Copy, Users } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { useQueryClient } from '@tanstack/react-query';
+
 
 import {
   Dialog,
@@ -43,7 +43,6 @@ interface CreateBadgeDialogProps {
 export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps) {
   const { user } = useCurrentUser();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // Form state
   const [name, setName] = useState('');
@@ -144,12 +143,11 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
         imageUrl: imageUrl || undefined,
       });
       setCreatedBadge(event);
-      queryClient.invalidateQueries({ queryKey: ['my-created-badges'] });
       toast({ title: 'Badge created!' });
     } catch {
       toast({ title: 'Failed to create badge', description: 'Please try again.', variant: 'destructive' });
     }
-  }, [name, effectiveIdentifier, description, imageUrl, createBadge, queryClient, toast]);
+  }, [name, effectiveIdentifier, description, imageUrl, createBadge, toast]);
 
   const handleSelfAward = useCallback(async () => {
     if (!user || !createdBadge || !badgeATag) return;
