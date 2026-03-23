@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Users, UserPlus, Check, Loader2, Copy, Rss } from 'lucide-react';
+import { Users, UserPlus, Check, Loader2, Copy } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 
@@ -335,31 +335,8 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Tab bar */}
       <div className="flex border-t border-b border-border">
-        <TabButton
-          label="Feed"
-          active={activeTab === 'feed'}
-          onClick={() => setActiveTab('feed')}
-          className="py-2.5"
-          indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
-        >
-          <span className="flex items-center justify-center gap-1.5">
-            <Rss className="size-4" />
-            Feed
-          </span>
-        </TabButton>
-        <TabButton
-          label="Members"
-          active={activeTab === 'members'}
-          onClick={() => setActiveTab('members')}
-          className="py-2.5"
-          indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
-        >
-          <span className="flex items-center justify-center gap-1.5">
-            <Users className="size-4" />
-            Members
-            <span className="text-xs text-muted-foreground">({pubkeys.length})</span>
-          </span>
-        </TabButton>
+        <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
+        <TabButton label="Members" active={activeTab === 'members'} onClick={() => setActiveTab('members')} />
       </div>
 
       {/* Tab content */}

@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import {
-  ArrowLeft, Users, UserPlus, Loader2, X, Rss, Share2, Check, Copy, Quote, PanelLeft, Trash2,
+  ArrowLeft, Users, UserPlus, Loader2, X, Share2, Check, Copy, Quote, PanelLeft, Trash2,
 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -565,31 +565,8 @@ export function ListDetailPage() {
 
         {/* Tab bar */}
         <div className="flex border-b border-border">
-          <TabButton
-            label="Feed"
-            active={activeTab === 'feed'}
-            onClick={() => setActiveTab('feed')}
-            className="py-2.5"
-            indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
-          >
-            <span className="flex items-center justify-center gap-1.5">
-              <Rss className="size-4" />
-              Feed
-            </span>
-          </TabButton>
-          <TabButton
-            label="Members"
-            active={activeTab === 'members'}
-            onClick={() => setActiveTab('members')}
-            className="py-2.5"
-            indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
-          >
-            <span className="flex items-center justify-center gap-1.5">
-              <Users className="size-4" />
-              Members
-              <span className="text-xs text-muted-foreground">({list.pubkeys.length})</span>
-            </span>
-          </TabButton>
+          <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
+          <TabButton label="Members" active={activeTab === 'members'} onClick={() => setActiveTab('members')} />
         </div>
       </div>
 
