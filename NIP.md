@@ -8,8 +8,6 @@
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
 | 30009 | Badge Definition     | NIP-58 badge definition with custom tag extensions    |
-| 5950  | DVM Job Request      | NIP-90 DVM request for achievement badge claims       |
-| 6950  | DVM Job Result       | NIP-90 DVM result for achievement badge claims        |
 
 ---
 
@@ -361,65 +359,4 @@ Achievement badges are queried similarly with `t=achievement`:
 ```
 
 Categories are filtered client-side after fetching, since relay-level queries can only match one `t` value at a time.
-
----
-
-## DVM Achievement Claim (Kinds 5950 / 6950)
-
-### Summary
-
-Achievement badges are claimed through a DVM (Data Vending Machine) flow using standard NIP-90 kinds 5950 (job request) and 6950 (job result). The custom job type is `claim-achievement`.
-
-### Job Request (Kind 5950)
-
-The user publishes a kind 5950 event to request verification and awarding of an achievement badge.
-
-```json
-{
-  "kind": 5950,
-  "content": "",
-  "tags": [
-    ["i", "30009:<issuer-pubkey>:<badge-identifier>", "event"],
-    ["param", "action", "claim-achievement"],
-    ["p", "<issuer-pubkey>"]
-  ]
-}
-```
-
-| Tag     | Description                                                                 |
-|---------|-----------------------------------------------------------------------------|
-| `i`     | The `a`-tag coordinate of the badge definition being claimed                |
-| `param` | Action parameter: always `"claim-achievement"` for this job type            |
-| `p`     | The badge issuer's pubkey (DVM operator that should process the request)    |
-
-### Job Result (Kind 6950)
-
-The DVM responds with a kind 6950 event indicating whether the achievement was verified and awarded.
-
-```json
-{
-  "kind": 6950,
-  "content": "Achievement verified! Badge awarded.",
-  "tags": [
-    ["e", "<job-request-event-id>"],
-    ["p", "<requester-pubkey>"],
-    ["status", "success"]
-  ]
-}
-```
-
-| Tag      | Description                                                               |
-|----------|---------------------------------------------------------------------------|
-| `e`      | Reference to the original kind 5950 job request event                     |
-| `p`      | The pubkey of the user who requested the claim                            |
-| `status` | `"success"` if the achievement was verified and badge awarded, `"error"` otherwise |
-| `content`| Human-readable message describing the result                              |
-
-### Flow
-
-1. User publishes a kind 5950 job request referencing the badge definition's `a`-tag coordinate.
-2. The DVM (badge bot) receives the request, verifies the user has met the achievement criteria (e.g. published a first post, followed N users, etc.), and if verified, publishes a kind 8 badge award event.
-3. The DVM publishes a kind 6950 result event referencing the job request with a `status` tag.
-4. The client listens for the kind 6950 result (filtered by `authors: [issuer]` and `#e: [jobEventId]`) with a 30-second timeout.
-5. On success, the user can accept the badge into their kind 30008 profile badges.
 

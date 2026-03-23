@@ -19,8 +19,7 @@ import { TreasuresPage } from './TreasuresPage';
 import { WorldPage } from './WorldPage';
 import { BooksPage } from './BooksPage';
 import { KindFeedPage } from './KindFeedPage';
-import { ShopPage } from './ShopPage';
-import { AchievementsPage } from './AchievementsPage';
+import { BadgesPage } from './BadgesPage';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
 
@@ -44,8 +43,7 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   'treasures': TreasuresPage,
   'world': WorldPage,
   'books': BooksPage,
-  'shop': ShopPage,
-  'achievements': AchievementsPage,
+  'badges': BadgesPage,
 };
 
 /** Sidebar items that use KindFeedPage and need extra kind definitions. */
