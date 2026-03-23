@@ -9,11 +9,11 @@
  * - Evolve tasks when evolving (baby stage)
  */
 
-import { Target, Loader2, XCircle, AlertTriangle, Calendar, Coins } from 'lucide-react';
+import { Target, Loader2, XCircle, AlertTriangle, Calendar, Coins, X } from 'lucide-react';
 import { formatCompactNumber } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -310,16 +310,24 @@ export function BlobbiMissionsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-lg w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden [&>button:last-child]:hidden">
         {/* Header - Sticky */}
-        <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b pr-12">
-          <DialogTitle className="flex items-center gap-2">
-            <Target className="size-5 shrink-0" />
-            Missions
-          </DialogTitle>
-          <DialogDescription className="break-words">
-            Complete missions to earn rewards for {companion.name}
-          </DialogDescription>
+        <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                <Target className="size-5 shrink-0" />
+                Missions
+              </DialogTitle>
+              <DialogDescription className="break-words">
+                Complete missions to earn rewards for {companion.name}
+              </DialogDescription>
+            </div>
+            <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 shrink-0">
+              <X className="size-5" />
+              <span className="sr-only">Close</span>
+            </DialogClose>
+          </div>
         </DialogHeader>
 
         {/* Content - Scrollable */}

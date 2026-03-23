@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { ShoppingBag, Utensils, Gamepad2, Heart, Droplets, Palette } from 'lucide-react';
+import { ShoppingBag, Utensils, Gamepad2, Heart, Droplets, Palette, X } from 'lucide-react';
 
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 
@@ -72,19 +73,25 @@ export function BlobbiShopModal({ open, onOpenChange, profile }: BlobbiShopModal
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0">
+        <DialogContent className="max-w-2xl w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden">
           {/* Header - Sticky */}
-          <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b pr-12">
-            <div className="flex items-center justify-between gap-2">
+          <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
+            <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <div className="size-9 sm:size-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center shrink-0">
                   <ShoppingBag className="size-4 sm:size-5 text-primary" />
                 </div>
                 <DialogTitle className="text-xl sm:text-2xl truncate">Blobbi Shop</DialogTitle>
               </div>
-              <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 text-sm sm:text-base px-3 sm:px-4 py-1 shrink-0 mr-1">
-                {formatCompactNumber(availableCoins)} coins
-              </Badge>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 text-sm sm:text-base px-3 sm:px-4 py-1">
+                  {formatCompactNumber(availableCoins)} coins
+                </Badge>
+                <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                  <X className="size-5" />
+                  <span className="sr-only">Close</span>
+                </DialogClose>
+              </div>
             </div>
           </DialogHeader>
 
