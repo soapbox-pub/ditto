@@ -18,10 +18,12 @@ export function useBadgeFeed(tab: 'follows' = 'follows') {
   // For follows tab, wait until follow list is loaded
   const followsReady = tab !== 'follows' || (!!user && followList !== undefined);
 
+  // Stable key segment for the follow list — only changes when the list content changes
+  const followKey = followList ? [...followList].sort().join(',') : '';
+
   return useInfiniteQuery({
-    queryKey: ['badge-feed', tab, user?.pubkey ?? ''],
-    queryFn: async ({ pageParam }) => {
-      const signal = AbortSignal.timeout(5000);
+    queryKey: ['badge-feed', tab, user?.pubkey ?? '', followKey],
+    queryFn: async ({ pageParam, signal }) => {
       const baseUntil = pageParam as number | undefined;
 
       // For follows tab, build the authors list
@@ -39,7 +41,7 @@ export function useBadgeFeed(tab: 'follows' = 'follows') {
       // Query both badge kinds in a single request
       const events = await nostr.query(
         [{ kinds: [BADGE_DEFINITION_KIND, BADGE_PROFILE_KIND], ...shared }],
-        { signal },
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
       // Deduplicate and sort

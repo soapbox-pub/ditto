@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -270,9 +271,9 @@ export interface EventStats {
 
 const EMPTY_STATS: EventStats = { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, zapCount: 0, reactionEmojis: [] };
 
-/** Check whether a kind falls in an addressable range. */
+/** Check whether a kind falls in an addressable range (NIP-33 kinds 30000-39999). */
 function isAddressableKind(kind: number): boolean {
-  return (kind >= 30000 && kind < 40000) || kind === 0 || kind === 3;
+  return kind >= 30000 && kind < 40000;
 }
 
 /** Compute the NIP-33 `a`-tag coordinate string for an addressable event. */
@@ -286,6 +287,9 @@ function getAddrString(event: NostrEvent): string | undefined {
  * Counts engagement (replies, reposts, quotes, reactions, zaps) for a given event.
  * For addressable events (kinds 30000-39999 + 0, 3), uses NIP-85 kind 30384 (addr stats).
  * For regular events, uses NIP-85 kind 30383 (event stats).
+ *
+ * Returns a shape compatible with useQuery ({ data, isLoading }) by transforming
+ * the underlying NIP-85 query data via useMemo.
  */
 export function useEventStats(eventId: string | undefined, event?: NostrEvent) {
   const addr = event ? getAddrString(event) : undefined;
@@ -294,25 +298,20 @@ export function useEventStats(eventId: string | undefined, event?: NostrEvent) {
 
   const source = addr ? nip85Addr : nip85;
 
-  return useQuery({
-    queryKey: ['event-stats', addr ?? eventId ?? ''],
-    queryFn: async () => {
-      if ((!eventId && !addr) || !source.data) return EMPTY_STATS;
+  const data = useMemo<EventStats>(() => {
+    if (!source.data) return EMPTY_STATS;
+    return {
+      replies: source.data.commentCount,
+      reposts: source.data.repostCount,
+      quotes: 0,
+      reactions: source.data.reactionCount,
+      zapAmount: 0,
+      zapCount: source.data.zapCount,
+      reactionEmojis: [],
+    };
+  }, [source.data]);
 
-      return {
-        replies: source.data.commentCount,
-        reposts: source.data.repostCount,
-        quotes: 0,
-        reactions: source.data.reactionCount,
-        zapAmount: 0,
-        zapCount: source.data.zapCount,
-        reactionEmojis: [],
-      };
-    },
-    enabled: (!!eventId || !!addr) && !source.isLoading,
-    staleTime: 60 * 1000,
-    placeholderData: (prev) => prev,
-  });
+  return { data, isLoading: source.isLoading };
 }
 
 /** Number of days of history for sparkline charts. */

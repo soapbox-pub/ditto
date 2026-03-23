@@ -599,7 +599,7 @@ function parseBadgeATag(event: NostrEvent): { pubkey: string; identifier: string
   if (!aVal) return undefined;
   const parts = aVal.split(':');
   if (parts.length < 3 || !parts[1] || !parts[2]) return undefined;
-  return { pubkey: parts[1], identifier: parts[2] };
+  return { pubkey: parts[1], identifier: parts.slice(2).join(':') };
 }
 
 /** Turn a d-tag slug like "first-post" into "First Post". */
