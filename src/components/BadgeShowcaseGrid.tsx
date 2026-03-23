@@ -41,7 +41,7 @@ export function BadgeShowcaseGrid({
   thumbnailSize = 48,
   showNames = true,
   showEditButton,
-  editPath = '/badges/manage',
+  editPath = '/badges',
   isLoading,
   gridCols = 'grid-cols-4 sm:grid-cols-6',
   className,
