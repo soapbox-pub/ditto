@@ -1,10 +1,11 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, Copy, Check, Users, Gift, MessageCircle } from 'lucide-react';
+import { Award, Copy, Check, Users, Gift, Loader2, MessageCircle, Newspaper } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { useInView } from 'react-intersection-observer';
 
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -15,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { ReactionButton } from '@/components/ReactionButton';
 import { ComposeBox } from '@/components/ComposeBox';
+import { NoteCard } from '@/components/NoteCard';
 import { ThreadedReplyList } from '@/components/ThreadedReplyList';
 import { TabButton } from '@/components/TabButton';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -35,7 +37,7 @@ import { parseBadgeDefinition } from '@/components/BadgeContent';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { AwardBadgeDialog } from '@/components/AwardBadgeDialog';
 
-type DetailTab = 'awarded' | 'comments';
+type DetailTab = 'awarded' | 'feed' | 'comments';
 
 /**
  * Full detail view for a NIP-58 badge definition (kind 30009).
@@ -319,6 +321,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
       {/* Tabs */}
       <div className="flex border-b border-border sticky top-0 bg-background/80 backdrop-blur-md z-10">
         <TabButton label="Awarded To" active={activeTab === 'awarded'} onClick={() => setActiveTab('awarded')} />
+        <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
         <TabButton label="Comments" active={activeTab === 'comments'} onClick={() => setActiveTab('comments')} />
       </div>
 
@@ -329,6 +332,11 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
           previewPubkeys={previewPubkeys}
           membersMap={membersMap}
           membersLoading={membersLoading}
+          awardsLoading={awardsQuery.isLoading}
+        />
+      ) : activeTab === 'feed' ? (
+        <HoldersFeedTab
+          awardedPubkeys={awardedPubkeys}
           awardsLoading={awardsQuery.isLoading}
         />
       ) : (
@@ -386,6 +394,119 @@ function AwardedToTab({ awardedPubkeys, previewPubkeys, membersMap, membersLoadi
       {awardedPubkeys.length > previewPubkeys.length && (
         <div className="px-4 py-3 text-sm text-muted-foreground text-center">
           +{awardedPubkeys.length - previewPubkeys.length} more
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Holders Feed Tab ──────────────────────────────────────────────────────────
+
+const FEED_PAGE_SIZE = 20;
+
+function HoldersFeedTab({ awardedPubkeys, awardsLoading }: {
+  awardedPubkeys: string[];
+  awardsLoading: boolean;
+}) {
+  const { nostr } = useNostr();
+
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['badge-holders-feed', awardedPubkeys.join(',')],
+    queryFn: async ({ pageParam, signal }) => {
+      if (awardedPubkeys.length === 0) return [];
+      const filter: Record<string, unknown> = {
+        kinds: [1],
+        authors: awardedPubkeys,
+        limit: FEED_PAGE_SIZE,
+      };
+      if (pageParam) filter.until = pageParam;
+      return nostr.query(
+        [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) },
+      );
+    },
+    getNextPageParam: (lastPage) => {
+      if (!lastPage || lastPage.length === 0) return undefined;
+      return lastPage[lastPage.length - 1].created_at - 1;
+    },
+    initialPageParam: undefined as number | undefined,
+    enabled: awardedPubkeys.length > 0 && !awardsLoading,
+    staleTime: 60_000,
+  });
+
+  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const feedEvents = useMemo(() => {
+    if (!data?.pages) return [];
+    const seen = new Set<string>();
+    return (data.pages as NostrEvent[][]).flat().filter((event) => {
+      if (seen.has(event.id)) return false;
+      seen.add(event.id);
+      return true;
+    });
+  }, [data?.pages]);
+
+  if (awardsLoading || isLoading) {
+    return (
+      <div className="divide-y divide-border">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="px-4 py-4">
+            <div className="flex gap-3">
+              <Skeleton className="size-10 rounded-full shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-4/5" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (awardedPubkeys.length === 0) {
+    return (
+      <div className="py-16 flex flex-col items-center gap-3 text-center px-8">
+        <Newspaper className="size-8 text-muted-foreground/30" />
+        <p className="text-sm text-muted-foreground">No one has been awarded this badge yet, so there's no feed to show.</p>
+      </div>
+    );
+  }
+
+  if (feedEvents.length === 0) {
+    return (
+      <div className="py-16 flex flex-col items-center gap-3 text-center px-8">
+        <Newspaper className="size-8 text-muted-foreground/30" />
+        <p className="text-sm text-muted-foreground">No posts from badge holders yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {feedEvents.map((event) => (
+        <NoteCard key={event.id} event={event} />
+      ))}
+      {hasNextPage && (
+        <div ref={scrollRef} className="py-4">
+          {isFetchingNextPage && (
+            <div className="flex justify-center">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </div>
       )}
     </div>
