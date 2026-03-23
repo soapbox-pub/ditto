@@ -55,7 +55,7 @@ export function BadgeContent({ event }: BadgeContentProps) {
   return (
     <div className="mt-3">
       {/* Showcase area */}
-      <div className="relative isolate flex flex-col items-center py-10 overflow-hidden rounded-2xl bg-gradient-to-b from-secondary/30 to-background">
+      <div className="relative isolate flex flex-col items-center py-10 overflow-hidden rounded-2xl">
         {/* Rotating light rays — outer div centers, inner div rotates */}
         <div
           className="absolute -z-10 pointer-events-none"
