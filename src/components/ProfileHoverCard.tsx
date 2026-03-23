@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { nip19 } from 'nostr-tools';
 import { useQueryClient } from '@tanstack/react-query';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -14,6 +15,9 @@ import { formatNip05Display, getNip05Domain } from '@/lib/nip05';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { FollowButton } from '@/components/FollowButton';
+import { BadgeThumbnail } from '@/components/BadgeThumbnail';
+import { useProfileBadges } from '@/hooks/useProfileBadges';
+import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { cn } from '@/lib/utils';
 
 interface ProfileHoverCardProps {
@@ -39,6 +43,9 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
   const nip05Display = nip05Verified && nip05 ? formatNip05Display(nip05) : undefined;
   const { status: userStatus, url: statusUrl } = useUserStatus(pubkey);
+  const { refs: badgeRefs } = useProfileBadges(pubkey);
+  const firstFive = badgeRefs.slice(0, 5);
+  const { badgeMap } = useBadgeDefinitions(firstFive);
 
   useEffect(() => {
     queryClient.refetchQueries({ queryKey: ['author', pubkey] });
@@ -121,6 +128,28 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
               userStatus
             )}
           </p>
+        )}
+
+        {/* Badge preview */}
+        {badgeRefs.length > 0 && (
+          <div className="flex items-center gap-1.5 mt-2">
+            {firstFive.map((ref) => {
+              const badge = badgeMap.get(ref.aTag);
+              if (!badge) return null;
+              return (
+                <Link
+                  key={ref.aTag}
+                  to={`/${nip19.naddrEncode({ kind: 30009, pubkey: ref.pubkey, identifier: ref.identifier })}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <BadgeThumbnail badge={badge} size={28} className="transition-transform hover:scale-110" />
+                </Link>
+              );
+            })}
+            {badgeRefs.length > 5 && (
+              <span className="text-[10px] text-muted-foreground font-medium">+{badgeRefs.length - 5}</span>
+            )}
+          </div>
         )}
       </div>
     </>

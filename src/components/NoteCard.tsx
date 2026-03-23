@@ -181,7 +181,7 @@ export const NoteCard = memo(function NoteCard({
   );
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const encodedId = useMemo(() => encodeEventId(event), [event]);
-  const { data: stats } = useEventStats(event.id);
+  const { data: stats } = useEventStats(event.id, event);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 
