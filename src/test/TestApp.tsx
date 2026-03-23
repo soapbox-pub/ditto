@@ -107,6 +107,7 @@ export function TestApp({ children }: TestAppProps) {
     plausibleDomain: "",
     plausibleEndpoint: "",
     savedFeeds: [],
+    imageQuality: 'compressed',
   };
 
   return (

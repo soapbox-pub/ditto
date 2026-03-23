@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarChart3, Plus, ChevronLeft, ImageDown, ImageUp } from 'lucide-react';
+import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarChart3, Plus, ChevronLeft } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -31,6 +31,7 @@ import { usePostComment } from '@/hooks/usePostComment';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
+import { useAppContext } from '@/hooks/useAppContext';
 import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
 import { extractWebxdcMeta } from '@/lib/webxdcMeta';
@@ -184,6 +185,8 @@ export function ComposeBox({
   const customEmojis = useMemo(() => customEmojisEnabled ? allCustomEmojis : [], [customEmojisEnabled, allCustomEmojis]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { config } = useAppContext();
+  const imageQuality = config.imageQuality;
 
   const [content, setContent] = useState(initialContent);
   const [expanded, setExpanded] = useState(false);
@@ -203,7 +206,6 @@ export function ComposeBox({
   ]);
   const [pollType, setPollType] = useState<'singlechoice' | 'multiplechoice'>('singlechoice');
   const [pollDuration, setPollDuration] = useState<7 | 3 | 1 | 0>(7);
-  const [imageQuality, setImageQuality] = useState<'compressed' | 'original'>('compressed');
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const [_uploadedFileTags, setUploadedFileTags] = useState<string[][]>([]);
   /** Maps uploaded file URLs to their NIP-94 tags (grouped per upload). */
@@ -1555,25 +1557,6 @@ export function ComposeBox({
                   </PopoverContent>
                 </Popover>
 
-                {/* Image quality toggle */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => setImageQuality((q) => q === 'compressed' ? 'original' : 'compressed')}
-                      disabled={!user}
-                      className={cn(
-                        'p-2 rounded-full transition-colors disabled:opacity-40',
-                        imageQuality === 'original'
-                          ? 'text-primary bg-primary/10'
-                          : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
-                      )}
-                    >
-                      {imageQuality === 'original' ? <ImageUp className="size-[18px]" /> : <ImageDown className="size-[18px]" />}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>{imageQuality === 'original' ? 'Original quality' : 'Compressed'}</TooltipContent>
-                </Tooltip>
               </div>
 
               {/* Spacer */}
