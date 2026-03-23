@@ -714,7 +714,7 @@ export function WikipediaPage() {
                   <ArticleCard
                     key={page.pageid}
                     page={page}
-                    badge={page.views ? `${formatViews(page.views)} views` : undefined}
+                    badge={page.views ? formatViews(page.views) : undefined}
                     badgeIcon={<Eye className="size-3" />}
                   />
                 ))}
