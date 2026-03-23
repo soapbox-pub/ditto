@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
-import { cn } from '@/lib/utils';
+import { cn, formatCompactNumber } from '@/lib/utils';
 import {
   BLOBBI_PREVIEW_REROLL_COST,
   BLOBBI_ADOPTION_COST,
@@ -68,9 +68,9 @@ export function BlobbiEggPreviewCard({
       <div className="flex flex-col items-center gap-6 text-center max-w-md w-full">
         {/* Coins Display */}
         <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/20">
-          <Coins className="size-4 text-amber-500" />
-          <span className="font-semibold text-amber-600 dark:text-amber-400">
-            {coins} coins
+          <Coins className="size-4 text-amber-500 shrink-0" />
+          <span className="font-semibold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+            {formatCompactNumber(coins)} coins
           </span>
         </div>
         

@@ -12,7 +12,7 @@ import { Check, Coins, Gift, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { cn } from '@/lib/utils';
+import { cn, formatCompactNumber } from '@/lib/utils';
 import type { DailyMission } from '../lib/daily-missions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ function MissionItem({ mission, onClaim, disabled }: MissionItemProps) {
   return (
     <div
       className={cn(
-        'relative p-4 rounded-lg border transition-colors',
+        'relative p-3 sm:p-4 rounded-lg border transition-colors overflow-hidden',
         mission.claimed
           ? 'bg-primary/5 border-primary/20'
           : mission.completed
@@ -62,24 +62,24 @@ function MissionItem({ mission, onClaim, disabled }: MissionItemProps) {
       )}
 
       {/* Mission content */}
-      <div className="space-y-3">
+      <div className="space-y-2 sm:space-y-3">
         {/* Title and description */}
-        <div className="pr-16">
-          <h4 className="font-medium text-sm">{mission.title}</h4>
-          <p className="text-xs text-muted-foreground mt-0.5">
+        <div className="pr-14 sm:pr-16">
+          <h4 className="font-medium text-sm break-words">{mission.title}</h4>
+          <p className="text-xs text-muted-foreground mt-0.5 break-words">
             {mission.description}
           </p>
         </div>
 
         {/* Progress bar */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">
+          <div className="flex items-center justify-between text-xs gap-2">
+            <span className="text-muted-foreground whitespace-nowrap">
               {mission.currentCount} / {mission.requiredCount}
             </span>
-            <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
-              <Coins className="size-3" />
-              {mission.reward}
+            <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400 whitespace-nowrap">
+              <Coins className="size-3 shrink-0" />
+              {formatCompactNumber(mission.reward)}
             </span>
           </div>
           <Progress
@@ -99,8 +99,8 @@ function MissionItem({ mission, onClaim, disabled }: MissionItemProps) {
             disabled={disabled}
             className="w-full bg-green-600 hover:bg-green-700 text-white"
           >
-            <Gift className="size-4 mr-2" />
-            Claim {mission.reward} Coins
+            <Gift className="size-4 mr-2 shrink-0" />
+            <span className="truncate">Claim {formatCompactNumber(mission.reward)} Coins</span>
           </Button>
         )}
       </div>
@@ -123,7 +123,7 @@ function AllClaimedState({ todayCoins }: AllClaimedStateProps) {
       <div className="space-y-1">
         <h4 className="font-semibold text-sm">All Done for Today!</h4>
         <p className="text-xs text-muted-foreground">
-          You earned <span className="font-medium text-amber-600 dark:text-amber-400">{todayCoins} coins</span> today.
+          You earned <span className="font-medium text-amber-600 dark:text-amber-400">{formatCompactNumber(todayCoins)} coins</span> today.
           <br />
           Come back tomorrow for new missions!
         </p>

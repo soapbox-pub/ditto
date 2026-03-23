@@ -2082,12 +2082,12 @@ function BlobbiBottomBar({
   
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30">
-      <div className="container mx-auto max-w-4xl px-4 pb-4">
-        <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl px-3 py-2 shadow-lg">
+      <div className="container mx-auto max-w-4xl px-2 sm:px-4 pb-2 sm:pb-4">
+        <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl px-1.5 sm:px-3 py-2 shadow-lg overflow-hidden">
           {/* 3-column grid: left | center | right */}
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-0.5 sm:gap-2">
             {/* Left Group - aligned to end (closer to center) */}
-            <div className="flex items-center justify-end gap-1">
+            <div className="flex items-center justify-end gap-0 sm:gap-1 overflow-hidden">
               <BottomBarButton 
                 onClick={onBlobbiesClick} 
                 icon={<Users className="size-4" />} 
@@ -2107,13 +2107,13 @@ function BlobbiBottomBar({
             {/* Center Action Button */}
             <button
               onClick={onActionsClick}
-              className="flex items-center justify-center size-12 -mt-4 mx-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all border-4 border-background"
+              className="flex items-center justify-center size-11 sm:size-12 -mt-3 sm:-mt-4 mx-1 sm:mx-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all border-4 border-background shrink-0"
             >
-              <HeartHandshake className="size-5" />
+              <HeartHandshake className="size-4 sm:size-5" />
             </button>
             
             {/* Right Group - aligned to start (closer to center) */}
-            <div className="flex items-center justify-start gap-1">
+            <div className="flex items-center justify-start gap-0 sm:gap-1 overflow-hidden">
               <BottomBarButton onClick={onShopClick} icon={<ShoppingBag className="size-4" />} label="Shop" />
               <BottomBarButton onClick={onInventoryClick} icon={<Package className="size-4" />} label="Inventory" />
             </div>
@@ -2150,7 +2150,7 @@ function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default'
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-[56px]"
+      className="flex flex-col items-center gap-0.5 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-0 sm:min-w-[56px]"
     >
       <div className="relative">
         {icon}
@@ -2163,7 +2163,7 @@ function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default'
           </span>
         )}
       </div>
-      <span className="text-[10px] text-muted-foreground">{label}</span>
+      <span className="text-[10px] text-muted-foreground truncate max-w-[48px] sm:max-w-none">{label}</span>
     </button>
   );
 }

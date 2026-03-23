@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 
 import type { ShopItem } from '../types/shop.types';
 import { formatEffectSummary } from '../lib/blobbi-shop-utils';
-import { cn } from '@/lib/utils';
+import { cn, formatCompactNumber } from '@/lib/utils';
 
 interface BlobbiShopItemRowProps {
   item: ShopItem;
@@ -49,10 +49,10 @@ export function BlobbiShopItemRow({ item, availableCoins, onPurchaseClick }: Blo
       {/* Price & Purchase Button */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 hidden sm:inline-flex">
-          {item.price} coins
+          {formatCompactNumber(item.price)} coins
         </Badge>
         <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 sm:hidden text-xs px-2">
-          {item.price}
+          {formatCompactNumber(item.price)}
         </Badge>
         <Button
           variant={isAffordable && !isDisabled ? 'default' : 'secondary'}
