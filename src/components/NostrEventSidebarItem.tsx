@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
-import { GripVertical, X, FileText } from 'lucide-react';
+import { GripVertical, X, FileText, Scroll } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { nip19 } from 'nostr-tools';
 import type { NostrMetadata } from '@nostrify/nostrify';
+import type { ComponentType } from 'react';
 
 import { cn } from '@/lib/utils';
 import { nostrUriToNip19 } from '@/lib/sidebarItems';
@@ -14,6 +15,14 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { genUserName } from '@/lib/genUserName';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNostrEventSidebar } from '@/hooks/useNostrEventSidebar';
+
+/**
+ * Icons for well-known kinds that aren't in EXTRA_KINDS.
+ * Used as a fallback when getKindIcon() returns undefined.
+ */
+const KNOWN_KIND_ICONS: Record<number, ComponentType<{ className?: string }>> = {
+  30000: Scroll,  // NIP-51 lists
+};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -63,7 +72,7 @@ function ProfileSidebarLabel({ pubkey }: { pubkey: string }) {
 // ── Event sidebar item (non-profile) ──────────────────────────────────────────
 
 function EventSidebarIcon({ kind, className }: { kind: number; className?: string }) {
-  const Icon = getKindIcon(kind) ?? FileText;
+  const Icon = getKindIcon(kind) ?? KNOWN_KIND_ICONS[kind] ?? FileText;
   return <Icon className={cn('size-6', className)} />;
 }
 
