@@ -54,6 +54,7 @@ import { WalletSettingsPage } from "./pages/WalletSettingsPage";
 import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
 import { WorldPage } from "./pages/WorldPage";
 import { ArchivePage } from "./pages/ArchivePage";
+import { WikipediaPage } from "./pages/WikipediaPage";
 
 const pollsDef = getExtraKindDef("polls")!;
 const colorsDef = getExtraKindDef("colors")!;
@@ -210,6 +211,7 @@ export function AppRouter() {
             <Route path="/badges" element={<BadgesPage />} />
             <Route path="/books" element={<BooksPage />} />
             <Route path="/archive" element={<ArchivePage />} />
+            <Route path="/wikipedia" element={<WikipediaPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/safety" element={<CSAEPolicyPage />} />

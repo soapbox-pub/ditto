@@ -40,11 +40,13 @@ import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { timeAgo } from '@/lib/timeAgo';
 import { formatNumber } from '@/lib/formatNumber';
+import { extractWikipediaTitle } from '@/lib/linkEmbed';
 import { cn } from '@/lib/utils';
 import {
   useExternalUserReaction,
@@ -312,9 +314,14 @@ export function ExternalContentPage() {
   const linkPreviewUrl = content?.type === 'url' ? content.value : null;
   const { data: linkPreview } = useLinkPreview(linkPreviewUrl);
 
-  const pageTitle = linkPreview?.title ?? (content ? headerLabel(content) : 'External Content');
+  // For Wikipedia URLs, use the Wikipedia API for accurate titles.
+  const wikiTitle = useMemo(() => linkPreviewUrl ? extractWikipediaTitle(linkPreviewUrl) : null, [linkPreviewUrl]);
+  const { data: wikiSummary } = useWikipediaSummary(wikiTitle);
+  const resolvedTitle = wikiSummary?.title ?? linkPreview?.title;
 
-  useSeoMeta({ title: content ? (linkPreview?.title ? `${linkPreview.title} | ${config.appName}` : seoTitle(content, config.appName)) : `External Content | ${config.appName}` });
+  const pageTitle = resolvedTitle ?? (content ? headerLabel(content) : 'External Content');
+
+  useSeoMeta({ title: content ? (resolvedTitle ? `${resolvedTitle} | ${config.appName}` : seoTitle(content, config.appName)) : `External Content | ${config.appName}` });
 
   // Build the NIP-73 identifier for comments.
   // For URLs, the raw URL is used. For others, the full prefixed identifier.
@@ -381,10 +388,10 @@ export function ExternalContentPage() {
       {/* Non-sticky transparent header */}
       <div className="flex items-center gap-4 px-4 pt-4 pb-5">
         <Link
-          to={content.type === 'isbn' ? '/books' : '/'}
+          to={content.type === 'isbn' ? '/books' : wikiTitle ? '/wikipedia' : '/'}
           className={cn(
             'p-2 rounded-full hover:bg-secondary transition-colors',
-            content.type !== 'isbn' && 'sidebar:hidden',
+            content.type !== 'isbn' && !wikiTitle && 'sidebar:hidden',
           )}
         >
           <ArrowLeft className="size-5" />

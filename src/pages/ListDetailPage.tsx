@@ -480,8 +480,8 @@ export function ListDetailPage() {
 
   return (
     <main>
-      {/* Sticky header */}
-      <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10')}>
+      {/* Header */}
+      <div>
         <div className="flex items-center gap-4 px-4 pt-4 pb-3">
           <button
             onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/lists')}
@@ -614,11 +614,12 @@ export function ListDetailPage() {
           </div>
         )}
 
-        {/* Tab bar */}
-        <div className="flex border-b border-border">
-          <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
-          <TabButton label="Members" active={activeTab === 'members'} onClick={() => setActiveTab('members')} />
-        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border bg-background/80 backdrop-blur-md z-10')}>
+        <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
+        <TabButton label="Members" active={activeTab === 'members'} onClick={() => setActiveTab('members')} />
       </div>
 
       {/* Tab content */}
