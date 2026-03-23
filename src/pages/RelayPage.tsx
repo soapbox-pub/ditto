@@ -10,59 +10,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useMuteList } from '@/hooks/useMuteList';
+import { useRelayInfo } from '@/hooks/useRelayInfo';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { PageHeader } from '@/components/PageHeader';
 import type { NostrEvent } from '@nostrify/nostrify';
 import NotFound from './NotFound';
-
-/** NIP-11 Relay Information Document. */
-interface RelayInfo {
-  name?: string;
-  description?: string;
-  banner?: string;
-  icon?: string;
-  pubkey?: string;
-  contact?: string;
-  supported_nips?: number[];
-  software?: string;
-  version?: string;
-  limitation?: {
-    auth_required?: boolean;
-    payment_required?: boolean;
-    restricted_writes?: boolean;
-    max_message_length?: number;
-    max_subscriptions?: number;
-    max_event_tags?: number;
-    max_content_length?: number;
-    max_limit?: number;
-  };
-  fees?: {
-    admission?: { amount: number; unit: string }[];
-    subscription?: { amount: number; unit: string; period?: number }[];
-  };
-}
-
-/** Fetch NIP-11 relay info document over HTTP. */
-function useRelayInfo(relayUrl: string | undefined) {
-  return useQuery<RelayInfo>({
-    queryKey: ['relay-info', relayUrl],
-    queryFn: async ({ signal }) => {
-      if (!relayUrl) throw new Error('No relay URL');
-      const httpUrl = relayUrl.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
-      const response = await fetch(httpUrl, {
-        headers: { Accept: 'application/nostr+json' },
-        signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
-    },
-    enabled: !!relayUrl,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-  });
-}
 
 /** Fetch the latest events from a specific relay, filtered to supported kinds. */
 function useRelayFeed(relayUrl: string | undefined, kinds: number[]) {
@@ -113,7 +67,7 @@ export function RelayPage() {
     }
   }, [relayUrl]);
 
-  const { data: info, isLoading: infoLoading, isError: infoError } = useRelayInfo(relayUrl);
+  const { data: info, isLoading: infoLoading, isError: infoError } = useRelayInfo(relayUrl ?? '');
   const { data: events, isLoading: eventsLoading } = useRelayFeed(relayUrl, kinds);
 
   const filteredEvents = useMemo(() => {
