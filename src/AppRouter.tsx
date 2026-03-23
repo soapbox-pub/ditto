@@ -52,8 +52,7 @@ import { VideosFeedPage } from "./pages/VideosFeedPage";
 import { VinesFeedPage } from "./pages/VinesFeedPage";
 import { WalletSettingsPage } from "./pages/WalletSettingsPage";
 import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
-import { ShopPage } from "./pages/ShopPage";
-import { AchievementsPage } from "./pages/AchievementsPage";
+import { BadgesPage } from "./pages/BadgesPage";
 import { BadgeCreatePage } from "./pages/BadgeCreatePage";
 import { WorldPage } from "./pages/WorldPage";
 import { ArchivePage } from "./pages/ArchivePage";
@@ -209,12 +208,10 @@ export function AppRouter() {
             <Route path="/bookmarks" element={<BookmarksPage />} />
             <Route path="/ai-chat" element={<AIChatPage />} />
             <Route path="/world" element={<WorldPage />} />
-            <Route path="/badges" element={<Navigate to="/shop" replace />} />
+            <Route path="/badges" element={<BadgesPage />} />
             <Route path="/badges/create" element={<BadgeCreatePage />} />
             <Route path="/badges/created" element={<BadgeCreatedPage />} />
             <Route path="/badges/manage" element={<BadgeManagePage />} />
-            <Route path="/achievements" element={<AchievementsPage />} />
-            <Route path="/shop" element={<ShopPage />} />
             <Route path="/books" element={<BooksPage />} />
             <Route path="/archive" element={<ArchivePage />} />
             <Route path="/help" element={<HelpPage />} />

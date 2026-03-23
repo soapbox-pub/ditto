@@ -292,7 +292,7 @@ export function BadgeCreatePage() {
   return (
     <div className="max-w-lg mx-auto px-4 py-8">
       <div className="flex items-center gap-3 mb-6">
-        <Link to="/shop" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
+        <Link to="/badges" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
           <ArrowLeft className="size-5" />
         </Link>
         <div className="inline-flex items-center justify-center size-10 rounded-xl bg-primary/10">
