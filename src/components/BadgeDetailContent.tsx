@@ -69,7 +69,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const isAchievement = isAchievementBadge(event);
 
   // Stats for action bar
-  const { data: stats } = useEventStats(event.id);
+  const { data: stats } = useEventStats(event.id, event);
   const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
 
   const awardsQuery = useQuery({

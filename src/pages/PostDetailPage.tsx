@@ -922,7 +922,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     );
   }, [imetaMap, isTextNote]);
 
-  const { data: stats } = useEventStats(event.id);
+  const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
 
   // Derive top 3 reaction emojis from actual interaction events (NIP-85 doesn't provide these)
