@@ -478,9 +478,18 @@ function WikipediaSearchBar() {
                   className="flex items-center gap-3 px-3 py-2.5 w-full text-left hover:bg-secondary/60 transition-colors"
                   onClick={() => handleSelect(result)}
                 >
-                  <div className="w-10 h-10 rounded bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center shrink-0">
-                    <BookOpen className="size-4 text-muted-foreground/50" />
-                  </div>
+                  {result.thumbnail ? (
+                    <img
+                      src={result.thumbnail}
+                      alt=""
+                      className="w-10 h-10 rounded object-cover bg-secondary shrink-0"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center shrink-0">
+                      <BookOpen className="size-4 text-muted-foreground/50" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{result.title}</p>
                     <p className="text-xs text-muted-foreground truncate">{result.description}</p>

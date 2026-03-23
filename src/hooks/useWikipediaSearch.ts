@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-/** A search result from the Wikipedia opensearch API. */
+/** A search result from the Wikipedia search API. */
 export interface WikipediaSearchResult {
   /** Article title */
   title: string;
@@ -8,6 +8,16 @@ export interface WikipediaSearchResult {
   description: string;
   /** Full URL to the Wikipedia article */
   url: string;
+  /** Thumbnail URL (if available) */
+  thumbnail?: string;
+}
+
+interface PageResult {
+  pageid: number;
+  title: string;
+  index: number;
+  description?: string;
+  thumbnail?: { source: string; width: number; height: number };
 }
 
 async function searchWikipedia(
@@ -16,11 +26,13 @@ async function searchWikipedia(
 ): Promise<WikipediaSearchResult[]> {
   const params = new URLSearchParams({
     action: 'query',
-    list: 'search',
-    srsearch: query,
-    srnamespace: '0',
-    srlimit: '10',
-    srprop: 'snippet',
+    generator: 'search',
+    gsrsearch: query,
+    gsrnamespace: '0',
+    gsrlimit: '10',
+    prop: 'pageimages|description',
+    piprop: 'thumbnail',
+    pithumbsize: '80',
     format: 'json',
     origin: '*',
   });
@@ -33,14 +45,16 @@ async function searchWikipedia(
   if (!res.ok) return [];
 
   const data = await res.json();
-  const results: Array<{ title: string; snippet: string; pageid: number }> =
-    data?.query?.search ?? [];
+  const pages: Record<string, PageResult> = data?.query?.pages ?? {};
 
-  return results.map((r) => ({
-    title: r.title,
-    description: r.snippet.replace(/<\/?[^>]+(>|$)/g, ''), // strip HTML tags
-    url: `https://en.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/ /g, '_'))}`,
-  }));
+  return Object.values(pages)
+    .sort((a, b) => a.index - b.index)
+    .map((p) => ({
+      title: p.title,
+      description: p.description ?? '',
+      url: `https://en.wikipedia.org/wiki/${encodeURIComponent(p.title.replace(/ /g, '_'))}`,
+      thumbnail: p.thumbnail?.source,
+    }));
 }
 
 /** Hook to search Wikipedia articles by title/content. */
