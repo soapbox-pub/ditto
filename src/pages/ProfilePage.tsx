@@ -5,7 +5,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -155,6 +155,9 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
+  const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
+  const sidebarId = `nostr:${npubEncoded}`;
+  const isInSidebar = orderedItems.includes(sidebarId);
   const [reportOpen, setReportOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
@@ -198,6 +201,17 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     setTimeout(() => setAddToListOpen(true), 150);
   };
 
+  const handleToggleSidebar = () => {
+    if (isInSidebar) {
+      removeFromSidebar(sidebarId);
+      toast({ title: 'Removed from sidebar' });
+    } else {
+      addToSidebar(sidebarId);
+      toast({ title: 'Added to sidebar' });
+    }
+    close();
+  };
+
   const handleRecovery = () => {
     close();
     setTimeout(() => setRecoveryOpen(true), 150);
@@ -224,6 +238,11 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             icon={<ListPlus className="size-5" />}
             label="Add to list"
             onClick={handleAddToList}
+          />
+          <MenuRow
+            icon={isInSidebar ? <Trash2 className="size-5" /> : <PanelLeft className="size-5" />}
+            label={isInSidebar ? 'Remove from sidebar' : 'Add to sidebar'}
+            onClick={handleToggleSidebar}
           />
         </div>
 
