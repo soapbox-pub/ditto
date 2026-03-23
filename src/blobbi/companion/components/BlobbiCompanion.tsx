@@ -15,8 +15,7 @@ import type {
   Position,
 } from '../types/companion.types';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
-import { calculateIdleBob, calculateWalkBounce } from '../utils/animation';
-import { lerp, easeOutCubic } from '../utils/movement';
+import { calculateIdleBob, calculateWalkBounce, calculateEntryAnimation } from '../utils/animation';
 import { BlobbiCompanionVisual } from './BlobbiCompanionVisual';
 
 interface BlobbiCompanionProps {
@@ -75,15 +74,25 @@ export function BlobbiCompanion({
     return () => cancelAnimationFrame(animationId);
   }, []);
   
-  // Calculate position
+  // Calculate position and transform
   let x: number;
   let y: number;
+  let rotation = 0;
+  let scaleX = 1;
+  let scaleY = 1;
   
   if (isEntering) {
-    // Entry animation - lerp from start to end
-    const eased = easeOutCubic(entryProgress);
-    x = lerp(entryStartPosition.x, entryEndPosition.x, eased);
-    y = lerp(entryStartPosition.y, entryEndPosition.y, eased);
+    // Playful "squeezing out" entry animation
+    const entryAnim = calculateEntryAnimation(
+      entryStartPosition,
+      entryEndPosition,
+      entryProgress
+    );
+    x = entryAnim.position.x;
+    y = entryAnim.position.y;
+    rotation = entryAnim.rotation;
+    scaleX = entryAnim.scaleX;
+    scaleY = entryAnim.scaleY;
   } else if (motion.isDragging) {
     // Dragging - use motion position directly
     x = motion.position.x;
@@ -102,6 +111,11 @@ export function BlobbiCompanion({
       y -= calculateIdleBob(animationTime);
     }
   }
+  
+  // Build transform string
+  const transform = isEntering 
+    ? `rotate(${rotation}deg) scaleX(${scaleX}) scaleY(${scaleY})`
+    : undefined;
   
   // Drag handlers
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -160,6 +174,8 @@ export function BlobbiCompanion({
         height: config.size,
         zIndex: motion.isDragging ? 10001 : 10000,
         cursor: motion.isDragging ? 'grabbing' : 'grab',
+        transform,
+        transformOrigin: 'center bottom',
         transition: motion.isDragging ? 'none' : undefined,
       }}
       onPointerDown={handlePointerDown}
@@ -174,9 +190,9 @@ export function BlobbiCompanion({
         companion={companion}
         size={config.size}
         eyeOffset={eyeOffset}
-        direction={motion.direction}
+        direction={isEntering ? 'right' : motion.direction}
         isDragging={motion.isDragging}
-        isWalking={state === 'walking'}
+        isWalking={state === 'walking' || isEntering}
       />
     </div>
   );

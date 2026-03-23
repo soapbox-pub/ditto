@@ -95,8 +95,8 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   );
   
   const entryPosition = useMemo(() =>
-    calculateEntryPosition(viewport.height, config.size, config),
-    [viewport.height, config]
+    calculateEntryPosition(viewport.width, viewport.height, config.size, config),
+    [viewport.width, viewport.height, config]
   );
   
   const restingPosition = useMemo(() =>

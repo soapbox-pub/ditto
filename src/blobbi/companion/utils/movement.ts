@@ -36,26 +36,44 @@ export function calculateGroundY(
 }
 
 /**
- * Calculate the entry position (behind the sidebar).
- * The companion starts just behind the sidebar's left edge,
- * so it appears to emerge from behind the sidebar.
+ * Calculate the left edge of the main content area.
+ * This accounts for the centered layout and sidebar.
+ */
+export function calculateMainContentLeftEdge(
+  viewportWidth: number,
+  config: CompanionConfig = DEFAULT_COMPANION_CONFIG
+): number {
+  // The layout is centered with max-width of 1200px
+  // Content area starts after the sidebar (300px)
+  const layoutWidth = Math.min(viewportWidth, config.layout.maxContentWidth);
+  const layoutLeft = (viewportWidth - layoutWidth) / 2;
+  return layoutLeft + config.layout.sidebarWidth;
+}
+
+/**
+ * Calculate the entry position (at the left edge of main content area).
+ * The companion starts just behind/at the content area boundary,
+ * so it appears to emerge from the previous page into the current one.
  */
 export function calculateEntryPosition(
+  viewportWidth: number,
   viewportHeight: number,
   companionSize: number,
   config: CompanionConfig = DEFAULT_COMPANION_CONFIG
 ): Position {
   const groundY = calculateGroundY(viewportHeight, companionSize, config);
+  const contentLeftEdge = calculateMainContentLeftEdge(viewportWidth, config);
+  
   return {
-    // Start just behind the sidebar (partially hidden)
-    // padding.left is the sidebar width, so start at half that minus the companion size
-    x: (config.padding.left / 2) - companionSize,
+    // Start mostly hidden behind the content edge
+    x: contentLeftEdge - companionSize + 10, // Just 10px visible
     y: groundY,
   };
 }
 
 /**
  * Calculate the initial resting position after entry animation.
+ * This is where the companion ends up after the entry animation completes.
  */
 export function calculateRestingPosition(
   viewportWidth: number,
@@ -64,8 +82,11 @@ export function calculateRestingPosition(
   config: CompanionConfig = DEFAULT_COMPANION_CONFIG
 ): Position {
   const groundY = calculateGroundY(viewportHeight, companionSize, config);
+  const contentLeftEdge = calculateMainContentLeftEdge(viewportWidth, config);
+  
   return {
-    x: config.padding.left + 20, // Just past the sidebar
+    // Rest a bit into the content area
+    x: contentLeftEdge + config.padding.left,
     y: groundY,
   };
 }

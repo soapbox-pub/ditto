@@ -93,6 +93,13 @@ export interface CompanionConfig {
     right: number;
     bottom: number;
   };
+  /** Layout reference points */
+  layout: {
+    /** Width of the left sidebar */
+    sidebarWidth: number;
+    /** Max width of the main layout container */
+    maxContentWidth: number;
+  };
   /** Walking speed range (pixels per second) */
   walkSpeed: {
     min: number; // At 0 energy

@@ -66,6 +66,7 @@ export type {
 export {
   calculateMovementBounds,
   calculateGroundY,
+  calculateMainContentLeftEdge,
   calculateEntryPosition,
   calculateRestingPosition,
   lerp,
@@ -77,6 +78,7 @@ export {
 
 export {
   createEntryAnimation,
+  calculateEntryAnimation,
   calculateIdleBob,
   calculateWalkBounce,
   smoothTransition,
