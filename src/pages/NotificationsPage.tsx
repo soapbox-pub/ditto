@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageSquare, Loader2 } from 'lucide-react';
+import { Zap, AtSign, MessageSquare, Loader2, Award, Check } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -15,6 +15,7 @@ import { TabButton } from '@/components/TabButton';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEvent } from '@/hooks/useEvent';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { useNotifications, type GroupedNotificationItem, type NotificationItem } from '@/hooks/useNotifications';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
@@ -25,6 +26,11 @@ import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
+import { useAcceptBadge } from '@/hooks/useAcceptBadge';
+import { useProfileBadges } from '@/hooks/useProfileBadges';
+import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
+import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
+import { Button } from '@/components/ui/button';
 
 type NotificationTab = 'all' | 'mentions';
 
@@ -182,6 +188,10 @@ function GroupedNotificationView({ group }: { group: GroupedNotificationItem }) 
       return <MentionNotification item={group.actors[0]} isNew={group.isNew} />;
     case 1111:
       return <CommentNotification item={group.actors[0]} isNew={group.isNew} />;
+    case 8:
+      return solo
+        ? <BadgeAwardNotification item={group.actors[0]} isNew={group.isNew} />
+        : <BadgeAwardNotificationGroup group={group} />;
     default:
       return null;
   }
@@ -575,6 +585,154 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
         />
       </div>
       <NoteCard event={item.event} className="border-0" />
+    </NotificationWrapper>
+  );
+}
+
+// ──────────────────────────────────────
+// Badge Award helpers
+// ──────────────────────────────────────
+
+/** Extract pubkey and identifier from a kind 8 award event's `a` tag. */
+function parseBadgeATag(event: NostrEvent): { pubkey: string; identifier: string } | undefined {
+  const aVal = event.tags.find(([n, v]) => n === 'a' && v?.startsWith(`${BADGE_DEFINITION_KIND}:`))?.[1];
+  if (!aVal) return undefined;
+  const parts = aVal.split(':');
+  if (parts.length < 3 || !parts[1] || !parts[2]) return undefined;
+  return { pubkey: parts[1], identifier: parts.slice(2).join(':') };
+}
+
+/** Turn a d-tag slug like "first-post" into "First Post". */
+function unslugify(slug: string): string {
+  return slug
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Hook: resolve the display name for a single badge award event. */
+function useBadgeAwardName(awardEvent: NostrEvent): string | undefined {
+  const parsed = useMemo(() => parseBadgeATag(awardEvent), [awardEvent]);
+  const refs = useMemo(() => (parsed ? [parsed] : []), [parsed]);
+  const { badgeMap } = useBadgeDefinitions(refs);
+
+  if (!parsed) return undefined;
+  const aTag = `${BADGE_DEFINITION_KIND}:${parsed.pubkey}:${parsed.identifier}`;
+  return badgeMap.get(aTag)?.name || unslugify(parsed.identifier);
+}
+
+// ──────────────────────────────────────
+// Accept Badge Button (shared by single and grouped badge notifications)
+// ──────────────────────────────────────
+function AcceptBadgeButton({ awardEvent }: { awardEvent: NostrEvent }) {
+  const { user } = useCurrentUser();
+  const { refs } = useProfileBadges(user?.pubkey);
+  const { mutate: acceptBadge, isPending, isSuccess } = useAcceptBadge();
+
+  const aTag = awardEvent.tags.find(([n, v]) => n === 'a' && v?.startsWith('30009:'))?.[1];
+
+  // Check if already accepted
+  const alreadyAccepted = refs.some((r) => r.aTag === aTag) || isSuccess;
+
+  if (!aTag || !user) return null;
+
+  if (alreadyAccepted) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <Check className="size-3" />
+        Accepted
+      </span>
+    );
+  }
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className="h-7 px-2.5 text-xs font-medium gap-1 transition-colors hover:bg-primary hover:text-primary-foreground"
+      onClick={() => acceptBadge({ aTag, awardEventId: awardEvent.id })}
+      disabled={isPending}
+    >
+      {isPending ? (
+        <Loader2 className="size-3 animate-spin" />
+      ) : (
+        <>
+          <Award className="size-3" />
+          Accept
+        </>
+      )}
+    </Button>
+  );
+}
+
+// ──────────────────────────────────────
+// Badge Award Notification (single actor)
+// ──────────────────────────────────────
+function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const badgeName = useBadgeAwardName(item.event);
+
+  return (
+    <NotificationWrapper isNew={isNew}>
+      <div className="px-4 pt-3 pb-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <NotificationHeader
+              actorPubkey={item.event.pubkey}
+              icon={<Award className="size-4 text-primary" />}
+              action={badgeName ? `awarded you the "${badgeName}" badge` : 'awarded you a badge'}
+            />
+          </div>
+          <div className="shrink-0">
+            <AcceptBadgeButton awardEvent={item.event} />
+          </div>
+        </div>
+      </div>
+    </NotificationWrapper>
+  );
+}
+
+// ──────────────────────────────────────
+// Badge Award Notification (grouped)
+// ──────────────────────────────────────
+function BadgeAwardNotificationGroup({ group }: { group: GroupedNotificationItem }) {
+  const badgeRefs = useMemo(() => {
+    const refs: Array<{ pubkey: string; identifier: string }> = [];
+    for (const actor of group.actors) {
+      const parsed = parseBadgeATag(actor.event);
+      if (parsed) refs.push(parsed);
+    }
+    return refs;
+  }, [group.actors]);
+
+  const { badgeMap } = useBadgeDefinitions(badgeRefs);
+
+  return (
+    <NotificationWrapper isNew={group.isNew}>
+      <GroupHeader
+        actors={group.actors}
+        icon={<Award className="size-4 text-primary" />}
+        action="awarded you badges"
+      />
+      <div className="px-4 pb-3 space-y-2">
+        {group.actors.map((actor) => {
+          const parsed = parseBadgeATag(actor.event);
+          const aTag = parsed ? `${BADGE_DEFINITION_KIND}:${parsed.pubkey}:${parsed.identifier}` : undefined;
+          const badgeName = aTag ? badgeMap.get(aTag)?.name : undefined;
+          const displayName = badgeName || (parsed ? unslugify(parsed.identifier) : undefined);
+
+          return (
+            <div key={actor.event.id} className="flex items-center justify-between gap-2">
+              {displayName && (
+                <span className="text-xs text-muted-foreground truncate">
+                  {displayName}
+                </span>
+              )}
+              <div className="shrink-0 ml-auto">
+                <AcceptBadgeButton awardEvent={actor.event} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </NotificationWrapper>
   );
 }

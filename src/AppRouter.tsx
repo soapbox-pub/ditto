@@ -14,7 +14,7 @@ import { getExtraKindDef } from "./lib/extraKinds";
 import { AdvancedSettingsPage } from "./pages/AdvancedSettingsPage";
 import { AIChatPage } from "./pages/AIChatPage";
 import { BlobbiPage } from "./pages/BlobbiPage";
-import { BadgesFeedPage } from "./pages/BadgesFeedPage";
+import { BadgesPage } from "./pages/BadgesPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { BooksPage } from "./pages/BooksPage";
 import { ContentPage } from "./pages/ContentPage";
@@ -53,6 +53,7 @@ import { VinesFeedPage } from "./pages/VinesFeedPage";
 import { WalletSettingsPage } from "./pages/WalletSettingsPage";
 import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
 import { WorldPage } from "./pages/WorldPage";
+import { ArchivePage } from "./pages/ArchivePage";
 
 const pollsDef = getExtraKindDef("polls")!;
 const colorsDef = getExtraKindDef("colors")!;
@@ -206,8 +207,9 @@ export function AppRouter() {
             <Route path="/ai-chat" element={<AIChatPage />} />
             <Route path="/blobbi" element={<BlobbiPage />} />
             <Route path="/world" element={<WorldPage />} />
-            <Route path="/badges" element={<BadgesFeedPage />} />
+            <Route path="/badges" element={<BadgesPage />} />
             <Route path="/books" element={<BooksPage />} />
+            <Route path="/archive" element={<ArchivePage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/safety" element={<CSAEPolicyPage />} />

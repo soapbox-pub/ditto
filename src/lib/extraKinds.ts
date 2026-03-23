@@ -1,4 +1,6 @@
 import type { FeedSettings } from '@/contexts/AppContext';
+import type { ComponentType } from 'react';
+import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
 /** A sub-kind that lives under a parent ExtraKindDef. */
 export interface SubKindDef {
@@ -401,11 +403,11 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'badges',
     showKey: 'showBadges',
     label: 'Badges',
-    description: 'Achievement badges and awards (NIP-58)',
+    description: 'Badges and awards (NIP-58)',
     route: 'badges',
     addressable: true,
     section: 'whimsy',
-    blurb: 'Discover achievement badges created on Nostr. Badge issuers award them for recognition, participation, or appreciation.',
+    blurb: 'Discover badges created on Nostr. Badge issuers award them for recognition, participation, or appreciation.',
     subKinds: [
       {
         kind: 30009,
@@ -509,6 +511,42 @@ export function getPageKinds(def: ExtraKindDef, feedSettings: FeedSettings): num
   return def.subKinds
     .filter((sub) => feedSettings[sub.showKey])
     .map((sub) => sub.kind);
+}
+
+/** Map from kind number to ExtraKindDef id, for quick icon lookup. */
+const KIND_TO_ID = new Map<number, string>();
+for (const def of EXTRA_KINDS) {
+  KIND_TO_ID.set(def.kind, def.id);
+  if (def.subKinds) {
+    for (const sub of def.subKinds) {
+      if (!KIND_TO_ID.has(sub.kind)) {
+        KIND_TO_ID.set(sub.kind, def.id);
+      }
+    }
+  }
+  if (def.extraFeedKinds) {
+    for (const k of def.extraFeedKinds) {
+      if (!KIND_TO_ID.has(k)) {
+        KIND_TO_ID.set(k, def.id);
+      }
+    }
+  }
+}
+
+/** Get the sidebar/content-type ID for a given kind number, if any. */
+export function getKindId(kind: number): string | undefined {
+  return KIND_TO_ID.get(kind);
+}
+
+/**
+ * Get the icon component for a given kind number.
+ * Looks up the kind in EXTRA_KINDS and resolves to the matching icon from CONTENT_KIND_ICONS.
+ * Returns undefined if no icon mapping exists (caller provides fallback).
+ */
+export function getKindIcon(kind: number): ComponentType<{ className?: string }> | undefined {
+  const id = KIND_TO_ID.get(kind);
+  if (!id) return undefined;
+  return CONTENT_KIND_ICONS[id];
 }
 
 /** Return all extra kind numbers (regardless of settings). */

@@ -17,6 +17,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { EmojiPicker, type EmojiSelection } from '@/components/EmojiPicker';
 import { BlobbiShapePicker } from '@/components/BlobbiShapePicker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useProfileBadges } from '@/hooks/useProfileBadges';
+import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
+import { BadgeShowcaseGrid } from '@/components/BadgeShowcaseGrid';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 /** Shared classes for all editable fields — static muted bg when idle, border on hover/focus */
 const editableBase = [
@@ -118,6 +122,11 @@ export function ProfileCard({
   const [nip05Focused, setNip05Focused] = useState(false);
   const [fieldsOpen, setFieldsOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+
+  const { user } = useCurrentUser();
+  const isOwnProfile = !!pubkey && !!user && pubkey === user.pubkey;
+  const { refs: badgeRefs, isLoading: badgesLoading } = useProfileBadges(pubkey);
+  const { badgeMap, isLoading: defsLoading } = useBadgeDefinitions(badgeRefs);
 
   const displayName = metadata.display_name || metadata.name || genUserName(pubkey);
   const initial = displayName[0]?.toUpperCase() ?? '?';
@@ -434,6 +443,25 @@ export function ProfileCard({
           </Collapsible>
         )}
       </div>
+
+      {/* Badge showcase */}
+      {(badgeRefs.length > 0 || badgesLoading) && (
+        <div className="px-4 pb-3">
+          <BadgeShowcaseGrid
+            items={badgeRefs.map((ref) => ({
+              aTag: ref.aTag,
+              pubkey: ref.pubkey,
+              identifier: ref.identifier,
+              badge: badgeMap.get(ref.aTag),
+            }))}
+            maxVisible={8}
+            thumbnailSize={44}
+            showEditButton={isOwnProfile}
+            isLoading={badgesLoading || defsLoading}
+            gridCols="grid-cols-4 sm:grid-cols-5"
+          />
+        </div>
+      )}
     </div>
   );
 }

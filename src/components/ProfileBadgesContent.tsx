@@ -142,47 +142,45 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : showRefs.length > 0 ? (
-        <div className="rounded-xl border border-border bg-secondary/30 p-3">
-          <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
-            {showRefs.map((ref, idx) => {
-              const badge = badgeMap.get(ref.aTag);
-              const badgeUrl = `/${nip19.naddrEncode({ kind: 30009, pubkey: ref.pubkey, identifier: ref.identifier })}`;
+        <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+          {showRefs.map((ref, idx) => {
+            const badge = badgeMap.get(ref.aTag);
+            const badgeUrl = `/${nip19.naddrEncode({ kind: 30009, pubkey: ref.pubkey, identifier: ref.identifier })}`;
 
-              return (
-                <Link
-                  key={`${ref.aTag}-${idx}`}
-                  to={badgeUrl}
-                  className="flex flex-col items-center gap-1.5 group"
-                  title={badge?.description || badge?.name || ref.identifier}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {badge?.thumb ? (
-                    <img
-                      src={badge.thumb}
-                      alt={badge.name}
-                      className="size-12 rounded-lg object-cover border border-border bg-background transition-transform group-hover:scale-110"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  ) : (
-                    <div className="size-12 rounded-lg border border-border bg-background flex items-center justify-center transition-transform group-hover:scale-110">
-                      <Award className="size-6 text-muted-foreground" />
-                    </div>
-                  )}
-                  <span className="text-[10px] text-muted-foreground text-center leading-tight line-clamp-2 max-w-[4.5rem] group-hover:text-foreground transition-colors">
-                    {badge?.name || ref.identifier}
-                  </span>
-                </Link>
-              );
-            })}
-            {remaining > 0 && (
-              <div className="flex flex-col items-center justify-center gap-1.5">
-                <div className="size-12 rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-xs font-medium">
-                  +{remaining}
-                </div>
+            return (
+              <Link
+                key={`${ref.aTag}-${idx}`}
+                to={badgeUrl}
+                className="flex flex-col items-center gap-1.5 group"
+                title={badge?.description || badge?.name || ref.identifier}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {badge?.thumb ? (
+                  <img
+                    src={badge.thumb}
+                    alt={badge.name}
+                    className="size-12 rounded-lg object-cover transition-transform group-hover:scale-110"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                ) : (
+                  <div className="size-12 rounded-lg border border-border bg-background flex items-center justify-center transition-transform group-hover:scale-110">
+                    <Award className="size-6 text-muted-foreground" />
+                  </div>
+                )}
+                <span className="text-[10px] text-muted-foreground text-center leading-tight line-clamp-2 max-w-[4.5rem] group-hover:text-foreground transition-colors">
+                  {badge?.name || ref.identifier}
+                </span>
+              </Link>
+            );
+          })}
+          {remaining > 0 && (
+            <div className="flex flex-col items-center justify-center gap-1.5">
+              <div className="size-12 rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-xs font-medium">
+                +{remaining}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       ) : badgeRefs.length > 0 ? (
         <div className="rounded-xl border border-border bg-secondary/30 p-4 text-center text-sm text-muted-foreground">

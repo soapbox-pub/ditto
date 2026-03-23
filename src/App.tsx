@@ -142,6 +142,7 @@ const hardcodedConfig: AppConfig = {
   plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || "",
   plausibleEndpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT || "",
   savedFeeds: [],
+  imageQuality: 'compressed',
 };
 
 /**

@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Check, SeparatorHorizontal, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Pencil, Check, SeparatorHorizontal, Search, ChevronDown, ChevronUp, LinkIcon } from 'lucide-react';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { sidebarItemIcon, itemPath } from '@/lib/sidebarItems';
 import type { HiddenSidebarItem } from '@/hooks/useFeedSettings';
+import { nip19 } from 'nostr-tools';
 
 interface SidebarMoreMenuProps {
   editing: boolean;
@@ -108,9 +109,72 @@ export function SidebarMoreMenu({
   const [query, setQuery] = useState('');
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [addQuery, setAddQuery] = useState('');
+  const [linkInput, setLinkInput] = useState(false);
+  const [linkValue, setLinkValue] = useState('');
+  const [linkError, setLinkError] = useState('');
 
   const filtered = hiddenItems.filter((item) => item.label.toLowerCase().includes(query.toLowerCase()));
   const addFiltered = hiddenItems.filter((item) => item.label.toLowerCase().includes(addQuery.toLowerCase()));
+
+  const handleAddLink = () => {
+    const raw = linkValue.trim();
+    if (!raw) return;
+
+    // External content: URLs
+    if (raw.startsWith('https://') || raw.startsWith('http://')) {
+      onAdd(raw);
+      setLinkInput(false);
+      setLinkValue('');
+      setLinkError('');
+      return;
+    }
+
+    // External content: iso3166 codes
+    if (raw.startsWith('iso3166:')) {
+      const code = raw.slice('iso3166:'.length);
+      if (!/^[A-Za-z]{2}(-[A-Za-z0-9]+)?$/.test(code)) {
+        setLinkError('Invalid country/region code');
+        return;
+      }
+      onAdd(raw);
+      setLinkInput(false);
+      setLinkValue('');
+      setLinkError('');
+      return;
+    }
+
+    // External content: isbn
+    if (raw.startsWith('isbn:')) {
+      onAdd(raw);
+      setLinkInput(false);
+      setLinkValue('');
+      setLinkError('');
+      return;
+    }
+
+    // Nostr: strip "nostr:" prefix if present for validation
+    const bech32 = raw.startsWith('nostr:') ? raw.slice(6) : raw;
+
+    // Validate it's a valid NIP-19 identifier
+    try {
+      const decoded = nip19.decode(bech32);
+      const validTypes = ['npub', 'nprofile', 'note', 'nevent', 'naddr'];
+      if (!validTypes.includes(decoded.type)) {
+        setLinkError('Unsupported identifier type');
+        return;
+      }
+    } catch {
+      setLinkError('Invalid identifier');
+      return;
+    }
+
+    // Normalize to "nostr:" prefixed form
+    const nostrUri = `nostr:${bech32}`;
+    onAdd(nostrUri);
+    setLinkInput(false);
+    setLinkValue('');
+    setLinkError('');
+  };
 
   const main = useScrollCarets(true);
   const add = useScrollCarets();
@@ -143,6 +207,53 @@ export function SidebarMoreMenu({
           <SeparatorHorizontal className="size-4" />
           <span>Add divider</span>
         </button>
+        {linkInput ? (
+          <div className="flex flex-col gap-1 px-4 py-2 bg-background/85 rounded-2xl">
+            <div className="flex items-center gap-2">
+              <LinkIcon className="size-4 text-muted-foreground shrink-0" />
+              <input
+                value={linkValue}
+                onChange={(e) => { setLinkValue(e.target.value); setLinkError(''); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddLink();
+                  } else if (e.key === 'Escape') {
+                    setLinkInput(false);
+                    setLinkValue('');
+                    setLinkError('');
+                  }
+                }}
+                placeholder="URL, npub1..., iso3166:US, ..."
+                className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                autoFocus
+              />
+            </div>
+            {linkError && <p className="text-xs text-destructive pl-6">{linkError}</p>}
+            <div className="flex items-center gap-1.5 pl-6">
+              <button
+                onClick={handleAddLink}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Add
+              </button>
+              <button
+                onClick={() => { setLinkInput(false); setLinkValue(''); setLinkError(''); }}
+                className="text-xs text-muted-foreground hover:underline"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setLinkInput(true)}
+            className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85"
+          >
+            <LinkIcon className="size-4" />
+            <span>Add link</span>
+          </button>
+        )}
         <button onClick={onDoneEditing} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-primary font-medium hover:bg-primary/10 bg-background/85">
           <Check className="size-4" />
           <span>Done editing</span>

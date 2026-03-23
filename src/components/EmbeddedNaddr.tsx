@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
+import { Award, MessageSquareOff } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { NoteCard } from '@/components/NoteCard';
-import { MessageSquareOff } from 'lucide-react';
+import { parseBadgeDefinition } from '@/components/BadgeContent';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -80,7 +81,105 @@ export function EmbeddedNaddr({ addr, className }: EmbeddedNaddrProps) {
     );
   }
 
+  // Badge definitions get a compact showcase instead of a link-preview card
+  if (event.kind === 30009) {
+    return <EmbeddedBadgeCard event={event} className={className} />;
+  }
+
   return <EmbeddedNaddrCard event={event} className={className} />;
+}
+
+/** Compact badge showcase for kind 30009 embeds — smaller version of the feed BadgeContent. */
+function EmbeddedBadgeCard({ event, className }: { event: NostrEvent; className?: string }) {
+  const navigate = useNavigate();
+  const badge = useMemo(() => parseBadgeDefinition(event), [event]);
+
+  const naddrId = useMemo(() => {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+  }, [event]);
+
+  if (!badge) return <EmbeddedNaddrCard event={event} className={className} />;
+
+  const heroImage = badge.image
+    ?? badge.thumbs.find((t) => t.dimensions === '512x512')?.url
+    ?? badge.thumbs[0]?.url;
+
+  return (
+    <div
+      className={cn(
+        'group block rounded-2xl border border-border overflow-hidden',
+        'hover:bg-secondary/40 transition-colors cursor-pointer',
+        className,
+      )}
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/${naddrId}`);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/${naddrId}`);
+        }
+      }}
+    >
+      {/* Compact badge showcase */}
+      <div className="relative isolate flex flex-col items-center py-6 overflow-hidden">
+        {/* Rotating light rays — scaled down from the feed version */}
+        <div
+          className="absolute -z-10 pointer-events-none"
+          aria-hidden="true"
+          style={{
+            width: 240,
+            height: 240,
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -55%)',
+          }}
+        >
+          <div
+            className="w-full h-full animate-badge-spotlight"
+            style={{
+              background: `repeating-conic-gradient(
+                hsl(var(--primary) / 0.08) 0deg 6deg,
+                transparent 6deg 18deg
+              )`,
+              maskImage: 'radial-gradient(circle, black 15%, transparent 70%)',
+              WebkitMaskImage: 'radial-gradient(circle, black 15%, transparent 70%)',
+            }}
+          />
+        </div>
+
+        {/* Badge image */}
+        <div className="relative z-[1]">
+          {heroImage ? (
+            <img
+              src={heroImage}
+              alt={badge.name}
+              className="size-20 rounded-xl object-cover drop-shadow-lg"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <div className="size-20 rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
+              <Award className="size-8 text-primary/30" />
+            </div>
+          )}
+        </div>
+
+        {/* Badge info */}
+        <div className="relative z-[1] mt-3 text-center px-4 max-w-xs">
+          <p className="text-sm font-semibold leading-snug">{badge.name}</p>
+          {badge.description && (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{badge.description}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?: string }) {

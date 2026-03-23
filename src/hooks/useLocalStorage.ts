@@ -47,6 +47,22 @@ export function useLocalStorage<T>(
     }
   };
 
+  // Re-read from localStorage when the key changes (e.g. user-scoped keys
+  // switching to a different user). The useState initializer only runs once,
+  // so changing the key prop requires an explicit re-sync.
+  useEffect(() => {
+    try {
+      const item = localStorage.getItem(key);
+      setState(item ? deserialize(item) : defaultValue);
+    } catch (error) {
+      console.warn(`Failed to load ${key} from localStorage:`, error);
+      setState(defaultValue);
+    }
+  // defaultValue is intentionally excluded — we only want to re-read when
+  // the key identity changes, not when a new default reference is passed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
   // Sync with localStorage changes from other tabs
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {

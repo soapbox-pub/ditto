@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import {
-  ArrowLeft, Users, UserPlus, Loader2, X, Rss, Share2, Check, Copy, Quote,
+  ArrowLeft, Users, UserPlus, Loader2, X, Share2, Check, Copy, Quote, PanelLeft, Trash2,
 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -29,6 +29,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserLists } from '@/hooks/useUserLists';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useAuthors } from '@/hooks/useAuthors';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useMuteList } from '@/hooks/useMuteList';
@@ -39,6 +40,7 @@ import { shareOrCopy } from '@/lib/share';
 import { getRepostKind } from '@/lib/feedUtils';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import { toast } from '@/hooks/useToast';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { TabButton } from '@/components/TabButton';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -292,6 +294,7 @@ export function ListDetailPage() {
   const [copied, setCopied] = useState(false);
   const [cloning, setCloning] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
+  const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
 
   // Decode the naddr to get the d-tag identifier and author
   const decoded = useMemo(() => {
@@ -308,6 +311,29 @@ export function ListDetailPage() {
   }, [naddr]);
 
   const isOwnList = !!(decoded && user && decoded.pubkey === user.pubkey);
+
+  // Nostr URI for "Add to sidebar"
+  const nostrUri = useMemo(() => {
+    if (!naddr) return null;
+    return `nostr:${naddr}`;
+  }, [naddr]);
+
+  const isInSidebar = useMemo(
+    () => !!nostrUri && orderedItems.includes(nostrUri),
+    [nostrUri, orderedItems],
+  );
+
+  const handleAddToSidebar = useCallback(() => {
+    if (!nostrUri || isInSidebar) return;
+    addToSidebar(nostrUri);
+    toast({ title: 'Added to sidebar' });
+  }, [nostrUri, isInSidebar, addToSidebar]);
+
+  const handleRemoveFromSidebar = useCallback(() => {
+    if (!nostrUri || !isInSidebar) return;
+    removeFromSidebar(nostrUri);
+    toast({ title: 'Removed from sidebar' });
+  }, [nostrUri, isInSidebar, removeFromSidebar]);
 
   // For own lists, use the local cache
   const ownList = useMemo(
@@ -334,6 +360,17 @@ export function ListDetailPage() {
   // Unified list object — own list takes priority
   const list = isOwnList ? ownList : (remoteListQuery.data ?? null);
   const isLoading = isOwnList ? ownListsLoading : remoteListQuery.isLoading;
+
+  // Fetch the list author's profile
+  const listAuthor = useAuthor(decoded?.pubkey ?? '');
+  const listAuthorMetadata = listAuthor.data?.metadata;
+  const listAuthorName = listAuthorMetadata?.name || listAuthorMetadata?.display_name || (decoded ? genUserName(decoded.pubkey) : '');
+  const listAuthorAvatarShape = getAvatarShape(listAuthorMetadata);
+  const listAuthorProfileUrl = useProfileUrl(decoded?.pubkey ?? '', listAuthorMetadata);
+
+  // Fetch preview avatars for the member stack
+  const previewPubkeys = useMemo(() => (list?.pubkeys ?? []).slice(0, 8), [list?.pubkeys]);
+  const { data: previewMembersMap } = useAuthors(previewPubkeys);
 
   const handleShare = useCallback(async () => {
     const url = window.location.href;
@@ -454,9 +491,19 @@ export function ListDetailPage() {
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold truncate">{list.title}</h1>
-            <p className="text-xs text-muted-foreground">
-              {list.pubkeys.length} {list.pubkeys.length === 1 ? 'member' : 'members'}
-            </p>
+            {decoded && (
+              <Link to={listAuthorProfileUrl} className="flex items-center gap-1.5 mt-0.5 group">
+                <Avatar shape={listAuthorAvatarShape} className="size-4">
+                  <AvatarImage src={listAuthorMetadata?.picture} alt={listAuthorName} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                    {listAuthorName[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-xs text-muted-foreground group-hover:underline truncate">
+                  {listAuthorName}
+                </span>
+              </Link>
+            )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {user && !isOwnList && (
@@ -498,6 +545,19 @@ export function ListDetailPage() {
                   <Quote className="size-4" />
                   Quote post
                 </DropdownMenuItem>
+                {nostrUri && (
+                  isInSidebar ? (
+                    <DropdownMenuItem onClick={handleRemoveFromSidebar} className="gap-3">
+                      <Trash2 className="size-4" />
+                      Remove from sidebar
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={handleAddToSidebar} className="gap-3">
+                      <PanelLeft className="size-4" />
+                      Add to sidebar
+                    </DropdownMenuItem>
+                  )
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -525,33 +585,39 @@ export function ListDetailPage() {
           </div>
         )}
 
+        {/* Member avatar stack */}
+        {list.pubkeys.length > 0 && (
+          <div className="flex items-center gap-2 px-4 pb-3">
+            <div className="flex -space-x-2">
+              {previewPubkeys.map((pk) => {
+                const member = previewMembersMap?.get(pk);
+                const name = member?.metadata?.name || genUserName(pk);
+                const shape = getAvatarShape(member?.metadata);
+                return (
+                  <Avatar key={pk} shape={shape} className="size-7 ring-2 ring-background">
+                    <AvatarImage src={member?.metadata?.picture} alt={name} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                      {name[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                );
+              })}
+            </div>
+            {list.pubkeys.length > previewPubkeys.length && (
+              <button
+                onClick={() => setActiveTab('members')}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                +{list.pubkeys.length - previewPubkeys.length} more
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Tab bar */}
         <div className="flex border-b border-border">
-          <TabButton
-            label="Feed"
-            active={activeTab === 'feed'}
-            onClick={() => setActiveTab('feed')}
-            className="py-2.5"
-            indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
-          >
-            <span className="flex items-center justify-center gap-1.5">
-              <Rss className="size-4" />
-              Feed
-            </span>
-          </TabButton>
-          <TabButton
-            label="Members"
-            active={activeTab === 'members'}
-            onClick={() => setActiveTab('members')}
-            className="py-2.5"
-            indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
-          >
-            <span className="flex items-center justify-center gap-1.5">
-              <Users className="size-4" />
-              Members
-              <span className="text-xs text-muted-foreground">({list.pubkeys.length})</span>
-            </span>
-          </TabButton>
+          <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
+          <TabButton label="Members" active={activeTab === 'members'} onClick={() => setActiveTab('members')} />
         </div>
       </div>
 

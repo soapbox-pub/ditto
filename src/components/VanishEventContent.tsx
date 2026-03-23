@@ -2,10 +2,79 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { useMemo } from 'react';
 
+import { cn } from '@/lib/utils';
+
 interface VanishEventContentProps {
   event: NostrEvent;
   /** Compact mode for feed cards — shorter layout */
   compact?: boolean;
+}
+
+interface VanishCardCompactProps {
+  event: { pubkey: string; content: string; tags: string[][] };
+  /** Optional className for the outer container */
+  className?: string;
+  /** Optional timestamp text shown to the right of the title */
+  timestamp?: string;
+}
+
+/**
+ * Compact card for NIP-62 Request to Vanish events.
+ *
+ * Used everywhere a vanish event needs a small inline preview: feed cards,
+ * embedded quotes, reply composer, threaded ancestors, etc. Stripes render
+ * inside the bordered container so they stay visually contained.
+ */
+export function VanishCardCompact({ event, className, timestamp }: VanishCardCompactProps) {
+  const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
+  const isGlobal = event.tags.some(([n, v]) => n === 'relay' && v === 'ALL_RELAYS');
+  const reason = event.content || undefined;
+
+  return (
+    <div className={cn('rounded-xl border-2 border-red-500/30 overflow-hidden', className)}>
+      {/* Top caution stripe */}
+      <div className="vanish-stripes h-1.5" />
+
+      <div className="px-3 py-2.5 bg-red-500/[0.04] dark:bg-red-500/[0.06] space-y-1.5">
+        {/* Header row */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="relative shrink-0">
+            <div className="size-8 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+              <span className="text-sm font-black vanish-glitch-text text-red-500 dark:text-red-400" data-text="///">///</span>
+            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-red-600 flex items-center justify-center">
+              <span className="text-[7px] font-black text-white leading-none">!</span>
+            </div>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-red-500 dark:text-red-400 leading-tight">
+              {isGlobal ? 'Global Request to Vanish' : 'Request to Vanish'}
+            </p>
+            <p className="text-[11px] text-muted-foreground font-mono truncate mt-0.5">
+              {npub}
+            </p>
+          </div>
+
+          {timestamp && (
+            <span className="text-[11px] text-muted-foreground shrink-0">
+              {timestamp}
+            </span>
+          )}
+        </div>
+
+        {/* Reason quote if available */}
+        {reason && (
+          <p className="text-xs text-muted-foreground italic line-clamp-2 pl-[42px]">
+            &ldquo;{reason}&rdquo;
+          </p>
+        )}
+      </div>
+
+      {/* Bottom caution stripe */}
+      <div className="vanish-stripes h-1.5" />
+    </div>
+  );
 }
 
 /**
@@ -14,9 +83,16 @@ interface VanishEventContentProps {
  * These events represent a user permanently erasing their entire identity
  * from the Nostr network. The display is intentionally theatrical — red
  * caution stripes, glitch effects, and a "grand exit" aesthetic.
+ *
+ * This is the full detail-page view. For compact inline previews, use
+ * {@link VanishCardCompact} instead.
  */
 export function VanishEventContent({ event, compact }: VanishEventContentProps) {
-  const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
+  if (compact) {
+    return <VanishCardCompact event={event} className="mt-2" />;
+  }
+
+  const npub = nip19.npubEncode(event.pubkey);
   const relayTags = event.tags.filter(([n]) => n === 'relay');
   const isGlobal = relayTags.some(([, v]) => v === 'ALL_RELAYS');
   const relayList = relayTags.map(([, v]) => v).filter((v) => v !== 'ALL_RELAYS');
@@ -30,43 +106,6 @@ export function VanishEventContent({ event, compact }: VanishEventContentProps) 
     minute: '2-digit',
     hour12: true,
   });
-
-  if (compact) {
-    return (
-      <div className="mt-2 space-y-2">
-        {/* Caution stripe header */}
-        <div className="vanish-stripes h-2 rounded-full" />
-
-        <div className="flex items-start gap-3 rounded-xl border-2 border-red-500/30 bg-red-500/5 p-3">
-          {/* Glitch icon */}
-          <div className="relative shrink-0 mt-0.5">
-            <div className="size-10 rounded-full bg-red-500/10 border-2 border-red-500/30 flex items-center justify-center">
-              <span className="text-lg vanish-glitch-text" data-text="///">///</span>
-            </div>
-            <div className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full bg-red-600 flex items-center justify-center">
-              <span className="text-[8px] font-black text-white leading-none">!</span>
-            </div>
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-red-500 dark:text-red-400">
-              {isGlobal ? 'Global Request to Vanish' : 'Request to Vanish'}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5 font-mono truncate">
-              {npub}
-            </p>
-            {reason && (
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2 italic">
-                &ldquo;{reason}&rdquo;
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="vanish-stripes h-2 rounded-full" />
-      </div>
-    );
-  }
 
   return (
     <div className="mt-4 space-y-0">
