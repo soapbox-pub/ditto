@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import {
@@ -11,7 +11,6 @@ import {
   Loader2,
   Newspaper,
   Search,
-  Sparkles,
   Star,
   TrendingUp,
   X,
@@ -33,7 +32,7 @@ import { cn } from '@/lib/utils';
 // Types
 // ---------------------------------------------------------------------------
 
-type Section = 'all' | 'featured' | 'mostread' | 'onthisday' | 'news';
+type Section = 'featured' | 'mostread' | 'news' | 'onthisday';
 
 interface SectionMeta {
   label: string;
@@ -44,14 +43,14 @@ interface SectionMeta {
 // Constants
 // ---------------------------------------------------------------------------
 
-const SECTIONS: Record<Exclude<Section, 'all'>, SectionMeta> = {
+const SECTIONS: Record<Section, SectionMeta> = {
   featured: { label: 'Featured', icon: <Star className="size-3.5" /> },
   mostread: { label: 'Trending', icon: <TrendingUp className="size-3.5" /> },
-  onthisday: { label: 'On This Day', icon: <Calendar className="size-3.5" /> },
   news: { label: 'In the News', icon: <Newspaper className="size-3.5" /> },
+  onthisday: { label: 'On This Day', icon: <Calendar className="size-3.5" /> },
 };
 
-const SECTION_ORDER: Section[] = ['all', 'featured', 'mostread', 'news', 'onthisday'];
+const SECTION_ORDER: Section[] = ['featured', 'mostread', 'news', 'onthisday'];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -81,6 +80,61 @@ function truncateExtract(text: string, maxLen = 150): string {
 }
 
 // ---------------------------------------------------------------------------
+// Scrollspy hook
+// ---------------------------------------------------------------------------
+
+function useScrollspy(
+  sectionRefs: Record<Section, RefObject<HTMLElement | null>>,
+  navBarRef: RefObject<HTMLElement | null>,
+) {
+  const [active, setActive] = useState<Section>(SECTION_ORDER[0]);
+  // Guard against scroll-into-view triggering the observer
+  const isScrollingRef = useRef(false);
+
+  useEffect(() => {
+    const navBarHeight = navBarRef.current?.offsetHeight ?? 48;
+    // Trigger when a section crosses just below the sticky nav bar
+    const rootMargin = `-${navBarHeight + 8}px 0px -60% 0px`;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isScrollingRef.current) return;
+        // Pick the first visible section in DOM order
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible.length > 0) {
+          const id = visible[0].target.getAttribute('data-section') as Section;
+          if (id) setActive(id);
+        }
+      },
+      { rootMargin, threshold: 0 },
+    );
+
+    for (const key of SECTION_ORDER) {
+      const el = sectionRefs[key].current;
+      if (el) observer.observe(el);
+    }
+
+    return () => observer.disconnect();
+  }, [sectionRefs, navBarRef]);
+
+  const scrollTo = useCallback((section: Section) => {
+    const el = sectionRefs[section].current;
+    if (!el) return;
+    const navBarHeight = navBarRef.current?.offsetHeight ?? 48;
+    const top = el.getBoundingClientRect().top + window.scrollY - navBarHeight - 8;
+    isScrollingRef.current = true;
+    setActive(section);
+    window.scrollTo({ top, behavior: 'smooth' });
+    // Release the guard after the smooth scroll finishes
+    setTimeout(() => { isScrollingRef.current = false; }, 800);
+  }, [sectionRefs, navBarRef]);
+
+  return { active, scrollTo };
+}
+
+// ---------------------------------------------------------------------------
 // Section pill
 // ---------------------------------------------------------------------------
 
@@ -89,12 +143,19 @@ function SectionPill({ section, active, onClick }: {
   active: boolean;
   onClick: () => void;
 }) {
-  const meta = section === 'all'
-    ? { label: 'All', icon: <Sparkles className="size-3.5" /> }
-    : SECTIONS[section];
+  const meta = SECTIONS[section];
+  const pillRef = useRef<HTMLButtonElement>(null);
+
+  // Auto-scroll the pill into view when it becomes active
+  useEffect(() => {
+    if (active && pillRef.current) {
+      pillRef.current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [active]);
 
   return (
     <button
+      ref={pillRef}
       type="button"
       onClick={onClick}
       className={cn(
@@ -524,13 +585,27 @@ function WikipediaLoadingSkeleton() {
 
 export function WikipediaPage() {
   const { config } = useAppContext();
-  const [activeSection, setActiveSection] = useState<Section>('all');
   const { data: feed, isLoading, isError } = useWikipediaFeatured();
 
   useSeoMeta({
     title: `Wikipedia | ${config.appName}`,
     description: 'Explore today\'s featured Wikipedia content \u2014 trending articles, on this day, in the news, and more.',
   });
+
+  // Section refs for scrollspy
+  const navBarRef = useRef<HTMLDivElement>(null);
+  const featuredRef = useRef<HTMLDivElement>(null);
+  const mostreadRef = useRef<HTMLDivElement>(null);
+  const newsRef = useRef<HTMLDivElement>(null);
+  const onthisdayRef = useRef<HTMLDivElement>(null);
+  const sectionRefs: Record<Section, RefObject<HTMLElement | null>> = {
+    featured: featuredRef,
+    mostread: mostreadRef,
+    news: newsRef,
+    onthisday: onthisdayRef,
+  };
+
+  const { active, scrollTo } = useScrollspy(sectionRefs, navBarRef);
 
   // Filter most-read to remove "Main Page" and "Special:" pages
   const mostReadArticles = useMemo(() => {
@@ -548,8 +623,6 @@ export function WikipediaPage() {
   const newsItems = useMemo(() => {
     return feed?.news ?? [];
   }, [feed?.news]);
-
-  const showSection = (s: Exclude<Section, 'all'>) => activeSection === 'all' || activeSection === s;
 
   return (
     <main className="pb-16 sidebar:pb-0">
@@ -581,15 +654,18 @@ export function WikipediaPage() {
       {/* Search bar */}
       <WikipediaSearchBar />
 
-      {/* Section filter pills */}
-      <div className="sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
+      {/* Scrollspy navigation pills */}
+      <div
+        ref={navBarRef}
+        className="sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border"
+      >
         <div className="flex gap-2 px-4 py-2.5 overflow-x-auto">
           {SECTION_ORDER.map((s) => (
             <SectionPill
               key={s}
               section={s}
-              active={activeSection === s}
-              onClick={() => setActiveSection(s)}
+              active={active === s}
+              onClick={() => scrollTo(s)}
             />
           ))}
         </div>
@@ -608,19 +684,19 @@ export function WikipediaPage() {
       ) : (
         <div className="px-4 pt-4 pb-4 space-y-6">
           {/* Today's Featured Article */}
-          {showSection('featured') && feed?.tfa && (
-            <section>
+          {feed?.tfa && (
+            <div ref={featuredRef} data-section="featured">
               <SectionHeading
                 icon={<Star className="size-3.5 text-amber-500" />}
                 title="Today's Featured Article"
               />
               <FeaturedArticleCard page={feed.tfa} />
-            </section>
+            </div>
           )}
 
           {/* Most Read */}
-          {showSection('mostread') && mostReadArticles.length > 0 && (
-            <section>
+          {mostReadArticles.length > 0 && (
+            <div ref={mostreadRef} data-section="mostread">
               <SectionHeading
                 icon={<TrendingUp className="size-3.5 text-primary" />}
                 title="Trending"
@@ -636,12 +712,12 @@ export function WikipediaPage() {
                   />
                 ))}
               </div>
-            </section>
+            </div>
           )}
 
           {/* In the News */}
-          {showSection('news') && newsItems.length > 0 && (
-            <section>
+          {newsItems.length > 0 && (
+            <div ref={newsRef} data-section="news">
               <SectionHeading
                 icon={<Newspaper className="size-3.5 text-sky-500" />}
                 title="In the News"
@@ -651,12 +727,12 @@ export function WikipediaPage() {
                   <NewsCard key={i} item={item} />
                 ))}
               </div>
-            </section>
+            </div>
           )}
 
           {/* On This Day */}
-          {showSection('onthisday') && onThisDayEvents.length > 0 && (
-            <section>
+          {onThisDayEvents.length > 0 && (
+            <div ref={onthisdayRef} data-section="onthisday">
               <SectionHeading
                 icon={<Calendar className="size-3.5 text-violet-500" />}
                 title="On This Day"
@@ -667,25 +743,7 @@ export function WikipediaPage() {
                   <OnThisDayCard key={i} event={event} />
                 ))}
               </div>
-            </section>
-          )}
-
-          {/* Empty state for filtered view */}
-          {activeSection !== 'all' && !isLoading && (
-            (() => {
-              const isEmpty =
-                (activeSection === 'featured' && !feed?.tfa) ||
-                (activeSection === 'mostread' && mostReadArticles.length === 0) ||
-                (activeSection === 'onthisday' && onThisDayEvents.length === 0) ||
-                (activeSection === 'news' && newsItems.length === 0);
-
-              return isEmpty ? (
-                <div className="py-16 text-center">
-                  <Sparkles className="size-10 mx-auto mb-3 text-muted-foreground/30" />
-                  <p className="text-muted-foreground text-sm">No content available for this section today.</p>
-                </div>
-              ) : null;
-            })()
+            </div>
           )}
         </div>
       )}
