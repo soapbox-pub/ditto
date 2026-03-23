@@ -29,6 +29,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserLists } from '@/hooks/useUserLists';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useAuthors } from '@/hooks/useAuthors';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useMuteList } from '@/hooks/useMuteList';
@@ -360,6 +361,10 @@ export function ListDetailPage() {
   const list = isOwnList ? ownList : (remoteListQuery.data ?? null);
   const isLoading = isOwnList ? ownListsLoading : remoteListQuery.isLoading;
 
+  // Fetch preview avatars for the member stack
+  const previewPubkeys = useMemo(() => (list?.pubkeys ?? []).slice(0, 8), [list?.pubkeys]);
+  const { data: previewMembersMap } = useAuthors(previewPubkeys);
+
   const handleShare = useCallback(async () => {
     const url = window.location.href;
     const result = await shareOrCopy(url, list?.title);
@@ -479,9 +484,6 @@ export function ListDetailPage() {
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold truncate">{list.title}</h1>
-            <p className="text-xs text-muted-foreground">
-              {list.pubkeys.length} {list.pubkeys.length === 1 ? 'member' : 'members'}
-            </p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {user && !isOwnList && (
@@ -559,6 +561,35 @@ export function ListDetailPage() {
             )}
             {list.description && (
               <p className="text-sm text-muted-foreground leading-relaxed">{list.description}</p>
+            )}
+          </div>
+        )}
+
+        {/* Member avatar stack */}
+        {list.pubkeys.length > 0 && (
+          <div className="flex items-center gap-2 px-4 pb-3">
+            <div className="flex -space-x-2">
+              {previewPubkeys.map((pk) => {
+                const member = previewMembersMap?.get(pk);
+                const name = member?.metadata?.name || genUserName(pk);
+                const shape = getAvatarShape(member?.metadata);
+                return (
+                  <Avatar key={pk} shape={shape} className="size-7 ring-2 ring-background">
+                    <AvatarImage src={member?.metadata?.picture} alt={name} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                      {name[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                );
+              })}
+            </div>
+            {list.pubkeys.length > previewPubkeys.length && (
+              <button
+                onClick={() => setActiveTab('members')}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                +{list.pubkeys.length - previewPubkeys.length} more
+              </button>
             )}
           </div>
         )}
