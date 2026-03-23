@@ -1326,7 +1326,10 @@ function BlobbiDashboard({
           {/* Header - Sticky */}
           <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
             <div className="flex items-start justify-between gap-4">
-              <DialogTitle>Your Blobbies</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Users className="size-5" />
+                Your Blobbies
+              </DialogTitle>
               <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 shrink-0">
                 <X className="size-5" />
                 <span className="sr-only">Close</span>
