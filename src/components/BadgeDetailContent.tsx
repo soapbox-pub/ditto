@@ -1,32 +1,46 @@
 import { useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, Copy, Check, Users, Gift } from 'lucide-react';
+import { Award, Copy, Check, Users, Gift, MessageCircle } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 
+import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RepostMenu } from '@/components/RepostMenu';
+import { ReactionButton } from '@/components/ReactionButton';
+import { ComposeBox } from '@/components/ComposeBox';
+import { ThreadedReplyList } from '@/components/ThreadedReplyList';
+import { TabButton } from '@/components/TabButton';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
 import { useToast } from '@/hooks/useToast';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePendingBadges } from '@/hooks/usePendingBadges';
 import { useAcceptBadge } from '@/hooks/useAcceptBadge';
+import { useComments } from '@/hooks/useComments';
+import { useEventStats } from '@/hooks/useTrending';
+import { useMuteList } from '@/hooks/useMuteList';
+import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
+import { formatNumber } from '@/lib/formatNumber';
 import { isShopBadge, isAchievementBadge } from '@/lib/badgeUtils';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { parseBadgeDefinition } from '@/components/BadgeContent';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { AwardBadgeDialog } from '@/components/AwardBadgeDialog';
 
+type DetailTab = 'awarded' | 'comments';
+
 /**
  * Full detail view for a NIP-58 badge definition (kind 30009).
- * Shows the badge image, name, description, issuer, and list of awardees.
+ * Shows the badge image, name, description, issuer, react/repost bar,
+ * and tabs for "Awarded To" and "Comments".
  */
 export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const { nostr } = useNostr();
@@ -35,6 +49,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const acceptBadge = useAcceptBadge();
   const [copied, setCopied] = useState(false);
   const [awardDialogOpen, setAwardDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<DetailTab>('awarded');
 
   const badge = useMemo(() => parseBadgeDefinition(event), [event]);
 
@@ -53,6 +68,10 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const isShop = isShopBadge(event);
   const isAchievement = isAchievementBadge(event);
 
+  // Stats for action bar
+  const { data: stats } = useEventStats(event.id);
+  const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
+
   const awardsQuery = useQuery({
     queryKey: ['badge-awards', badgeATag],
     queryFn: async () => {
@@ -69,7 +88,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
     staleTime: 2 * 60_000,
   });
 
-  // Extract unique awarded pubkeys from all award events
+  // Extract unique awarded pubkeys
   const awardedPubkeys = useMemo(() => {
     if (!awardsQuery.data) return [];
     const pkSet = new Set<string>();
@@ -86,6 +105,28 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   // Batch-fetch awardee profiles (first 50)
   const previewPubkeys = useMemo(() => awardedPubkeys.slice(0, 50), [awardedPubkeys]);
   const { data: membersMap, isLoading: membersLoading } = useAuthors(previewPubkeys);
+
+  // Comments (NIP-22 kind 1111 on this addressable event)
+  const { muteItems } = useMuteList();
+  const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
+
+  const orderedReplies = useMemo(() => {
+    const topLevel = commentsData?.topLevelComments ?? [];
+    const filtered = muteItems.length > 0
+      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
+      : topLevel;
+    return [...filtered]
+      .sort((a, b) => b.created_at - a.created_at)
+      .map((reply) => {
+        const directReplies = commentsData?.getDirectReplies(reply.id) ?? [];
+        return {
+          reply,
+          firstSubReply: directReplies[0] as NostrEvent | undefined,
+        };
+      });
+  }, [commentsData, muteItems]);
+
+  const commentCount = commentsData?.allComments.length ?? 0;
 
   const handleCopyLink = useCallback(() => {
     const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
@@ -106,21 +147,45 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
     <div>
       {/* Hero badge image */}
       {heroImage ? (
-        <div className="w-full overflow-hidden bg-secondary/10 border-b border-border">
+        <div className="relative isolate flex justify-center py-10 overflow-hidden">
+          {/* Rotating light rays */}
+          <div
+            className="absolute -z-10 pointer-events-none"
+            aria-hidden="true"
+            style={{
+              width: 420,
+              height: 420,
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            <div
+              className="w-full h-full animate-badge-spotlight"
+              style={{
+                background: `repeating-conic-gradient(
+                  hsl(var(--primary) / 0.08) 0deg 6deg,
+                  transparent 6deg 18deg
+                )`,
+                maskImage: 'radial-gradient(circle, black 15%, transparent 70%)',
+                WebkitMaskImage: 'radial-gradient(circle, black 15%, transparent 70%)',
+              }}
+            />
+          </div>
           <img
             src={heroImage}
             alt={badge.name}
-            className="w-full h-auto max-h-[360px] object-contain bg-secondary/5"
+            className="size-36 rounded-2xl object-cover drop-shadow-lg relative z-[1]"
             loading="lazy"
           />
         </div>
       ) : (
-        <div className="flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[180px] border-b border-border">
+        <div className="flex items-center justify-center h-[180px]">
           <Award className="size-16 text-primary/20" />
         </div>
       )}
 
-      <div className="px-4 pt-4 pb-3">
+      <div className="px-4 pt-2 pb-3">
         {/* Issuer row */}
         <div className="flex items-center gap-3">
           <Link to={`/${npub}`}>
@@ -157,7 +222,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
           </p>
         )}
 
-        {/* Stats */}
+        {/* Stats row */}
         <div className="flex items-center gap-3 mt-4 flex-wrap">
           {awardsQuery.isLoading ? (
             <Skeleton className="h-4 w-24" />
@@ -216,35 +281,62 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
         </div>
       </div>
 
-      {/* Awardees list */}
-      {awardedPubkeys.length > 0 && (
-        <div className="border-t border-border">
-          <div className="px-4 py-3">
-            <h3 className="text-[15px] font-bold">Awarded To</h3>
-          </div>
+      {/* React / Repost bar */}
+      <div className="flex items-center gap-1 px-4 py-1 border-t border-b border-border">
+        <ReactionButton
+          eventId={event.id}
+          eventPubkey={event.pubkey}
+          eventKind={event.kind}
+          reactionCount={stats?.reactions}
+        />
 
-          {membersLoading ? (
-            <div className="divide-y divide-border">
-              {Array.from({ length: Math.min(awardedPubkeys.length, 5) }).map((_, i) => (
-                <AwardeeCardSkeleton key={i} />
-              ))}
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {previewPubkeys.map((pk) => {
-                const member = membersMap?.get(pk);
-                return (
-                  <AwardeeCard key={pk} pubkey={pk} metadata={member?.metadata} />
-                );
-              })}
-              {awardedPubkeys.length > previewPubkeys.length && (
-                <div className="px-4 py-3 text-sm text-muted-foreground text-center">
-                  +{awardedPubkeys.length - previewPubkeys.length} more
-                </div>
+        <RepostMenu event={event}>
+          {(isReposted: boolean) => (
+            <button
+              className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
+              title={isReposted ? 'Undo repost' : 'Repost'}
+            >
+              <RepostIcon className="size-5" />
+              {repostTotal > 0 && (
+                <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
               )}
-            </div>
+            </button>
           )}
-        </div>
+        </RepostMenu>
+
+        <button
+          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+          title="Comments"
+          onClick={() => setActiveTab('comments')}
+        >
+          <MessageCircle className="size-5" />
+          {commentCount > 0 && (
+            <span className="text-sm tabular-nums">{formatNumber(commentCount)}</span>
+          )}
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-border sticky top-0 bg-background/80 backdrop-blur-md z-10">
+        <TabButton label="Awarded To" active={activeTab === 'awarded'} onClick={() => setActiveTab('awarded')} />
+        <TabButton label="Comments" active={activeTab === 'comments'} onClick={() => setActiveTab('comments')} />
+      </div>
+
+      {/* Tab content */}
+      {activeTab === 'awarded' ? (
+        <AwardedToTab
+          awardedPubkeys={awardedPubkeys}
+          previewPubkeys={previewPubkeys}
+          membersMap={membersMap}
+          membersLoading={membersLoading}
+          awardsLoading={awardsQuery.isLoading}
+        />
+      ) : (
+        <CommentsTab
+          event={event}
+          orderedReplies={orderedReplies}
+          commentsLoading={commentsLoading}
+        />
       )}
 
       <AwardBadgeDialog
@@ -257,7 +349,75 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   );
 }
 
-/** Individual awardee card. */
+// ─── Awarded To Tab ────────────────────────────────────────────────────────────
+
+function AwardedToTab({ awardedPubkeys, previewPubkeys, membersMap, membersLoading, awardsLoading }: {
+  awardedPubkeys: string[];
+  previewPubkeys: string[];
+  membersMap: Map<string, { metadata?: NostrMetadata }> | undefined;
+  membersLoading: boolean;
+  awardsLoading: boolean;
+}) {
+  if (awardsLoading || membersLoading) {
+    return (
+      <div className="divide-y divide-border">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <AwardeeCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (awardedPubkeys.length === 0) {
+    return (
+      <div className="py-16 flex flex-col items-center gap-3 text-center px-8">
+        <Users className="size-8 text-muted-foreground/30" />
+        <p className="text-sm text-muted-foreground">No one has been awarded this badge yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-border">
+      {previewPubkeys.map((pk) => {
+        const member = membersMap?.get(pk);
+        return <AwardeeCard key={pk} pubkey={pk} metadata={member?.metadata} />;
+      })}
+      {awardedPubkeys.length > previewPubkeys.length && (
+        <div className="px-4 py-3 text-sm text-muted-foreground text-center">
+          +{awardedPubkeys.length - previewPubkeys.length} more
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Comments Tab ──────────────────────────────────────────────────────────────
+
+function CommentsTab({ event, orderedReplies, commentsLoading }: {
+  event: NostrEvent;
+  orderedReplies: Array<{ reply: NostrEvent; firstSubReply?: NostrEvent }>;
+  commentsLoading: boolean;
+}) {
+  return (
+    <div>
+      <ComposeBox compact replyTo={event} />
+      {commentsLoading ? (
+        <CommentsSkeleton />
+      ) : orderedReplies.length > 0 ? (
+        <ThreadedReplyList replies={orderedReplies} />
+      ) : (
+        <div className="py-16 flex flex-col items-center gap-3 text-center px-8">
+          <MessageCircle className="size-8 text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground">No comments yet. Be the first to comment on this badge.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Shared components ─────────────────────────────────────────────────────────
+
 function AwardeeCard({ pubkey, metadata }: { pubkey: string; metadata?: NostrMetadata }) {
   const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
   const about = metadata?.about;
@@ -275,15 +435,12 @@ function AwardeeCard({ pubkey, metadata }: { pubkey: string; metadata?: NostrMet
           {displayName[0]?.toUpperCase()}
         </AvatarFallback>
       </Avatar>
-
       <div className="flex-1 min-w-0">
         <span className="font-bold text-[15px] hover:underline block truncate">
           {displayName}
         </span>
         {about && (
-          <p className="text-sm text-muted-foreground line-clamp-1">
-            {about}
-          </p>
+          <p className="text-sm text-muted-foreground line-clamp-1">{about}</p>
         )}
       </div>
     </Link>
@@ -298,6 +455,25 @@ function AwardeeCardSkeleton() {
         <Skeleton className="h-4 w-28" />
         <Skeleton className="h-3 w-48" />
       </div>
+    </div>
+  );
+}
+
+function CommentsSkeleton() {
+  return (
+    <div className="divide-y divide-border">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="px-4 py-3">
+          <div className="flex gap-3">
+            <Skeleton className="size-10 rounded-full shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-3/4" />
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
