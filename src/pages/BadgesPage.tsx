@@ -96,6 +96,9 @@ export function BadgesPage() {
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
+  // Fetch pending badges at page level so we can show a counter on the tab
+  const { pendingBadges, count: pendingCount, isLoading: isLoadingPending } = usePendingBadges(user?.pubkey);
+
   useLayoutOptions({
     showFAB: true,
     onFabClick: () => setCreateDialogOpen(true),
@@ -107,7 +110,7 @@ export function BadgesPage() {
       const stored = sessionStorage.getItem('ditto:feed-tab:badges');
       if (stored === 'mine' || stored === 'follows') return stored;
     } catch { /* ignore */ }
-    return 'mine';
+    return 'follows';
   });
 
   const handleSetTab = useCallback((tab: BadgesTab) => {
@@ -135,13 +138,22 @@ export function BadgesPage() {
 
       {/* Tabs */}
       <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        <TabButton label="My Badges" active={activeTab === 'mine'} onClick={() => handleSetTab('mine')} disabled={!user} />
         <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetTab('follows')} disabled={!user} />
+        <TabButton label="My Badges" active={activeTab === 'mine'} onClick={() => handleSetTab('mine')} disabled={!user}>
+          <span className="inline-flex items-center gap-1.5">
+            My Badges
+            {pendingCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold leading-none">
+                {pendingCount}
+              </span>
+            )}
+          </span>
+        </TabButton>
       </div>
 
       {/* Tab content */}
       {activeTab === 'mine' ? (
-        <MyBadgesTab onOpenCreate={() => setCreateDialogOpen(true)} />
+        <MyBadgesTab onOpenCreate={() => setCreateDialogOpen(true)} pendingBadges={pendingBadges} pendingCount={pendingCount} isLoadingPending={isLoadingPending} />
       ) : (
         <FollowsFeedTab onRefresh={() => queryClient.invalidateQueries({ queryKey: ['badge-feed', 'follows'] })} />
       )}
@@ -155,7 +167,14 @@ export function BadgesPage() {
 // My Badges Tab
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function MyBadgesTab({ onOpenCreate }: { onOpenCreate: () => void }) {
+interface MyBadgesTabProps {
+  onOpenCreate: () => void;
+  pendingBadges: PendingBadge[];
+  pendingCount: number;
+  isLoadingPending: boolean;
+}
+
+function MyBadgesTab({ onOpenCreate, pendingBadges, pendingCount, isLoadingPending }: MyBadgesTabProps) {
   const { user } = useCurrentUser();
 
   if (!user) {
@@ -175,10 +194,10 @@ function MyBadgesTab({ onOpenCreate }: { onOpenCreate: () => void }) {
     );
   }
 
-  return <MyBadgesContent onOpenCreate={onOpenCreate} />;
+  return <MyBadgesContent onOpenCreate={onOpenCreate} pendingBadges={pendingBadges} pendingCount={pendingCount} isLoadingPending={isLoadingPending} />;
 }
 
-function MyBadgesContent({ onOpenCreate }: { onOpenCreate: () => void }) {
+function MyBadgesContent({ onOpenCreate, pendingBadges, pendingCount, isLoadingPending }: MyBadgesTabProps) {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
 
@@ -186,8 +205,7 @@ function MyBadgesContent({ onOpenCreate }: { onOpenCreate: () => void }) {
   const { refs, isLoading: isLoadingRefs } = useProfileBadges(user?.pubkey);
   const { badgeMap, isLoading: isLoadingDefs } = useBadgeDefinitions(refs);
 
-  // Pending badges
-  const { pendingBadges, count: pendingCount, isLoading: isLoadingPending } = usePendingBadges(user?.pubkey);
+  // Pending badges (data passed down from parent to share with tab counter)
   const pendingRefs = pendingBadges.map((p) => ({ pubkey: p.issuerPubkey, identifier: p.identifier }));
   const { badgeMap: pendingBadgeMap, isLoading: isLoadingPendingDefs } = useBadgeDefinitions(pendingRefs);
 
