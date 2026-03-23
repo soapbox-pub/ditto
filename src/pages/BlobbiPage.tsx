@@ -1322,27 +1322,37 @@ function BlobbiDashboard({
       
       {/* Blobbi Selector Modal */}
       <Dialog open={showSelector} onOpenChange={setShowSelector}>
-        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Your Blobbies</DialogTitle>
+        <DialogContent className="max-w-md w-[calc(100%-2rem)] max-h-[80vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden">
+          {/* Header - Sticky */}
+          <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
+            <div className="flex items-start justify-between gap-4">
+              <DialogTitle>Your Blobbies</DialogTitle>
+              <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 shrink-0">
+                <X className="size-5" />
+                <span className="sr-only">Close</span>
+              </DialogClose>
+            </div>
           </DialogHeader>
-          <div className="grid gap-3 pt-2">
-            {companions.map((c) => (
-              <BlobbiSelectorCard
-                key={c.d}
-                companion={c}
-                onSelect={() => onSelectBlobbi(c.d)}
-                isSelected={c.d === selectedD}
+          {/* Content - Scrollable */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
+            <div className="grid gap-3">
+              {companions.map((c) => (
+                <BlobbiSelectorCard
+                  key={c.d}
+                  companion={c}
+                  onSelect={() => onSelectBlobbi(c.d)}
+                  isSelected={c.d === selectedD}
+                />
+              ))}
+              
+              {/* Adopt Another Blobbi CTA */}
+              <AdoptAnotherBlobbiCard
+                onAdopt={() => {
+                  setShowSelector(false);
+                  setShowAdoptionFlow(true);
+                }}
               />
-            ))}
-            
-            {/* Adopt Another Blobbi CTA */}
-            <AdoptAnotherBlobbiCard
-              onAdopt={() => {
-                setShowSelector(false);
-                setShowAdoptionFlow(true);
-              }}
-            />
+            </div>
           </div>
         </DialogContent>
       </Dialog>
