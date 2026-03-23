@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, Copy, Check, Users, Gift, Loader2, MessageCircle, Newspaper } from 'lucide-react';
+import { Award, Copy, Check, Users, Gift, Loader2, MessageCircle, Newspaper, MoreHorizontal } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
@@ -35,6 +35,7 @@ import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { parseBadgeDefinition } from '@/components/BadgeContent';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { AwardBadgeDialog } from '@/components/AwardBadgeDialog';
+import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 
 type DetailTab = 'awarded' | 'feed' | 'comments';
 
@@ -50,6 +51,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const acceptBadge = useAcceptBadge();
   const [copied, setCopied] = useState(false);
   const [awardDialogOpen, setAwardDialogOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTab>('awarded');
 
   const badge = useMemo(() => parseBadgeDefinition(event), [event]);
@@ -265,6 +267,13 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
           <Button variant="outline" size="icon" onClick={handleCopyLink}>
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
           </Button>
+          <button
+            className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+            title="More"
+            onClick={() => setMoreMenuOpen(true)}
+          >
+            <MoreHorizontal className="size-5" />
+          </button>
         </div>
       </div>
 
@@ -338,6 +347,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
         badgeATag={badgeATag}
         badgeName={badge.name}
       />
+      <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
     </div>
   );
 }

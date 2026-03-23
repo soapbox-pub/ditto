@@ -7,7 +7,8 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { LinkEmbed } from '@/components/LinkEmbed';
-import { extractYouTubeId } from '@/lib/linkEmbed';
+import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
+import { extractYouTubeId, extractWikipediaTitle } from '@/lib/linkEmbed';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useBookInfo } from '@/hooks/useBookInfo';
 import { useAddrEvent } from '@/hooks/useEvent';
@@ -26,7 +27,143 @@ import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 // ---------------------------------------------------------------------------
 
 export function UrlContentHeader({ url }: { url: string }) {
+  const wikiTitle = useMemo(() => extractWikipediaTitle(url), [url]);
+
+  if (wikiTitle) {
+    return <WikipediaArticleHeader title={wikiTitle} url={url} />;
+  }
+
   return <LinkEmbed url={url} showActions={false} />;
+}
+
+// ---------------------------------------------------------------------------
+// Wikipedia article header (rich display for Wikipedia URLs)
+// ---------------------------------------------------------------------------
+
+const WIKI_ARTICLE_MAX_HEIGHT = 160; // px — extract taller than this gets truncated
+
+function WikipediaArticleHeader({ title, url }: { title: string; url: string }) {
+  const { data: wiki, isLoading } = useWikipediaSummary(title);
+
+  const contentRef = useRef<HTMLParagraphElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const measure = useCallback(() => {
+    const el = contentRef.current;
+    if (el) setOverflows(el.scrollHeight > WIKI_ARTICLE_MAX_HEIGHT);
+  }, []);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-border overflow-hidden">
+        <Skeleton className="w-full aspect-[16/9]" />
+        <div className="p-5 space-y-3">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-7 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <div className="space-y-2 pt-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback to generic link preview if Wikipedia API returned nothing
+  if (!wiki) {
+    return <LinkEmbed url={url} showActions={false} />;
+  }
+
+  const heroImage = wiki.originalImage?.source ?? wiki.thumbnail?.source;
+
+  return (
+    <div className="rounded-2xl border border-border overflow-hidden">
+      {/* Hero image */}
+      {heroImage && (
+        <div className="relative w-full overflow-hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/10">
+          <img
+            src={heroImage}
+            alt={wiki.title}
+            className="w-full max-h-[320px] object-cover"
+            loading="eager"
+            onError={(e) => {
+              (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
+            }}
+          />
+        </div>
+      )}
+
+      {/* Article content */}
+      <div className="p-5 sm:p-6">
+        {/* Wikipedia badge */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
+          <WikipediaIcon className="size-3.5 shrink-0" />
+          <span>Wikipedia</span>
+        </div>
+
+        {/* Title */}
+        <h2 className="text-2xl sm:text-3xl font-bold leading-snug mb-1">
+          {wiki.title}
+        </h2>
+
+        {/* Description */}
+        {wiki.description && (
+          <p className="text-sm text-muted-foreground capitalize mb-4">
+            {wiki.description}
+          </p>
+        )}
+
+        {/* Extract with expand/collapse */}
+        {wiki.extract && (
+          <div className="space-y-2">
+            <div className="relative">
+              <p
+                ref={contentRef}
+                style={!expanded && overflows ? { maxHeight: WIKI_ARTICLE_MAX_HEIGHT, overflow: 'hidden' } : undefined}
+                className="text-sm leading-relaxed text-muted-foreground"
+              >
+                {wiki.extract}
+              </p>
+              {!expanded && overflows && (
+                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+              )}
+            </div>
+            {overflows && (
+              <button
+                className="text-sm text-primary hover:underline"
+                onClick={() => setExpanded((v) => !v)}
+              >
+                {expanded ? 'Show less' : 'Read more'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer with Wikipedia link */}
+      <div className="border-t border-border px-5 py-2.5">
+        <a
+          href={wiki.articleUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <WikipediaIcon className="size-3.5" />
+          <span>Read on Wikipedia</span>
+          <ExternalLink className="size-3" />
+        </a>
+      </div>
+    </div>
+  );
 }
 
 export function BookContentHeader({ isbn }: { isbn: string }) {
