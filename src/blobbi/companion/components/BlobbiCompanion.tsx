@@ -15,7 +15,11 @@ import type {
   Position,
 } from '../types/companion.types';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
-import { calculateIdleBob, calculateWalkBounce, calculateEntryAnimation } from '../utils/animation';
+import { 
+  calculateFloatAnimation,
+  calculateSidebarEntryAnimation,
+  calculateMobileEntryAnimation,
+} from '../utils/animation';
 import { BlobbiCompanionVisual } from './BlobbiCompanionVisual';
 
 interface BlobbiCompanionProps {
@@ -41,6 +45,27 @@ interface BlobbiCompanionProps {
   onUpdateDrag: (position: Position) => void;
   /** End drag callback */
   onEndDrag: () => void;
+  /** 
+   * Use absolute positioning instead of fixed.
+   * When true, coordinates are relative to the parent container.
+   * This is needed for clipping to work during entry animation.
+   */
+  useAbsolutePositioning?: boolean;
+  /**
+   * Offset to apply to coordinates when using absolute positioning.
+   * This compensates for the clipping container's position.
+   */
+  positionOffset?: Position;
+  /**
+   * Whether we're on mobile (no sidebar).
+   * When true, uses a simpler entry animation from the left edge.
+   */
+  isMobile?: boolean;
+  /**
+   * The X position of the content boundary (where sidebar ends).
+   * Used for desktop entry animation to position the "stuck" point.
+   */
+  contentBoundaryX?: number;
 }
 
 export function BlobbiCompanion({
@@ -55,6 +80,10 @@ export function BlobbiCompanion({
   onStartDrag,
   onUpdateDrag,
   onEndDrag,
+  useAbsolutePositioning = false,
+  positionOffset = { x: 0, y: 0 },
+  isMobile = false,
+  contentBoundaryX = 0,
 }: BlobbiCompanionProps) {
   const config = DEFAULT_COMPANION_CONFIG;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -82,12 +111,19 @@ export function BlobbiCompanion({
   let scaleY = 1;
   
   if (isEntering) {
-    // Playful "squeezing out" entry animation
-    const entryAnim = calculateEntryAnimation(
-      entryStartPosition,
-      entryEndPosition,
-      entryProgress
-    );
+    // Choose animation based on mobile vs desktop
+    const entryAnim = isMobile
+      ? calculateMobileEntryAnimation(
+          entryStartPosition,
+          entryEndPosition,
+          entryProgress
+        )
+      : calculateSidebarEntryAnimation(
+          entryStartPosition,
+          entryEndPosition,
+          entryProgress,
+          { contentBoundaryX }
+        );
     x = entryAnim.position.x;
     y = entryAnim.position.y;
     rotation = entryAnim.rotation;
@@ -98,19 +134,21 @@ export function BlobbiCompanion({
     x = motion.position.x;
     y = motion.position.y;
   } else {
-    // Normal behavior - add bob/bounce animation
+    // Normal behavior - position from motion, animation handled by floatOffset
     x = motion.position.x;
     y = motion.position.y;
-    
-    if (state === 'walking') {
-      // Add bounce while walking
-      const speed = Math.abs(motion.velocity.x);
-      y -= calculateWalkBounce(animationTime, speed);
-    } else {
-      // Add gentle bob while idle
-      y -= calculateIdleBob(animationTime);
-    }
   }
+  
+  // Apply position offset when using absolute positioning
+  // This converts viewport coordinates to container-relative coordinates
+  const finalX = useAbsolutePositioning ? x - positionOffset.x : x;
+  const finalY = useAbsolutePositioning ? y - positionOffset.y : y;
+  
+  // Calculate floating animation offset (gentle sway/float)
+  // Skip during entry animation or dragging
+  const floatOffset = (!isEntering && !motion.isDragging)
+    ? calculateFloatAnimation(animationTime, state === 'walking')
+    : { x: 0, y: 0, rotation: 0 };
   
   // Build transform string
   const transform = isEntering 
@@ -166,10 +204,11 @@ export function BlobbiCompanion({
   return (
     <div
       ref={containerRef}
-      className="fixed select-none touch-none"
+      className="select-none touch-none"
       style={{
-        left: x,
-        top: y,
+        position: useAbsolutePositioning ? 'absolute' : 'fixed',
+        left: finalX,
+        top: finalY,
         width: config.size,
         height: config.size,
         zIndex: motion.isDragging ? 10001 : 10000,
@@ -193,6 +232,7 @@ export function BlobbiCompanion({
         direction={isEntering ? 'right' : motion.direction}
         isDragging={motion.isDragging}
         isWalking={state === 'walking' || isEntering}
+        floatOffset={floatOffset}
       />
     </div>
   );

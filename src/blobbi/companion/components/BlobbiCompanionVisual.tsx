@@ -20,12 +20,14 @@ interface BlobbiCompanionVisualProps {
   size: number;
   /** Eye offset for gaze direction */
   eyeOffset: EyeOffset;
-  /** Facing direction */
+  /** Facing direction (used for gaze, not for flipping) */
   direction: CompanionDirection;
   /** Whether the companion is being dragged */
   isDragging: boolean;
   /** Whether the companion is walking */
   isWalking: boolean;
+  /** Floating animation offset for gentle sway */
+  floatOffset?: { x: number; y: number; rotation: number };
   /** Additional class names */
   className?: string;
 }
@@ -65,6 +67,7 @@ export function BlobbiCompanionVisual({
   direction,
   isDragging,
   isWalking,
+  floatOffset = { x: 0, y: 0, rotation: 0 },
   className,
 }: BlobbiCompanionVisualProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -88,39 +91,80 @@ export function BlobbiCompanionVisual({
     });
   }, [eyeOffset]);
   
-  // Apply facing direction via CSS transform
-  const containerStyle = useMemo(() => ({
-    width: size,
-    height: size,
-    transform: direction === 'left' ? 'scaleX(-1)' : 'scaleX(1)',
-    transition: isDragging ? 'none' : 'transform 0.2s ease-out',
-  }), [size, direction, isDragging]);
+  // Build transform for floating animation
+  // No flipping based on direction - Blobbi always faces the same way
+  const blobbiTransform = useMemo(() => {
+    const transforms: string[] = [];
+    
+    if (floatOffset.x !== 0 || floatOffset.y !== 0) {
+      transforms.push(`translate(${floatOffset.x}px, ${floatOffset.y}px)`);
+    }
+    if (floatOffset.rotation !== 0) {
+      transforms.push(`rotate(${floatOffset.rotation}deg)`);
+    }
+    
+    return transforms.length > 0 ? transforms.join(' ') : undefined;
+  }, [floatOffset]);
   
   // Determine reaction state
   const reaction = isDragging ? 'happy' : isWalking ? 'idle' : 'idle';
+  
+  // Shadow size and opacity adjust based on float height
+  // Higher float = smaller/fainter shadow (further from ground)
+  const shadowScale = 1 - Math.abs(floatOffset.y) * 0.015;
+  const shadowOpacity = 0.35 - Math.abs(floatOffset.y) * 0.01;
+  
+  // Suppress unused variable warning for direction (kept for API compatibility)
+  void direction;
   
   return (
     <div 
       ref={containerRef}
       className={cn('relative', className)}
-      style={containerStyle}
+      style={{ width: size, height: size }}
     >
-      {companion.stage === 'baby' && (
-        <BlobbiBabyVisual
-          blobbi={blobbi}
-          reaction={reaction}
-          lookMode="forward" // We control eyes externally
-          className="size-full"
-        />
-      )}
-      {companion.stage === 'adult' && (
-        <BlobbiAdultVisual
-          blobbi={blobbi}
-          reaction={reaction}
-          lookMode="forward" // We control eyes externally
-          className="size-full"
-        />
-      )}
+      {/* Shadow underneath - soft ellipse */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          bottom: -6,
+          left: '50%',
+          width: size * 0.65,
+          height: size * 0.15,
+          transform: `translateX(-50%) scaleX(${shadowScale})`,
+          background: `radial-gradient(ellipse at center, rgba(0,0,0,${shadowOpacity}) 0%, rgba(0,0,0,${shadowOpacity * 0.5}) 40%, transparent 70%)`,
+          borderRadius: '50%',
+          filter: 'blur(2px)',
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out, background 0.1s ease-out',
+        }}
+      />
+      
+      {/* Blobbi visual with floating transform */}
+      <div
+        className="size-full"
+        style={{
+          transform: blobbiTransform,
+          transformOrigin: 'center bottom',
+          transition: isDragging ? 'none' : 'transform 0.05s ease-out',
+        }}
+      >
+        {companion.stage === 'baby' && (
+          <BlobbiBabyVisual
+            blobbi={blobbi}
+            reaction={reaction}
+            lookMode="forward"
+            className="size-full"
+          />
+        )}
+        {companion.stage === 'adult' && (
+          <BlobbiAdultVisual
+            blobbi={blobbi}
+            reaction={reaction}
+            lookMode="forward"
+            className="size-full"
+          />
+        )}
+      </div>
     </div>
   );
 }
