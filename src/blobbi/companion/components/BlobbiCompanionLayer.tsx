@@ -23,7 +23,7 @@ import { calculateGroundY } from '../utils/movement';
 import {
   useCompanionActionMenu,
   CompanionActionMenu,
-  CompanionItemBubbles,
+  HangingItems,
 } from '../interaction';
 import type { Position } from '../types/companion.types';
 
@@ -77,7 +77,6 @@ export function BlobbiCompanionLayer() {
     toggleMenu,
     closeMenu,
     selectAction,
-    clearAction,
     handleItemClick,
   } = useCompanionActionMenu({
     isActive: isVisible,
@@ -232,13 +231,12 @@ export function BlobbiCompanionLayer() {
         onClickOutside={handleClickOutside}
       />
       
-      {/* Item Bubbles - floating items for selected action */}
-      <CompanionItemBubbles
+      {/* Hanging Items - items displayed as hanging elements from top */}
+      <HangingItems
         isVisible={menuState.isOpen && menuState.selectedAction !== null}
         selectedAction={menuState.selectedAction}
         items={menuState.items}
-        onItemClick={handleItemClick}
-        onClose={clearAction}
+        onItemRelease={handleItemClick}
       />
     </div>
   );

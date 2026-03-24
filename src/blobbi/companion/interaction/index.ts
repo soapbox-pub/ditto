@@ -5,16 +5,16 @@
  * 
  * Components:
  * - CompanionActionMenu: Radial action buttons around Blobbi
- * - CompanionItemBubbles: Floating item display
+ * - HangingItems: Items displayed as hanging elements from the top of screen
  * 
  * Hooks:
  * - useCompanionActionMenu: Menu state management
  * - useClickDetection: Click vs drag detection
  * 
  * Future extensions:
- * - Item falling animation
  * - Drag items to Blobbi
- * - Blobbi reactions
+ * - Blobbi reactions to items
+ * - Auto-use urgent items
  */
 
 // Types
@@ -40,4 +40,4 @@ export { useClickDetection } from './useClickDetection';
 
 // Components
 export { CompanionActionMenu } from './CompanionActionMenu';
-export { CompanionItemBubbles } from './CompanionItemBubbles';
+export { HangingItems } from './HangingItems';
