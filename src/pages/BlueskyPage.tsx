@@ -136,25 +136,21 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
   const [shareOpen, setShareOpen] = useState(false);
 
   const handleComment = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
     e.stopPropagation();
     navigate(internalUrl);
   }, [navigate, internalUrl]);
 
   const handleRepost = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
     e.stopPropagation();
     setShareOpen(true);
   }, []);
 
   const handleLike = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
     e.stopPropagation();
     navigate(internalUrl);
   }, [navigate, internalUrl]);
 
   const handleShare = useCallback(async (e: React.MouseEvent) => {
-    e.preventDefault();
     e.stopPropagation();
     const fullUrl = `${window.location.origin}${internalUrl}`;
     const result = await shareOrCopy(fullUrl);
@@ -163,11 +159,15 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
     }
   }, [internalUrl, toast]);
 
+  const handleCardClick = useCallback(() => {
+    navigate(internalUrl);
+  }, [navigate, internalUrl]);
+
   return (
     <>
-      <Link
-        to={internalUrl}
-        className="block px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer"
+      <article
+        onClick={handleCardClick}
+        className="px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer"
       >
         <div className="flex gap-3">
           {/* Avatar */}
@@ -308,7 +308,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
             </div>
           </div>
         </div>
-      </Link>
+      </article>
 
       {/* Share compose modal */}
       {shareOpen && (
