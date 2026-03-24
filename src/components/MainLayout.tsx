@@ -74,7 +74,7 @@ function MainLayoutInner() {
       {config.magicMouse && <CursorFireEffect />}
 
       {/* Mobile top bar - only on small screens */}
-      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} showArc={!hasSubHeader && !noArcs} />
+      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} />
 
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
