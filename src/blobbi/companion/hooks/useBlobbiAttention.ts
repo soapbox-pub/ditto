@@ -17,10 +17,11 @@
  * - Add attention chaining for sequential focus events
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
 import type { AttentionTarget, AttentionPriority, Position } from '../types/companion.types';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
+import { useTypingAttention } from './useTypingAttention';
 
 interface UseBlobbiAttentionOptions {
   /** Whether attention system should be active */
@@ -32,12 +33,14 @@ interface UseBlobbiAttentionOptions {
 }
 
 interface UseBlobbiAttentionResult {
-  /** Current attention target, if any */
+  /** Current attention target, if any (includes typing attention) */
   currentAttention: AttentionTarget | null;
   /** Manually trigger attention to a position */
   triggerAttention: (position: Position, options?: TriggerOptions) => void;
   /** Clear current attention */
   clearAttention: () => void;
+  /** Whether user is currently typing in a modal text field */
+  isTypingInModal: boolean;
 }
 
 interface TriggerOptions {
@@ -126,15 +129,21 @@ export function useBlobbiAttention({
   onAttentionStart,
   onAttentionEnd,
 }: UseBlobbiAttentionOptions): UseBlobbiAttentionResult {
-  const [currentAttention, setCurrentAttention] = useState<AttentionTarget | null>(null);
+  const [uiAttention, setUiAttention] = useState<AttentionTarget | null>(null);
   
   const config = DEFAULT_COMPANION_CONFIG;
   const lastAttentionTimeRef = useRef<number>(0);
   const attentionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const observerRef = useRef<MutationObserver | null>(null);
   
+  // Typing attention - detects when user is typing in modal text fields
+  const { typingTarget, isTyping: isTypingInModal } = useTypingAttention({
+    isActive,
+  });
+  
   /**
-   * Clear current attention and any pending timeouts.
+   * Clear UI attention and any pending timeouts.
+   * Note: Typing attention clears itself via its own timeout.
    */
   const clearAttention = useCallback(() => {
     if (attentionTimeoutRef.current) {
@@ -142,7 +151,7 @@ export function useBlobbiAttention({
       attentionTimeoutRef.current = null;
     }
     
-    setCurrentAttention(prev => {
+    setUiAttention(prev => {
       if (prev) {
         onAttentionEnd?.(prev.id);
       }
@@ -173,15 +182,15 @@ export function useBlobbiAttention({
       return;
     }
     
-    // If there's a current attention, check priority
-    if (currentAttention) {
+    // If there's current UI attention, check priority
+    if (uiAttention) {
       const priorityOrder: Record<AttentionPriority, number> = {
         low: 0,
         normal: 1,
         high: 2,
       };
       
-      if (priorityOrder[priority] < priorityOrder[currentAttention.priority]) {
+      if (priorityOrder[priority] < priorityOrder[uiAttention.priority]) {
         return; // Current attention has higher priority
       }
       
@@ -199,14 +208,14 @@ export function useBlobbiAttention({
     };
     
     lastAttentionTimeRef.current = now;
-    setCurrentAttention(target);
+    setUiAttention(target);
     onAttentionStart?.(target);
     
     // Auto-clear after duration
     attentionTimeoutRef.current = setTimeout(() => {
       clearAttention();
     }, duration);
-  }, [config.attention, currentAttention, clearAttention, onAttentionStart]);
+  }, [config.attention, uiAttention, clearAttention, onAttentionStart]);
   
   /**
    * Handle overlay elements (modals, dialogs, sheets) - full attention.
@@ -366,9 +375,36 @@ export function useBlobbiAttention({
     };
   }, []);
   
+  /**
+   * Compute the effective current attention.
+   * Priority (highest to lowest):
+   * 1. Typing attention (when actively typing in modal field)
+   * 2. UI attention (modals, dialogs, overlays)
+   * 
+   * Typing attention is created dynamically from typingTarget.
+   */
+  const currentAttention = useMemo((): AttentionTarget | null => {
+    // Typing attention takes priority over UI attention
+    // This keeps Blobbi focused on the text field while typing
+    if (isTypingInModal && typingTarget) {
+      return {
+        id: 'typing-attention',
+        position: typingTarget,
+        duration: 0, // Managed by typing timeout, not attention timeout
+        priority: 'normal', // Below 'high' (alert dialogs) but above 'low'
+        source: 'typing:modal-input',
+        triggeredAt: Date.now(),
+      };
+    }
+    
+    // Fall back to UI attention
+    return uiAttention;
+  }, [isTypingInModal, typingTarget, uiAttention]);
+  
   return {
     currentAttention,
     triggerAttention,
     clearAttention,
+    isTypingInModal,
   };
 }

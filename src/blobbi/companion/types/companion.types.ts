@@ -253,6 +253,8 @@ export interface CompanionConfig {
     postRouteDuration: number;
     /** Delay before post-route attention starts (ms) */
     postRouteDelay: number;
+    /** Idle timeout before releasing typing attention (ms) */
+    typingIdleTimeout: number;
   };
   /** Entry animation duration (ms) - legacy, see entry config */
   entryAnimationDuration: number;
