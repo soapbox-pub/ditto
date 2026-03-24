@@ -88,8 +88,9 @@ import { FontPicker } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { formatNumber } from '@/lib/formatNumber';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
-import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -1719,6 +1720,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} onMediaClick={handleSidebarMediaClick} />,
     showFAB: !(activeTab === 'wall' && !profileFollowsMe),
     onFabClick: activeTab === 'wall' ? openWallCompose : undefined,
+    hasSubHeader: true,
   } : {});
 
   if (!pubkey) {
@@ -2142,7 +2144,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         </div>
 
         {/* Tabs */}
-        <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border backdrop-blur-md z-10 overflow-x-auto scrollbar-none')}>
+        <SubHeaderBar>
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
             <div className="flex gap-1 px-2 py-2">
@@ -2281,7 +2283,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               </button>
             </div>
           )}
-        </div>
+        </SubHeaderBar>
 
         {/* Add/edit single tab modal */}
         {pubkey && (
