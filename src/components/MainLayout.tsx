@@ -99,6 +99,20 @@ function MainLayoutInner() {
               content underneath. Only active below the sidebar breakpoint. */}
           <div className={cn("relative flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85 -mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
             <Outlet />
+
+            {/* Desktop FAB — sticky within the feed column so it stays
+                anchored to the bottom-right of the content area, not the
+                viewport. Hidden below the sidebar breakpoint where the
+                mobile fixed FAB takes over. */}
+            {showFAB && (
+              <div className="hidden sidebar:block sticky bottom-6 z-30 pointer-events-none">
+                <div className="flex justify-end pr-4">
+                  <div className="pointer-events-auto">
+                    <FloatingComposeButton kind={fabKind} href={fabHref} onFabClick={onFabClick} icon={fabIcon} />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           {rightSidebar !== null && (rightSidebar ?? <RightSidebar />)}
         </Suspense>
@@ -107,10 +121,12 @@ function MainLayoutInner() {
       {/* Mobile bottom nav - only on small screens, slides out on scroll */}
       <MobileBottomNav />
 
-      {/* FAB - fixed, mirrors bottom nav hide/show transition on mobile */}
+      {/* Mobile FAB — fixed to viewport, hidden on desktop where the
+          in-column sticky FAB (above) takes over. Mirrors bottom nav
+          hide/show transition on scroll. */}
       {showFAB && (
         <div
-          className="fixed bottom-fab sidebar:bottom-6 right-6 z-30 pointer-events-none sidebar:transition-none transition-transform duration-300 ease-in-out"
+          className="fixed bottom-fab right-6 z-30 pointer-events-none transition-transform duration-300 ease-in-out sidebar:hidden"
           style={navHidden ? { transform: `translateY(calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px)))` } : undefined}
         >
           <div className="pointer-events-auto">
