@@ -94,9 +94,10 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
     stuckVisibleAmount: 0.15, // Only 15% visible when stuck (just tiny butt)
     tuggingDuration: 300,     // Down-up "tries to fall but stuck" motion
     tuggingDropAmount: 0.12,  // How far down the tug goes (as fraction of size)
-    wiggleDuration: 350,      // Subtle butt wiggle
-    wiggleIntensity: 5,       // Smaller horizontal wiggle (pixels)
-    wiggleRotation: 3,        // Subtle rotation (degrees) - less full-body
+    pauseDuration: 180,       // "Hmm... still stuck" beat after tug
+    wiggleDuration: 320,      // Subtle butt wiggle
+    wiggleIntensity: 4,       // Small horizontal wiggle (pixels)
+    wiggleRotation: 2,        // Very subtle rotation (degrees) - butt only feel
     fallDuration: 500,        // Quick fall after getting loose
     landingDuration: 200,     // Brief squash on landing
     landingSquash: 0.15,      // 15% vertical compression on landing

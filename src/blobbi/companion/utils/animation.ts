@@ -162,15 +162,16 @@ export interface VerticalEntryConfig {
  * 
  * Used when navigating DOWN the sidebar order.
  * Blobbi appears stuck at the top with just a tiny butt showing,
- * tries to drop (tugging), wiggles subtly to get loose, then falls and lands.
+ * tries to drop (tugging), pauses, wiggles subtly to get loose, then falls and lands.
  * 
  * Phases:
  * 1. STUCK: Tiny butt visible at top (15% showing)
  * 2. TUGGING: Tries to fall (drops down) but gets stuck again (rebounds up)
- * 3. WIGGLING: Subtle diagonal butt wiggle to finally get loose
- * 4. FALLING: Accelerating fall from top of screen
- * 5. LANDING: Brief squash/settle on impact
- * 6. COMPLETE: At rest position
+ * 3. PAUSE: Brief "hmm... still stuck" moment
+ * 4. WIGGLING: Subtle butt wiggle to finally get loose
+ * 5. FALLING: Accelerating fall from top of screen
+ * 6. LANDING: Brief squash/settle on impact
+ * 7. COMPLETE: At rest position
  * 
  * @param groundPosition - Final resting position (ground level, center of screen)
  * @param viewportHeight - Height of the viewport
@@ -250,26 +251,42 @@ export function calculateFallEntryAnimation(
       };
     }
     
+    case 'pause': {
+      // Brief pause after tug - "hmm... still stuck" moment
+      // Just hold position at stuck point, no movement
+      return {
+        position: { x: groundPosition.x, y: stuckY },
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+    }
+    
     case 'wiggling': {
-      // Subtle butt wiggle - NOT full body shaking
-      // This should feel like just the lower part is wiggling diagonally
-      // Use fewer, smaller movements
-      const t = phaseProgress * Math.PI * 3; // 1.5 wiggle cycles (subtle)
+      // Subtle butt wiggle - feels like the LOWER PART trying to get loose
+      // Key: asymmetric motion that suggests the bottom/back is doing the work
+      // - Primary motion is small side-to-side at bottom
+      // - Tiny downward bias (pulling down)
+      // - Minimal rotation (not whole-body tilt)
       
-      // Small diagonal movement (not just horizontal)
-      // Intensity decreases as it progresses
-      const intensity = config.wiggleIntensity * (1 - phaseProgress * 0.4);
-      const xOffset = Math.sin(t) * intensity;
-      const yOffset = Math.cos(t * 0.7) * (intensity * 0.3); // Smaller vertical component
+      const t = phaseProgress * Math.PI * 2.5; // ~1.25 wiggle cycles (playful but brief)
       
-      // Very subtle rotation - not full body tilt
-      const rotationAmount = config.wiggleRotation * (1 - phaseProgress * 0.5);
-      const rotation = Math.sin(t + 0.3) * rotationAmount;
+      // Side-to-side wiggle - the main "butt wiggle" motion
+      const sideIntensity = config.wiggleIntensity * (1 - phaseProgress * 0.3);
+      const xOffset = Math.sin(t) * sideIntensity;
+      
+      // Small downward pull on each wiggle (like trying to tug loose)
+      // Uses abs(sin) to always pull down slightly, synced with side motion
+      const yOffset = Math.abs(Math.sin(t)) * 2 * (1 - phaseProgress * 0.5);
+      
+      // Very minimal rotation - just enough to feel organic, not full-body tilt
+      const rotation = Math.sin(t * 0.8) * config.wiggleRotation * (1 - phaseProgress * 0.6);
       
       return {
         position: { 
           x: groundPosition.x + xOffset, 
-          y: stuckY + yOffset 
+          y: stuckY + yOffset  // Positive yOffset = slight downward during wiggle
         },
         rotation,
         scaleX: 1,

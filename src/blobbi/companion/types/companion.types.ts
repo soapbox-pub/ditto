@@ -42,7 +42,7 @@ export type EntryType = 'fall' | 'rise';
  * Entry animation phases for vertical entrance sequences.
  * 
  * FALL entry (from top):
- *   idle -> stuck -> tugging -> wiggling -> falling -> landing -> complete
+ *   idle -> stuck -> tugging -> pause -> wiggling -> falling -> landing -> complete
  * 
  * RISE entry (from bottom):
  *   idle -> rising -> inspecting -> entering -> complete
@@ -51,6 +51,7 @@ export type EntryPhase =
   | 'idle'          // Not entering
   | 'stuck'         // Tiny butt visible at top, stuck (fall entry)
   | 'tugging'       // Tries to drop, gets stuck again - down-up motion (fall entry)
+  | 'pause'         // Brief pause after tug - "hmm... still stuck" moment (fall entry)
   | 'wiggling'      // Subtle butt wiggle to get loose (fall entry)
   | 'falling'       // Falling from top of screen (fall entry)
   | 'landing'       // Brief landing squash/settle (fall entry)
@@ -259,6 +260,8 @@ export interface CompanionConfig {
     tuggingDuration: number;
     /** How far down the tug motion goes (0-1, as fraction of companion size) */
     tuggingDropAmount: number;
+    /** Duration of pause after tug - "hmm... still stuck" beat (ms) */
+    pauseDuration: number;
     /** Duration of the subtle butt wiggle animation (ms) */
     wiggleDuration: number;
     /** Horizontal wiggle intensity in pixels (subtle) */
