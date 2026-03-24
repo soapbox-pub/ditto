@@ -58,6 +58,8 @@ interface UseBlobbiEntryAnimationResult {
   isEntering: boolean;
   /** Whether Blobbi is permanently stuck (needs user drag to resolve) */
   isPermanentlyStuck: boolean;
+  /** Whether Blobbi should be hidden (during route transition delay) */
+  isHiddenForTransition: boolean;
   /** Current inspection direction (for eye control) */
   currentInspectionDirection: InspectionDirection | null;
   /** Resolve permanent stuck state (called after drag release) */
@@ -97,6 +99,7 @@ export function useBlobbiEntryAnimation({
   
   const [entryState, setEntryState] = useState<EntryState>(createInitialEntryState);
   const [isEntering, setIsEntering] = useState(false);
+  const [isHiddenForTransition, setIsHiddenForTransition] = useState(false);
   
   // Refs for tracking state
   const animationRef = useRef<number | null>(null);
@@ -150,6 +153,9 @@ export function useBlobbiEntryAnimation({
   const startEntry = useCallback((entryType: EntryType) => {
     // Cancel any existing animation or pending restart
     cancelEntry();
+    
+    // Clear hidden state - we're starting the entry now
+    setIsHiddenForTransition(false);
     
     // Generate random inspection order (only used for rise entry)
     const inspectionOrder = generateInspectionOrder();
@@ -233,9 +239,11 @@ export function useBlobbiEntryAnimation({
       const entryType = getEntryDirection(previousPath, pathname, sidebarOrder);
       lastPathnameRef.current = pathname;
       
-      // Always cancel current entry and restart after 1 second
+      // Immediately hide Blobbi and cancel current entry
       cancelEntry();
+      setIsHiddenForTransition(true);
       
+      // Wait 1 second, then start the new entry animation
       routeChangeTimeoutRef.current = setTimeout(() => {
         startEntry(entryType);
       }, entryConfig.routeChangeRestartDelay);
@@ -553,6 +561,7 @@ export function useBlobbiEntryAnimation({
     entryState,
     isEntering,
     isPermanentlyStuck: entryState.phase === 'stuck_permanent',
+    isHiddenForTransition,
     currentInspectionDirection: entryState.inspectionDirection,
     resolvePermanentStuck,
   };

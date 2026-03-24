@@ -232,6 +232,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     entryState,
     isEntering,
     isPermanentlyStuck,
+    isHiddenForTransition,
     currentInspectionDirection,
   } = useBlobbiEntryAnimation({
     isActive: isVisible,
@@ -241,6 +242,9 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     onComplete: handleEntryComplete,
     onStart: handleEntryStart,
   });
+  
+  // Companion should be hidden during route transition delay
+  const shouldBeVisible = isVisible && !isHiddenForTransition;
   
   // Sync motion position when entry completes
   useEffect(() => {
@@ -267,7 +271,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   return {
     companion,
     isLoading,
-    isVisible,
+    isVisible: shouldBeVisible,
     state: isEntering ? 'idle' : state,
     motion,
     gaze,
