@@ -111,10 +111,10 @@ export function BlobbiCompanionVisual({
   
   // Shadow size and opacity adjust based on float height
   // floatOffset.y is negative (upward) or zero, so we use -floatOffset.y for the height
-  // Higher float = smaller/fainter shadow (further from ground)
-  const floatHeight = -floatOffset.y; // Convert to positive value (0 = on ground, 6 = max float)
-  const shadowScale = 1 - floatHeight * 0.02;
-  const shadowOpacity = 0.35 - floatHeight * 0.015;
+  // When on ground (y=0): full shadow. When lifted: smaller/fainter shadow
+  const floatHeight = -floatOffset.y; // Convert to positive value (0 = on ground, ~4 = max float)
+  const shadowScale = 1 - floatHeight * 0.04; // Shrinks as Blobbi lifts
+  const shadowOpacity = 0.4 - floatHeight * 0.03; // Fades as Blobbi lifts
   
   // Suppress unused variable warning for direction (kept for API compatibility)
   void direction;
@@ -125,19 +125,19 @@ export function BlobbiCompanionVisual({
       className={cn('relative', className)}
       style={{ width: size, height: size }}
     >
-      {/* Shadow underneath - soft ellipse */}
+      {/* Shadow underneath - soft ellipse anchored at ground level */}
       <div
         className="absolute pointer-events-none"
         style={{
-          bottom: -6,
+          bottom: 0,
           left: '50%',
-          width: size * 0.65,
-          height: size * 0.15,
+          width: size * 0.55,
+          height: size * 0.1,
           transform: `translateX(-50%) scaleX(${shadowScale})`,
-          background: `radial-gradient(ellipse at center, rgba(0,0,0,${shadowOpacity}) 0%, rgba(0,0,0,${shadowOpacity * 0.5}) 40%, transparent 70%)`,
+          background: `radial-gradient(ellipse at center, rgba(0,0,0,${shadowOpacity}) 0%, rgba(0,0,0,${shadowOpacity * 0.4}) 50%, transparent 75%)`,
           borderRadius: '50%',
-          filter: 'blur(2px)',
-          transition: isDragging ? 'none' : 'transform 0.1s ease-out, background 0.1s ease-out',
+          filter: 'blur(1px)',
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out',
         }}
       />
       
