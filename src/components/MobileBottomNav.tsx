@@ -45,14 +45,16 @@ export function MobileBottomNav() {
 
       <nav
         className={cn(
-          'fixed bottom-0 left-0 right-0 z-40 sidebar:hidden safe-area-bottom will-change-transform',
+          'fixed bottom-0 left-0 right-0 z-40 sidebar:hidden will-change-transform',
           'transition-transform duration-300 ease-in-out',
         )}
         style={isHidden ? hiddenStyle : undefined}
       >
-        <ArcBackground variant={noArcs ? 'rect' : 'up'} />
-
-        <div className="h-11 flex items-center relative">
+        {/* Arc + items wrapper — safe area padding is separate below so the
+            arc's percentage height is based only on the items area. */}
+        <div className="relative">
+          <ArcBackground variant={noArcs ? 'rect' : 'up'} />
+          <div className="h-11 flex items-center relative">
 
           {/* Feed */}
           <Link
@@ -127,7 +129,10 @@ export function MobileBottomNav() {
             </Link>
           )}
 
+          </div>
         </div>
+        {/* Safe area spacer — sits below the arc/items so it doesn't inflate the arc height */}
+        <div className="safe-area-bottom bg-background/95" />
       </nav>
     </>
   );
