@@ -13,8 +13,6 @@ interface TabButtonProps {
   disabled?: boolean;
   /** Extra classes forwarded to the `<button>`. */
   className?: string;
-  /** Override the default indicator bar classes. */
-  indicatorClassName?: string;
   /** Optional children rendered inside the button instead of the label text. */
   children?: React.ReactNode;
 }
@@ -26,7 +24,7 @@ interface TabButtonProps {
  * - Clicking the **active** tab smooth-scrolls to the top.
  * - Switching to a **different** tab resets scroll position instantly.
  */
-export function TabButton({ label, active, onClick, disabled, className, indicatorClassName, children }: TabButtonProps) {
+export function TabButton({ label, active, onClick, disabled, className, children }: TabButtonProps) {
   const ref = useRef<HTMLButtonElement>(null);
   const { onHover, onActive } = useSubHeaderBarHover();
 
