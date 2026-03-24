@@ -31,15 +31,29 @@ export type GazeMode =
 
 // ─── Entry Animation ──────────────────────────────────────────────────────────
 
+/**
+ * Entry type based on navigation direction in the sidebar.
+ * - 'fall': Enter from top (falling down) - navigating DOWN the sidebar
+ * - 'rise': Enter from bottom (rising up with inspection) - navigating UP the sidebar
+ */
+export type EntryType = 'fall' | 'rise';
+
 /** 
- * Entry animation phases for the peeking entrance sequence.
- * Blobbi cautiously peeks into the page, inspects it, then enters normally.
+ * Entry animation phases for vertical entrance sequences.
+ * 
+ * FALL entry (from top):
+ *   idle -> falling -> landing -> complete
+ * 
+ * RISE entry (from bottom):
+ *   idle -> rising -> inspecting -> entering -> complete
  */
 export type EntryPhase =
   | 'idle'          // Not entering
-  | 'peeking'       // Slowly emerging diagonally, body tilted
-  | 'inspecting'    // Paused, looking around (UP, RIGHT, LEFT in random order)
-  | 'entering'      // Transitioning from peek pose to normal walking in
+  | 'falling'       // Falling from top of screen (fall entry)
+  | 'landing'       // Brief landing squash/settle (fall entry)
+  | 'rising'        // Rising from bottom until eyes visible (rise entry)
+  | 'inspecting'    // Paused, looking around in 3 directions (rise entry)
+  | 'entering'      // Continuing to rise to final position (rise entry)
   | 'complete';     // Entry finished
 
 /** Direction to look during inspection */
@@ -47,6 +61,8 @@ export type InspectionDirection = 'up' | 'right' | 'left';
 
 /** State for the entry animation sequence */
 export interface EntryState {
+  /** Type of entry animation (fall from top or rise from bottom) */
+  entryType: EntryType;
   /** Current phase of the entry animation */
   phase: EntryPhase;
   /** Overall progress through the entire entry sequence (0-1) */
@@ -226,25 +242,32 @@ export interface CompanionConfig {
     /** Delay before post-route attention starts (ms) */
     postRouteDelay: number;
   };
-  /** Entry animation duration (ms) */
+  /** Entry animation duration (ms) - legacy, see entry config */
   entryAnimationDuration: number;
   
-  /** Peeking entry sequence configuration */
+  /** Vertical entry animation configuration */
   entry: {
-    /** Duration of the peeking phase - slow diagonal emergence (ms) */
-    peekDuration: number;
+    // ── Fall entry (from top) ──
+    /** Duration of the falling phase (ms) */
+    fallDuration: number;
+    /** Duration of the landing squash/settle (ms) */
+    landingDuration: number;
+    /** Squash amount during landing (0-1, how much to compress vertically) */
+    landingSquash: number;
+    
+    // ── Rise entry (from bottom) ──
+    /** Duration of the rising phase until eyes visible (ms) */
+    riseDuration: number;
+    /** How much of Blobbi is visible when stopping to inspect (0-1, 0.6 = 60% visible) */
+    riseVisibleAmount: number;
     /** Duration of each inspection look (ms) */
     inspectionLookDuration: number;
     /** Pause between inspection looks (ms) */
     inspectionPauseDuration: number;
-    /** Duration of transition from peek pose to normal walking (ms) */
-    enterTransitionDuration: number;
-    /** Duration of final walk-in after transition (ms) */
-    walkInDuration: number;
-    /** How far to peek in before stopping to inspect (0-1, fraction of total distance) */
-    peekDistance: number;
-    /** Diagonal rotation angle during peek (degrees) */
-    peekRotation: number;
+    /** Duration of final rise to full position (ms) */
+    enterDuration: number;
+    
+    // ── Shared ──
     /** Delay before restarting entry when route changes during entry (ms) */
     routeChangeRestartDelay: number;
   };

@@ -2,148 +2,14 @@
  * Animation Utilities
  * 
  * Helper functions for companion animations.
- */
-
-import type { Position, EntryPhase, EntryState } from '../types/companion.types';
-import { lerp, easeOutCubic, easeInOutCubic } from './movement';
-
-/**
- * Entry animation result with position and visual transforms.
- */
-export interface EntryAnimationResult {
-  position: Position;
-  /** Rotation in degrees for visual effect */
-  rotation: number;
-  /** Scale factor for squish effect */
-  scaleX: number;
-  scaleY: number;
-  complete: boolean;
-}
-
-/**
- * Options for the sidebar entry animation.
- */
-export interface SidebarEntryOptions {
-  /** The X position of the content boundary (where sidebar ends) */
-  contentBoundaryX: number;
-  /** How far past the boundary the stuck point should be (in pixels) */
-  stuckOffsetFromBoundary?: number;
-}
-
-/**
- * Calculate a simple walking entry from behind the sidebar.
  * 
- * The companion starts hidden behind the sidebar and walks out smoothly.
- * No stuck/squeeze/tug behavior - just a clean continuous walking entrance.
- * 
- * @param startPosition - Starting position (behind sidebar)
- * @param endPosition - Final resting position
- * @param progress - Animation progress from 0 to 1
- * @param _options - Configuration (contentBoundaryX not used for simple walk)
+ * Entry animations are VERTICAL based on sidebar navigation direction:
+ * - FALL: Drops from top of screen when navigating DOWN the sidebar
+ * - RISE: Rises from bottom with inspection when navigating UP the sidebar
  */
-export function calculateSidebarEntryAnimation(
-  startPosition: Position,
-  endPosition: Position,
-  progress: number,
-  _options: SidebarEntryOptions
-): EntryAnimationResult {
-  // Simple eased walk from start to end
-  const eased = easeOutCubic(progress);
-  
-  return {
-    position: {
-      x: lerp(startPosition.x, endPosition.x, eased),
-      y: lerp(startPosition.y, endPosition.y, eased),
-    },
-    // No rotation - just walking straight
-    rotation: 0,
-    // Normal scale throughout
-    scaleX: 1,
-    scaleY: 1,
-    complete: progress >= 1,
-  };
-}
 
-/**
- * Calculate a simple lateral entry animation for mobile.
- * 
- * The companion slides in smoothly from the left edge of the screen.
- * No "stuck" or "tugging" behavior - just a clean entrance.
- * 
- * @param startPosition - Starting position (off-screen left)
- * @param endPosition - Final resting position
- * @param progress - Animation progress from 0 to 1
- */
-export function calculateMobileEntryAnimation(
-  startPosition: Position,
-  endPosition: Position,
-  progress: number
-): EntryAnimationResult {
-  // Simple eased slide-in
-  const eased = easeOutCubic(progress);
-  
-  // Slight bounce effect at the end
-  const bounceProgress = Math.max(0, (progress - 0.7) / 0.3);
-  const bounce = bounceProgress > 0 
-    ? Math.sin(bounceProgress * Math.PI) * 8 * (1 - bounceProgress)
-    : 0;
-  
-  return {
-    position: {
-      x: lerp(startPosition.x, endPosition.x, eased) + bounce,
-      y: lerp(startPosition.y, endPosition.y, eased),
-    },
-    // Slight forward lean that settles
-    rotation: lerp(8, 0, eased),
-    // Slight stretch while moving fast
-    scaleX: 1 + (1 - eased) * 0.1,
-    scaleY: 1 - (1 - eased) * 0.05,
-    complete: progress >= 1,
-  };
-}
-
-/**
- * Calculate entry animation - dispatches to sidebar or mobile version.
- * 
- * @deprecated Use calculateSidebarEntryAnimation or calculateMobileEntryAnimation directly
- */
-export function calculateEntryAnimation(
-  startPosition: Position,
-  endPosition: Position,
-  progress: number
-): EntryAnimationResult {
-  // Legacy function - assumes desktop with default stuck point
-  // For proper behavior, use calculateSidebarEntryAnimation with real boundary
-  const stuckProgress = 0.40;
-  const contentBoundaryX = lerp(startPosition.x, endPosition.x, stuckProgress) - 15;
-  
-  return calculateSidebarEntryAnimation(startPosition, endPosition, progress, {
-    contentBoundaryX,
-  });
-}
-
-/**
- * Create an entry animation that moves from off-screen to a target position.
- * @deprecated Use calculateSidebarEntryAnimation or calculateMobileEntryAnimation
- */
-export function createEntryAnimation(
-  startPosition: Position,
-  endPosition: Position,
-  duration: number
-): (elapsed: number) => { position: Position; complete: boolean } {
-  return (elapsed: number) => {
-    const progress = Math.min(1, elapsed / duration);
-    const eased = easeOutCubic(progress);
-    
-    return {
-      position: {
-        x: lerp(startPosition.x, endPosition.x, eased),
-        y: lerp(startPosition.y, endPosition.y, eased),
-      },
-      complete: progress >= 1,
-    };
-  };
-}
+import type { Position, EntryState } from '../types/companion.types';
+import { lerp, easeOutCubic } from './movement';
 
 /**
  * Floating animation offset result.
@@ -254,17 +120,16 @@ export function smoothTransition(
   return current + diff * Math.min(1, deltaTime * smoothness);
 }
 
-// ─── Peeking Entry Animation ──────────────────────────────────────────────────
+// ─── Vertical Entry Animations ────────────────────────────────────────────────
 
 /**
- * Result of the peeking entry animation calculation.
- * Includes position, transforms, and eye offset for the inspection sequence.
+ * Result of a vertical entry animation calculation.
  */
-export interface PeekingEntryResult {
+export interface VerticalEntryResult {
   position: Position;
-  /** Rotation in degrees (diagonal tilt during peek) */
+  /** Rotation in degrees */
   rotation: number;
-  /** Scale factors */
+  /** Scale factors (for landing squash, etc.) */
   scaleX: number;
   scaleY: number;
   /** Whether the full sequence is complete */
@@ -272,80 +137,67 @@ export interface PeekingEntryResult {
 }
 
 /**
- * Configuration for the peeking entry animation.
+ * Configuration for vertical entry animations.
  */
-export interface PeekingEntryConfig {
-  /** How far to peek in before stopping (0-1, fraction of total X distance) */
-  peekDistance: number;
-  /** Diagonal rotation angle during peek (degrees, negative = tilted right/back) */
-  peekRotation: number;
-  /** Duration ratios for each phase (should sum to 1) */
-  phaseDurations: {
-    peek: number;      // Peeking in
-    inspect: number;   // Looking around (3 directions)
-    transition: number; // Unrotating to normal
-    walkIn: number;    // Final walk to position
-  };
+export interface VerticalEntryConfig {
+  /** Squash amount during landing (0-1, 0.15 = 15% compression) */
+  landingSquash: number;
+  /** How much of Blobbi is visible when stopping to inspect (0-1, 0.65 = 65% visible) */
+  riseVisibleAmount: number;
 }
 
 /**
- * Calculate the peeking entry animation for a given entry state.
+ * Calculate the FALL entry animation (from top of screen).
  * 
- * This creates a cautious "spy peeking around the corner" entrance:
- * 1. PEEK: Blobbi slowly emerges diagonally, body tilted like peeking around a wall
- * 2. INSPECT: Pauses and looks around (UP, RIGHT, LEFT in random order)
- * 3. TRANSITION: Rotates back to upright position
- * 4. WALK IN: Walks normally to final resting position
+ * Used when navigating DOWN the sidebar order.
+ * Blobbi falls naturally from above and lands at the ground position.
  * 
- * @param startPosition - Starting position (behind sidebar/off-screen)
- * @param endPosition - Final resting position
+ * Phases:
+ * 1. FALLING: Accelerating fall from top of screen
+ * 2. LANDING: Brief squash/settle on impact
+ * 3. COMPLETE: At rest position
+ * 
+ * @param groundPosition - Final resting position (ground level, center of screen)
+ * @param viewportHeight - Height of the viewport
+ * @param companionSize - Size of the companion
  * @param entryState - Current entry state with phase info
  * @param config - Animation configuration
  */
-export function calculatePeekingEntryAnimation(
-  startPosition: Position,
-  endPosition: Position,
+export function calculateFallEntryAnimation(
+  groundPosition: Position,
+  viewportHeight: number,
+  companionSize: number,
   entryState: EntryState,
-  config: PeekingEntryConfig
-): PeekingEntryResult {
+  config: VerticalEntryConfig
+): VerticalEntryResult {
   const { phase, phaseProgress } = entryState;
   
-  // Calculate peek position (where Blobbi stops to inspect)
-  const peekX = lerp(startPosition.x, endPosition.x, config.peekDistance);
-  const peekPosition: Position = {
-    x: peekX,
-    y: endPosition.y, // Stay at ground level
-  };
+  // Start position: above the viewport
+  const startY = -companionSize;
   
   switch (phase) {
     case 'idle':
-      // Not entering yet - stay at start
       return {
-        position: startPosition,
+        position: { x: groundPosition.x, y: startY },
         rotation: 0,
         scaleX: 1,
         scaleY: 1,
         complete: false,
       };
       
-    case 'peeking': {
-      // Slowly emerge diagonally with body tilted
-      // Ease in slowly at start, maintain speed through middle
-      const eased = easeOutCubic(phaseProgress);
+    case 'falling': {
+      // Accelerating fall with easeInQuad for gravity-like feel
+      // Use easeIn for acceleration effect (starts slow, speeds up)
+      const eased = easeInQuad(phaseProgress);
       
-      // Position: move from start to peek position
-      const x = lerp(startPosition.x, peekPosition.x, eased);
-      const y = lerp(startPosition.y, peekPosition.y, eased);
+      // Fall from above viewport to ground position
+      const y = lerp(startY, groundPosition.y, eased);
       
-      // Rotation: start with full tilt, maintain through most of peek
-      // Only start to settle near the end
-      const rotationProgress = Math.min(1, phaseProgress * 1.2);
-      const rotationEased = easeOutCubic(rotationProgress);
-      // Start at full rotation, ease to ~80% rotation at end of peek
-      const rotation = lerp(config.peekRotation, config.peekRotation * 0.8, rotationEased * 0.3);
+      // Slight rotation during fall for dynamic feel
+      const rotation = Math.sin(phaseProgress * Math.PI * 2) * 3 * (1 - phaseProgress);
       
       return {
-        position: { x, y },
+        position: { x: groundPosition.x, y },
         rotation,
         scaleX: 1,
         scaleY: 1,
@@ -353,58 +205,40 @@ export function calculatePeekingEntryAnimation(
       };
     }
       
-    case 'inspecting': {
-      // Stay at peek position, maintain diagonal pose
-      // The eye movement is handled separately by the gaze system
+    case 'landing': {
+      // Squash and recover on landing
+      // Quick squash at start, then bounce back
+      const squashPhase = phaseProgress < 0.4 
+        ? phaseProgress / 0.4  // Squashing down
+        : (phaseProgress - 0.4) / 0.6; // Recovering
+        
+      let scaleY: number;
+      let scaleX: number;
+      
+      if (phaseProgress < 0.4) {
+        // Squash phase - compress vertically, expand horizontally
+        const squashAmount = easeOutCubic(squashPhase) * config.landingSquash;
+        scaleY = 1 - squashAmount;
+        scaleX = 1 + squashAmount * 0.5; // Expand horizontally to compensate
+      } else {
+        // Recovery phase - return to normal
+        const recoverEased = easeOutCubic(squashPhase);
+        scaleY = lerp(1 - config.landingSquash, 1, recoverEased);
+        scaleX = lerp(1 + config.landingSquash * 0.5, 1, recoverEased);
+      }
+      
       return {
-        position: peekPosition,
-        rotation: config.peekRotation * 0.8, // Maintain peek tilt
-        scaleX: 1,
-        scaleY: 1,
+        position: groundPosition,
+        rotation: 0,
+        scaleX,
+        scaleY,
         complete: false,
       };
     }
       
-    case 'entering': {
-      // Transition from peek pose to normal, then walk in
-      const eased = easeInOutCubic(phaseProgress);
-      
-      // First half: unrotate while staying at peek position
-      // Second half: walk to final position
-      if (phaseProgress < 0.4) {
-        // Unrotating phase (first 40% of entering)
-        const unrotateProgress = phaseProgress / 0.4;
-        const unrotateEased = easeOutCubic(unrotateProgress);
-        const rotation = lerp(config.peekRotation * 0.8, 0, unrotateEased);
-        
-        return {
-          position: peekPosition,
-          rotation,
-          scaleX: 1,
-          scaleY: 1,
-          complete: false,
-        };
-      } else {
-        // Walking in phase (last 60% of entering)
-        const walkProgress = (phaseProgress - 0.4) / 0.6;
-        const walkEased = easeOutCubic(walkProgress);
-        
-        return {
-          position: {
-            x: lerp(peekPosition.x, endPosition.x, walkEased),
-            y: lerp(peekPosition.y, endPosition.y, walkEased),
-          },
-          rotation: 0,
-          scaleX: 1,
-          scaleY: 1,
-          complete: false,
-        };
-      }
-    }
-      
     case 'complete':
       return {
-        position: endPosition,
+        position: groundPosition,
         rotation: 0,
         scaleX: 1,
         scaleY: 1,
@@ -413,13 +247,129 @@ export function calculatePeekingEntryAnimation(
       
     default:
       return {
-        position: startPosition,
+        position: groundPosition,
         rotation: 0,
         scaleX: 1,
         scaleY: 1,
         complete: false,
       };
   }
+}
+
+/**
+ * Calculate the RISE entry animation (from bottom of screen).
+ * 
+ * Used when navigating UP the sidebar order.
+ * Blobbi rises cautiously from below, stops to inspect, then fully enters.
+ * 
+ * Phases:
+ * 1. RISING: Slowly rising until eyes are visible
+ * 2. INSPECTING: Paused, looking around (UP, RIGHT, LEFT in random order)
+ * 3. ENTERING: Continuing to rise to final position
+ * 4. COMPLETE: At rest position
+ * 
+ * @param groundPosition - Final resting position (ground level, center of screen)
+ * @param viewportHeight - Height of the viewport
+ * @param companionSize - Size of the companion
+ * @param entryState - Current entry state with phase info
+ * @param config - Animation configuration
+ */
+export function calculateRiseEntryAnimation(
+  groundPosition: Position,
+  viewportHeight: number,
+  companionSize: number,
+  entryState: EntryState,
+  config: VerticalEntryConfig
+): VerticalEntryResult {
+  const { phase, phaseProgress } = entryState;
+  
+  // Start position: below the viewport
+  const startY = viewportHeight + companionSize;
+  
+  // Peek position: only partially visible (e.g., 65% visible means 35% hidden below)
+  // At ground position, bottom of companion is at groundY + companionSize
+  // To show 65%, we need to push it down by 35% of size
+  const hiddenAmount = 1 - config.riseVisibleAmount;
+  const peekY = groundPosition.y + (companionSize * hiddenAmount);
+  
+  switch (phase) {
+    case 'idle':
+      return {
+        position: { x: groundPosition.x, y: startY },
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+      
+    case 'rising': {
+      // Slow, deliberate rise - easeOut for deceleration as it stops
+      const eased = easeOutCubic(phaseProgress);
+      
+      // Rise from below viewport to peek position
+      const y = lerp(startY, peekY, eased);
+      
+      return {
+        position: { x: groundPosition.x, y },
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+    }
+      
+    case 'inspecting': {
+      // Stay at peek position while looking around
+      // Eyes are visible, body is partially hidden
+      return {
+        position: { x: groundPosition.x, y: peekY },
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+    }
+      
+    case 'entering': {
+      // Final rise from peek to ground position
+      const eased = easeOutCubic(phaseProgress);
+      
+      const y = lerp(peekY, groundPosition.y, eased);
+      
+      return {
+        position: { x: groundPosition.x, y },
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+    }
+      
+    case 'complete':
+      return {
+        position: groundPosition,
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: true,
+      };
+      
+    default:
+      return {
+        position: groundPosition,
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+  }
+}
+
+/**
+ * Easing function for gravity-like acceleration (starts slow, speeds up).
+ */
+function easeInQuad(t: number): number {
+  return t * t;
 }
 
 /**

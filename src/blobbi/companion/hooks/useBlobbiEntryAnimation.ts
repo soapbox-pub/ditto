@@ -1,13 +1,18 @@
 /**
  * useBlobbiEntryAnimation Hook
  * 
- * Manages the peeking entry animation state machine.
+ * Manages the vertical entry animation state machine based on sidebar navigation.
  * 
- * Entry sequence phases:
- * 1. PEEKING: Slowly emerge diagonally, body tilted like peeking around a wall
- * 2. INSPECTING: Pause and look around (UP, RIGHT, LEFT in random order)
- * 3. ENTERING: Rotate back to upright and walk to final position
- * 4. COMPLETE: Entry finished, transition to normal behavior
+ * Entry direction is determined by comparing the current and destination page positions
+ * in the sidebar order:
+ * - Navigating DOWN (to lower sidebar item) → FALL from top
+ * - Navigating UP (to higher sidebar item) → RISE from bottom with inspection
+ * 
+ * FALL entry phases:
+ *   idle -> falling -> landing -> complete
+ * 
+ * RISE entry phases:
+ *   idle -> rising -> inspecting -> entering -> complete
  * 
  * Handles route changes during entry by waiting 1s then restarting the sequence.
  */
@@ -17,20 +22,24 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type {
   EntryPhase,
   EntryState,
+  EntryType,
   InspectionDirection,
 } from '../types/companion.types';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { generateInspectionOrder } from '../utils/animation';
+import { getEntryDirection } from '../utils/sidebarNavigation';
 
 interface UseBlobbiEntryAnimationOptions {
   /** Whether to start/run the entry animation */
   isActive: boolean;
   /** Current route pathname - changes trigger entry animation */
   pathname: string;
+  /** Current sidebar order from useFeedSettings */
+  sidebarOrder: string[];
   /** Called when entry animation completes */
   onComplete: () => void;
   /** Called when entry starts (for resetting position) */
-  onStart: () => void;
+  onStart: (entryType: EntryType) => void;
 }
 
 interface UseBlobbiEntryAnimationResult {
@@ -47,6 +56,7 @@ interface UseBlobbiEntryAnimationResult {
  */
 function createInitialEntryState(): EntryState {
   return {
+    entryType: 'fall',
     phase: 'idle',
     progress: 0,
     phaseProgress: 0,
@@ -58,11 +68,12 @@ function createInitialEntryState(): EntryState {
 }
 
 /**
- * Hook to manage the peeking entry animation sequence.
+ * Hook to manage the vertical entry animation sequence.
  */
 export function useBlobbiEntryAnimation({
   isActive,
   pathname,
+  sidebarOrder,
   onComplete,
   onStart,
 }: UseBlobbiEntryAnimationOptions): UseBlobbiEntryAnimationResult {
@@ -72,43 +83,46 @@ export function useBlobbiEntryAnimation({
   const [entryState, setEntryState] = useState<EntryState>(createInitialEntryState);
   const [isEntering, setIsEntering] = useState(false);
   
-  // Refs for animation loop
+  // Refs for tracking state
   const animationRef = useRef<number | null>(null);
   const lastPathnameRef = useRef<string>(pathname);
   const routeChangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasCompletedFirstEntryRef = useRef(false);
   
-  // Calculate total entry duration
-  const totalDuration = 
-    entryConfig.peekDuration +
-    (entryConfig.inspectionLookDuration * 3) + // 3 looks
-    (entryConfig.inspectionPauseDuration * 2) + // 2 pauses between looks
-    entryConfig.enterTransitionDuration +
-    entryConfig.walkInDuration;
-  
-  // Phase timing boundaries (cumulative)
-  const peekEnd = entryConfig.peekDuration;
-  const inspectDuration = 
-    (entryConfig.inspectionLookDuration * 3) + 
-    (entryConfig.inspectionPauseDuration * 2);
-  const inspectEnd = peekEnd + inspectDuration;
-  const enterEnd = inspectEnd + entryConfig.enterTransitionDuration + entryConfig.walkInDuration;
+  /**
+   * Calculate total duration for the current entry type.
+   */
+  const getTotalDuration = useCallback((entryType: EntryType) => {
+    if (entryType === 'fall') {
+      return entryConfig.fallDuration + entryConfig.landingDuration;
+    } else {
+      // Rise entry with inspection
+      const inspectionDuration = 
+        (entryConfig.inspectionLookDuration * 3) + 
+        (entryConfig.inspectionPauseDuration * 2);
+      return entryConfig.riseDuration + inspectionDuration + entryConfig.enterDuration;
+    }
+  }, [entryConfig]);
   
   /**
    * Start the entry animation sequence.
    */
-  const startEntry = useCallback(() => {
+  const startEntry = useCallback((entryType: EntryType) => {
     // Cancel any pending route change restart
     if (routeChangeTimeoutRef.current) {
       clearTimeout(routeChangeTimeoutRef.current);
       routeChangeTimeoutRef.current = null;
     }
     
-    // Generate random inspection order
+    // Generate random inspection order (only used for rise entry)
     const inspectionOrder = generateInspectionOrder();
     
+    // Determine initial phase based on entry type
+    const initialPhase: EntryPhase = entryType === 'fall' ? 'falling' : 'rising';
+    
     setEntryState({
-      phase: 'peeking',
+      entryType,
+      phase: initialPhase,
       progress: 0,
       phaseProgress: 0,
       inspectionDirection: null,
@@ -117,7 +131,7 @@ export function useBlobbiEntryAnimation({
       phaseStartTime: Date.now(),
     });
     setIsEntering(true);
-    onStart();
+    onStart(entryType);
   }, [onStart]);
   
   /**
@@ -136,19 +150,23 @@ export function useBlobbiEntryAnimation({
   }, [onComplete]);
   
   /**
-   * Handle route changes.
+   * Handle route changes - determine entry direction and start animation.
    */
   useEffect(() => {
     if (!isActive) return;
     
+    const previousPath = lastPathnameRef.current;
     const isInitialEntry = !hasCompletedFirstEntryRef.current;
-    const routeChanged = pathname !== lastPathnameRef.current;
+    const routeChanged = pathname !== previousPath;
     
     if (isInitialEntry) {
-      // First entry - start immediately
-      startEntry();
+      // First entry - determine direction based on previous path (if any)
+      const entryType = getEntryDirection(null, pathname, sidebarOrder);
+      startEntry(entryType);
       lastPathnameRef.current = pathname;
     } else if (routeChanged) {
+      // Route changed - determine direction
+      const entryType = getEntryDirection(previousPath, pathname, sidebarOrder);
       lastPathnameRef.current = pathname;
       
       if (isEntering) {
@@ -157,17 +175,153 @@ export function useBlobbiEntryAnimation({
           clearTimeout(routeChangeTimeoutRef.current);
         }
         routeChangeTimeoutRef.current = setTimeout(() => {
-          startEntry();
+          startEntry(entryType);
         }, entryConfig.routeChangeRestartDelay);
       } else {
-        // Normal route change - start entry
-        startEntry();
+        // Normal route change - start entry immediately
+        startEntry(entryType);
       }
     }
-  }, [isActive, pathname, isEntering, startEntry, entryConfig.routeChangeRestartDelay]);
+  }, [isActive, pathname, sidebarOrder, isEntering, startEntry, entryConfig.routeChangeRestartDelay]);
   
   /**
-   * Animation loop for updating entry state.
+   * Animation loop for FALL entry.
+   */
+  const animateFallEntry = useCallback((now: number, prev: EntryState): EntryState => {
+    const phaseElapsed = now - prev.phaseStartTime;
+    const totalDuration = getTotalDuration('fall');
+    
+    switch (prev.phase) {
+      case 'falling': {
+        const phaseProgress = Math.min(1, phaseElapsed / entryConfig.fallDuration);
+        const progress = phaseElapsed / totalDuration;
+        
+        if (phaseElapsed >= entryConfig.fallDuration) {
+          // Transition to landing
+          return {
+            ...prev,
+            phase: 'landing',
+            phaseProgress: 0,
+            progress,
+            phaseStartTime: now,
+          };
+        }
+        
+        return { ...prev, phaseProgress, progress };
+      }
+      
+      case 'landing': {
+        const phaseProgress = Math.min(1, phaseElapsed / entryConfig.landingDuration);
+        const progress = (entryConfig.fallDuration + phaseElapsed) / totalDuration;
+        
+        if (phaseElapsed >= entryConfig.landingDuration) {
+          // Entry complete
+          return {
+            ...prev,
+            phase: 'complete',
+            phaseProgress: 1,
+            progress: 1,
+          };
+        }
+        
+        return { ...prev, phaseProgress, progress: Math.min(1, progress) };
+      }
+      
+      default:
+        return prev;
+    }
+  }, [entryConfig, getTotalDuration]);
+  
+  /**
+   * Animation loop for RISE entry.
+   */
+  const animateRiseEntry = useCallback((now: number, prev: EntryState): EntryState => {
+    const phaseElapsed = now - prev.phaseStartTime;
+    const totalDuration = getTotalDuration('rise');
+    
+    // Calculate inspection duration for progress calculations
+    const inspectionDuration = 
+      (entryConfig.inspectionLookDuration * 3) + 
+      (entryConfig.inspectionPauseDuration * 2);
+    
+    switch (prev.phase) {
+      case 'rising': {
+        const phaseProgress = Math.min(1, phaseElapsed / entryConfig.riseDuration);
+        const progress = phaseElapsed / totalDuration;
+        
+        if (phaseElapsed >= entryConfig.riseDuration) {
+          // Transition to inspecting
+          return {
+            ...prev,
+            phase: 'inspecting',
+            phaseProgress: 0,
+            progress,
+            phaseStartTime: now,
+            inspectionIndex: 0,
+            inspectionDirection: prev.inspectionOrder[0],
+          };
+        }
+        
+        return { ...prev, phaseProgress, progress };
+      }
+      
+      case 'inspecting': {
+        // Calculate which look we're on
+        const singleLookDuration = entryConfig.inspectionLookDuration + entryConfig.inspectionPauseDuration;
+        const lookIndex = Math.floor(phaseElapsed / singleLookDuration);
+        const withinLookTime = phaseElapsed % singleLookDuration;
+        
+        // Are we in the look or the pause?
+        const isLooking = withinLookTime < entryConfig.inspectionLookDuration;
+        
+        const phaseProgress = phaseElapsed / inspectionDuration;
+        const progress = (entryConfig.riseDuration + phaseElapsed) / totalDuration;
+        
+        if (lookIndex >= 3) {
+          // All looks done, transition to entering
+          return {
+            ...prev,
+            phase: 'entering',
+            phaseProgress: 0,
+            progress,
+            phaseStartTime: now,
+            inspectionDirection: null,
+          };
+        }
+        
+        return {
+          ...prev,
+          phaseProgress,
+          progress,
+          inspectionIndex: lookIndex,
+          inspectionDirection: isLooking ? prev.inspectionOrder[lookIndex] : null,
+        };
+      }
+      
+      case 'entering': {
+        const phaseProgress = Math.min(1, phaseElapsed / entryConfig.enterDuration);
+        const progress = (entryConfig.riseDuration + inspectionDuration + phaseElapsed) / totalDuration;
+        
+        if (phaseElapsed >= entryConfig.enterDuration) {
+          // Entry complete
+          return {
+            ...prev,
+            phase: 'complete',
+            phaseProgress: 1,
+            progress: 1,
+          };
+        }
+        
+        return { ...prev, phaseProgress, progress: Math.min(1, progress) };
+      }
+      
+      default:
+        return prev;
+    }
+  }, [entryConfig, getTotalDuration]);
+  
+  /**
+   * Main animation loop.
    */
   useEffect(() => {
     if (!isEntering || entryState.phase === 'idle' || entryState.phase === 'complete') {
@@ -180,92 +334,18 @@ export function useBlobbiEntryAnimation({
     
     const animate = () => {
       const now = Date.now();
-      const elapsed = now - entryState.phaseStartTime;
       
       setEntryState(prev => {
         if (prev.phase === 'idle' || prev.phase === 'complete') {
           return prev;
         }
         
-        const phaseElapsed = now - prev.phaseStartTime;
-        
-        // Determine current phase and progress
-        let newPhase = prev.phase;
-        let newPhaseProgress = prev.phaseProgress;
-        let newProgress = prev.progress;
-        let newInspectionDirection = prev.inspectionDirection;
-        let newInspectionIndex = prev.inspectionIndex;
-        let newPhaseStartTime = prev.phaseStartTime;
-        
-        switch (prev.phase) {
-          case 'peeking': {
-            newPhaseProgress = Math.min(1, phaseElapsed / entryConfig.peekDuration);
-            newProgress = (phaseElapsed / totalDuration);
-            
-            if (phaseElapsed >= entryConfig.peekDuration) {
-              // Transition to inspecting
-              newPhase = 'inspecting';
-              newPhaseProgress = 0;
-              newPhaseStartTime = now;
-              newInspectionIndex = 0;
-              newInspectionDirection = prev.inspectionOrder[0];
-            }
-            break;
-          }
-          
-          case 'inspecting': {
-            // Calculate which look we're on
-            const singleLookDuration = entryConfig.inspectionLookDuration + entryConfig.inspectionPauseDuration;
-            const lookIndex = Math.floor(phaseElapsed / singleLookDuration);
-            const withinLookTime = phaseElapsed % singleLookDuration;
-            
-            // Are we in the look or the pause?
-            const isLooking = withinLookTime < entryConfig.inspectionLookDuration;
-            
-            if (lookIndex >= 3) {
-              // All looks done, transition to entering
-              newPhase = 'entering';
-              newPhaseProgress = 0;
-              newPhaseStartTime = now;
-              newInspectionDirection = null;
-            } else {
-              newInspectionIndex = lookIndex;
-              newInspectionDirection = isLooking ? prev.inspectionOrder[lookIndex] : null;
-              newPhaseProgress = phaseElapsed / inspectDuration;
-            }
-            
-            newProgress = (peekEnd + phaseElapsed) / totalDuration;
-            break;
-          }
-          
-          case 'entering': {
-            const enterDuration = entryConfig.enterTransitionDuration + entryConfig.walkInDuration;
-            newPhaseProgress = Math.min(1, phaseElapsed / enterDuration);
-            newProgress = (inspectEnd + phaseElapsed) / totalDuration;
-            
-            if (phaseElapsed >= enterDuration) {
-              // Entry complete
-              return {
-                ...prev,
-                phase: 'complete',
-                progress: 1,
-                phaseProgress: 1,
-                inspectionDirection: null,
-              };
-            }
-            break;
-          }
+        // Dispatch to appropriate animation handler based on entry type
+        if (prev.entryType === 'fall') {
+          return animateFallEntry(now, prev);
+        } else {
+          return animateRiseEntry(now, prev);
         }
-        
-        return {
-          ...prev,
-          phase: newPhase,
-          progress: Math.min(1, newProgress),
-          phaseProgress: newPhaseProgress,
-          inspectionDirection: newInspectionDirection,
-          inspectionIndex: newInspectionIndex,
-          phaseStartTime: newPhaseStartTime,
-        };
       });
       
       animationRef.current = requestAnimationFrame(animate);
@@ -279,7 +359,7 @@ export function useBlobbiEntryAnimation({
         animationRef.current = null;
       }
     };
-  }, [isEntering, entryState.phase, entryState.phaseStartTime, entryConfig, totalDuration, peekEnd, inspectEnd, inspectDuration]);
+  }, [isEntering, entryState.phase, entryState.entryType, animateFallEntry, animateRiseEntry]);
   
   // Handle completion
   useEffect(() => {

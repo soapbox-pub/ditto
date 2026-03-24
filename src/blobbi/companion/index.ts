@@ -27,6 +27,7 @@ export { useBlobbiCompanionState } from './hooks/useBlobbiCompanionState';
 export { useBlobbiCompanionMotion } from './hooks/useBlobbiCompanionMotion';
 export { useBlobbiCompanionGaze } from './hooks/useBlobbiCompanionGaze';
 export { useBlobbiAttention } from './hooks/useBlobbiAttention';
+export { useBlobbiEntryAnimation } from './hooks/useBlobbiEntryAnimation';
 
 // ─── Core ─────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,10 @@ export type {
   CompanionState,
   CompanionDirection,
   GazeMode,
+  EntryType,
+  EntryPhase,
+  InspectionDirection,
+  EntryState,
   Position,
   Velocity,
   MovementBounds,
@@ -80,14 +85,25 @@ export {
 } from './utils/movement';
 
 export {
-  createEntryAnimation,
-  calculateEntryAnimation,
-  calculateSidebarEntryAnimation,
-  calculateMobileEntryAnimation,
+  calculateFallEntryAnimation,
+  calculateRiseEntryAnimation,
   calculateFloatAnimation,
   calculateIdleBob,
   calculateWalkBounce,
   smoothTransition,
+  generateInspectionOrder,
+  getInspectionEyeOffset,
 } from './utils/animation';
 
-export type { SidebarEntryOptions, FloatOffset } from './utils/animation';
+export type { VerticalEntryConfig, VerticalEntryResult, FloatOffset } from './utils/animation';
+
+// ─── Sidebar Navigation ───────────────────────────────────────────────────────
+
+export {
+  getSidebarIdForPath,
+  getSidebarIndex,
+  compareRoutes,
+  getEntryDirection,
+} from './utils/sidebarNavigation';
+
+export type { NavigationDirection, NavigationComparison } from './utils/sidebarNavigation';

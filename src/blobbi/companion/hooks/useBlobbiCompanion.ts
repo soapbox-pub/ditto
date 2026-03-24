@@ -17,16 +17,18 @@ import type {
   Position,
   MovementBounds,
   EntryState,
+  EntryType,
   InspectionDirection,
 } from '../types/companion.types';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
-import { calculateMovementBounds, calculateGroundY, calculateEntryPosition, calculateRestingPosition } from '../utils/movement';
+import { calculateMovementBounds, calculateGroundY, calculateRestingPosition } from '../utils/movement';
 import { useBlobbiCompanionData } from './useBlobbiCompanionData';
 import { useBlobbiCompanionState } from './useBlobbiCompanionState';
 import { useBlobbiCompanionMotion } from './useBlobbiCompanionMotion';
 import { useBlobbiCompanionGaze } from './useBlobbiCompanionGaze';
 import { useBlobbiAttention } from './useBlobbiAttention';
 import { useBlobbiEntryAnimation } from './useBlobbiEntryAnimation';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 
 interface UseBlobbiCompanionResult {
   /** The current companion data */
@@ -51,6 +53,10 @@ interface UseBlobbiCompanionResult {
   entryState: EntryState;
   /** Current inspection direction during entry (for rendering) */
   inspectionDirection: InspectionDirection | null;
+  /** Ground position for vertical entry (center of screen, at ground level) */
+  groundPosition: Position;
+  /** Current viewport dimensions */
+  viewport: { width: number; height: number };
   /** Start dragging the companion */
   startDrag: () => void;
   /** Update drag position */
@@ -66,6 +72,9 @@ interface UseBlobbiCompanionResult {
 export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   const location = useLocation();
   const config = DEFAULT_COMPANION_CONFIG;
+  
+  // Get current sidebar order for navigation direction detection
+  const { orderedItems: sidebarOrder } = useFeedSettings();
   
   // Viewport dimensions
   const [viewport, setViewport] = useState({
@@ -100,10 +109,11 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     [viewport.height, config]
   );
   
-  const entryPosition = useMemo(() =>
-    calculateEntryPosition(viewport.width, viewport.height, config.size, config),
-    [viewport.width, viewport.height, config]
-  );
+  // Ground position for vertical entry - center of screen horizontally
+  const groundPosition = useMemo(() => ({
+    x: viewport.width / 2 - config.size / 2, // Center horizontally
+    y: groundY,
+  }), [viewport.width, config.size, groundY]);
   
   const restingPosition = useMemo(() =>
     calculateRestingPosition(viewport.width, viewport.height, config.size, config),
@@ -156,8 +166,9 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   });
   
   // Entry animation callbacks
-  const handleEntryStart = useCallback(() => {
+  const handleEntryStart = useCallback((_entryType: EntryType) => {
     // Entry is starting - companion will be positioned by entry animation
+    // entryType is 'fall' or 'rise' based on sidebar navigation direction
   }, []);
   
   const handleEntryComplete = useCallback(() => {
@@ -184,6 +195,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   } = useBlobbiEntryAnimation({
     isActive: isVisible,
     pathname: location.pathname,
+    sidebarOrder,
     onComplete: handleEntryComplete,
     onStart: handleEntryStart,
   });
@@ -210,6 +222,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   });
   
   // Motion management
+  // After entry completes, motion continues from groundPosition (where entry ended)
   const {
     motion,
     startDrag,
@@ -217,7 +230,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     endDrag,
     setPosition,
   } = useBlobbiCompanionMotion({
-    initialX: hasEnteredOnce ? restingPosition.x : entryPosition.x,
+    initialX: groundPosition.x, // Always use groundPosition - entry syncs to this
     groundY,
     bounds,
     state: isEntering ? 'idle' : state,
@@ -229,10 +242,11 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   // Sync motion position when entry completes
   useEffect(() => {
     if (!isEntering && hasEnteredOnce) {
-      // Entry just completed - sync motion position to resting position
-      setPosition(restingPosition);
+      // Entry just completed - sync motion position to where entry animation ended
+      // This is groundPosition (center of screen) for vertical entry animations
+      setPosition(groundPosition);
     }
-  }, [isEntering, hasEnteredOnce, setPosition, restingPosition]);
+  }, [isEntering, hasEnteredOnce, setPosition, groundPosition]);
   
   // Gaze management - passes entry inspection direction for eye control during entry
   const { gaze, eyeOffset } = useBlobbiCompanionGaze({
@@ -259,6 +273,8 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     entryProgress: entryState.progress,
     entryState,
     inspectionDirection: currentInspectionDirection,
+    groundPosition,
+    viewport,
     startDrag,
     updateDrag,
     endDrag,

@@ -83,27 +83,27 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
     postRouteDelay: 200,     // Small delay after entry animation finishes
   },
   
-  // Entry animation - peeking entrance sequence
-  entryAnimationDuration: 1200, // ms - total duration for basic entry (legacy)
+  // Entry animation - legacy duration (see entry config for details)
+  entryAnimationDuration: 1200, // ms - not used directly anymore
   
-  // Peeking entry sequence timing
+  // Vertical entry animation timing
   entry: {
-    /** Duration of the peeking phase - slow diagonal emergence (ms) */
-    peekDuration: 800,
-    /** Duration of each inspection look (ms) */
-    inspectionLookDuration: 400,
-    /** Pause between inspection looks (ms) */
-    inspectionPauseDuration: 150,
-    /** Duration of transition from peek pose to normal walking (ms) */
-    enterTransitionDuration: 500,
-    /** Duration of final walk-in after transition (ms) */
-    walkInDuration: 600,
-    /** How far to peek in before stopping to inspect (0-1, fraction of total distance) */
-    peekDistance: 0.35,
-    /** Diagonal rotation angle during peek (degrees) */
-    peekRotation: -18,
-    /** Delay before restarting entry when route changes during entry (ms) */
-    routeChangeRestartDelay: 1000,
+    // ── Fall entry (from top) ──
+    // Natural falling with gravity feel
+    fallDuration: 600,        // Quick fall (gravity-like)
+    landingDuration: 200,     // Brief squash on landing
+    landingSquash: 0.15,      // 15% vertical compression on landing
+    
+    // ── Rise entry (from bottom) ──
+    // Cautious rise with inspection
+    riseDuration: 700,        // Slow, deliberate rise
+    riseVisibleAmount: 0.65,  // Stop when 65% visible (eyes clearly showing)
+    inspectionLookDuration: 400, // Each directional look
+    inspectionPauseDuration: 150, // Brief pause between looks
+    enterDuration: 400,       // Final rise to full position
+    
+    // ── Shared ──
+    routeChangeRestartDelay: 1000, // Wait 1s before restarting on route change during entry
   },
 };
 
