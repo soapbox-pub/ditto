@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { useAppContext } from '@/hooks/useAppContext';
+import { proxyUrl } from '@/lib/proxyUrl';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -80,7 +83,7 @@ const TRENDING_TOPICS = [
 // Fetcher
 // ---------------------------------------------------------------------------
 
-async function fetchTrendingPosts(signal?: AbortSignal): Promise<BlueskyPost[]> {
+async function fetchTrendingPosts(corsProxy: string, signal?: AbortSignal): Promise<BlueskyPost[]> {
   // Pick 3 random topics to query for variety each time
   const shuffled = [...TRENDING_TOPICS].sort(() => Math.random() - 0.5);
   const selectedTopics = shuffled.slice(0, 3);
@@ -94,7 +97,8 @@ async function fetchTrendingPosts(signal?: AbortSignal): Promise<BlueskyPost[]> 
         lang: 'en',
       });
 
-      const res = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.searchPosts?${params}`, {
+      const url = `${BSKY_PUBLIC_API}/app.bsky.feed.searchPosts?${params}`;
+      const res = await fetch(proxyUrl({ template: corsProxy, url }), {
         signal,
         headers: { Accept: 'application/json' },
       });
@@ -129,9 +133,11 @@ async function fetchTrendingPosts(signal?: AbortSignal): Promise<BlueskyPost[]> 
  * Queries multiple trending topics and returns the most-engaged posts.
  */
 export function useBlueskyTrending() {
+  const { config } = useAppContext();
+
   return useQuery({
     queryKey: ['bluesky-trending'],
-    queryFn: ({ signal }) => fetchTrendingPosts(signal),
+    queryFn: ({ signal }) => fetchTrendingPosts(config.corsProxy, signal),
     staleTime: 1000 * 60 * 15, // 15 minutes
     gcTime: 1000 * 60 * 60, // 1 hour
     retry: 2,

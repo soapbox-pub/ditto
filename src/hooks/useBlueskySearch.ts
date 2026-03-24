@@ -1,4 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
+
+import { useAppContext } from '@/hooks/useAppContext';
+import { proxyUrl } from '@/lib/proxyUrl';
 import type { BlueskyPost } from './useBlueskyTrending';
 
 // ---------------------------------------------------------------------------
@@ -53,6 +56,7 @@ function postUrl(uri: string, handle: string): string {
 
 async function searchBluesky(
   query: string,
+  corsProxy: string,
   signal?: AbortSignal,
 ): Promise<BlueskySearchResult[]> {
   const params = new URLSearchParams({
@@ -62,7 +66,8 @@ async function searchBluesky(
     lang: 'en',
   });
 
-  const res = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.searchPosts?${params}`, {
+  const url = `${BSKY_PUBLIC_API}/app.bsky.feed.searchPosts?${params}`;
+  const res = await fetch(proxyUrl({ template: corsProxy, url }), {
     signal,
     headers: { Accept: 'application/json' },
   });
@@ -100,9 +105,11 @@ async function searchBluesky(
 
 /** Hook to search Bluesky posts by keyword. */
 export function useBlueskySearch(query: string) {
+  const { config } = useAppContext();
+
   return useQuery({
     queryKey: ['bluesky-search', query],
-    queryFn: ({ signal }) => searchBluesky(query, signal),
+    queryFn: ({ signal }) => searchBluesky(query, config.corsProxy, signal),
     enabled: query.trim().length >= 2,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
