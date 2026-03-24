@@ -143,11 +143,13 @@ export interface VerticalEntryConfig {
   // ── Fall entry ──
   /** Squash amount during landing (0-1, 0.15 = 15% compression) */
   landingSquash: number;
-  /** How much of Blobbi is visible when stuck (0-1, 0.25 = just butt showing) */
+  /** How much of Blobbi is visible when stuck (0-1, 0.15 = tiny butt showing) */
   stuckVisibleAmount: number;
-  /** Horizontal wiggle intensity in pixels */
+  /** How far down the tug motion goes (0-1, as fraction of companion size) */
+  tuggingDropAmount: number;
+  /** Horizontal wiggle intensity in pixels (subtle) */
   wiggleIntensity: number;
-  /** Rotation wiggle in degrees */
+  /** Rotation wiggle in degrees (subtle) */
   wiggleRotation: number;
   
   // ── Rise entry ──
@@ -159,14 +161,16 @@ export interface VerticalEntryConfig {
  * Calculate the FALL entry animation (from top of screen).
  * 
  * Used when navigating DOWN the sidebar order.
- * Blobbi appears stuck at the top, wiggles to get loose, then falls and lands.
+ * Blobbi appears stuck at the top with just a tiny butt showing,
+ * tries to drop (tugging), wiggles subtly to get loose, then falls and lands.
  * 
  * Phases:
- * 1. STUCK: Only butt visible at top, like hanging/stuck
- * 2. WIGGLING: Playful wiggle to get loose
- * 3. FALLING: Accelerating fall from top of screen
- * 4. LANDING: Brief squash/settle on impact
- * 5. COMPLETE: At rest position
+ * 1. STUCK: Tiny butt visible at top (15% showing)
+ * 2. TUGGING: Tries to fall (drops down) but gets stuck again (rebounds up)
+ * 3. WIGGLING: Subtle diagonal butt wiggle to finally get loose
+ * 4. FALLING: Accelerating fall from top of screen
+ * 5. LANDING: Brief squash/settle on impact
+ * 6. COMPLETE: At rest position
  * 
  * @param groundPosition - Final resting position (ground level, center of screen)
  * @param viewportHeight - Height of the viewport
@@ -183,7 +187,7 @@ export function calculateFallEntryAnimation(
 ): VerticalEntryResult {
   const { phase, phaseProgress } = entryState;
   
-  // Stuck position: only showing the bottom part (butt)
+  // Stuck position: only showing a tiny bottom part (butt)
   // Position is calculated so only stuckVisibleAmount of the companion is visible
   // The companion's top-left is at y, so to show only the bottom part:
   // we need y = -(1 - stuckVisibleAmount) * companionSize
@@ -191,6 +195,9 @@ export function calculateFallEntryAnimation(
   
   // Full hidden position (above viewport)
   const hiddenY = -companionSize;
+  
+  // Position after the failed tug attempt (slightly lower than stuck)
+  const tugDownY = stuckY + (config.tuggingDropAmount * companionSize);
   
   switch (phase) {
     case 'idle':
@@ -203,7 +210,7 @@ export function calculateFallEntryAnimation(
       };
     
     case 'stuck': {
-      // Ease into the stuck position (butt peeking from top)
+      // Ease into the stuck position (tiny butt peeking from top)
       const eased = easeOutCubic(phaseProgress);
       const y = lerp(hiddenY, stuckY, eased);
       
@@ -216,26 +223,53 @@ export function calculateFallEntryAnimation(
       };
     }
     
+    case 'tugging': {
+      // "Tries to fall but gets stuck again" motion
+      // First half: drop down quickly (trying to fall)
+      // Second half: snap back up (stuck again)
+      
+      let y: number;
+      if (phaseProgress < 0.5) {
+        // Dropping down - easeOut for quick start
+        const dropProgress = phaseProgress / 0.5;
+        const eased = easeOutCubic(dropProgress);
+        y = lerp(stuckY, tugDownY, eased);
+      } else {
+        // Snapping back up - easeIn for elastic rebound feel
+        const reboundProgress = (phaseProgress - 0.5) / 0.5;
+        const eased = easeInQuad(reboundProgress);
+        y = lerp(tugDownY, stuckY, eased);
+      }
+      
+      return {
+        position: { x: groundPosition.x, y },
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+    }
+    
     case 'wiggling': {
-      // Playful wiggle animation - trying to get loose
-      // Multiple sine waves for organic feel
-      const t = phaseProgress * Math.PI * 4; // 2 full wiggle cycles
+      // Subtle butt wiggle - NOT full body shaking
+      // This should feel like just the lower part is wiggling diagonally
+      // Use fewer, smaller movements
+      const t = phaseProgress * Math.PI * 3; // 1.5 wiggle cycles (subtle)
       
-      // Horizontal sway - starts strong, diminishes
-      const swayAmount = config.wiggleIntensity * (1 - phaseProgress * 0.3);
-      const xOffset = Math.sin(t) * swayAmount;
+      // Small diagonal movement (not just horizontal)
+      // Intensity decreases as it progresses
+      const intensity = config.wiggleIntensity * (1 - phaseProgress * 0.4);
+      const xOffset = Math.sin(t) * intensity;
+      const yOffset = Math.cos(t * 0.7) * (intensity * 0.3); // Smaller vertical component
       
-      // Rotation wobble - playful tilt
-      const rotationAmount = config.wiggleRotation * (1 - phaseProgress * 0.3);
-      const rotation = Math.sin(t + 0.5) * rotationAmount;
-      
-      // Slight vertical bounce (trying to break free)
-      const yBounce = Math.sin(t * 1.5) * 3 * (1 - phaseProgress * 0.5);
+      // Very subtle rotation - not full body tilt
+      const rotationAmount = config.wiggleRotation * (1 - phaseProgress * 0.5);
+      const rotation = Math.sin(t + 0.3) * rotationAmount;
       
       return {
         position: { 
           x: groundPosition.x + xOffset, 
-          y: stuckY + yBounce 
+          y: stuckY + yOffset 
         },
         rotation,
         scaleX: 1,
