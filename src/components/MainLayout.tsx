@@ -66,7 +66,7 @@ function PageSkeleton() {
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
-  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, scrollContainer } = useLayoutSnapshot();
+  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, scrollContainer, hasSubHeader } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { config } = useAppContext();
   const { hidden: navHidden } = useScrollDirection(scrollContainer);
@@ -77,7 +77,7 @@ function MainLayoutInner() {
       {config.magicMouse && <CursorFireEffect />}
 
       {/* Mobile top bar - only on small screens */}
-      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} />
+      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} hasSubHeader={hasSubHeader} />
 
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
