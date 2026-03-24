@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { Feed } from '@/components/Feed';
 import { KindInfoButton } from '@/components/KindInfoButton';
+import { PageHeader } from '@/components/PageHeader';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { EXTRA_KINDS, type ExtraKindDef } from '@/lib/extraKinds';
 
@@ -35,6 +35,7 @@ interface KindFeedPageProps {
 
 export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra, onFabClick, showFAB = true, feedId }: KindFeedPageProps) {
   const { config } = useAppContext();
+  const { user } = useCurrentUser();
   const primaryKind = Array.isArray(kind) ? kind[0] : kind;
 
   const resolvedDef = useMemo(
@@ -50,7 +51,7 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
   });
 
   const fabClick = onFabClick ?? (resolvedDef ? () => setInfoOpen(true) : undefined);
-  useLayoutOptions({ showFAB, fabKind: primaryKind, fabHref, onFabClick: fabClick });
+  useLayoutOptions({ showFAB, fabKind: primaryKind, fabHref, onFabClick: fabClick, hasSubHeader: !!user });
 
   const kinds = Array.isArray(kind) ? kind : [kind];
 
@@ -63,16 +64,9 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
         feedId={feedId ?? title.toLowerCase()}
         emptyMessage={emptyMessage ?? `No ${title.toLowerCase()} yet. Check back soon!`}
         header={
-          <div className="flex items-center gap-4 px-4 pt-4 pb-5">
-            <Link to={backTo} className={`p-2 -ml-2 rounded-full hover:bg-secondary transition-colors ${alwaysShowBack ? '' : 'sidebar:hidden'}`}>
-              <ArrowLeft className="size-5" />
-            </Link>
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              {icon}
-              <h1 className="text-xl font-bold">{title}</h1>
-            </div>
+          <PageHeader title={title} icon={icon} backTo={backTo} alwaysShowBack={alwaysShowBack}>
             {resolvedDef && <KindInfoButton kindDef={resolvedDef} icon={icon} open={infoOpen} onOpenChange={setInfoOpen} />}
-          </div>
+          </PageHeader>
         }
       />
       {extra}

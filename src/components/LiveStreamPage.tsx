@@ -1,10 +1,11 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Radio, Zap, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Radio, Zap, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useSeoMeta } from '@unhead/react';
 
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { PageHeader } from '@/components/PageHeader';
 import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { LiveStreamChat } from '@/components/LiveStreamChat';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -181,20 +182,17 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
     <>
       <main className="xl:max-sidebar:flex max-sidebar:flex max-sidebar:flex-col max-sidebar:livestream-height max-sidebar:overflow-hidden">
         {/* Header */}
-        <div className="shrink-0 sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-2 mb-2 sidebar:mt-4 sidebar:mb-4 bg-background/80 backdrop-blur-md">
-          <button
-            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
-            className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
-            aria-label="Go back"
-          >
-            <ArrowLeft className="size-5" />
-          </button>
-          <h1 className="text-xl font-bold truncate">Live Stream</h1>
+        <PageHeader
+          title="Live Stream"
+          onBack={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
+          alwaysShowBack
+          className="shrink-0 sidebar:sticky sidebar:top-0 z-10 mt-2 mb-2 sidebar:mt-4 sidebar:mb-4"
+        >
           <Badge variant="outline" className={cn('ml-auto shrink-0', statusConfig.className)}>
             {status === 'live' && <Radio className="size-3 mr-1" />}
             {statusConfig.label}
           </Badge>
-        </div>
+        </PageHeader>
 
         {/* Video Player */}
         <div className="xl:px-4 shrink-0">

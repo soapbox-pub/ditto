@@ -7,8 +7,7 @@
  */
 
 import { useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Camera } from 'lucide-react';
+import { Camera } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import { useInView } from 'react-intersection-observer';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
@@ -22,7 +21,9 @@ import { useInfiniteHotFeed } from '@/hooks/useTrending';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { KindInfoButton } from '@/components/KindInfoButton';
+import { PageHeader } from '@/components/PageHeader';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -43,7 +44,7 @@ export function PhotosFeedPage() {
   const [activeTab, setActiveTab] = useFeedTab<FeedTab>('photos', ['follows', 'global']);
 
   useSeoMeta({ title: `Photos | ${config.appName}`, description: 'Photo posts on Nostr' });
-  useLayoutOptions({ showFAB: false });
+  useLayoutOptions({ showFAB: false, hasSubHeader: true });
 
   // ── Follows feed (chronological) ──
   const followsQuery = useFeed('follows', { kinds: [PHOTO_KIND] });
@@ -90,23 +91,15 @@ export function PhotosFeedPage() {
 
   return (
     <main className="">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Camera className="size-5" />
-          <h1 className="text-xl font-bold">Photos</h1>
-        </div>
-        <KindInfoButton kindDef={photosDef} icon={sidebarItemIcon('photos', 'size-5')} />
-      </div>
-
       {/* Tabs */}
-      <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+      <SubHeaderBar>
         <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
         <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
-      </div>
+      </SubHeaderBar>
+
+      <PageHeader title="Photos" icon={<Camera className="size-5" />}>
+        <KindInfoButton kindDef={photosDef} icon={sidebarItemIcon('photos', 'size-5')} />
+      </PageHeader>
 
       {/* Grid */}
       {showSkeleton ? (
