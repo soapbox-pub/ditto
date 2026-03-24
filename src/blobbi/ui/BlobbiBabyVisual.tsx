@@ -6,7 +6,7 @@
  * Eyes always track the mouse cursor in real-time.
  */
 
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 
 import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
 import { addEyeAnimation } from './lib/eye-animation';
@@ -22,6 +22,15 @@ import { isBlobbiSleeping } from '@/types/blobbi';
  */
 export type BabyReactionState = 'idle' | 'listening' | 'swaying' | 'singing' | 'happy';
 
+/**
+ * External eye offset for companion control
+ * Values range from -1 to 1, converted to pixel movement internally
+ */
+export interface ExternalEyeOffset {
+  x: number;
+  y: number;
+}
+
 export interface BlobbiBabyVisualProps {
   /** The Blobbi data */
   blobbi: Blobbi;
@@ -31,6 +40,12 @@ export interface BlobbiBabyVisualProps {
   lookMode?: BlobbiLookMode;
   /** Disable blinking animation (for photo/export mode) */
   disableBlink?: boolean;
+  /** 
+   * External eye offset from companion system.
+   * When provided, bypasses internal mouse tracking and uses this offset directly.
+   * Values should be -1 to 1, will be converted to pixel movement.
+   */
+  externalEyeOffset?: ExternalEyeOffset;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -45,7 +60,7 @@ export interface BlobbiBabyVisualProps {
  * - Eyes always track the mouse cursor (instant, real-time)
  * - Renders safely using dangerouslySetInnerHTML
  */
-export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, className }: BlobbiBabyVisualProps) {
+export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, className }: BlobbiBabyVisualProps) {
   const isSleeping = isBlobbiSleeping(blobbi);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -53,13 +68,33 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
   // Eye animation hook - handles DOM manipulation internally
-  // Caches eye elements and uses SVG transform attribute for instant updates
+  // When externalEyeOffset is provided, we disable tracking but keep blinking
   useBlobbiEyes(containerRef, {
     isSleeping,
     maxMovement: 2,
     lookMode,
     disableBlink,
+    disableTracking: !!externalEyeOffset, // External system controls eye position
   });
+
+  // External eye offset control - applies offset directly when provided
+  // This bypasses useBlobbiEyes and gives companion full control
+  useEffect(() => {
+    if (!externalEyeOffset || !containerRef.current || isSleeping) return;
+
+    const eyeElements = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-left, .blobbi-eye-right');
+    if (eyeElements.length === 0) return;
+
+    // Convert -1 to 1 offset to pixel movement
+    // Increased max movement for more visible eye tracking (4px instead of 2px)
+    const maxMovement = 4;
+    const x = externalEyeOffset.x * maxMovement;
+    const y = externalEyeOffset.y * maxMovement * 0.7; // Less vertical movement
+
+    eyeElements.forEach(el => {
+      el.setAttribute('transform', `translate(${x} ${y})`);
+    });
+  }, [externalEyeOffset, isSleeping]);
 
   // Memoize the customized SVG to avoid unnecessary processing
   const customizedSvg = useMemo(() => {

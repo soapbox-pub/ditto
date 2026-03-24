@@ -57,6 +57,17 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
     mouseFollowChance: 0.25,     // 25% chance to start following mouse (more frequent)
   },
   
+  // Observation target behavior - Blobbi notices something and walks toward it
+  observation: {
+    chance: 0.35,          // 35% chance to start observation when deciding next action
+    cooldown: 12000,       // At least 12 seconds between observations
+    lookDuration: {
+      min: 2000,           // Look at target for 2-4 seconds after arriving
+      max: 4000,
+    },
+    targetPadding: 100,    // How close to get to the target X position
+  },
+  
   // Entry animation - simple walking entrance from behind sidebar
   entryAnimationDuration: 1200, // ms - smooth walk in
 };

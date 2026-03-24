@@ -5,7 +5,7 @@
  * Supports external eye offset control for custom gaze behavior.
  */
 
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef } from 'react';
 
 import { BlobbiBabyVisual } from '@/blobbi/ui/BlobbiBabyVisual';
 import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
@@ -79,22 +79,8 @@ export function BlobbiCompanionVisual({
   
   const blobbi = useMemo(() => toBlobiForVisual(companion), [companion]);
   
-  // Apply eye offset via direct DOM manipulation for performance
-  useEffect(() => {
-    if (!containerRef.current) return;
-    
-    const eyeElements = containerRef.current.querySelectorAll('.blobbi-eye');
-    if (eyeElements.length === 0) return;
-    
-    // Convert -1 to 1 offset to pixel movement (max 2px)
-    const maxMovement = 2;
-    const x = eyeOffset.x * maxMovement;
-    const y = eyeOffset.y * maxMovement * 0.7; // Less vertical movement
-    
-    eyeElements.forEach(el => {
-      el.setAttribute('transform', `translate(${x} ${y})`);
-    });
-  }, [eyeOffset]);
+  // Eye offset is now passed directly to the visual components via externalEyeOffset prop
+  // This is more reliable than DOM manipulation which can be overwritten by useBlobbiEyes
   
   // Build transform for floating animation
   // No flipping based on direction - Blobbi always faces the same way
@@ -224,6 +210,7 @@ export function BlobbiCompanionVisual({
             blobbi={blobbi}
             reaction={reaction}
             lookMode="forward"
+            externalEyeOffset={eyeOffset}
             className="size-full"
           />
         )}
@@ -232,6 +219,7 @@ export function BlobbiCompanionVisual({
             blobbi={blobbi}
             reaction={reaction}
             lookMode="forward"
+            externalEyeOffset={eyeOffset}
             className="size-full"
           />
         )}

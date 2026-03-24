@@ -38,6 +38,8 @@ interface UseBlobbiCompanionGazeOptions {
   companionSize: number;
   /** Whether gaze should be active */
   isActive: boolean;
+  /** Observation target position (if currently observing something) */
+  observationTarget?: Position | null;
 }
 
 interface UseBlobbiCompanionGazeResult {
@@ -78,6 +80,7 @@ export function useBlobbiCompanionGaze({
   companionPosition,
   companionSize,
   isActive,
+  observationTarget,
 }: UseBlobbiCompanionGazeOptions): UseBlobbiCompanionGazeResult {
   const [gaze, setGaze] = useState<GazeState>(createInitialGaze);
   const [eyeOffset, setEyeOffset] = useState<EyeOffset>({ x: 0, y: 0 });
@@ -138,11 +141,26 @@ export function useBlobbiCompanionGaze({
       return;
     }
     
+    // ─── WATCHING: Look at observation target ───
+    if (state === 'watching' && observationTarget) {
+      clearAllTimers();
+      gazeModeRef.current = 'observe-target';
+      setGaze(prev => ({ ...prev, mode: 'observe-target', target: observationTarget }));
+      return;
+    }
+    
     // ─── WALKING: Look in movement direction ───
+    // Also look at observation target if walking toward one
     if (state === 'walking') {
       clearAllTimers();
-      gazeModeRef.current = 'forward';
-      setGaze(prev => ({ ...prev, mode: 'forward' }));
+      if (observationTarget) {
+        // Walking toward an observation target - look at where we're going
+        gazeModeRef.current = 'forward';
+        setGaze(prev => ({ ...prev, mode: 'forward', target: observationTarget }));
+      } else {
+        gazeModeRef.current = 'forward';
+        setGaze(prev => ({ ...prev, mode: 'forward' }));
+      }
       return;
     }
     
@@ -224,7 +242,7 @@ export function useBlobbiCompanionGaze({
     startMouseFollowCheck();
     
     return clearAllTimers;
-  }, [isActive, state, config.gaze.randomInterval, config.gaze.mouseFollowCooldown, config.gaze.mouseFollowChance, config.gaze.mouseFollowDuration, clearAllTimers]);
+  }, [isActive, state, observationTarget, config.gaze.randomInterval, config.gaze.mouseFollowCooldown, config.gaze.mouseFollowChance, config.gaze.mouseFollowDuration, clearAllTimers]);
   
   // Animation loop for smooth eye movement
   useEffect(() => {
@@ -242,14 +260,17 @@ export function useBlobbiCompanionGaze({
       
       const currentMode = gazeModeRef.current;
       
-      if (currentMode === 'follow-mouse' && mousePosition) {
+      if (currentMode === 'observe-target' && observationTarget) {
+        // Look at observation target - calculate offset to that position
+        targetOffset = calculateEyeOffset(companionPosition, observationTarget, companionSize);
+      } else if (currentMode === 'follow-mouse' && mousePosition) {
         // Follow mouse cursor
         targetOffset = calculateEyeOffset(companionPosition, mousePosition, companionSize);
       } else if (currentMode === 'forward') {
-        // Look in movement direction
+        // Look in movement direction - STRONGER offset for clear visual feedback
         targetOffset = {
-          x: direction === 'right' ? 0.7 : -0.7,
-          y: 0.1, // Slightly down, looking at path ahead
+          x: direction === 'right' ? 0.85 : -0.85,
+          y: 0.15, // Slightly down, looking at path ahead
         };
       } else {
         // Random observation
@@ -258,11 +279,13 @@ export function useBlobbiCompanionGaze({
       
       // Smooth transition to target
       // Different speeds for different modes:
+      // - Observe target: moderate-fast (0.12) - settling onto target
       // - Mouse follow: responsive (0.15)
-      // - Forward: moderate (0.1)
+      // - Forward: moderate-fast (0.12) - clear direction feedback
       // - Random: gentle (0.06)
-      const smoothFactor = currentMode === 'follow-mouse' ? 0.15 
-                         : currentMode === 'forward' ? 0.1 
+      const smoothFactor = currentMode === 'observe-target' ? 0.12
+                         : currentMode === 'follow-mouse' ? 0.15 
+                         : currentMode === 'forward' ? 0.12 
                          : 0.06;
       
       setEyeOffset(prev => ({
@@ -281,7 +304,7 @@ export function useBlobbiCompanionGaze({
         animationRef.current = null;
       }
     };
-  }, [isActive, direction, companionPosition, mousePosition, companionSize]);
+  }, [isActive, direction, companionPosition, mousePosition, companionSize, observationTarget]);
   
   return {
     gaze,

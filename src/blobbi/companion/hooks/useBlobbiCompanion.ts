@@ -115,6 +115,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     state,
     direction,
     targetX,
+    observationTarget,
     onReachedTarget,
   } = useBlobbiCompanionState({
     isActive: isVisible && !isEntering,
@@ -152,6 +153,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     companionPosition: motion.position,
     companionSize: config.size,
     isActive: isVisible,
+    observationTarget: isEntering ? null : observationTarget,
   });
   
   // Handle route changes - trigger entry animation

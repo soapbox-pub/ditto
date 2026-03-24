@@ -17,10 +17,11 @@ export type CompanionDirection = 'left' | 'right';
 
 /** Gaze behavior modes */
 export type GazeMode = 
-  | 'forward'      // Looking in movement direction
-  | 'random'       // Random screen observation
-  | 'follow-mouse' // Following cursor
-  | 'idle';        // Neutral/resting gaze
+  | 'forward'       // Looking in movement direction
+  | 'random'        // Random screen observation
+  | 'follow-mouse'  // Following cursor
+  | 'observe-target'// Looking at a specific observation target
+  | 'idle';         // Neutral/resting gaze
 
 // ─── Position & Motion ────────────────────────────────────────────────────────
 
@@ -131,6 +132,17 @@ export interface CompanionConfig {
     mouseFollowDuration: number;
     /** Probability of entering mouse-follow mode (0-1) */
     mouseFollowChance: number;
+  };
+  /** Observation target behavior - Blobbi notices something and walks toward it */
+  observation: {
+    /** Probability of starting observation when deciding next action (0-1) */
+    chance: number;
+    /** Minimum time between observation behaviors (ms) */
+    cooldown: number;
+    /** How long to look at target after arriving (ms) */
+    lookDuration: { min: number; max: number };
+    /** How close to get to the target X position (pixels) */
+    targetPadding: number;
   };
   /** Entry animation duration (ms) */
   entryAnimationDuration: number;
