@@ -45,6 +45,8 @@ interface UseBlobbiEntryAnimationOptions {
   sidebarOrder: string[];
   /** Whether the companion is currently being dragged */
   isDragging: boolean;
+  /** Unique identifier of current companion (d-tag) - changes trigger re-entry */
+  companionId: string | null;
   /** Called when entry animation completes */
   onComplete: () => void;
   /** Called when entry starts (for resetting position) */
@@ -93,6 +95,7 @@ export function useBlobbiEntryAnimation({
   pathname,
   sidebarOrder,
   isDragging,
+  companionId,
   onComplete,
   onStart,
 }: UseBlobbiEntryAnimationOptions): UseBlobbiEntryAnimationResult {
@@ -106,6 +109,7 @@ export function useBlobbiEntryAnimation({
   // Refs for tracking state
   const animationRef = useRef<number | null>(null);
   const lastPathnameRef = useRef<string>(pathname);
+  const lastCompanionIdRef = useRef<string | null>(companionId);
   const routeChangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasCompletedFirstEntryRef = useRef(false);
   
@@ -237,24 +241,37 @@ export function useBlobbiEntryAnimation({
   }, [entryState.phase, isDragging, resolvePermanentStuck]);
   
   /**
-   * Handle route changes - determine entry direction and start animation.
+   * Handle route changes and companion changes - trigger entry animation.
    */
   useEffect(() => {
     if (!isActive) return;
     
     const previousPath = lastPathnameRef.current;
+    const previousCompanionId = lastCompanionIdRef.current;
     const isInitialEntry = !hasCompletedFirstEntryRef.current;
     const routeChanged = pathname !== previousPath;
+    const companionChanged = companionId !== previousCompanionId && companionId !== null;
     
-    if (isInitialEntry) {
+    // Update refs
+    lastPathnameRef.current = pathname;
+    lastCompanionIdRef.current = companionId;
+    
+    if (isInitialEntry && companionId) {
       // First entry - determine direction based on previous path (if any)
       const entryType = getEntryDirection(null, pathname, sidebarOrder);
       startEntry(entryType);
-      lastPathnameRef.current = pathname;
-    } else if (routeChanged) {
+    } else if (companionChanged) {
+      // Companion changed - trigger new entry with random direction
+      // Cancel any existing entry immediately
+      cancelEntry();
+      setIsHiddenForTransition(false); // Show immediately (no delay for companion change)
+      
+      // Random entry type for new companion (fall or rise)
+      const entryType: EntryType = Math.random() < 0.5 ? 'fall' : 'rise';
+      startEntry(entryType);
+    } else if (routeChanged && companionId) {
       // Route changed - determine direction for new route
       const entryType = getEntryDirection(previousPath, pathname, sidebarOrder);
-      lastPathnameRef.current = pathname;
       
       // Immediately hide Blobbi and cancel current entry
       cancelEntry();
@@ -265,7 +282,7 @@ export function useBlobbiEntryAnimation({
         startEntry(entryType);
       }, entryConfig.routeChangeRestartDelay);
     }
-  }, [isActive, pathname, sidebarOrder, startEntry, cancelEntry, entryConfig.routeChangeRestartDelay]);
+  }, [isActive, pathname, companionId, sidebarOrder, startEntry, cancelEntry, entryConfig.routeChangeRestartDelay]);
   
   /**
    * Animation loop for FALL entry.

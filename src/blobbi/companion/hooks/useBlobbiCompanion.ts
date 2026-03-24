@@ -226,7 +226,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     onReachedTarget,
   });
   
-  // Entry animation management (handles route changes)
+  // Entry animation management (handles route changes and companion changes)
   // Must be after motion so we can pass isDragging
   const {
     entryState,
@@ -240,6 +240,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     pathname: location.pathname,
     sidebarOrder,
     isDragging: motion.isDragging,
+    companionId: companion?.d ?? null, // Track companion identity for reactive updates
     onComplete: handleEntryComplete,
     onStart: handleEntryStart,
   });
