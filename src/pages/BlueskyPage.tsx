@@ -16,10 +16,13 @@ import {
 
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlueskyTrending, type BlueskyPost } from '@/hooks/useBlueskyTrending';
 import { useBlueskySearch, type BlueskySearchResult } from '@/hooks/useBlueskySearch';
 import { BlueskyIcon } from '@/components/icons/BlueskyIcon';
+import { shareOrCopy } from '@/lib/share';
+import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -123,135 +126,200 @@ function CategoryPill({ category, active, onClick }: {
 // ---------------------------------------------------------------------------
 
 function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const webUrl = postWebUrl(post.uri, post.author.handle);
+  const internalUrl = dittoUrl(webUrl);
   const images = post.embed?.$type === 'app.bsky.embed.images#view' ? (post.embed.images ?? []) : [];
   const externalEmbed = post.embed?.$type === 'app.bsky.embed.external#view' ? post.embed.external : undefined;
 
+  const [shareOpen, setShareOpen] = useState(false);
+
+  const handleComment = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(internalUrl);
+  }, [navigate, internalUrl]);
+
+  const handleRepost = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShareOpen(true);
+  }, []);
+
+  const handleLike = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(internalUrl);
+  }, [navigate, internalUrl]);
+
+  const handleShare = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const fullUrl = `${window.location.origin}${internalUrl}`;
+    const result = await shareOrCopy(fullUrl);
+    if (result === 'copied') {
+      toast({ title: 'Link copied' });
+    }
+  }, [internalUrl, toast]);
+
   return (
-    <Link
-      to={dittoUrl(webUrl)}
-      className="block px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer"
-    >
-      <div className="flex gap-3">
-        {/* Avatar */}
-        <div className="shrink-0">
-          {post.author.avatar ? (
-            <img
-              src={post.author.avatar}
-              alt=""
-              className="size-11 rounded-full object-cover"
-              loading="lazy"
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
-          ) : (
-            <div className="size-11 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
-              {(post.author.displayName ?? post.author.handle).charAt(0).toUpperCase()}
-            </div>
-          )}
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 min-w-0">
-          {/* Author info */}
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="font-semibold text-[15px] truncate leading-tight">
-              {post.author.displayName ?? post.author.handle}
-            </span>
-            <span className="text-muted-foreground text-sm truncate leading-tight">
-              @{post.author.handle}
-            </span>
-            <span className="text-muted-foreground text-sm shrink-0">&middot;</span>
-            <span className="text-muted-foreground text-sm shrink-0">
-              {timeAgo(post.record.createdAt)}
-            </span>
-          </div>
-
-          {/* Post text */}
-          <p className="mt-1 text-[15px] leading-relaxed whitespace-pre-wrap break-words">
-            {post.record.text}
-          </p>
-
-          {/* Image embeds */}
-          {images.length > 0 && (
-            <div
-              className={cn(
-                'mt-3 rounded-xl overflow-hidden border border-border',
-                images.length === 1 && 'grid grid-cols-1',
-                images.length === 2 && 'grid grid-cols-2 gap-0.5',
-                images.length === 3 && 'grid grid-cols-2 gap-0.5',
-                images.length >= 4 && 'grid grid-cols-2 gap-0.5',
-              )}
-            >
-              {images.slice(0, 4).map((img, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    'relative overflow-hidden bg-secondary',
-                    images.length === 1 ? 'aspect-video' : 'aspect-square',
-                    images.length === 3 && i === 0 && 'row-span-2 aspect-auto',
-                  )}
-                >
-                  <img
-                    src={img.thumb}
-                    alt={img.alt || ''}
-                    loading="lazy"
-                    className="absolute inset-0 w-full h-full object-cover"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* External link embed */}
-          {externalEmbed && (
-            <div className="mt-3 rounded-xl border border-border overflow-hidden bg-secondary/30">
-              {externalEmbed.thumb && (
-                <div className="aspect-[2/1] overflow-hidden bg-secondary">
-                  <img
-                    src={externalEmbed.thumb}
-                    alt=""
-                    loading="lazy"
-                    className="w-full h-full object-cover"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                </div>
-              )}
-              <div className="px-3 py-2.5 space-y-0.5">
-                <p className="text-xs text-muted-foreground truncate">
-                  {(() => { try { return new URL(externalEmbed.uri).hostname; } catch { return externalEmbed.uri; } })()}
-                </p>
-                {externalEmbed.title && (
-                  <p className="text-sm font-semibold leading-tight line-clamp-2">{externalEmbed.title}</p>
-                )}
-                {externalEmbed.description && (
-                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{externalEmbed.description}</p>
-                )}
+    <>
+      <Link
+        to={internalUrl}
+        className="block px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer"
+      >
+        <div className="flex gap-3">
+          {/* Avatar */}
+          <div className="shrink-0">
+            {post.author.avatar ? (
+              <img
+                src={post.author.avatar}
+                alt=""
+                className="size-11 rounded-full object-cover"
+                loading="lazy"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            ) : (
+              <div className="size-11 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
+                {(post.author.displayName ?? post.author.handle).charAt(0).toUpperCase()}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-5 mt-3 -ml-2">
-            <span className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground">
-              <MessageCircle className="size-[18px]" />
-              {post.replyCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.replyCount)}</span>}
-            </span>
-            <span className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground">
-              <Repeat2 className="size-[18px]" />
-              {post.repostCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.repostCount)}</span>}
-            </span>
-            <span className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground">
-              <Heart className="size-[18px]" />
-              {post.likeCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.likeCount)}</span>}
-            </span>
-            <span className="inline-flex items-center p-2 rounded-full text-muted-foreground">
-              <Share2 className="size-[18px]" />
-            </span>
+          {/* Body */}
+          <div className="flex-1 min-w-0">
+            {/* Author info */}
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-semibold text-[15px] truncate leading-tight">
+                {post.author.displayName ?? post.author.handle}
+              </span>
+              <span className="text-muted-foreground text-sm truncate leading-tight">
+                @{post.author.handle}
+              </span>
+              <span className="text-muted-foreground text-sm shrink-0">&middot;</span>
+              <span className="text-muted-foreground text-sm shrink-0">
+                {timeAgo(post.record.createdAt)}
+              </span>
+            </div>
+
+            {/* Post text */}
+            <p className="mt-1 text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+              {post.record.text}
+            </p>
+
+            {/* Image embeds */}
+            {images.length > 0 && (
+              <div
+                className={cn(
+                  'mt-3 rounded-xl overflow-hidden border border-border',
+                  images.length === 1 && 'grid grid-cols-1',
+                  images.length === 2 && 'grid grid-cols-2 gap-0.5',
+                  images.length === 3 && 'grid grid-cols-2 gap-0.5',
+                  images.length >= 4 && 'grid grid-cols-2 gap-0.5',
+                )}
+              >
+                {images.slice(0, 4).map((img, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      'relative overflow-hidden bg-secondary',
+                      images.length === 1 ? 'aspect-video' : 'aspect-square',
+                      images.length === 3 && i === 0 && 'row-span-2 aspect-auto',
+                    )}
+                  >
+                    <img
+                      src={img.thumb}
+                      alt={img.alt || ''}
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* External link embed */}
+            {externalEmbed && (
+              <div className="mt-3 rounded-xl border border-border overflow-hidden bg-secondary/30">
+                {externalEmbed.thumb && (
+                  <div className="aspect-[2/1] overflow-hidden bg-secondary">
+                    <img
+                      src={externalEmbed.thumb}
+                      alt=""
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  </div>
+                )}
+                <div className="px-3 py-2.5 space-y-0.5">
+                  <p className="text-xs text-muted-foreground truncate">
+                    {(() => { try { return new URL(externalEmbed.uri).hostname; } catch { return externalEmbed.uri; } })()}
+                  </p>
+                  {externalEmbed.title && (
+                    <p className="text-sm font-semibold leading-tight line-clamp-2">{externalEmbed.title}</p>
+                  )}
+                  {externalEmbed.description && (
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{externalEmbed.description}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-5 mt-3 -ml-2">
+              <button
+                type="button"
+                onClick={handleComment}
+                className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-sky-500 hover:bg-sky-500/10 transition-colors"
+                title="Comment"
+              >
+                <MessageCircle className="size-[18px]" />
+                {post.replyCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.replyCount)}</span>}
+              </button>
+              <button
+                type="button"
+                onClick={handleRepost}
+                className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
+                title="Share to feed"
+              >
+                <Repeat2 className="size-[18px]" />
+                {post.repostCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.repostCount)}</span>}
+              </button>
+              <button
+                type="button"
+                onClick={handleLike}
+                className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10 transition-colors"
+                title="React"
+              >
+                <Heart className="size-[18px]" />
+                {post.likeCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.likeCount)}</span>}
+              </button>
+              <button
+                type="button"
+                onClick={handleShare}
+                className="inline-flex items-center p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                title="Share link"
+              >
+                <Share2 className="size-[18px]" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+
+      {/* Share compose modal */}
+      {shareOpen && (
+        <ReplyComposeModal
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          initialContent={webUrl}
+          title="Share to feed"
+        />
+      )}
+    </>
   );
 }
 
