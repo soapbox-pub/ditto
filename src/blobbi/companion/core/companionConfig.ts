@@ -89,8 +89,13 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
   // Vertical entry animation timing
   entry: {
     // ── Fall entry (from top) ──
-    // Natural falling with gravity feel
-    fallDuration: 600,        // Quick fall (gravity-like)
+    // Playful "stuck and wiggling" before falling
+    stuckDuration: 300,       // How long to show just the butt peeking
+    stuckVisibleAmount: 0.25, // Only 25% visible when stuck (just the butt)
+    wiggleDuration: 400,      // Duration of wiggle animation
+    wiggleIntensity: 8,       // Horizontal wiggle amount in pixels
+    wiggleRotation: 6,        // Rotation wiggle in degrees
+    fallDuration: 500,        // Quick fall after getting loose
     landingDuration: 200,     // Brief squash on landing
     landingSquash: 0.15,      // 15% vertical compression on landing
     

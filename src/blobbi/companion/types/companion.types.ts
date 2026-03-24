@@ -42,13 +42,15 @@ export type EntryType = 'fall' | 'rise';
  * Entry animation phases for vertical entrance sequences.
  * 
  * FALL entry (from top):
- *   idle -> falling -> landing -> complete
+ *   idle -> stuck -> wiggling -> falling -> landing -> complete
  * 
  * RISE entry (from bottom):
  *   idle -> rising -> inspecting -> entering -> complete
  */
 export type EntryPhase =
   | 'idle'          // Not entering
+  | 'stuck'         // Only butt visible at top, stuck (fall entry)
+  | 'wiggling'      // Wiggling to get loose (fall entry)
   | 'falling'       // Falling from top of screen (fall entry)
   | 'landing'       // Brief landing squash/settle (fall entry)
   | 'rising'        // Rising from bottom until eyes visible (rise entry)
@@ -248,6 +250,16 @@ export interface CompanionConfig {
   /** Vertical entry animation configuration */
   entry: {
     // ── Fall entry (from top) ──
+    /** Duration of the "stuck" phase showing just the butt (ms) */
+    stuckDuration: number;
+    /** How much of Blobbi is visible when stuck (0-1, 0.25 = just butt showing) */
+    stuckVisibleAmount: number;
+    /** Duration of the wiggle animation (ms) */
+    wiggleDuration: number;
+    /** Horizontal wiggle intensity in pixels */
+    wiggleIntensity: number;
+    /** Rotation wiggle in degrees */
+    wiggleRotation: number;
     /** Duration of the falling phase (ms) */
     fallDuration: number;
     /** Duration of the landing squash/settle (ms) */
