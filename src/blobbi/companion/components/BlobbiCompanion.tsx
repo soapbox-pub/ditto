@@ -106,7 +106,14 @@ export function BlobbiCompanion({
   let scaleX = 1;
   let scaleY = 1;
   
-  if (isEntering) {
+  // Use entry animation position while:
+  // - isEntering is true (animation actively playing), OR
+  // - entryState.phase is not 'idle' (animation just completed but position not yet synced)
+  // This prevents the "snap to ground" bug where isEntering becomes false before
+  // motion.position is synced to the final entry position.
+  const useEntryPosition = isEntering || entryState.phase !== 'idle';
+  
+  if (useEntryPosition && !motion.isDragging) {
     // Calculate vertical entry animation based on entry type
     if (entryState.entryType === 'fall') {
       // FALL entry: Drop from top of screen
@@ -149,12 +156,12 @@ export function BlobbiCompanion({
   
   // Calculate floating animation offset (gentle sway/float)
   // Skip during entry animation, dragging, or debug mode
-  const floatOffset = (!isEntering && !motion.isDragging && !debugMode)
+  const floatOffset = (!useEntryPosition && !motion.isDragging && !debugMode)
     ? calculateFloatAnimation(animationTime, state === 'walking')
     : { x: 0, y: 0, rotation: 0 };
   
   // Build transform string
-  const transform = isEntering 
+  const transform = useEntryPosition 
     ? `rotate(${rotation}deg) scaleX(${scaleX}) scaleY(${scaleY})`
     : undefined;
   
