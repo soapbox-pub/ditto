@@ -16,7 +16,7 @@
  * Features:
  * - Smooth open/close slide animations (items descend/ascend)
  * - Thin vertical lines from the top of screen
- * - Large circular containers for hanging items
+ * - Circular containers for hanging items
  * - Click releases item: circle disappears, emoji falls
  * - Continuous visual: same emoji from fall to ground
  * - Contact detection: items disappear when touching Blobbi
@@ -87,16 +87,16 @@ interface HangingItemsProps {
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 const HANGING_CONFIG = {
-  /** Size of hanging item circles */
-  circleSize: 72,
+  /** Size of hanging item circles (reduced for better proportion) */
+  circleSize: 56,
   /** Emoji font size for hanging items */
-  emojiSize: '2.25rem',
-  /** Emoji font size for falling/landed items (slightly larger for visibility) */
-  fallingEmojiSize: '2.5rem',
+  emojiSize: '1.75rem',
+  /** Emoji font size for falling/landed items */
+  fallingEmojiSize: '1.875rem',
   /** Horizontal spacing between items (center to center) */
-  itemSpacing: 100,
+  itemSpacing: 80,
   /** Length of the hanging line */
-  lineLength: 120,
+  lineLength: 100,
   /** Width of the hanging line */
   lineWidth: 2,
   /** Duration of open/close slide animation (ms) */
@@ -104,15 +104,15 @@ const HANGING_CONFIG = {
   /** Stagger delay between items during open (ms) */
   staggerDelay: 40,
   /** Duration of the fall animation (ms) */
-  fallDuration: 700,
+  fallDuration: 600,
   /** Ground offset from bottom of viewport */
   defaultGroundOffset: 40,
   /** Size of quantity badge */
-  badgeSize: 24,
+  badgeSize: 20,
   /** Size of landed item hitbox for contact detection */
-  landedItemSize: 48,
+  landedItemSize: 40,
   /** Contact detection radius (how close Blobbi needs to be) */
-  contactRadius: 60,
+  contactRadius: 50,
 };
 
 // ─── Released Item Component ──────────────────────────────────────────────────
@@ -149,7 +149,7 @@ function ReleasedItem({ data, onCollect }: ReleasedItemProps) {
         transform: 'translate(-50%, -50%)',
         zIndex: isFalling ? 10004 : 10003,
         // Add subtle shadow for depth
-        filter: isLanded ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' : 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
+        filter: isLanded ? 'drop-shadow(0 2px 3px rgba(0,0,0,0.2))' : 'drop-shadow(0 3px 6px rgba(0,0,0,0.25))',
       }}
       onClick={() => isLanded && onCollect?.(item)}
       role={isLanded ? 'button' : undefined}
@@ -195,13 +195,96 @@ export function HangingItems({
   const [releasedItems, setReleasedItems] = useState<Map<string, ReleasedItemData>>(new Map());
   
   // Animation frame ref for fall animation
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | null>(null);
+  
+  // Ref to track if animation is running (to avoid duplicate loops)
+  const isAnimatingRef = useRef(false);
+  
+  // Ref to access latest releasedItems in animation loop without re-triggering effect
+  const releasedItemsRef = useRef<Map<string, ReleasedItemData>>(releasedItems);
+  releasedItemsRef.current = releasedItems;
+  
+  // Ref for onItemLanded callback
+  const onItemLandedRef = useRef(onItemLanded);
+  onItemLandedRef.current = onItemLanded;
   
   // Calculate ground Y position (where items land)
   const groundY = viewportHeight - groundOffset - HANGING_CONFIG.landedItemSize / 2;
   
   // Calculate the Y position where hanging items are (bottom of circle)
   const hangingBottomY = HANGING_CONFIG.lineLength + HANGING_CONFIG.circleSize;
+  
+  // Animation loop function (defined once, uses refs)
+  const runAnimationLoop = useCallback(() => {
+    if (isAnimatingRef.current) return; // Already running
+    isAnimatingRef.current = true;
+    
+    const animate = () => {
+      const now = performance.now();
+      let hasActiveFalls = false;
+      
+      // Work with the ref to get current state
+      const currentItems = releasedItemsRef.current;
+      const updates: Array<{ id: string; data: ReleasedItemData }> = [];
+      
+      for (const [id, data] of currentItems) {
+        if (data.state === 'falling') {
+          hasActiveFalls = true;
+          const elapsed = now - data.fallStartTime;
+          const progress = Math.min(elapsed / HANGING_CONFIG.fallDuration, 1);
+          
+          // Easing function for natural fall (accelerate then slow)
+          const easeProgress = progress < 0.8 
+            ? Math.pow(progress / 0.8, 2) * 0.9
+            : 0.9 + (progress - 0.8) / 0.2 * 0.1;
+          
+          const newY = data.startY + (data.targetY - data.startY) * easeProgress;
+          
+          if (progress >= 1) {
+            // Landing complete
+            updates.push({ id, data: { ...data, state: 'landed', y: data.targetY } });
+            onItemLandedRef.current?.(data.item);
+          } else {
+            // Update position during fall
+            updates.push({ id, data: { ...data, y: newY } });
+          }
+        }
+      }
+      
+      // Apply updates if any
+      if (updates.length > 0) {
+        setReleasedItems(prev => {
+          const next = new Map(prev);
+          for (const { id, data } of updates) {
+            next.set(id, data);
+          }
+          return next;
+        });
+      }
+      
+      // Continue loop if there are still falling items
+      if (hasActiveFalls) {
+        animationRef.current = requestAnimationFrame(animate);
+      } else {
+        isAnimatingRef.current = false;
+        animationRef.current = null;
+      }
+    };
+    
+    // Start the loop
+    animationRef.current = requestAnimationFrame(animate);
+  }, []);
+  
+  // Cleanup animation on unmount
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+        isAnimatingRef.current = false;
+      }
+    };
+  }, []);
   
   // Handle visibility changes with animation
   useEffect(() => {
@@ -233,64 +316,6 @@ export function HangingItems({
       }
     }
   }, [isVisible, selectedAction, containerState]);
-  
-  // Animation loop for falling items
-  useEffect(() => {
-    const animate = () => {
-      const now = performance.now();
-      let hasChanges = false;
-      let hasActiveFalls = false;
-      
-      setReleasedItems(prev => {
-        const next = new Map(prev);
-        
-        for (const [id, data] of next) {
-          if (data.state === 'falling') {
-            hasActiveFalls = true;
-            const elapsed = now - data.fallStartTime;
-            const progress = Math.min(elapsed / HANGING_CONFIG.fallDuration, 1);
-            
-            // Easing function for natural fall (ease-in with bounce consideration)
-            const easeProgress = progress < 0.8 
-              ? Math.pow(progress / 0.8, 2) * 0.9  // Accelerate to 90%
-              : 0.9 + (progress - 0.8) / 0.2 * 0.1; // Slow down final 10%
-            
-            const newY = data.startY + (data.targetY - data.startY) * easeProgress;
-            
-            if (progress >= 1) {
-              // Landing complete
-              next.set(id, { ...data, state: 'landed', y: data.targetY });
-              hasChanges = true;
-              // Notify parent of landing
-              onItemLanded?.(data.item);
-            } else if (Math.abs(newY - data.y) > 0.5) {
-              // Update position during fall
-              next.set(id, { ...data, y: newY });
-              hasChanges = true;
-            }
-          }
-        }
-        
-        return hasChanges ? next : prev;
-      });
-      
-      if (hasActiveFalls) {
-        animationRef.current = requestAnimationFrame(animate);
-      }
-    };
-    
-    // Check if there are falling items
-    const hasFallingItems = Array.from(releasedItems.values()).some(d => d.state === 'falling');
-    if (hasFallingItems) {
-      animationRef.current = requestAnimationFrame(animate);
-    }
-    
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [releasedItems, onItemLanded]);
   
   // Contact detection with Blobbi
   useEffect(() => {
@@ -343,21 +368,28 @@ export function HangingItems({
       item,
       state: 'falling',
       x: xPosition,
-      y: hangingBottomY - HANGING_CONFIG.circleSize / 2, // Start from center of circle
+      y: hangingBottomY - HANGING_CONFIG.circleSize / 2,
       startY: hangingBottomY - HANGING_CONFIG.circleSize / 2,
       targetY: groundY,
       fallStartTime: now,
     };
     
+    // Add to released items
     setReleasedItems(prev => {
       const next = new Map(prev);
       next.set(item.id, releasedData);
       return next;
     });
     
+    // Start animation loop immediately
+    // Use setTimeout(0) to ensure state update is processed first
+    setTimeout(() => {
+      runAnimationLoop();
+    }, 0);
+    
     // Notify parent
     onItemRelease?.(item);
-  }, [hangingBottomY, groundY, onItemRelease]);
+  }, [hangingBottomY, groundY, onItemRelease, runAnimationLoop]);
   
   // Manual pickup of landed item (clicking on it)
   const handleLandedItemClick = useCallback((item: CompanionItem) => {
@@ -517,7 +549,7 @@ export function HangingItems({
                       style={{
                         minWidth: HANGING_CONFIG.badgeSize,
                         height: HANGING_CONFIG.badgeSize,
-                        padding: '0 6px',
+                        padding: '0 5px',
                       }}
                     >
                       {item.quantity}
