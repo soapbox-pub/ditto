@@ -19,7 +19,7 @@ import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ExternalReactionButton } from '@/components/ExternalReactionButton';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlueskyTrending, type BlueskyPost } from '@/hooks/useBlueskyTrending';
-import { useBlueskySearch, type BlueskySearchResult } from '@/hooks/useBlueskySearch';
+import { useBlueskyActorSearch, type BlueskyActorResult } from '@/hooks/useBlueskyActorSearch';
 import { BlueskyIcon } from '@/components/icons/BlueskyIcon';
 import { shareOrCopy } from '@/lib/share';
 import { parseExternalUri } from '@/lib/externalContent';
@@ -340,14 +340,14 @@ function BlueskySearchBar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const { data: results, isFetching } = useBlueskySearch(debouncedQuery);
+  const { data: results, isFetching } = useBlueskyActorSearch(debouncedQuery);
 
   const handleChange = useCallback((value: string) => {
     setQuery(value);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setDebouncedQuery(value.trim());
-    }, 400);
+    }, 300);
   }, []);
 
   useEffect(() => {
@@ -355,9 +355,9 @@ function BlueskySearchBar() {
   }, []);
 
   useEffect(() => {
-    if (debouncedQuery.length >= 2 && results && results.length > 0) {
+    if (debouncedQuery.length >= 1 && results && results.length > 0) {
       setDropdownOpen(true);
-    } else if (debouncedQuery.length >= 2 && results && results.length === 0 && !isFetching) {
+    } else if (debouncedQuery.length >= 1 && results && results.length === 0 && !isFetching) {
       setDropdownOpen(true);
     }
   }, [debouncedQuery, results, isFetching]);
@@ -373,7 +373,7 @@ function BlueskySearchBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelect = useCallback((result: BlueskySearchResult) => {
+  const handleSelect = useCallback((result: BlueskyActorResult) => {
     setQuery('');
     setDebouncedQuery('');
     setDropdownOpen(false);
@@ -406,11 +406,11 @@ function BlueskySearchBar() {
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Search Bluesky posts..."
+          placeholder="Search Bluesky users..."
           value={query}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => {
-            if (debouncedQuery.length >= 2) setDropdownOpen(true);
+            if (debouncedQuery.length >= 1) setDropdownOpen(true);
           }}
           onKeyDown={handleKeyDown}
           className="pl-9 pr-9 h-9 text-base md:text-sm"
@@ -427,13 +427,13 @@ function BlueskySearchBar() {
       </div>
 
       {/* Search results dropdown */}
-      {dropdownOpen && debouncedQuery.length >= 2 && (
+      {dropdownOpen && debouncedQuery.length >= 1 && (
         <div className="absolute left-4 right-4 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
           {isFetching && (!results || results.length === 0) ? (
             <div className="divide-y divide-border">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-3 px-3 py-2.5">
-                  <Skeleton className="w-10 h-10 rounded shrink-0" />
+                  <Skeleton className="size-10 rounded-full shrink-0" />
                   <div className="flex-1 min-w-0 space-y-1">
                     <Skeleton className="h-3.5 w-3/4" />
                     <Skeleton className="h-3 w-1/2" />
@@ -445,7 +445,7 @@ function BlueskySearchBar() {
             <div className="divide-y divide-border max-h-80 overflow-y-auto">
               {results.map((result) => (
                 <button
-                  key={result.uri}
+                  key={result.did}
                   type="button"
                   className="flex items-center gap-3 px-3 py-2.5 w-full text-left hover:bg-secondary/60 transition-colors"
                   onClick={() => handleSelect(result)}
@@ -454,28 +454,28 @@ function BlueskySearchBar() {
                     <img
                       src={result.avatar}
                       alt=""
-                      className="w-10 h-10 rounded-full object-cover bg-secondary shrink-0"
+                      className="size-10 rounded-full object-cover bg-secondary shrink-0"
                       loading="lazy"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500/20 to-blue-500/20 flex items-center justify-center shrink-0">
+                    <div className="size-10 rounded-full bg-gradient-to-br from-sky-500/20 to-blue-500/20 flex items-center justify-center shrink-0">
                       <BlueskyIcon className="size-4 text-muted-foreground/50" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{result.displayName}</p>
+                    <p className="text-sm font-medium truncate">
+                      {result.displayName || result.handle}
+                    </p>
                     <p className="text-xs text-muted-foreground truncate">
                       @{result.handle}
-                      {result.likes > 0 && <> &middot; {formatCount(result.likes)} likes</>}
                     </p>
-                    <p className="text-xs text-muted-foreground/70 truncate mt-0.5">{result.text}</p>
                   </div>
                 </button>
               ))}
             </div>
           ) : (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-              No results found for &ldquo;{debouncedQuery}&rdquo;
+              No users found for &ldquo;{debouncedQuery}&rdquo;
             </div>
           )}
 
