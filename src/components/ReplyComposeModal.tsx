@@ -136,8 +136,9 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
 
           {/* Bluesky disclaimer */}
           {isUrl && /bsky\.(app|social)/.test(event.href) && (
-            <div className="mx-4 mb-2 rounded-lg border border-sky-500/20 bg-sky-500/5 px-3 py-2">
-              <p className="text-xs text-sky-600 dark:text-sky-400 leading-relaxed">
+            <div className="mx-4 mb-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 flex items-start gap-2">
+              <span className="text-sm leading-relaxed shrink-0" aria-hidden>&#x26A0;&#xFE0F;</span>
+              <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
                 People on Bluesky can&apos;t see you because they&apos;re not actually decentralized.
               </p>
             </div>
