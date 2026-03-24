@@ -134,6 +134,13 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
             </div>
           )}
 
+          {/* Bluesky disclaimer */}
+          {isUrl && /bsky\.(app|social)/.test(event.href) && (
+            <p className="mx-4 mb-2 text-xs text-muted-foreground">
+              People on Bluesky can&apos;t see you because they&apos;re not actually decentralized
+            </p>
+          )}
+
           {/* Compose area */}
           <div className="shrink-0">
             <ComposeBox
