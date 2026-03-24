@@ -110,9 +110,11 @@ export function BlobbiCompanionVisual({
   const reaction = isDragging ? 'happy' : isWalking ? 'idle' : 'idle';
   
   // Shadow size and opacity adjust based on float height
+  // floatOffset.y is negative (upward) or zero, so we use -floatOffset.y for the height
   // Higher float = smaller/fainter shadow (further from ground)
-  const shadowScale = 1 - Math.abs(floatOffset.y) * 0.015;
-  const shadowOpacity = 0.35 - Math.abs(floatOffset.y) * 0.01;
+  const floatHeight = -floatOffset.y; // Convert to positive value (0 = on ground, 6 = max float)
+  const shadowScale = 1 - floatHeight * 0.02;
+  const shadowOpacity = 0.35 - floatHeight * 0.015;
   
   // Suppress unused variable warning for direction (kept for API compatibility)
   void direction;
