@@ -790,9 +790,9 @@ function VinesTabBar({ tab, onTabChange, hasUser }: VinesTabBarProps) {
   return (
     <SubHeaderBar className="shrink-0" noArc>
       {hasUser && (
-        <TabButton label="Follows" active={tab === 'follows'} onClick={() => onTabChange('follows')} className="sidebar:py-5 sidebar:font-semibold" indicatorClassName="sidebar:h-[3px]" />
+        <TabButton label="Follows" active={tab === 'follows'} onClick={() => onTabChange('follows')} className="sidebar:py-5 sidebar:font-semibold" />
       )}
-      <TabButton label="Global" active={tab === 'global'} onClick={() => onTabChange('global')} className="sidebar:py-5 sidebar:font-semibold" indicatorClassName="sidebar:h-[3px]" />
+      <TabButton label="Global" active={tab === 'global'} onClick={() => onTabChange('global')} className="sidebar:py-5 sidebar:font-semibold" />
     </SubHeaderBar>
   );
 }
