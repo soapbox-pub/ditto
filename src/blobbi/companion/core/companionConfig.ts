@@ -8,14 +8,14 @@
 import type { CompanionConfig } from '../types/companion.types';
 
 export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
-  // Visual size
-  size: 80,
+  // Visual size (increased ~35% from original 80px for better visibility)
+  size: 108,
   
   // Viewport padding
   padding: {
-    left: 80,   // Minimum left padding in main content area
-    right: 20,
-    bottom: 20,
+    left: 100,   // Minimum left padding in main content area (increased for larger Blobbi)
+    right: 24,
+    bottom: 24,
   },
   
   // Layout reference points
