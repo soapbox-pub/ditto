@@ -63,7 +63,7 @@ export function LinkEmbed({ url, className, navigateToComments, showActions = tr
     embed = <TweetEmbed tweetId={tweetId} />;
   } else if (blueskyPost) {
     // BlueskyEmbed has built-in /i/ navigation, no DiscussBar needed
-    return <BlueskyEmbed author={blueskyPost.author} rkey={blueskyPost.rkey} className={className} />;
+    return <BlueskyEmbed author={blueskyPost.author} rkey={blueskyPost.rkey} hideImage={hideImage} className={className} />;
   } else if (mastodonUrl) {
     // MastodonEmbed has built-in /i/ navigation, no DiscussBar needed
     return <MastodonEmbed url={mastodonUrl} className={className} />;
