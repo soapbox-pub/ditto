@@ -10,6 +10,8 @@ import { CursorFireEffect } from '@/components/CursorFireEffect';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LayoutStore, LayoutStoreContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useScrollDirection } from '@/hooks/useScrollDirection';
+import { ARC_UP_OVERHANG_PX } from '@/components/ArcBackground';
 import { cn } from '@/lib/utils';
 
 /** Skeleton shown in the content area while a lazy page chunk is loading. */
@@ -64,9 +66,10 @@ function PageSkeleton() {
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
-  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth } = useLayoutSnapshot();
+  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, scrollContainer, hasSubHeader } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { config } = useAppContext();
+  const { hidden: navHidden } = useScrollDirection(scrollContainer);
 
   return (
     <>
@@ -74,7 +77,7 @@ function MainLayoutInner() {
       {config.magicMouse && <CursorFireEffect />}
 
       {/* Mobile top bar - only on small screens */}
-      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} />
+      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} hasSubHeader={hasSubHeader} />
 
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
@@ -88,15 +91,14 @@ function MainLayoutInner() {
 
         {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
         <Suspense fallback={<PageSkeleton />}>
-          <div className={cn("relative flex-1 min-w-0 sidebar:border-l border-r border-border bg-background/85", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
+          {/* -mt-mobile-bar pulls content up behind the mobile top bar so the
+              transparent SVG header arc and page content overlap seamlessly.
+              The corresponding padding-top (set in CSS) prevents content from
+              being hidden. This depends on MobileTopBar having a transparent /
+              semi-transparent background — a solid top bar would obscure the
+              content underneath. Only active below the sidebar breakpoint. */}
+          <div className={cn("relative flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85 -mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
             <Outlet />
-            {showFAB && (
-              <div className="sticky bottom-fab sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
-                <div className="pointer-events-auto">
-                  <FloatingComposeButton kind={fabKind} href={fabHref} onFabClick={onFabClick} icon={fabIcon} />
-                </div>
-              </div>
-            )}
           </div>
           {rightSidebar !== null && (rightSidebar ?? <RightSidebar />)}
         </Suspense>
@@ -104,6 +106,18 @@ function MainLayoutInner() {
 
       {/* Mobile bottom nav - only on small screens, slides out on scroll */}
       <MobileBottomNav />
+
+      {/* FAB - fixed, mirrors bottom nav hide/show transition on mobile */}
+      {showFAB && (
+        <div
+          className="fixed bottom-fab sidebar:bottom-6 right-6 z-30 pointer-events-none sidebar:transition-none transition-transform duration-300 ease-in-out"
+          style={navHidden ? { transform: `translateY(calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px)))` } : undefined}
+        >
+          <div className="pointer-events-auto">
+            <FloatingComposeButton kind={fabKind} href={fabHref} onFabClick={onFabClick} icon={fabIcon} />
+          </div>
+        </div>
+      )}
     </>
   );
 }

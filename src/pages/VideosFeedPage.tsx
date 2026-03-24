@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Film, Radio, Play, Eye } from 'lucide-react';
+import { Film, Radio, Play, Eye } from 'lucide-react';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
@@ -41,10 +41,12 @@ import { getAvatarShape } from '@/lib/avatarShape';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { KindInfoButton } from '@/components/KindInfoButton';
+import { PageHeader } from '@/components/PageHeader';
 import { useVideoThumbnail } from '@/components/VideoPlayer';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { timeAgo } from '@/lib/timeAgo';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { cn } from '@/lib/utils';
 import { getEffectiveStreamStatus } from '@/lib/streamStatus';
@@ -643,19 +645,10 @@ function ShortsPlayer({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose, activeIndex, events.length]);
 
-  // Same structure as VinesFeedPage: tab bar + snap container, filling the feed column
+  // Same structure as VinesFeedPage: PageHeader + snap container, filling the feed column
   return (
     <div className="flex-1 min-w-0 flex flex-col">
-      {/* Tab bar — same chrome as VinesTabBar, back button replaces tabs */}
-      <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 shrink-0">
-        <button
-          onClick={onClose}
-          className="flex items-center gap-1.5 px-4 py-3.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="size-4" />
-          Back to Videos
-        </button>
-      </div>
+      <PageHeader title="Videos" icon={<Film className="size-5" />} onBack={onClose} alwaysShowBack />
 
       {/* Snap-scroll VineCard column — identical sizing to VinesFeedPage */}
       <div
@@ -719,7 +712,10 @@ export function VideosFeedPage() {
   const [feedTab, setFeedTab] = useFeedTab<FeedTab>('videos', ['follows', 'global']);
 
   useSeoMeta({ title: `Videos | ${config.appName}`, description: 'Videos and live streams on Nostr' });
-  useLayoutOptions({ showFAB: false, noOverscroll: true });
+
+  const [shortsPlayerIndex, setShortsPlayerIndex] = useState<number | null>(null);
+  const shortsOpen = shortsPlayerIndex !== null;
+  useLayoutOptions({ showFAB: false, noOverscroll: true, hasSubHeader: !shortsOpen });
   useEffect(() => { setShowAllVideos(false); }, [feedTab]);
 
   // ── Follows: chronological, small page ──
@@ -753,7 +749,6 @@ export function VideosFeedPage() {
   const normalVideos = useMemo(() => videoEvents.filter((e) => e.kind === 21), [videoEvents]);
   const shorts = useMemo(() => videoEvents.filter((e) => e.kind === 22), [videoEvents]);
 
-  const [shortsPlayerIndex, setShortsPlayerIndex] = useState<number | null>(null);
   const [showAllVideos, setShowAllVideos] = useState(false);
   const { data: streams } = useClassifiedStreams(feedTab);
   const hasStreams = streams.live.length + streams.planned.length + streams.past.length > 0;
@@ -776,23 +771,15 @@ export function VideosFeedPage() {
 
   return (
     <main className="">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Film className="size-5" />
-          <h1 className="text-xl font-bold">Videos</h1>
-        </div>
-        <KindInfoButton kindDef={videosDef} icon={sidebarItemIcon('videos', 'size-5')} />
-      </div>
-
       {/* Follows / Global tabs */}
-      <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+      <SubHeaderBar>
         <TabButton label="Follows" active={feedTab === 'follows'} onClick={() => setFeedTab('follows')} disabled={!user} />
         <TabButton label="Global" active={feedTab === 'global'} onClick={() => setFeedTab('global')} />
-      </div>
+      </SubHeaderBar>
+
+      <PageHeader title="Videos" icon={<Film className="size-5" />}>
+        <KindInfoButton kindDef={videosDef} icon={sidebarItemIcon('videos', 'size-5')} />
+      </PageHeader>
 
       {/* Live streams strip — follows tab filters by followed authors */}
       <LiveStreamsStrip tab={feedTab} />

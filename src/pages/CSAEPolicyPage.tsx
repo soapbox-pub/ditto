@@ -1,7 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, ShieldAlert } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ShieldAlert } from 'lucide-react';
 
+import { PageHeader } from '@/components/PageHeader';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 
@@ -17,17 +17,7 @@ export function CSAEPolicyPage() {
   return (
     <main className="min-h-screen pb-16 sidebar:pb-0">
       {/* Page header */}
-      <div className="sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        <div className="flex items-center gap-4 px-4 pt-4 pb-3">
-          <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-            <ArrowLeft className="size-5" />
-          </Link>
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="size-5" />
-            <h1 className="text-xl font-bold">Child Safety Policy</h1>
-          </div>
-        </div>
-      </div>
+      <PageHeader title="Child Safety Policy" icon={<ShieldAlert className="size-5" />} backTo="/" />
 
       <article className="px-4 pb-8 space-y-6 text-sm text-foreground/90 leading-relaxed">
         <p className="text-xs text-muted-foreground">Last updated: March 19, 2026</p>

@@ -24,6 +24,8 @@ import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -229,13 +231,21 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
   return (
     <main className="flex-1 min-w-0">
+      {/* CTA (logged out, main feed only) */}
+      {!user && !kinds && (
+        <LandingHero
+          onLoginClick={() => setLoginDialogOpen(true)}
+          onSignupClick={startSignup}
+        />
+      )}
+
       {!hideCompose && <ComposeBox compact />}
 
       {header}
 
-      {/* Tabs (logged in) or CTA (logged out, main feed only) */}
-      {user ? (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none">
+      {/* Tabs (logged in) */}
+      {user && (
+        <SubHeaderBar>
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {!isKindSpecificPage && showDittoFeed && (
             <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
@@ -275,15 +285,11 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               </span>
             </TabButton>
           ))}
-        </div>
-      ) : !kinds && (
-        <LandingHero
-          onLoginClick={() => setLoginDialogOpen(true)}
-          onSignupClick={startSignup}
-        />
+        </SubHeaderBar>
       )}
 
       {/* Feed content — saved feed tab gets its own stream */}
+      {user && <div style={{ height: ARC_OVERHANG_PX }} />}
       {activeHashtag ? (
         <HashtagFeedContent tag={activeHashtag} />
       ) : activeGeotag ? (

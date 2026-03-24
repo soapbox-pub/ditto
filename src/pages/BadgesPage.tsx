@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import {
-  Award, Loader2, ArrowLeft, ChevronUp, ChevronDown, X, Check, Clock,
+  Award, Loader2, ChevronUp, ChevronDown, X, Check, Clock,
   Pencil, Trash2, Upload, Users, ExternalLink,
 } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
@@ -26,6 +26,8 @@ import {
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { PageHeader } from '@/components/PageHeader';
 import { TabButton } from '@/components/TabButton';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { AwardBadgeDialog } from '@/components/AwardBadgeDialog';
@@ -102,6 +104,7 @@ export function BadgesPage() {
     showFAB: true,
     onFabClick: () => setCreateDialogOpen(true),
     fabIcon: <Award className="size-5" />,
+    hasSubHeader: !!user,
   });
 
   const [activeTab, setActiveTab] = useState<BadgesTab>(() => {
@@ -124,31 +127,24 @@ export function BadgesPage() {
 
   return (
     <main className="pb-16 sidebar:pb-0">
-      {/* Page header */}
-      <div className="flex items-center gap-4 px-4 pt-4 pb-5">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Award className="size-5" />
-          <h1 className="text-xl font-bold">Badges</h1>
-        </div>
-      </div>
+      {/* Follows / My Badges tabs */}
+      {user && (
+        <SubHeaderBar>
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetTab('follows')} />
+          <TabButton label="My Badges" active={activeTab === 'mine'} onClick={() => handleSetTab('mine')}>
+            <span className="inline-flex items-center gap-1.5">
+              My Badges
+              {pendingCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold leading-none">
+                  {pendingCount}
+                </span>
+              )}
+            </span>
+          </TabButton>
+        </SubHeaderBar>
+      )}
 
-      {/* Tabs */}
-      <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetTab('follows')} disabled={!user} />
-        <TabButton label="My Badges" active={activeTab === 'mine'} onClick={() => handleSetTab('mine')} disabled={!user}>
-          <span className="inline-flex items-center gap-1.5">
-            My Badges
-            {pendingCount > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold leading-none">
-                {pendingCount}
-              </span>
-            )}
-          </span>
-        </TabButton>
-      </div>
+      <PageHeader title="Badges" icon={<Award className="size-5" />} />
 
       {/* Tab content */}
       {activeTab === 'mine' ? (

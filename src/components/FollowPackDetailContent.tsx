@@ -23,7 +23,7 @@ import { isEventMuted } from '@/lib/muteHelpers';
 import { useNostr } from '@nostrify/react';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
-import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 
 /** Parse a follow pack / starter pack event into structured data. */
 function parsePackEvent(event: NostrEvent) {
@@ -335,10 +335,10 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
       </div>
 
       {/* Tab bar */}
-      <div className={cn(STICKY_HEADER_CLASS, 'flex border-t border-b border-border bg-background/80 backdrop-blur-md z-10')}>
+      <SubHeaderBar>
         <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
         <TabButton label="Members" active={activeTab === 'members'} onClick={() => setActiveTab('members')} />
-      </div>
+      </SubHeaderBar>
 
       {/* Tab content */}
       {activeTab === 'feed' ? (
