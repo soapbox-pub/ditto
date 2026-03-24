@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Bell, Home, Search, User } from 'lucide-react';
+import { User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
@@ -8,11 +8,12 @@ import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutSnapshot } from '@/contexts/LayoutContext';
-import { getSidebarItem } from '@/lib/sidebarItems';
 import { ArcBackground, ARC_UP_OVERHANG_PX } from '@/components/ArcBackground';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useAppContext } from '@/hooks/useAppContext';
+import { getSidebarItem, isSidebarDivider, sidebarItemIcon, itemLabel, itemPath, isItemActive } from '@/lib/sidebarItems';
 
 /** Transform style applied when the bottom nav is hidden (scrolled away). */
 const hiddenStyle: React.CSSProperties = {
@@ -26,12 +27,9 @@ export function MobileBottomNav() {
   const { scrollContainer, noArcs } = useLayoutSnapshot();
   const { hidden } = useScrollDirection(scrollContainer);
   const profileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
-
+  const { orderedItems } = useFeedSettings();
   const { config } = useAppContext();
-  const homeItem = getSidebarItem(config.homePage);
-  const HomeIcon = homeItem?.icon ?? Home;
-  const homeLabel = homeItem?.label ?? 'Home';
-  const homePath = homeItem?.path;
+  const homePage = config.homePage;
 
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -44,7 +42,15 @@ export function MobileBottomNav() {
   const isHidden = hidden && !searchOpen;
 
   const displayName = metadata?.name || metadata?.display_name;
-  const isOnProfile = user && location.pathname === profileUrl;
+
+  // Show only the first 4 sidebar items (matching sidebar order), filtering out dividers and auth-gated items when logged out
+  const allItems = useMemo(() => {
+    return orderedItems.filter((id) => {
+      if (isSidebarDivider(id)) return false;
+      if (!user && getSidebarItem(id)?.requiresAuth) return false;
+      return true;
+    }).slice(0, 4);
+  }, [orderedItems, user]);
 
   return (
     <>
@@ -61,80 +67,76 @@ export function MobileBottomNav() {
         <div className="relative">
           <ArcBackground variant={noArcs ? 'rect' : 'up'} />
           <div className="h-11 flex items-center relative">
+            {allItems.map((id) => {
+              const isSearch = id === 'search';
+              const isProfile = id === 'profile';
+              const isNotifications = id === 'notifications';
+              const active = isSearch
+                ? searchOpen
+                : isItemActive(id, location.pathname, location.search, profileUrl, homePage);
+              const label = itemLabel(id);
+              const path = isProfile ? profileUrl : itemPath(id, undefined, homePage);
 
-          {/* Home */}
-          <Link
-            to="/"
-            onClick={() => setSearchOpen(false)}
-            className={cn(
-              'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-              (location.pathname === '/' || location.pathname === homePath) ? 'text-primary' : 'text-muted-foreground',
-            )}
-          >
-            <HomeIcon className="size-5" />
-            <span className="text-[10px] font-medium">{homeLabel}</span>
-          </Link>
+              // Search opens the sheet instead of navigating
+              if (isSearch) {
+                return (
+                  <button
+                    key={id}
+                    onClick={handleSearchClick}
+                    className={cn(
+                      'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+                      active ? 'text-primary' : 'text-muted-foreground',
+                    )}
+                  >
+                    {sidebarItemIcon(id, 'size-5')}
+                    <span className="text-[10px] font-medium">{label}</span>
+                  </button>
+                );
+              }
 
-          {/* Search */}
-          <button
-            onClick={handleSearchClick}
-            className={cn(
-              'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-              searchOpen ? 'text-primary' : 'text-muted-foreground',
-            )}
-          >
-            <Search className="size-5" />
-            <span className="text-[10px] font-medium">Search</span>
-          </button>
+              // Profile shows the user avatar
+              if (isProfile && user) {
+                return (
+                  <Link
+                    key={id}
+                    to={path}
+                    onClick={() => setSearchOpen(false)}
+                    className={cn(
+                      'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+                      active ? 'text-primary' : 'text-muted-foreground',
+                    )}
+                  >
+                    <Avatar shape={getAvatarShape(metadata)} className="size-5">
+                      <AvatarImage src={metadata?.picture} alt={displayName} />
+                      <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                        {displayName?.[0]?.toUpperCase() || <User className="size-3" />}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-[10px] font-medium">{label}</span>
+                  </Link>
+                );
+              }
 
-          {/* Notifications */}
-          {user && (
-            <Link
-              to="/notifications"
-              onClick={() => setSearchOpen(false)}
-              className={cn(
-                'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-                location.pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground',
-              )}
-            >
-              <span className="relative">
-                <Bell className="size-5" />
-                {hasUnread && (
-                  <span className="absolute -top-1 right-0 size-2 bg-primary rounded-full" />
-                )}
-              </span>
-              <span className="text-[10px] font-medium">Notifications</span>
-            </Link>
-          )}
-
-          {/* Profile */}
-          {user ? (
-            <Link
-              to={profileUrl}
-              onClick={() => setSearchOpen(false)}
-              className={cn(
-                'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-                isOnProfile ? 'text-primary' : 'text-muted-foreground',
-              )}
-            >
-              <Avatar shape={getAvatarShape(metadata)} className="size-5">
-                <AvatarImage src={metadata?.picture} alt={displayName} />
-                <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
-                  {displayName?.[0]?.toUpperCase() || <User className="size-3" />}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-[10px] font-medium">Profile</span>
-            </Link>
-          ) : (
-            <Link
-              to="/profile"
-              className="flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors text-muted-foreground"
-            >
-              <User className="size-5" />
-              <span className="text-[10px] font-medium">Profile</span>
-            </Link>
-          )}
-
+              return (
+                <Link
+                  key={id}
+                  to={path}
+                  onClick={() => setSearchOpen(false)}
+                  className={cn(
+                    'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+                    active ? 'text-primary' : 'text-muted-foreground',
+                  )}
+                >
+                  <span className="relative">
+                    {sidebarItemIcon(id, 'size-5')}
+                    {isNotifications && hasUnread && (
+                      <span className="absolute -top-1 right-0 size-2 bg-primary rounded-full" />
+                    )}
+                  </span>
+                  <span className="text-[10px] font-medium">{label}</span>
+                </Link>
+              );
+            })}
           </div>
         </div>
         {/* Safe area spacer — fully opaque so any subpixel gap is invisible */}

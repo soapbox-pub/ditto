@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { GripVertical, X, FileText, Scroll } from 'lucide-react';
+import { GripVertical, X, Plus, FileText, Scroll } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { nip19 } from 'nostr-tools';
@@ -32,6 +32,9 @@ export interface NostrEventSidebarItemProps {
   active: boolean;
   editing: boolean;
   onRemove: (id: string, index?: number) => void;
+  onAdd?: (id: string) => void;
+  /** True when this item is below the "More..." separator (hidden zone). */
+  belowMore?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   /** Extra classes on the link. */
   linkClassName?: string;
@@ -101,7 +104,7 @@ function EventSidebarLabel({ decoded }: EventSidebarLabelProps) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function NostrEventSidebarItem({
-  id, active, editing, onRemove, onClick, linkClassName,
+  id, active, editing, onRemove, onAdd, belowMore, onClick, linkClassName,
 }: NostrEventSidebarItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !editing });
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -160,13 +163,23 @@ export function NostrEventSidebarItem({
       </Link>
 
       {editing && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onRemove(id); }}
-          className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          title="Remove"
-        >
-          <X className="size-4" />
-        </button>
+        belowMore ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAdd?.(id); }}
+            className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-primary hover:bg-primary/10"
+            title="Add"
+          >
+            <Plus className="size-4" />
+          </button>
+        ) : (
+          <button
+            onClick={(e) => { e.stopPropagation(); onRemove(id); }}
+            className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            title="Remove"
+          >
+            <X className="size-4" />
+          </button>
+        )
       )}
     </div>
   );
