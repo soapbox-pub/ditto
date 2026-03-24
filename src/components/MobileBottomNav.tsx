@@ -50,8 +50,7 @@ export function MobileBottomNav() {
         )}
         style={isHidden ? hiddenStyle : undefined}
       >
-        {/* Arc + items wrapper — safe area padding is separate below so the
-            arc's percentage height is based only on the items area. */}
+        {/* Arc + items wrapper */}
         <div className="relative">
           <ArcBackground variant={noArcs ? 'rect' : 'up'} />
           <div className="h-11 flex items-center relative">
@@ -131,8 +130,8 @@ export function MobileBottomNav() {
 
           </div>
         </div>
-        {/* Safe area spacer — sits below the arc/items so it doesn't inflate the arc height */}
-        <div className="safe-area-bottom bg-background/95" />
+        {/* Safe area spacer — fully opaque so any subpixel gap is invisible */}
+        <div className="safe-area-bottom bg-background" />
       </nav>
     </>
   );
