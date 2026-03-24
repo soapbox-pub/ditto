@@ -6,11 +6,9 @@ import { ArcBackground } from '@/components/ArcBackground';
 
 interface MobileTopBarProps {
   onAvatarClick: () => void;
-  /** Whether to show the decorative arc below the header (when no sub-header exists). */
-  showArc?: boolean;
 }
 
-export function MobileTopBar({ onAvatarClick, showArc }: MobileTopBarProps) {
+export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
   const location = useLocation();
 
   const handleLogoClick = useCallback((e: React.MouseEvent) => {
@@ -22,7 +20,7 @@ export function MobileTopBar({ onAvatarClick, showArc }: MobileTopBarProps) {
 
   return (
     <header className="sticky top-0 z-20 sidebar:hidden safe-area-top">
-      <ArcBackground variant={showArc ? 'down' : 'rect'} />
+      <ArcBackground variant="rect" />
       <div className="relative flex items-center px-3 h-10">
         {/* Left: hamburger menu icon */}
         <div className="flex items-center justify-center w-7 shrink-0">

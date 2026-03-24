@@ -48,9 +48,9 @@
     bottom: calc(1.5rem + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Position above mobile bottom nav + safe area + arc overhang (24px) */
+  /* Position above mobile bottom nav + safe area + arc overhang (28px) */
   .bottom-mobile-nav {
-    bottom: calc(var(--bottom-nav-height) + 24px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--bottom-nav-height) + 28px + env(safe-area-inset-bottom, 0px));
   }
 
   /* Bottom overscroll padding for the center column:

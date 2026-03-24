@@ -10,12 +10,12 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useLayoutSnapshot } from '@/contexts/LayoutContext';
-import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
+import { ArcBackground, ARC_UP_OVERHANG_PX } from '@/components/ArcBackground';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
 
 /** Transform style applied when the bottom nav is hidden (scrolled away). */
 const hiddenStyle: React.CSSProperties = {
-  transform: `translateY(calc(100% + ${ARC_OVERHANG_PX}px))`,
+  transform: `translateY(calc(100% + ${ARC_UP_OVERHANG_PX}px))`,
 };
 
 export function MobileBottomNav() {
@@ -52,7 +52,7 @@ export function MobileBottomNav() {
       >
         <ArcBackground variant={noArcs ? 'rect' : 'up'} />
 
-        <div className="h-11 mt-0.5 flex items-center relative">
+        <div className="h-11 flex items-center relative">
 
           {/* Feed */}
           <Link
