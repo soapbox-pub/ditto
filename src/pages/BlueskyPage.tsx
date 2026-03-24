@@ -33,24 +33,13 @@ import { cn } from '@/lib/utils';
 // Types
 // ---------------------------------------------------------------------------
 
-type Category = 'all' | 'images' | 'links' | 'text';
 
-interface CategoryMeta {
-  label: string;
-}
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const CATEGORIES: Record<Category, CategoryMeta> = {
-  all: { label: 'All Posts' },
-  images: { label: 'With Images' },
-  links: { label: 'With Links' },
-  text: { label: 'Text Only' },
-};
 
-const CATEGORY_ORDER: Category[] = ['all', 'images', 'links', 'text'];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -89,41 +78,9 @@ function timeAgo(dateStr: string): string {
   return `${months}mo`;
 }
 
-/** Check if a post has image embeds. */
-function hasImages(post: BlueskyPost): boolean {
-  return post.embed?.$type === 'app.bsky.embed.images#view' && (post.embed?.images?.length ?? 0) > 0;
-}
-
-/** Check if a post has link/external embeds. */
-function hasLinks(post: BlueskyPost): boolean {
-  return post.embed?.$type === 'app.bsky.embed.external#view' && !!post.embed?.external;
-}
-
 // ---------------------------------------------------------------------------
 // Components
 // ---------------------------------------------------------------------------
-
-function CategoryPill({ category, active, onClick }: {
-  category: Category;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const meta = CATEGORIES[category];
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap shrink-0',
-        active
-          ? 'bg-primary text-primary-foreground shadow-sm'
-          : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground',
-      )}
-    >
-      {meta.label}
-    </button>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Post card — feed-style (vertical, like NoteCard)
@@ -540,8 +497,6 @@ export function BlueskyPage() {
     hasNextPage,
     isFetchingNextPage,
   } = useBlueskyTrending();
-  const [activeCategory, setActiveCategory] = useState<Category>('all');
-
   const { ref: loadMoreRef, inView } = useInView();
 
   useSeoMeta({
@@ -559,19 +514,6 @@ export function BlueskyPage() {
       return true;
     });
   }, [data?.pages]);
-
-  const filtered = useMemo(() => {
-    switch (activeCategory) {
-      case 'images':
-        return allPosts.filter(hasImages);
-      case 'links':
-        return allPosts.filter(hasLinks);
-      case 'text':
-        return allPosts.filter((p) => !hasImages(p) && !hasLinks(p));
-      default:
-        return allPosts;
-    }
-  }, [allPosts, activeCategory]);
 
   // Trigger next page fetch when sentinel is in view
   useEffect(() => {
@@ -635,20 +577,6 @@ export function BlueskyPage() {
       {/* Search bar */}
       <BlueskySearchBar />
 
-      {/* Category filter pills */}
-      <div className="sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
-        <div className="flex gap-2 px-4 py-2.5 overflow-x-auto">
-          {CATEGORY_ORDER.map((cat) => (
-            <CategoryPill
-              key={cat}
-              category={cat}
-              active={activeCategory === cat}
-              onClick={() => setActiveCategory(cat)}
-            />
-          ))}
-        </div>
-      </div>
-
       {/* Content */}
       {isLoading ? (
         <BlueskyLoadingSkeleton />
@@ -659,14 +587,14 @@ export function BlueskyPage() {
             Couldn&apos;t load Bluesky posts. Try again later.
           </p>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : allPosts.length === 0 ? (
         <div className="py-16 text-center">
           <BlueskyIcon className="size-10 mx-auto mb-3 text-muted-foreground/20" />
-          <p className="text-muted-foreground text-sm">No posts match this filter.</p>
+          <p className="text-muted-foreground text-sm">No posts found.</p>
         </div>
       ) : (
         <div>
-          {filtered.map((post) => (
+          {allPosts.map((post) => (
             <BlueskyFeedPost key={post.uri} post={post} />
           ))}
 
