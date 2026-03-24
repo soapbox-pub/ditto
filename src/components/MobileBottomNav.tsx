@@ -131,8 +131,9 @@ export function MobileBottomNav() {
 
           </div>
         </div>
-        {/* Safe area spacer — sits below the arc/items so it doesn't inflate the arc height */}
-        <div className="safe-area-bottom bg-background/95" />
+        {/* Safe area spacer — sits below the arc/items so it doesn't inflate the arc height.
+            -mt-px removes the sub-pixel gap iOS Safari renders between adjacent elements. */}
+        <div className="-mt-px pt-px safe-area-bottom bg-background/95" />
       </nav>
     </>
   );
