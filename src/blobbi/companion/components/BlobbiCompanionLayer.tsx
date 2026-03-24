@@ -83,9 +83,15 @@ export function BlobbiCompanionLayer() {
     stage: companion?.stage,
     onItemClick: (item) => {
       // For now, just log - item consumption will be implemented later
-      console.log('[CompanionLayer] Item clicked:', item);
+      console.log('[CompanionLayer] Item released:', item);
     },
   });
+  
+  // Handle item collected by Blobbi (contact or manual pickup)
+  const handleItemCollected = useCallback((item: { id: string; name: string }) => {
+    console.log('[CompanionLayer] Item collected by Blobbi:', item.name);
+    // TODO: Apply item effects, decrement inventory, trigger Blobbi reaction
+  }, []);
   
   // Handle companion click
   const handleCompanionClick = useCallback(() => {
@@ -238,7 +244,10 @@ export function BlobbiCompanionLayer() {
         items={menuState.items}
         viewportHeight={viewport.height}
         groundOffset={config.padding.bottom}
+        companionPosition={renderedPosition}
+        companionSize={config.size}
         onItemRelease={handleItemClick}
+        onItemCollected={handleItemCollected}
       />
     </div>
   );

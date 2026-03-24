@@ -7,21 +7,25 @@
  * 
  * State Model:
  * - Container states: hidden → opening → open → closing → hidden
- * - Item states: hanging → falling → landed
+ * - Item lifecycle: hanging → released (falling) → landed
+ * 
+ * Key Design Principle:
+ * When an item is released, only the EMOJI falls - not the circle container.
+ * The same visual element continues from falling to landed state (no respawn).
  * 
  * Features:
  * - Smooth open/close slide animations (items descend/ascend)
  * - Thin vertical lines from the top of screen
- * - Large circular item containers with emoji icons
- * - Quantity badges
- * - Click to release (line disappears, item falls to ground)
- * - Landed items remain visible on the ground
+ * - Large circular containers for hanging items
+ * - Click releases item: circle disappears, emoji falls
+ * - Continuous visual: same emoji from fall to ground
+ * - Contact detection: items disappear when touching Blobbi
  * 
  * Future extensions:
  * - Drag landed items to Blobbi
  * - Blobbi attracted to nearby items
  * - Auto-use urgent items
- * - Item pickup/consumption
+ * - Item consumption effects
  * - Different animations per item category
  */
 
@@ -30,23 +34,30 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import type { CompanionItem, CompanionMenuAction } from './types';
 import { getMenuActionConfig } from './types';
+import type { Position } from '../types/companion.types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /** State of the hanging items container */
 type ContainerState = 'hidden' | 'opening' | 'open' | 'closing';
 
-/** State of an individual item */
-type ItemState = 'hanging' | 'falling' | 'landed';
+/** Lifecycle state of a released item */
+type ReleasedItemState = 'falling' | 'landed';
 
-/** Internal state for each item */
-interface ItemStateData {
-  id: string;
-  state: ItemState;
-  /** Position when item started falling (for calculating ground position) */
-  fallStartX?: number;
-  /** Y position where item lands (ground level) */
-  landedY?: number;
+/** Data for a released item (tracks its entire lifecycle after being clicked) */
+interface ReleasedItemData {
+  item: CompanionItem;
+  state: ReleasedItemState;
+  /** X position (center of item) */
+  x: number;
+  /** Current Y position (animated during fall, final position when landed) */
+  y: number;
+  /** Y position where item started falling */
+  startY: number;
+  /** Y position where item will land */
+  targetY: number;
+  /** Timestamp when fall started */
+  fallStartTime: number;
 }
 
 /** Props for the HangingItems component */
@@ -61,19 +72,27 @@ interface HangingItemsProps {
   viewportHeight?: number;
   /** Ground Y offset from bottom of viewport */
   groundOffset?: number;
+  /** Blobbi's current position (for contact detection) */
+  companionPosition?: Position;
+  /** Blobbi's size (for contact detection) */
+  companionSize?: number;
   /** Callback when an item is clicked/released */
   onItemRelease?: (item: CompanionItem) => void;
   /** Callback when an item finishes falling and lands */
   onItemLanded?: (item: CompanionItem) => void;
+  /** Callback when an item is collected by Blobbi (contact) */
+  onItemCollected?: (item: CompanionItem) => void;
 }
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 const HANGING_CONFIG = {
-  /** Size of item circles (increased for better visibility) */
+  /** Size of hanging item circles */
   circleSize: 72,
-  /** Emoji font size */
-  emojiSize: '2.25rem', // text-4xl equivalent
+  /** Emoji font size for hanging items */
+  emojiSize: '2.25rem',
+  /** Emoji font size for falling/landed items (slightly larger for visibility) */
+  fallingEmojiSize: '2.5rem',
   /** Horizontal spacing between items (center to center) */
   itemSpacing: 100,
   /** Length of the hanging line */
@@ -85,76 +104,70 @@ const HANGING_CONFIG = {
   /** Stagger delay between items during open (ms) */
   staggerDelay: 40,
   /** Duration of the fall animation (ms) */
-  fallDuration: 600,
+  fallDuration: 700,
   /** Ground offset from bottom of viewport */
   defaultGroundOffset: 40,
   /** Size of quantity badge */
   badgeSize: 24,
+  /** Size of landed item hitbox for contact detection */
+  landedItemSize: 48,
+  /** Contact detection radius (how close Blobbi needs to be) */
+  contactRadius: 60,
 };
 
-// ─── Landed Item Component ────────────────────────────────────────────────────
+// ─── Released Item Component ──────────────────────────────────────────────────
 
-interface LandedItemProps {
-  item: CompanionItem;
-  xPosition: number;
-  groundY: number;
-  onPickup?: (item: CompanionItem) => void;
+interface ReleasedItemProps {
+  data: ReleasedItemData;
+  onCollect?: (item: CompanionItem) => void;
 }
 
 /**
- * A landed item that rests on the ground after falling.
- * Rendered separately from hanging items to persist after menu closes.
+ * A released item that is either falling or has landed.
+ * This is a single continuous visual element - just the emoji.
+ * No circle container, no badge - just the item itself.
  */
-function LandedItem({ item, xPosition, groundY, onPickup }: LandedItemProps) {
+function ReleasedItem({ data, onCollect }: ReleasedItemProps) {
+  const { item, state, x, y } = data;
+  
+  const isFalling = state === 'falling';
+  const isLanded = state === 'landed';
+  
   return (
-    <button
+    <div
       className={cn(
-        "fixed flex items-center justify-center rounded-full pointer-events-auto",
-        "bg-background/95 backdrop-blur-sm",
-        "shadow-lg border-2 border-muted/30",
-        "transition-all duration-200",
-        "hover:scale-110 hover:shadow-xl hover:border-primary/30 active:scale-95",
-        "cursor-pointer",
-        "animate-in fade-in zoom-in-90 duration-200"
+        "fixed pointer-events-auto select-none",
+        "transition-transform duration-100",
+        // Hover effect only for landed items
+        isLanded && "hover:scale-125 cursor-pointer",
+        // Falling items can't be interacted with
+        isFalling && "pointer-events-none"
       )}
       style={{
-        width: HANGING_CONFIG.circleSize,
-        height: HANGING_CONFIG.circleSize,
-        left: xPosition - HANGING_CONFIG.circleSize / 2,
-        top: groundY - HANGING_CONFIG.circleSize,
-        zIndex: 10003,
+        left: x,
+        top: y,
+        transform: 'translate(-50%, -50%)',
+        zIndex: isFalling ? 10004 : 10003,
+        // Add subtle shadow for depth
+        filter: isLanded ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' : 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
       }}
-      onClick={() => onPickup?.(item)}
-      title={`${item.name} (x${item.quantity}) - Click to pick up`}
-      aria-label={`${item.name} on ground, quantity ${item.quantity}. Click to pick up.`}
+      onClick={() => isLanded && onCollect?.(item)}
+      role={isLanded ? 'button' : undefined}
+      aria-label={isLanded ? `${item.name} on ground. Click to pick up.` : undefined}
     >
-      <span 
-        className="select-none"
-        style={{ fontSize: HANGING_CONFIG.emojiSize }}
+      <span
+        style={{ 
+          fontSize: HANGING_CONFIG.fallingEmojiSize,
+          // Subtle rotation during fall for liveliness
+          transform: isFalling ? 'rotate(-5deg)' : 'rotate(0deg)',
+          transition: 'transform 100ms ease-out',
+        }}
         role="img"
         aria-hidden="true"
       >
         {item.emoji}
       </span>
-      
-      {/* Quantity badge */}
-      <span
-        className={cn(
-          "absolute -top-1 -right-1",
-          "flex items-center justify-center",
-          "bg-primary text-primary-foreground",
-          "text-xs font-semibold rounded-full",
-          "shadow-md"
-        )}
-        style={{
-          minWidth: HANGING_CONFIG.badgeSize,
-          height: HANGING_CONFIG.badgeSize,
-          padding: '0 6px',
-        }}
-      >
-        {item.quantity}
-      </span>
-    </button>
+    </div>
   );
 }
 
@@ -166,23 +179,29 @@ export function HangingItems({
   items,
   viewportHeight = window.innerHeight,
   groundOffset = HANGING_CONFIG.defaultGroundOffset,
+  companionPosition,
+  companionSize = 80,
   onItemRelease,
   onItemLanded,
+  onItemCollected,
 }: HangingItemsProps) {
   // Container animation state
   const [containerState, setContainerState] = useState<ContainerState>('hidden');
   
-  // Track state of each item
-  const [itemStates, setItemStates] = useState<Map<string, ItemStateData>>(new Map());
+  // Track which items have been released (by ID) - these are no longer "hanging"
+  const [releasedItemIds, setReleasedItemIds] = useState<Set<string>>(new Set());
   
-  // Track landed items with their positions (persists after menu closes)
-  const [landedItems, setLandedItems] = useState<Map<string, { item: CompanionItem; x: number }>>( new Map());
+  // Track released items with their full state (falling/landed)
+  const [releasedItems, setReleasedItems] = useState<Map<string, ReleasedItemData>>(new Map());
   
-  // Reference to track if we should animate (prevents animation on initial mount)
-  const hasBeenVisible = useRef(false);
+  // Animation frame ref for fall animation
+  const animationRef = useRef<number>();
   
-  // Calculate ground Y position
-  const groundY = viewportHeight - groundOffset;
+  // Calculate ground Y position (where items land)
+  const groundY = viewportHeight - groundOffset - HANGING_CONFIG.landedItemSize / 2;
+  
+  // Calculate the Y position where hanging items are (bottom of circle)
+  const hangingBottomY = HANGING_CONFIG.lineLength + HANGING_CONFIG.circleSize;
   
   // Handle visibility changes with animation
   useEffect(() => {
@@ -190,7 +209,6 @@ export function HangingItems({
       // Opening
       if (containerState === 'hidden' || containerState === 'closing') {
         setContainerState('opening');
-        hasBeenVisible.current = true;
         
         // Transition to open after animation
         const timer = setTimeout(() => {
@@ -207,8 +225,8 @@ export function HangingItems({
         // Transition to hidden after animation
         const timer = setTimeout(() => {
           setContainerState('hidden');
-          // Clear hanging item states (but keep landed items)
-          setItemStates(new Map());
+          // Clear released item IDs when closing (but keep released items on ground)
+          setReleasedItemIds(new Set());
         }, HANGING_CONFIG.slideAnimationDuration);
         
         return () => clearTimeout(timer);
@@ -216,55 +234,145 @@ export function HangingItems({
     }
   }, [isVisible, selectedAction, containerState]);
   
-  // Handle item click - starts the falling animation
-  const handleItemClick = useCallback((item: CompanionItem, xPosition: number) => {
-    // Update state to falling with position info
-    setItemStates(prev => {
-      const next = new Map(prev);
-      next.set(item.id, { 
-        id: item.id, 
-        state: 'falling',
-        fallStartX: xPosition,
-        landedY: groundY,
+  // Animation loop for falling items
+  useEffect(() => {
+    const animate = () => {
+      const now = performance.now();
+      let hasChanges = false;
+      let hasActiveFalls = false;
+      
+      setReleasedItems(prev => {
+        const next = new Map(prev);
+        
+        for (const [id, data] of next) {
+          if (data.state === 'falling') {
+            hasActiveFalls = true;
+            const elapsed = now - data.fallStartTime;
+            const progress = Math.min(elapsed / HANGING_CONFIG.fallDuration, 1);
+            
+            // Easing function for natural fall (ease-in with bounce consideration)
+            const easeProgress = progress < 0.8 
+              ? Math.pow(progress / 0.8, 2) * 0.9  // Accelerate to 90%
+              : 0.9 + (progress - 0.8) / 0.2 * 0.1; // Slow down final 10%
+            
+            const newY = data.startY + (data.targetY - data.startY) * easeProgress;
+            
+            if (progress >= 1) {
+              // Landing complete
+              next.set(id, { ...data, state: 'landed', y: data.targetY });
+              hasChanges = true;
+              // Notify parent of landing
+              onItemLanded?.(data.item);
+            } else if (Math.abs(newY - data.y) > 0.5) {
+              // Update position during fall
+              next.set(id, { ...data, y: newY });
+              hasChanges = true;
+            }
+          }
+        }
+        
+        return hasChanges ? next : prev;
       });
+      
+      if (hasActiveFalls) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+    
+    // Check if there are falling items
+    const hasFallingItems = Array.from(releasedItems.values()).some(d => d.state === 'falling');
+    if (hasFallingItems) {
+      animationRef.current = requestAnimationFrame(animate);
+    }
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [releasedItems, onItemLanded]);
+  
+  // Contact detection with Blobbi
+  useEffect(() => {
+    if (!companionPosition) return;
+    
+    // Blobbi's center position
+    const blobbiCenterX = companionPosition.x + companionSize / 2;
+    const blobbiCenterY = companionPosition.y + companionSize / 2;
+    
+    // Check each landed item for contact
+    const itemsToRemove: string[] = [];
+    
+    releasedItems.forEach((data, id) => {
+      if (data.state === 'landed') {
+        // Calculate distance between Blobbi center and item center
+        const dx = blobbiCenterX - data.x;
+        const dy = blobbiCenterY - data.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Contact threshold is sum of radii
+        const contactThreshold = companionSize / 2 + HANGING_CONFIG.contactRadius;
+        
+        if (distance < contactThreshold) {
+          itemsToRemove.push(id);
+          console.log('[HangingItems] Item collected by Blobbi:', data.item.name);
+          onItemCollected?.(data.item);
+        }
+      }
+    });
+    
+    // Remove collected items
+    if (itemsToRemove.length > 0) {
+      setReleasedItems(prev => {
+        const next = new Map(prev);
+        itemsToRemove.forEach(id => next.delete(id));
+        return next;
+      });
+    }
+  }, [companionPosition, companionSize, releasedItems, onItemCollected]);
+  
+  // Handle hanging item click - release the item
+  const handleItemClick = useCallback((item: CompanionItem, xPosition: number) => {
+    const now = performance.now();
+    
+    // Mark as released (removes from hanging display)
+    setReleasedItemIds(prev => new Set(prev).add(item.id));
+    
+    // Create released item data
+    const releasedData: ReleasedItemData = {
+      item,
+      state: 'falling',
+      x: xPosition,
+      y: hangingBottomY - HANGING_CONFIG.circleSize / 2, // Start from center of circle
+      startY: hangingBottomY - HANGING_CONFIG.circleSize / 2,
+      targetY: groundY,
+      fallStartTime: now,
+    };
+    
+    setReleasedItems(prev => {
+      const next = new Map(prev);
+      next.set(item.id, releasedData);
       return next;
     });
     
     // Notify parent
     onItemRelease?.(item);
+  }, [hangingBottomY, groundY, onItemRelease]);
+  
+  // Manual pickup of landed item (clicking on it)
+  const handleLandedItemClick = useCallback((item: CompanionItem) => {
+    console.log('[HangingItems] Landed item manually picked up:', item.name);
     
-    // After fall animation completes, move to landed state
-    setTimeout(() => {
-      setItemStates(prev => {
-        const next = new Map(prev);
-        const current = next.get(item.id);
-        if (current) {
-          next.set(item.id, { ...current, state: 'landed' });
-        }
-        return next;
-      });
-      
-      // Add to landed items collection
-      setLandedItems(prev => {
-        const next = new Map(prev);
-        next.set(item.id, { item, x: xPosition });
-        return next;
-      });
-      
-      onItemLanded?.(item);
-    }, HANGING_CONFIG.fallDuration);
-  }, [groundY, onItemRelease, onItemLanded]);
-  
-  // Get current state for an item
-  const getItemState = (itemId: string): ItemState => {
-    return itemStates.get(itemId)?.state ?? 'hanging';
-  };
-  
-  // Handle picking up a landed item (placeholder for future)
-  const handleLandedItemPickup = useCallback((item: CompanionItem) => {
-    // For now, just log - actual pickup/use will be implemented later
-    console.log('[HangingItems] Landed item clicked:', item);
-  }, []);
+    // Remove from released items
+    setReleasedItems(prev => {
+      const next = new Map(prev);
+      next.delete(item.id);
+      return next;
+    });
+    
+    // Treat as collected
+    onItemCollected?.(item);
+  }, [onItemCollected]);
   
   // Calculate horizontal positions for items (centered)
   const totalWidth = (items.length - 1) * HANGING_CONFIG.itemSpacing;
@@ -274,7 +382,10 @@ export function HangingItems({
     return viewportCenterX + startX + index * HANGING_CONFIG.itemSpacing;
   };
   
-  // Don't render container if fully hidden and no action selected
+  // Filter items to only show those still hanging
+  const hangingItems = items.filter(item => !releasedItemIds.has(item.id));
+  
+  // Should we render the hanging container?
   const shouldRenderContainer = containerState !== 'hidden' || (isVisible && selectedAction);
   
   // Empty state (shown when action selected but no items)
@@ -286,8 +397,9 @@ export function HangingItems({
       case 'hidden':
         return -(HANGING_CONFIG.lineLength + HANGING_CONFIG.circleSize + 40);
       case 'opening':
+        return 0;
       case 'closing':
-        return containerState === 'opening' ? 0 : -(HANGING_CONFIG.lineLength + HANGING_CONFIG.circleSize + 40);
+        return -(HANGING_CONFIG.lineLength + HANGING_CONFIG.circleSize + 40);
       case 'open':
         return 0;
       default:
@@ -332,19 +444,12 @@ export function HangingItems({
             className="relative" 
             style={{ height: HANGING_CONFIG.lineLength + HANGING_CONFIG.circleSize + 20 }}
           >
-            {items.map((item, index) => {
-              const state = getItemState(item.id);
-              const xOffset = startX + index * HANGING_CONFIG.itemSpacing;
+            {hangingItems.map((item, index) => {
+              // Find the original index for positioning
+              const originalIndex = items.findIndex(i => i.id === item.id);
+              const xOffset = startX + originalIndex * HANGING_CONFIG.itemSpacing;
               const delay = index * HANGING_CONFIG.staggerDelay;
-              const itemX = getItemXPosition(index);
-              
-              // Don't render landed items here (they're rendered separately below)
-              if (state === 'landed') {
-                return null;
-              }
-              
-              const isFalling = state === 'falling';
-              const isHanging = state === 'hanging';
+              const itemX = getItemXPosition(originalIndex);
               
               return (
                 <div
@@ -355,25 +460,22 @@ export function HangingItems({
                     transform: `translateX(calc(-50% + ${xOffset}px))`,
                   }}
                 >
-                  {/* Hanging line - hidden when falling */}
+                  {/* Hanging line */}
                   <div
-                    className={cn(
-                      "mx-auto transition-opacity duration-150",
-                      isFalling ? "opacity-0" : "opacity-100"
-                    )}
+                    className="mx-auto"
                     style={{
                       width: HANGING_CONFIG.lineWidth,
                       height: HANGING_CONFIG.lineLength,
                       background: 'linear-gradient(to bottom, hsl(var(--muted-foreground) / 0.3), hsl(var(--muted-foreground) / 0.5))',
-                      // Subtle sway animation when hanging
-                      animation: isHanging && containerState === 'open' 
+                      // Subtle sway animation when container is open
+                      animation: containerState === 'open' 
                         ? `hanging-sway 3s ease-in-out ${delay}ms infinite` 
                         : undefined,
                       transformOrigin: 'top center',
                     }}
                   />
                   
-                  {/* Item circle */}
+                  {/* Item circle (hanging container) */}
                   <button
                     className={cn(
                       "relative flex items-center justify-center rounded-full",
@@ -381,26 +483,17 @@ export function HangingItems({
                       "shadow-lg border-2 border-muted/30",
                       "transition-all duration-200",
                       "focus:outline-none focus:ring-2 focus:ring-primary/50",
-                      // Only show hover effects when hanging
-                      isHanging && "hover:scale-110 hover:shadow-xl hover:border-primary/30 active:scale-95",
-                      // Cursor
-                      isFalling ? "cursor-default" : "cursor-pointer"
+                      "hover:scale-110 hover:shadow-xl hover:border-primary/30 active:scale-95",
+                      "cursor-pointer"
                     )}
                     style={{
                       width: HANGING_CONFIG.circleSize,
                       height: HANGING_CONFIG.circleSize,
                       marginLeft: (HANGING_CONFIG.circleSize / 2) * -1 + HANGING_CONFIG.lineWidth / 2,
-                      // Fall animation when released
-                      animation: isFalling 
-                        ? `item-fall-to-ground ${HANGING_CONFIG.fallDuration}ms ease-in forwards`
-                        : undefined,
-                      // CSS variable for ground distance
-                      '--fall-distance': `${groundY - HANGING_CONFIG.lineLength - HANGING_CONFIG.circleSize}px`,
-                    } as React.CSSProperties}
-                    onClick={() => isHanging && handleItemClick(item, itemX)}
-                    disabled={isFalling}
+                    }}
+                    onClick={() => handleItemClick(item, itemX)}
                     title={`${item.name} (x${item.quantity})`}
-                    aria-label={`${item.name}, quantity ${item.quantity}. Click to use.`}
+                    aria-label={`${item.name}, quantity ${item.quantity}. Click to release.`}
                   >
                     {/* Item emoji */}
                     <span 
@@ -419,9 +512,7 @@ export function HangingItems({
                         "flex items-center justify-center",
                         "bg-primary text-primary-foreground",
                         "text-xs font-semibold rounded-full",
-                        "shadow-md",
-                        // Fade out badge when falling
-                        isFalling && "opacity-0 transition-opacity duration-150"
+                        "shadow-md"
                       )}
                       style={{
                         minWidth: HANGING_CONFIG.badgeSize,
@@ -439,14 +530,12 @@ export function HangingItems({
         </div>
       )}
       
-      {/* Landed items (persist even after menu closes) */}
-      {Array.from(landedItems.values()).map(({ item, x }) => (
-        <LandedItem
-          key={`landed-${item.id}`}
-          item={item}
-          xPosition={x}
-          groundY={groundY}
-          onPickup={handleLandedItemPickup}
+      {/* Released items (falling and landed) - rendered as continuous objects */}
+      {Array.from(releasedItems.values()).map(data => (
+        <ReleasedItem
+          key={`released-${data.item.id}`}
+          data={data}
+          onCollect={handleLandedItemClick}
         />
       ))}
       
@@ -461,32 +550,6 @@ export function HangingItems({
           }
           75% {
             transform: rotate(-1deg);
-          }
-        }
-        
-        @keyframes item-fall-to-ground {
-          0% {
-            transform: translateY(0) rotate(0deg);
-            opacity: 1;
-          }
-          15% {
-            transform: translateY(30px) rotate(-8deg);
-          }
-          30% {
-            transform: translateY(80px) rotate(5deg);
-          }
-          50% {
-            transform: translateY(180px) rotate(-3deg);
-          }
-          70% {
-            transform: translateY(320px) rotate(2deg);
-          }
-          85% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(var(--fall-distance)) rotate(0deg);
-            opacity: 0;
           }
         }
       `}</style>
