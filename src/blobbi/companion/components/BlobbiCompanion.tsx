@@ -27,6 +27,7 @@ import {
   type VerticalEntryConfig,
 } from '../utils/animation';
 import { BlobbiCompanionVisual } from './BlobbiCompanionVisual';
+import { useClickDetection } from '../interaction';
 
 interface BlobbiCompanionProps {
   /** Companion data */
@@ -53,6 +54,8 @@ interface BlobbiCompanionProps {
   onUpdateDrag: (position: Position) => void;
   /** End drag callback */
   onEndDrag: () => void;
+  /** Click callback (when interaction is a click, not a drag) */
+  onClick?: () => void;
   /** Debug mode - disables animations and shows visual debug aids */
   debugMode?: boolean;
 }
@@ -70,11 +73,18 @@ export function BlobbiCompanion({
   onStartDrag,
   onUpdateDrag,
   onEndDrag,
+  onClick,
   debugMode = false,
 }: BlobbiCompanionProps) {
   const config = DEFAULT_COMPANION_CONFIG;
   const containerRef = useRef<HTMLDivElement>(null);
   const [animationTime, setAnimationTime] = useState(0);
+  
+  // Click detection - distinguishes click from drag
+  const clickDetection = useClickDetection({
+    onClick,
+    onDragStart: onStartDrag,
+  });
   
   // Animation loop for bob/bounce
   useEffect(() => {
@@ -165,7 +175,7 @@ export function BlobbiCompanion({
     ? `rotate(${rotation}deg) scaleX(${scaleX}) scaleY(${scaleY})`
     : undefined;
   
-  // Drag handlers
+  // Drag handlers with click detection
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -173,43 +183,71 @@ export function BlobbiCompanion({
     // Capture pointer for tracking outside element
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     
-    onStartDrag();
-  }, [onStartDrag]);
+    // Start click detection tracking
+    clickDetection.handlePointerDown({ x: e.clientX, y: e.clientY });
+  }, [clickDetection]);
   
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!motion.isDragging) return;
+    const position = { x: e.clientX, y: e.clientY };
     
-    // Calculate position centered on pointer
-    const newX = e.clientX - config.size / 2;
-    const newY = e.clientY - config.size / 2;
+    // Check if movement exceeds click threshold (starts drag)
+    const isDrag = clickDetection.handlePointerMove(position);
     
-    onUpdateDrag({ x: newX, y: newY });
-  }, [motion.isDragging, config.size, onUpdateDrag]);
+    // If dragging, update position
+    if (motion.isDragging || isDrag) {
+      const newX = e.clientX - config.size / 2;
+      const newY = e.clientY - config.size / 2;
+      onUpdateDrag({ x: newX, y: newY });
+    }
+  }, [clickDetection, motion.isDragging, config.size, onUpdateDrag]);
   
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    onEndDrag();
-  }, [onEndDrag]);
+    
+    // Finalize click detection - will call onClick if it was a click
+    clickDetection.handlePointerUp();
+    
+    // Always end drag state
+    if (motion.isDragging) {
+      onEndDrag();
+    }
+  }, [clickDetection, motion.isDragging, onEndDrag]);
   
-  // Touch handlers for mobile
+  // Touch handlers for mobile (with click detection)
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
-    onStartDrag();
-  }, [onStartDrag]);
-  
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!motion.isDragging || e.touches.length === 0) return;
+    if (e.touches.length === 0) return;
     
     const touch = e.touches[0];
-    const newX = touch.clientX - config.size / 2;
-    const newY = touch.clientY - config.size / 2;
+    clickDetection.handlePointerDown({ x: touch.clientX, y: touch.clientY });
+  }, [clickDetection]);
+  
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 0) return;
     
-    onUpdateDrag({ x: newX, y: newY });
-  }, [motion.isDragging, config.size, onUpdateDrag]);
+    const touch = e.touches[0];
+    const position = { x: touch.clientX, y: touch.clientY };
+    
+    // Check if movement exceeds click threshold (starts drag)
+    const isDrag = clickDetection.handlePointerMove(position);
+    
+    // If dragging, update position
+    if (motion.isDragging || isDrag) {
+      const newX = touch.clientX - config.size / 2;
+      const newY = touch.clientY - config.size / 2;
+      onUpdateDrag({ x: newX, y: newY });
+    }
+  }, [clickDetection, motion.isDragging, config.size, onUpdateDrag]);
   
   const handleTouchEnd = useCallback(() => {
-    onEndDrag();
-  }, [onEndDrag]);
+    // Finalize click detection
+    clickDetection.handlePointerUp();
+    
+    // Always end drag state
+    if (motion.isDragging) {
+      onEndDrag();
+    }
+  }, [clickDetection, motion.isDragging, onEndDrag]);
   
   return (
     <div

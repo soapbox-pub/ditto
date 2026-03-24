@@ -108,3 +108,25 @@ export {
 } from './utils/sidebarNavigation';
 
 export type { NavigationDirection, NavigationComparison } from './utils/sidebarNavigation';
+
+// ─── Interaction ──────────────────────────────────────────────────────────────
+
+export {
+  useCompanionActionMenu,
+  useClickDetection,
+  CompanionActionMenu,
+  CompanionItemBubbles,
+  MENU_ACTIONS,
+  INITIAL_MENU_STATE,
+  DEFAULT_CLICK_CONFIG,
+  getMenuActionConfig,
+  getItemCategoryForAction,
+} from './interaction';
+
+export type {
+  CompanionMenuAction,
+  MenuActionConfig,
+  CompanionItem,
+  CompanionMenuState,
+  ClickDetectionConfig,
+} from './interaction';
