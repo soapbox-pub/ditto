@@ -187,19 +187,6 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     }, config.attention.postRouteDelay);
   }, [findMainContentPosition, triggerAttention, config.attention.postRouteDuration, config.attention.postRouteDelay]);
   
-  // Entry animation management (handles route changes)
-  const {
-    entryState,
-    isEntering,
-    currentInspectionDirection,
-  } = useBlobbiEntryAnimation({
-    isActive: isVisible,
-    pathname: location.pathname,
-    sidebarOrder,
-    onComplete: handleEntryComplete,
-    onStart: handleEntryStart,
-  });
-  
   // State management
   const {
     state,
@@ -209,7 +196,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     attentionPosition,
     onReachedTarget,
   } = useBlobbiCompanionState({
-    isActive: isVisible && !isEntering,
+    isActive: isVisible,
     motion: { 
       position: restingPosition, 
       velocity: { x: 0, y: 0 }, 
@@ -233,10 +220,26 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     initialX: groundPosition.x, // Always use groundPosition - entry syncs to this
     groundY,
     bounds,
-    state: isEntering ? 'idle' : state,
-    targetX: isEntering ? null : targetX,
+    state,
+    targetX,
     energy: companion?.energy ?? 50,
     onReachedTarget,
+  });
+  
+  // Entry animation management (handles route changes)
+  // Must be after motion so we can pass isDragging
+  const {
+    entryState,
+    isEntering,
+    isPermanentlyStuck,
+    currentInspectionDirection,
+  } = useBlobbiEntryAnimation({
+    isActive: isVisible,
+    pathname: location.pathname,
+    sidebarOrder,
+    isDragging: motion.isDragging,
+    onComplete: handleEntryComplete,
+    onStart: handleEntryStart,
   });
   
   // Sync motion position when entry completes

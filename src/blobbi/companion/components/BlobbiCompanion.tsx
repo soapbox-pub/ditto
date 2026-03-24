@@ -94,9 +94,8 @@ export function BlobbiCompanion({
   const verticalEntryConfig: VerticalEntryConfig = {
     landingSquash: config.entry.landingSquash,
     stuckVisibleAmount: config.entry.stuckVisibleAmount,
-    tuggingDropAmount: config.entry.tuggingDropAmount,
-    wiggleIntensity: config.entry.wiggleIntensity,
-    wiggleRotation: config.entry.wiggleRotation,
+    pull1DropAmount: config.entry.pull1DropAmount,
+    pull2DropAmount: config.entry.pull2DropAmount,
     riseVisibleAmount: config.entry.riseVisibleAmount,
   };
   

@@ -145,12 +145,10 @@ export interface VerticalEntryConfig {
   landingSquash: number;
   /** How much of Blobbi is visible when stuck (0-1, 0.15 = tiny butt showing) */
   stuckVisibleAmount: number;
-  /** How far down the tug motion goes (0-1, as fraction of companion size) */
-  tuggingDropAmount: number;
-  /** Horizontal wiggle intensity in pixels (subtle) */
-  wiggleIntensity: number;
-  /** Rotation wiggle in degrees (subtle) */
-  wiggleRotation: number;
+  /** How far down the first pull goes (0-1) */
+  pull1DropAmount: number;
+  /** How far down the second pull goes (0-1) */
+  pull2DropAmount: number;
   
   // ── Rise entry ──
   /** How much of Blobbi is visible when stopping to inspect (0-1, 0.65 = 65% visible) */
@@ -162,16 +160,19 @@ export interface VerticalEntryConfig {
  * 
  * Used when navigating DOWN the sidebar order.
  * Blobbi appears stuck at the top with just a tiny butt showing,
- * tries to drop (tugging), pauses, wiggles subtly to get loose, then falls and lands.
+ * does 2 vertical pull attempts, then either falls or stays permanently stuck.
  * 
- * Phases:
- * 1. STUCK: Tiny butt visible at top (15% showing)
- * 2. TUGGING: Tries to fall (drops down) but gets stuck again (rebounds up)
- * 3. PAUSE: Brief "hmm... still stuck" moment
- * 4. WIGGLING: Subtle butt wiggle to finally get loose
- * 5. FALLING: Accelerating fall from top of screen
- * 6. LANDING: Brief squash/settle on impact
- * 7. COMPLETE: At rest position
+ * Normal flow (~80%):
+ *   stuck -> pulling_1 -> pause_1 -> pulling_2 -> pause_2 -> falling -> landing -> complete
+ * 
+ * Rare truly stuck flow (~20%):
+ *   stuck -> pulling_1 -> pause_1 -> pulling_2 -> stuck_permanent
+ *   (user must drag to resolve)
+ * 
+ * Pull motion:
+ * - Quick downward pull (trying to fall)
+ * - Slower return upward (still stuck)
+ * - No horizontal movement or rotation during pulls
  * 
  * @param groundPosition - Final resting position (ground level, center of screen)
  * @param viewportHeight - Height of the viewport
@@ -189,16 +190,14 @@ export function calculateFallEntryAnimation(
   const { phase, phaseProgress } = entryState;
   
   // Stuck position: only showing a tiny bottom part (butt)
-  // Position is calculated so only stuckVisibleAmount of the companion is visible
-  // The companion's top-left is at y, so to show only the bottom part:
-  // we need y = -(1 - stuckVisibleAmount) * companionSize
   const stuckY = -(1 - config.stuckVisibleAmount) * companionSize;
   
   // Full hidden position (above viewport)
   const hiddenY = -companionSize;
   
-  // Position after the failed tug attempt (slightly lower than stuck)
-  const tugDownY = stuckY + (config.tuggingDropAmount * companionSize);
+  // Pull target positions
+  const pull1DownY = stuckY + (config.pull1DropAmount * companionSize);
+  const pull2DownY = stuckY + (config.pull2DropAmount * companionSize);
   
   switch (phase) {
     case 'idle':
@@ -224,22 +223,19 @@ export function calculateFallEntryAnimation(
       };
     }
     
-    case 'tugging': {
-      // "Tries to fall but gets stuck again" motion
-      // First half: drop down quickly (trying to fall)
-      // Second half: snap back up (stuck again)
-      
+    case 'pulling_1': {
+      // First pull: quick down (40%), slower up (60%)
       let y: number;
-      if (phaseProgress < 0.5) {
-        // Dropping down - easeOut for quick start
-        const dropProgress = phaseProgress / 0.5;
+      if (phaseProgress < 0.4) {
+        // Quick drop down
+        const dropProgress = phaseProgress / 0.4;
         const eased = easeOutCubic(dropProgress);
-        y = lerp(stuckY, tugDownY, eased);
+        y = lerp(stuckY, pull1DownY, eased);
       } else {
-        // Snapping back up - easeIn for elastic rebound feel
-        const reboundProgress = (phaseProgress - 0.5) / 0.5;
-        const eased = easeInQuad(reboundProgress);
-        y = lerp(tugDownY, stuckY, eased);
+        // Slower return up
+        const returnProgress = (phaseProgress - 0.4) / 0.6;
+        const eased = easeInOutCubic(returnProgress);
+        y = lerp(pull1DownY, stuckY, eased);
       }
       
       return {
@@ -251,9 +247,8 @@ export function calculateFallEntryAnimation(
       };
     }
     
-    case 'pause': {
-      // Brief pause after tug - "hmm... still stuck" moment
-      // Just hold position at stuck point, no movement
+    case 'pause_1': {
+      // Brief pause - "still stuck..." moment
       return {
         position: { x: groundPosition.x, y: stuckY },
         rotation: 0,
@@ -263,32 +258,47 @@ export function calculateFallEntryAnimation(
       };
     }
     
-    case 'wiggling': {
-      // Subtle butt wiggle - feels like the LOWER PART trying to get loose
-      // Key: asymmetric motion that suggests the bottom/back is doing the work
-      // - Primary motion is small side-to-side at bottom
-      // - Tiny downward bias (pulling down)
-      // - Minimal rotation (not whole-body tilt)
-      
-      const t = phaseProgress * Math.PI * 2.5; // ~1.25 wiggle cycles (playful but brief)
-      
-      // Side-to-side wiggle - the main "butt wiggle" motion
-      const sideIntensity = config.wiggleIntensity * (1 - phaseProgress * 0.3);
-      const xOffset = Math.sin(t) * sideIntensity;
-      
-      // Small downward pull on each wiggle (like trying to tug loose)
-      // Uses abs(sin) to always pull down slightly, synced with side motion
-      const yOffset = Math.abs(Math.sin(t)) * 2 * (1 - phaseProgress * 0.5);
-      
-      // Very minimal rotation - just enough to feel organic, not full-body tilt
-      const rotation = Math.sin(t * 0.8) * config.wiggleRotation * (1 - phaseProgress * 0.6);
+    case 'pulling_2': {
+      // Second pull: quick down (35%), slower up (65%) - more committed
+      let y: number;
+      if (phaseProgress < 0.35) {
+        // Quick drop down - goes further than first pull
+        const dropProgress = phaseProgress / 0.35;
+        const eased = easeOutCubic(dropProgress);
+        y = lerp(stuckY, pull2DownY, eased);
+      } else {
+        // Slower return up
+        const returnProgress = (phaseProgress - 0.35) / 0.65;
+        const eased = easeInOutCubic(returnProgress);
+        y = lerp(pull2DownY, stuckY, eased);
+      }
       
       return {
-        position: { 
-          x: groundPosition.x + xOffset, 
-          y: stuckY + yOffset  // Positive yOffset = slight downward during wiggle
-        },
-        rotation,
+        position: { x: groundPosition.x, y },
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+    }
+    
+    case 'pause_2': {
+      // Short pause before falling (normal flow only)
+      return {
+        position: { x: groundPosition.x, y: stuckY },
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+    }
+    
+    case 'stuck_permanent': {
+      // Truly stuck - waiting for user to drag and rescue
+      // Just hold position at stuck point, no movement
+      return {
+        position: { x: groundPosition.x, y: stuckY },
+        rotation: 0,
         scaleX: 1,
         scaleY: 1,
         complete: false,
@@ -316,21 +326,20 @@ export function calculateFallEntryAnimation(
       
     case 'landing': {
       // Squash and recover on landing
-      // Quick squash at start, then bounce back
       const squashPhase = phaseProgress < 0.4 
-        ? phaseProgress / 0.4  // Squashing down
-        : (phaseProgress - 0.4) / 0.6; // Recovering
+        ? phaseProgress / 0.4
+        : (phaseProgress - 0.4) / 0.6;
         
       let scaleY: number;
       let scaleX: number;
       
       if (phaseProgress < 0.4) {
-        // Squash phase - compress vertically, expand horizontally
+        // Squash phase
         const squashAmount = easeOutCubic(squashPhase) * config.landingSquash;
         scaleY = 1 - squashAmount;
-        scaleX = 1 + squashAmount * 0.5; // Expand horizontally to compensate
+        scaleX = 1 + squashAmount * 0.5;
       } else {
-        // Recovery phase - return to normal
+        // Recovery phase
         const recoverEased = easeOutCubic(squashPhase);
         scaleY = lerp(1 - config.landingSquash, 1, recoverEased);
         scaleX = lerp(1 + config.landingSquash * 0.5, 1, recoverEased);
@@ -363,6 +372,15 @@ export function calculateFallEntryAnimation(
         complete: false,
       };
   }
+}
+
+/**
+ * Easing function for smooth in-out transitions.
+ */
+function easeInOutCubic(t: number): number {
+  return t < 0.5
+    ? 4 * t * t * t
+    : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
 /**
