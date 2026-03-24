@@ -4,8 +4,8 @@
  * Helper functions for companion animations.
  */
 
-import type { Position } from '../types/companion.types';
-import { lerp, easeOutCubic } from './movement';
+import type { Position, EntryPhase, EntryState } from '../types/companion.types';
+import { lerp, easeOutCubic, easeInOutCubic } from './movement';
 
 /**
  * Entry animation result with position and visual transforms.
@@ -252,4 +252,207 @@ export function smoothTransition(
 ): number {
   const diff = target - current;
   return current + diff * Math.min(1, deltaTime * smoothness);
+}
+
+// ─── Peeking Entry Animation ──────────────────────────────────────────────────
+
+/**
+ * Result of the peeking entry animation calculation.
+ * Includes position, transforms, and eye offset for the inspection sequence.
+ */
+export interface PeekingEntryResult {
+  position: Position;
+  /** Rotation in degrees (diagonal tilt during peek) */
+  rotation: number;
+  /** Scale factors */
+  scaleX: number;
+  scaleY: number;
+  /** Whether the full sequence is complete */
+  complete: boolean;
+}
+
+/**
+ * Configuration for the peeking entry animation.
+ */
+export interface PeekingEntryConfig {
+  /** How far to peek in before stopping (0-1, fraction of total X distance) */
+  peekDistance: number;
+  /** Diagonal rotation angle during peek (degrees, negative = tilted right/back) */
+  peekRotation: number;
+  /** Duration ratios for each phase (should sum to 1) */
+  phaseDurations: {
+    peek: number;      // Peeking in
+    inspect: number;   // Looking around (3 directions)
+    transition: number; // Unrotating to normal
+    walkIn: number;    // Final walk to position
+  };
+}
+
+/**
+ * Calculate the peeking entry animation for a given entry state.
+ * 
+ * This creates a cautious "spy peeking around the corner" entrance:
+ * 1. PEEK: Blobbi slowly emerges diagonally, body tilted like peeking around a wall
+ * 2. INSPECT: Pauses and looks around (UP, RIGHT, LEFT in random order)
+ * 3. TRANSITION: Rotates back to upright position
+ * 4. WALK IN: Walks normally to final resting position
+ * 
+ * @param startPosition - Starting position (behind sidebar/off-screen)
+ * @param endPosition - Final resting position
+ * @param entryState - Current entry state with phase info
+ * @param config - Animation configuration
+ */
+export function calculatePeekingEntryAnimation(
+  startPosition: Position,
+  endPosition: Position,
+  entryState: EntryState,
+  config: PeekingEntryConfig
+): PeekingEntryResult {
+  const { phase, phaseProgress } = entryState;
+  
+  // Calculate peek position (where Blobbi stops to inspect)
+  const peekX = lerp(startPosition.x, endPosition.x, config.peekDistance);
+  const peekPosition: Position = {
+    x: peekX,
+    y: endPosition.y, // Stay at ground level
+  };
+  
+  switch (phase) {
+    case 'idle':
+      // Not entering yet - stay at start
+      return {
+        position: startPosition,
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+      
+    case 'peeking': {
+      // Slowly emerge diagonally with body tilted
+      // Ease in slowly at start, maintain speed through middle
+      const eased = easeOutCubic(phaseProgress);
+      
+      // Position: move from start to peek position
+      const x = lerp(startPosition.x, peekPosition.x, eased);
+      const y = lerp(startPosition.y, peekPosition.y, eased);
+      
+      // Rotation: start with full tilt, maintain through most of peek
+      // Only start to settle near the end
+      const rotationProgress = Math.min(1, phaseProgress * 1.2);
+      const rotationEased = easeOutCubic(rotationProgress);
+      // Start at full rotation, ease to ~80% rotation at end of peek
+      const rotation = lerp(config.peekRotation, config.peekRotation * 0.8, rotationEased * 0.3);
+      
+      return {
+        position: { x, y },
+        rotation,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+    }
+      
+    case 'inspecting': {
+      // Stay at peek position, maintain diagonal pose
+      // The eye movement is handled separately by the gaze system
+      return {
+        position: peekPosition,
+        rotation: config.peekRotation * 0.8, // Maintain peek tilt
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+    }
+      
+    case 'entering': {
+      // Transition from peek pose to normal, then walk in
+      const eased = easeInOutCubic(phaseProgress);
+      
+      // First half: unrotate while staying at peek position
+      // Second half: walk to final position
+      if (phaseProgress < 0.4) {
+        // Unrotating phase (first 40% of entering)
+        const unrotateProgress = phaseProgress / 0.4;
+        const unrotateEased = easeOutCubic(unrotateProgress);
+        const rotation = lerp(config.peekRotation * 0.8, 0, unrotateEased);
+        
+        return {
+          position: peekPosition,
+          rotation,
+          scaleX: 1,
+          scaleY: 1,
+          complete: false,
+        };
+      } else {
+        // Walking in phase (last 60% of entering)
+        const walkProgress = (phaseProgress - 0.4) / 0.6;
+        const walkEased = easeOutCubic(walkProgress);
+        
+        return {
+          position: {
+            x: lerp(peekPosition.x, endPosition.x, walkEased),
+            y: lerp(peekPosition.y, endPosition.y, walkEased),
+          },
+          rotation: 0,
+          scaleX: 1,
+          scaleY: 1,
+          complete: false,
+        };
+      }
+    }
+      
+    case 'complete':
+      return {
+        position: endPosition,
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: true,
+      };
+      
+    default:
+      return {
+        position: startPosition,
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+  }
+}
+
+/**
+ * Get the eye offset for the current inspection direction.
+ * Returns strong, clear eye movements to show looking direction.
+ */
+export function getInspectionEyeOffset(direction: 'up' | 'right' | 'left' | null): { x: number; y: number } {
+  switch (direction) {
+    case 'up':
+      // Strong upward look
+      return { x: 0, y: -0.9 };
+    case 'right':
+      // Strong rightward look (toward the page content)
+      return { x: 0.85, y: -0.2 };
+    case 'left':
+      // Strong leftward look (toward where they came from)
+      return { x: -0.85, y: -0.2 };
+    default:
+      // Neutral/center
+      return { x: 0, y: 0 };
+  }
+}
+
+/**
+ * Generate a random order for the inspection directions.
+ * Returns ['up', 'right', 'left'] in shuffled order.
+ */
+export function generateInspectionOrder(): ('up' | 'right' | 'left')[] {
+  const directions: ('up' | 'right' | 'left')[] = ['up', 'right', 'left'];
+  // Fisher-Yates shuffle
+  for (let i = directions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [directions[i], directions[j]] = [directions[j], directions[i]];
+  }
+  return directions;
 }

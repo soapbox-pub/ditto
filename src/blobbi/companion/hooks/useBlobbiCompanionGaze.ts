@@ -20,7 +20,9 @@ import type {
   Position,
   EyeOffset,
   GazeMode,
+  InspectionDirection,
 } from '../types/companion.types';
+import { getInspectionEyeOffset } from '../utils/animation';
 import {
   createInitialGaze,
   calculateEyeOffset,
@@ -42,6 +44,8 @@ interface UseBlobbiCompanionGazeOptions {
   observationTarget?: Position | null;
   /** Attention target position (if currently attending to UI change) */
   attentionPosition?: Position | null;
+  /** Entry inspection direction (during entry animation inspection phase) */
+  entryInspectionDirection?: InspectionDirection | null;
 }
 
 interface UseBlobbiCompanionGazeResult {
@@ -88,6 +92,7 @@ export function useBlobbiCompanionGaze({
   isActive,
   observationTarget,
   attentionPosition,
+  entryInspectionDirection,
 }: UseBlobbiCompanionGazeOptions): UseBlobbiCompanionGazeResult {
   const [gaze, setGaze] = useState<GazeState>(createInitialGaze);
   const [eyeOffset, setEyeOffset] = useState<EyeOffset>({ x: 0, y: 0 });
@@ -145,6 +150,16 @@ export function useBlobbiCompanionGaze({
   useEffect(() => {
     if (!isActive) {
       clearAllTimers();
+      return;
+    }
+    
+    // ─── ENTRY INSPECTION: Looking around during entry (highest priority) ───
+    if (entryInspectionDirection) {
+      clearAllTimers();
+      gazeModeRef.current = 'entry-inspect';
+      setGaze(prev => ({ ...prev, mode: 'entry-inspect', target: null }));
+      // Target offset is set directly from inspection direction
+      targetOffsetRef.current = getInspectionEyeOffset(entryInspectionDirection);
       return;
     }
     
@@ -257,7 +272,7 @@ export function useBlobbiCompanionGaze({
     startMouseFollowCheck();
     
     return clearAllTimers;
-  }, [isActive, state, observationTarget, attentionPosition, config.gaze.randomInterval, config.gaze.mouseFollowCooldown, config.gaze.mouseFollowChance, config.gaze.mouseFollowDuration, clearAllTimers]);
+  }, [isActive, state, observationTarget, attentionPosition, entryInspectionDirection, config.gaze.randomInterval, config.gaze.mouseFollowCooldown, config.gaze.mouseFollowChance, config.gaze.mouseFollowDuration, clearAllTimers]);
   
   // Animation loop for smooth eye movement
   useEffect(() => {
@@ -275,7 +290,11 @@ export function useBlobbiCompanionGaze({
       
       const currentMode = gazeModeRef.current;
       
-      if (currentMode === 'attend-ui' && attentionPosition) {
+      if (currentMode === 'entry-inspect') {
+        // During entry inspection - use the pre-set target offset from inspection direction
+        // This is set by the main effect when entryInspectionDirection changes
+        targetOffset = targetOffsetRef.current;
+      } else if (currentMode === 'attend-ui' && attentionPosition) {
         // Look at UI element that appeared - calculate offset to that position
         targetOffset = calculateEyeOffset(companionPosition, attentionPosition, companionSize);
       } else if (currentMode === 'observe-target' && observationTarget) {
@@ -297,12 +316,14 @@ export function useBlobbiCompanionGaze({
       
       // Smooth transition to target
       // Different speeds for different modes:
+      // - Entry inspect: fast (0.2) - clear, deliberate looks during inspection
       // - Attend UI: fast (0.18) - quick snap to new UI element
       // - Observe target: moderate-fast (0.12) - settling onto target
       // - Mouse follow: responsive (0.15)
       // - Forward: moderate-fast (0.12) - clear direction feedback
       // - Random: gentle (0.06)
-      const smoothFactor = currentMode === 'attend-ui' ? 0.18
+      const smoothFactor = currentMode === 'entry-inspect' ? 0.2
+                         : currentMode === 'attend-ui' ? 0.18
                          : currentMode === 'observe-target' ? 0.12
                          : currentMode === 'follow-mouse' ? 0.15 
                          : currentMode === 'forward' ? 0.12 
@@ -324,7 +345,7 @@ export function useBlobbiCompanionGaze({
         animationRef.current = null;
       }
     };
-  }, [isActive, direction, companionPosition, mousePosition, companionSize, observationTarget, attentionPosition]);
+  }, [isActive, direction, companionPosition, mousePosition, companionSize, observationTarget, attentionPosition, entryInspectionDirection]);
   
   return {
     gaze,
