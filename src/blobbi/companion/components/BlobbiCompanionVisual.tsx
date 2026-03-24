@@ -142,19 +142,12 @@ export function BlobbiCompanionVisual({
       />
       
       {/* Blobbi visual with floating transform */}
-      {/* 
-        The SVG has empty space at the bottom (~12% of viewBox).
-        We use items-end to align Blobbi to the bottom of the container,
-        and add a small negative margin to pull it down to ground level.
-      */}
       <div
-        className="size-full flex items-end justify-center"
+        className="size-full"
         style={{
           transform: blobbiTransform,
           transformOrigin: 'center bottom',
           transition: isDragging ? 'none' : 'transform 0.05s ease-out',
-          // Pull Blobbi down to compensate for SVG bottom padding (~10% of size)
-          marginBottom: -size * 0.10,
         }}
       >
         {companion.stage === 'baby' && (
