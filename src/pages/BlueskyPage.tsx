@@ -14,14 +14,24 @@ import {
   X,
 } from 'lucide-react';
 
+import { useQueryClient } from '@tanstack/react-query';
+
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlueskyTrending, type BlueskyPost } from '@/hooks/useBlueskyTrending';
 import { useBlueskySearch, type BlueskySearchResult } from '@/hooks/useBlueskySearch';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
+import {
+  useExternalUserReaction,
+  useExternalReactionCount,
+} from '@/hooks/useExternalReactions';
 import { BlueskyIcon } from '@/components/icons/BlueskyIcon';
+import { ReactionEmoji } from '@/components/CustomEmoji';
 import { shareOrCopy } from '@/lib/share';
+import { parseExternalUri } from '@/lib/externalContent';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 
@@ -128,10 +138,22 @@ function CategoryPill({ category, active, onClick }: {
 function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useCurrentUser();
+  const { mutate: publishEvent } = useNostrPublish();
+  const queryClient = useQueryClient();
+
   const webUrl = postWebUrl(post.uri, post.author.handle);
   const internalUrl = dittoUrl(webUrl);
   const images = post.embed?.$type === 'app.bsky.embed.images#view' ? (post.embed.images ?? []) : [];
   const externalEmbed = post.embed?.$type === 'app.bsky.embed.external#view' ? post.embed.external : undefined;
+
+  // NIP-73 reaction state for this URL
+  const externalContent = useMemo(() => parseExternalUri(webUrl), [webUrl]);
+  const userReactionData = useExternalUserReaction(externalContent);
+  const nostrReactionCount = useExternalReactionCount(externalContent);
+  const hasReacted = !!userReactionData;
+  const userEmoji = userReactionData?.emoji;
+  const userReactionTags = userReactionData?.tags;
 
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -147,8 +169,43 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
 
   const handleLike = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(internalUrl);
-  }, [navigate, internalUrl]);
+    if (!user) {
+      toast({ title: 'Log in to react' });
+      return;
+    }
+
+    const identifier = externalContent.value;
+    const tags: string[][] = [
+      ['k', 'web'],
+      ['i', identifier],
+    ];
+
+    // Optimistic update
+    queryClient.setQueryData(['external-user-reaction', identifier], { emoji: '+', tags });
+    queryClient.setQueryData(['external-reaction-count', identifier], (prev: number | undefined) => (prev ?? 0) + 1);
+
+    publishEvent(
+      {
+        kind: 17,
+        content: '+',
+        created_at: Math.floor(Date.now() / 1000),
+        tags,
+      },
+      {
+        onSuccess: () => {
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['external-user-reaction', identifier] });
+            queryClient.invalidateQueries({ queryKey: ['external-reaction-count', identifier] });
+          }, 3000);
+        },
+        onError: () => {
+          toast({ title: 'Failed to react', variant: 'destructive' });
+          queryClient.setQueryData(['external-user-reaction', identifier], null);
+          queryClient.setQueryData(['external-reaction-count', identifier], (prev: number | undefined) => Math.max(0, (prev ?? 1) - 1));
+        },
+      },
+    );
+  }, [user, externalContent, publishEvent, queryClient, toast]);
 
   const handleShare = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -291,11 +348,22 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
               <button
                 type="button"
                 onClick={handleLike}
-                className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10 transition-colors"
+                className={cn(
+                  'inline-flex items-center gap-1.5 p-2 rounded-full transition-colors',
+                  hasReacted
+                    ? 'text-pink-500'
+                    : 'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
+                )}
                 title="React"
               >
-                <Heart className="size-[18px]" />
-                {post.likeCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.likeCount)}</span>}
+                {hasReacted && userEmoji ? (
+                  <span className="size-[18px] flex items-center justify-center text-base leading-none">
+                    <ReactionEmoji content={userEmoji} tags={userReactionTags} className="size-[18px]" />
+                  </span>
+                ) : (
+                  <Heart className="size-[18px]" />
+                )}
+                {nostrReactionCount > 0 && <span className="text-sm tabular-nums">{formatCount(nostrReactionCount)}</span>}
               </button>
               <button
                 type="button"
