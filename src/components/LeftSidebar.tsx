@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   UserPlus, LogOut,
@@ -11,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { DittoLogo } from '@/components/DittoLogo';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
-import { SidebarNavList } from '@/components/SidebarNavItem';
+import { SidebarNavList, MORE_SEPARATOR_ID } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
 
 import LoginDialog from '@/components/auth/LoginDialog';
@@ -56,7 +57,6 @@ export function LeftSidebar() {
   const { startSignup } = useOnboarding();
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   // NIP-38 status
   const userStatus = useUserStatus(user?.pubkey);
@@ -66,6 +66,27 @@ export function LeftSidebar() {
   const [statusDraft, setStatusDraft] = useState('');
 
   const homePage = config.homePage;
+
+  // In editing mode, build a combined list: visible + __more__ + hidden
+  const editingItems = useMemo(() => {
+    if (!editing) return [];
+    return [...visibleItems, MORE_SEPARATOR_ID, ...visibleHiddenItems.map((h) => h.id)];
+  }, [editing, visibleItems, visibleHiddenItems]);
+
+  const handleEditReorder = useCallback((newOrder: string[]) => {
+    const moreIdx = newOrder.indexOf(MORE_SEPARATOR_ID);
+    if (moreIdx === -1) return;
+    const newVisible = newOrder.slice(0, moreIdx);
+    updateSidebarOrder(newVisible);
+  }, [updateSidebarOrder]);
+
+  const handleEditRemove = useCallback((id: string, index?: number) => {
+    if (id === 'divider' && index !== undefined) {
+      removeFromSidebar(id, index);
+    } else {
+      removeFromSidebar(id);
+    }
+  }, [removeFromSidebar]);
 
   const scrollToTopIfCurrent = useCallback((to: string) => (e: React.MouseEvent) => {
     if (location.pathname === to) {
@@ -100,29 +121,51 @@ export function LeftSidebar() {
 
       {/* Nav */}
       <nav className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        <SidebarNavList
-          items={visibleItems}
-          editing={editing}
-          onRemove={removeFromSidebar}
-          onReorder={updateSidebarOrder}
-          isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl, homePage)}
-          getOnClick={(id) => id === homePage ? scrollToTopIfCurrent('/') : undefined}
-          getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
-          getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
-          homePage={homePage}
-        />
-
-        <SidebarMoreMenu
-          editing={editing}
-          hiddenItems={visibleHiddenItems}
-          onDoneEditing={() => setEditing(false)}
-          onStartEditing={() => setEditing(true)}
-          onAdd={addToSidebar}
-          onAddDivider={addDividerToSidebar}
-          open={moreMenuOpen}
-          onOpenChange={setMoreMenuOpen}
-          homePage={homePage}
-        />
+        {editing ? (
+          <>
+            <SidebarNavList
+              items={editingItems}
+              editing
+              onRemove={handleEditRemove}
+              onAdd={addToSidebar}
+              onReorder={handleEditReorder}
+              isActive={() => false}
+              homePage={homePage}
+            />
+            <SidebarMoreMenu
+              editing
+              hiddenItems={visibleHiddenItems}
+              onDoneEditing={() => setEditing(false)}
+              onStartEditing={() => setEditing(true)}
+              onAdd={addToSidebar}
+              onAddDivider={addDividerToSidebar}
+              homePage={homePage}
+            />
+          </>
+        ) : (
+          <>
+            <SidebarNavList
+              items={visibleItems}
+              editing={false}
+              onRemove={removeFromSidebar}
+              onReorder={updateSidebarOrder}
+              isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl, homePage)}
+              getOnClick={(id) => id === homePage ? scrollToTopIfCurrent('/') : undefined}
+              getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
+              getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
+              homePage={homePage}
+            />
+            <SidebarMoreMenu
+              editing={false}
+              hiddenItems={visibleHiddenItems}
+              onDoneEditing={() => setEditing(false)}
+              onStartEditing={() => setEditing(true)}
+              onAdd={addToSidebar}
+              onAddDivider={addDividerToSidebar}
+              homePage={homePage}
+            />
+          </>
+        )}
       </nav>
 
       {/* Logged-out join pill — same position as account button, pushed up from bottom */}

@@ -1,10 +1,10 @@
-import { useState, useId, useMemo } from 'react';
+import { useState, useId, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronUp, LogOut, UserPlus, Loader2 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import { SidebarNavList } from '@/components/SidebarNavItem';
+import { SidebarNavList, MORE_SEPARATOR_ID } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
 
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -57,7 +57,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const homePage = config.homePage;
   const hasUnread = useHasUnreadNotifications();
   const [editing, setEditing] = useState(false);
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+
   const [accountExpanded, setAccountExpanded] = useState(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
@@ -96,14 +96,35 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
   const visibleHiddenItems = hiddenItems;
 
-  const handleClose = () => { onOpenChange(false); setMoreMenuOpen(false); };
+  // In editing mode, build a combined list: visible + __more__ + hidden
+  const editingItems = useMemo(() => {
+    if (!editing) return [];
+    return [...visibleItems, MORE_SEPARATOR_ID, ...visibleHiddenItems.map((h) => h.id)];
+  }, [editing, visibleItems, visibleHiddenItems]);
+
+  const handleEditReorder = useCallback((newOrder: string[]) => {
+    const moreIdx = newOrder.indexOf(MORE_SEPARATOR_ID);
+    if (moreIdx === -1) return;
+    const newVisible = newOrder.slice(0, moreIdx);
+    updateSidebarOrder(newVisible);
+  }, [updateSidebarOrder]);
+
+  const handleEditRemove = useCallback((id: string, index?: number) => {
+    if (id === 'divider' && index !== undefined) {
+      removeFromSidebar(id, index);
+    } else {
+      removeFromSidebar(id);
+    }
+  }, [removeFromSidebar]);
+
+  const handleClose = () => { onOpenChange(false); };
   const handleLogout = async () => { await logout(); handleClose(); navigate('/'); };
   const getDisplayName = (account: Account) => account.metadata.name ?? genUserName(account.pubkey);
   const displayName = metadata?.name || (user ? genUserName(user.pubkey) : 'Anonymous');
 
   return (
     <>
-        <Sheet open={open} onOpenChange={(v) => { if (!v) setMoreMenuOpen(false); onOpenChange(v); }}>
+        <Sheet open={open} onOpenChange={(v) => { if (!v) { setEditing(false); } onOpenChange(v); }}>
         <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col overflow-visible">
           {/* SVG clip path definition for the drawer + arc shape.
               The clip path uses objectBoundingBox units so the arc scales with the
@@ -291,30 +312,55 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-1"
               >
                 <div className="contents">
-                  <SidebarNavList
-                    items={visibleItems}
-                    editing={editing}
-                    onRemove={removeFromSidebar}
-                    onReorder={updateSidebarOrder}
-                    isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl, homePage)}
-                    getOnClick={() => handleClose}
-                    getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
-                    getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
-                    linkClassName="text-base"
-                    homePage={homePage}
-                  />
-                  <SidebarMoreMenu
-                    editing={editing}
-                    hiddenItems={visibleHiddenItems}
-                    onDoneEditing={() => setEditing(false)}
-                    onStartEditing={() => setEditing(true)}
-                    onAdd={addToSidebar}
-                    onAddDivider={addDividerToSidebar}
-                    onNavigate={handleClose}
-                    open={moreMenuOpen}
-                    onOpenChange={setMoreMenuOpen}
-                    homePage={homePage}
-                  />
+                  {editing ? (
+                    <>
+                      <SidebarNavList
+                        items={editingItems}
+                        editing
+                        onRemove={handleEditRemove}
+                        onAdd={addToSidebar}
+                        onReorder={handleEditReorder}
+                        isActive={() => false}
+                        linkClassName="text-base"
+                        homePage={homePage}
+                      />
+                      <SidebarMoreMenu
+                        editing
+                        hiddenItems={visibleHiddenItems}
+                        onDoneEditing={() => setEditing(false)}
+                        onStartEditing={() => setEditing(true)}
+                        onAdd={addToSidebar}
+                        onAddDivider={addDividerToSidebar}
+                        onNavigate={handleClose}
+                        homePage={homePage}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <SidebarNavList
+                        items={visibleItems}
+                        editing={false}
+                        onRemove={removeFromSidebar}
+                        onReorder={updateSidebarOrder}
+                        isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl, homePage)}
+                        getOnClick={() => handleClose}
+                        getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
+                        getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
+                        linkClassName="text-base"
+                        homePage={homePage}
+                      />
+                      <SidebarMoreMenu
+                        editing={false}
+                        hiddenItems={visibleHiddenItems}
+                        onDoneEditing={() => setEditing(false)}
+                        onStartEditing={() => setEditing(true)}
+                        onAdd={addToSidebar}
+                        onAddDivider={addDividerToSidebar}
+                        onNavigate={handleClose}
+                        homePage={homePage}
+                      />
+                    </>
+                  )}
                 </div>
               </nav>
 
@@ -355,8 +401,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     onAdd={addToSidebar}
                     onAddDivider={addDividerToSidebar}
                     onNavigate={handleClose}
-                    open={moreMenuOpen}
-                    onOpenChange={setMoreMenuOpen}
                     homePage={homePage}
                   />
                 </div>
