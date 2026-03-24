@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import {
-  ArrowLeft, Users, UserPlus, Loader2, X, Share2, Check, Copy, Quote, PanelLeft, Trash2,
+  Users, UserPlus, Loader2, X, Rss, Share2, Check, Copy, Quote, PanelLeft, Trash2,
 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -22,6 +22,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { NoteCard } from '@/components/NoteCard';
+import { PageHeader } from '@/components/PageHeader';
 import { AddMembersDialog } from '@/components/AddMembersDialog';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -41,8 +42,9 @@ import { getRepostKind } from '@/lib/feedUtils';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import { toast } from '@/hooks/useToast';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
-import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { UserList } from '@/hooks/useUserLists';
 import NotFound from './NotFound';
@@ -296,6 +298,8 @@ export function ListDetailPage() {
   const [quoteOpen, setQuoteOpen] = useState(false);
   const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
 
+  useLayoutOptions({ hasSubHeader: true });
+
   // Decode the naddr to get the d-tag identifier and author
   const decoded = useMemo(() => {
     if (!naddr) return null;
@@ -447,15 +451,7 @@ export function ListDetailPage() {
   if (isLoading) {
     return (
       <main>
-        <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-4 px-4 pt-4 pb-3 bg-background/80 backdrop-blur-md z-10')}>
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden"
-          >
-            <ArrowLeft className="size-5" />
-          </button>
-          <Skeleton className="h-6 w-32" />
-        </div>
+        <PageHeader onBack={() => navigate(-1)} titleContent={<Skeleton className="h-6 w-32" />} />
         <div className="divide-y divide-border">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="px-4 py-3">
@@ -481,30 +477,27 @@ export function ListDetailPage() {
   return (
     <main>
       {/* Header */}
-      <div>
-        <div className="flex items-center gap-4 px-4 pt-4 pb-3">
-          <button
-            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/lists')}
-            className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden"
-          >
-            <ArrowLeft className="size-5" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold truncate">{list.title}</h1>
-            {decoded && (
-              <Link to={listAuthorProfileUrl} className="flex items-center gap-1.5 mt-0.5 group">
-                <Avatar shape={listAuthorAvatarShape} className="size-4">
-                  <AvatarImage src={listAuthorMetadata?.picture} alt={listAuthorName} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
-                    {listAuthorName[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-xs text-muted-foreground group-hover:underline truncate">
-                  {listAuthorName}
-                </span>
-              </Link>
-            )}
-          </div>
+      <PageHeader
+          onBack={() => window.history.length > 1 ? navigate(-1) : navigate('/lists')}
+          titleContent={
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-bold truncate">{list.title}</h1>
+              {decoded && (
+                <Link to={listAuthorProfileUrl} className="flex items-center gap-1.5 mt-0.5 group">
+                  <Avatar shape={listAuthorAvatarShape} className="size-4">
+                    <AvatarImage src={listAuthorMetadata?.picture} alt={listAuthorName} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                      {listAuthorName[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs text-muted-foreground group-hover:underline truncate">
+                    {listAuthorName}
+                  </span>
+                </Link>
+              )}
+            </div>
+          }
+        >
           <div className="flex items-center gap-1 shrink-0">
             {user && !isOwnList && (
               <Button
@@ -561,7 +554,7 @@ export function ListDetailPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
+        </PageHeader>
 
         {/* Description and image */}
         {(list.description || list.image) && (
@@ -614,13 +607,32 @@ export function ListDetailPage() {
           </div>
         )}
 
-      </div>
-
-      {/* Tab bar */}
-      <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border bg-background/80 backdrop-blur-md z-10')}>
-        <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
-        <TabButton label="Members" active={activeTab === 'members'} onClick={() => setActiveTab('members')} />
-      </div>
+        {/* Tab bar */}
+        <SubHeaderBar>
+          <TabButton
+            label="Feed"
+            active={activeTab === 'feed'}
+            onClick={() => setActiveTab('feed')}
+            indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              <Rss className="size-4" />
+              Feed
+            </span>
+          </TabButton>
+          <TabButton
+            label="Members"
+            active={activeTab === 'members'}
+            onClick={() => setActiveTab('members')}
+            indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              <Users className="size-4" />
+              Members
+              <span className="text-xs text-muted-foreground">({list.pubkeys.length})</span>
+            </span>
+          </TabButton>
+        </SubHeaderBar>
 
       {/* Tab content */}
       {activeTab === 'feed' ? (

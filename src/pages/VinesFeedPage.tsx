@@ -50,6 +50,7 @@ import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { canZap } from '@/lib/canZap';
 import { formatNumber } from '@/lib/formatNumber';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { cn } from '@/lib/utils';
 
@@ -441,10 +442,10 @@ export function VineCard({ event, isActive, isNearActive, onCommentClick }: Vine
         </>
       )}
 
-      {/* ── Mute toggle (top-right) — only shown once video is ready ──── */}
+      {/* ── Mute toggle (bottom-right) — only shown once video is ready ──── */}
       {isVideoReady && (
         <button
-          className="absolute top-4 right-4 z-10 size-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+          className="absolute bottom-4 right-4 z-10 size-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
           onClick={toggleMute}
           aria-label={isMuted ? 'Unmute' : 'Mute'}
         >
@@ -633,6 +634,8 @@ export function VinesFeedPage() {
     showFAB: false,
     scrollContainer,
     noOverscroll: true,
+    hasSubHeader: true,
+    noArcs: true,
   });
 
   // Track scroll direction to expand vines when bottom nav hides
@@ -785,11 +788,11 @@ interface VinesTabBarProps {
 
 function VinesTabBar({ tab, onTabChange, hasUser }: VinesTabBarProps) {
   return (
-    <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 shrink-0">
+    <SubHeaderBar className="shrink-0" noArc>
       {hasUser && (
         <TabButton label="Follows" active={tab === 'follows'} onClick={() => onTabChange('follows')} className="sidebar:py-5 sidebar:font-semibold" indicatorClassName="sidebar:h-[3px]" />
       )}
       <TabButton label="Global" active={tab === 'global'} onClick={() => onTabChange('global')} className="sidebar:py-5 sidebar:font-semibold" indicatorClassName="sidebar:h-[3px]" />
-    </div>
+    </SubHeaderBar>
   );
 }

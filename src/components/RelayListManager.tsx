@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Plus, X, Wifi, Settings } from 'lucide-react';
 import { HelpTip } from '@/components/HelpTip';
 import { Button } from '@/components/ui/button';
@@ -238,9 +239,9 @@ export function RelayListManager() {
               className="flex items-center gap-3 py-2.5 px-3 hover:bg-muted/20 transition-colors"
             >
               <Wifi className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="font-mono text-xs flex-1 truncate" title={relay.url}>
+              <Link to={`/r/${encodeURIComponent(relay.url)}`} className="font-mono text-xs flex-1 truncate hover:underline" title={relay.url}>
                 {renderRelayUrl(relay.url)}
-              </span>
+              </Link>
               <div className="flex items-center gap-1 text-[10px]">
                 {relay.read && (
                   <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 font-medium">Read</span>
@@ -277,9 +278,9 @@ export function RelayListManager() {
                   className="flex items-center gap-3 py-2.5 px-3 hover:bg-muted/20 transition-colors"
                 >
                   <Wifi className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="font-mono text-xs flex-1 truncate" title={relay.url}>
+                  <Link to={`/r/${encodeURIComponent(relay.url)}`} className="font-mono text-xs flex-1 truncate hover:underline" title={relay.url}>
                     {renderRelayUrl(relay.url)}
-                  </span>
+                  </Link>
 
                   {/* Settings Popover */}
                   <Popover>
