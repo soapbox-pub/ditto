@@ -115,7 +115,7 @@ export {
   useCompanionActionMenu,
   useClickDetection,
   CompanionActionMenu,
-  CompanionItemBubbles,
+  HangingItems,
   MENU_ACTIONS,
   INITIAL_MENU_STATE,
   DEFAULT_CLICK_CONFIG,

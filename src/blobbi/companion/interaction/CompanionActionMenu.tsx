@@ -4,14 +4,17 @@
  * Floating radial action menu that appears around Blobbi when clicked.
  * Actions are arranged in a curved arc above the companion.
  * 
+ * IMPORTANT: This component calculates positions directly from props
+ * on every render to ensure the menu stays perfectly attached to Blobbi
+ * during all animations (idle, walking, floating, dragging, etc.).
+ * 
  * Features:
  * - Radial/arc layout centered above Blobbi
+ * - Real-time position tracking (no lag)
  * - Smooth open/close animations
  * - Hover and active states
  * - Selected action highlight
  */
-
-import { useMemo } from 'react';
 
 import { cn } from '@/lib/utils';
 import type { Position } from '../types/companion.types';
@@ -20,7 +23,7 @@ import type { CompanionMenuAction, MenuActionConfig } from './types';
 interface CompanionActionMenuProps {
   /** Whether the menu is visible */
   isOpen: boolean;
-  /** Position of Blobbi (top-left of the companion) */
+  /** Position of Blobbi (top-left of the companion) - updates every frame */
   companionPosition: Position;
   /** Size of the companion */
   companionSize: number;
@@ -49,38 +52,34 @@ const MENU_CONFIG = {
 };
 
 /**
- * Calculate button positions in an arc above the companion.
+ * Calculate button position for a single action in the arc.
+ * This is called per-button directly in render to avoid stale position values.
  */
-function calculateArcPositions(
+function calculateButtonPosition(
   centerX: number,
   centerY: number,
+  index: number,
   count: number,
   config: typeof MENU_CONFIG
-): Position[] {
-  if (count === 0) return [];
+): Position {
   if (count === 1) {
     // Single button goes directly above
     const angleRad = (config.arcCenter * Math.PI) / 180;
-    return [{
+    return {
       x: centerX + Math.cos(angleRad) * config.radius,
       y: centerY + Math.sin(angleRad) * config.radius,
-    }];
+    };
   }
   
-  const positions: Position[] = [];
   const startAngle = config.arcCenter - config.arcSpread / 2;
   const angleStep = config.arcSpread / (count - 1);
+  const angleDeg = startAngle + angleStep * index;
+  const angleRad = (angleDeg * Math.PI) / 180;
   
-  for (let i = 0; i < count; i++) {
-    const angleDeg = startAngle + angleStep * i;
-    const angleRad = (angleDeg * Math.PI) / 180;
-    positions.push({
-      x: centerX + Math.cos(angleRad) * config.radius,
-      y: centerY + Math.sin(angleRad) * config.radius,
-    });
-  }
-  
-  return positions;
+  return {
+    x: centerX + Math.cos(angleRad) * config.radius,
+    y: centerY + Math.sin(angleRad) * config.radius,
+  };
 }
 
 export function CompanionActionMenu({
@@ -92,24 +91,11 @@ export function CompanionActionMenu({
   onActionClick,
   onClickOutside,
 }: CompanionActionMenuProps) {
-  // Calculate companion center
-  const companionCenter = useMemo(() => ({
-    x: companionPosition.x + companionSize / 2,
-    y: companionPosition.y + companionSize / 2,
-  }), [companionPosition, companionSize]);
-  
-  // Calculate button positions
-  const buttonPositions = useMemo(() => 
-    calculateArcPositions(
-      companionCenter.x,
-      companionCenter.y,
-      actions.length,
-      MENU_CONFIG
-    ),
-    [companionCenter, actions.length]
-  );
-  
   if (!isOpen) return null;
+  
+  // Calculate companion center directly (no memoization to avoid stale values)
+  const companionCenterX = companionPosition.x + companionSize / 2;
+  const companionCenterY = companionPosition.y + companionSize / 2;
   
   return (
     <>
@@ -122,10 +108,16 @@ export function CompanionActionMenu({
         aria-hidden="true"
       />
       
-      {/* Action buttons */}
+      {/* Action buttons - positions calculated directly each render */}
       {actions.map((action, index) => {
-        const position = buttonPositions[index];
-        if (!position) return null;
+        // Calculate position directly per button (no memoization = no lag)
+        const position = calculateButtonPosition(
+          companionCenterX,
+          companionCenterY,
+          index,
+          actions.length,
+          MENU_CONFIG
+        );
         
         const isSelected = selectedAction === action.id;
         const delay = index * MENU_CONFIG.staggerDelay;
@@ -136,18 +128,19 @@ export function CompanionActionMenu({
             className={cn(
               // Base styles - pointer-events-auto needed because parent has pointer-events-none
               "fixed flex items-center justify-center rounded-full pointer-events-auto",
-              "shadow-lg transition-all duration-200",
+              "shadow-lg transition-colors duration-200",
               "focus:outline-none focus:ring-2 focus:ring-primary/50",
               // Background
               isSelected
                 ? "bg-primary text-primary-foreground"
                 : "bg-background/95 hover:bg-accent",
-              // Hover effects
+              // Hover effects (only scale, not position-affecting)
               "hover:scale-110 active:scale-95",
               // Animation
               "animate-in fade-in zoom-in-75"
             )}
             style={{
+              // Position directly from calculation (updates every render)
               left: position.x - MENU_CONFIG.buttonSize / 2,
               top: position.y - MENU_CONFIG.buttonSize / 2,
               width: MENU_CONFIG.buttonSize,
@@ -155,6 +148,8 @@ export function CompanionActionMenu({
               zIndex: 10002,
               animationDelay: `${delay}ms`,
               animationFillMode: 'backwards',
+              // Use transform for smooth visual feedback without affecting position calculation
+              transition: 'transform 200ms, background-color 200ms, color 200ms',
             }}
             onClick={(e) => {
               e.stopPropagation();
