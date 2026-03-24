@@ -25,6 +25,7 @@ import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -230,8 +231,20 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
   return (
     <main className="flex-1 min-w-0">
-      {/* Tabs (logged in) or CTA (logged out, main feed only) */}
-      {user ? (
+      {/* CTA (logged out, main feed only) */}
+      {!user && !kinds && (
+        <LandingHero
+          onLoginClick={() => setLoginDialogOpen(true)}
+          onSignupClick={startSignup}
+        />
+      )}
+
+      {!hideCompose && <ComposeBox compact />}
+
+      {header}
+
+      {/* Tabs (logged in) */}
+      {user && (
         <SubHeaderBar>
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {!isKindSpecificPage && showDittoFeed && (
@@ -273,21 +286,10 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
             </TabButton>
           ))}
         </SubHeaderBar>
-      ) : !kinds && (
-        <LandingHero
-          onLoginClick={() => setLoginDialogOpen(true)}
-          onSignupClick={startSignup}
-        />
       )}
 
-      {/* Compose box and header render *after* the tab bar so that tabs stay
-          at the top as the primary navigation element on every feed page.
-          This is intentional — see commits 3e7edf65, 82fe6f2f. */}
-      {!hideCompose && <ComposeBox compact />}
-
-      {header}
-
       {/* Feed content — saved feed tab gets its own stream */}
+      {user && <div style={{ height: ARC_OVERHANG_PX }} />}
       {activeHashtag ? (
         <HashtagFeedContent tag={activeHashtag} />
       ) : activeGeotag ? (
