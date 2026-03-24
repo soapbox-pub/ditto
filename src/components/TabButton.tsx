@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useLayoutEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useSubHeaderBarHover } from '@/components/SubHeaderBar';
 
@@ -28,14 +28,22 @@ interface TabButtonProps {
  */
 export function TabButton({ label, active, onClick, disabled, className, indicatorClassName, children }: TabButtonProps) {
   const ref = useRef<HTMLButtonElement>(null);
-  const { onHover } = useSubHeaderBarHover();
+  const { onHover, onActive } = useSubHeaderBarHover();
 
-  const handleMouseEnter = () => {
+  const reportSlice = () => {
     const btn = ref.current;
     if (!btn) return;
-    onHover({ left: btn.offsetLeft, width: btn.offsetWidth });
+    return { left: btn.offsetLeft, width: btn.offsetWidth };
   };
 
+  useLayoutEffect(() => {
+    if (!active) return;
+    const s = reportSlice();
+    if (s) onActive(s);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  const handleMouseEnter = () => { const s = reportSlice(); if (s) onHover(s); };
   const handleMouseLeave = () => onHover(null);
 
   const handleClick = () => {
@@ -62,9 +70,6 @@ export function TabButton({ label, active, onClick, disabled, className, indicat
       )}
     >
       {children ?? label}
-      {active && (
-        <div className={cn('absolute bottom-0 left-1/2 -translate-x-1/2 h-1 bg-primary rounded-full w-3/4 max-w-16', indicatorClassName)} />
-      )}
     </button>
   );
 }
