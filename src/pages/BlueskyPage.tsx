@@ -139,11 +139,12 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
   const externalContent = useMemo(() => parseExternalUri(webUrl), [webUrl]);
 
   const [shareOpen, setShareOpen] = useState(false);
+  const [commentOpen, setCommentOpen] = useState(false);
 
   const handleComment = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(internalUrl);
-  }, [navigate, internalUrl]);
+    setCommentOpen(true);
+  }, []);
 
   const handleRepost = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -288,7 +289,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
                 <Repeat2 className="size-[18px]" />
                 {post.repostCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.repostCount)}</span>}
               </button>
-              <ExternalReactionButton content={externalContent} iconSize="size-[18px]" />
+              <ExternalReactionButton content={externalContent} iconSize="size-[18px]" count={post.likeCount} />
               <button
                 type="button"
                 onClick={handleShare}
@@ -301,6 +302,15 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
           </div>
         </div>
       </article>
+
+      {/* Comment compose modal */}
+      {commentOpen && (
+        <ReplyComposeModal
+          open={commentOpen}
+          onOpenChange={setCommentOpen}
+          event={new URL(webUrl)}
+        />
+      )}
 
       {/* Share compose modal */}
       {shareOpen && (

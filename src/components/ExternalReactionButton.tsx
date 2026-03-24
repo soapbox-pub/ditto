@@ -38,6 +38,8 @@ interface ExternalReactionButtonProps {
   content: ExternalContent;
   /** Icon size class (default "size-5"). */
   iconSize?: string;
+  /** Display count from an external source (e.g. Bluesky like count). Falls back to the Nostr reaction count. */
+  count?: number;
   /** Extra class names on the trigger button. */
   className?: string;
 }
@@ -48,7 +50,7 @@ interface ExternalReactionButtonProps {
  * Includes hover-to-open emoji picker via `QuickReactMenu`, optimistic UI,
  * and displays the user's existing reaction & total count.
  */
-export function ExternalReactionButton({ content, iconSize = 'size-5', className }: ExternalReactionButtonProps) {
+export function ExternalReactionButton({ content, iconSize = 'size-5', count, className }: ExternalReactionButtonProps) {
   const { user } = useCurrentUser();
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
@@ -151,8 +153,8 @@ export function ExternalReactionButton({ content, iconSize = 'size-5', className
           ) : (
             <Heart className={iconSize} />
           )}
-          {reactionCount > 0 && (
-            <span className="text-sm tabular-nums">{formatNumber(reactionCount)}</span>
+          {(count ?? reactionCount) > 0 && (
+            <span className="text-sm tabular-nums">{formatNumber(count ?? reactionCount)}</span>
           )}
         </button>
       </PopoverTrigger>
