@@ -14,7 +14,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { NoteContent } from '@/components/NoteContent';
 import { ComposeBox } from '@/components/ComposeBox';
-import { LinkPreview } from '@/components/LinkPreview';
+import { LinkEmbed } from '@/components/LinkEmbed';
 import { VanishCardCompact } from '@/components/VanishEventContent';
 import { ProfilePreview } from '@/components/ExternalContentHeader';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -126,7 +126,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
             <div className="overflow-y-auto min-h-0 shrink">
               {isUrl ? (
                 <div className="mx-4 mb-2">
-                  <LinkPreview url={event.href} showActions={false} />
+                  <LinkEmbed url={event.href} showActions={false} />
                 </div>
               ) : (
                 <EmbeddedPost event={event} />
