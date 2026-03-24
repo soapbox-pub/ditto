@@ -10,6 +10,7 @@ import {
   MessageCircle,
   Repeat2,
   Search,
+  Share2,
   X,
 } from 'lucide-react';
 
@@ -66,11 +67,6 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-function truncateText(text: string, maxLen = 160): string {
-  if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen).replace(/\s+\S*$/, '') + '\u2026';
-}
-
 function timeAgo(dateStr: string): string {
   const now = Date.now();
   const then = new Date(dateStr).getTime();
@@ -123,102 +119,136 @@ function CategoryPill({ category, active, onClick }: {
 }
 
 // ---------------------------------------------------------------------------
-// Post card
+// Post card — feed-style (vertical, like NoteCard)
 // ---------------------------------------------------------------------------
 
-function BlueskyPostCard({ post }: { post: BlueskyPost }) {
+function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
   const webUrl = postWebUrl(post.uri, post.author.handle);
-  const firstImage = post.embed?.$type === 'app.bsky.embed.images#view' ? post.embed.images?.[0] : undefined;
+  const images = post.embed?.$type === 'app.bsky.embed.images#view' ? (post.embed.images ?? []) : [];
   const externalEmbed = post.embed?.$type === 'app.bsky.embed.external#view' ? post.embed.external : undefined;
-  const thumbnail = firstImage?.thumb ?? externalEmbed?.thumb;
 
   return (
     <Link
       to={dittoUrl(webUrl)}
-      className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+      className="block px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer"
     >
-      {/* Thumbnail */}
-      {thumbnail ? (
-        <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-sky-500/10 to-blue-500/10">
-          <img
-            src={thumbnail}
-            alt=""
-            loading="lazy"
-            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
-
-          {/* Engagement badge */}
-          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white text-xs font-medium flex items-center gap-1">
-            <Heart className="size-3" />
-            {formatCount(post.likeCount)}
-          </div>
-        </div>
-      ) : (
-        <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-sky-500/10 to-blue-500/10 flex items-center justify-center p-4">
-          <p className="text-sm text-muted-foreground leading-relaxed text-center line-clamp-5">
-            {post.record.text}
-          </p>
-
-          {/* Engagement badge */}
-          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white text-xs font-medium flex items-center gap-1">
-            <Heart className="size-3" />
-            {formatCount(post.likeCount)}
-          </div>
-        </div>
-      )}
-
-      {/* Content */}
-      <div className="p-3 space-y-2">
-        {/* Author row */}
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex gap-3">
+        {/* Avatar */}
+        <div className="shrink-0">
           {post.author.avatar ? (
             <img
               src={post.author.avatar}
               alt=""
-              className="size-5 rounded-full object-cover shrink-0"
+              className="size-11 rounded-full object-cover"
               loading="lazy"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
           ) : (
-            <div className="size-5 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 shrink-0" />
+            <div className="size-11 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
+              {(post.author.displayName ?? post.author.handle).charAt(0).toUpperCase()}
+            </div>
           )}
-          <span className="text-xs font-medium truncate">
-            {post.author.displayName ?? post.author.handle}
-          </span>
-          <span className="text-xs text-muted-foreground shrink-0">
-            {timeAgo(post.record.createdAt)}
-          </span>
         </div>
 
-        {/* Post text */}
-        {thumbnail && (
-          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-            {truncateText(post.record.text)}
-          </p>
-        )}
+        {/* Body */}
+        <div className="flex-1 min-w-0">
+          {/* Author info */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-semibold text-[15px] truncate leading-tight">
+              {post.author.displayName ?? post.author.handle}
+            </span>
+            <span className="text-muted-foreground text-sm truncate leading-tight">
+              @{post.author.handle}
+            </span>
+            <span className="text-muted-foreground text-sm shrink-0">&middot;</span>
+            <span className="text-muted-foreground text-sm shrink-0">
+              {timeAgo(post.record.createdAt)}
+            </span>
+          </div>
 
-        {/* External link title */}
-        {externalEmbed?.title && (
-          <p className="text-xs font-medium text-primary leading-tight line-clamp-1">
-            {externalEmbed.title}
+          {/* Post text */}
+          <p className="mt-1 text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+            {post.record.text}
           </p>
-        )}
 
-        {/* Stats row */}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <MessageCircle className="size-3" />
-            {formatCount(post.replyCount)}
-          </span>
-          <span className="flex items-center gap-1">
-            <Repeat2 className="size-3" />
-            {formatCount(post.repostCount)}
-          </span>
-          <span className="flex items-center gap-1">
-            <Heart className="size-3" />
-            {formatCount(post.likeCount)}
-          </span>
+          {/* Image embeds */}
+          {images.length > 0 && (
+            <div
+              className={cn(
+                'mt-3 rounded-xl overflow-hidden border border-border',
+                images.length === 1 && 'grid grid-cols-1',
+                images.length === 2 && 'grid grid-cols-2 gap-0.5',
+                images.length === 3 && 'grid grid-cols-2 gap-0.5',
+                images.length >= 4 && 'grid grid-cols-2 gap-0.5',
+              )}
+            >
+              {images.slice(0, 4).map((img, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    'relative overflow-hidden bg-secondary',
+                    images.length === 1 ? 'aspect-video' : 'aspect-square',
+                    images.length === 3 && i === 0 && 'row-span-2 aspect-auto',
+                  )}
+                >
+                  <img
+                    src={img.thumb}
+                    alt={img.alt || ''}
+                    loading="lazy"
+                    className="absolute inset-0 w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* External link embed */}
+          {externalEmbed && (
+            <div className="mt-3 rounded-xl border border-border overflow-hidden bg-secondary/30">
+              {externalEmbed.thumb && (
+                <div className="aspect-[2/1] overflow-hidden bg-secondary">
+                  <img
+                    src={externalEmbed.thumb}
+                    alt=""
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                </div>
+              )}
+              <div className="px-3 py-2.5 space-y-0.5">
+                <p className="text-xs text-muted-foreground truncate">
+                  {(() => { try { return new URL(externalEmbed.uri).hostname; } catch { return externalEmbed.uri; } })()}
+                </p>
+                {externalEmbed.title && (
+                  <p className="text-sm font-semibold leading-tight line-clamp-2">{externalEmbed.title}</p>
+                )}
+                {externalEmbed.description && (
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{externalEmbed.description}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-5 mt-3 -ml-2">
+            <span className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground">
+              <MessageCircle className="size-[18px]" />
+              {post.replyCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.replyCount)}</span>}
+            </span>
+            <span className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground">
+              <Repeat2 className="size-[18px]" />
+              {post.repostCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.repostCount)}</span>}
+            </span>
+            <span className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground">
+              <Heart className="size-[18px]" />
+              {post.likeCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.likeCount)}</span>}
+            </span>
+            <span className="inline-flex items-center p-2 rounded-full text-muted-foreground">
+              <Share2 className="size-[18px]" />
+            </span>
+          </div>
         </div>
       </div>
     </Link>
@@ -391,32 +421,33 @@ function BlueskySearchBar() {
 }
 
 // ---------------------------------------------------------------------------
-// Loading skeleton
+// Loading skeleton (feed-style)
 // ---------------------------------------------------------------------------
 
 function BlueskyLoadingSkeleton() {
   return (
-    <div className="px-4 pt-4 pb-4">
-      <div className="grid grid-cols-2 gap-3 sidebar:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="rounded-2xl border border-border overflow-hidden bg-card">
-            <Skeleton className="aspect-[4/3] w-full" />
-            <div className="p-3 space-y-2">
+    <div className="divide-y divide-border">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="px-4 py-3">
+          <div className="flex gap-3">
+            <Skeleton className="size-11 rounded-full shrink-0" />
+            <div className="flex-1 min-w-0 space-y-2">
               <div className="flex items-center gap-2">
-                <Skeleton className="size-5 rounded-full" />
-                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3.5 w-20" />
               </div>
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-2/3" />
-              <div className="flex gap-3">
-                <Skeleton className="h-3 w-8" />
-                <Skeleton className="h-3 w-8" />
-                <Skeleton className="h-3 w-8" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-4/5" />
+              <Skeleton className="h-40 w-full rounded-xl" />
+              <div className="flex gap-6 pt-1">
+                <Skeleton className="h-4 w-10" />
+                <Skeleton className="h-4 w-10" />
+                <Skeleton className="h-4 w-10" />
               </div>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -503,25 +534,21 @@ export function BlueskyPage() {
             Couldn&apos;t load Bluesky posts. Try again later.
           </p>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="py-16 text-center">
+          <BlueskyIcon className="size-10 mx-auto mb-3 text-muted-foreground/20" />
+          <p className="text-muted-foreground text-sm">No posts match this filter.</p>
+        </div>
       ) : (
-        <div className="px-4 pt-4 pb-4">
-          <div className="grid grid-cols-2 gap-3 sidebar:grid-cols-3">
-            {filtered.map((post) => (
-              <BlueskyPostCard key={post.uri} post={post} />
-            ))}
-          </div>
-
-          {filtered.length === 0 && (
-            <div className="py-16 text-center">
-              <BlueskyIcon className="size-10 mx-auto mb-3 text-muted-foreground/30" />
-              <p className="text-muted-foreground text-sm">No posts match this filter.</p>
-            </div>
-          )}
+        <div>
+          {filtered.map((post) => (
+            <BlueskyFeedPost key={post.uri} post={post} />
+          ))}
         </div>
       )}
 
       {/* Attribution footer */}
-      <div className="px-4 pb-8">
+      <div className="px-4 py-8">
         <div className="rounded-xl border border-dashed border-border bg-secondary/30 px-4 py-3 text-center">
           <p className="text-xs text-muted-foreground">
             Content provided by{' '}
