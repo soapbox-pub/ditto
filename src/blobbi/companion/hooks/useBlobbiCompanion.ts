@@ -5,7 +5,7 @@
  * This is the primary hook consumers should use.
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import type {
@@ -234,6 +234,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     isPermanentlyStuck,
     isHiddenForTransition,
     currentInspectionDirection,
+    acknowledgeCompletion,
   } = useBlobbiEntryAnimation({
     isActive: isVisible,
     pathname: location.pathname,
@@ -247,13 +248,28 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   const shouldBeVisible = isVisible && !isHiddenForTransition;
   
   // Sync motion position when entry completes
+  // IMPORTANT: We use entryState.phase === 'complete' directly instead of !isEntering
+  // to avoid race conditions where isEntering becomes false before the final render.
+  // The component keeps using entry animation position while phase !== 'idle',
+  // so we must call acknowledgeCompletion() after syncing to allow normal motion to take over.
+  const entryJustCompleted = entryState.phase === 'complete' && hasEnteredOnce;
+  const prevEntryCompleteRef = useRef(false);
+  
   useEffect(() => {
-    if (!isEntering && hasEnteredOnce) {
+    // Only sync position once when entry transitions to complete
+    if (entryJustCompleted && !prevEntryCompleteRef.current) {
       // Entry just completed - sync motion position to where entry animation ended
       // This is groundPosition (center of screen) for vertical entry animations
       setPosition(groundPosition);
+      
+      // Use requestAnimationFrame to ensure the position is rendered before
+      // we switch from entry animation to motion position
+      requestAnimationFrame(() => {
+        acknowledgeCompletion();
+      });
     }
-  }, [isEntering, hasEnteredOnce, setPosition, groundPosition]);
+    prevEntryCompleteRef.current = entryJustCompleted;
+  }, [entryJustCompleted, setPosition, groundPosition, acknowledgeCompletion]);
   
   // Gaze management - passes entry inspection direction for eye control during entry
   const { gaze, eyeOffset } = useBlobbiCompanionGaze({

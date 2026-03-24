@@ -64,6 +64,8 @@ interface UseBlobbiEntryAnimationResult {
   currentInspectionDirection: InspectionDirection | null;
   /** Resolve permanent stuck state (called after drag release) */
   resolvePermanentStuck: () => void;
+  /** Acknowledge entry completion (resets phase to idle after position sync) */
+  acknowledgeCompletion: () => void;
 }
 
 /**
@@ -204,6 +206,21 @@ export function useBlobbiEntryAnimation({
       completeEntry();
     }
   }, [entryState.phase, completeEntry]);
+  
+  /**
+   * Acknowledge entry completion - resets phase to idle.
+   * Called by the consumer after position has been synced.
+   * This prevents the "snap to ground" bug by allowing the component
+   * to keep showing entry position until handoff is complete.
+   */
+  const acknowledgeCompletion = useCallback(() => {
+    if (entryState.phase === 'complete') {
+      setEntryState(prev => ({
+        ...prev,
+        phase: 'idle',
+      }));
+    }
+  }, [entryState.phase]);
   
   /**
    * Handle drag release when permanently stuck.
@@ -564,5 +581,6 @@ export function useBlobbiEntryAnimation({
     isHiddenForTransition,
     currentInspectionDirection: entryState.inspectionDirection,
     resolvePermanentStuck,
+    acknowledgeCompletion,
   };
 }
