@@ -61,8 +61,8 @@ export function decideNextAction(
     return { state: currentState };
   }
   
-  // Random chance to walk or stay idle
-  const shouldWalk = Math.random() < 0.6; // 60% chance to walk
+  // High chance to walk - companion should be active and roaming
+  const shouldWalk = Math.random() < 0.75; // 75% chance to walk
   
   if (shouldWalk) {
     // Pick a random target position
@@ -72,18 +72,46 @@ export function decideNextAction(
     
     // Bias toward the direction with more space
     let direction: CompanionDirection;
-    if (rangeLeft < 50) {
+    if (rangeLeft < 80) {
       direction = 'right';
-    } else if (rangeRight < 50) {
+    } else if (rangeRight < 80) {
       direction = 'left';
     } else {
       direction = Math.random() < 0.5 ? 'left' : 'right';
     }
     
-    // Pick target within reasonable distance
-    const minDistance = 100;
+    // Pick target within reasonable distance - walk further for more visible movement
+    const minDistance = 80;
     const maxDistance = direction === 'left' ? rangeLeft : rangeRight;
-    const distance = Math.min(maxDistance, minDistance + Math.random() * 200);
+    const distance = Math.min(maxDistance, minDistance + Math.random() * 250);
+    
+    // Only walk if there's enough distance to make it worthwhile
+    if (distance < 50) {
+      // Not enough room, try the other direction or stay idle
+      const otherDirection = direction === 'left' ? 'right' : 'left';
+      const otherRange = direction === 'left' ? rangeRight : rangeLeft;
+      
+      if (otherRange >= 80) {
+        direction = otherDirection;
+        const otherDistance = Math.min(otherRange, minDistance + Math.random() * 250);
+        const targetX = direction === 'left'
+          ? currentX - otherDistance
+          : currentX + otherDistance;
+        
+        return {
+          state: 'walking',
+          direction,
+          targetX: Math.max(bounds.minX, Math.min(bounds.maxX, targetX)),
+          duration: randomDuration(config.walkTime),
+        };
+      }
+      
+      // No room to walk in either direction, stay idle briefly
+      return {
+        state: 'idle',
+        duration: randomDuration({ min: 500, max: 1500 }),
+      };
+    }
     
     const targetX = direction === 'left'
       ? currentX - distance
@@ -97,10 +125,10 @@ export function decideNextAction(
     };
   }
   
-  // Stay idle
+  // Stay idle - but for shorter periods to keep things lively
   return {
     state: 'idle',
-    duration: randomDuration(config.idleTime),
+    duration: randomDuration({ min: 1000, max: 3000 }),
   };
 }
 

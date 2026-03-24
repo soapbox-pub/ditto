@@ -51,9 +51,22 @@ export function calculateMainContentLeftEdge(
 }
 
 /**
- * Calculate the entry position (at the left edge of main content area).
- * The companion starts just behind/at the content area boundary,
- * so it appears to emerge from the previous page into the current one.
+ * Calculate the left edge of the sidebar.
+ * This is where the companion should start (hidden behind it).
+ */
+export function calculateSidebarLeftEdge(
+  viewportWidth: number,
+  config: CompanionConfig = DEFAULT_COMPANION_CONFIG
+): number {
+  const layoutWidth = Math.min(viewportWidth, config.layout.maxContentWidth);
+  const layoutLeft = (viewportWidth - layoutWidth) / 2;
+  return layoutLeft;
+}
+
+/**
+ * Calculate the entry position (hidden behind the sidebar).
+ * The companion starts completely hidden behind the left sidebar,
+ * then emerges into the main content area.
  */
 export function calculateEntryPosition(
   viewportWidth: number,
@@ -62,11 +75,12 @@ export function calculateEntryPosition(
   config: CompanionConfig = DEFAULT_COMPANION_CONFIG
 ): Position {
   const groundY = calculateGroundY(viewportHeight, companionSize, config);
-  const contentLeftEdge = calculateMainContentLeftEdge(viewportWidth, config);
+  const sidebarLeft = calculateSidebarLeftEdge(viewportWidth, config);
   
   return {
-    // Start mostly hidden behind the content edge
-    x: contentLeftEdge - companionSize + 10, // Just 10px visible
+    // Start completely hidden behind the sidebar
+    // Position is at the left edge of the sidebar minus the companion size
+    x: sidebarLeft - companionSize + 5, // Almost fully hidden, just 5px might peek
     y: groundY,
   };
 }

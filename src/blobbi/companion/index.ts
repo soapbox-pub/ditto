@@ -79,7 +79,12 @@ export {
 export {
   createEntryAnimation,
   calculateEntryAnimation,
+  calculateSidebarEntryAnimation,
+  calculateMobileEntryAnimation,
+  calculateFloatAnimation,
   calculateIdleBob,
   calculateWalkBounce,
   smoothTransition,
 } from './utils/animation';
+
+export type { SidebarEntryOptions, FloatOffset } from './utils/animation';

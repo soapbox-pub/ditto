@@ -5,15 +5,10 @@
  */
 
 import type { Position } from '../types/companion.types';
-import { lerp, easeOutCubic, easeInOutCubic } from './movement';
+import { lerp, easeOutCubic } from './movement';
 
 /**
- * Entry animation phases for the "squeezing out" effect.
- * 
- * Phase 1 (0-25%): Emerge diagonally from the edge
- * Phase 2 (25-40%): Get "stuck" - pause with slight wobble
- * Phase 3 (40-70%): Tug motions - forward/back pulls
- * Phase 4 (70-100%): Break free and walk to final position
+ * Entry animation result with position and visual transforms.
  */
 export interface EntryAnimationResult {
   position: Position;
@@ -26,123 +21,110 @@ export interface EntryAnimationResult {
 }
 
 /**
- * Calculate the playful "squeezing out" entry animation.
- * 
- * The companion emerges from the left edge of the content area,
- * gets stuck halfway, does some tug motions, then breaks free.
+ * Options for the sidebar entry animation.
  */
-export function calculateEntryAnimation(
+export interface SidebarEntryOptions {
+  /** The X position of the content boundary (where sidebar ends) */
+  contentBoundaryX: number;
+  /** How far past the boundary the stuck point should be (in pixels) */
+  stuckOffsetFromBoundary?: number;
+}
+
+/**
+ * Calculate a simple walking entry from behind the sidebar.
+ * 
+ * The companion starts hidden behind the sidebar and walks out smoothly.
+ * No stuck/squeeze/tug behavior - just a clean continuous walking entrance.
+ * 
+ * @param startPosition - Starting position (behind sidebar)
+ * @param endPosition - Final resting position
+ * @param progress - Animation progress from 0 to 1
+ * @param _options - Configuration (contentBoundaryX not used for simple walk)
+ */
+export function calculateSidebarEntryAnimation(
   startPosition: Position,
   endPosition: Position,
-  progress: number // 0 to 1
+  progress: number,
+  _options: SidebarEntryOptions
 ): EntryAnimationResult {
-  // Define phase boundaries
-  const PHASE1_END = 0.25;  // Emerge
-  const PHASE2_END = 0.40;  // Stuck/pause
-  const PHASE3_END = 0.70;  // Tugging
-  // Phase 4: 0.70 - 1.0   // Break free
-  
-  // Midpoint where companion gets "stuck" (about 40% of the way)
-  const stuckX = lerp(startPosition.x, endPosition.x, 0.35);
-  const stuckY = startPosition.y - 8; // Slightly elevated when stuck
-  
-  let x: number;
-  let y: number;
-  let rotation = 0;
-  let scaleX = 1;
-  let scaleY = 1;
-  
-  if (progress < PHASE1_END) {
-    // Phase 1: Emerge diagonally
-    const phaseProgress = progress / PHASE1_END;
-    const eased = easeOutCubic(phaseProgress);
-    
-    x = lerp(startPosition.x, stuckX, eased);
-    // Diagonal movement - start a bit higher, come down
-    y = lerp(startPosition.y - 15, stuckY, eased);
-    // Slight forward lean while emerging
-    rotation = lerp(8, 3, eased);
-    // Slightly squished horizontally as if squeezing through
-    scaleX = lerp(0.85, 0.95, eased);
-    scaleY = lerp(1.1, 1.02, eased);
-    
-  } else if (progress < PHASE2_END) {
-    // Phase 2: Stuck - pause with slight wobble
-    const phaseProgress = (progress - PHASE1_END) / (PHASE2_END - PHASE1_END);
-    
-    x = stuckX;
-    y = stuckY;
-    // Small wobble effect
-    rotation = 3 + Math.sin(phaseProgress * Math.PI * 4) * 2;
-    scaleX = 0.95 + Math.sin(phaseProgress * Math.PI * 3) * 0.03;
-    scaleY = 1.02 - Math.sin(phaseProgress * Math.PI * 3) * 0.02;
-    
-  } else if (progress < PHASE3_END) {
-    // Phase 3: Tugging motions - forward and back pulls
-    const phaseProgress = (progress - PHASE2_END) / (PHASE3_END - PHASE2_END);
-    
-    // 3 tug cycles
-    const tugCycle = phaseProgress * 3;
-    const tugPhase = tugCycle % 1;
-    
-    // Each tug: pull forward, then bounce back
-    let tugOffset: number;
-    if (tugPhase < 0.5) {
-      // Pull forward
-      tugOffset = easeOutCubic(tugPhase * 2) * 20;
-    } else {
-      // Bounce back
-      tugOffset = (1 - easeOutCubic((tugPhase - 0.5) * 2)) * 20;
-    }
-    
-    // Each successive tug goes a bit further
-    const tugMultiplier = 1 + Math.floor(tugCycle) * 0.3;
-    tugOffset *= tugMultiplier;
-    
-    x = stuckX + tugOffset;
-    y = stuckY + Math.sin(tugPhase * Math.PI) * 3; // Slight vertical motion
-    
-    // Lean into the tug
-    rotation = tugPhase < 0.5 ? lerp(3, -5, tugPhase * 2) : lerp(-5, 3, (tugPhase - 0.5) * 2);
-    
-    // Stretch during tug
-    if (tugPhase < 0.5) {
-      scaleX = lerp(0.95, 1.1, tugPhase * 2);
-      scaleY = lerp(1.02, 0.92, tugPhase * 2);
-    } else {
-      scaleX = lerp(1.1, 0.95, (tugPhase - 0.5) * 2);
-      scaleY = lerp(0.92, 1.02, (tugPhase - 0.5) * 2);
-    }
-    
-  } else {
-    // Phase 4: Break free and walk to final position
-    const phaseProgress = (progress - PHASE3_END) / (1 - PHASE3_END);
-    const eased = easeInOutCubic(phaseProgress);
-    
-    // Start from last tug position (slightly ahead of stuck point)
-    const breakFreeStartX = stuckX + 25;
-    
-    x = lerp(breakFreeStartX, endPosition.x, eased);
-    y = lerp(stuckY, endPosition.y, eased);
-    
-    // Return to normal orientation
-    rotation = lerp(3, 0, eased);
-    scaleX = lerp(0.98, 1, eased);
-    scaleY = lerp(1.01, 1, eased);
-  }
+  // Simple eased walk from start to end
+  const eased = easeOutCubic(progress);
   
   return {
-    position: { x, y },
-    rotation,
-    scaleX,
-    scaleY,
+    position: {
+      x: lerp(startPosition.x, endPosition.x, eased),
+      y: lerp(startPosition.y, endPosition.y, eased),
+    },
+    // No rotation - just walking straight
+    rotation: 0,
+    // Normal scale throughout
+    scaleX: 1,
+    scaleY: 1,
     complete: progress >= 1,
   };
 }
 
 /**
+ * Calculate a simple lateral entry animation for mobile.
+ * 
+ * The companion slides in smoothly from the left edge of the screen.
+ * No "stuck" or "tugging" behavior - just a clean entrance.
+ * 
+ * @param startPosition - Starting position (off-screen left)
+ * @param endPosition - Final resting position
+ * @param progress - Animation progress from 0 to 1
+ */
+export function calculateMobileEntryAnimation(
+  startPosition: Position,
+  endPosition: Position,
+  progress: number
+): EntryAnimationResult {
+  // Simple eased slide-in
+  const eased = easeOutCubic(progress);
+  
+  // Slight bounce effect at the end
+  const bounceProgress = Math.max(0, (progress - 0.7) / 0.3);
+  const bounce = bounceProgress > 0 
+    ? Math.sin(bounceProgress * Math.PI) * 8 * (1 - bounceProgress)
+    : 0;
+  
+  return {
+    position: {
+      x: lerp(startPosition.x, endPosition.x, eased) + bounce,
+      y: lerp(startPosition.y, endPosition.y, eased),
+    },
+    // Slight forward lean that settles
+    rotation: lerp(8, 0, eased),
+    // Slight stretch while moving fast
+    scaleX: 1 + (1 - eased) * 0.1,
+    scaleY: 1 - (1 - eased) * 0.05,
+    complete: progress >= 1,
+  };
+}
+
+/**
+ * Calculate entry animation - dispatches to sidebar or mobile version.
+ * 
+ * @deprecated Use calculateSidebarEntryAnimation or calculateMobileEntryAnimation directly
+ */
+export function calculateEntryAnimation(
+  startPosition: Position,
+  endPosition: Position,
+  progress: number
+): EntryAnimationResult {
+  // Legacy function - assumes desktop with default stuck point
+  // For proper behavior, use calculateSidebarEntryAnimation with real boundary
+  const stuckProgress = 0.40;
+  const contentBoundaryX = lerp(startPosition.x, endPosition.x, stuckProgress) - 15;
+  
+  return calculateSidebarEntryAnimation(startPosition, endPosition, progress, {
+    contentBoundaryX,
+  });
+}
+
+/**
  * Create an entry animation that moves from off-screen to a target position.
- * @deprecated Use calculateEntryAnimation for the new playful animation
+ * @deprecated Use calculateSidebarEntryAnimation or calculateMobileEntryAnimation
  */
 export function createEntryAnimation(
   startPosition: Position,
@@ -164,20 +146,87 @@ export function createEntryAnimation(
 }
 
 /**
+ * Floating animation offset result.
+ */
+export interface FloatOffset {
+  x: number;
+  y: number;
+  rotation: number;
+}
+
+/**
+ * Calculate a gentle floating/swaying animation.
+ * 
+ * This creates a charming, organic floating motion with:
+ * - Gentle vertical float (breathing-like)
+ * - Subtle horizontal sway
+ * - Soft rotation tilt
+ * 
+ * The motion uses multiple sine waves at different frequencies
+ * to create a natural, non-repetitive feel.
+ * 
+ * When walking: faster, more energetic bobbing in sync with movement
+ * When idle: slower, calmer breathing/hovering effect
+ * 
+ * @param time - Current animation time in milliseconds
+ * @param isMoving - Whether the companion is currently moving
+ * @returns Offset values for x, y, and rotation
+ */
+export function calculateFloatAnimation(time: number, isMoving: boolean): FloatOffset {
+  if (isMoving) {
+    // WALKING: Faster, more energetic motion
+    // Rhythmic bobbing that feels connected to movement
+    const bobFreq = 0.008;      // Fast bob (~0.8 seconds per cycle)
+    const swayFreq = 0.006;     // Quick sway (~1 second per cycle)
+    
+    // Vertical bob - bouncy walking rhythm
+    const primaryBob = Math.sin(time * bobFreq) * 4;
+    const secondaryBob = Math.sin(time * bobFreq * 1.5 + 0.3) * 1.5;
+    const yOffset = primaryBob + secondaryBob;
+    
+    // Horizontal sway - slight side-to-side with walking
+    const xOffset = Math.sin(time * swayFreq) * 3;
+    
+    // Rotation - gentle lean into movement direction
+    const rotation = Math.sin(time * swayFreq - 0.2) * 3;
+    
+    return { x: xOffset, y: yOffset, rotation };
+  } else {
+    // IDLE: Slower, calmer breathing/hovering
+    const floatFreq = 0.002;    // Slow float (~3 seconds per cycle)
+    const breatheFreq = 0.0015; // Very slow breathe (~4.2 seconds)
+    const swayFreq = 0.001;     // Gentle sway (~6.3 seconds)
+    
+    // Vertical float - gentle breathing motion
+    const primaryFloat = Math.sin(time * floatFreq) * 2.5;
+    const breatheFloat = Math.sin(time * breatheFreq + 0.5) * 1;
+    const yOffset = primaryFloat + breatheFloat;
+    
+    // Horizontal sway - very subtle drift
+    const xOffset = Math.sin(time * swayFreq) * 1.5;
+    
+    // Rotation - soft, slow tilt
+    const rotation = Math.sin(time * swayFreq - 0.3) * 1.5;
+    
+    return { x: xOffset, y: yOffset, rotation };
+  }
+}
+
+/**
  * Create a bobbing animation for idle state.
  * Returns a Y offset to add to the base position.
+ * @deprecated Use calculateFloatAnimation instead for a more organic feel
  */
 export function calculateIdleBob(time: number, amplitude: number = 2): number {
-  // Gentle breathing-like motion
   return Math.sin(time * 0.002) * amplitude;
 }
 
 /**
  * Create a walking bounce animation.
  * Returns a Y offset to add to the base position.
+ * @deprecated Use calculateFloatAnimation instead for a more organic feel
  */
 export function calculateWalkBounce(time: number, speed: number): number {
-  // Faster walking = faster bounce
   const frequency = 0.01 + (speed / 100) * 0.005;
   const amplitude = 1.5 + (speed / 100) * 1;
   return Math.abs(Math.sin(time * frequency)) * amplitude;

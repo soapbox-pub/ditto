@@ -57,8 +57,8 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
     mouseFollowChance: 0.15,    // 15% chance to start following mouse
   },
   
-  // Entry animation - playful "squeezing out" from previous page
-  entryAnimationDuration: 2200, // ms - slower for the full sequence
+  // Entry animation - simple walking entrance from behind sidebar
+  entryAnimationDuration: 1200, // ms - smooth walk in
 };
 
 /**
