@@ -52,7 +52,7 @@ export function MobileBottomNav() {
       >
         <ArcBackground variant={noArcs ? 'rect' : 'up'} />
 
-        <div className="h-11 mt-2 flex items-center relative">
+        <div className="h-11 mt-0.5 flex items-center relative">
 
           {/* Feed */}
           <Link
