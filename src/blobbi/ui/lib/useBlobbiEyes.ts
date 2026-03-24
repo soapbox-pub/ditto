@@ -49,6 +49,11 @@ export interface UseBlobbiEyesOptions {
   lookMode?: BlobbiLookMode;
   /** Disable blinking animation (for photo/export mode) */
   disableBlink?: boolean;
+  /** 
+   * Disable eye tracking only (keep blinking).
+   * Used when external system controls eye position (e.g., companion mode).
+   */
+  disableTracking?: boolean;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -209,7 +214,7 @@ export function useBlobbiEyes(
   containerRef: React.RefObject<HTMLDivElement | null>,
   options: UseBlobbiEyesOptions = {}
 ): void {
-  const { isSleeping = false, maxMovement = DEFAULT_MAX_MOVEMENT, lookMode = 'follow-pointer', disableBlink = false } = options;
+  const { isSleeping = false, maxMovement = DEFAULT_MAX_MOVEMENT, lookMode = 'follow-pointer', disableBlink = false, disableTracking = false } = options;
 
   // Animation frame ref for cleanup
   const animationRef = useRef<number | null>(null);
@@ -345,39 +350,43 @@ export function useBlobbiEyes(
       }
 
       // ─── Calculate Eye Position ───────────────────────────────────────
-      let eyeX = 0;
-      let eyeY = 0;
+      // Skip eye tracking if disableTracking is true (external system controls eyes)
+      if (!disableTracking) {
+        let eyeX = 0;
+        let eyeY = 0;
 
-      if (lookMode === 'follow-pointer') {
-        // Get Blobbi center position
-        const rect = containerRef.current.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
+        if (lookMode === 'follow-pointer') {
+          // Get Blobbi center position
+          const rect = containerRef.current.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
 
-        // Calculate direction to mouse
-        const dx = globalMouseX - centerX;
-        const dy = globalMouseY - centerY;
+          // Calculate direction to mouse
+          const dx = globalMouseX - centerX;
+          const dy = globalMouseY - centerY;
 
-        // Calculate angle to mouse
-        const angle = Math.atan2(dy, dx);
+          // Calculate angle to mouse
+          const angle = Math.atan2(dy, dx);
 
-        // Calculate eye position (instant, no interpolation)
-        eyeX = Math.cos(angle) * maxMovement;
-        eyeY = Math.sin(angle) * maxMovement * VERTICAL_SCALE;
+          // Calculate eye position (instant, no interpolation)
+          eyeX = Math.cos(angle) * maxMovement;
+          eyeY = Math.sin(angle) * maxMovement * VERTICAL_SCALE;
+        }
+        // 'forward' mode: eyes stay at (0, 0) - looking straight ahead
+
+        // ─── Apply Tracking Transform (pupils only) ──────────────────────────
+        // Only translate - no scale here. Eye whites stay fixed.
+        const trackingTransform = `translate(${eyeX} ${eyeY})`;
+
+        leftEyesRef.current.forEach((el) => {
+          el.setAttribute('transform', trackingTransform);
+        });
+
+        rightEyesRef.current.forEach((el) => {
+          el.setAttribute('transform', trackingTransform);
+        });
       }
-      // 'forward' mode: eyes stay at (0, 0) - looking straight ahead
-
-      // ─── Apply Tracking Transform (pupils only) ──────────────────────────
-      // Only translate - no scale here. Eye whites stay fixed.
-      const trackingTransform = `translate(${eyeX} ${eyeY})`;
-
-      leftEyesRef.current.forEach((el) => {
-        el.setAttribute('transform', trackingTransform);
-      });
-
-      rightEyesRef.current.forEach((el) => {
-        el.setAttribute('transform', trackingTransform);
-      });
+      // If disableTracking is true, external system handles eye position
 
       // ─── Apply Blink Transform (whole eye) ────────────────────────────────
       // Scale around eye center using: translate(cx,cy) scale(1,blinkY) translate(-cx,-cy)
@@ -412,5 +421,5 @@ export function useBlobbiEyes(
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isSleeping, maxMovement, lookMode, disableBlink, containerRef]);
+  }, [isSleeping, maxMovement, lookMode, disableBlink, disableTracking, containerRef]);
 }
