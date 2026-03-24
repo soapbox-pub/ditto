@@ -83,8 +83,28 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
     postRouteDelay: 200,     // Small delay after entry animation finishes
   },
   
-  // Entry animation - simple walking entrance from behind sidebar
-  entryAnimationDuration: 1200, // ms - smooth walk in
+  // Entry animation - peeking entrance sequence
+  entryAnimationDuration: 1200, // ms - total duration for basic entry (legacy)
+  
+  // Peeking entry sequence timing
+  entry: {
+    /** Duration of the peeking phase - slow diagonal emergence (ms) */
+    peekDuration: 800,
+    /** Duration of each inspection look (ms) */
+    inspectionLookDuration: 400,
+    /** Pause between inspection looks (ms) */
+    inspectionPauseDuration: 150,
+    /** Duration of transition from peek pose to normal walking (ms) */
+    enterTransitionDuration: 500,
+    /** Duration of final walk-in after transition (ms) */
+    walkInDuration: 600,
+    /** How far to peek in before stopping to inspect (0-1, fraction of total distance) */
+    peekDistance: 0.35,
+    /** Diagonal rotation angle during peek (degrees) */
+    peekRotation: -18,
+    /** Delay before restarting entry when route changes during entry (ms) */
+    routeChangeRestartDelay: 1000,
+  },
 };
 
 /**

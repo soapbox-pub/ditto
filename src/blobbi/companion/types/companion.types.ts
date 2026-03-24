@@ -26,7 +26,42 @@ export type GazeMode =
   | 'follow-mouse'  // Following cursor
   | 'observe-target'// Looking at a specific observation target
   | 'attend-ui'     // Looking at a UI element that appeared
+  | 'entry-inspect' // Looking around during entry inspection sequence
   | 'idle';         // Neutral/resting gaze
+
+// ─── Entry Animation ──────────────────────────────────────────────────────────
+
+/** 
+ * Entry animation phases for the peeking entrance sequence.
+ * Blobbi cautiously peeks into the page, inspects it, then enters normally.
+ */
+export type EntryPhase =
+  | 'idle'          // Not entering
+  | 'peeking'       // Slowly emerging diagonally, body tilted
+  | 'inspecting'    // Paused, looking around (UP, RIGHT, LEFT in random order)
+  | 'entering'      // Transitioning from peek pose to normal walking in
+  | 'complete';     // Entry finished
+
+/** Direction to look during inspection */
+export type InspectionDirection = 'up' | 'right' | 'left';
+
+/** State for the entry animation sequence */
+export interface EntryState {
+  /** Current phase of the entry animation */
+  phase: EntryPhase;
+  /** Overall progress through the entire entry sequence (0-1) */
+  progress: number;
+  /** Progress within the current phase (0-1) */
+  phaseProgress: number;
+  /** Current inspection direction (during 'inspecting' phase) */
+  inspectionDirection: InspectionDirection | null;
+  /** Index of current inspection look (0, 1, 2) */
+  inspectionIndex: number;
+  /** Randomized order of inspection directions for this entry */
+  inspectionOrder: InspectionDirection[];
+  /** Timestamp when current phase started */
+  phaseStartTime: number;
+}
 
 // ─── Position & Motion ────────────────────────────────────────────────────────
 
@@ -193,6 +228,26 @@ export interface CompanionConfig {
   };
   /** Entry animation duration (ms) */
   entryAnimationDuration: number;
+  
+  /** Peeking entry sequence configuration */
+  entry: {
+    /** Duration of the peeking phase - slow diagonal emergence (ms) */
+    peekDuration: number;
+    /** Duration of each inspection look (ms) */
+    inspectionLookDuration: number;
+    /** Pause between inspection looks (ms) */
+    inspectionPauseDuration: number;
+    /** Duration of transition from peek pose to normal walking (ms) */
+    enterTransitionDuration: number;
+    /** Duration of final walk-in after transition (ms) */
+    walkInDuration: number;
+    /** How far to peek in before stopping to inspect (0-1, fraction of total distance) */
+    peekDistance: number;
+    /** Diagonal rotation angle during peek (degrees) */
+    peekRotation: number;
+    /** Delay before restarting entry when route changes during entry (ms) */
+    routeChangeRestartDelay: number;
+  };
 }
 
 // ─── Companion Context ────────────────────────────────────────────────────────

@@ -13,12 +13,15 @@ import type {
   CompanionMotion,
   EyeOffset,
   Position,
+  EntryState,
 } from '../types/companion.types';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { 
   calculateFloatAnimation,
   calculateSidebarEntryAnimation,
   calculateMobileEntryAnimation,
+  calculatePeekingEntryAnimation,
+  type PeekingEntryConfig,
 } from '../utils/animation';
 import { BlobbiCompanionVisual } from './BlobbiCompanionVisual';
 
@@ -33,8 +36,10 @@ interface BlobbiCompanionProps {
   eyeOffset: EyeOffset;
   /** Whether entry animation is playing */
   isEntering: boolean;
-  /** Entry animation progress (0-1) */
+  /** Entry animation progress (0-1) - legacy, use entryState for detailed control */
   entryProgress: number;
+  /** Full entry animation state with phase info */
+  entryState: EntryState;
   /** Entry start position */
   entryStartPosition: Position;
   /** Entry end position */
@@ -79,6 +84,7 @@ export function BlobbiCompanion({
   eyeOffset,
   isEntering,
   entryProgress,
+  entryState,
   entryStartPosition,
   entryEndPosition,
   onStartDrag,
@@ -108,6 +114,18 @@ export function BlobbiCompanion({
     return () => cancelAnimationFrame(animationId);
   }, []);
   
+  // Peeking entry config (derived from main config)
+  const peekingConfig: PeekingEntryConfig = {
+    peekDistance: config.entry.peekDistance,
+    peekRotation: config.entry.peekRotation,
+    phaseDurations: {
+      peek: 0.3,
+      inspect: 0.4,
+      transition: 0.15,
+      walkIn: 0.15,
+    },
+  };
+  
   // Calculate position and transform
   let x: number;
   let y: number;
@@ -117,23 +135,32 @@ export function BlobbiCompanion({
   
   if (isEntering) {
     // Choose animation based on mobile vs desktop
-    const entryAnim = isMobile
-      ? calculateMobileEntryAnimation(
-          entryStartPosition,
-          entryEndPosition,
-          entryProgress
-        )
-      : calculateSidebarEntryAnimation(
-          entryStartPosition,
-          entryEndPosition,
-          entryProgress,
-          { contentBoundaryX }
-        );
-    x = entryAnim.position.x;
-    y = entryAnim.position.y;
-    rotation = entryAnim.rotation;
-    scaleX = entryAnim.scaleX;
-    scaleY = entryAnim.scaleY;
+    if (isMobile) {
+      // Mobile: simple slide-in animation (no peeking)
+      const entryAnim = calculateMobileEntryAnimation(
+        entryStartPosition,
+        entryEndPosition,
+        entryProgress
+      );
+      x = entryAnim.position.x;
+      y = entryAnim.position.y;
+      rotation = entryAnim.rotation;
+      scaleX = entryAnim.scaleX;
+      scaleY = entryAnim.scaleY;
+    } else {
+      // Desktop: peeking entry animation
+      const entryAnim = calculatePeekingEntryAnimation(
+        entryStartPosition,
+        entryEndPosition,
+        entryState,
+        peekingConfig
+      );
+      x = entryAnim.position.x;
+      y = entryAnim.position.y;
+      rotation = entryAnim.rotation;
+      scaleX = entryAnim.scaleX;
+      scaleY = entryAnim.scaleY;
+    }
   } else if (motion.isDragging) {
     // Dragging - use motion position directly
     x = motion.position.x;
