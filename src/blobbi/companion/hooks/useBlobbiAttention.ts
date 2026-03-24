@@ -44,10 +44,12 @@ interface TriggerOptions {
   duration?: number;
   priority?: AttentionPriority;
   source?: string;
+  /** If true, uses shorter glance cooldown instead of default cooldown */
+  isGlance?: boolean;
 }
 
-// Selectors for UI elements that should trigger attention
-const UI_ELEMENT_SELECTORS = [
+// Selectors for UI elements that should trigger full attention (overlays)
+const UI_OVERLAY_SELECTORS = [
   // Radix UI primitives (used by shadcn/ui)
   '[data-radix-dialog-content]',
   '[data-radix-alert-dialog-content]',
@@ -55,7 +57,6 @@ const UI_ELEMENT_SELECTORS = [
   '[data-radix-dropdown-menu-content]',
   '[data-radix-context-menu-content]',
   '[data-radix-hover-card-content]',
-  '[data-radix-tooltip-content]',
   '[data-radix-navigation-menu-content]',
   // Vaul drawer
   '[data-vaul-drawer]',
@@ -65,6 +66,18 @@ const UI_ELEMENT_SELECTORS = [
   // Sheet/drawer patterns
   '[data-state="open"][data-side]',
 ];
+
+// Selectors for tab elements that trigger brief glances
+// These are more targeted to avoid triggering on every tab-like element
+const TAB_SELECTORS = [
+  // Radix UI tabs (used by shadcn/ui)
+  '[data-radix-tabs-content][data-state="active"]',
+  // Main navigation/feed tabs specifically
+  '[role="tabpanel"][data-state="active"]',
+];
+
+// Tooltip selector (very low priority, often ignored)
+const TOOLTIP_SELECTOR = '[data-radix-tooltip-content]';
 
 /**
  * Calculate the center position of an element.
@@ -78,10 +91,24 @@ function getElementCenter(element: Element): Position {
 }
 
 /**
- * Check if an element is a UI overlay we should attend to.
+ * Check if an element is a UI overlay we should attend to (full attention).
  */
-function isAttentionableElement(element: Element): boolean {
-  return UI_ELEMENT_SELECTORS.some(selector => element.matches(selector));
+function isOverlayElement(element: Element): boolean {
+  return UI_OVERLAY_SELECTORS.some(selector => element.matches(selector));
+}
+
+/**
+ * Check if an element is a tab content that just became active (glance).
+ */
+function isTabElement(element: Element): boolean {
+  return TAB_SELECTORS.some(selector => element.matches(selector));
+}
+
+/**
+ * Check if an element is a tooltip (very low priority).
+ */
+function isTooltipElement(element: Element): boolean {
+  return element.matches(TOOLTIP_SELECTOR);
 }
 
 /**
@@ -133,16 +160,18 @@ export function useBlobbiAttention({
     const now = Date.now();
     const timeSinceLastAttention = now - lastAttentionTimeRef.current;
     
-    // Respect cooldown to avoid spamming
-    if (timeSinceLastAttention < config.attention.cooldown) {
-      return;
-    }
-    
     const {
       duration = config.attention.defaultDuration,
       priority = 'normal',
       source,
+      isGlance = false,
     } = options;
+    
+    // Respect cooldown to avoid spamming (shorter cooldown for glances)
+    const cooldown = isGlance ? config.attention.glanceCooldown : config.attention.cooldown;
+    if (timeSinceLastAttention < cooldown) {
+      return;
+    }
     
     // If there's a current attention, check priority
     if (currentAttention) {
@@ -180,11 +209,10 @@ export function useBlobbiAttention({
   }, [config.attention, currentAttention, clearAttention, onAttentionStart]);
   
   /**
-   * Handle new elements appearing in the DOM.
+   * Handle overlay elements (modals, dialogs, sheets) - full attention.
    */
-  const handleNewElement = useCallback((element: Element) => {
+  const handleOverlayElement = useCallback((element: Element) => {
     if (!isActive) return;
-    if (!isAttentionableElement(element)) return;
     
     const position = getElementCenter(element);
     
@@ -192,17 +220,70 @@ export function useBlobbiAttention({
     let priority: AttentionPriority = 'normal';
     if (element.matches('[role="alertdialog"]')) {
       priority = 'high'; // Alert dialogs are important
-    } else if (element.matches('[data-radix-tooltip-content]')) {
-      priority = 'low'; // Tooltips are less important
     }
     
     // Get source info for debugging
-    const source = element.tagName.toLowerCase() + 
-      (element.id ? `#${element.id}` : '') +
-      (element.className ? `.${element.className.split(' ')[0]}` : '');
+    const source = 'overlay:' + element.tagName.toLowerCase() + 
+      (element.id ? `#${element.id}` : '');
     
     triggerAttention(position, { priority, source });
   }, [isActive, triggerAttention]);
+  
+  /**
+   * Handle tab content changes - brief glance only.
+   */
+  const handleTabElement = useCallback((element: Element) => {
+    if (!isActive) return;
+    
+    const position = getElementCenter(element);
+    
+    // Get source info for debugging
+    const source = 'tab:' + element.tagName.toLowerCase() + 
+      (element.id ? `#${element.id}` : '');
+    
+    // Use glance duration and mark as glance for shorter cooldown
+    triggerAttention(position, { 
+      priority: 'low', 
+      source,
+      duration: config.attention.glanceDuration,
+      isGlance: true,
+    });
+  }, [isActive, triggerAttention, config.attention.glanceDuration]);
+  
+  /**
+   * Handle tooltip elements - very brief, low priority.
+   * Usually ignored due to low priority and cooldown.
+   */
+  const handleTooltipElement = useCallback((element: Element) => {
+    if (!isActive) return;
+    
+    // Skip tooltips entirely - they're too noisy
+    // Keeping this function for future use if needed
+    void element;
+  }, [isActive]);
+  
+  /**
+   * Process an element to determine what kind of attention it should trigger.
+   */
+  const processElement = useCallback((element: Element) => {
+    // Check overlay elements first (highest priority for attention)
+    if (isOverlayElement(element)) {
+      handleOverlayElement(element);
+      return;
+    }
+    
+    // Check tab elements (brief glance)
+    if (isTabElement(element)) {
+      handleTabElement(element);
+      return;
+    }
+    
+    // Tooltips are intentionally skipped (too noisy)
+    if (isTooltipElement(element)) {
+      handleTooltipElement(element);
+      return;
+    }
+  }, [handleOverlayElement, handleTabElement, handleTooltipElement]);
   
   /**
    * Set up MutationObserver to watch for new UI elements.
@@ -216,6 +297,9 @@ export function useBlobbiAttention({
       return;
     }
     
+    // Combined selectors for querying descendants
+    const allSelectors = [...UI_OVERLAY_SELECTORS, ...TAB_SELECTORS].join(', ');
+    
     // Create observer for new elements
     observerRef.current = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
@@ -223,27 +307,31 @@ export function useBlobbiAttention({
         for (const node of mutation.addedNodes) {
           if (node instanceof Element) {
             // Check the node itself
-            if (isAttentionableElement(node)) {
-              handleNewElement(node);
-            }
+            processElement(node);
             
             // Check descendants (for portaled content)
-            const descendants = node.querySelectorAll(UI_ELEMENT_SELECTORS.join(', '));
+            const descendants = node.querySelectorAll(allSelectors);
             descendants.forEach(descendant => {
-              handleNewElement(descendant);
+              processElement(descendant);
             });
           }
         }
         
-        // Also check attribute changes (for state="open" transitions)
+        // Also check attribute changes (for state changes)
         if (mutation.type === 'attributes' && mutation.target instanceof Element) {
           const target = mutation.target;
           
-          // Check if it became open/visible
           if (mutation.attributeName === 'data-state') {
             const newState = target.getAttribute('data-state');
-            if (newState === 'open' && isAttentionableElement(target)) {
-              handleNewElement(target);
+            
+            // For overlays: check if it became "open"
+            if (newState === 'open' && isOverlayElement(target)) {
+              handleOverlayElement(target);
+            }
+            
+            // For tabs: check if it became "active"
+            if (newState === 'active' && isTabElement(target)) {
+              handleTabElement(target);
             }
           }
         }
@@ -264,7 +352,7 @@ export function useBlobbiAttention({
         observerRef.current = null;
       }
     };
-  }, [isActive, handleNewElement]);
+  }, [isActive, processElement, handleOverlayElement, handleTabElement]);
   
   // Cleanup on unmount
   useEffect(() => {

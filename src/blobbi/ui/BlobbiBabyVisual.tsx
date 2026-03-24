@@ -86,10 +86,19 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
     if (eyeElements.length === 0) return;
 
     // Convert -1 to 1 offset to pixel movement
-    // Increased max movement for more visible eye tracking (4px instead of 2px)
-    const maxMovement = 4;
-    const x = externalEyeOffset.x * maxMovement;
-    const y = externalEyeOffset.y * maxMovement * 0.7; // Less vertical movement
+    // Increased max movement for more visible eye tracking (4px horizontal)
+    const maxMovementX = 4;
+    const x = externalEyeOffset.x * maxMovementX;
+    
+    // Asymmetric vertical movement:
+    // - Upward (negative y): stronger movement (1.0x) for clear "looking up" effect
+    // - Downward (positive y): reduced movement (0.6x) to avoid looking too droopy
+    // Y offset: -1 = looking up, +1 = looking down
+    const maxMovementYUp = 4;    // Full range for looking up
+    const maxMovementYDown = 2.4; // Reduced range for looking down (0.6x)
+    const y = externalEyeOffset.y < 0 
+      ? externalEyeOffset.y * maxMovementYUp    // Looking up: full range
+      : externalEyeOffset.y * maxMovementYDown; // Looking down: reduced range
 
     eyeElements.forEach(el => {
       el.setAttribute('transform', `translate(${x} ${y})`);

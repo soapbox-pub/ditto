@@ -302,6 +302,7 @@ export function updateGaze(
 
 /**
  * Calculate eye offset for a given gaze target.
+ * Uses asymmetric vertical scaling - upward targets produce stronger offset.
  */
 export function calculateEyeOffset(
   companionPosition: Position,
@@ -312,9 +313,18 @@ export function calculateEyeOffset(
   const dy = targetPosition.y - companionPosition.y;
   
   // Normalize to -1 to 1 range with some clamping
-  const maxDistance = 500; // Beyond this, eyes are fully to one side
-  const x = Math.max(-1, Math.min(1, dx / maxDistance));
-  const y = Math.max(-1, Math.min(1, dy / maxDistance));
+  const maxDistanceX = 500; // Beyond this, eyes are fully to one side
+  
+  // Asymmetric vertical: smaller distance needed for upward gaze
+  // This makes Blobbi more reactive to things above (like UI elements)
+  const maxDistanceYUp = 350;   // Easier to look fully up
+  const maxDistanceYDown = 500; // Normal distance for looking down
+  
+  const x = Math.max(-1, Math.min(1, dx / maxDistanceX));
+  
+  // dy < 0 means target is above Blobbi (looking up)
+  const maxDistanceY = dy < 0 ? maxDistanceYUp : maxDistanceYDown;
+  const y = Math.max(-1, Math.min(1, dy / maxDistanceY));
   
   return { x, y };
 }
