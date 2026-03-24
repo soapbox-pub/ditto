@@ -1,13 +1,13 @@
 import { cn } from '@/lib/utils';
 
 /** The arc overhang in pixels that extends beyond the element's bounds. */
-export const ARC_OVERHANG_PX = 20;
+export const ARC_OVERHANG_PX = 24;
 
 /** SVG path for a downward arc (used by top bar and sub-header bar). */
-const ARC_DOWN_PATH = 'M0,0 L100,0 L100,44 Q50,64 0,44 Z';
+const ARC_DOWN_PATH = 'M0,0 L100,0 L100,24 Q50,64 0,24 Z';
 
 /** SVG path for an upward arc (used by bottom nav). */
-const ARC_UP_PATH = 'M0,20 Q50,0 100,20 L100,64 L0,64 Z';
+const ARC_UP_PATH = 'M0,30 Q50,0 100,30 L100,64 L0,64 Z';
 
 /** SVG path for a plain rectangle with no arc. */
 const RECT_PATH = 'M0,0 L100,0 L100,64 L0,64 Z';
