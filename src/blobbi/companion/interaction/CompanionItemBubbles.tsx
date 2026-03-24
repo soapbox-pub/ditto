@@ -58,7 +58,7 @@ export function CompanionItemBubbles({
       const actionConfig = getMenuActionConfig(selectedAction);
       return (
         <div
-          className="fixed left-1/2 -translate-x-1/2 animate-in fade-in slide-in-from-top-4 duration-300"
+          className="fixed left-1/2 -translate-x-1/2 animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-auto"
           style={{
             top: BUBBLES_CONFIG.topMargin,
             zIndex: 10003,
@@ -79,7 +79,7 @@ export function CompanionItemBubbles({
   
   return (
     <div
-      className="fixed left-1/2 -translate-x-1/2 animate-in fade-in slide-in-from-top-4 duration-300"
+      className="fixed left-1/2 -translate-x-1/2 animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-auto"
       style={{
         top: BUBBLES_CONFIG.topMargin,
         zIndex: 10003,

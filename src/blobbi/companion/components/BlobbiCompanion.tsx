@@ -56,6 +56,8 @@ interface BlobbiCompanionProps {
   onEndDrag: () => void;
   /** Click callback (when interaction is a click, not a drag) */
   onClick?: () => void;
+  /** Callback to report rendered position (including animations) */
+  onPositionUpdate?: (position: Position) => void;
   /** Debug mode - disables animations and shows visual debug aids */
   debugMode?: boolean;
 }
@@ -66,7 +68,7 @@ export function BlobbiCompanion({
   motion,
   eyeOffset,
   isEntering,
-  entryProgress,
+  entryProgress: _entryProgress,
   entryState,
   groundPosition,
   viewport,
@@ -74,6 +76,7 @@ export function BlobbiCompanion({
   onUpdateDrag,
   onEndDrag,
   onClick,
+  onPositionUpdate,
   debugMode = false,
 }: BlobbiCompanionProps) {
   const config = DEFAULT_COMPANION_CONFIG;
@@ -169,6 +172,17 @@ export function BlobbiCompanion({
   const floatOffset = (!useEntryPosition && !motion.isDragging && !debugMode)
     ? calculateFloatAnimation(animationTime, state === 'walking')
     : { x: 0, y: 0, rotation: 0 };
+  
+  // Report the final rendered position (base position + float offset)
+  // This is the actual visual position where Blobbi appears on screen
+  const renderedX = x + floatOffset.x;
+  const renderedY = y + floatOffset.y;
+  
+  useEffect(() => {
+    if (onPositionUpdate) {
+      onPositionUpdate({ x: renderedX, y: renderedY });
+    }
+  }, [renderedX, renderedY, onPositionUpdate]);
   
   // Build transform string
   const transform = useEntryPosition 

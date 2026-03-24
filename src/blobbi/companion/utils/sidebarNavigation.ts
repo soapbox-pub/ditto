@@ -6,7 +6,7 @@
  * above or rise from below based on navigation direction.
  */
 
-import { SIDEBAR_ITEMS, getSidebarItem, isSidebarDivider } from '@/lib/sidebarItems';
+import { SIDEBAR_ITEMS, isSidebarDivider } from '@/lib/sidebarItems';
 
 /**
  * Direction of navigation relative to sidebar order.

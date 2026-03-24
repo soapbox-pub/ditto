@@ -114,8 +114,9 @@ export function CompanionActionMenu({
   return (
     <>
       {/* Invisible backdrop for click outside detection */}
+      {/* pointer-events-auto is needed because parent layer has pointer-events-none */}
       <div
-        className="fixed inset-0"
+        className="fixed inset-0 pointer-events-auto"
         style={{ zIndex: 10001 }}
         onClick={onClickOutside}
         aria-hidden="true"
@@ -133,8 +134,8 @@ export function CompanionActionMenu({
           <button
             key={action.id}
             className={cn(
-              // Base styles
-              "fixed flex items-center justify-center rounded-full",
+              // Base styles - pointer-events-auto needed because parent has pointer-events-none
+              "fixed flex items-center justify-center rounded-full pointer-events-auto",
               "shadow-lg transition-all duration-200",
               "focus:outline-none focus:ring-2 focus:ring-primary/50",
               // Background

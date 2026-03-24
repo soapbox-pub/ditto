@@ -26,7 +26,7 @@ interface TabButtonProps {
  * - Clicking the **active** tab smooth-scrolls to the top.
  * - Switching to a **different** tab resets scroll position instantly.
  */
-export function TabButton({ label, active, onClick, disabled, className, indicatorClassName, children }: TabButtonProps) {
+export function TabButton({ label, active, onClick, disabled, className, indicatorClassName: _indicatorClassName, children }: TabButtonProps) {
   const ref = useRef<HTMLButtonElement>(null);
   const { onHover, onActive } = useSubHeaderBarHover();
 

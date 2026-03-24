@@ -231,7 +231,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   const {
     entryState,
     isEntering,
-    isPermanentlyStuck,
+    isPermanentlyStuck: _isPermanentlyStuck,
     isHiddenForTransition,
     currentInspectionDirection,
     acknowledgeCompletion,

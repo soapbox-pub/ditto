@@ -14,7 +14,7 @@
  * - Selecting an action shows available items as floating bubbles
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 import { useBlobbiCompanion } from '../hooks/useBlobbiCompanion';
 import { BlobbiCompanion } from './BlobbiCompanion';
@@ -25,6 +25,7 @@ import {
   CompanionActionMenu,
   CompanionItemBubbles,
 } from '../interaction';
+import type { Position } from '../types/companion.types';
 
 // DEBUG MODE - Set to true to debug ground contact
 const DEBUG_GROUND_CONTACT = false;
@@ -59,6 +60,15 @@ export function BlobbiCompanionLayer() {
   } = useBlobbiCompanion();
   
   const config = DEFAULT_COMPANION_CONFIG;
+  
+  // Track the actual rendered position of the companion
+  // This accounts for entry animations, float offset, etc.
+  const [renderedPosition, setRenderedPosition] = useState<Position>(motion.position);
+  
+  // Handle position updates from BlobbiCompanion
+  const handlePositionUpdate = useCallback((position: Position) => {
+    setRenderedPosition(position);
+  }, []);
   
   // Action menu state
   const {
@@ -111,6 +121,7 @@ export function BlobbiCompanionLayer() {
     onUpdateDrag: updateDrag,
     onEndDrag: endDrag,
     onClick: handleCompanionClick,
+    onPositionUpdate: handlePositionUpdate,
   };
   
   // Calculate ground position for debug line
@@ -213,7 +224,7 @@ export function BlobbiCompanionLayer() {
       {/* Action Menu - radial buttons around Blobbi */}
       <CompanionActionMenu
         isOpen={menuState.isOpen}
-        companionPosition={motion.position}
+        companionPosition={renderedPosition}
         companionSize={config.size}
         actions={availableActions}
         selectedAction={menuState.selectedAction}
