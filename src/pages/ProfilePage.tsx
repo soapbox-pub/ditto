@@ -2048,17 +2048,24 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               {metadata?.nip05 && (
                 <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" showCheck />
               )}
-              {/* NIP-38 user status */}
+              {/* NIP-38 user status — thought bubble under the name */}
               {feedSettings.showUserStatuses !== false && profileStatus.status && (
-                <p className="text-sm text-muted-foreground italic mt-0.5 truncate animate-in fade-in duration-300">
-                  {profileStatus.url ? (
-                    <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                      {profileStatus.status}
-                    </a>
-                  ) : (
-                    profileStatus.status
-                  )}
-                </p>
+                <div className="mt-1 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
+                  <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg w-fit">
+                    <p className="text-xs md:text-sm text-foreground italic truncate pr-1">
+                      {profileStatus.url ? (
+                        <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          {profileStatus.status}
+                        </a>
+                      ) : (
+                        profileStatus.status
+                      )}
+                    </p>
+                    {/* Speech bubble triangle tail */}
+                    <div className="absolute -top-[6px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-b-[6px] border-b-border" />
+                    <div className="absolute -top-[5px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-b-[6px] border-b-background" />
+                  </div>
+                </div>
               )}
               {(metadata?.lud16 || metadata?.lud06) && (
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
