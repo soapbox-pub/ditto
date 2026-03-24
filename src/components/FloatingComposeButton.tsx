@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus, Construction } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,9 +7,9 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { PlanetButton } from '@/components/icons/PlanetButton';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { getAvatarShape, getEmojiMaskUrl } from '@/lib/avatarShape';
 
 /** Drop shadow style for the planet FAB — hoisted to avoid re-creating on every render. */
 const fabShadowStyle: React.CSSProperties = {
@@ -28,10 +28,29 @@ interface FloatingComposeButtonProps {
 }
 
 export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: FloatingComposeButtonProps) {
-  const { user } = useCurrentUser();
+  const { user, metadata } = useCurrentUser();
   const navigate = useNavigate();
   const [composeOpen, setComposeOpen] = useState(false);
   const [comingSoonOpen, setComingSoonOpen] = useState(false);
+
+  const avatarShape = getAvatarShape(metadata);
+
+  /** When the user has a custom emoji shape, use it as the FAB mask instead of a circle. */
+  const shapeMaskStyle = useMemo<React.CSSProperties | undefined>(() => {
+    if (!avatarShape) return undefined;
+    const maskUrl = getEmojiMaskUrl(avatarShape);
+    if (!maskUrl) return undefined;
+    return {
+      WebkitMaskImage: `url(${maskUrl})`,
+      maskImage: `url(${maskUrl})`,
+      WebkitMaskSize: 'contain',
+      maskSize: 'contain' as string,
+      WebkitMaskRepeat: 'no-repeat',
+      maskRepeat: 'no-repeat' as string,
+      WebkitMaskPosition: 'center',
+      maskPosition: 'center' as string,
+    };
+  }, [avatarShape]);
 
   if (!user) {
     return null;
@@ -56,9 +75,13 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
         className="relative size-16 transition-transform hover:scale-105 active:scale-95"
         style={fabShadowStyle}
       >
-        <PlanetButton />
-        {/* Plus icon centered on the planet body */}
-        <span className="absolute inset-0 flex items-center justify-center text-accent-foreground">
+        {/* FAB background: user's avatar shape (emoji mask) or circle (default) */}
+        <div
+          className="absolute inset-0 bg-primary rounded-full"
+          style={shapeMaskStyle}
+        />
+        {/* Plus icon centered on the button */}
+        <span className="absolute inset-0 flex items-center justify-center text-primary-foreground">
           {icon ?? <Plus strokeWidth={4} size={16} />}
         </span>
       </button>
