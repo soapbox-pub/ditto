@@ -125,29 +125,36 @@ export function BlobbiCompanionVisual({
       className={cn('relative', className)}
       style={{ width: size, height: size }}
     >
-      {/* Shadow underneath - soft ellipse anchored at ground level */}
+      {/* Shadow underneath - soft ellipse */}
       <div
         className="absolute pointer-events-none"
         style={{
-          bottom: 0,
+          bottom: -4,
           left: '50%',
-          width: size * 0.55,
-          height: size * 0.1,
+          width: size * 0.6,
+          height: size * 0.12,
           transform: `translateX(-50%) scaleX(${shadowScale})`,
-          background: `radial-gradient(ellipse at center, rgba(0,0,0,${shadowOpacity}) 0%, rgba(0,0,0,${shadowOpacity * 0.4}) 50%, transparent 75%)`,
+          background: `radial-gradient(ellipse at center, rgba(0,0,0,${shadowOpacity}) 0%, rgba(0,0,0,${shadowOpacity * 0.5}) 40%, transparent 70%)`,
           borderRadius: '50%',
-          filter: 'blur(1px)',
+          filter: 'blur(2px)',
           transition: isDragging ? 'none' : 'transform 0.1s ease-out',
         }}
       />
       
       {/* Blobbi visual with floating transform */}
+      {/* 
+        The SVG has empty space at the bottom (~12% of viewBox).
+        We use items-end to align Blobbi to the bottom of the container,
+        and add a small negative margin to pull it down to ground level.
+      */}
       <div
-        className="size-full"
+        className="size-full flex items-end justify-center"
         style={{
           transform: blobbiTransform,
           transformOrigin: 'center bottom',
           transition: isDragging ? 'none' : 'transform 0.05s ease-out',
+          // Pull Blobbi down to compensate for SVG bottom padding (~10% of size)
+          marginBottom: -size * 0.10,
         }}
       >
         {companion.stage === 'baby' && (
