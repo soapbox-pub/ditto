@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Bell, Search, User } from 'lucide-react';
-import { PlanetIcon } from '@/components/icons/PlanetIcon';
+import { Bell, Home, Search, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
@@ -9,7 +8,9 @@ import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutSnapshot } from '@/contexts/LayoutContext';
+import { getSidebarItem } from '@/lib/sidebarItems';
 import { ArcBackground, ARC_UP_OVERHANG_PX } from '@/components/ArcBackground';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
 
@@ -25,6 +26,12 @@ export function MobileBottomNav() {
   const { scrollContainer, noArcs } = useLayoutSnapshot();
   const { hidden } = useScrollDirection(scrollContainer);
   const profileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
+
+  const { config } = useAppContext();
+  const homeItem = getSidebarItem(config.homePage);
+  const HomeIcon = homeItem?.icon ?? Home;
+  const homeLabel = homeItem?.label ?? 'Home';
+  const homePath = homeItem?.path;
 
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -55,17 +62,17 @@ export function MobileBottomNav() {
           <ArcBackground variant={noArcs ? 'rect' : 'up'} />
           <div className="h-11 flex items-center relative">
 
-          {/* Feed */}
+          {/* Home */}
           <Link
-            to="/feed"
+            to="/"
             onClick={() => setSearchOpen(false)}
             className={cn(
               'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-              (location.pathname === '/feed' || location.pathname === '/') ? 'text-primary' : 'text-muted-foreground',
+              (location.pathname === '/' || location.pathname === homePath) ? 'text-primary' : 'text-muted-foreground',
             )}
           >
-            <PlanetIcon className="size-5" />
-            <span className="text-[10px] font-medium">Feed</span>
+            <HomeIcon className="size-5" />
+            <span className="text-[10px] font-medium">{homeLabel}</span>
           </Link>
 
           {/* Search */}
