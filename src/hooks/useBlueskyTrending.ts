@@ -63,7 +63,7 @@ interface SearchPostsResponse {
 // Constants
 // ---------------------------------------------------------------------------
 
-const BSKY_PUBLIC_API = 'https://public.api.bsky.app/xrpc';
+const BSKY_PUBLIC_API = 'https://api.bsky.app/xrpc';
 
 // Curated trending topics that surface interesting content
 const TRENDING_TOPICS = [
