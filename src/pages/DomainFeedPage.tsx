@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -13,7 +12,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
+import { PageHeader } from '@/components/PageHeader';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
@@ -92,26 +91,22 @@ export function DomainFeedPage() {
 
   return (
       <main className="">
-        <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-3 px-4 py-4 border-b border-border bg-background/80 backdrop-blur-md z-10')}>
-          <button
-            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
-            className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
-            aria-label="Go back"
-          >
-            <ArrowLeft className="size-5" />
-          </button>
-          <div className="flex items-center gap-2 min-w-0">
-            <ExternalFavicon url={domain ? `https://${domain}` : undefined} size={20} />
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold truncate leading-tight">{domain}</h1>
-              {pubkeys && pubkeys.length > 0 && (
-                <p className="text-xs text-muted-foreground leading-tight">
-                  {pubkeys.length} user{pubkeys.length !== 1 ? 's' : ''}
-                </p>
-              )}
+        <PageHeader
+          onBack={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
+          titleContent={
+            <div className="flex items-center gap-2 min-w-0">
+              <ExternalFavicon url={domain ? `https://${domain}` : undefined} size={20} />
+              <div className="min-w-0">
+                <h1 className="text-lg font-bold truncate leading-tight">{domain}</h1>
+                {pubkeys && pubkeys.length > 0 && (
+                  <p className="text-xs text-muted-foreground leading-tight">
+                    {pubkeys.length} user{pubkeys.length !== 1 ? 's' : ''}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
+          }
+        />
 
         {pubkeysError ? (
           <div className="py-16 text-center text-muted-foreground">

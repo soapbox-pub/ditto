@@ -6,13 +6,6 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Sticky header class for pages inside MainLayout.
- * On mobile, sticks below the top bar (accounting for safe area).
- * On desktop (sidebar+), sticks to the top of the viewport.
- */
-export const STICKY_HEADER_CLASS = 'sticky top-mobile-bar sidebar:top-0';
-
-/**
  * Parse a kindFilter string into an array of kind numbers.
  * Supports:
  * - 'all' → undefined (no override)

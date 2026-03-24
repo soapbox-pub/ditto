@@ -38,6 +38,7 @@ import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
 import { PlanetIcon } from "@/components/icons/PlanetIcon";
 import { WikipediaIcon } from "@/components/icons/WikipediaIcon";
+import { BlueskyIcon } from "@/components/icons/BlueskyIcon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -170,6 +171,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "world", label: "World", path: "/world", icon: Earth },
   { id: "archive", label: "Archive", path: "/archive", icon: Archive },
   { id: "wikipedia", label: "Wikipedia", path: "/wikipedia", icon: WikipediaIcon },
+  { id: "bluesky", label: "Bluesky", path: "/bluesky", icon: BlueskyIcon },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */

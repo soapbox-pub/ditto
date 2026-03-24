@@ -1,16 +1,18 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, BookMarked, Loader2, Search, X } from 'lucide-react';
+import { BookMarked, Loader2, Search, X } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { KindInfoButton } from '@/components/KindInfoButton';
+import { PageHeader } from '@/components/PageHeader';
 import { BookFeedItem, BookFeedItemSkeleton } from '@/components/BookFeedItem';
 import { useBookFeed } from '@/hooks/useBookFeed';
 import { useBookSearch, type BookSearchResult } from '@/hooks/useBookSearch';
@@ -18,6 +20,7 @@ import { usePrefetchBookSummaries } from '@/hooks/useBookSummary';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import type { ExtraKindDef } from '@/lib/extraKinds';
 
 type FeedTab = 'follows' | 'global';
@@ -44,6 +47,8 @@ export function BooksPage() {
     title: `Books | ${config.appName}`,
     description: 'Book reviews, ratings, and discussions from the Nostr community',
   });
+
+  useLayoutOptions({ hasSubHeader: !!user });
 
   const feedQuery = useBookFeed(activeTab);
 
@@ -93,28 +98,20 @@ export function BooksPage() {
 
   return (
     <main className="pb-16 sidebar:pb-0">
-      {/* Page header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <BookMarked className="size-5" />
-          <h1 className="text-xl font-bold">Books</h1>
-        </div>
+      {/* Follows / Global tabs */}
+      {user && (
+        <SubHeaderBar>
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
+          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+        </SubHeaderBar>
+      )}
+
+      <PageHeader title="Books" icon={<BookMarked className="size-5" />}>
         <KindInfoButton kindDef={booksDef} icon={<BookMarked className="size-10" />} />
-      </div>
+      </PageHeader>
 
       {/* Book search bar */}
       <BookSearchBar />
-
-      {/* Follows / Global tabs */}
-      {user && (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
-          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
-        </div>
-      )}
 
       <PullToRefresh onRefresh={handleRefresh}>
         {showSkeleton ? (

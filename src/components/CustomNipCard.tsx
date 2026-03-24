@@ -136,7 +136,7 @@ export function CustomNipCard({ event, preview = true }: CustomNipCardProps) {
 			{/* Full markdown content -- detail view only, outside card */}
 			{!preview && event.content && (
 				<div className="rounded-2xl border border-border overflow-hidden px-3.5 py-3">
-					<div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary prose-img:rounded-lg">
+					<div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-headings:font-bold prose-a:text-primary prose-img:rounded-lg">
 						<Markdown rehypePlugins={[rehypeSanitize]}>
 							{event.content}
 						</Markdown>

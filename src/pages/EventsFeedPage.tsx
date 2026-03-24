@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CalendarDays, Loader2 } from 'lucide-react';
+import { CalendarDays, Loader2 } from 'lucide-react';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { useSeoMeta } from '@unhead/react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -11,6 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { NoteCard } from '@/components/NoteCard';
+import { PageHeader } from '@/components/PageHeader';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -42,7 +43,7 @@ export function EventsFeedPage() {
   const [activeTab, setActiveTab] = useFeedTab<FeedTab>('events', ['follows', 'global']);
 
   useSeoMeta({ title: `Events | ${config.appName}` });
-  useLayoutOptions({ showFAB: true, fabKind: 31923 });
+  useLayoutOptions({ showFAB: true, fabKind: 31923, hasSubHeader: !!user });
 
   // Calendar events feed
   const feedQuery = useFeed(activeTab, { kinds: [31922, 31923] });
@@ -105,25 +106,17 @@ export function EventsFeedPage() {
 
   return (
     <main className="max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <CalendarDays className="size-5" />
-          <h1 className="text-xl font-bold">Events</h1>
-        </div>
-        <KindInfoButton kindDef={eventsDef} icon={sidebarItemIcon('events', 'size-5')} />
-      </div>
-
       {/* Follows / Global tabs */}
       {user && (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+        <SubHeaderBar>
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
           <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
-        </div>
+        </SubHeaderBar>
       )}
+
+      <PageHeader title="Events" icon={<CalendarDays className="size-5" />}>
+        <KindInfoButton kindDef={eventsDef} icon={sidebarItemIcon('events', 'size-5')} />
+      </PageHeader>
 
       <PullToRefresh onRefresh={handleRefresh}>
         {showSkeleton ? (
