@@ -236,6 +236,8 @@ export function BlobbiCompanionLayer() {
         isVisible={menuState.isOpen && menuState.selectedAction !== null}
         selectedAction={menuState.selectedAction}
         items={menuState.items}
+        viewportHeight={viewport.height}
+        groundOffset={config.padding.bottom}
         onItemRelease={handleItemClick}
       />
     </div>
