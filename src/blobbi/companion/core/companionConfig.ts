@@ -81,8 +81,8 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
     // Post-route attention - look at main content after entering a page
     postRouteDuration: 2500, // Look at main content for 2.5 seconds
     postRouteDelay: 200,     // Small delay after entry animation finishes
-    // Typing attention - focus on text field while user types in modals
-    typingIdleTimeout: 2000, // Release attention after 2s of no typing
+    // Typing attention - focus on text field caret while user types in modals
+    typingIdleTimeout: 4000, // Release attention after 4s of no typing
   },
   
   // Entry animation - legacy duration (see entry config for details)
