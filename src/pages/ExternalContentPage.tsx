@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Globe, Heart, MessageSquare, MoreHorizontal, Repeat2, Star, AlertTriangle, PanelLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Globe, MessageSquare, MoreHorizontal, Repeat2, Star, AlertTriangle, PanelLeft, Trash2 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -8,15 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ThreadedReplyList } from '@/components/ThreadedReplyList';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
-import { QuickReactMenu } from '@/components/QuickReactMenu';
-import { ReactionEmoji } from '@/components/CustomEmoji';
+import { ExternalReactionButton } from '@/components/ExternalReactionButton';
 import { BookReviewFormDialog } from '@/components/BookReviewForm';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import {
@@ -38,36 +36,16 @@ import { isEventMuted } from '@/lib/muteHelpers';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
-import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { timeAgo } from '@/lib/timeAgo';
-import { formatNumber } from '@/lib/formatNumber';
 import { extractWikipediaTitle } from '@/lib/linkEmbed';
 import { cn } from '@/lib/utils';
-import {
-  useExternalUserReaction,
-  useExternalReactionCount,
-} from '@/hooks/useExternalReactions';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { BookReview } from '@/lib/bookstr';
 import NotFound from './NotFound';
-
-// ---------------------------------------------------------------------------
-// Helper: NIP-73 k tag value
-// ---------------------------------------------------------------------------
-
-function getExternalKTag(content: ExternalContent): string {
-  switch (content.type) {
-    case 'url': return 'web';
-    case 'isbn': return 'isbn';
-    case 'iso3166': return 'iso3166';
-    default: return 'web';
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Action bar component for external content (react + share)
@@ -75,8 +53,6 @@ function getExternalKTag(content: ExternalContent): string {
 
 function ExternalActionBar({ content }: { content: ExternalContent }) {
   const { user } = useCurrentUser();
-  const { mutate: publishEvent } = useNostrPublish();
-  const queryClient = useQueryClient();
   const { toast } = useToast();
   const identifier = content.value;
   const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
@@ -93,134 +69,13 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
     toast({ title: 'Removed from sidebar' });
   }, [identifier, removeFromSidebar, toast]);
 
-  const userReactionData = useExternalUserReaction(content);
-  const reactionCount = useExternalReactionCount(content);
-
-  const hasReacted = !!userReactionData;
-  const userEmoji = userReactionData?.emoji;
-  const userReactionTags = userReactionData?.tags;
-
-  // Reaction popover state
-  const [reactOpen, setReactOpen] = useState(false);
-  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const justClosedRef = useRef(false);
-  const pickerExpandedRef = useRef(false);
-
   // Share compose modal state
   const [shareOpen, setShareOpen] = useState(false);
-
-  const handleMouseEnter = useCallback(() => {
-    if (!user) return;
-    if (justClosedRef.current) return;
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
-    setReactOpen(true);
-  }, [user]);
-
-  const handleMouseLeave = useCallback(() => {
-    if (pickerExpandedRef.current) return;
-    closeTimeoutRef.current = setTimeout(() => setReactOpen(false), 150);
-  }, []);
-
-  // Publish kind 17 reaction
-  const handleReact = useCallback((emoji: string, emojiTag?: string[]) => {
-    if (!user) return;
-
-    const tags: string[][] = [
-      ['k', getExternalKTag(content)],
-      ['i', identifier],
-    ];
-    if (emojiTag) tags.push(emojiTag);
-
-    queryClient.setQueryData(['external-user-reaction', identifier], { emoji: emoji || '+', tags });
-    queryClient.setQueryData(['external-reaction-count', identifier], (prev: number | undefined) => (prev ?? 0) + 1);
-
-    publishEvent(
-      {
-        kind: 17,
-        content: emoji,
-        created_at: Math.floor(Date.now() / 1000),
-        tags,
-      },
-      {
-        onSuccess: () => {
-          setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['external-user-reaction', identifier] });
-            queryClient.invalidateQueries({ queryKey: ['external-reaction-count', identifier] });
-          }, 3000);
-        },
-        onError: () => {
-          toast({ title: 'Failed to react', variant: 'destructive' });
-          queryClient.setQueryData(['external-user-reaction', identifier], null);
-          queryClient.setQueryData(['external-reaction-count', identifier], (prev: number | undefined) => Math.max(0, (prev ?? 1) - 1));
-        },
-      },
-    );
-  }, [user, content, identifier, publishEvent, queryClient, toast]);
 
   return (
     <div className="flex items-center gap-1 px-4 py-2 border-b border-border">
       {/* Reaction button */}
-      <Popover open={reactOpen} onOpenChange={(open) => {
-        if (open && justClosedRef.current) return;
-        if (!open) pickerExpandedRef.current = false;
-        setReactOpen(open);
-      }}>
-        <PopoverTrigger asChild>
-          <button
-            className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${
-              hasReacted
-                ? 'text-pink-500'
-                : 'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10'
-            }`}
-            title="React"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!user) return;
-              if (justClosedRef.current) return;
-              setReactOpen((prev) => !prev);
-            }}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-            {hasReacted && userEmoji ? (
-              <span className="size-5 flex items-center justify-center text-base leading-none">
-                <ReactionEmoji content={userEmoji} tags={userReactionTags} className="size-5" />
-              </span>
-            ) : (
-              <Heart className="size-5" />
-            )}
-            {reactionCount > 0 && (
-              <span className="text-sm tabular-nums">{formatNumber(reactionCount)}</span>
-            )}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-auto p-0 border-0 bg-transparent shadow-none"
-          side="top"
-          align="start"
-          onClick={(e) => e.stopPropagation()}
-          onOpenAutoFocus={(e) => e.preventDefault()}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        >
-          <QuickReactMenu
-            eventId={identifier}
-            eventPubkey=""
-            eventKind={17}
-            onExpandChange={(expanded) => { pickerExpandedRef.current = expanded; }}
-            onClose={() => {
-              pickerExpandedRef.current = false;
-              justClosedRef.current = true;
-              setReactOpen(false);
-              setTimeout(() => { justClosedRef.current = false; }, 300);
-            }}
-            onReact={handleReact}
-          />
-        </PopoverContent>
-      </Popover>
+      <ExternalReactionButton content={content} />
 
       {/* Share button — opens compose modal pre-filled with the URL */}
       <button
