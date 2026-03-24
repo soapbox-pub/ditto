@@ -166,19 +166,20 @@ export function BlobbiCompanionVisual({
         </>
       )}
       
-      {/* Shadow underneath - soft ellipse (hidden in debug mode) */}
+      {/* Shadow underneath - soft ellipse positioned below Blobbi (hidden in debug mode) */}
+      {/* Shadow is offset further below to feel grounded but not glued to body */}
       {!debugMode && (
         <div
           className="absolute pointer-events-none"
           style={{
-            bottom: -4,
+            bottom: -12, // Increased from -4 for more separation from body
             left: '50%',
-            width: size * 0.6,
-            height: size * 0.12,
+            width: size * 0.55, // Slightly narrower for cleaner look
+            height: size * 0.10, // Slightly thinner
             transform: `translateX(-50%) scaleX(${shadowScale})`,
-            background: `radial-gradient(ellipse at center, rgba(0,0,0,${shadowOpacity}) 0%, rgba(0,0,0,${shadowOpacity * 0.5}) 40%, transparent 70%)`,
+            background: `radial-gradient(ellipse at center, rgba(0,0,0,${shadowOpacity}) 0%, rgba(0,0,0,${shadowOpacity * 0.6}) 35%, transparent 65%)`,
             borderRadius: '50%',
-            filter: 'blur(2px)',
+            filter: 'blur(3px)', // Slightly more blur for softer shadow
             transition: isDragging ? 'none' : 'transform 0.1s ease-out',
           }}
         />

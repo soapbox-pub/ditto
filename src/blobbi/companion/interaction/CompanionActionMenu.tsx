@@ -39,8 +39,8 @@ interface CompanionActionMenuProps {
 
 // Layout configuration
 const MENU_CONFIG = {
-  /** Distance from companion center to action buttons */
-  radius: 70,
+  /** Distance from companion center to action buttons (increased for larger Blobbi) */
+  radius: 85,
   /** Size of action buttons */
   buttonSize: 44,
   /** Arc spread angle in degrees (total arc width) */

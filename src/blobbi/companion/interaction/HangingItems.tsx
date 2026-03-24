@@ -180,7 +180,7 @@ export function HangingItems({
   viewportHeight = window.innerHeight,
   groundOffset = HANGING_CONFIG.defaultGroundOffset,
   companionPosition,
-  companionSize = 80,
+  companionSize = 108, // Should match DEFAULT_COMPANION_CONFIG.size
   onItemRelease,
   onItemLanded,
   onItemCollected,
