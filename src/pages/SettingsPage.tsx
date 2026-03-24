@@ -1,7 +1,8 @@
 import { useSeoMeta } from '@unhead/react';
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ChevronRight, Settings } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { ChevronRight, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { PageHeader } from '@/components/PageHeader';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { IntroImage } from '@/components/IntroImage';
@@ -114,20 +115,9 @@ export function SettingsPage() {
   }
 
   return (
-    <main
-      className="relative isolate min-h-screen pb-16 sidebar:pb-0"
-      style={{ background: 'radial-gradient(ellipse 100% 300px at 50% 0%, hsl(var(--primary) / 0.06), transparent), radial-gradient(ellipse 100% 300px at 50% 100%, hsl(var(--primary) / 0.06), transparent)' }}
-    >
+    <main className="relative min-h-screen pb-16 sidebar:pb-0">
       {/* Page header */}
-      <div className="flex items-center gap-4 px-4 pt-4 pb-5">
-        <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2">
-          <Settings className="size-5" />
-          <h1 className="text-xl font-bold">Settings</h1>
-        </div>
-      </div>
+      <PageHeader title="Settings" icon={<Settings className="size-5" />} backTo="/" />
 
       {/* Codex heading + exposition */}
       <div className="px-7 pb-4 pt-4 text-center space-y-2.5">

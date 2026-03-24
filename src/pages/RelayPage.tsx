@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Globe, Mail, Shield, Zap, Server, Hash } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { Globe, Mail, Shield, Zap, Server, Hash } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
@@ -13,7 +13,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
+import { PageHeader } from '@/components/PageHeader';
 import type { NostrEvent } from '@nostrify/nostrify';
 import NotFound from './NotFound';
 
@@ -85,6 +85,7 @@ function useRelayFeed(relayUrl: string | undefined, kinds: number[]) {
 
 export function RelayPage() {
   const { config } = useAppContext();
+  const navigate = useNavigate();
   const { '*': rawParam } = useParams();
   const { feedSettings } = useFeedSettings();
   const { muteItems } = useMuteList();
@@ -135,43 +136,33 @@ export function RelayPage() {
 
   return (
     <main>
-      {/* Sticky header */}
-      <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-3 px-4 py-4 border-b border-border bg-background/80 backdrop-blur-md z-10')}>
-        <Link
-          to="/"
-          onClick={(e) => {
-            if (window.history.length > 1) {
-              e.preventDefault();
-              window.history.back();
-            }
-          }}
-          className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
-          aria-label="Go back"
-        >
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2.5 min-w-0">
-          {info?.icon ? (
-            <img
-              src={info.icon}
-              alt=""
-              className="size-8 rounded-full object-cover ring-1 ring-border"
-            />
-          ) : (
-            <div className="size-8 rounded-full bg-muted flex items-center justify-center ring-1 ring-border">
-              <Server className="size-4 text-muted-foreground" />
+      {/* Header */}
+      <PageHeader
+        onBack={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
+        titleContent={
+          <div className="flex items-center gap-2.5 min-w-0">
+            {info?.icon ? (
+              <img
+                src={info.icon}
+                alt=""
+                className="size-8 rounded-full object-cover ring-1 ring-border"
+              />
+            ) : (
+              <div className="size-8 rounded-full bg-muted flex items-center justify-center ring-1 ring-border">
+                <Server className="size-4 text-muted-foreground" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold truncate leading-tight">
+                {info?.name ?? hostname}
+              </h1>
+              <p className="text-xs text-muted-foreground leading-tight truncate">
+                {hostname}
+              </p>
             </div>
-          )}
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold truncate leading-tight">
-              {info?.name ?? hostname}
-            </h1>
-            <p className="text-xs text-muted-foreground leading-tight truncate">
-              {hostname}
-            </p>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* NIP-11 Info Section */}
       {infoLoading ? (

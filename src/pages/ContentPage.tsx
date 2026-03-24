@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, RotateCcw } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { RotateCcw } from 'lucide-react';
 import { MuteSettingsInternals, SensitiveContentSection, ThemePreferencesSection } from '@/components/ContentSettings';
 import { MuteListRecoveryDialog } from '@/components/MuteListRecoveryDialog';
+import { PageHeader } from '@/components/PageHeader';
 import { IntroImage } from '@/components/IntroImage';
 import { HelpTip } from '@/components/HelpTip';
 import { Button } from '@/components/ui/button';
@@ -23,19 +23,18 @@ export function ContentPage() {
   return (
     <main className="">
       {/* Header with back link */}
-      <div className="px-4 pt-4 pb-3">
-        <div className="flex items-center gap-4">
-          <Link to="/settings" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
-            <ArrowLeft className="size-5" />
-          </Link>
-          <div>
+      <PageHeader
+        backTo="/settings"
+        alwaysShowBack
+        titleContent={
+          <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold">Content</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Control what you see. Mute users, hashtags, or words, and choose how content warnings are handled. Mutes are encrypted and private.
             </p>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Lead image — Muted Content */}
       <div className="flex items-center gap-4 px-7 py-5">
