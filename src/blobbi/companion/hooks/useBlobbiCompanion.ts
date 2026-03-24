@@ -112,7 +112,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   const isVisible = !!companion && !isLoading;
   
   // Attention management - watches for UI changes
-  const { currentAttention } = useBlobbiAttention({
+  const { currentAttention, triggerAttention } = useBlobbiAttention({
     isActive: isVisible && !isEntering,
   });
   
@@ -165,6 +165,40 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     attentionPosition: isEntering ? null : attentionPosition,
   });
   
+  /**
+   * Find the main content area and return its center position.
+   * Tries common selectors for main content areas.
+   */
+  const findMainContentPosition = (): Position | null => {
+    // Try to find main content area with common selectors
+    const selectors = [
+      'main',                          // Semantic main element
+      '[role="main"]',                 // ARIA main role
+      '.main-content',                 // Common class name
+      '#main-content',                 // Common ID
+      'article:first-of-type',         // First article (often the main content)
+      '[data-main-content]',           // Custom data attribute
+    ];
+    
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        // Return center-top of the main content (upper portion)
+        return {
+          x: rect.left + rect.width / 2,
+          y: rect.top + Math.min(rect.height * 0.3, 200), // Top 30% or 200px max
+        };
+      }
+    }
+    
+    // Fallback: center-top of viewport
+    return {
+      x: viewport.width / 2,
+      y: viewport.height * 0.25,
+    };
+  };
+  
   // Handle route changes - trigger entry animation
   useEffect(() => {
     if (isVisible && !isEntering) {
@@ -187,6 +221,18 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
           setPosition(restingPosition);
           setIsEntering(false);
           setHasEnteredOnce(true);
+          
+          // Post-route attention: briefly look at main content after entry
+          setTimeout(() => {
+            const mainContentPos = findMainContentPosition();
+            if (mainContentPos) {
+              triggerAttention(mainContentPos, {
+                duration: config.attention.postRouteDuration,
+                priority: 'low', // Low priority so overlays can interrupt
+                source: 'post-route-main-content',
+              });
+            }
+          }, config.attention.postRouteDelay);
         }
       };
       

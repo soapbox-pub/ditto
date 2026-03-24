@@ -54,15 +54,19 @@ interface UseBlobbiCompanionGazeResult {
 /**
  * Generate a random gaze target that looks around the screen.
  * Creates more varied and noticeable eye movements.
+ * Includes stronger upward gaze range for more natural observation.
  */
 function generateRandomScreenGaze(): EyeOffset {
   // Wider range for more noticeable movement
   // X: -0.8 to 0.8 (looking left/right across the screen)
-  // Y: -0.5 to 0.4 (mostly looking straight or slightly down, occasionally up)
-  return {
-    x: (Math.random() - 0.5) * 1.6,
-    y: (Math.random() - 0.4) * 0.9,
-  };
+  const x = (Math.random() - 0.5) * 1.6;
+  
+  // Y: Asymmetric range favoring upward looks
+  // -0.7 to 0.4 (can look more up than down)
+  // Bias slightly toward center/up since Blobbi is at the bottom of screen
+  const y = (Math.random() - 0.55) * 1.1; // Range: -0.55*1.1=-0.6 to 0.45*1.1=0.5
+  
+  return { x, y };
 }
 
 /**

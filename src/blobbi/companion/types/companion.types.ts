@@ -182,6 +182,14 @@ export interface CompanionConfig {
     defaultDuration: number;
     /** Minimum time between attention events (ms) to avoid spamming */
     cooldown: number;
+    /** Duration for brief glances (tabs, minor UI changes) (ms) */
+    glanceDuration: number;
+    /** Shorter cooldown for glances (ms) */
+    glanceCooldown: number;
+    /** Duration to look at main content after route entry (ms) */
+    postRouteDuration: number;
+    /** Delay before post-route attention starts (ms) */
+    postRouteDelay: number;
   };
   /** Entry animation duration (ms) */
   entryAnimationDuration: number;

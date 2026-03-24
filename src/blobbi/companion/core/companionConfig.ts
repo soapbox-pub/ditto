@@ -75,6 +75,12 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
   attention: {
     defaultDuration: 3000, // Look at new UI for 3 seconds
     cooldown: 1500,        // Minimum 1.5 seconds between attention events
+    // Short glance for less important events (tabs, minor UI changes)
+    glanceDuration: 1200,  // Brief 1.2 second look
+    glanceCooldown: 800,   // Shorter cooldown for glances
+    // Post-route attention - look at main content after entering a page
+    postRouteDuration: 2500, // Look at main content for 2.5 seconds
+    postRouteDelay: 200,     // Small delay after entry animation finishes
   },
   
   // Entry animation - simple walking entrance from behind sidebar
