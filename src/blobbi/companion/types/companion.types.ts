@@ -42,15 +42,16 @@ export type EntryType = 'fall' | 'rise';
  * Entry animation phases for vertical entrance sequences.
  * 
  * FALL entry (from top):
- *   idle -> stuck -> wiggling -> falling -> landing -> complete
+ *   idle -> stuck -> tugging -> wiggling -> falling -> landing -> complete
  * 
  * RISE entry (from bottom):
  *   idle -> rising -> inspecting -> entering -> complete
  */
 export type EntryPhase =
   | 'idle'          // Not entering
-  | 'stuck'         // Only butt visible at top, stuck (fall entry)
-  | 'wiggling'      // Wiggling to get loose (fall entry)
+  | 'stuck'         // Tiny butt visible at top, stuck (fall entry)
+  | 'tugging'       // Tries to drop, gets stuck again - down-up motion (fall entry)
+  | 'wiggling'      // Subtle butt wiggle to get loose (fall entry)
   | 'falling'       // Falling from top of screen (fall entry)
   | 'landing'       // Brief landing squash/settle (fall entry)
   | 'rising'        // Rising from bottom until eyes visible (rise entry)
@@ -250,15 +251,19 @@ export interface CompanionConfig {
   /** Vertical entry animation configuration */
   entry: {
     // ── Fall entry (from top) ──
-    /** Duration of the "stuck" phase showing just the butt (ms) */
+    /** Duration of the "stuck" phase showing just the tiny butt (ms) */
     stuckDuration: number;
-    /** How much of Blobbi is visible when stuck (0-1, 0.25 = just butt showing) */
+    /** How much of Blobbi is visible when stuck (0-1, 0.15 = tiny butt showing) */
     stuckVisibleAmount: number;
-    /** Duration of the wiggle animation (ms) */
+    /** Duration of the "tugging" phase - tries to fall but gets stuck (ms) */
+    tuggingDuration: number;
+    /** How far down the tug motion goes (0-1, as fraction of companion size) */
+    tuggingDropAmount: number;
+    /** Duration of the subtle butt wiggle animation (ms) */
     wiggleDuration: number;
-    /** Horizontal wiggle intensity in pixels */
+    /** Horizontal wiggle intensity in pixels (subtle) */
     wiggleIntensity: number;
-    /** Rotation wiggle in degrees */
+    /** Rotation wiggle in degrees (subtle, not full-body) */
     wiggleRotation: number;
     /** Duration of the falling phase (ms) */
     fallDuration: number;
