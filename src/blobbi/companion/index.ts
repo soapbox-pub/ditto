@@ -26,6 +26,7 @@ export { useBlobbiCompanionData } from './hooks/useBlobbiCompanionData';
 export { useBlobbiCompanionState } from './hooks/useBlobbiCompanionState';
 export { useBlobbiCompanionMotion } from './hooks/useBlobbiCompanionMotion';
 export { useBlobbiCompanionGaze } from './hooks/useBlobbiCompanionGaze';
+export { useBlobbiAttention } from './hooks/useBlobbiAttention';
 
 // ─── Core ─────────────────────────────────────────────────────────────────────
 
@@ -59,6 +60,8 @@ export type {
   CompanionConfig,
   CompanionContextValue,
   CompanionEvent,
+  AttentionTarget,
+  AttentionPriority,
 } from './types/companion.types';
 
 // ─── Utils ────────────────────────────────────────────────────────────────────

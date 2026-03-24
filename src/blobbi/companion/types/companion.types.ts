@@ -10,7 +10,11 @@ import type { BlobbiVisualTraits } from '@/lib/blobbi';
 // ─── Companion State Machine ──────────────────────────────────────────────────
 
 /** Primary behavioral states for the companion */
-export type CompanionState = 'idle' | 'walking' | 'watching';
+export type CompanionState = 
+  | 'idle'      // Standing still, looking around
+  | 'walking'   // Moving to a destination
+  | 'watching'  // Observing a specific target (after walking to it)
+  | 'attending'; // Temporarily focused on UI change (highest priority)
 
 /** Direction the companion is facing/moving */
 export type CompanionDirection = 'left' | 'right';
@@ -21,6 +25,7 @@ export type GazeMode =
   | 'random'        // Random screen observation
   | 'follow-mouse'  // Following cursor
   | 'observe-target'// Looking at a specific observation target
+  | 'attend-ui'     // Looking at a UI element that appeared
   | 'idle';         // Neutral/resting gaze
 
 // ─── Position & Motion ────────────────────────────────────────────────────────
@@ -65,6 +70,33 @@ export interface GazeState {
   offset: EyeOffset;
   target: Position | null;
   lastMouseFollowTime: number;
+}
+
+// ─── Attention System ─────────────────────────────────────────────────────────
+
+/** 
+ * Priority levels for attention events.
+ * Higher priority interrupts lower priority behaviors.
+ */
+export type AttentionPriority = 'low' | 'normal' | 'high';
+
+/**
+ * An attention target that the companion should focus on.
+ * Used for reacting to UI changes like modals, dialogs, etc.
+ */
+export interface AttentionTarget {
+  /** Unique identifier for this attention event */
+  id: string;
+  /** Screen position to look at */
+  position: Position;
+  /** How long to attend to this target (ms) */
+  duration: number;
+  /** Priority level - higher priority overrides current behavior */
+  priority: AttentionPriority;
+  /** Optional: source element selector for debugging */
+  source?: string;
+  /** Timestamp when this attention was triggered */
+  triggeredAt: number;
 }
 
 // ─── Companion Data ───────────────────────────────────────────────────────────
@@ -143,6 +175,13 @@ export interface CompanionConfig {
     lookDuration: { min: number; max: number };
     /** How close to get to the target X position (pixels) */
     targetPadding: number;
+  };
+  /** UI attention behavior - reacting to new UI elements appearing */
+  attention: {
+    /** Default duration to attend to UI changes (ms) */
+    defaultDuration: number;
+    /** Minimum time between attention events (ms) to avoid spamming */
+    cooldown: number;
   };
   /** Entry animation duration (ms) */
   entryAnimationDuration: number;

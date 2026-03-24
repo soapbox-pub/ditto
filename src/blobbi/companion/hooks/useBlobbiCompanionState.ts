@@ -13,6 +13,7 @@ import type {
   MovementBounds,
   CompanionMotion,
   Position,
+  AttentionTarget,
 } from '../types/companion.types';
 import { decideNextAction } from '../core/companionMachine';
 import { DEFAULT_COMPANION_CONFIG, randomDuration } from '../core/companionConfig';
@@ -26,6 +27,8 @@ interface UseBlobbiCompanionStateOptions {
   bounds: MovementBounds;
   /** Whether to force walking on first activation (after entry) */
   forceInitialWalk?: boolean;
+  /** Current attention target (from UI attention system) */
+  attentionTarget?: AttentionTarget | null;
 }
 
 interface UseBlobbiCompanionStateResult {
@@ -37,6 +40,8 @@ interface UseBlobbiCompanionStateResult {
   targetX: number | null;
   /** Observation target position (screen coordinates) - what Blobbi is observing */
   observationTarget: Position | null;
+  /** Current attention target position (from UI attention system) */
+  attentionPosition: Position | null;
   /** Signal that target was reached */
   onReachedTarget: () => void;
 }
@@ -49,11 +54,16 @@ export function useBlobbiCompanionState({
   motion,
   bounds,
   forceInitialWalk = true,
+  attentionTarget,
 }: UseBlobbiCompanionStateOptions): UseBlobbiCompanionStateResult {
   const [state, setState] = useState<CompanionState>('idle');
   const [direction, setDirection] = useState<CompanionDirection>('right');
   const [targetX, setTargetX] = useState<number | null>(null);
   const [observationTarget, setObservationTarget] = useState<Position | null>(null);
+  
+  // Track the previous state to restore after attending
+  const stateBeforeAttentionRef = useRef<CompanionState>('idle');
+  const targetXBeforeAttentionRef = useRef<number | null>(null);
   
   const timerRef = useRef<number | null>(null);
   const hasHadInitialWalk = useRef(false);
@@ -242,11 +252,48 @@ export function useBlobbiCompanionState({
     }
   }, [motion.isDragging]);
   
+  // Handle attention targets - interrupt current behavior when UI elements appear
+  useEffect(() => {
+    if (!isActive) return;
+    
+    if (attentionTarget) {
+      // Save current state to restore later (but not if we're already attending)
+      if (state !== 'attending') {
+        stateBeforeAttentionRef.current = state;
+        targetXBeforeAttentionRef.current = targetX;
+      }
+      
+      // Clear any pending timers
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      
+      // Enter attending state
+      setState('attending');
+      setTargetX(null); // Stop walking
+      
+    } else if (state === 'attending') {
+      // Attention ended - return to normal behavior
+      // Use a brief pause before resuming to feel more natural
+      timerRef.current = window.setTimeout(() => {
+        setState('idle');
+        // Schedule next decision after a brief idle period
+        const idleDuration = randomDuration({ min: 1000, max: 2000 });
+        timerRef.current = window.setTimeout(makeDecision, idleDuration);
+      }, 300);
+    }
+  }, [attentionTarget, isActive, state, targetX, makeDecision]);
+  
+  // Derive attention position from attention target
+  const attentionPosition = attentionTarget?.position ?? null;
+  
   return {
     state,
     direction,
     targetX,
     observationTarget,
+    attentionPosition,
     onReachedTarget,
   };
 }
