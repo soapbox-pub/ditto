@@ -35,9 +35,10 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
   gravity: 800, // pixels per second squared
   
   // Idle duration before deciding to walk
+  // REBALANCED: Much longer idle times for calmer behavior
   idleTime: {
-    min: 2000,  // 2 seconds minimum
-    max: 6000,  // 6 seconds maximum
+    min: 4000,  // 4 seconds minimum (was 2s)
+    max: 10000, // 10 seconds maximum (was 6s)
   },
   
   // Walking duration before stopping
@@ -47,25 +48,33 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
   },
   
   // Gaze behavior
+  // REBALANCED: More noticeable observation behavior
   gaze: {
     randomInterval: {
-      min: 800,  // Change gaze target every 0.8-2.5 seconds
-      max: 2500, // Faster changes feel more alive
+      min: 1500,  // Change gaze target every 1.5-4 seconds (was 0.8-2.5s)
+      max: 4000,  // Slower changes feel more deliberate and noticeable
     },
-    mouseFollowCooldown: 6000,   // At least 6 seconds between mouse follows
-    mouseFollowDuration: 1500,   // Follow mouse for 1.5 seconds (brief glance)
-    mouseFollowChance: 0.25,     // 25% chance to start following mouse (more frequent)
+    mouseFollowCooldown: 4000,   // 4 seconds between mouse follows (was 6s)
+    mouseFollowDuration: 2500,   // Follow mouse for 2.5 seconds (was 1.5s)
+    mouseFollowChance: 0.35,     // 35% chance to follow mouse (was 25%)
   },
   
   // Observation target behavior - Blobbi notices something and walks toward it
+  // REBALANCED: Less frequent observations, longer looking duration
   observation: {
-    chance: 0.35,          // 35% chance to start observation when deciding next action
-    cooldown: 12000,       // At least 12 seconds between observations
+    chance: 0.25,          // 25% chance (was 35%) - less walking overall
+    cooldown: 15000,       // 15 seconds between observations (was 12s)
     lookDuration: {
-      min: 2000,           // Look at target for 2-4 seconds after arriving
-      max: 4000,
+      min: 3000,           // Look at target for 3-6 seconds (was 2-4s)
+      max: 6000,
     },
     targetPadding: 100,    // How close to get to the target X position
+  },
+  
+  // UI attention behavior - reacting to new UI elements appearing
+  attention: {
+    defaultDuration: 3000, // Look at new UI for 3 seconds
+    cooldown: 1500,        // Minimum 1.5 seconds between attention events
   },
   
   // Entry animation - simple walking entrance from behind sidebar

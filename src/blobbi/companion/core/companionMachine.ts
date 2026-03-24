@@ -49,6 +49,9 @@ export interface StateTransition {
 /**
  * Decide the next action for the companion.
  * Called periodically when idle or after completing an action.
+ * 
+ * REBALANCED: Much lower walk chance for calmer behavior.
+ * Blobbi should spend most time observing, not constantly moving.
  */
 export function decideNextAction(
   currentState: CompanionState,
@@ -61,8 +64,9 @@ export function decideNextAction(
     return { state: currentState };
   }
   
-  // High chance to walk - companion should be active and roaming
-  const shouldWalk = Math.random() < 0.75; // 75% chance to walk
+  // REBALANCED: Lower chance to walk - companion should be calmer
+  // 30% chance to walk, 70% chance to stay idle and observe
+  const shouldWalk = Math.random() < 0.30;
   
   if (shouldWalk) {
     // Pick a random target position
@@ -125,10 +129,11 @@ export function decideNextAction(
     };
   }
   
-  // Stay idle - but for shorter periods to keep things lively
+  // Stay idle - longer periods for calmer behavior
+  // The actual idle duration comes from config.idleTime
   return {
     state: 'idle',
-    duration: randomDuration({ min: 1000, max: 3000 }),
+    duration: randomDuration(config.idleTime),
   };
 }
 
@@ -191,7 +196,7 @@ export function updateMotion(
       newMotion.velocity.x = direction * speed;
       newMotion.direction = direction > 0 ? 'right' : 'left';
     }
-  } else if (state === 'idle' || state === 'watching') {
+  } else if (state === 'idle' || state === 'watching' || state === 'attending') {
     // Gradually stop horizontal movement
     newMotion.velocity.x *= 0.9;
     if (Math.abs(newMotion.velocity.x) < 0.1) {

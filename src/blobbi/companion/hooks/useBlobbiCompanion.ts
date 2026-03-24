@@ -23,6 +23,7 @@ import { useBlobbiCompanionData } from './useBlobbiCompanionData';
 import { useBlobbiCompanionState } from './useBlobbiCompanionState';
 import { useBlobbiCompanionMotion } from './useBlobbiCompanionMotion';
 import { useBlobbiCompanionGaze } from './useBlobbiCompanionGaze';
+import { useBlobbiAttention } from './useBlobbiAttention';
 
 interface UseBlobbiCompanionResult {
   /** The current companion data */
@@ -110,12 +111,18 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   // Whether companion should be visible
   const isVisible = !!companion && !isLoading;
   
+  // Attention management - watches for UI changes
+  const { currentAttention } = useBlobbiAttention({
+    isActive: isVisible && !isEntering,
+  });
+  
   // State management
   const {
     state,
     direction,
     targetX,
     observationTarget,
+    attentionPosition,
     onReachedTarget,
   } = useBlobbiCompanionState({
     isActive: isVisible && !isEntering,
@@ -127,6 +134,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
       isDragging: false 
     },
     bounds,
+    attentionTarget: currentAttention,
   });
   
   // Motion management
@@ -154,6 +162,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     companionSize: config.size,
     isActive: isVisible,
     observationTarget: isEntering ? null : observationTarget,
+    attentionPosition: isEntering ? null : attentionPosition,
   });
   
   // Handle route changes - trigger entry animation
