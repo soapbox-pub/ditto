@@ -3,6 +3,10 @@
  * 
  * The main companion component that handles rendering and interaction.
  * This includes the visual, positioning, dragging, and animations.
+ * 
+ * Entry animations are now VERTICAL based on sidebar navigation:
+ * - FALL: Drops from top when navigating DOWN the sidebar
+ * - RISE: Rises from bottom with inspection when navigating UP the sidebar
  */
 
 import { useRef, useCallback, useEffect, useState } from 'react';
@@ -18,10 +22,9 @@ import type {
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { 
   calculateFloatAnimation,
-  calculateSidebarEntryAnimation,
-  calculateMobileEntryAnimation,
-  calculatePeekingEntryAnimation,
-  type PeekingEntryConfig,
+  calculateFallEntryAnimation,
+  calculateRiseEntryAnimation,
+  type VerticalEntryConfig,
 } from '../utils/animation';
 import { BlobbiCompanionVisual } from './BlobbiCompanionVisual';
 
@@ -36,44 +39,21 @@ interface BlobbiCompanionProps {
   eyeOffset: EyeOffset;
   /** Whether entry animation is playing */
   isEntering: boolean;
-  /** Entry animation progress (0-1) - legacy, use entryState for detailed control */
+  /** Entry animation progress (0-1) */
   entryProgress: number;
   /** Full entry animation state with phase info */
   entryState: EntryState;
-  /** Entry start position */
-  entryStartPosition: Position;
-  /** Entry end position */
-  entryEndPosition: Position;
+  /** Ground position for vertical entry (center of screen) */
+  groundPosition: Position;
+  /** Viewport dimensions */
+  viewport: { width: number; height: number };
   /** Start drag callback */
   onStartDrag: () => void;
   /** Update drag callback */
   onUpdateDrag: (position: Position) => void;
   /** End drag callback */
   onEndDrag: () => void;
-  /** 
-   * Use absolute positioning instead of fixed.
-   * When true, coordinates are relative to the parent container.
-   * This is needed for clipping to work during entry animation.
-   */
-  useAbsolutePositioning?: boolean;
-  /**
-   * Offset to apply to coordinates when using absolute positioning.
-   * This compensates for the clipping container's position.
-   */
-  positionOffset?: Position;
-  /**
-   * Whether we're on mobile (no sidebar).
-   * When true, uses a simpler entry animation from the left edge.
-   */
-  isMobile?: boolean;
-  /**
-   * The X position of the content boundary (where sidebar ends).
-   * Used for desktop entry animation to position the "stuck" point.
-   */
-  contentBoundaryX?: number;
-  /**
-   * Debug mode - disables animations and shows visual debug aids.
-   */
+  /** Debug mode - disables animations and shows visual debug aids */
   debugMode?: boolean;
 }
 
@@ -85,15 +65,11 @@ export function BlobbiCompanion({
   isEntering,
   entryProgress,
   entryState,
-  entryStartPosition,
-  entryEndPosition,
+  groundPosition,
+  viewport,
   onStartDrag,
   onUpdateDrag,
   onEndDrag,
-  useAbsolutePositioning = false,
-  positionOffset = { x: 0, y: 0 },
-  isMobile = false,
-  contentBoundaryX = 0,
   debugMode = false,
 }: BlobbiCompanionProps) {
   const config = DEFAULT_COMPANION_CONFIG;
@@ -114,16 +90,10 @@ export function BlobbiCompanion({
     return () => cancelAnimationFrame(animationId);
   }, []);
   
-  // Peeking entry config (derived from main config)
-  const peekingConfig: PeekingEntryConfig = {
-    peekDistance: config.entry.peekDistance,
-    peekRotation: config.entry.peekRotation,
-    phaseDurations: {
-      peek: 0.3,
-      inspect: 0.4,
-      transition: 0.15,
-      walkIn: 0.15,
-    },
+  // Vertical entry config (derived from main config)
+  const verticalEntryConfig: VerticalEntryConfig = {
+    landingSquash: config.entry.landingSquash,
+    riseVisibleAmount: config.entry.riseVisibleAmount,
   };
   
   // Calculate position and transform
@@ -134,13 +104,15 @@ export function BlobbiCompanion({
   let scaleY = 1;
   
   if (isEntering) {
-    // Choose animation based on mobile vs desktop
-    if (isMobile) {
-      // Mobile: simple slide-in animation (no peeking)
-      const entryAnim = calculateMobileEntryAnimation(
-        entryStartPosition,
-        entryEndPosition,
-        entryProgress
+    // Calculate vertical entry animation based on entry type
+    if (entryState.entryType === 'fall') {
+      // FALL entry: Drop from top of screen
+      const entryAnim = calculateFallEntryAnimation(
+        groundPosition,
+        viewport.height,
+        config.size,
+        entryState,
+        verticalEntryConfig
       );
       x = entryAnim.position.x;
       y = entryAnim.position.y;
@@ -148,12 +120,13 @@ export function BlobbiCompanion({
       scaleX = entryAnim.scaleX;
       scaleY = entryAnim.scaleY;
     } else {
-      // Desktop: peeking entry animation
-      const entryAnim = calculatePeekingEntryAnimation(
-        entryStartPosition,
-        entryEndPosition,
+      // RISE entry: Rise from bottom of screen with inspection
+      const entryAnim = calculateRiseEntryAnimation(
+        groundPosition,
+        viewport.height,
+        config.size,
         entryState,
-        peekingConfig
+        verticalEntryConfig
       );
       x = entryAnim.position.x;
       y = entryAnim.position.y;
@@ -170,11 +143,6 @@ export function BlobbiCompanion({
     x = motion.position.x;
     y = motion.position.y;
   }
-  
-  // Apply position offset when using absolute positioning
-  // This converts viewport coordinates to container-relative coordinates
-  const finalX = useAbsolutePositioning ? x - positionOffset.x : x;
-  const finalY = useAbsolutePositioning ? y - positionOffset.y : y;
   
   // Calculate floating animation offset (gentle sway/float)
   // Skip during entry animation, dragging, or debug mode
@@ -238,9 +206,9 @@ export function BlobbiCompanion({
       ref={containerRef}
       className="select-none touch-none"
       style={{
-        position: useAbsolutePositioning ? 'absolute' : 'fixed',
-        left: finalX,
-        top: finalY,
+        position: 'fixed',
+        left: x,
+        top: y,
         width: config.size,
         height: config.size,
         zIndex: motion.isDragging ? 10001 : 10000,
@@ -263,7 +231,7 @@ export function BlobbiCompanion({
         eyeOffset={eyeOffset}
         direction={isEntering ? 'right' : motion.direction}
         isDragging={motion.isDragging}
-        isWalking={state === 'walking' || isEntering}
+        isWalking={state === 'walking'}
         floatOffset={floatOffset}
         debugMode={debugMode}
       />
