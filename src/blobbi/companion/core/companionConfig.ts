@@ -49,12 +49,12 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
   // Gaze behavior
   gaze: {
     randomInterval: {
-      min: 1000, // Change gaze target every 1-3 seconds
-      max: 3000,
+      min: 800,  // Change gaze target every 0.8-2.5 seconds
+      max: 2500, // Faster changes feel more alive
     },
-    mouseFollowCooldown: 8000,   // At least 8 seconds between mouse follows
-    mouseFollowDuration: 2000,  // Follow mouse for 2 seconds
-    mouseFollowChance: 0.15,    // 15% chance to start following mouse
+    mouseFollowCooldown: 6000,   // At least 6 seconds between mouse follows
+    mouseFollowDuration: 1500,   // Follow mouse for 1.5 seconds (brief glance)
+    mouseFollowChance: 0.25,     // 25% chance to start following mouse (more frequent)
   },
   
   // Entry animation - simple walking entrance from behind sidebar
