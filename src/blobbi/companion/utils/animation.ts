@@ -159,59 +159,63 @@ export interface FloatOffset {
  * 
  * This creates a charming, organic floating motion with:
  * - Gentle vertical float (breathing-like)
- * - Subtle horizontal sway
- * - Soft rotation tilt
+ * - Playful horizontal sway
+ * - Soft rotation tilt that adds personality
  * 
- * IMPORTANT: Blobbi's base position is ON THE GROUND.
- * The Y offset oscillates between 0 (ground contact) and negative values (slight lift).
- * Using (cos + 1) / 2 creates a wave that goes from 0 to 1, which we then
- * negate and scale for upward-only movement that regularly returns to ground.
+ * The animation uses multiple layered sine waves at different frequencies
+ * to create an organic, non-mechanical feel.
  * 
- * When walking: faster, more energetic bobbing in sync with movement
- * When idle: slower, calmer breathing/hovering effect
+ * When walking: lively bobbing with more energy and movement
+ * When idle: calm, dreamy floating with gentle breathing
  * 
  * @param time - Current animation time in milliseconds
  * @param isMoving - Whether the companion is currently moving
- * @returns Offset values for x, y (negative = up, 0 = ground), and rotation
+ * @returns Offset values for x, y, and rotation
  */
 export function calculateFloatAnimation(time: number, isMoving: boolean): FloatOffset {
   if (isMoving) {
-    // WALKING: Faster, more energetic motion
-    // Rhythmic bobbing that feels connected to movement
-    const bobFreq = 0.012;      // Fast bob (~0.5 seconds per cycle)
-    const swayFreq = 0.008;     // Quick sway (~0.8 second per cycle)
+    // WALKING: Lively, energetic motion that feels playful
+    // Multiple frequencies create a bouncy, charming walk
+    const t = time / 1000; // Convert to seconds for easier frequency tuning
     
-    // Vertical bob using (1 - cos) / 2 which gives 0 to 1 range
-    // This means: 0 at the bottom (ground), 1 at the top (max lift)
-    // Multiply by amplitude and negate for upward movement
-    const wave1 = (1 - Math.cos(time * bobFreq)) / 2;  // 0 to 1
-    const wave2 = (1 - Math.cos(time * bobFreq * 0.7 + 1)) / 2;  // 0 to 1, offset phase
-    const yOffset = -(wave1 * 3 + wave2 * 1.5); // Range: 0 to -4.5
+    // Primary bob - quick rhythmic bounce (about 2 bounces per second)
+    const primaryBob = Math.sin(t * 12) * 3;
+    // Secondary bob - slower wave that adds variation
+    const secondaryBob = Math.sin(t * 5 + 0.5) * 1.5;
+    // Slight lift during walk - don't stay on ground
+    const baseLift = -2;
+    const yOffset = baseLift + primaryBob * 0.5 + secondaryBob * 0.3;
     
-    // Horizontal sway - slight side-to-side with walking
-    const xOffset = Math.sin(time * swayFreq) * 1.5;
+    // Horizontal sway - playful side-to-side motion
+    const primarySway = Math.sin(t * 6) * 2;
+    const secondarySway = Math.sin(t * 2.5 + 1) * 1;
+    const xOffset = primarySway + secondarySway * 0.5;
     
-    // Rotation - gentle lean
-    const rotation = Math.sin(time * swayFreq - 0.2) * 1.5;
+    // Rotation - lean into the movement, adds character
+    const primaryTilt = Math.sin(t * 6 - 0.3) * 3;
+    const secondaryTilt = Math.sin(t * 2.2) * 1.5;
+    const rotation = primaryTilt + secondaryTilt * 0.4;
     
     return { x: xOffset, y: yOffset, rotation };
   } else {
-    // IDLE: Slower, calmer breathing/hovering
-    const floatFreq = 0.0025;   // Slow float (~2.5 seconds per cycle)
-    const breatheFreq = 0.0018; // Very slow breathe (~3.5 seconds)
-    const swayFreq = 0.0012;    // Gentle sway (~5.2 seconds)
+    // IDLE: Dreamy, calm floating like a gentle breathing creature
+    const t = time / 1000;
     
-    // Vertical float using (1 - cos) / 2 for 0 to 1 range
-    // Blobbi rests on ground and gently lifts, then settles back
-    const wave1 = (1 - Math.cos(time * floatFreq)) / 2;  // 0 to 1
-    const wave2 = (1 - Math.cos(time * breatheFreq + 0.8)) / 2;  // 0 to 1
-    const yOffset = -(wave1 * 2 + wave2 * 1); // Range: 0 to -3
+    // Slow, peaceful vertical float - like gentle breathing
+    const breathe1 = Math.sin(t * 1.2) * 2.5;
+    const breathe2 = Math.sin(t * 0.7 + 0.8) * 1.5;
+    const breathe3 = Math.sin(t * 2.1 + 0.3) * 0.8;
+    const yOffset = breathe1 + breathe2 * 0.6 + breathe3 * 0.3;
     
-    // Horizontal sway - very subtle drift
-    const xOffset = Math.sin(time * swayFreq) * 0.8;
+    // Very gentle horizontal drift - like floating in water
+    const drift1 = Math.sin(t * 0.8) * 1.2;
+    const drift2 = Math.sin(t * 0.4 + 1.5) * 0.8;
+    const xOffset = drift1 + drift2 * 0.5;
     
-    // Rotation - soft, slow tilt
-    const rotation = Math.sin(time * swayFreq - 0.3) * 0.8;
+    // Soft rotation - slight curious tilts
+    const tilt1 = Math.sin(t * 0.9 - 0.2) * 2;
+    const tilt2 = Math.sin(t * 0.5 + 0.7) * 1.2;
+    const rotation = tilt1 + tilt2 * 0.4;
     
     return { x: xOffset, y: yOffset, rotation };
   }

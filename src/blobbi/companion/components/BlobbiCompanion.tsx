@@ -66,6 +66,10 @@ interface BlobbiCompanionProps {
    * Used for desktop entry animation to position the "stuck" point.
    */
   contentBoundaryX?: number;
+  /**
+   * Debug mode - disables animations and shows visual debug aids.
+   */
+  debugMode?: boolean;
 }
 
 export function BlobbiCompanion({
@@ -84,6 +88,7 @@ export function BlobbiCompanion({
   positionOffset = { x: 0, y: 0 },
   isMobile = false,
   contentBoundaryX = 0,
+  debugMode = false,
 }: BlobbiCompanionProps) {
   const config = DEFAULT_COMPANION_CONFIG;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -145,8 +150,8 @@ export function BlobbiCompanion({
   const finalY = useAbsolutePositioning ? y - positionOffset.y : y;
   
   // Calculate floating animation offset (gentle sway/float)
-  // Skip during entry animation or dragging
-  const floatOffset = (!isEntering && !motion.isDragging)
+  // Skip during entry animation, dragging, or debug mode
+  const floatOffset = (!isEntering && !motion.isDragging && !debugMode)
     ? calculateFloatAnimation(animationTime, state === 'walking')
     : { x: 0, y: 0, rotation: 0 };
   
@@ -233,6 +238,7 @@ export function BlobbiCompanion({
         isDragging={motion.isDragging}
         isWalking={state === 'walking' || isEntering}
         floatOffset={floatOffset}
+        debugMode={debugMode}
       />
     </div>
   );

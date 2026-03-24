@@ -113,6 +113,9 @@ export function useBlobbiCompanionData(): UseBlobbiCompanionDataResult {
       stage: blobbi.stage,
       visualTraits: blobbi.visualTraits,
       energy: blobbi.stats.energy ?? 100,
+      // Include adult form info for proper rendering
+      adultType: blobbi.adultType,
+      seed: blobbi.seed,
     };
   }, [blobbiQuery.data]);
   

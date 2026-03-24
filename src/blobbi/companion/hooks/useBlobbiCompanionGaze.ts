@@ -2,10 +2,16 @@
  * useBlobbiCompanionGaze Hook
  * 
  * Manages the eye/gaze behavior of the companion.
- * Handles random observation, directional looking, and mouse following.
+ * 
+ * Behavior:
+ * - When idle: Eyes look around randomly with gentle movements
+ * - When walking: Eyes look in movement direction
+ * - Occasionally: Eyes briefly follow the mouse, then return to normal
+ * 
+ * The eyes should feel alive and curious, not stuck staring at anything.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 import type {
   CompanionState,
@@ -16,7 +22,6 @@ import type {
 } from '../types/companion.types';
 import {
   createInitialGaze,
-  updateGaze,
   calculateEyeOffset,
   generateRandomGazeOffset,
 } from '../core/companionMachine';
@@ -57,20 +62,34 @@ export function useBlobbiCompanionGaze({
   const [eyeOffset, setEyeOffset] = useState<EyeOffset>({ x: 0, y: 0 });
   const [mousePosition, setMousePosition] = useState<Position | null>(null);
   
-  const randomGazeTimerRef = useRef<number | null>(null);
-  const mouseFollowTimerRef = useRef<number | null>(null);
+  const randomGazeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mouseFollowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mouseFollowCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animationRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const targetOffsetRef = useRef<EyeOffset>({ x: 0, y: 0 });
   
   const config = DEFAULT_COMPANION_CONFIG;
   
-  // Track mouse position
+  // Generate a new random gaze target
+  const changeRandomGaze = useCallback(() => {
+    const newOffset = generateRandomGazeOffset();
+    targetOffsetRef.current = newOffset;
+  }, []);
+  
+  // Track mouse position (throttled)
   useEffect(() => {
     if (!isActive) return;
     
+    let lastUpdate = 0;
+    const throttleMs = 50; // Only update every 50ms
+    
     const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
+      const now = Date.now();
+      if (now - lastUpdate > throttleMs) {
+        setMousePosition({ x: e.clientX, y: e.clientY });
+        lastUpdate = now;
+      }
     };
     
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
@@ -80,37 +99,45 @@ export function useBlobbiCompanionGaze({
     };
   }, [isActive]);
   
-  // Handle state-based gaze updates
+  // Handle walking state - look in movement direction
   useEffect(() => {
     if (!isActive) return;
     
-    const now = Date.now();
-    setGaze(prev => updateGaze(prev, state, direction, mousePosition, now, config));
-  }, [isActive, state, direction, mousePosition, config]);
+    if (state === 'walking') {
+      setGaze(prev => ({
+        ...prev,
+        mode: 'forward',
+        target: null,
+      }));
+    } else if (state === 'idle' && gaze.mode === 'forward') {
+      // Transition from walking to idle - start random gaze
+      setGaze(prev => ({
+        ...prev,
+        mode: 'random',
+        target: null,
+      }));
+      changeRandomGaze();
+    }
+  }, [isActive, state, gaze.mode, changeRandomGaze]);
   
-  // Random gaze changes when idle
+  // Random gaze changes when idle (and not following mouse)
   useEffect(() => {
     if (!isActive || state !== 'idle' || gaze.mode === 'follow-mouse') {
       if (randomGazeTimerRef.current) {
-        clearInterval(randomGazeTimerRef.current);
+        clearTimeout(randomGazeTimerRef.current);
         randomGazeTimerRef.current = null;
       }
       return;
     }
     
-    const changeGaze = () => {
-      const newOffset = generateRandomGazeOffset();
-      targetOffsetRef.current = newOffset;
-    };
-    
     // Initial random gaze
-    changeGaze();
+    changeRandomGaze();
     
-    // Set up interval for random gaze changes
+    // Schedule periodic random gaze changes
     const scheduleNext = () => {
       const delay = randomDuration(config.gaze.randomInterval);
-      randomGazeTimerRef.current = window.setTimeout(() => {
-        changeGaze();
+      randomGazeTimerRef.current = setTimeout(() => {
+        changeRandomGaze();
         scheduleNext();
       }, delay);
     };
@@ -120,30 +147,82 @@ export function useBlobbiCompanionGaze({
     return () => {
       if (randomGazeTimerRef.current) {
         clearTimeout(randomGazeTimerRef.current);
+        randomGazeTimerRef.current = null;
       }
     };
-  }, [isActive, state, gaze.mode, config.gaze.randomInterval]);
+  }, [isActive, state, gaze.mode, config.gaze.randomInterval, changeRandomGaze]);
   
-  // Mouse follow mode timer
+  // Periodically check if we should start following mouse (when idle)
   useEffect(() => {
-    if (gaze.mode === 'follow-mouse') {
-      mouseFollowTimerRef.current = window.setTimeout(() => {
-        setGaze(prev => ({
-          ...prev,
-          mode: 'random',
-          target: null,
-        }));
-      }, config.gaze.mouseFollowDuration);
-      
-      return () => {
-        if (mouseFollowTimerRef.current) {
-          clearTimeout(mouseFollowTimerRef.current);
-        }
-      };
+    if (!isActive || state !== 'idle' || gaze.mode === 'follow-mouse') {
+      if (mouseFollowCheckTimerRef.current) {
+        clearTimeout(mouseFollowCheckTimerRef.current);
+        mouseFollowCheckTimerRef.current = null;
+      }
+      return;
     }
-  }, [gaze.mode, config.gaze.mouseFollowDuration]);
+    
+    const checkMouseFollow = () => {
+      const now = Date.now();
+      const timeSinceLastFollow = now - gaze.lastMouseFollowTime;
+      
+      // Only consider following if cooldown has passed
+      if (timeSinceLastFollow > config.gaze.mouseFollowCooldown) {
+        // Random chance to start following
+        if (Math.random() < config.gaze.mouseFollowChance) {
+          setGaze(prev => ({
+            ...prev,
+            mode: 'follow-mouse',
+            lastMouseFollowTime: now,
+          }));
+          return; // Don't schedule next check while following
+        }
+      }
+      
+      // Schedule next check (every 2-4 seconds)
+      mouseFollowCheckTimerRef.current = setTimeout(checkMouseFollow, 2000 + Math.random() * 2000);
+    };
+    
+    // Start checking after a delay
+    mouseFollowCheckTimerRef.current = setTimeout(checkMouseFollow, 3000);
+    
+    return () => {
+      if (mouseFollowCheckTimerRef.current) {
+        clearTimeout(mouseFollowCheckTimerRef.current);
+        mouseFollowCheckTimerRef.current = null;
+      }
+    };
+  }, [isActive, state, gaze.mode, gaze.lastMouseFollowTime, config.gaze.mouseFollowCooldown, config.gaze.mouseFollowChance]);
   
-  // Calculate and smooth eye offset
+  // Auto-stop following mouse after duration
+  useEffect(() => {
+    if (gaze.mode !== 'follow-mouse') {
+      if (mouseFollowTimerRef.current) {
+        clearTimeout(mouseFollowTimerRef.current);
+        mouseFollowTimerRef.current = null;
+      }
+      return;
+    }
+    
+    mouseFollowTimerRef.current = setTimeout(() => {
+      setGaze(prev => ({
+        ...prev,
+        mode: 'random',
+        target: null,
+      }));
+      // Generate new random gaze when stopping mouse follow
+      changeRandomGaze();
+    }, config.gaze.mouseFollowDuration);
+    
+    return () => {
+      if (mouseFollowTimerRef.current) {
+        clearTimeout(mouseFollowTimerRef.current);
+        mouseFollowTimerRef.current = null;
+      }
+    };
+  }, [gaze.mode, config.gaze.mouseFollowDuration, changeRandomGaze]);
+  
+  // Animate eye offset smoothly
   useEffect(() => {
     const animate = (time: number) => {
       if (lastTimeRef.current === 0) {
@@ -159,18 +238,22 @@ export function useBlobbiCompanionGaze({
       if (gaze.mode === 'follow-mouse' && mousePosition) {
         targetOffset = calculateEyeOffset(companionPosition, mousePosition, companionSize);
       } else if (gaze.mode === 'forward') {
+        // Looking in movement direction
         targetOffset = {
-          x: direction === 'right' ? 0.6 : -0.6,
-          y: 0.1,
+          x: direction === 'right' ? 0.5 : -0.5,
+          y: 0.15, // Slightly down, looking at path
         };
       } else {
+        // Random gaze
         targetOffset = targetOffsetRef.current;
       }
       
-      // Smooth transition to target
+      // Smooth transition - faster for mouse follow, slower for random
+      const smoothness = gaze.mode === 'follow-mouse' ? 0.012 : 0.006;
+      
       setEyeOffset(prev => ({
-        x: smoothTransition(prev.x, targetOffset.x, deltaTime, 0.008),
-        y: smoothTransition(prev.y, targetOffset.y, deltaTime, 0.008),
+        x: smoothTransition(prev.x, targetOffset.x, deltaTime, smoothness),
+        y: smoothTransition(prev.y, targetOffset.y, deltaTime, smoothness),
       }));
       
       animationRef.current = requestAnimationFrame(animate);
@@ -184,6 +267,7 @@ export function useBlobbiCompanionGaze({
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
+      lastTimeRef.current = 0;
     };
   }, [isActive, gaze.mode, direction, companionPosition, mousePosition, companionSize]);
   

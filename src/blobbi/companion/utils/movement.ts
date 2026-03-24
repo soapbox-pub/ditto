@@ -16,32 +16,27 @@ export function calculateMovementBounds(
   companionSize: number,
   config: CompanionConfig = DEFAULT_COMPANION_CONFIG
 ): MovementBounds {
-  // The SVG has about 12% empty padding at the bottom
-  const svgBottomPadding = companionSize * 0.12;
   return {
     minX: config.padding.left,
     maxX: viewportWidth - config.padding.right - companionSize,
     minY: 0,
-    maxY: viewportHeight - config.padding.bottom - companionSize + svgBottomPadding,
+    maxY: viewportHeight - config.padding.bottom - companionSize,
   };
 }
 
 /**
  * Calculate the ground Y position (bottom of movement area).
  * 
- * Note: The Blobbi SVG has ~12% empty space at the bottom of its viewBox.
- * We compensate for this by adding that offset to the ground position,
- * so Blobbi's actual body touches the ground, not the SVG container bottom.
+ * This returns the Y position where the companion CONTAINER should be placed.
+ * The visual alignment of the Blobbi body within the container is handled
+ * separately in BlobbiCompanionVisual via a translateY transform.
  */
 export function calculateGroundY(
   viewportHeight: number,
   companionSize: number,
   config: CompanionConfig = DEFAULT_COMPANION_CONFIG
 ): number {
-  // The SVG has about 12% empty padding at the bottom
-  // We add this to push the container down so Blobbi's body touches ground
-  const svgBottomPadding = companionSize * 0.12;
-  return viewportHeight - config.padding.bottom - companionSize + svgBottomPadding;
+  return viewportHeight - config.padding.bottom - companionSize;
 }
 
 /**
