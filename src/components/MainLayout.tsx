@@ -64,7 +64,7 @@ function PageSkeleton() {
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
-  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, hasSubHeader, noArcs } = useLayoutSnapshot();
+  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { config } = useAppContext();
 
