@@ -1,18 +1,19 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Sparkles, ArrowLeft, Pencil } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Loader2, Sparkles, Pencil } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { NoteCard } from '@/components/NoteCard';
+import { PageHeader } from '@/components/PageHeader';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ThemeSelector } from '@/components/ThemeSelector';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { useThemeFeed } from '@/hooks/useThemeFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -46,7 +47,8 @@ export function ThemesPage() {
   useLayoutOptions({
     showFAB: activeTab === 'my-themes',
     onFabClick: handleFabClick,
-    fabIcon: <Pencil strokeWidth={3} />,
+    fabIcon: <Pencil strokeWidth={3} size={16} />,
+    hasSubHeader: true,
   });
 
   // Feed queries for follows/global tabs
@@ -102,23 +104,14 @@ export function ThemesPage() {
 
   return (
     <main className="pb-16 sidebar:pb-0">
-      {/* Page header */}
-      <div className="flex items-center gap-4 px-4 pt-4 pb-5">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Sparkles className="size-5" />
-          <h1 className="text-xl font-bold">Themes</h1>
-        </div>
-      </div>
-
       {/* Tabs */}
-      <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+      <SubHeaderBar>
         <TabButton label="My Themes" active={activeTab === 'my-themes'} onClick={() => setActiveTab('my-themes')} />
         <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
         <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
-      </div>
+      </SubHeaderBar>
+
+      <PageHeader title="Themes" icon={<Sparkles className="size-5" />} />
 
       {/* Tab content */}
       {activeTab === 'my-themes' ? (

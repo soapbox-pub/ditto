@@ -10,13 +10,19 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useLayoutSnapshot } from '@/contexts/LayoutContext';
+import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
+
+/** Transform style applied when the bottom nav is hidden (scrolled away). */
+const hiddenStyle: React.CSSProperties = {
+  transform: `translateY(calc(100% + ${ARC_OVERHANG_PX}px))`,
+};
 
 export function MobileBottomNav() {
   const location = useLocation();
   const { user, metadata } = useCurrentUser();
   const hasUnread = useHasUnreadNotifications();
-  const { scrollContainer } = useLayoutSnapshot();
+  const { scrollContainer, noArcs } = useLayoutSnapshot();
   const { hidden } = useScrollDirection(scrollContainer);
   const profileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
 
@@ -39,12 +45,14 @@ export function MobileBottomNav() {
 
       <nav
         className={cn(
-          'fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom',
+          'fixed bottom-0 left-0 right-0 z-40 sidebar:hidden safe-area-bottom will-change-transform',
           'transition-transform duration-300 ease-in-out',
-          isHidden && 'translate-y-full',
         )}
+        style={isHidden ? hiddenStyle : undefined}
       >
-        <div className="h-14 flex items-center">
+        <ArcBackground variant={noArcs ? 'rect' : 'up'} />
+
+        <div className="h-11 mt-2 flex items-center relative">
 
           {/* Feed */}
           <Link
@@ -112,9 +120,7 @@ export function MobileBottomNav() {
           ) : (
             <Link
               to="/profile"
-              className={cn(
-                'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors text-muted-foreground',
-              )}
+              className="flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors text-muted-foreground"
             >
               <User className="size-5" />
               <span className="text-[10px] font-medium">Profile</span>
