@@ -28,6 +28,10 @@ interface BlobbiCompanionVisualProps {
   isWalking: boolean;
   /** Floating animation offset for gentle sway */
   floatOffset?: { x: number; y: number; rotation: number };
+  /** Whether Blobbi is on or near the ground (affects shadow visibility) */
+  isOnGround?: boolean;
+  /** Distance from ground in pixels (for shadow fade, 0 = on ground) */
+  distanceFromGround?: number;
   /** Additional class names */
   className?: string;
   /** Debug mode - shows visual boundaries */
@@ -72,6 +76,8 @@ export function BlobbiCompanionVisual({
   isDragging,
   isWalking,
   floatOffset = { x: 0, y: 0, rotation: 0 },
+  isOnGround = true,
+  distanceFromGround = 0,
   className,
   debugMode = false,
 }: BlobbiCompanionVisualProps) {
@@ -100,12 +106,21 @@ export function BlobbiCompanionVisual({
   // Determine reaction state
   const reaction = isDragging ? 'happy' : isWalking ? 'idle' : 'idle';
   
-  // Shadow size and opacity adjust based on float height
-  // floatOffset.y is negative (upward) or zero, so we use -floatOffset.y for the height
-  // When on ground (y=0): full shadow. When lifted: smaller/fainter shadow
-  const floatHeight = -floatOffset.y; // Convert to positive value (0 = on ground, ~4 = max float)
-  const shadowScale = 1 - floatHeight * 0.04; // Shrinks as Blobbi lifts
-  const shadowOpacity = 0.4 - floatHeight * 0.03; // Fades as Blobbi lifts
+  // Shadow visibility and appearance based on ground proximity
+  // Shadow should only appear when Blobbi is on or very near the ground
+  const SHADOW_FADE_DISTANCE = 30; // Shadow fully fades at this distance from ground
+  const SHADOW_MAX_OPACITY = 0.35;
+  
+  // Calculate shadow visibility based on actual ground distance, not just float offset
+  const showShadow = isOnGround && !isDragging && distanceFromGround < SHADOW_FADE_DISTANCE;
+  
+  // Shadow fades as Blobbi gets farther from ground
+  // Also factor in the float animation offset for subtle breathing effect
+  const floatHeight = Math.abs(floatOffset.y);
+  const groundFadeRatio = Math.max(0, 1 - distanceFromGround / SHADOW_FADE_DISTANCE);
+  const floatFadeRatio = Math.max(0.85, 1 - floatHeight * 0.02); // Subtle fade during float
+  const shadowOpacity = SHADOW_MAX_OPACITY * groundFadeRatio * floatFadeRatio;
+  const shadowScale = 0.9 + 0.1 * groundFadeRatio * floatFadeRatio; // Slightly smaller when lifting
   
   // Suppress unused variable warning for direction (kept for API compatibility)
   void direction;
@@ -166,21 +181,23 @@ export function BlobbiCompanionVisual({
         </>
       )}
       
-      {/* Shadow underneath - soft ellipse positioned below Blobbi (hidden in debug mode) */}
-      {/* Shadow is offset further below to feel grounded but not glued to body */}
-      {!debugMode && (
+      {/* Floor shadow - only visible when Blobbi is on/near the ground */}
+      {/* Hidden during: dragging, entry animations, falling, or when far from ground */}
+      {!debugMode && showShadow && shadowOpacity > 0.01 && (
         <div
           className="absolute pointer-events-none"
           style={{
-            bottom: -12, // Increased from -4 for more separation from body
+            // Position shadow well below Blobbi to feel like it's on the floor
+            bottom: -20,
             left: '50%',
-            width: size * 0.55, // Slightly narrower for cleaner look
-            height: size * 0.10, // Slightly thinner
+            width: size * 0.5,
+            height: size * 0.08,
             transform: `translateX(-50%) scaleX(${shadowScale})`,
-            background: `radial-gradient(ellipse at center, rgba(0,0,0,${shadowOpacity}) 0%, rgba(0,0,0,${shadowOpacity * 0.6}) 35%, transparent 65%)`,
+            background: `radial-gradient(ellipse at center, rgba(0,0,0,${shadowOpacity}) 0%, rgba(0,0,0,${shadowOpacity * 0.5}) 40%, transparent 70%)`,
             borderRadius: '50%',
-            filter: 'blur(3px)', // Slightly more blur for softer shadow
-            transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+            filter: 'blur(4px)',
+            opacity: groundFadeRatio, // Additional opacity control for smooth fade
+            transition: 'opacity 0.15s ease-out, transform 0.1s ease-out',
           }}
         />
       )}
