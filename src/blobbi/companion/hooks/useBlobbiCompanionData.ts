@@ -3,6 +3,10 @@
  * 
  * Fetches the current companion data from the user's Blobbonaut profile.
  * This is the data layer - it handles fetching and provides companion data.
+ * 
+ * IMPORTANT: This hook uses useBlobbonautProfile to ensure reactivity.
+ * When the profile is updated (e.g., companion selected/removed), this hook
+ * automatically receives the update via the shared query cache.
  */
 
 import { useMemo } from 'react';
@@ -10,12 +14,9 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import {
-  KIND_BLOBBONAUT_PROFILE,
   KIND_BLOBBI_STATE,
-  getBlobbonautQueryDValues,
-  isValidBlobbonautEvent,
-  parseBlobbonautEvent,
   isValidBlobbiEvent,
   parseBlobbiEvent,
 } from '@/lib/blobbi';
@@ -34,46 +35,27 @@ interface UseBlobbiCompanionDataResult {
  * Hook to fetch the current companion from the user's Blobbonaut profile.
  * 
  * Flow:
- * 1. Fetch the user's kind 31125 (Blobbonaut Profile) event
- * 2. Read the current_companion tag
+ * 1. Use useBlobbonautProfile to get the profile (shared query, reactive)
+ * 2. Read the currentCompanion from the profile
  * 3. If it exists, fetch the corresponding kind 31124 (Blobbi State) event
  * 4. Return the minimal data needed for rendering
+ * 
+ * Reactivity:
+ * - Uses the same query cache as useBlobbonautProfile
+ * - When profile is updated via updateProfileEvent(), this hook reacts immediately
+ * - No duplicate queries or stale cache issues
  */
 export function useBlobbiCompanionData(): UseBlobbiCompanionDataResult {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   
-  // Step 1: Fetch the Blobbonaut profile
-  const profileQuery = useQuery({
-    queryKey: ['companion-profile', user?.pubkey],
-    queryFn: async ({ signal }) => {
-      if (!user?.pubkey) return null;
-      
-      const dValues = getBlobbonautQueryDValues(user.pubkey);
-      const events = await nostr.query([{
-        kinds: [KIND_BLOBBONAUT_PROFILE],
-        authors: [user.pubkey],
-        '#d': dValues,
-      }], { signal });
-      
-      // Get the latest valid event
-      const validEvents = events
-        .filter(isValidBlobbonautEvent)
-        .sort((a, b) => b.created_at - a.created_at);
-      
-      if (validEvents.length === 0) return null;
-      
-      return parseBlobbonautEvent(validEvents[0]);
-    },
-    enabled: !!user?.pubkey,
-    staleTime: 60_000, // 1 minute
-    gcTime: 5 * 60_000, // 5 minutes
-  });
+  // Use the shared profile hook - this ensures reactivity when profile changes
+  const { profile, isLoading: profileLoading } = useBlobbonautProfile();
   
-  // Extract current companion d-tag
-  const currentCompanionD = profileQuery.data?.currentCompanion;
+  // Extract current companion d-tag from the reactive profile
+  const currentCompanionD = profile?.currentCompanion;
   
-  // Step 2: Fetch the Blobbi state if we have a current companion
+  // Fetch the Blobbi state if we have a current companion
   const blobbiQuery = useQuery({
     queryKey: ['companion-blobbi', user?.pubkey, currentCompanionD],
     queryFn: async ({ signal }) => {
@@ -99,8 +81,13 @@ export function useBlobbiCompanionData(): UseBlobbiCompanionDataResult {
     gcTime: 5 * 60_000, // 5 minutes
   });
   
-  // Step 3: Transform to CompanionData
+  // Transform to CompanionData
+  // When currentCompanionD becomes null/undefined, companion becomes null
   const companion = useMemo((): CompanionData | null => {
+    // If no current companion is set in profile, return null immediately
+    // This ensures removal is reactive
+    if (!currentCompanionD) return null;
+    
     const blobbi = blobbiQuery.data;
     if (!blobbi) return null;
     
@@ -117,11 +104,11 @@ export function useBlobbiCompanionData(): UseBlobbiCompanionDataResult {
       adultType: blobbi.adultType,
       seed: blobbi.seed,
     };
-  }, [blobbiQuery.data]);
+  }, [currentCompanionD, blobbiQuery.data]);
   
   return {
     companion,
-    isLoading: profileQuery.isLoading || (!!currentCompanionD && blobbiQuery.isLoading),
-    error: profileQuery.error ?? blobbiQuery.error ?? null,
+    isLoading: profileLoading || (!!currentCompanionD && blobbiQuery.isLoading),
+    error: blobbiQuery.error ?? null,
   };
 }

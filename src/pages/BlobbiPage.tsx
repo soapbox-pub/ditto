@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
+import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
 import { cn } from '@/lib/utils';
 
 import {
@@ -765,6 +766,11 @@ function BlobbiDashboard({
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
   
+  // Check if this Blobbi is currently the active floating companion
+  // If so, we hide the visual here to avoid duplication (one floating, one in-page)
+  const { companion: activeCompanion } = useBlobbiCompanionData();
+  const isActiveFloatingCompanion = activeCompanion?.d === companion.d;
+  
   // Projected state with decay applied (UI-only, recalculates every 60s)
   const projectedState = useProjectedBlobbiState(companion);
   
@@ -1273,21 +1279,31 @@ function BlobbiDashboard({
         </div>
         
         {/* Main Blobbi Visual */}
-        <div className={cn(
-          "relative transition-all duration-500",
-          isSleeping && "opacity-80"
-        )}>
-          {/* Subtle glow effect behind the egg */}
-          <div className="absolute inset-0 -m-8 bg-primary/5 rounded-full blur-3xl" />
-          
-          <BlobbiStageVisual
-            companion={companion}
-            size="lg"
-            animated={!isSleeping}
-            reaction={blobbiReaction}
-            className="size-48 sm:size-56"
-          />
-        </div>
+        {isActiveFloatingCompanion ? (
+          // Show message when Blobbi is active as floating companion
+          <div className="flex flex-col items-center justify-center size-48 sm:size-56 text-center">
+            <Footprints className="size-12 text-muted-foreground/50 mb-3" />
+            <p className="text-muted-foreground text-sm">
+              {companion.name} is out exploring right now.
+            </p>
+          </div>
+        ) : (
+          <div className={cn(
+            "relative transition-all duration-500",
+            isSleeping && "opacity-80"
+          )}>
+            {/* Subtle glow effect behind the egg */}
+            <div className="absolute inset-0 -m-8 bg-primary/5 rounded-full blur-3xl" />
+            
+            <BlobbiStageVisual
+              companion={companion}
+              size="lg"
+              animated={!isSleeping}
+              reaction={blobbiReaction}
+              className="size-48 sm:size-56"
+            />
+          </div>
+        )}
         
         {/* Stage Badge */}
         <Badge variant="outline" className="mt-6 capitalize">
