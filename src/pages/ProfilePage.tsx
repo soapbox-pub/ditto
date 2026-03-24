@@ -1981,26 +1981,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       </Avatar>
                     </div>
                   </button>
-
-                  {/* NIP-38 thought bubble — floats beside the avatar over the banner */}
-                  {feedSettings.showUserStatuses !== false && profileStatus.status && (
-                    <div className="absolute -top-2 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
-                      <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg">
-                        <p className="text-xs md:text-sm text-foreground italic truncate pr-1">
-                          {profileStatus.url ? (
-                            <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                              {profileStatus.status}
-                            </a>
-                          ) : (
-                            profileStatus.status
-                          )}
-                        </p>
-                        {/* Speech bubble triangle tail — slightly angled toward avatar */}
-                        <div className="absolute -bottom-[6px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-t-[6px] border-t-border" />
-                        <div className="absolute -bottom-[5px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-t-[6px] border-t-background" />
-                      </div>
-                    </div>
-                  )}
                 </div>
                 <div className="flex items-center gap-2 mt-14 md:mt-20">
                   {/* More menu */}
@@ -2067,6 +2047,18 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               </h2>
               {metadata?.nip05 && (
                 <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" showCheck />
+              )}
+              {/* NIP-38 user status */}
+              {feedSettings.showUserStatuses !== false && profileStatus.status && (
+                <p className="text-sm text-muted-foreground italic mt-0.5 truncate animate-in fade-in duration-300">
+                  {profileStatus.url ? (
+                    <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                      {profileStatus.status}
+                    </a>
+                  ) : (
+                    profileStatus.status
+                  )}
+                </p>
               )}
               {(metadata?.lud16 || metadata?.lud06) && (
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
