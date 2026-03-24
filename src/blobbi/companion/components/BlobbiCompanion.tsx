@@ -184,6 +184,19 @@ export function BlobbiCompanion({
     }
   }, [renderedX, renderedY, onPositionUpdate]);
   
+  // Calculate ground proximity for shadow visibility
+  // groundPosition.y is where Blobbi should be when on the ground
+  // y is the current container position (top-left corner)
+  // When y > groundPosition.y, Blobbi is below ground (shouldn't happen)
+  // When y < groundPosition.y, Blobbi is above ground
+  const distanceFromGround = Math.max(0, groundPosition.y - y);
+  
+  // Blobbi is "on ground" when:
+  // - Not in entry animation
+  // - Not being dragged  
+  // - Position is at or very near the ground position
+  const isOnGround = !useEntryPosition && !motion.isDragging && distanceFromGround < 5;
+  
   // Build transform string
   const transform = useEntryPosition 
     ? `rotate(${rotation}deg) scaleX(${scaleX}) scaleY(${scaleY})`
@@ -295,6 +308,8 @@ export function BlobbiCompanion({
         isDragging={motion.isDragging}
         isWalking={state === 'walking'}
         floatOffset={floatOffset}
+        isOnGround={isOnGround}
+        distanceFromGround={distanceFromGround}
         debugMode={debugMode}
       />
     </div>
