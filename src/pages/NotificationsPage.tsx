@@ -11,6 +11,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteCard } from '@/components/NoteCard';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -31,6 +32,7 @@ import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
 import { Button } from '@/components/ui/button';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 type NotificationTab = 'all' | 'mentions';
 
@@ -41,6 +43,8 @@ export function NotificationsPage() {
     title: `Notifications | ${config.appName}`,
     description: 'Your Nostr notifications',
   });
+
+  useLayoutOptions({ hasSubHeader: true });
 
   const [activeTab, setActiveTab] = useState<NotificationTab>('all');
   const { user } = useCurrentUser();
@@ -113,7 +117,7 @@ export function NotificationsPage() {
   return (
     <main className="">
       {/* Tab bar */}
-      <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+      <SubHeaderBar>
         {tabs.map(({ key, label }) => (
           <TabButton
             key={key}
@@ -124,7 +128,7 @@ export function NotificationsPage() {
             indicatorClassName="sidebar:h-[3px]"
           />
         ))}
-      </div>
+      </SubHeaderBar>
 
       {/* Content */}
       <PullToRefresh onRefresh={handleRefresh}>

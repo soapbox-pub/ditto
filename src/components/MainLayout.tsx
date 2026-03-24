@@ -64,7 +64,7 @@ function PageSkeleton() {
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
-  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth } = useLayoutSnapshot();
+  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, hasSubHeader, noArcs } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { config } = useAppContext();
 
@@ -74,7 +74,7 @@ function MainLayoutInner() {
       {config.magicMouse && <CursorFireEffect />}
 
       {/* Mobile top bar - only on small screens */}
-      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} />
+      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} showArc={!hasSubHeader && !noArcs} />
 
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
@@ -88,7 +88,13 @@ function MainLayoutInner() {
 
         {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
         <Suspense fallback={<PageSkeleton />}>
-          <div className={cn("relative flex-1 min-w-0 sidebar:border-l border-r border-border bg-background/85", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
+          {/* -mt-mobile-bar pulls content up behind the mobile top bar so the
+              transparent SVG header arc and page content overlap seamlessly.
+              The corresponding padding-top (set in CSS) prevents content from
+              being hidden. This depends on MobileTopBar having a transparent /
+              semi-transparent background — a solid top bar would obscure the
+              content underneath. Only active below the sidebar breakpoint. */}
+          <div className={cn("relative flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85 -mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
             <Outlet />
             {showFAB && (
               <div className="sticky bottom-fab sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
