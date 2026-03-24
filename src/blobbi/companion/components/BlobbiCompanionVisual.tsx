@@ -30,6 +30,8 @@ interface BlobbiCompanionVisualProps {
   floatOffset?: { x: number; y: number; rotation: number };
   /** Additional class names */
   className?: string;
+  /** Debug mode - shows visual boundaries */
+  debugMode?: boolean;
 }
 
 /**
@@ -55,8 +57,10 @@ function toBlobiForVisual(companion: CompanionData): Blobbi {
     pattern: companion.visualTraits.pattern,
     specialMark: companion.visualTraits.specialMark,
     size: companion.visualTraits.size,
-    seed: '',
+    seed: companion.seed ?? '',
     tags: [],
+    // Include adult form info for proper rendering
+    adult: companion.adultType ? { evolutionForm: companion.adultType } : undefined,
   };
 }
 
@@ -69,6 +73,7 @@ export function BlobbiCompanionVisual({
   isWalking,
   floatOffset = { x: 0, y: 0, rotation: 0 },
   className,
+  debugMode = false,
 }: BlobbiCompanionVisualProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -125,29 +130,93 @@ export function BlobbiCompanionVisual({
       className={cn('relative', className)}
       style={{ width: size, height: size }}
     >
-      {/* Shadow underneath - soft ellipse */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          bottom: -4,
-          left: '50%',
-          width: size * 0.6,
-          height: size * 0.12,
-          transform: `translateX(-50%) scaleX(${shadowScale})`,
-          background: `radial-gradient(ellipse at center, rgba(0,0,0,${shadowOpacity}) 0%, rgba(0,0,0,${shadowOpacity * 0.5}) 40%, transparent 70%)`,
-          borderRadius: '50%',
-          filter: 'blur(2px)',
-          transition: isDragging ? 'none' : 'transform 0.1s ease-out',
-        }}
-      />
+      {/* DEBUG: Container and alignment markers */}
+      {debugMode && (
+        <>
+          {/* Container outline - lime */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              border: '2px solid lime',
+              boxSizing: 'border-box',
+            }}
+          />
+          {/* 88% line from top (where SVG body bottom should be before shift) - yellow */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              top: `${size * 0.88}px`,
+              left: 0,
+              right: 0,
+              height: 2,
+              backgroundColor: 'yellow',
+            }}
+          />
+          {/* 100% line (container bottom where body should touch after shift) - cyan */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 2,
+              backgroundColor: 'cyan',
+            }}
+          />
+          {/* Label showing the expected shift */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              top: 2,
+              left: 2,
+              fontSize: 8,
+              color: 'white',
+              backgroundColor: 'black',
+              padding: '1px 2px',
+            }}
+          >
+            shift: {size * 0.12}px
+          </div>
+        </>
+      )}
+      
+      {/* Shadow underneath - soft ellipse (hidden in debug mode) */}
+      {!debugMode && (
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            bottom: -4,
+            left: '50%',
+            width: size * 0.6,
+            height: size * 0.12,
+            transform: `translateX(-50%) scaleX(${shadowScale})`,
+            background: `radial-gradient(ellipse at center, rgba(0,0,0,${shadowOpacity}) 0%, rgba(0,0,0,${shadowOpacity * 0.5}) 40%, transparent 70%)`,
+            borderRadius: '50%',
+            filter: 'blur(2px)',
+            transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+          }}
+        />
+      )}
       
       {/* Blobbi visual with floating transform */}
+      {/* 
+        The Blobbi SVG has empty space: 15% at top (body starts at y=15), 12% at bottom (body ends at y=88).
+        To align the visible body bottom with the container bottom, we shift down by 12% of container size.
+        This is applied BEFORE the float transform so the ground position is correct.
+      */}
       <div
         className="size-full"
         style={{
-          transform: blobbiTransform,
+          // First apply the SVG alignment correction, then the float animation
+          // The 12% shift pushes the SVG down so its visible body bottom aligns with container bottom
+          transform: [
+            `translateY(${size * 0.12}px)`,  // SVG body alignment correction
+            blobbiTransform,                  // Float animation (if any)
+          ].filter(Boolean).join(' ') || undefined,
           transformOrigin: 'center bottom',
           transition: isDragging ? 'none' : 'transform 0.05s ease-out',
+          // DEBUG: Show the shifted wrapper
+          ...(debugMode ? { outline: '2px dashed magenta' } : {}),
         }}
       >
         {companion.stage === 'baby' && (

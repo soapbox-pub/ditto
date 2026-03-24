@@ -80,6 +80,10 @@ export interface CompanionData {
   visualTraits: BlobbiVisualTraits;
   /** Current energy level (0-100) - affects walking speed */
   energy: number;
+  /** Adult evolution form type (e.g., 'catti', 'pupp', 'buni') - only for adults */
+  adultType?: string;
+  /** Deterministic seed for deriving traits */
+  seed?: string;
 }
 
 // ─── Companion Config ─────────────────────────────────────────────────────────

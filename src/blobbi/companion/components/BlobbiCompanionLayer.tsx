@@ -22,6 +22,9 @@ import { BlobbiCompanion } from './BlobbiCompanion';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { calculateEntryPosition, calculateRestingPosition, calculateGroundY } from '../utils/movement';
 
+// DEBUG MODE - Set to true to debug ground contact
+const DEBUG_GROUND_CONTACT = false;
+
 /**
  * Selector for the main content element in the DOM.
  * This targets the content column that has the left border on desktop (sidebar:border-l).
@@ -230,16 +233,81 @@ export function BlobbiCompanionLayer() {
   // Mobile entry OR after entry animation: render in unrestricted global layer
   // Uses fixed positioning so companion can move anywhere on screen
   // On mobile, no clipping is needed since we're just sliding in from the edge
+  
+  // Calculate ground position for debug line
+  const debugGroundY = calculateGroundY(viewport.height, config.size, config);
+  
   return (
     <div 
       className="fixed inset-0 pointer-events-none"
       style={{ zIndex: 9999 }}
       aria-hidden="true"
     >
+      {/* DEBUG: Visible ground line */}
+      {DEBUG_GROUND_CONTACT && (
+        <>
+          {/* Ground line where Blobbi's CONTAINER bottom should be */}
+          <div 
+            style={{
+              position: 'fixed',
+              left: 0,
+              right: 0,
+              top: debugGroundY + config.size, // Container bottom
+              height: 2,
+              backgroundColor: 'red',
+              zIndex: 10002,
+            }}
+          />
+          {/* Label for the ground line */}
+          <div
+            style={{
+              position: 'fixed',
+              right: 10,
+              top: debugGroundY + config.size + 4,
+              color: 'red',
+              fontSize: 12,
+              fontWeight: 'bold',
+              zIndex: 10002,
+              backgroundColor: 'white',
+              padding: '2px 4px',
+            }}
+          >
+            Container bottom (groundY + size = {Math.round(debugGroundY + config.size)}px)
+          </div>
+          {/* Another line showing the actual viewport bottom minus padding */}
+          <div 
+            style={{
+              position: 'fixed',
+              left: 0,
+              right: 0,
+              top: viewport.height - config.padding.bottom,
+              height: 2,
+              backgroundColor: 'blue',
+              zIndex: 10002,
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              right: 10,
+              top: viewport.height - config.padding.bottom + 4,
+              color: 'blue',
+              fontSize: 12,
+              fontWeight: 'bold',
+              zIndex: 10002,
+              backgroundColor: 'white',
+              padding: '2px 4px',
+            }}
+          >
+            Viewport - padding = {viewport.height - config.padding.bottom}px (Target ground)
+          </div>
+        </>
+      )}
       <div className="pointer-events-auto">
         <BlobbiCompanion 
           {...baseCompanionProps}
           useAbsolutePositioning={false}
+          debugMode={DEBUG_GROUND_CONTACT}
         />
       </div>
     </div>

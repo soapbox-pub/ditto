@@ -40,6 +40,11 @@ export function customizeBabySvg(
 ): string {
   let modifiedSvg = svgText;
 
+  // Ensure SVG fills its container by adding width/height attributes
+  // This is needed because the SVG only has viewBox, and without explicit dimensions
+  // it may not fill flex containers properly
+  modifiedSvg = ensureSvgFillsContainer(modifiedSvg);
+
   // Only apply customizations if we have colors
   if (!customization.baseColor && !customization.secondaryColor && !customization.eyeColor) {
     return modifiedSvg;
@@ -56,6 +61,22 @@ export function customizeBabySvg(
   }
 
   return modifiedSvg;
+}
+
+/**
+ * Ensure SVG has width/height attributes so it fills its container
+ */
+function ensureSvgFillsContainer(svgText: string): string {
+  // Check if width and height are already set
+  if (/\swidth=/.test(svgText) && /\sheight=/.test(svgText)) {
+    return svgText;
+  }
+
+  // Add width="100%" height="100%" to the SVG tag
+  return svgText.replace(
+    /<svg([^>]*)>/,
+    '<svg$1 width="100%" height="100%">'
+  );
 }
 
 /**
