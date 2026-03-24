@@ -378,21 +378,25 @@ export function useBlobbiAttention({
   /**
    * Compute the effective current attention.
    * Priority (highest to lowest):
-   * 1. Typing attention (when actively typing in modal field)
+   * 1. Typing attention (when actively typing in modal field - caret-aware)
    * 2. UI attention (modals, dialogs, overlays)
    * 
-   * Typing attention is created dynamically from typingTarget.
+   * Typing attention:
+   * - Created dynamically from typingTarget (caret position)
+   * - Uses 'high' priority to override generic modal attention
+   * - Keeps Blobbi focused on the typing location, not just the modal center
+   * - Releases after 4s idle timeout
    */
   const currentAttention = useMemo((): AttentionTarget | null => {
     // Typing attention takes priority over UI attention
-    // This keeps Blobbi focused on the text field while typing
+    // This keeps Blobbi focused on the caret while typing
     if (isTypingInModal && typingTarget) {
       return {
         id: 'typing-attention',
         position: typingTarget,
         duration: 0, // Managed by typing timeout, not attention timeout
-        priority: 'normal', // Below 'high' (alert dialogs) but above 'low'
-        source: 'typing:modal-input',
+        priority: 'high', // High priority to override generic modal attention
+        source: 'typing:caret',
         triggeredAt: Date.now(),
       };
     }
