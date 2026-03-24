@@ -94,7 +94,13 @@ export function useBlobbiEntryAnimation({
    */
   const getTotalDuration = useCallback((entryType: EntryType) => {
     if (entryType === 'fall') {
-      return entryConfig.fallDuration + entryConfig.landingDuration;
+      // Fall entry: stuck -> wiggling -> falling -> landing
+      return (
+        entryConfig.stuckDuration +
+        entryConfig.wiggleDuration +
+        entryConfig.fallDuration +
+        entryConfig.landingDuration
+      );
     } else {
       // Rise entry with inspection
       const inspectionDuration = 
@@ -118,7 +124,8 @@ export function useBlobbiEntryAnimation({
     const inspectionOrder = generateInspectionOrder();
     
     // Determine initial phase based on entry type
-    const initialPhase: EntryPhase = entryType === 'fall' ? 'falling' : 'rising';
+    // Fall entry starts with 'stuck', rise entry starts with 'rising'
+    const initialPhase: EntryPhase = entryType === 'fall' ? 'stuck' : 'rising';
     
     setEntryState({
       entryType,
@@ -186,15 +193,57 @@ export function useBlobbiEntryAnimation({
   
   /**
    * Animation loop for FALL entry.
+   * Phases: stuck -> wiggling -> falling -> landing -> complete
    */
   const animateFallEntry = useCallback((now: number, prev: EntryState): EntryState => {
     const phaseElapsed = now - prev.phaseStartTime;
     const totalDuration = getTotalDuration('fall');
     
+    // Calculate cumulative durations for progress tracking
+    const stuckEnd = entryConfig.stuckDuration;
+    const wiggleEnd = stuckEnd + entryConfig.wiggleDuration;
+    const fallEnd = wiggleEnd + entryConfig.fallDuration;
+    
     switch (prev.phase) {
+      case 'stuck': {
+        const phaseProgress = Math.min(1, phaseElapsed / entryConfig.stuckDuration);
+        const progress = phaseElapsed / totalDuration;
+        
+        if (phaseElapsed >= entryConfig.stuckDuration) {
+          // Transition to wiggling
+          return {
+            ...prev,
+            phase: 'wiggling',
+            phaseProgress: 0,
+            progress,
+            phaseStartTime: now,
+          };
+        }
+        
+        return { ...prev, phaseProgress, progress };
+      }
+      
+      case 'wiggling': {
+        const phaseProgress = Math.min(1, phaseElapsed / entryConfig.wiggleDuration);
+        const progress = (stuckEnd + phaseElapsed) / totalDuration;
+        
+        if (phaseElapsed >= entryConfig.wiggleDuration) {
+          // Transition to falling
+          return {
+            ...prev,
+            phase: 'falling',
+            phaseProgress: 0,
+            progress,
+            phaseStartTime: now,
+          };
+        }
+        
+        return { ...prev, phaseProgress, progress };
+      }
+      
       case 'falling': {
         const phaseProgress = Math.min(1, phaseElapsed / entryConfig.fallDuration);
-        const progress = phaseElapsed / totalDuration;
+        const progress = (wiggleEnd + phaseElapsed) / totalDuration;
         
         if (phaseElapsed >= entryConfig.fallDuration) {
           // Transition to landing
@@ -212,7 +261,7 @@ export function useBlobbiEntryAnimation({
       
       case 'landing': {
         const phaseProgress = Math.min(1, phaseElapsed / entryConfig.landingDuration);
-        const progress = (entryConfig.fallDuration + phaseElapsed) / totalDuration;
+        const progress = (fallEnd + phaseElapsed) / totalDuration;
         
         if (phaseElapsed >= entryConfig.landingDuration) {
           // Entry complete

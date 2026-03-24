@@ -93,6 +93,9 @@ export function BlobbiCompanion({
   // Vertical entry config (derived from main config)
   const verticalEntryConfig: VerticalEntryConfig = {
     landingSquash: config.entry.landingSquash,
+    stuckVisibleAmount: config.entry.stuckVisibleAmount,
+    wiggleIntensity: config.entry.wiggleIntensity,
+    wiggleRotation: config.entry.wiggleRotation,
     riseVisibleAmount: config.entry.riseVisibleAmount,
   };
   

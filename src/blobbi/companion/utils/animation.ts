@@ -140,8 +140,17 @@ export interface VerticalEntryResult {
  * Configuration for vertical entry animations.
  */
 export interface VerticalEntryConfig {
+  // ── Fall entry ──
   /** Squash amount during landing (0-1, 0.15 = 15% compression) */
   landingSquash: number;
+  /** How much of Blobbi is visible when stuck (0-1, 0.25 = just butt showing) */
+  stuckVisibleAmount: number;
+  /** Horizontal wiggle intensity in pixels */
+  wiggleIntensity: number;
+  /** Rotation wiggle in degrees */
+  wiggleRotation: number;
+  
+  // ── Rise entry ──
   /** How much of Blobbi is visible when stopping to inspect (0-1, 0.65 = 65% visible) */
   riseVisibleAmount: number;
 }
@@ -150,12 +159,14 @@ export interface VerticalEntryConfig {
  * Calculate the FALL entry animation (from top of screen).
  * 
  * Used when navigating DOWN the sidebar order.
- * Blobbi falls naturally from above and lands at the ground position.
+ * Blobbi appears stuck at the top, wiggles to get loose, then falls and lands.
  * 
  * Phases:
- * 1. FALLING: Accelerating fall from top of screen
- * 2. LANDING: Brief squash/settle on impact
- * 3. COMPLETE: At rest position
+ * 1. STUCK: Only butt visible at top, like hanging/stuck
+ * 2. WIGGLING: Playful wiggle to get loose
+ * 3. FALLING: Accelerating fall from top of screen
+ * 4. LANDING: Brief squash/settle on impact
+ * 5. COMPLETE: At rest position
  * 
  * @param groundPosition - Final resting position (ground level, center of screen)
  * @param viewportHeight - Height of the viewport
@@ -172,29 +183,76 @@ export function calculateFallEntryAnimation(
 ): VerticalEntryResult {
   const { phase, phaseProgress } = entryState;
   
-  // Start position: above the viewport
-  const startY = -companionSize;
+  // Stuck position: only showing the bottom part (butt)
+  // Position is calculated so only stuckVisibleAmount of the companion is visible
+  // The companion's top-left is at y, so to show only the bottom part:
+  // we need y = -(1 - stuckVisibleAmount) * companionSize
+  const stuckY = -(1 - config.stuckVisibleAmount) * companionSize;
+  
+  // Full hidden position (above viewport)
+  const hiddenY = -companionSize;
   
   switch (phase) {
     case 'idle':
       return {
-        position: { x: groundPosition.x, y: startY },
+        position: { x: groundPosition.x, y: hiddenY },
         rotation: 0,
         scaleX: 1,
         scaleY: 1,
         complete: false,
       };
+    
+    case 'stuck': {
+      // Ease into the stuck position (butt peeking from top)
+      const eased = easeOutCubic(phaseProgress);
+      const y = lerp(hiddenY, stuckY, eased);
+      
+      return {
+        position: { x: groundPosition.x, y },
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+    }
+    
+    case 'wiggling': {
+      // Playful wiggle animation - trying to get loose
+      // Multiple sine waves for organic feel
+      const t = phaseProgress * Math.PI * 4; // 2 full wiggle cycles
+      
+      // Horizontal sway - starts strong, diminishes
+      const swayAmount = config.wiggleIntensity * (1 - phaseProgress * 0.3);
+      const xOffset = Math.sin(t) * swayAmount;
+      
+      // Rotation wobble - playful tilt
+      const rotationAmount = config.wiggleRotation * (1 - phaseProgress * 0.3);
+      const rotation = Math.sin(t + 0.5) * rotationAmount;
+      
+      // Slight vertical bounce (trying to break free)
+      const yBounce = Math.sin(t * 1.5) * 3 * (1 - phaseProgress * 0.5);
+      
+      return {
+        position: { 
+          x: groundPosition.x + xOffset, 
+          y: stuckY + yBounce 
+        },
+        rotation,
+        scaleX: 1,
+        scaleY: 1,
+        complete: false,
+      };
+    }
       
     case 'falling': {
       // Accelerating fall with easeInQuad for gravity-like feel
-      // Use easeIn for acceleration effect (starts slow, speeds up)
       const eased = easeInQuad(phaseProgress);
       
-      // Fall from above viewport to ground position
-      const y = lerp(startY, groundPosition.y, eased);
+      // Fall from stuck position to ground position
+      const y = lerp(stuckY, groundPosition.y, eased);
       
-      // Slight rotation during fall for dynamic feel
-      const rotation = Math.sin(phaseProgress * Math.PI * 2) * 3 * (1 - phaseProgress);
+      // Slight rotation during fall for dynamic feel (tumbling)
+      const rotation = Math.sin(phaseProgress * Math.PI * 2) * 5 * (1 - phaseProgress);
       
       return {
         position: { x: groundPosition.x, y },
