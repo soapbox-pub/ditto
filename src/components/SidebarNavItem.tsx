@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { GripVertical, X } from 'lucide-react';
+import { GripVertical, X, Plus, ChevronDown } from 'lucide-react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -21,6 +21,9 @@ export interface SidebarNavItemProps {
   active: boolean;
   editing: boolean;
   onRemove: (id: string, index?: number) => void;
+  onAdd?: (id: string) => void;
+  /** True when this item is below the "More..." separator (hidden zone). */
+  belowMore?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   profilePath?: string;
   showIndicator?: boolean;
@@ -31,7 +34,7 @@ export interface SidebarNavItemProps {
 }
 
 export function SidebarNavItem({
-  id, active, editing, onRemove, onClick, profilePath, showIndicator, linkClassName, homePage,
+  id, active, editing, onRemove, onAdd, belowMore, onClick, profilePath, showIndicator, linkClassName, homePage,
 }: SidebarNavItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !editing });
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -75,13 +78,23 @@ export function SidebarNavItem({
       </Link>
 
       {editing && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onRemove(id); }}
-          className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          title={`Remove ${label}`}
-        >
-          <X className="size-4" />
-        </button>
+        belowMore ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAdd?.(id); }}
+            className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-primary hover:bg-primary/10"
+            title={`Add ${label}`}
+          >
+            <Plus className="size-4" />
+          </button>
+        ) : (
+          <button
+            onClick={(e) => { e.stopPropagation(); onRemove(id); }}
+            className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            title={`Remove ${label}`}
+          >
+            <X className="size-4" />
+          </button>
+        )
       )}
     </div>
   );
@@ -130,12 +143,49 @@ function SidebarDividerItem({ sortableId, editing, onRemove }: SidebarDividerIte
   );
 }
 
+// ── "More..." separator (draggable boundary in editing mode) ──────────────────
+
+function MoreSeparatorItem({ sortableId, editing, linkClassName }: { sortableId: string; editing: boolean; linkClassName?: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sortableId, disabled: !editing });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn('flex items-center rounded-full transition-colors relative bg-background/85', isDragging && 'z-10 opacity-80 shadow-lg')}
+    >
+      {editing && (
+        <button
+          className="flex items-center justify-center w-8 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+      )}
+      <div className={cn(
+        'flex items-center gap-4 py-3 rounded-full flex-1 min-w-0 text-muted-foreground/60',
+        editing ? 'px-2' : 'px-3',
+        linkClassName ?? 'text-lg',
+      )}>
+        <ChevronDown className="size-6" />
+        <span>More...</span>
+      </div>
+    </div>
+  );
+}
+
 // ── DnD-aware nav list ────────────────────────────────────────────────────────
+
+/** Sentinel ID representing the "More..." boundary in the editing list. */
+export const MORE_SEPARATOR_ID = '__more__';
 
 export interface SidebarNavListProps {
   items: string[];
   editing: boolean;
   onRemove: (id: string, index?: number) => void;
+  onAdd?: (id: string) => void;
   onReorder: (newOrder: string[]) => void;
   isActive: (id: string) => boolean;
   getOnClick?: (id: string) => ((e: React.MouseEvent) => void) | undefined;
@@ -147,7 +197,7 @@ export interface SidebarNavListProps {
 }
 
 export function SidebarNavList({
-  items, editing, onRemove, onReorder, isActive, getOnClick, getProfilePath, getShowIndicator, linkClassName, homePage,
+  items, editing, onRemove, onAdd, onReorder, isActive, getOnClick, getProfilePath, getShowIndicator, linkClassName, homePage,
 }: SidebarNavListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -156,6 +206,9 @@ export function SidebarNavList({
 
   // Assign unique sortable IDs: regular items use their id, dividers get "divider-{index}"
   const sortableIds = items.map((id, i) => isSidebarDivider(id) ? `divider-${i}` : id);
+
+  // Find the "More..." boundary to determine which items are below it
+  const moreIndex = items.indexOf(MORE_SEPARATOR_ID);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -171,6 +224,12 @@ export function SidebarNavList({
       <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
         {items.map((id, i) => {
           const sortableId = sortableIds[i];
+          const isBelowMore = moreIndex !== -1 && i > moreIndex;
+
+          if (id === MORE_SEPARATOR_ID) {
+            return <MoreSeparatorItem key={MORE_SEPARATOR_ID} sortableId={MORE_SEPARATOR_ID} editing={editing} linkClassName={linkClassName} />;
+          }
+
           if (isSidebarDivider(id)) {
             return (
               <SidebarDividerItem
@@ -189,6 +248,8 @@ export function SidebarNavList({
                 active={isActive(id)}
                 editing={editing}
                 onRemove={(removeId) => onRemove(removeId, i)}
+                onAdd={onAdd}
+                belowMore={isBelowMore}
                 onClick={getOnClick?.(id)}
                 linkClassName={linkClassName}
               />
@@ -202,6 +263,8 @@ export function SidebarNavList({
                 active={isActive(id)}
                 editing={editing}
                 onRemove={(removeId) => onRemove(removeId, i)}
+                onAdd={onAdd}
+                belowMore={isBelowMore}
                 onClick={getOnClick?.(id)}
                 linkClassName={linkClassName}
               />
@@ -214,6 +277,8 @@ export function SidebarNavList({
               active={isActive(id)}
               editing={editing}
               onRemove={(removeId) => onRemove(removeId, i)}
+              onAdd={onAdd}
+              belowMore={isBelowMore}
               onClick={getOnClick?.(id)}
               profilePath={getProfilePath?.(id)}
               showIndicator={getShowIndicator?.(id)}
