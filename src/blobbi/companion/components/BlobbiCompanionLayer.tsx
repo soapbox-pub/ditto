@@ -8,16 +8,23 @@
  * - Navigating DOWN the sidebar: Blobbi falls from the top of the screen
  * - Navigating UP the sidebar: Blobbi rises from the bottom with inspection
  * 
- * No clipping is needed for vertical entry - the companion simply appears
- * from above or below the viewport.
+ * Interaction features:
+ * - Click/tap on Blobbi opens action menu
+ * - Action menu shows available actions in a radial layout
+ * - Selecting an action shows available items as floating bubbles
  */
 
-import { useMemo, useState, useEffect } from 'react';
+import { useCallback } from 'react';
 
 import { useBlobbiCompanion } from '../hooks/useBlobbiCompanion';
 import { BlobbiCompanion } from './BlobbiCompanion';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { calculateGroundY } from '../utils/movement';
+import {
+  useCompanionActionMenu,
+  CompanionActionMenu,
+  CompanionItemBubbles,
+} from '../interaction';
 
 // DEBUG MODE - Set to true to debug ground contact
 const DEBUG_GROUND_CONTACT = false;
@@ -53,6 +60,37 @@ export function BlobbiCompanionLayer() {
   
   const config = DEFAULT_COMPANION_CONFIG;
   
+  // Action menu state
+  const {
+    menuState,
+    availableActions,
+    toggleMenu,
+    closeMenu,
+    selectAction,
+    clearAction,
+    handleItemClick,
+  } = useCompanionActionMenu({
+    isActive: isVisible,
+    stage: companion?.stage,
+    onItemClick: (item) => {
+      // For now, just log - item consumption will be implemented later
+      console.log('[CompanionLayer] Item clicked:', item);
+    },
+  });
+  
+  // Handle companion click
+  const handleCompanionClick = useCallback(() => {
+    // Don't open menu during entry animation
+    if (isEntering) return;
+    
+    toggleMenu();
+  }, [isEntering, toggleMenu]);
+  
+  // Handle click outside menu
+  const handleClickOutside = useCallback(() => {
+    closeMenu();
+  }, [closeMenu]);
+  
   // Don't render anything if not visible
   if (!isVisible || !companion) {
     return null;
@@ -72,6 +110,7 @@ export function BlobbiCompanionLayer() {
     onStartDrag: startDrag,
     onUpdateDrag: updateDrag,
     onEndDrag: endDrag,
+    onClick: handleCompanionClick,
   };
   
   // Calculate ground position for debug line
@@ -162,12 +201,34 @@ export function BlobbiCompanionLayer() {
           )}
         </>
       )}
+      
+      {/* Companion */}
       <div className="pointer-events-auto">
         <BlobbiCompanion 
           {...companionProps}
           debugMode={DEBUG_GROUND_CONTACT}
         />
       </div>
+      
+      {/* Action Menu - radial buttons around Blobbi */}
+      <CompanionActionMenu
+        isOpen={menuState.isOpen}
+        companionPosition={motion.position}
+        companionSize={config.size}
+        actions={availableActions}
+        selectedAction={menuState.selectedAction}
+        onActionClick={selectAction}
+        onClickOutside={handleClickOutside}
+      />
+      
+      {/* Item Bubbles - floating items for selected action */}
+      <CompanionItemBubbles
+        isVisible={menuState.isOpen && menuState.selectedAction !== null}
+        selectedAction={menuState.selectedAction}
+        items={menuState.items}
+        onItemClick={handleItemClick}
+        onClose={clearAction}
+      />
     </div>
   );
 }
