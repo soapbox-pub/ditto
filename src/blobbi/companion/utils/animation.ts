@@ -162,15 +162,16 @@ export interface FloatOffset {
  * - Subtle horizontal sway
  * - Soft rotation tilt
  * 
- * The motion uses multiple sine waves at different frequencies
- * to create a natural, non-repetitive feel.
+ * IMPORTANT: The Y offset is always negative (upward) or zero.
+ * Blobbi's base position is on the ground, and the float animation
+ * only lifts it slightly above - never below ground level.
  * 
  * When walking: faster, more energetic bobbing in sync with movement
  * When idle: slower, calmer breathing/hovering effect
  * 
  * @param time - Current animation time in milliseconds
  * @param isMoving - Whether the companion is currently moving
- * @returns Offset values for x, y, and rotation
+ * @returns Offset values for x, y (negative = up), and rotation
  */
 export function calculateFloatAnimation(time: number, isMoving: boolean): FloatOffset {
   if (isMoving) {
@@ -179,16 +180,17 @@ export function calculateFloatAnimation(time: number, isMoving: boolean): FloatO
     const bobFreq = 0.008;      // Fast bob (~0.8 seconds per cycle)
     const swayFreq = 0.006;     // Quick sway (~1 second per cycle)
     
-    // Vertical bob - bouncy walking rhythm
-    const primaryBob = Math.sin(time * bobFreq) * 4;
-    const secondaryBob = Math.sin(time * bobFreq * 1.5 + 0.3) * 1.5;
-    const yOffset = primaryBob + secondaryBob;
+    // Vertical bob - use abs(sin) so it only goes UP from ground, never below
+    // Range: 0 to -6 (negative = upward in screen coords)
+    const primaryBob = Math.abs(Math.sin(time * bobFreq)) * 4;
+    const secondaryBob = Math.abs(Math.sin(time * bobFreq * 1.5 + 0.3)) * 2;
+    const yOffset = -(primaryBob + secondaryBob); // Negative = up
     
     // Horizontal sway - slight side-to-side with walking
-    const xOffset = Math.sin(time * swayFreq) * 3;
+    const xOffset = Math.sin(time * swayFreq) * 2;
     
     // Rotation - gentle lean into movement direction
-    const rotation = Math.sin(time * swayFreq - 0.2) * 3;
+    const rotation = Math.sin(time * swayFreq - 0.2) * 2;
     
     return { x: xOffset, y: yOffset, rotation };
   } else {
@@ -197,16 +199,17 @@ export function calculateFloatAnimation(time: number, isMoving: boolean): FloatO
     const breatheFreq = 0.0015; // Very slow breathe (~4.2 seconds)
     const swayFreq = 0.001;     // Gentle sway (~6.3 seconds)
     
-    // Vertical float - gentle breathing motion
-    const primaryFloat = Math.sin(time * floatFreq) * 2.5;
-    const breatheFloat = Math.sin(time * breatheFreq + 0.5) * 1;
-    const yOffset = primaryFloat + breatheFloat;
+    // Vertical float - use abs(sin) so it only goes UP, never below ground
+    // Range: 0 to -4 (negative = upward in screen coords)
+    const primaryFloat = Math.abs(Math.sin(time * floatFreq)) * 2.5;
+    const breatheFloat = Math.abs(Math.sin(time * breatheFreq + 0.5)) * 1.5;
+    const yOffset = -(primaryFloat + breatheFloat); // Negative = up
     
     // Horizontal sway - very subtle drift
-    const xOffset = Math.sin(time * swayFreq) * 1.5;
+    const xOffset = Math.sin(time * swayFreq) * 1;
     
     // Rotation - soft, slow tilt
-    const rotation = Math.sin(time * swayFreq - 0.3) * 1.5;
+    const rotation = Math.sin(time * swayFreq - 0.3) * 1;
     
     return { x: xOffset, y: yOffset, rotation };
   }
