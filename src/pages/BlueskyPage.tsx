@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
+import { useInView } from 'react-intersection-observer';
 import {
   ArrowLeft,
   ExternalLink,
   FlameKindling,
+  Info,
   Loader2,
   MessageCircle,
   Repeat2,
@@ -15,6 +17,7 @@ import {
 
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ExternalReactionButton } from '@/components/ExternalReactionButton';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -529,27 +532,53 @@ function BlueskyLoadingSkeleton() {
 
 export function BlueskyPage() {
   const { config } = useAppContext();
-  const { data: posts, isLoading, isError } = useBlueskyTrending();
+  const {
+    data,
+    isLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useBlueskyTrending();
   const [activeCategory, setActiveCategory] = useState<Category>('all');
+
+  const { ref: loadMoreRef, inView } = useInView();
 
   useSeoMeta({
     title: `Bluesky | ${config.appName}`,
     description: 'Explore popular posts from Bluesky \u2014 trending discussions, images, and links.',
   });
 
+  // Flatten pages, deduplicate by URI
+  const allPosts = useMemo(() => {
+    if (!data?.pages) return [];
+    const seen = new Set<string>();
+    return data.pages.flatMap((page) => page.posts).filter((post) => {
+      if (seen.has(post.uri)) return false;
+      seen.add(post.uri);
+      return true;
+    });
+  }, [data?.pages]);
+
   const filtered = useMemo(() => {
-    if (!posts) return [];
     switch (activeCategory) {
       case 'images':
-        return posts.filter(hasImages);
+        return allPosts.filter(hasImages);
       case 'links':
-        return posts.filter(hasLinks);
+        return allPosts.filter(hasLinks);
       case 'text':
-        return posts.filter((p) => !hasImages(p) && !hasLinks(p));
+        return allPosts.filter((p) => !hasImages(p) && !hasLinks(p));
       default:
-        return posts;
+        return allPosts;
     }
-  }, [posts, activeCategory]);
+  }, [allPosts, activeCategory]);
+
+  // Trigger next page fetch when sentinel is in view
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <main className="pb-16 sidebar:pb-0">
@@ -567,15 +596,40 @@ export function BlueskyPage() {
             <p className="text-xs text-muted-foreground">Popular posts from the ATmosphere</p>
           </div>
         </div>
-        <a
-          href="https://bsky.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-          title="Visit Bluesky"
-        >
-          <ExternalLink className="size-4" />
-        </a>
+        <div className="flex items-center gap-1">
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                title="About"
+              >
+                <Info className="size-4" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent side="bottom" align="end" className="w-72 text-xs text-muted-foreground">
+              Content provided by{' '}
+              <a
+                href="https://bsky.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-foreground transition-colors"
+              >
+                Bluesky
+              </a>
+              , a decentralized social network built on the AT Protocol. All posts are public and belong to their respective authors.
+            </PopoverContent>
+          </Popover>
+          <a
+            href="https://bsky.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+            title="Visit Bluesky"
+          >
+            <ExternalLink className="size-4" />
+          </a>
+        </div>
       </div>
 
       {/* Search bar */}
@@ -615,26 +669,19 @@ export function BlueskyPage() {
           {filtered.map((post) => (
             <BlueskyFeedPost key={post.uri} post={post} />
           ))}
+
+          {/* Infinite scroll sentinel */}
+          {hasNextPage && (
+            <div ref={loadMoreRef} className="py-6">
+              {isFetchingNextPage && (
+                <div className="flex justify-center">
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
-
-      {/* Attribution footer */}
-      <div className="px-4 py-8">
-        <div className="rounded-xl border border-dashed border-border bg-secondary/30 px-4 py-3 text-center">
-          <p className="text-xs text-muted-foreground">
-            Content provided by{' '}
-            <a
-              href="https://bsky.app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-foreground transition-colors"
-            >
-              Bluesky
-            </a>
-            , a decentralized social network built on the AT Protocol. All posts are public and belong to their respective authors.
-          </p>
-        </div>
-      </div>
     </main>
   );
 }
