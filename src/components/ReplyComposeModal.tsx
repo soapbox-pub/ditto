@@ -126,7 +126,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
             <div className="overflow-y-auto min-h-0 shrink">
               {isUrl ? (
                 <div className="mx-4 mb-2">
-                  <LinkEmbed url={event.href} showActions={false} />
+                  <LinkEmbed url={event.href} showActions={false} hideImage />
                 </div>
               ) : (
                 <EmbeddedPost event={event} />
