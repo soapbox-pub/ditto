@@ -53,7 +53,10 @@ export function ArcBackground({ variant, className }: ArcBackgroundProps) {
       preserveAspectRatio="none"
       style={hasArc ? (variant === 'up' ? arcUpHeightStyle : arcDownHeightStyle) : fullHeightStyle}
     >
-      <path d={path} className="fill-background/95" />
+      <path d={path} className="fill-background/85" />
+      {variant === 'down' && <path d="M0,44 Q50,64 100,44" fill="none" className="stroke-border" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
+      {variant === 'up' && <path d="M0,30 Q50,0 100,30" fill="none" className="stroke-border" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
+      {variant === 'up' && <path d="M0,64 L100,64" fill="none" className="stroke-border" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
     </svg>
   );
 }
