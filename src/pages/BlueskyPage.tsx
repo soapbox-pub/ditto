@@ -132,6 +132,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
 
   const webUrl = postWebUrl(post.uri, post.author.handle);
   const internalUrl = dittoUrl(webUrl);
+  const profileUrl = dittoUrl(`https://bsky.app/profile/${post.author.handle}`);
   const images = post.embed?.$type === 'app.bsky.embed.images#view' ? (post.embed.images ?? []) : [];
   const externalEmbed = post.embed?.$type === 'app.bsky.embed.external#view' ? post.embed.external : undefined;
 
@@ -172,7 +173,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
       >
         <div className="flex gap-3">
           {/* Avatar */}
-          <div className="shrink-0">
+          <Link to={profileUrl} onClick={(e) => e.stopPropagation()} className="shrink-0">
             {post.author.avatar ? (
               <img
                 src={post.author.avatar}
@@ -186,18 +187,18 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
                 {(post.author.displayName ?? post.author.handle).charAt(0).toUpperCase()}
               </div>
             )}
-          </div>
+          </Link>
 
           {/* Body */}
           <div className="flex-1 min-w-0">
             {/* Author info */}
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="font-semibold text-[15px] truncate leading-tight">
+              <Link to={profileUrl} onClick={(e) => e.stopPropagation()} className="font-semibold text-[15px] truncate leading-tight hover:underline">
                 {post.author.displayName ?? post.author.handle}
-              </span>
-              <span className="text-muted-foreground text-sm truncate leading-tight">
+              </Link>
+              <Link to={profileUrl} onClick={(e) => e.stopPropagation()} className="text-muted-foreground text-sm truncate leading-tight hover:underline">
                 @{post.author.handle}
-              </span>
+              </Link>
               <span className="text-muted-foreground text-sm shrink-0">&middot;</span>
               <span className="text-muted-foreground text-sm shrink-0">
                 {timeAgo(post.record.createdAt)}
