@@ -136,9 +136,11 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
 
           {/* Bluesky disclaimer */}
           {isUrl && /bsky\.(app|social)/.test(event.href) && (
-            <p className="mx-4 mb-2 text-xs text-muted-foreground">
-              People on Bluesky can&apos;t see you because they&apos;re not actually decentralized
-            </p>
+            <div className="mx-4 mb-2 rounded-lg border border-sky-500/20 bg-sky-500/5 px-3 py-2">
+              <p className="text-xs text-sky-600 dark:text-sky-400 leading-relaxed">
+                Your comment lives on Nostr &mdash; people on Bluesky won&apos;t see it because they&apos;re not actually decentralized. But the open web will.
+              </p>
+            </div>
           )}
 
           {/* Compose area */}
