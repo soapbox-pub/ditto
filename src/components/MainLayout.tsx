@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { LayoutStore, LayoutStoreContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
-import { ARC_UP_OVERHANG_PX } from '@/components/ArcBackground';
+
 import { cn } from '@/lib/utils';
 
 /** Skeleton shown in the content area while a lazy page chunk is loading. */
