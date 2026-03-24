@@ -8,13 +8,20 @@
  * - Navigating DOWN (to lower sidebar item) → FALL from top
  * - Navigating UP (to higher sidebar item) → RISE from bottom with inspection
  * 
- * FALL entry phases:
- *   idle -> falling -> landing -> complete
+ * FALL entry - Normal (~80%):
+ *   idle -> stuck -> pulling_1 -> pause_1 -> pulling_2 -> pause_2 -> falling -> landing -> complete
+ * 
+ * FALL entry - Rare truly stuck (~20%):
+ *   idle -> stuck -> pulling_1 -> pause_1 -> pulling_2 -> stuck_permanent
+ *   (user must drag to resolve, then -> complete)
  * 
  * RISE entry phases:
  *   idle -> rising -> inspecting -> entering -> complete
  * 
- * Handles route changes during entry by waiting 1s then restarting the sequence.
+ * Route change behavior:
+ * - Cancels current entry immediately
+ * - Waits 1 second
+ * - Restarts entry for the new page
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -36,6 +43,8 @@ interface UseBlobbiEntryAnimationOptions {
   pathname: string;
   /** Current sidebar order from useFeedSettings */
   sidebarOrder: string[];
+  /** Whether the companion is currently being dragged */
+  isDragging: boolean;
   /** Called when entry animation completes */
   onComplete: () => void;
   /** Called when entry starts (for resetting position) */
@@ -47,8 +56,12 @@ interface UseBlobbiEntryAnimationResult {
   entryState: EntryState;
   /** Whether entry animation is currently playing */
   isEntering: boolean;
+  /** Whether Blobbi is permanently stuck (needs user drag to resolve) */
+  isPermanentlyStuck: boolean;
   /** Current inspection direction (for eye control) */
   currentInspectionDirection: InspectionDirection | null;
+  /** Resolve permanent stuck state (called after drag release) */
+  resolvePermanentStuck: () => void;
 }
 
 /**
@@ -64,6 +77,7 @@ function createInitialEntryState(): EntryState {
     inspectionIndex: 0,
     inspectionOrder: [],
     phaseStartTime: 0,
+    isTrulyStuck: false,
   };
 }
 
@@ -74,6 +88,7 @@ export function useBlobbiEntryAnimation({
   isActive,
   pathname,
   sidebarOrder,
+  isDragging,
   onComplete,
   onStart,
 }: UseBlobbiEntryAnimationOptions): UseBlobbiEntryAnimationResult {
@@ -90,16 +105,17 @@ export function useBlobbiEntryAnimation({
   const hasCompletedFirstEntryRef = useRef(false);
   
   /**
-   * Calculate total duration for the current entry type.
+   * Calculate total duration for the current entry type (normal flow).
    */
   const getTotalDuration = useCallback((entryType: EntryType) => {
     if (entryType === 'fall') {
-      // Fall entry: stuck -> tugging -> pause -> wiggling -> falling -> landing
+      // Fall entry: stuck -> pulling_1 -> pause_1 -> pulling_2 -> pause_2 -> falling -> landing
       return (
         entryConfig.stuckDuration +
-        entryConfig.tuggingDuration +
-        entryConfig.pauseDuration +
-        entryConfig.wiggleDuration +
+        entryConfig.pull1Duration +
+        entryConfig.pause1Duration +
+        entryConfig.pull2Duration +
+        entryConfig.pause2Duration +
         entryConfig.fallDuration +
         entryConfig.landingDuration
       );
@@ -113,20 +129,35 @@ export function useBlobbiEntryAnimation({
   }, [entryConfig]);
   
   /**
-   * Start the entry animation sequence.
+   * Cancel current entry animation.
    */
-  const startEntry = useCallback((entryType: EntryType) => {
-    // Cancel any pending route change restart
+  const cancelEntry = useCallback(() => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
     if (routeChangeTimeoutRef.current) {
       clearTimeout(routeChangeTimeoutRef.current);
       routeChangeTimeoutRef.current = null;
     }
+    setIsEntering(false);
+    setEntryState(createInitialEntryState());
+  }, []);
+  
+  /**
+   * Start the entry animation sequence.
+   */
+  const startEntry = useCallback((entryType: EntryType) => {
+    // Cancel any existing animation or pending restart
+    cancelEntry();
     
     // Generate random inspection order (only used for rise entry)
     const inspectionOrder = generateInspectionOrder();
     
+    // Determine if this fall entry will be truly stuck (20% chance)
+    const isTrulyStuck = entryType === 'fall' && Math.random() < entryConfig.trulyStuckChance;
+    
     // Determine initial phase based on entry type
-    // Fall entry starts with 'stuck', rise entry starts with 'rising'
     const initialPhase: EntryPhase = entryType === 'fall' ? 'stuck' : 'rising';
     
     setEntryState({
@@ -138,10 +169,11 @@ export function useBlobbiEntryAnimation({
       inspectionIndex: 0,
       inspectionOrder,
       phaseStartTime: Date.now(),
+      isTrulyStuck,
     });
     setIsEntering(true);
     onStart(entryType);
-  }, [onStart]);
+  }, [cancelEntry, entryConfig.trulyStuckChance, onStart]);
   
   /**
    * Complete the entry animation.
@@ -159,6 +191,29 @@ export function useBlobbiEntryAnimation({
   }, [onComplete]);
   
   /**
+   * Resolve permanent stuck state (called after user drag release).
+   */
+  const resolvePermanentStuck = useCallback(() => {
+    if (entryState.phase === 'stuck_permanent') {
+      completeEntry();
+    }
+  }, [entryState.phase, completeEntry]);
+  
+  /**
+   * Handle drag release when permanently stuck.
+   */
+  useEffect(() => {
+    // When user releases drag while permanently stuck, resolve the stuck state
+    if (entryState.phase === 'stuck_permanent' && !isDragging) {
+      // Small delay to let the drag release settle
+      const timeout = setTimeout(() => {
+        resolvePermanentStuck();
+      }, 50);
+      return () => clearTimeout(timeout);
+    }
+  }, [entryState.phase, isDragging, resolvePermanentStuck]);
+  
+  /**
    * Handle route changes - determine entry direction and start animation.
    */
   useEffect(() => {
@@ -174,28 +229,23 @@ export function useBlobbiEntryAnimation({
       startEntry(entryType);
       lastPathnameRef.current = pathname;
     } else if (routeChanged) {
-      // Route changed - determine direction
+      // Route changed - determine direction for new route
       const entryType = getEntryDirection(previousPath, pathname, sidebarOrder);
       lastPathnameRef.current = pathname;
       
-      if (isEntering) {
-        // Route changed during entry - wait 1s then restart
-        if (routeChangeTimeoutRef.current) {
-          clearTimeout(routeChangeTimeoutRef.current);
-        }
-        routeChangeTimeoutRef.current = setTimeout(() => {
-          startEntry(entryType);
-        }, entryConfig.routeChangeRestartDelay);
-      } else {
-        // Normal route change - start entry immediately
+      // Always cancel current entry and restart after 1 second
+      cancelEntry();
+      
+      routeChangeTimeoutRef.current = setTimeout(() => {
         startEntry(entryType);
-      }
+      }, entryConfig.routeChangeRestartDelay);
     }
-  }, [isActive, pathname, sidebarOrder, isEntering, startEntry, entryConfig.routeChangeRestartDelay]);
+  }, [isActive, pathname, sidebarOrder, startEntry, cancelEntry, entryConfig.routeChangeRestartDelay]);
   
   /**
    * Animation loop for FALL entry.
-   * Phases: stuck -> tugging -> pause -> wiggling -> falling -> landing -> complete
+   * Normal: stuck -> pulling_1 -> pause_1 -> pulling_2 -> pause_2 -> falling -> landing -> complete
+   * Truly stuck: stuck -> pulling_1 -> pause_1 -> pulling_2 -> stuck_permanent (wait for drag)
    */
   const animateFallEntry = useCallback((now: number, prev: EntryState): EntryState => {
     const phaseElapsed = now - prev.phaseStartTime;
@@ -203,10 +253,11 @@ export function useBlobbiEntryAnimation({
     
     // Calculate cumulative durations for progress tracking
     const stuckEnd = entryConfig.stuckDuration;
-    const tuggingEnd = stuckEnd + entryConfig.tuggingDuration;
-    const pauseEnd = tuggingEnd + entryConfig.pauseDuration;
-    const wiggleEnd = pauseEnd + entryConfig.wiggleDuration;
-    const fallEnd = wiggleEnd + entryConfig.fallDuration;
+    const pull1End = stuckEnd + entryConfig.pull1Duration;
+    const pause1End = pull1End + entryConfig.pause1Duration;
+    const pull2End = pause1End + entryConfig.pull2Duration;
+    const pause2End = pull2End + entryConfig.pause2Duration;
+    const fallEnd = pause2End + entryConfig.fallDuration;
     
     switch (prev.phase) {
       case 'stuck': {
@@ -214,10 +265,9 @@ export function useBlobbiEntryAnimation({
         const progress = phaseElapsed / totalDuration;
         
         if (phaseElapsed >= entryConfig.stuckDuration) {
-          // Transition to tugging (tries to fall but gets stuck)
           return {
             ...prev,
-            phase: 'tugging',
+            phase: 'pulling_1',
             phaseProgress: 0,
             progress,
             phaseStartTime: now,
@@ -227,15 +277,14 @@ export function useBlobbiEntryAnimation({
         return { ...prev, phaseProgress, progress };
       }
       
-      case 'tugging': {
-        const phaseProgress = Math.min(1, phaseElapsed / entryConfig.tuggingDuration);
+      case 'pulling_1': {
+        const phaseProgress = Math.min(1, phaseElapsed / entryConfig.pull1Duration);
         const progress = (stuckEnd + phaseElapsed) / totalDuration;
         
-        if (phaseElapsed >= entryConfig.tuggingDuration) {
-          // Transition to pause ("hmm... still stuck" beat)
+        if (phaseElapsed >= entryConfig.pull1Duration) {
           return {
             ...prev,
-            phase: 'pause',
+            phase: 'pause_1',
             phaseProgress: 0,
             progress,
             phaseStartTime: now,
@@ -245,15 +294,14 @@ export function useBlobbiEntryAnimation({
         return { ...prev, phaseProgress, progress };
       }
       
-      case 'pause': {
-        const phaseProgress = Math.min(1, phaseElapsed / entryConfig.pauseDuration);
-        const progress = (tuggingEnd + phaseElapsed) / totalDuration;
+      case 'pause_1': {
+        const phaseProgress = Math.min(1, phaseElapsed / entryConfig.pause1Duration);
+        const progress = (pull1End + phaseElapsed) / totalDuration;
         
-        if (phaseElapsed >= entryConfig.pauseDuration) {
-          // Transition to wiggling
+        if (phaseElapsed >= entryConfig.pause1Duration) {
           return {
             ...prev,
-            phase: 'wiggling',
+            phase: 'pulling_2',
             phaseProgress: 0,
             progress,
             phaseStartTime: now,
@@ -263,12 +311,41 @@ export function useBlobbiEntryAnimation({
         return { ...prev, phaseProgress, progress };
       }
       
-      case 'wiggling': {
-        const phaseProgress = Math.min(1, phaseElapsed / entryConfig.wiggleDuration);
-        const progress = (pauseEnd + phaseElapsed) / totalDuration;
+      case 'pulling_2': {
+        const phaseProgress = Math.min(1, phaseElapsed / entryConfig.pull2Duration);
+        const progress = (pause1End + phaseElapsed) / totalDuration;
         
-        if (phaseElapsed >= entryConfig.wiggleDuration) {
-          // Transition to falling
+        if (phaseElapsed >= entryConfig.pull2Duration) {
+          // Branch: truly stuck or normal flow
+          if (prev.isTrulyStuck) {
+            // Rare case: truly stuck, wait for user drag
+            return {
+              ...prev,
+              phase: 'stuck_permanent',
+              phaseProgress: 0,
+              progress,
+              phaseStartTime: now,
+            };
+          } else {
+            // Normal case: continue to pause_2 then fall
+            return {
+              ...prev,
+              phase: 'pause_2',
+              phaseProgress: 0,
+              progress,
+              phaseStartTime: now,
+            };
+          }
+        }
+        
+        return { ...prev, phaseProgress, progress };
+      }
+      
+      case 'pause_2': {
+        const phaseProgress = Math.min(1, phaseElapsed / entryConfig.pause2Duration);
+        const progress = (pull2End + phaseElapsed) / totalDuration;
+        
+        if (phaseElapsed >= entryConfig.pause2Duration) {
           return {
             ...prev,
             phase: 'falling',
@@ -281,12 +358,17 @@ export function useBlobbiEntryAnimation({
         return { ...prev, phaseProgress, progress };
       }
       
+      case 'stuck_permanent': {
+        // Stay in this phase until user drags and releases
+        // No animation progress - just hold position
+        return prev;
+      }
+      
       case 'falling': {
         const phaseProgress = Math.min(1, phaseElapsed / entryConfig.fallDuration);
-        const progress = (wiggleEnd + phaseElapsed) / totalDuration;
+        const progress = (pause2End + phaseElapsed) / totalDuration;
         
         if (phaseElapsed >= entryConfig.fallDuration) {
-          // Transition to landing
           return {
             ...prev,
             phase: 'landing',
@@ -304,7 +386,6 @@ export function useBlobbiEntryAnimation({
         const progress = (fallEnd + phaseElapsed) / totalDuration;
         
         if (phaseElapsed >= entryConfig.landingDuration) {
-          // Entry complete
           return {
             ...prev,
             phase: 'complete',
@@ -339,7 +420,6 @@ export function useBlobbiEntryAnimation({
         const progress = phaseElapsed / totalDuration;
         
         if (phaseElapsed >= entryConfig.riseDuration) {
-          // Transition to inspecting
           return {
             ...prev,
             phase: 'inspecting',
@@ -355,19 +435,15 @@ export function useBlobbiEntryAnimation({
       }
       
       case 'inspecting': {
-        // Calculate which look we're on
         const singleLookDuration = entryConfig.inspectionLookDuration + entryConfig.inspectionPauseDuration;
         const lookIndex = Math.floor(phaseElapsed / singleLookDuration);
         const withinLookTime = phaseElapsed % singleLookDuration;
-        
-        // Are we in the look or the pause?
         const isLooking = withinLookTime < entryConfig.inspectionLookDuration;
         
         const phaseProgress = phaseElapsed / inspectionDuration;
         const progress = (entryConfig.riseDuration + phaseElapsed) / totalDuration;
         
         if (lookIndex >= 3) {
-          // All looks done, transition to entering
           return {
             ...prev,
             phase: 'entering',
@@ -392,7 +468,6 @@ export function useBlobbiEntryAnimation({
         const progress = (entryConfig.riseDuration + inspectionDuration + phaseElapsed) / totalDuration;
         
         if (phaseElapsed >= entryConfig.enterDuration) {
-          // Entry complete
           return {
             ...prev,
             phase: 'complete',
@@ -413,7 +488,13 @@ export function useBlobbiEntryAnimation({
    * Main animation loop.
    */
   useEffect(() => {
-    if (!isEntering || entryState.phase === 'idle' || entryState.phase === 'complete') {
+    // Don't animate if not entering, or in idle/complete/stuck_permanent state
+    const shouldAnimate = isEntering && 
+      entryState.phase !== 'idle' && 
+      entryState.phase !== 'complete' &&
+      entryState.phase !== 'stuck_permanent';
+    
+    if (!shouldAnimate) {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
         animationRef.current = null;
@@ -425,11 +506,10 @@ export function useBlobbiEntryAnimation({
       const now = Date.now();
       
       setEntryState(prev => {
-        if (prev.phase === 'idle' || prev.phase === 'complete') {
+        if (prev.phase === 'idle' || prev.phase === 'complete' || prev.phase === 'stuck_permanent') {
           return prev;
         }
         
-        // Dispatch to appropriate animation handler based on entry type
         if (prev.entryType === 'fall') {
           return animateFallEntry(now, prev);
         } else {
@@ -472,6 +552,8 @@ export function useBlobbiEntryAnimation({
   return {
     entryState,
     isEntering,
+    isPermanentlyStuck: entryState.phase === 'stuck_permanent',
     currentInspectionDirection: entryState.inspectionDirection,
+    resolvePermanentStuck,
   };
 }

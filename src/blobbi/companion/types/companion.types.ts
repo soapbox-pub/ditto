@@ -41,24 +41,30 @@ export type EntryType = 'fall' | 'rise';
 /** 
  * Entry animation phases for vertical entrance sequences.
  * 
- * FALL entry (from top):
- *   idle -> stuck -> tugging -> pause -> wiggling -> falling -> landing -> complete
+ * FALL entry - Normal (~80%):
+ *   idle -> stuck -> pulling_1 -> pause_1 -> pulling_2 -> pause_2 -> falling -> landing -> complete
+ * 
+ * FALL entry - Rare truly stuck (~20%):
+ *   idle -> stuck -> pulling_1 -> pause_1 -> pulling_2 -> stuck_permanent
+ *   (user must drag to resolve, then -> complete)
  * 
  * RISE entry (from bottom):
  *   idle -> rising -> inspecting -> entering -> complete
  */
 export type EntryPhase =
-  | 'idle'          // Not entering
-  | 'stuck'         // Tiny butt visible at top, stuck (fall entry)
-  | 'tugging'       // Tries to drop, gets stuck again - down-up motion (fall entry)
-  | 'pause'         // Brief pause after tug - "hmm... still stuck" moment (fall entry)
-  | 'wiggling'      // Subtle butt wiggle to get loose (fall entry)
-  | 'falling'       // Falling from top of screen (fall entry)
-  | 'landing'       // Brief landing squash/settle (fall entry)
-  | 'rising'        // Rising from bottom until eyes visible (rise entry)
-  | 'inspecting'    // Paused, looking around in 3 directions (rise entry)
-  | 'entering'      // Continuing to rise to final position (rise entry)
-  | 'complete';     // Entry finished
+  | 'idle'            // Not entering
+  | 'stuck'           // Tiny butt visible at top, stuck (fall entry)
+  | 'pulling_1'       // First pull: quick down, slower up (fall entry)
+  | 'pause_1'         // Brief pause - "still stuck..." (fall entry)
+  | 'pulling_2'       // Second pull: quick down, slower up (fall entry)
+  | 'pause_2'         // Short pause before falling (fall entry - normal only)
+  | 'stuck_permanent' // Rare: truly stuck, waiting for user drag (fall entry)
+  | 'falling'         // Falling from top of screen (fall entry)
+  | 'landing'         // Brief landing squash/settle (fall entry)
+  | 'rising'          // Rising from bottom until eyes visible (rise entry)
+  | 'inspecting'      // Paused, looking around in 3 directions (rise entry)
+  | 'entering'        // Continuing to rise to final position (rise entry)
+  | 'complete';       // Entry finished
 
 /** Direction to look during inspection */
 export type InspectionDirection = 'up' | 'right' | 'left';
@@ -81,6 +87,8 @@ export interface EntryState {
   inspectionOrder: InspectionDirection[];
   /** Timestamp when current phase started */
   phaseStartTime: number;
+  /** Whether this fall entry will be permanently stuck (rare ~20% chance) */
+  isTrulyStuck: boolean;
 }
 
 // ─── Position & Motion ────────────────────────────────────────────────────────
@@ -256,18 +264,20 @@ export interface CompanionConfig {
     stuckDuration: number;
     /** How much of Blobbi is visible when stuck (0-1, 0.15 = tiny butt showing) */
     stuckVisibleAmount: number;
-    /** Duration of the "tugging" phase - tries to fall but gets stuck (ms) */
-    tuggingDuration: number;
-    /** How far down the tug motion goes (0-1, as fraction of companion size) */
-    tuggingDropAmount: number;
-    /** Duration of pause after tug - "hmm... still stuck" beat (ms) */
-    pauseDuration: number;
-    /** Duration of the subtle butt wiggle animation (ms) */
-    wiggleDuration: number;
-    /** Horizontal wiggle intensity in pixels (subtle) */
-    wiggleIntensity: number;
-    /** Rotation wiggle in degrees (subtle, not full-body) */
-    wiggleRotation: number;
+    /** Duration of first pull attempt (ms) */
+    pull1Duration: number;
+    /** How far down the first pull goes (0-1, as fraction of companion size) */
+    pull1DropAmount: number;
+    /** Duration of pause after first pull (ms) */
+    pause1Duration: number;
+    /** Duration of second pull attempt (ms) */
+    pull2Duration: number;
+    /** How far down the second pull goes (0-1, as fraction of companion size) */
+    pull2DropAmount: number;
+    /** Duration of pause after second pull before falling (ms) */
+    pause2Duration: number;
+    /** Chance of being truly stuck (0-1, 0.2 = 20%) */
+    trulyStuckChance: number;
     /** Duration of the falling phase (ms) */
     fallDuration: number;
     /** Duration of the landing squash/settle (ms) */

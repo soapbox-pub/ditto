@@ -89,16 +89,24 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
   // Vertical entry animation timing
   entry: {
     // ── Fall entry (from top) ──
-    // Playful "stuck, tug, wiggle" sequence before falling
-    stuckDuration: 250,       // Brief moment showing tiny butt peeking
+    // Simple "stuck and pulling" sequence: 2 attempts then fall
+    stuckDuration: 200,       // Brief moment showing tiny butt peeking
     stuckVisibleAmount: 0.15, // Only 15% visible when stuck (just tiny butt)
-    tuggingDuration: 300,     // Down-up "tries to fall but stuck" motion
-    tuggingDropAmount: 0.12,  // How far down the tug goes (as fraction of size)
-    pauseDuration: 180,       // "Hmm... still stuck" beat after tug
-    wiggleDuration: 320,      // Subtle butt wiggle
-    wiggleIntensity: 4,       // Small horizontal wiggle (pixels)
-    wiggleRotation: 2,        // Very subtle rotation (degrees) - butt only feel
-    fallDuration: 500,        // Quick fall after getting loose
+    
+    // First pull: tries to drop but stuck
+    pull1Duration: 280,       // Quick down, slower up
+    pull1DropAmount: 0.10,    // How far down (10% of size)
+    pause1Duration: 140,      // "Still stuck..." moment
+    
+    // Second pull: tries again
+    pull2Duration: 300,       // Slightly longer, more effort
+    pull2DropAmount: 0.14,    // Goes a bit further down (14% of size)
+    pause2Duration: 100,      // Short pause before falling
+    
+    // Rare truly stuck behavior
+    trulyStuckChance: 0.20,   // 20% chance to be truly stuck (needs user drag)
+    
+    fallDuration: 450,        // Fall after getting loose
     landingDuration: 200,     // Brief squash on landing
     landingSquash: 0.15,      // 15% vertical compression on landing
     
