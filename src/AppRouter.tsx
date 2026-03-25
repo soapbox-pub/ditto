@@ -6,6 +6,7 @@ import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { BlobbiCompanionLayer } from "@/blobbi/companion";
+import { BlobbiActionsProvider } from "@/blobbi/companion/interaction";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { MainLayout } from "./components/MainLayout";
 import { ScrollToTop } from "./components/ScrollToTop";
@@ -98,7 +99,9 @@ export function AppRouter() {
         <AudioNavigationGuard />
         <DeepLinkHandler />
         <ScrollToTop />
-        <BlobbiCompanionLayer />
+        <BlobbiActionsProvider>
+          <BlobbiCompanionLayer />
+        </BlobbiActionsProvider>
         <Routes>
           {/* All routes share the persistent MainLayout (sidebar + nav) */}
           <Route element={<MainLayout />}>
