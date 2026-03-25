@@ -20,6 +20,7 @@ import { useLocation } from 'react-router-dom';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import type { StorageItem } from '@/lib/blobbi';
+import { canUseItemForStage } from '@/blobbi/actions/lib/blobbi-action-utils';
 
 import type {
   CompanionMenuAction,
@@ -68,6 +69,15 @@ interface UseCompanionActionMenuResult {
 
 /**
  * Resolve inventory items for a specific action/category.
+ * 
+ * Uses the centralized `canUseItemForStage` function to ensure consistent
+ * stage-based filtering across all UIs:
+ * - Egg-only items (like Shell Repair Kit) are excluded for baby/adult companions
+ * - Baby/adult-only items (food, toys) are excluded for eggs
+ * - Items without relevant effects are excluded
+ * 
+ * Since companions can only be baby or adult (not egg), this effectively
+ * filters out all egg-only items from the companion interaction system.
  */
 function resolveItemsForAction(
   storage: StorageItem[],
@@ -88,16 +98,15 @@ function resolveItemsForAction(
     if (!shopItem) continue;
     if (shopItem.type !== category) continue;
     
-    // Stage-specific filtering
-    if (stage === 'egg') {
-      // Eggs can only use certain items
-      if (category === 'food' || category === 'toy') {
-        continue; // Eggs can't eat or play with toys
-      }
-      // For medicine, check if it has health effect
-      if (category === 'medicine' && !shopItem.effect?.health) {
-        continue;
-      }
+    // Use centralized stage-based filtering
+    // This handles:
+    // - Shell Repair Kit: only for eggs (excluded for baby/adult companions)
+    // - Food/Toys: only for baby/adult (excluded for eggs)
+    // - Medicine: must have health effect
+    // - Hygiene: must have hygiene or happiness effect
+    const usability = canUseItemForStage(storageItem.itemId, stage);
+    if (!usability.canUse) {
+      continue;
     }
     
     items.push({
