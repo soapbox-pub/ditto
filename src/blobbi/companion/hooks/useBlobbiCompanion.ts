@@ -30,6 +30,15 @@ import { useBlobbiAttention } from './useBlobbiAttention';
 import { useBlobbiEntryAnimation } from './useBlobbiEntryAnimation';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 
+/** Options for triggering attention */
+interface TriggerAttentionOptions {
+  duration?: number;
+  priority?: 'low' | 'normal' | 'high';
+  source?: string;
+  /** If true, uses shorter glance cooldown */
+  isGlance?: boolean;
+}
+
 interface UseBlobbiCompanionResult {
   /** The current companion data */
   companion: CompanionData | null;
@@ -65,6 +74,8 @@ interface UseBlobbiCompanionResult {
   updateDrag: (position: Position) => void;
   /** End dragging */
   endDrag: () => void;
+  /** Trigger attention to a specific position (for glancing at items, etc.) */
+  triggerAttention: (position: Position, options?: TriggerAttentionOptions) => void;
 }
 
 /**
@@ -311,5 +322,6 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     startDrag,
     updateDrag,
     endDrag,
+    triggerAttention,
   };
 }
