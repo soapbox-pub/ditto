@@ -71,6 +71,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { VanishEventContent } from "@/components/VanishEventContent";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
@@ -126,6 +127,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 32267) return "App Details";
   if (kind === 15128 || kind === 35128) return "Nsite";
   if (kind === VANISH_KIND) return "Request to Vanish";
+  if (kind === 4) return "Encrypted Message";
   return "Post Details";
 }
 
@@ -875,6 +877,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isCustomNip = event.kind === 30817;
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
+  const isEncryptedDM = event.kind === 4;
   const isVanish = event.kind === VANISH_KIND;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
@@ -895,6 +898,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isCommunity &&
     !isDevKind &&
     !isZapstoreApp &&
+    !isEncryptedDM &&
     !isVanish;
 
   const videos = useMemo(
@@ -1564,6 +1568,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </div>
             ) : isZapstoreApp ? (
               <ZapstoreAppContent event={event} />
+            ) : isEncryptedDM ? (
+              <EncryptedMessageContent event={event} />
             ) : isVine ||
               isPoll ||
               isGeocache ||
