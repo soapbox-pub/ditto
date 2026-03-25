@@ -1,6 +1,8 @@
+import type React from 'react';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
+import { Rocket } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
@@ -59,27 +61,35 @@ function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
 }
 
 /** Get a display name for an event based on its kind and tags. */
-function getEventDisplayName(event: NostrEvent): string {
+function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.ComponentType<{ className?: string }> } {
+  // Nsite deployments: "ditto nsite" with rocket icon
+  if (event.kind === 15128 || event.kind === 35128) {
+    const title = event.tags.find(([name]) => name === 'title')?.[1];
+    const dTag = event.tags.find(([name]) => name === 'd')?.[1];
+    const siteName = title || dTag;
+    return { text: siteName ? `${siteName} nsite` : 'an nsite', icon: Rocket };
+  }
+
   // Try title tag first (used by articles, themes, follow packs, etc.)
   const title = event.tags.find(([name]) => name === 'title')?.[1];
-  if (title) return title;
+  if (title) return { text: title };
 
   // Try name tag (used by communities, emoji packs, etc.)
   const name = event.tags.find(([name]) => name === 'name')?.[1];
-  if (name) return name;
+  if (name) return { text: name };
 
   // Try d tag (addressable events use this as an identifier)
   const dTag = event.tags.find(([name]) => name === 'd')?.[1];
-  if (dTag) return dTag;
+  if (dTag) return { text: dTag };
 
   // Fall back to kind label from EXTRA_KINDS
   const kindDef = EXTRA_KINDS.find((def) =>
     def.subKinds?.some((sub) => sub.kind === event.kind) || def.kind === event.kind,
   );
-  if (kindDef) return kindDef.label.toLowerCase();
+  if (kindDef) return { text: kindDef.label.toLowerCase() };
 
   // Last resort
-  return 'a post';
+  return { text: 'a post' };
 }
 
 /** Get a human-readable kind label for fallback display. */
@@ -243,22 +253,24 @@ function GenericAddrCommentContext({ root, className }: { root: CommentRoot; cla
     );
   }
 
-  const displayName = event ? getEventDisplayName(event) : getKindLabel(root.rootKind);
+  const display = event ? getEventDisplayName(event) : { text: getKindLabel(root.rootKind) };
+  const DisplayIcon = display.icon;
   const link = event ? getRootLink(event) : undefined;
 
   return (
     <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
       <span className="shrink-0">{prefix}</span>
+      {DisplayIcon && <DisplayIcon className="size-3.5 shrink-0" />}
       {link ? (
         <Link
           to={link}
           className="text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
-          {displayName}
+          {display.text}
         </Link>
       ) : (
-        <span className="truncate">{displayName}</span>
+        <span className="truncate">{display.text}</span>
       )}
     </div>
   );
@@ -272,15 +284,18 @@ function EventCommentContext({ root, className }: { root: CommentRoot; className
     if (!root.eventId) return undefined;
 
     if (event) {
+      const display = getEventDisplayName(event);
+      const DisplayIcon = display.icon;
       return (
         <HoverCard openDelay={300} closeDelay={150}>
           <HoverCardTrigger asChild>
             <Link
               to={getRootLink(event)}
-              className="text-primary hover:underline truncate cursor-pointer"
+              className="inline-flex items-center gap-1 text-primary hover:underline truncate cursor-pointer"
               onClick={(e) => e.stopPropagation()}
             >
-              {getEventDisplayName(event)}
+              {DisplayIcon && <DisplayIcon className="size-3.5 shrink-0" />}
+              {display.text}
             </Link>
           </HoverCardTrigger>
           <HoverCardContent
