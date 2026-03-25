@@ -74,11 +74,13 @@ function familyFromFilename(filename: string): string {
  *
  * Also supports uploading a custom font file via Blossom.
  */
-export function FontPicker({ value, onChange }: {
+export function FontPicker({ value, onChange, placeholder = 'Default (Inter)' }: {
   /** Controlled value — overrides useTheme() when provided. */
   value?: ThemeFont | undefined;
   /** Controlled onChange — called instead of applyCustomTheme() when provided. */
   onChange?: (font: ThemeFont | undefined) => void;
+  /** Text shown when no font is selected. Defaults to "Default (Inter)". */
+  placeholder?: string;
 } = {}) {
   const { theme, customTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
@@ -180,7 +182,7 @@ export function FontPicker({ value, onChange }: {
             style={currentFont ? { fontFamily: `"${resolveCssFamily(currentFont.family)}", sans-serif` } : undefined}
           >
             <span className="truncate">
-              {currentFont?.family ?? 'Default (Inter)'}
+              {currentFont?.family ?? placeholder}
               {isCustomUpload && (
                 <span className="ml-1.5 text-muted-foreground text-xs">(uploaded)</span>
               )}
@@ -324,7 +326,7 @@ export function FontSection({ bodyFont, onBodyFontChange, titleFont, onTitleFont
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground w-10 shrink-0">Title</span>
           <div className="flex-1">
-            <FontPicker value={titleFont} onChange={onTitleFontChange} />
+            <FontPicker value={titleFont} onChange={onTitleFontChange} placeholder="Same as body" />
           </div>
         </div>
       </div>
