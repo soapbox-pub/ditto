@@ -125,7 +125,6 @@ export function NotificationsPage() {
             active={activeTab === key}
             onClick={() => setActiveTab(key)}
             className="sidebar:py-5 sidebar:font-semibold"
-            indicatorClassName="sidebar:h-[3px]"
           />
         ))}
       </SubHeaderBar>
