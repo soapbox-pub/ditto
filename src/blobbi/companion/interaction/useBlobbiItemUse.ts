@@ -43,6 +43,7 @@ import {
   applyItemEffects,
   decrementStorageItem,
   canUseAction,
+  canUseItemForStage,
   getStageRestrictionMessage,
   clampStat,
   applyStat,
@@ -241,6 +242,13 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       const shopItem = getShopItemById(itemId);
       if (!shopItem) {
         throw new Error('Item not found in catalog');
+      }
+      
+      // Validate item can be used by this companion's stage
+      // This catches egg-only items (like Shell Repair Kit) being used by baby/adult companions
+      const itemUsability = canUseItemForStage(itemId, companion.stage);
+      if (!itemUsability.canUse) {
+        throw new Error(itemUsability.reason ?? 'This item cannot be used by this companion');
       }
       
       // Validate item exists in storage with sufficient quantity
