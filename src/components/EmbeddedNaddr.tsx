@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { Award, MessageSquareOff } from 'lucide-react';
@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { parseBadgeDefinition } from '@/components/BadgeContent';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -19,6 +20,8 @@ interface EmbeddedNaddrProps {
   /** The decoded naddr coordinates. */
   addr: AddrCoords;
   className?: string;
+  /** When true, ProfileHoverCards inside the card are disabled to prevent nested hover cards. */
+  disableHoverCards?: boolean;
 }
 
 /** Maximum characters of content to show in the embedded preview. */
@@ -58,7 +61,7 @@ function extractMetadata(event: NostrEvent): {
 }
 
 /** Inline embedded card for an addressable Nostr event (naddr). */
-export function EmbeddedNaddr({ addr, className }: EmbeddedNaddrProps) {
+export function EmbeddedNaddr({ addr, className, disableHoverCards }: EmbeddedNaddrProps) {
   const { data: event, isLoading, isError } = useAddrEvent(addr);
 
   if (isLoading) {
@@ -74,7 +77,7 @@ export function EmbeddedNaddr({ addr, className }: EmbeddedNaddrProps) {
     return <EmbeddedBadgeCard event={event} className={className} />;
   }
 
-  return <EmbeddedNaddrCard event={event} className={className} />;
+  return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} />;
 }
 
 /** Compact badge showcase for kind 30009 embeds — smaller version of the feed BadgeContent. */
@@ -170,7 +173,7 @@ function EmbeddedBadgeCard({ event, className }: { event: NostrEvent; className?
   );
 }
 
-function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?: string }) {
+function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: NostrEvent; className?: string; disableHoverCards?: boolean }) {
   const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -245,28 +248,32 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
             </>
           ) : (
             <>
-              <Link
-                to={`/${npub}`}
-                className="shrink-0"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Avatar shape={avatarShape} className="size-5">
-                  <AvatarImage src={metadata?.picture} alt={displayName} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-                    {displayName[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
+              <MaybeProfileHoverCard pubkey={event.pubkey} disabled={disableHoverCards}>
+                <Link
+                  to={`/${npub}`}
+                  className="shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Avatar shape={avatarShape} className="size-5">
+                    <AvatarImage src={metadata?.picture} alt={displayName} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                      {displayName[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+              </MaybeProfileHoverCard>
 
-              <Link
-                to={`/${npub}`}
-                className="text-sm font-semibold truncate hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {author.data?.event ? (
-                  <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-                ) : displayName}
-              </Link>
+              <MaybeProfileHoverCard pubkey={event.pubkey} disabled={disableHoverCards}>
+                <Link
+                  to={`/${npub}`}
+                  className="text-sm font-semibold truncate hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {author.data?.event ? (
+                    <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                  ) : displayName}
+                </Link>
+              </MaybeProfileHoverCard>
             </>
           )}
 
@@ -298,6 +305,18 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
         )}
       </div>
     </div>
+  );
+}
+
+/** Conditionally wraps children in a ProfileHoverCard. When disabled, renders children directly. */
+function MaybeProfileHoverCard({ pubkey, disabled, children }: { pubkey: string; disabled?: boolean; children: ReactNode }) {
+  if (disabled) {
+    return <>{children}</>;
+  }
+  return (
+    <ProfileHoverCard pubkey={pubkey} asChild>
+      {children}
+    </ProfileHoverCard>
   );
 }
 
