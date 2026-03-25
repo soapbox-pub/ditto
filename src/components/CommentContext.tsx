@@ -5,7 +5,7 @@ import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, BookOpen, Camera, Clapperboard, FileText, Film,
   GitBranch, GitPullRequest, MapPin, MessageSquare, Mic, Music,
-  Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Users,
+  Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles, Users,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -136,8 +136,8 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   30617: GitBranch,
   32267: Package,
   34236: Clapperboard,
-  36767: Palette,
-  16767: Palette,
+  36767: Sparkles,
+  16767: Sparkles,
   36787: Music,
   34139: Music,
   37381: CardsIcon,
@@ -403,7 +403,7 @@ function ProfileCommentContext({ pubkey, className }: { pubkey: string; classNam
   );
 }
 
-/** Comment context for kind 30008 (profile badges) roots — shows "Commenting on @User's profile badges". */
+/** Comment context for kind 30008 (profile badges) roots — shows "Commenting on profile badges by @User". */
 function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
   const pubkey = root.addr?.pubkey ?? '';
   const author = useAuthor(pubkey);
@@ -427,6 +427,19 @@ function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; c
 
   return (
     <CommentContextRow prefix="Commenting on" className={className} loading={author.isLoading}>
+      {link && hoverContent ? (
+        <EventHoverLink
+          display={{ text: 'profile badges', icon: Award }}
+          link={link}
+          hoverContent={hoverContent}
+        />
+      ) : (
+        <span className="inline-flex items-center gap-1 truncate">
+          <Award className="size-3.5 shrink-0" />
+          profile badges
+        </span>
+      )}
+      <span className="shrink-0">by</span>
       <ProfileHoverCard pubkey={pubkey} asChild>
         <Link
           to={`/${npubEncoded}`}
@@ -436,18 +449,6 @@ function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; c
           @{displayName}
         </Link>
       </ProfileHoverCard>
-      {link && hoverContent ? (
-        <>
-          <span className="shrink-0">'s</span>
-          <EventHoverLink
-            display={{ text: 'profile badges', icon: Award }}
-            link={link}
-            hoverContent={hoverContent}
-          />
-        </>
-      ) : (
-        <span className="truncate">'s profile badges</span>
-      )}
     </CommentContextRow>
   );
 }
