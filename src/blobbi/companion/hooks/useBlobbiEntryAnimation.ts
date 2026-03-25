@@ -60,6 +60,8 @@ interface UseBlobbiEntryAnimationResult {
   isEntering: boolean;
   /** Whether Blobbi is permanently stuck (needs user drag to resolve) */
   isPermanentlyStuck: boolean;
+  /** Whether entry was resolved from stuck_permanent (vs natural completion) */
+  wasResolvedFromStuck: boolean;
   /** Whether Blobbi should be hidden (during route transition delay) */
   isHiddenForTransition: boolean;
   /** Current inspection direction (for eye control) */
@@ -117,6 +119,10 @@ export function useBlobbiEntryAnimation({
   // This prevents auto-resolving stuck state before user actually drags
   const hasDraggedDuringStuckRef = useRef(false);
   
+  // Track if entry was resolved from stuck_permanent (vs natural completion)
+  // This tells the consumer to use the drag release position, not groundPosition
+  const [wasResolvedFromStuck, setWasResolvedFromStuck] = useState(false);
+  
   /**
    * Calculate total duration for the current entry type (normal flow).
    */
@@ -167,6 +173,9 @@ export function useBlobbiEntryAnimation({
     // Clear hidden state - we're starting the entry now
     setIsHiddenForTransition(false);
     
+    // Reset stuck resolution tracking for new entry
+    setWasResolvedFromStuck(false);
+    
     // Generate random inspection order (only used for rise entry)
     const inspectionOrder = generateInspectionOrder();
     
@@ -208,9 +217,13 @@ export function useBlobbiEntryAnimation({
   
   /**
    * Resolve permanent stuck state (called after user drag release).
+   * Sets wasResolvedFromStuck flag so consumer knows to use drag position, not groundPosition.
    */
   const resolvePermanentStuck = useCallback(() => {
     if (entryState.phase === 'stuck_permanent') {
+      // Mark that this completion came from stuck rescue
+      // Consumer should use current motion position (drag release) instead of groundPosition
+      setWasResolvedFromStuck(true);
       completeEntry();
     }
   }, [entryState.phase, completeEntry]);
@@ -623,6 +636,7 @@ export function useBlobbiEntryAnimation({
     entryState,
     isEntering,
     isPermanentlyStuck: entryState.phase === 'stuck_permanent',
+    wasResolvedFromStuck,
     isHiddenForTransition,
     currentInspectionDirection: entryState.inspectionDirection,
     resolvePermanentStuck,
