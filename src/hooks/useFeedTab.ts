@@ -30,6 +30,11 @@ export function useFeedTab<T extends string = string>(
         }
       }
     } catch { /* sessionStorage unavailable */ }
+    // Validate the default tab against validTabs. If it's not in the list,
+    // fall back to the last valid tab (typically 'global').
+    if (validTabs && !validTabs.includes(defaultTab)) {
+      return validTabs[validTabs.length - 1];
+    }
     return defaultTab;
   });
 
