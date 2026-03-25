@@ -1,7 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { X } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import {
@@ -10,18 +8,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { getAvatarShape } from '@/lib/avatarShape';
-import { NoteContent } from '@/components/NoteContent';
-import { NsiteCard } from '@/components/NsiteCard';
+import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LinkEmbed } from '@/components/LinkEmbed';
-import { VanishCardCompact } from '@/components/VanishEventContent';
 import { ProfilePreview } from '@/components/ExternalContentHeader';
-import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
-import { VerifiedNip05Text } from '@/components/Nip05Badge';
-import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 
 interface ReplyComposeModalProps {
@@ -41,12 +32,6 @@ interface ReplyComposeModalProps {
   title?: string;
   /** Override the compose box placeholder text. */
   placeholder?: string;
-}
-
-/** Extracts image URLs from note content. */
-function extractImages(content: string): string[] {
-  const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
-  return content.match(urlRegex) || [];
 }
 
 export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, initialMode, title: titleOverride, placeholder: placeholderOverride }: ReplyComposeModalProps) {
@@ -166,7 +151,11 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
   );
 }
 
-/** Compact embedded preview of the post being replied to. */
+/**
+ * Compact embedded preview of the post being replied to.
+ * Delegates to the shared EmbeddedNote / EmbeddedNaddr components used by
+ * quote posts and hover cards, so every context renders events consistently.
+ */
 function EmbeddedPost({ event }: { event: NostrEvent }) {
   // Kind 0 (profile) — show a profile card instead of trying to render the raw JSON content
   if (event.kind === 0) {
@@ -177,79 +166,20 @@ function EmbeddedPost({ event }: { event: NostrEvent }) {
     );
   }
 
-  // Kind 62 (Request to Vanish) — show a compact vanish preview
-  if (event.kind === 62) {
-    return <VanishCardCompact event={event} timestamp={timeAgo(event.created_at)} className="mx-4 mb-2" />;
-  }
-
-  // Nsite deployments — show the NsiteCard instead of empty content
-  if (event.kind === 15128 || event.kind === 35128) {
+  // Addressable events (kind 30000-39999) — use EmbeddedNaddr
+  if (event.kind >= 30000 && event.kind < 40000) {
+    const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
     return (
       <div className="mx-4 mb-2">
-        <NsiteCard event={event} />
+        <EmbeddedNaddr addr={{ kind: event.kind, pubkey: event.pubkey, identifier: dTag }} />
       </div>
     );
   }
 
-  return <EmbeddedNote event={event} />;
-}
-
-
-
-/** Compact embedded preview for regular note events. */
-function EmbeddedNote({ event }: { event: NostrEvent }) {
-  const author = useAuthor(event.pubkey);
-  const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(event.pubkey);
-  const nip05 = metadata?.nip05;
-  const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
-  const images = useMemo(() => extractImages(event.content), [event.content]);
-
+  // Everything else — use EmbeddedNote (the event is already in the query cache)
   return (
-    <div className="mx-4 mb-2 rounded-xl border border-border bg-secondary/30 overflow-hidden">
-      <div className="px-3 py-2.5">
-        {/* Author row */}
-        <div className="flex items-center gap-2 mb-1.5">
-          <Link to={`/${npub}`} className="shrink-0">
-            <Avatar shape={avatarShape} className="size-8">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                {displayName[0].toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </Link>
-
-          <div className="flex items-center gap-1 min-w-0 text-sm">
-            <span className="font-bold truncate">{displayName}</span>
-            {nip05 && (
-              <VerifiedNip05Text nip05={nip05} pubkey={event.pubkey} className="text-muted-foreground truncate" />
-            )}
-            {metadata?.bot && (
-              <span className="text-xs text-primary" title="Bot account">🤖</span>
-            )}
-            <span className="text-muted-foreground shrink-0">·</span>
-            <span className="text-muted-foreground shrink-0">{timeAgo(event.created_at)}</span>
-          </div>
-        </div>
-
-        {/* Content preview – clamp to a few lines */}
-        <div className="text-sm line-clamp-4 overflow-hidden">
-          <NoteContent event={event} className="text-sm leading-relaxed" disableEmbeds />
-        </div>
-
-        {/* Show first image thumbnail if any */}
-        {images.length > 0 && (
-          <div className="mt-2 rounded-lg overflow-hidden border border-border max-w-[120px]">
-            <img
-              src={images[0]}
-              alt=""
-              className="w-full h-auto max-h-[80px] object-cover"
-              loading="lazy"
-            />
-          </div>
-        )}
-      </div>
+    <div className="mx-4 mb-2">
+      <EmbeddedNote eventId={event.id} authorHint={event.pubkey} disableHoverCards />
     </div>
   );
 }
