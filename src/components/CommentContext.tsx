@@ -1,11 +1,12 @@
 import type React from 'react';
-import { useMemo } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { Rocket } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { LinkPreview } from '@/components/LinkPreview';
 import { ReactionEmoji } from '@/components/CustomEmoji';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -19,6 +20,9 @@ import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo } from '@/lib/countries';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
+
+/** Default classes shared by all comment context rows. */
+const ROW_CLASS = 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden';
 
 /** Parsed root reference from a kind 1111 comment's uppercase tags. */
 interface CommentRoot {
@@ -60,61 +64,77 @@ function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
   return undefined;
 }
 
-/** Get a display name for an event based on its kind and tags. */
-function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.ComponentType<{ className?: string }> } {
-  // Nsite deployments: "ditto nsite" with rocket icon
-  if (event.kind === 15128 || event.kind === 35128) {
-    const title = event.tags.find(([name]) => name === 'title')?.[1];
-    const dTag = event.tags.find(([name]) => name === 'd')?.[1];
-    const siteName = title || dTag;
-    return { text: siteName ? `${siteName} nsite` : 'an nsite', icon: Rocket };
-  }
+/** Hardcoded kind-to-label map for kinds not covered by EXTRA_KINDS. */
+const KIND_LABELS: Record<number, string> = {
+  7: 'a reaction',
+  15128: 'an nsite',
+  35128: 'an nsite',
+  32267: 'an app',
+  30063: 'a release',
+};
 
-  // Try title tag first (used by articles, themes, follow packs, etc.)
-  const title = event.tags.find(([name]) => name === 'title')?.[1];
-  if (title) return { text: title };
+/** Kind-specific icons. */
+const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: string }>>> = {
+  15128: Rocket,
+  35128: Rocket,
+};
 
-  // Try name tag (used by communities, emoji packs, etc.)
-  const name = event.tags.find(([name]) => name === 'name')?.[1];
-  if (name) return { text: name };
+/**
+ * Get a human-readable label for a kind number.
+ * Used both as a fallback when an event hasn't loaded yet (from rootKind string)
+ * and as a last resort inside getEventDisplayName.
+ */
+function getKindLabel(kind: number): string {
+  if (KIND_LABELS[kind]) return KIND_LABELS[kind];
 
-  // Try d tag (addressable events use this as an identifier)
-  const dTag = event.tags.find(([name]) => name === 'd')?.[1];
-  if (dTag) return { text: dTag };
-
-  // Fall back to kind label from EXTRA_KINDS
   const kindDef = EXTRA_KINDS.find((def) =>
-    def.subKinds?.some((sub) => sub.kind === event.kind) || def.kind === event.kind,
+    def.subKinds?.some((sub) => sub.kind === kind) || def.kind === kind,
   );
-  if (kindDef) return { text: kindDef.label.toLowerCase() };
+  if (kindDef) return kindDef.label.toLowerCase();
 
-  // Last resort
-  return { text: 'a post' };
+  return 'a post';
 }
 
-/** Get a human-readable kind label for fallback display. */
-function getKindLabel(rootKind: string | undefined): string {
+/** Parse a rootKind string into a label, handling both numeric and external content kinds. */
+function getRootKindLabel(rootKind: string | undefined): string {
   if (!rootKind) return 'a post';
 
   const kindNum = parseInt(rootKind, 10);
   if (isNaN(kindNum)) {
-    // External content kinds (web, #, etc.)
     if (rootKind === 'web' || rootKind === 'https' || rootKind === 'http') return 'a link';
     if (rootKind === '#') return 'a hashtag';
     return rootKind;
   }
 
-  if (kindNum === 7) return 'a reaction';
-  if (kindNum === 15128 || kindNum === 35128) return 'an nsite';
-  if (kindNum === 32267) return 'an app';
-  if (kindNum === 30063) return 'a release';
+  return getKindLabel(kindNum);
+}
 
-  const kindDef = EXTRA_KINDS.find((def) =>
-    def.subKinds?.some((sub) => sub.kind === kindNum) || def.kind === kindNum,
-  );
-  if (kindDef) return kindDef.label.toLowerCase();
+/** Get a display name for an event based on its kind and tags. */
+function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.ComponentType<{ className?: string }> } {
+  const icon = KIND_ICONS[event.kind];
 
-  return 'a post';
+  // Nsite deployments: "{siteName} nsite" with rocket icon
+  if (event.kind === 15128 || event.kind === 35128) {
+    const title = event.tags.find(([name]) => name === 'title')?.[1];
+    const dTag = event.tags.find(([name]) => name === 'd')?.[1];
+    const siteName = title || dTag;
+    return { text: siteName ? `${siteName} nsite` : 'an nsite', icon };
+  }
+
+  // Try title tag first (used by articles, themes, follow packs, etc.)
+  const title = event.tags.find(([name]) => name === 'title')?.[1];
+  if (title) return { text: title, icon };
+
+  // Try name tag (used by communities, emoji packs, etc.)
+  const name = event.tags.find(([name]) => name === 'name')?.[1];
+  if (name) return { text: name, icon };
+
+  // Try d tag (addressable events use this as an identifier)
+  const dTag = event.tags.find(([name]) => name === 'd')?.[1];
+  if (dTag) return { text: dTag, icon };
+
+  // Fall back to kind label
+  return { text: getKindLabel(event.kind), icon };
 }
 
 /** Build a navigation link for the root event. */
@@ -127,6 +147,63 @@ function getRootLink(event: NostrEvent): string {
   }
   return `/${nip19.neventEncode({ id: event.id, author: event.pubkey })}`;
 }
+
+// ─── Shared wrapper ────────────────────────────────────────────
+
+interface CommentContextRowProps {
+  prefix: string;
+  className?: string;
+  loading?: boolean;
+  children?: ReactNode;
+}
+
+/** Shared row wrapper for all comment context variants. */
+function CommentContextRow({ prefix, className, loading, children }: CommentContextRowProps) {
+  return (
+    <div className={className || ROW_CLASS}>
+      <span className="shrink-0">{prefix}</span>
+      {loading ? <Skeleton className="h-3.5 w-24 inline-block" /> : children}
+    </div>
+  );
+}
+
+// ─── Shared hover card for Nostr events ────────────────────────
+
+interface EventHoverLinkProps {
+  display: { text: string; icon?: React.ComponentType<{ className?: string }> };
+  link: string;
+  hoverContent: ReactNode;
+}
+
+/** Link with icon that shows a hover card preview. */
+function EventHoverLink({ display, link, hoverContent }: EventHoverLinkProps) {
+  const DisplayIcon = display.icon;
+  return (
+    <HoverCard openDelay={300} closeDelay={150}>
+      <HoverCardTrigger asChild>
+        <Link
+          to={link}
+          className="inline-flex items-center gap-1 text-primary hover:underline truncate cursor-pointer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {DisplayIcon && <DisplayIcon className="size-3.5 shrink-0" />}
+          {display.text}
+        </Link>
+      </HoverCardTrigger>
+      <HoverCardContent
+        side="bottom"
+        align="start"
+        sideOffset={4}
+        className="w-80 p-0 rounded-2xl shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {hoverContent}
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+// ─── Main export ───────────────────────────────────────────────
 
 interface CommentContextProps {
   event: NostrEvent;
@@ -163,6 +240,8 @@ export function CommentContext({ event, className }: CommentContextProps) {
   }
 }
 
+// ─── Sub-components ────────────────────────────────────────────
+
 /** Comment context when replying directly to another kind 1111 comment — shows "Replying to @user". */
 function ReplyToCommentContext({ pubkey, eventId, className }: { pubkey: string; eventId?: string; className?: string }) {
   const author = useAuthor(pubkey);
@@ -174,18 +253,8 @@ function ReplyToCommentContext({ pubkey, eventId, className }: { pubkey: string;
     try { return `/${nip19.neventEncode({ id: eventId, author: pubkey })}`; } catch { return undefined; }
   }, [eventId, pubkey]);
 
-  if (author.isLoading) {
-    return (
-      <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
-        <span className="shrink-0">Replying to</span>
-        <Skeleton className="h-3.5 w-24 inline-block" />
-      </div>
-    );
-  }
-
   return (
-    <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
-      <span className="shrink-0">Replying to</span>
+    <CommentContextRow prefix="Replying to" className={className} loading={author.isLoading}>
       <Link
         to={parentLink ?? `/${npubEncoded}`}
         className="text-primary hover:underline truncate"
@@ -193,7 +262,7 @@ function ReplyToCommentContext({ pubkey, eventId, className }: { pubkey: string;
       >
         @{displayName}
       </Link>
-    </div>
+    </CommentContextRow>
   );
 }
 
@@ -214,18 +283,8 @@ function ProfileCommentContext({ pubkey, className }: { pubkey: string; classNam
   const displayName = metadata?.name ?? genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
-  if (author.isLoading) {
-    return (
-      <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
-        <span className="shrink-0">Commenting on</span>
-        <Skeleton className="h-3.5 w-24 inline-block" />
-      </div>
-    );
-  }
-
   return (
-    <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
-      <span className="shrink-0">Commenting on</span>
+    <CommentContextRow prefix="Commenting on" className={className} loading={author.isLoading}>
       <Link
         to={`/${npubEncoded}`}
         className="text-primary hover:underline truncate"
@@ -233,7 +292,7 @@ function ProfileCommentContext({ pubkey, className }: { pubkey: string; classNam
       >
         @{displayName}
       </Link>
-    </div>
+    </CommentContextRow>
   );
 }
 
@@ -244,35 +303,34 @@ function GenericAddrCommentContext({ root, className }: { root: CommentRoot; cla
   const isCommunity = root.rootKind === '34550' || root.addr?.kind === 34550;
   const prefix = isCommunity ? 'Posted in' : 'Commenting on';
 
-  if (isLoading) {
-    return (
-      <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
-        <span className="shrink-0">{prefix}</span>
-        <Skeleton className="h-3.5 w-24 inline-block" />
-      </div>
-    );
-  }
-
-  const display = event ? getEventDisplayName(event) : { text: getKindLabel(root.rootKind) };
-  const DisplayIcon = display.icon;
+  const display = event ? getEventDisplayName(event) : { text: getRootKindLabel(root.rootKind) };
   const link = event ? getRootLink(event) : undefined;
 
+  // Build hover card content for addressable events
+  const hoverContent = root.addr ? (
+    <EmbeddedNaddr
+      addr={{ kind: root.addr.kind, pubkey: root.addr.pubkey, identifier: root.addr.identifier }}
+      className="border-0 rounded-none"
+    />
+  ) : undefined;
+
   return (
-    <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
-      <span className="shrink-0">{prefix}</span>
-      {DisplayIcon && <DisplayIcon className="size-3.5 shrink-0" />}
-      {link ? (
+    <CommentContextRow prefix={prefix} className={className} loading={isLoading}>
+      {link && hoverContent ? (
+        <EventHoverLink display={display} link={link} hoverContent={hoverContent} />
+      ) : link ? (
         <Link
           to={link}
-          className="text-primary hover:underline truncate"
+          className="inline-flex items-center gap-1 text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
+          {display.icon && <display.icon className="size-3.5 shrink-0" />}
           {display.text}
         </Link>
       ) : (
         <span className="truncate">{display.text}</span>
       )}
-    </div>
+    </CommentContextRow>
   );
 }
 
@@ -280,69 +338,26 @@ function GenericAddrCommentContext({ root, className }: { root: CommentRoot; cla
 function EventCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
   const { data: event, isLoading } = useEvent(root.eventId);
 
-  const label = useMemo(() => {
-    if (!root.eventId) return undefined;
-
-    if (event) {
-      const display = getEventDisplayName(event);
-      const DisplayIcon = display.icon;
-      return (
-        <HoverCard openDelay={300} closeDelay={150}>
-          <HoverCardTrigger asChild>
-            <Link
-              to={getRootLink(event)}
-              className="inline-flex items-center gap-1 text-primary hover:underline truncate cursor-pointer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {DisplayIcon && <DisplayIcon className="size-3.5 shrink-0" />}
-              {display.text}
-            </Link>
-          </HoverCardTrigger>
-          <HoverCardContent
-            side="bottom"
-            align="start"
-            sideOffset={4}
-            className="w-80 p-0 rounded-2xl shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <EmbeddedNote eventId={root.eventId!} className="border-0 rounded-none" disableHoverCards />
-          </HoverCardContent>
-        </HoverCard>
-      );
-    }
-
-    return undefined;
-  }, [event, root.eventId]);
-
   // Kind 7 reactions get special treatment
   if (event?.kind === 7) {
     return <ReactionCommentContext event={event} className={className} />;
   }
 
-  if (isLoading) {
-    return (
-      <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
-        <span className="shrink-0">Commenting on</span>
-        <Skeleton className="h-3.5 w-24 inline-block" />
-      </div>
-    );
-  }
+  const display = event ? getEventDisplayName(event) : { text: getRootKindLabel(root.rootKind) };
+  const link = event ? getRootLink(event) : undefined;
 
-  // Fallback for kind 7 when event hasn't loaded yet but rootKind indicates it
-  if (root.rootKind === '7') {
-    return (
-      <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
-        <span className="shrink-0">Commenting on</span>
-        <span className="truncate">a reaction</span>
-      </div>
-    );
-  }
+  const hoverContent = root.eventId ? (
+    <EmbeddedNote eventId={root.eventId} className="border-0 rounded-none" disableHoverCards />
+  ) : undefined;
 
   return (
-    <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
-      <span className="shrink-0">Commenting on</span>
-      {label ?? <span className="truncate">{getKindLabel(root.rootKind)}</span>}
-    </div>
+    <CommentContextRow prefix="Commenting on" className={className} loading={isLoading}>
+      {link && hoverContent ? (
+        <EventHoverLink display={display} link={link} hoverContent={hoverContent} />
+      ) : (
+        <span className="truncate">{display.text}</span>
+      )}
+    </CommentContextRow>
   );
 }
 
@@ -355,8 +370,7 @@ function ReactionCommentContext({ event, className }: { event: NostrEvent; class
   const profileLink = `/${nip19.npubEncode(event.pubkey)}`;
 
   return (
-    <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
-      <span className="shrink-0">Commenting on</span>
+    <CommentContextRow prefix="Commenting on" className={className}>
       <Link
         to={reactionLink}
         className="text-primary hover:underline shrink-0 cursor-pointer"
@@ -376,7 +390,7 @@ function ReactionCommentContext({ event, className }: { event: NostrEvent; class
           {displayName}
         </Link>
       )}
-    </div>
+    </CommentContextRow>
   );
 }
 
@@ -396,7 +410,6 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
 
   // Determine display text and link
   let displayText: string;
-  let link: string | undefined;
 
   if (identifier.startsWith('iso3166:')) {
     const code = identifier.slice('iso3166:'.length);
@@ -408,31 +421,22 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
     } else {
       displayText = identifier;
     }
-    link = `/i/${encodeURIComponent(identifier)}`;
-  } else if (identifier.startsWith('#')) {
-    displayText = identifier;
-    link = `/i/${encodeURIComponent(identifier)}`;
   } else {
-    // podcast:guid:, etc.
     displayText = identifier;
-    link = `/i/${encodeURIComponent(identifier)}`;
   }
 
+  const link = `/i/${encodeURIComponent(identifier)}`;
+
   return (
-    <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
-      <span className="shrink-0">Commenting on</span>
-      {link ? (
-        <Link
-          to={link}
-          className="text-primary hover:underline truncate"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {displayText}
-        </Link>
-      ) : (
-        <span className="truncate">{displayText}</span>
-      )}
-    </div>
+    <CommentContextRow prefix="Commenting on" className={className}>
+      <Link
+        to={link}
+        className="text-primary hover:underline truncate"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {displayText}
+      </Link>
+    </CommentContextRow>
   );
 }
 
@@ -448,20 +452,10 @@ function UrlCommentContext({ url, className }: { url: string; className?: string
     fallbackHost = url;
   }
 
-  if (isLoading) {
-    return (
-      <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
-        <span className="shrink-0">Commenting on</span>
-        <Skeleton className="h-3.5 w-24 inline-block" />
-      </div>
-    );
-  }
-
   const title = preview?.title;
 
   return (
-    <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
-      <span className="shrink-0">Commenting on</span>
+    <CommentContextRow prefix="Commenting on" className={className} loading={isLoading}>
       <ExternalFavicon url={url} size={14} className="shrink-0" />
       <HoverCard openDelay={300} closeDelay={150}>
         <HoverCardTrigger asChild>
@@ -483,7 +477,7 @@ function UrlCommentContext({ url, className }: { url: string; className?: string
           <LinkPreview url={url} className="border-0 rounded-none" navigateToComments />
         </HoverCardContent>
       </HoverCard>
-    </div>
+    </CommentContextRow>
   );
 }
 
@@ -494,18 +488,8 @@ function IsbnCommentContext({ identifier, className }: { identifier: string; cla
   const link = `/i/${encodeURIComponent(identifier)}`;
   const displayText = bookInfo?.title ?? identifier;
 
-  if (isLoading) {
-    return (
-      <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
-        <span className="shrink-0">Commenting on</span>
-        <Skeleton className="h-3.5 w-24 inline-block" />
-      </div>
-    );
-  }
-
   return (
-    <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
-      <span className="shrink-0">Commenting on</span>
+    <CommentContextRow prefix="Commenting on" className={className} loading={isLoading}>
       <Link
         to={link}
         className="text-primary hover:underline truncate"
@@ -513,6 +497,6 @@ function IsbnCommentContext({ identifier, className }: { identifier: string; cla
       >
         {displayText}
       </Link>
-    </div>
+    </CommentContextRow>
   );
 }
