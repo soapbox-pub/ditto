@@ -19,14 +19,16 @@ import { resolveFontUrl } from '@/lib/fontLoader';
  * Bundled fonts get CDN URLs, others keep their existing URL.
  */
 function resolveThemeForPublishing(config: ThemeConfig): ThemeConfig {
-  if (!config.font) return config;
-
   return {
     ...config,
-    font: {
+    font: config.font ? {
       family: config.font.family,
       url: resolveFontUrl(config.font.family, config.font.url),
-    },
+    } : undefined,
+    titleFont: config.titleFont ? {
+      family: config.titleFont.family,
+      url: resolveFontUrl(config.titleFont.family, config.titleFont.url),
+    } : undefined,
   };
 }
 
