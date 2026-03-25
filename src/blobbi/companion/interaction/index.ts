@@ -10,6 +10,10 @@
  * Hooks:
  * - useCompanionActionMenu: Menu state management
  * - useClickDetection: Click vs drag detection
+ * - useCompanionItemUse: Item use with success/failure handling
+ * 
+ * Context:
+ * - BlobbiActionsContext: Provides item use functionality from parent
  * 
  * Future extensions:
  * - Drag items to Blobbi
@@ -34,9 +38,36 @@ export {
   getItemCategoryForAction,
 } from './types';
 
+// Item use types
+export type {
+  ItemUseResult,
+  UseItemCallback,
+  UseCompanionItemUseOptions,
+  UseCompanionItemUseResult,
+} from './useCompanionItemUse';
+
+export {
+  CATEGORY_TO_ACTION,
+  MENU_ACTION_TO_INVENTORY_ACTION,
+} from './useCompanionItemUse';
+
+// Actions context types
+export type {
+  UseItemResult as ContextUseItemResult,
+  BlobbiActionsContextValue,
+} from './BlobbiActionsContext';
+
 // Hooks
 export { useCompanionActionMenu } from './useCompanionActionMenu';
 export { useClickDetection } from './useClickDetection';
+export { useCompanionItemUse } from './useCompanionItemUse';
+
+// Context
+export {
+  BlobbiActionsContext,
+  BlobbiActionsProvider,
+  useBlobbiActions,
+} from './BlobbiActionsContext';
 
 // Components
 export { CompanionActionMenu } from './CompanionActionMenu';

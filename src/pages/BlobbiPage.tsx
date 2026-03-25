@@ -80,6 +80,7 @@ import {
   type StartIncubationMode,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
+import { BlobbiActionsProvider, type BlobbiActionsContextValue } from '@/blobbi/companion/interaction';
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -393,6 +394,27 @@ function BlobbiContent() {
     await executeUseItem({ itemId, action, quantity });
   }, [executeUseItem]);
   
+  // ─── Blobbi Actions Context Value ───
+  // Provides item use functionality to the companion layer (floating Blobbi)
+  const blobbiActionsContextValue: BlobbiActionsContextValue = useMemo(() => ({
+    useItem: async (itemId, action, quantity = 1) => {
+      try {
+        const result = await executeUseItem({ itemId, action, quantity });
+        return { 
+          success: true, 
+          statsChanged: result?.statsChanged,
+        };
+      } catch (error) {
+        return { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    },
+    isUsingItem,
+    canUseItems: !!companion && !!profile,
+  }), [executeUseItem, isUsingItem, companion, profile]);
+  
   // ─── Stage Transition Hooks ───
   const { mutateAsync: executeHatch, isPending: isHatching } = useBlobbiHatch({
     companion,
@@ -637,34 +659,36 @@ function BlobbiContent() {
   // At this point: companion is BlobbiCompanion, selectedD is string (narrowed by Case H guard)
   if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: dashboard');
   return (
-    <BlobbiDashboard
-      companion={companion}
-      companions={companions}
-      selectedD={selectedD}
-      showSelector={showSelector}
-      setShowSelector={setShowSelector}
-      onSelectBlobbi={handleSelectBlobbi}
-      onRest={handleRest}
-      onUseItem={handleUseItem}
-      onDirectAction={handleDirectAction}
-      isUsingItem={isUsingItem}
-      isDirectActionPending={isDirectActionPending}
-      actionInProgress={actionInProgress}
-      isPublishing={isPublishing}
-      isFetching={profileFetching || companionFetching}
-      profile={profile}
-      onHatch={handleHatch}
-      onEvolve={handleEvolve}
-      isHatching={isHatching}
-      isEvolving={isEvolving}
-      publishEvent={publishEvent}
-      updateProfileEvent={updateProfileEvent}
-      updateCompanionEvent={updateCompanionEvent}
-      invalidateProfile={invalidateProfile}
-      invalidateCompanion={invalidateCompanion}
-      setStoredSelectedD={setStoredSelectedD}
-      ensureCanonicalBeforeAction={ensureCanonicalBeforeAction}
-    />
+    <BlobbiActionsProvider value={blobbiActionsContextValue}>
+      <BlobbiDashboard
+        companion={companion}
+        companions={companions}
+        selectedD={selectedD}
+        showSelector={showSelector}
+        setShowSelector={setShowSelector}
+        onSelectBlobbi={handleSelectBlobbi}
+        onRest={handleRest}
+        onUseItem={handleUseItem}
+        onDirectAction={handleDirectAction}
+        isUsingItem={isUsingItem}
+        isDirectActionPending={isDirectActionPending}
+        actionInProgress={actionInProgress}
+        isPublishing={isPublishing}
+        isFetching={profileFetching || companionFetching}
+        profile={profile}
+        onHatch={handleHatch}
+        onEvolve={handleEvolve}
+        isHatching={isHatching}
+        isEvolving={isEvolving}
+        publishEvent={publishEvent}
+        updateProfileEvent={updateProfileEvent}
+        updateCompanionEvent={updateCompanionEvent}
+        invalidateProfile={invalidateProfile}
+        invalidateCompanion={invalidateCompanion}
+        setStoredSelectedD={setStoredSelectedD}
+        ensureCanonicalBeforeAction={ensureCanonicalBeforeAction}
+      />
+    </BlobbiActionsProvider>
   );
 }
 
