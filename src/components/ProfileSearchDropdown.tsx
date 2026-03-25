@@ -22,6 +22,8 @@ import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useWikipediaSearch, type WikipediaSearchResult } from '@/hooks/useWikipediaSearch';
 import { useArchiveSearch, type ArchiveSearchResult } from '@/hooks/useArchiveSearch';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
+import { searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
 
 interface ProfileSearchDropdownProps {
@@ -54,6 +56,7 @@ export function ProfileSearchDropdown({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
+  const { user } = useCurrentUser();
   const { data: rawProfiles, isFetching, followedPubkeys } = useSearchProfiles(query);
 
   // Wikipedia & Archive search (async, debounced by their hooks at >=2 chars)
@@ -67,6 +70,9 @@ export function ProfileSearchDropdown({
   // Country suggestion (local, synchronous) — suppressed when hideCountry is true
   const countryMatchRaw = useMemo(() => searchCountry(query), [query]);
   const countryMatch = hideCountry ? null : countryMatchRaw;
+
+  // Nav item suggestions (local, synchronous)
+  const navItems = useMemo(() => searchSidebarItems(query, !!user), [query, user]);
 
   // URL detection — show "Comment on" option when query is a full URL
   const queryIsUrl = useMemo(() => isFullUrl(query), [query]);
@@ -99,11 +105,11 @@ export function ProfileSearchDropdown({
   // Show dropdown when we have results, or when text search is enabled and there's a query
   useEffect(() => {
     if (query.trim().length > 0) {
-      if (enableTextSearch || (profiles && profiles.length > 0) || countryMatch || wikipediaResult || archiveResult) {
+      if (enableTextSearch || (profiles && profiles.length > 0) || countryMatch || navItems.length > 0 || wikipediaResult || archiveResult) {
         setOpen(true);
       }
     }
-  }, [profiles, query, enableTextSearch, countryMatch, wikipediaResult, archiveResult]);
+  }, [profiles, query, enableTextSearch, countryMatch, navItems, wikipediaResult, archiveResult]);
 
   // Reset selected index when results change
   useEffect(() => {
@@ -141,17 +147,20 @@ export function ProfileSearchDropdown({
     navigate(`/search?q=${encodeURIComponent(query.trim())}`);
   }, [enableTextSearch, query, navigate]);
 
-  // Total selectable items: identifier? + URL comment? + country?(top) + profiles + country?(bottom) + wikipedia? + archive?
+  // Total selectable items: navItems + identifier? + URL comment? + country?(top) + profiles + country?(bottom) + wikipedia? + archive?
   const hasCountry = !!countryMatch;
   const hasUrlComment = queryIsUrl && enableTextSearch;
   const hasIdentifier = !!identifierMatch;
   const hasWikipedia = !!wikipediaResult;
   const hasArchive = !!archiveResult;
-  const totalItems = profileCount + (hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0) + (hasIdentifier ? 1 : 0) + (hasWikipedia ? 1 : 0) + (hasArchive ? 1 : 0);
+  const navItemCount = navItems.length;
+  const totalItems = navItemCount + profileCount + (hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0) + (hasIdentifier ? 1 : 0) + (hasWikipedia ? 1 : 0) + (hasArchive ? 1 : 0);
 
   // Map selectedIndex to what it refers to.
-  // Order: [identifier?, commentUrl?, country?(top), ...profiles, country?(bottom), wikipedia?, archive?]
+  // Order: [...navItems, identifier?, commentUrl?, country?(top), ...profiles, country?(bottom), wikipedia?, archive?]
   let nextIdx = 0;
+  const navItemStartIndex = nextIdx;
+  nextIdx += navItemCount;
   const identifierIndex = hasIdentifier ? nextIdx++ : -1;
   const urlCommentIndex = hasUrlComment ? nextIdx++ : -1;
   const countryTopIndex = (hasCountry && countryAtTop) ? nextIdx++ : -1;
@@ -197,6 +206,13 @@ export function ProfileSearchDropdown({
     navigate(path);
   }, [navigate]);
 
+  const handleSelectNavItem = useCallback((item: SidebarItemDef) => {
+    setOpen(false);
+    setQuery('');
+    inputRef.current?.blur();
+    navigate(item.path);
+  }, [navigate]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -208,7 +224,9 @@ export function ProfileSearchDropdown({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (open && selectedIndex >= 0 && selectedIndex < totalItems) {
-        if (hasIdentifier && selectedIndex === identifierIndex) {
+        if (navItemCount > 0 && selectedIndex >= navItemStartIndex && selectedIndex < navItemStartIndex + navItemCount) {
+          handleSelectNavItem(navItems[selectedIndex - navItemStartIndex]);
+        } else if (hasIdentifier && selectedIndex === identifierIndex) {
           // Handled by the IdentifierItem component via its onClick
           // which calls handleSelectIdentifier — trigger via DOM click
           const items = listRef.current?.querySelectorAll('[data-search-item]');
@@ -303,13 +321,21 @@ export function ProfileSearchDropdown({
       </div>
 
       {/* Dropdown results — only when text search is not enabled */}
-      {!enableTextSearch && open && (hasIdentifier || hasCountry || hasWikipedia || hasArchive || (profiles && profiles.length > 0)) && (
+      {!enableTextSearch && open && (navItemCount > 0 || hasIdentifier || hasCountry || hasWikipedia || hasArchive || (profiles && profiles.length > 0)) && (
         <div
           ref={listRef}
           role="listbox"
           className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
         >
           <div className="max-h-[320px] overflow-y-auto py-1">
+            {navItems.map((item, index) => (
+              <NavItem
+                key={item.id}
+                item={item}
+                isSelected={index + navItemStartIndex === selectedIndex}
+                onClick={handleSelectNavItem}
+              />
+            ))}
             {hasIdentifier && (
               <IdentifierItem
                 match={identifierMatch!}
@@ -378,6 +404,16 @@ export function ProfileSearchDropdown({
                 Search for "{query.trim()}"
               </span>
             </button>
+
+            {/* Nav item results — sidebar pages matching query */}
+            {navItems.map((item, index) => (
+              <NavItem
+                key={item.id}
+                item={item}
+                isSelected={index + navItemStartIndex === selectedIndex}
+                onClick={handleSelectNavItem}
+              />
+            ))}
 
             {/* Identifier suggestion — NIP-05, NIP-19, hex */}
             {hasIdentifier && (
@@ -448,7 +484,7 @@ export function ProfileSearchDropdown({
       )}
 
       {/* Empty state — only when text search is not enabled */}
-      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && !hasIdentifier && !hasCountry && !hasWikipedia && !hasArchive && profiles && profiles.length === 0 && (
+      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && !hasIdentifier && !hasCountry && !hasWikipedia && !hasArchive && navItemCount === 0 && profiles && profiles.length === 0 && (
         <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
           <div className="py-6 text-center text-sm text-muted-foreground">
             No profiles found
@@ -456,6 +492,40 @@ export function ProfileSearchDropdown({
         </div>
       )}
     </div>
+  );
+}
+
+function NavItem({
+  item,
+  isSelected,
+  onClick,
+}: {
+  item: SidebarItemDef;
+  isSelected: boolean;
+  onClick: (item: SidebarItemDef) => void;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <button
+      data-search-item
+      role="option"
+      aria-selected={isSelected}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+      onClick={() => onClick(item)}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <div className="size-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+        <Icon className="size-4 text-primary" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <span className="font-semibold text-sm truncate block">{item.label}</span>
+        <span className="text-xs text-muted-foreground truncate block">{item.path}</span>
+      </div>
+    </button>
   );
 }
 

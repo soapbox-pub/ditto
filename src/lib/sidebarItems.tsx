@@ -227,6 +227,34 @@ export function itemPath(
   return SIDEBAR_ITEM_MAP.get(id)?.path ?? `/${id}`;
 }
 
+/**
+ * Search sidebar items by label. Returns items whose label starts with or
+ * contains the query (case-insensitive). Prefix matches are sorted first.
+ * Auth-requiring items are excluded when the user is not logged in.
+ */
+export function searchSidebarItems(
+  query: string,
+  isLoggedIn: boolean,
+): SidebarItemDef[] {
+  const q = query.trim().toLowerCase();
+  if (q.length === 0) return [];
+
+  const prefixMatches: SidebarItemDef[] = [];
+  const substringMatches: SidebarItemDef[] = [];
+
+  for (const item of SIDEBAR_ITEMS) {
+    if (item.requiresAuth && !isLoggedIn) continue;
+    const label = item.label.toLowerCase();
+    if (label.startsWith(q)) {
+      prefixMatches.push(item);
+    } else if (label.includes(q)) {
+      substringMatches.push(item);
+    }
+  }
+
+  return [...prefixMatches, ...substringMatches];
+}
+
 /** Check if a sidebar item is active given the current location. */
 export function isItemActive(
   id: string,
