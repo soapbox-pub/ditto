@@ -484,6 +484,7 @@ export function NostrSync() {
         const remoteTheme: ThemeConfig = {
           colors: parsed.colors,
           ...(parsed.font && { font: parsed.font }),
+          ...(parsed.titleFont && { titleFont: parsed.titleFont }),
           ...(parsed.background && { background: parsed.background }),
         };
 

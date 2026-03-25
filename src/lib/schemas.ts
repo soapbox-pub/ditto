@@ -86,6 +86,7 @@ export const ThemeConfigSchema = z.object({
   title: z.string().optional(),
   colors: CoreThemeColorsSchema,
   font: ThemeFontSchema.optional(),
+  titleFont: ThemeFontSchema.optional(),
   background: ThemeBackgroundSchema.optional(),
 });
 

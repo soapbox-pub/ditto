@@ -74,11 +74,13 @@ function familyFromFilename(filename: string): string {
  *
  * Also supports uploading a custom font file via Blossom.
  */
-export function FontPicker({ value, onChange }: {
+export function FontPicker({ value, onChange, label: labelText = 'Font' }: {
   /** Controlled value — overrides useTheme() when provided. */
   value?: ThemeFont | undefined;
   /** Controlled onChange — called instead of applyCustomTheme() when provided. */
   onChange?: (font: ThemeFont | undefined) => void;
+  /** Label text shown above the picker. Defaults to "Font". */
+  label?: string;
 } = {}) {
   const { theme, customTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
@@ -172,7 +174,7 @@ export function FontPicker({ value, onChange }: {
     <div className="space-y-2">
       <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
         <Type className="size-3.5" />
-        Font
+        {labelText}
       </span>
 
       <Popover open={open} onOpenChange={setOpen}>
