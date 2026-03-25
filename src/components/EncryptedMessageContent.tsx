@@ -1,6 +1,8 @@
 import type { NostrEvent } from '@nostrify/nostrify';
-import { Lock, Mail } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useMemo } from 'react';
+import { Mail } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { nip19 } from 'nostr-tools';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -8,7 +10,9 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { getDisplayName } from '@/lib/getDisplayName';
+import { genUserName } from '@/lib/genUserName';
 import { Skeleton } from '@/components/ui/skeleton';
+import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 
 interface EncryptedMessageContentProps {
@@ -18,21 +22,8 @@ interface EncryptedMessageContentProps {
   className?: string;
 }
 
-/**
- * Detect whether the content uses NIP-04 (AES-256-CBC with ?iv=) or NIP-44 encryption.
- * NIP-04 content contains a base64 body followed by `?iv=<base64>`.
- * NIP-44 uses a versioned binary blob encoded as base64 without the ?iv= suffix.
- */
-function detectEncryptionType(content: string): 'NIP-04' | 'NIP-44' | 'Unknown' {
-  if (!content) return 'Unknown';
-  if (/\?iv=/.test(content)) return 'NIP-04';
-  // NIP-44 payloads are pure base64 without the ?iv= marker
-  if (/^[A-Za-z0-9+/]+=*$/.test(content.trim()) && content.length > 20) return 'NIP-44';
-  return 'Unknown';
-}
-
 /** Renders a single participant avatar with name and link. */
-function Participant({ pubkey, side }: { pubkey: string; side: 'sender' | 'recipient' }) {
+function Participant({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
@@ -49,7 +40,7 @@ function Participant({ pubkey, side }: { pubkey: string; side: 'sender' | 'recip
   }
 
   return (
-    <div className={cn('flex flex-col items-center gap-1.5 min-w-0', side === 'sender' ? 'items-center' : 'items-center')}>
+    <div className="flex flex-col items-center gap-1.5 min-w-0">
       <ProfileHoverCard pubkey={pubkey} asChild>
         <Link to={profileUrl} onClick={(e) => e.stopPropagation()}>
           <Avatar shape={avatarShape} className="size-10 ring-2 ring-background shadow-md">
@@ -74,19 +65,19 @@ function Participant({ pubkey, side }: { pubkey: string; side: 'sender' | 'recip
 }
 
 /**
- * Compact card for kind 4 (NIP-04 encrypted DM) events.
+ * Visual display for kind 4 (NIP-04 encrypted DM) events.
  *
- * Instead of rendering the encrypted ciphertext, it shows a visual
- * "mail in transit" display: sender avatar -> animated path with lock -> recipient avatar.
- * Detects and labels the encryption type (NIP-04 vs NIP-44).
+ * Instead of rendering the encrypted ciphertext, it shows a
+ * "mail in transit" visualization: sender avatar -> dashed path with mail icon -> recipient avatar.
  */
 export function EncryptedMessageContent({ event, compact: _compact, className }: EncryptedMessageContentProps) {
   const recipientPubkey = event.tags.find(([n]) => n === 'p')?.[1];
-  const encryptionType = detectEncryptionType(event.content);
+  const senderAuthor = useAuthor(event.pubkey);
+  const senderName = getDisplayName(senderAuthor.data?.metadata, event.pubkey);
 
   if (!recipientPubkey) {
     return (
-      <div className={cn('mt-2 rounded-xl border border-border/60 bg-muted/30 px-4 py-3', className)}>
+      <div className={cn('mt-2 px-4 py-3', className)}>
         <p className="text-sm text-muted-foreground italic">Encrypted message (no recipient found)</p>
       </div>
     );
@@ -94,38 +85,135 @@ export function EncryptedMessageContent({ event, compact: _compact, className }:
 
   return (
     <div className={cn('mt-2', className)}>
-      <div className="rounded-xl border border-border/60 bg-gradient-to-br from-muted/40 via-background to-muted/40 overflow-hidden">
-        {/* Main transit visualization */}
-        <div className="px-5 py-4">
-          <div className="flex items-center justify-center gap-3">
-            {/* Sender */}
-            <Participant pubkey={event.pubkey} side="sender" />
+      <div className="rounded-2xl border border-border px-5 py-4">
+        {/* Description */}
+        <p className="text-sm text-muted-foreground text-center mb-3">
+          <span className="font-medium text-foreground">{senderName}</span> sent a direct message
+        </p>
 
-            {/* Animated transit path */}
-            <div className="flex-1 flex items-center justify-center min-w-0 max-w-[180px] relative">
-              {/* Dotted line */}
-              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px border-t-2 border-dashed border-foreground/15" />
+        <div className="flex items-center justify-center gap-3">
+          {/* Sender */}
+          <Participant pubkey={event.pubkey} />
 
-              {/* Mail icon in the center */}
-              <div className="relative z-10 flex items-center justify-center">
-                <div className="size-9 rounded-full bg-background border-2 border-foreground/10 flex items-center justify-center shadow-sm">
-                  <Mail className="size-4 text-muted-foreground" />
-                </div>
+          {/* Transit path */}
+          <div className="flex-1 flex items-center justify-center min-w-0 max-w-[180px] relative">
+            {/* Dotted line */}
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px border-t-2 border-dashed border-foreground/15" />
+
+            {/* Mail icon in the center */}
+            <div className="relative z-10 flex items-center justify-center">
+              <div className="size-9 rounded-full bg-background border-2 border-foreground/10 flex items-center justify-center shadow-sm">
+                <Mail className="size-4 text-muted-foreground" />
               </div>
             </div>
-
-            {/* Recipient */}
-            <Participant pubkey={recipientPubkey} side="recipient" />
           </div>
-        </div>
 
-        {/* Footer with encryption badge */}
-        <div className="px-4 py-2 border-t border-border/40 bg-muted/20 flex items-center justify-center gap-2">
-          <Lock className="size-3.5 text-muted-foreground/70" />
-          <span className="text-[11px] text-muted-foreground/70 font-medium tracking-wide uppercase">
-            Encrypted with {encryptionType}
+          {/* Recipient */}
+          <Participant pubkey={recipientPubkey} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface EncryptedMessageCompactProps {
+  event: { id: string; kind: number; pubkey: string; content: string; created_at: number; tags: string[][] };
+  className?: string;
+}
+
+/**
+ * Compact inline card for kind 4 events used in quote posts, reply indicators,
+ * and the reply composer. Matches the style of EmbeddedNoteCard.
+ */
+export function EncryptedMessageCompact({ event, className }: EncryptedMessageCompactProps) {
+  const navigate = useNavigate();
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
+  const displayName = metadata?.name || genUserName(event.pubkey);
+  const recipientPubkey = event.tags.find(([n]) => n === 'p')?.[1];
+  const recipientAuthor = useAuthor(recipientPubkey ?? '');
+  const recipientName = recipientPubkey
+    ? getDisplayName(recipientAuthor.data?.metadata, recipientPubkey)
+    : undefined;
+
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  const profileUrl = useProfileUrl(event.pubkey, metadata);
+
+  return (
+    <div
+      className={cn(
+        'group block rounded-2xl border border-border overflow-hidden',
+        'hover:bg-secondary/40 transition-colors cursor-pointer',
+        className,
+      )}
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/${neventId}`);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/${neventId}`);
+        }
+      }}
+    >
+      <div className="px-3 py-2 space-y-1">
+        {/* Author row */}
+        <div className="flex items-center gap-2 min-w-0">
+          {author.isLoading ? (
+            <>
+              <Skeleton className="size-5 rounded-full shrink-0" />
+              <Skeleton className="h-3.5 w-24" />
+            </>
+          ) : (
+            <>
+              <ProfileHoverCard pubkey={event.pubkey} asChild>
+                <Link
+                  to={profileUrl}
+                  className="shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Avatar shape={avatarShape} className="size-5">
+                    <AvatarImage src={metadata?.picture} alt={displayName} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                      {displayName[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+              </ProfileHoverCard>
+
+              <ProfileHoverCard pubkey={event.pubkey} asChild>
+                <Link
+                  to={profileUrl}
+                  className="text-sm font-semibold truncate hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {displayName}
+                </Link>
+              </ProfileHoverCard>
+            </>
+          )}
+
+          <span className="text-xs text-muted-foreground shrink-0">
+            · {timeAgo(event.created_at)}
           </span>
         </div>
+
+        {/* Content line */}
+        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Mail className="size-3.5 shrink-0" />
+          <span>
+            Sent a direct message{recipientName ? <> to <span className="font-medium text-foreground">{recipientName}</span></> : ''}
+          </span>
+        </p>
       </div>
     </div>
   );
