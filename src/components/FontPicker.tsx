@@ -74,13 +74,15 @@ function familyFromFilename(filename: string): string {
  *
  * Also supports uploading a custom font file via Blossom.
  */
-export function FontPicker({ value, onChange, placeholder = 'Default (Inter)' }: {
+export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', placeholderFont }: {
   /** Controlled value — overrides useTheme() when provided. */
   value?: ThemeFont | undefined;
   /** Controlled onChange — called instead of applyCustomTheme() when provided. */
   onChange?: (font: ThemeFont | undefined) => void;
   /** Text shown when no font is selected. Defaults to "Default (Inter)". */
   placeholder?: string;
+  /** Font to render the placeholder text in (when no value is selected). */
+  placeholderFont?: ThemeFont | undefined;
 } = {}) {
   const { theme, customTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
@@ -179,7 +181,12 @@ export function FontPicker({ value, onChange, placeholder = 'Default (Inter)' }:
             role="combobox"
             aria-expanded={open}
             className="w-full justify-between font-normal h-9 text-sm"
-            style={currentFont ? { fontFamily: `"${resolveCssFamily(currentFont.family)}", sans-serif` } : undefined}
+            style={currentFont
+              ? { fontFamily: `"${resolveCssFamily(currentFont.family)}", sans-serif` }
+              : placeholderFont
+                ? { fontFamily: `"${resolveCssFamily(placeholderFont.family)}", sans-serif` }
+                : undefined
+            }
           >
             <span className="truncate">
               {currentFont?.family ?? placeholder}
@@ -326,7 +333,7 @@ export function FontSection({ bodyFont, onBodyFontChange, titleFont, onTitleFont
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground w-10 shrink-0">Title</span>
           <div className="flex-1">
-            <FontPicker value={titleFont} onChange={onTitleFontChange} placeholder="Same as body" />
+            <FontPicker value={titleFont} onChange={onTitleFontChange} placeholder={bodyFont?.family ?? 'Default (Inter)'} placeholderFont={bodyFont} />
           </div>
         </div>
       </div>
