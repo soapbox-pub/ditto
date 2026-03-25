@@ -50,7 +50,7 @@ export function NsiteCard({ event }: NsiteCardProps) {
 	const { data: preview, isLoading } = useLinkPreview(siteUrl);
 	const image = preview?.thumbnail_url;
 	const previewTitle = preview?.title;
-	const domain = preview?.provider_name || "nsite.lol";
+	const domain = "nsite.lol";
 
 	if (isLoading) {
 		return <NsiteCardSkeleton />;
