@@ -175,7 +175,7 @@ export function FontPicker({ value, onChange }: {
         Font
       </span>
 
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={setOpen} modal>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
