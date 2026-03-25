@@ -32,7 +32,8 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
   },
   
   // Gravity for falling after drag release
-  gravity: 800, // pixels per second squared
+  // Higher value = faster, more responsive fall (matches entry animation feel)
+  gravity: 3500, // pixels per second squared
   
   // Idle duration before deciding to walk
   // REBALANCED: Much longer idle times for calmer behavior
