@@ -6,33 +6,37 @@
  * - Infinite-scroll justified collage via the shared MediaCollage component
  */
 
-import { useEffect, useMemo } from 'react';
-import { Camera } from 'lucide-react';
-import { useSeoMeta } from '@unhead/react';
-import { useInView } from 'react-intersection-observer';
-import { FeedEmptyState } from '@/components/FeedEmptyState';
-import type { NostrEvent } from '@nostrify/nostrify';
-import { useAppContext } from '@/hooks/useAppContext';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useFeedTab } from '@/hooks/useFeedTab';
-import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { useFeed } from '@/hooks/useFeed';
-import { useInfiniteHotFeed } from '@/hooks/useTrending';
-import { useMuteList } from '@/hooks/useMuteList';
-import { isEventMuted } from '@/lib/muteHelpers';
-import { KindInfoButton } from '@/components/KindInfoButton';
-import { PageHeader } from '@/components/PageHeader';
-import { sidebarItemIcon } from '@/lib/sidebarItems';
-import { SubHeaderBar } from '@/components/SubHeaderBar';
-import { TabButton } from '@/components/TabButton';
-import { getExtraKindDef } from '@/lib/extraKinds';
-import type { FeedItem } from '@/lib/feedUtils';
-import { MediaCollage, MediaCollageSkeleton, eventToMediaItem } from '@/components/MediaCollage';
+import type { NostrEvent } from "@nostrify/nostrify";
+import { useSeoMeta } from "@unhead/react";
+import { Camera } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { useInView } from "react-intersection-observer";
+import { FeedEmptyState } from "@/components/FeedEmptyState";
+import { KindInfoButton } from "@/components/KindInfoButton";
+import {
+  eventToMediaItem,
+  MediaCollage,
+  MediaCollageSkeleton,
+} from "@/components/MediaCollage";
+import { PageHeader } from "@/components/PageHeader";
+import { SubHeaderBar } from "@/components/SubHeaderBar";
+import { TabButton } from "@/components/TabButton";
+import { useLayoutOptions } from "@/contexts/LayoutContext";
+import { useAppContext } from "@/hooks/useAppContext";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useFeed } from "@/hooks/useFeed";
+import { useFeedTab } from "@/hooks/useFeedTab";
+import { useMuteList } from "@/hooks/useMuteList";
+import { useInfiniteHotFeed } from "@/hooks/useTrending";
+import { getExtraKindDef } from "@/lib/extraKinds";
+import type { FeedItem } from "@/lib/feedUtils";
+import { isEventMuted } from "@/lib/muteHelpers";
+import { sidebarItemIcon } from "@/lib/sidebarItems";
 
 const PHOTO_KIND = 20;
-const photosDef = getExtraKindDef('photos')!;
+const photosDef = getExtraKindDef("photos")!;
 
-type FeedTab = 'follows' | 'global';
+type FeedTab = "follows" | "global";
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -41,27 +45,44 @@ export function PhotosFeedPage() {
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
 
-  const [activeTab, setActiveTab] = useFeedTab<FeedTab>('photos', ['follows', 'global']);
+  const [activeTab, setActiveTab] = useFeedTab<FeedTab>("photos", [
+    "follows",
+    "global",
+  ]);
 
-  useSeoMeta({ title: `Photos | ${config.appName}`, description: 'Photo posts on Nostr' });
+  useSeoMeta({
+    title: `Photos | ${config.appName}`,
+    description: "Photo posts on Nostr",
+  });
   useLayoutOptions({ showFAB: false, hasSubHeader: true });
 
   // ── Follows feed (chronological) ──
-  const followsQuery = useFeed('follows', { kinds: [PHOTO_KIND] });
+  const followsQuery = useFeed("follows", { kinds: [PHOTO_KIND] });
 
   // ── Global feed (sort:hot) ──
-  const globalQuery = useInfiniteHotFeed([PHOTO_KIND], activeTab === 'global');
+  const globalQuery = useInfiniteHotFeed([PHOTO_KIND], activeTab === "global");
 
-  const activeQuery = activeTab === 'follows' ? followsQuery : globalQuery;
-  const { data: rawData, isPending, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = activeQuery;
+  const activeQuery = activeTab === "follows" ? followsQuery : globalQuery;
+  const {
+    data: rawData,
+    isPending,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = activeQuery;
 
   // Auto-fetch page 2
   useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) fetchNextPage();
+    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1)
+      fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
 
   // Infinite scroll
-  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
+  const { ref: scrollRef, inView } = useInView({
+    threshold: 0,
+    rootMargin: "400px",
+  });
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) fetchNextPage();
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
@@ -72,7 +93,7 @@ export function PhotosFeedPage() {
     const seen = new Set<string>();
 
     const events: NostrEvent[] =
-      activeTab === 'follows'
+      activeTab === "follows"
         ? (rawData.pages as unknown as { items: FeedItem[] }[])
             .flatMap((p) => p.items)
             .map((item) => item.event)
@@ -91,15 +112,27 @@ export function PhotosFeedPage() {
 
   return (
     <main className="">
+      <PageHeader title="Photos" icon={<Camera className="size-5" />}>
+        <KindInfoButton
+          kindDef={photosDef}
+          icon={sidebarItemIcon("photos", "size-5")}
+        />
+      </PageHeader>
+
       {/* Tabs */}
       <SubHeaderBar>
-        <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
-        <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+        <TabButton
+          label="Follows"
+          active={activeTab === "follows"}
+          onClick={() => setActiveTab("follows")}
+          disabled={!user}
+        />
+        <TabButton
+          label="Global"
+          active={activeTab === "global"}
+          onClick={() => setActiveTab("global")}
+        />
       </SubHeaderBar>
-
-      <PageHeader title="Photos" icon={<Camera className="size-5" />}>
-        <KindInfoButton kindDef={photosDef} icon={sidebarItemIcon('photos', 'size-5')} />
-      </PageHeader>
 
       {/* Grid */}
       {showSkeleton ? (
@@ -107,11 +140,13 @@ export function PhotosFeedPage() {
       ) : photoEvents.length === 0 ? (
         <FeedEmptyState
           message={
-            activeTab === 'follows'
-              ? 'No photos yet. Follow some photographers to see their photos here.'
-              : 'No photos found. Check your relay connections or come back soon.'
+            activeTab === "follows"
+              ? "No photos yet. Follow some photographers to see their photos here."
+              : "No photos found. Check your relay connections or come back soon."
           }
-          onSwitchToGlobal={activeTab === 'follows' ? () => setActiveTab('global') : undefined}
+          onSwitchToGlobal={
+            activeTab === "follows" ? () => setActiveTab("global") : undefined
+          }
         />
       ) : (
         <>
@@ -119,7 +154,9 @@ export function PhotosFeedPage() {
             events={photoEvents}
             hasNextPage={hasNextPage}
             isFetchingNextPage={isFetchingNextPage}
-            onNearEnd={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
+            onNearEnd={() => {
+              if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+            }}
           />
           <div ref={scrollRef} className="h-px" />
         </>
