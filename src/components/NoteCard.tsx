@@ -1669,17 +1669,15 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   15128: {
     icon: Rocket,
-    action: (tags) => {
-      const title = tags.find(([n]) => n === "title")?.[1];
-      return title ? `deployed ${title}` : "deployed an nsite";
-    },
+    action: "deployed an",
+    noun: "nsite",
+    nounRoute: "/development",
   },
   35128: {
     icon: Rocket,
-    action: (tags) => {
-      const title = tags.find(([n]) => n === "title")?.[1];
-      return title ? `deployed ${title}` : "deployed an nsite";
-    },
+    action: "deployed an",
+    noun: "nsite",
+    nounRoute: "/development",
   },
 };
 
