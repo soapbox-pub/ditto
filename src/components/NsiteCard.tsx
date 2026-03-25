@@ -50,7 +50,6 @@ export function NsiteCard({ event }: NsiteCardProps) {
 	const { data: preview, isLoading } = useLinkPreview(siteUrl);
 	const image = preview?.thumbnail_url;
 	const previewTitle = preview?.title;
-	const domain = "nsite.lol";
 
 	if (isLoading) {
 		return <NsiteCardSkeleton />;
@@ -83,19 +82,13 @@ export function NsiteCard({ event }: NsiteCardProps) {
 			)}
 
 			<div className="px-3.5 py-2.5 space-y-1.5">
-				{/* Domain bar with favicon */}
-				<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-					<ExternalFavicon url={siteUrl} size={14} className="shrink-0" />
-					<span className="truncate">{domain}</span>
-					<span className="shrink-0 ml-auto rounded-full border border-border px-2 py-0 text-[11px] leading-relaxed">
-						{isNamed ? "Named Site" : "Root Site"}
-					</span>
+				{/* Title with favicon */}
+				<div className="flex items-center gap-2 min-w-0">
+					<ExternalFavicon url={siteUrl} size={16} className="shrink-0" />
+					<p className="text-sm font-semibold leading-snug line-clamp-2">
+						{previewTitle || displayName}
+					</p>
 				</div>
-
-				{/* Title — use OEmbed title if available, fall back to event title/d-tag */}
-				<p className="text-sm font-semibold leading-snug line-clamp-2">
-					{previewTitle || displayName}
-				</p>
 
 				{/* Description — prefer event description (it's curated), fall back to OEmbed author */}
 				{(description || preview?.author_name) && (
