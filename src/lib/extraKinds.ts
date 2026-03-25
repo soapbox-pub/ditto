@@ -1,5 +1,6 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { ComponentType } from 'react';
+import { Globe, GitPullRequestArrow, MessageSquareMore, CircleAlert } from 'lucide-react';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
 /** A sub-kind that lives under a parent ExtraKindDef. */
@@ -530,6 +531,17 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
 };
 
 /**
+ * Specific icons for kinds that need a different icon than their parent category.
+ */
+const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: string }>>> = {
+  1617: GitPullRequestArrow,
+  1618: MessageSquareMore,
+  15128: Globe,
+  35128: Globe,
+  30817: CircleAlert,
+};
+
+/**
  * Get a human-readable label for a specific kind number.
  * Resolution order: subKind label → KIND_SPECIFIC_LABELS → direct def label.
  * Returns undefined if the kind is completely unknown.
@@ -575,10 +587,11 @@ export function getKindId(kind: number): string | undefined {
 
 /**
  * Get the icon component for a given kind number.
- * Looks up the kind in EXTRA_KINDS and resolves to the matching icon from CONTENT_KIND_ICONS.
+ * Checks KIND_SPECIFIC_ICONS first, then falls back to the parent def's icon via CONTENT_KIND_ICONS.
  * Returns undefined if no icon mapping exists (caller provides fallback).
  */
 export function getKindIcon(kind: number): ComponentType<{ className?: string }> | undefined {
+  if (KIND_SPECIFIC_ICONS[kind]) return KIND_SPECIFIC_ICONS[kind];
   const id = KIND_TO_ID.get(kind);
   if (!id) return undefined;
   return CONTENT_KIND_ICONS[id];
