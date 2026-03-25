@@ -34,15 +34,6 @@ function getNsiteUrl(event: NostrEvent): string {
 	return `https://${npub}.nsite.lol`;
 }
 
-/** Extract display domain from a URL. */
-function displayDomain(url: string): string {
-	try {
-		return new URL(url).hostname.replace(/^www\./, "");
-	} catch {
-		return url;
-	}
-}
-
 /** Renders an nsite deployment card with a rich link preview. */
 export function NsiteCard({ event }: NsiteCardProps) {
 	const title = event.tags.find(([n]) => n === "title")?.[1];
@@ -59,7 +50,7 @@ export function NsiteCard({ event }: NsiteCardProps) {
 	const { data: preview, isLoading } = useLinkPreview(siteUrl);
 	const image = preview?.thumbnail_url;
 	const previewTitle = preview?.title;
-	const domain = preview?.provider_name || displayDomain(siteUrl);
+	const domain = preview?.provider_name || "nsite.lol";
 
 	if (isLoading) {
 		return <NsiteCardSkeleton />;
