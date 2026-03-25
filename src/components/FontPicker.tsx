@@ -325,15 +325,15 @@ export function FontSection({ bodyFont, onBodyFontChange, titleFont, onTitleFont
       {/* Two-row picker layout */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground w-10 shrink-0">Body</span>
-          <div className="flex-1">
-            <FontPicker value={bodyFont} onChange={onBodyFontChange} />
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground w-10 shrink-0">Title</span>
           <div className="flex-1">
             <FontPicker value={titleFont} onChange={onTitleFontChange} placeholder={bodyFont?.family ?? 'Default (Inter)'} placeholderFont={bodyFont} />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground w-10 shrink-0">Body</span>
+          <div className="flex-1">
+            <FontPicker value={bodyFont} onChange={onBodyFontChange} />
           </div>
         </div>
       </div>
