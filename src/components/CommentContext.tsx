@@ -8,6 +8,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { LinkPreview } from '@/components/LinkPreview';
+import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { ReactionEmoji } from '@/components/CustomEmoji';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
@@ -255,13 +256,15 @@ function ReplyToCommentContext({ pubkey, eventId, className }: { pubkey: string;
 
   return (
     <CommentContextRow prefix="Replying to" className={className} loading={author.isLoading}>
-      <Link
-        to={parentLink ?? `/${npubEncoded}`}
-        className="text-primary hover:underline truncate"
-        onClick={(e) => e.stopPropagation()}
-      >
-        @{displayName}
-      </Link>
+      <ProfileHoverCard pubkey={pubkey} asChild>
+        <Link
+          to={parentLink ?? `/${npubEncoded}`}
+          className="text-primary hover:underline truncate"
+          onClick={(e) => e.stopPropagation()}
+        >
+          @{displayName}
+        </Link>
+      </ProfileHoverCard>
     </CommentContextRow>
   );
 }
@@ -285,13 +288,15 @@ function ProfileCommentContext({ pubkey, className }: { pubkey: string; classNam
 
   return (
     <CommentContextRow prefix="Commenting on" className={className} loading={author.isLoading}>
-      <Link
-        to={`/${npubEncoded}`}
-        className="text-primary hover:underline truncate"
-        onClick={(e) => e.stopPropagation()}
-      >
-        @{displayName}
-      </Link>
+      <ProfileHoverCard pubkey={pubkey} asChild>
+        <Link
+          to={`/${npubEncoded}`}
+          className="text-primary hover:underline truncate"
+          onClick={(e) => e.stopPropagation()}
+        >
+          @{displayName}
+        </Link>
+      </ProfileHoverCard>
     </CommentContextRow>
   );
 }
@@ -382,13 +387,15 @@ function ReactionCommentContext({ event, className }: { event: NostrEvent; class
       {author.isLoading ? (
         <Skeleton className="h-3.5 w-16 inline-block" />
       ) : (
-        <Link
-          to={profileLink}
-          className="text-primary hover:underline truncate cursor-pointer"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {displayName}
-        </Link>
+        <ProfileHoverCard pubkey={event.pubkey} asChild>
+          <Link
+            to={profileLink}
+            className="text-primary hover:underline truncate cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {displayName}
+          </Link>
+        </ProfileHoverCard>
       )}
     </CommentContextRow>
   );

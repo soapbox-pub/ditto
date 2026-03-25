@@ -1708,19 +1708,21 @@ function EventActionHeader({
         {author.isLoading ? (
           <Skeleton className="h-3 w-20 inline-block" />
         ) : (
-          <Link
-            to={url}
-            className="font-medium hover:underline mr-1 truncate"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {author.data?.event ? (
-              <EmojifiedText tags={author.data.event.tags}>
-                {name}
-              </EmojifiedText>
-            ) : (
-              name
-            )}
-          </Link>
+          <ProfileHoverCard pubkey={pubkey} asChild>
+            <Link
+              to={url}
+              className="font-medium hover:underline mr-1 truncate"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {author.data?.event ? (
+                <EmojifiedText tags={author.data.event.tags}>
+                  {name}
+                </EmojifiedText>
+              ) : (
+                name
+              )}
+            </Link>
+          </ProfileHoverCard>
         )}
         <span className={cn("shrink-0", author.isLoading && "ml-1")}>
           {action}

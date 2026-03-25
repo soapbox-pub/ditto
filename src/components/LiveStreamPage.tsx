@@ -374,19 +374,23 @@ function ParticipantRow({ pubkey, role }: { pubkey: string; role?: string }) {
 
   return (
     <div className="flex items-center gap-2.5">
-      <Link to={profileUrl} className="shrink-0">
-        <Avatar shape={avatarShape} className="size-7">
-          <AvatarImage src={metadata?.picture} alt={displayName} />
-          <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-            {displayName[0]?.toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-      </Link>
-      <Link to={profileUrl} className="text-sm font-medium hover:underline truncate">
-        {author.data?.event ? (
-          <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-        ) : displayName}
-      </Link>
+      <ProfileHoverCard pubkey={pubkey} asChild>
+        <Link to={profileUrl} className="shrink-0">
+          <Avatar shape={avatarShape} className="size-7">
+            <AvatarImage src={metadata?.picture} alt={displayName} />
+            <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+              {displayName[0]?.toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </Link>
+      </ProfileHoverCard>
+      <ProfileHoverCard pubkey={pubkey} asChild>
+        <Link to={profileUrl} className="text-sm font-medium hover:underline truncate">
+          {author.data?.event ? (
+            <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+          ) : displayName}
+        </Link>
+      </ProfileHoverCard>
       {role && (
         <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0 ml-auto">
           {role}
