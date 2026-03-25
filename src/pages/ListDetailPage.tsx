@@ -613,7 +613,6 @@ export function ListDetailPage() {
             label="Feed"
             active={activeTab === 'feed'}
             onClick={() => setActiveTab('feed')}
-            indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
           >
             <span className="flex items-center justify-center gap-1.5">
               <Rss className="size-4" />
@@ -624,7 +623,6 @@ export function ListDetailPage() {
             label="Members"
             active={activeTab === 'members'}
             onClick={() => setActiveTab('members')}
-            indicatorClassName="left-1/4 right-1/4 w-auto h-0.5"
           >
             <span className="flex items-center justify-center gap-1.5">
               <Users className="size-4" />
