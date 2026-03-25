@@ -80,7 +80,7 @@ import {
   type StartIncubationMode,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
-import { BlobbiActionsProvider, type BlobbiActionsContextValue } from '@/blobbi/companion/interaction';
+import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -394,10 +394,13 @@ function BlobbiContent() {
     await executeUseItem({ itemId, action, quantity });
   }, [executeUseItem]);
   
-  // ─── Blobbi Actions Context Value ───
-  // Provides item use functionality to the companion layer (floating Blobbi)
-  const blobbiActionsContextValue: BlobbiActionsContextValue = useMemo(() => ({
-    useItem: async (itemId, action, quantity = 1) => {
+  // ─── Blobbi Actions Registration ───
+  // Register item use functionality with the global context so BlobbiCompanionLayer can use it
+  const useItemForContext = useMemo<UseItemFunction | null>(() => {
+    // Only provide the function when companion and profile are available
+    if (!companion || !profile) return null;
+    
+    return async (itemId, action, quantity = 1) => {
       try {
         const result = await executeUseItem({ itemId, action, quantity });
         return { 
@@ -410,10 +413,11 @@ function BlobbiContent() {
           error: error instanceof Error ? error.message : 'Unknown error',
         };
       }
-    },
-    isUsingItem,
-    canUseItems: !!companion && !!profile,
-  }), [executeUseItem, isUsingItem, companion, profile]);
+    };
+  }, [executeUseItem, companion, profile]);
+  
+  // Register with the global BlobbiActionsContext
+  useBlobbiActionsRegistration(useItemForContext, isUsingItem);
   
   // ─── Stage Transition Hooks ───
   const { mutateAsync: executeHatch, isPending: isHatching } = useBlobbiHatch({
@@ -657,38 +661,37 @@ function BlobbiContent() {
   
   // ─── CASE I: Everything ready - show dashboard ───
   // At this point: companion is BlobbiCompanion, selectedD is string (narrowed by Case H guard)
+  // Note: Item use registration is handled by useBlobbiActionsRegistration hook above
   if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: dashboard');
   return (
-    <BlobbiActionsProvider value={blobbiActionsContextValue}>
-      <BlobbiDashboard
-        companion={companion}
-        companions={companions}
-        selectedD={selectedD}
-        showSelector={showSelector}
-        setShowSelector={setShowSelector}
-        onSelectBlobbi={handleSelectBlobbi}
-        onRest={handleRest}
-        onUseItem={handleUseItem}
-        onDirectAction={handleDirectAction}
-        isUsingItem={isUsingItem}
-        isDirectActionPending={isDirectActionPending}
-        actionInProgress={actionInProgress}
-        isPublishing={isPublishing}
-        isFetching={profileFetching || companionFetching}
-        profile={profile}
-        onHatch={handleHatch}
-        onEvolve={handleEvolve}
-        isHatching={isHatching}
-        isEvolving={isEvolving}
-        publishEvent={publishEvent}
-        updateProfileEvent={updateProfileEvent}
-        updateCompanionEvent={updateCompanionEvent}
-        invalidateProfile={invalidateProfile}
-        invalidateCompanion={invalidateCompanion}
-        setStoredSelectedD={setStoredSelectedD}
-        ensureCanonicalBeforeAction={ensureCanonicalBeforeAction}
-      />
-    </BlobbiActionsProvider>
+    <BlobbiDashboard
+      companion={companion}
+      companions={companions}
+      selectedD={selectedD}
+      showSelector={showSelector}
+      setShowSelector={setShowSelector}
+      onSelectBlobbi={handleSelectBlobbi}
+      onRest={handleRest}
+      onUseItem={handleUseItem}
+      onDirectAction={handleDirectAction}
+      isUsingItem={isUsingItem}
+      isDirectActionPending={isDirectActionPending}
+      actionInProgress={actionInProgress}
+      isPublishing={isPublishing}
+      isFetching={profileFetching || companionFetching}
+      profile={profile}
+      onHatch={handleHatch}
+      onEvolve={handleEvolve}
+      isHatching={isHatching}
+      isEvolving={isEvolving}
+      publishEvent={publishEvent}
+      updateProfileEvent={updateProfileEvent}
+      updateCompanionEvent={updateCompanionEvent}
+      invalidateProfile={invalidateProfile}
+      invalidateCompanion={invalidateCompanion}
+      setStoredSelectedD={setStoredSelectedD}
+      ensureCanonicalBeforeAction={ensureCanonicalBeforeAction}
+    />
   );
 }
 

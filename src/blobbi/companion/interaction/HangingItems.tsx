@@ -7,7 +7,7 @@
  * 
  * State Model:
  * - Container states: hidden → opening → open → closing → hidden
- * - Item lifecycle: hanging → released (falling) → landed
+ * - Item lifecycle: hanging → released (falling) → landed → (optional drag) → used
  * 
  * Key Design Principle:
  * When an item is released, only the EMOJI falls - not the circle container.
@@ -19,14 +19,12 @@
  * - Circular containers for hanging items
  * - Click releases item: circle disappears, emoji falls
  * - Continuous visual: same emoji from fall to ground
- * - Contact detection: items disappear when touching Blobbi
+ * - Contact detection: items auto-use when touching Blobbi
+ * - Click-to-use: click landed items to use them
+ * - Drag-and-drop: drag landed items to Blobbi to use them
  * 
- * Future extensions:
- * - Drag landed items to Blobbi
- * - Blobbi attracted to nearby items
- * - Auto-use urgent items
- * - Item consumption effects
- * - Different animations per item category
+ * All three item use methods (contact, click, drag-drop) use the same
+ * real item-use flow via onItemUse callback.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -42,7 +40,7 @@ import type { Position } from '../types/companion.types';
 type ContainerState = 'hidden' | 'opening' | 'open' | 'closing';
 
 /** Lifecycle state of a released item */
-type ReleasedItemState = 'falling' | 'landed';
+type ReleasedItemState = 'falling' | 'landed' | 'dragging';
 
 /** Data for a released item (tracks its entire lifecycle after being clicked) */
 interface ReleasedItemData {
@@ -54,10 +52,14 @@ interface ReleasedItemData {
   y: number;
   /** Y position where item started falling */
   startY: number;
-  /** Y position where item will land */
+  /** Y position where item will land (or was before dragging) */
   targetY: number;
   /** Timestamp when fall started */
   fallStartTime: number;
+  /** X position before dragging started (for drop-elsewhere behavior) */
+  dragStartX?: number;
+  /** Y position before dragging started (for drop-elsewhere behavior) */
+  dragStartY?: number;
 }
 
 /** Result of attempting to use an item */
@@ -130,6 +132,33 @@ const HANGING_CONFIG = {
   landedItemSize: 40,
   /** Contact detection radius (how close Blobbi needs to be) */
   contactRadius: 50,
+  /** Drag threshold - min distance to start drag instead of click */
+  dragThreshold: 5,
+  /** Drop-on-Blobbi radius (how close to Blobbi center to trigger use) */
+  dropRadius: 80,
+};
+
+// ─── Drag State Hook ──────────────────────────────────────────────────────────
+
+interface DragState {
+  /** Whether currently dragging */
+  isDragging: boolean;
+  /** Item ID being dragged (or null) */
+  itemId: string | null;
+  /** Current drag position X */
+  currentX: number;
+  /** Current drag position Y */
+  currentY: number;
+  /** Whether the item is currently over Blobbi (for visual feedback) */
+  isOverBlobbi: boolean;
+}
+
+const initialDragState: DragState = {
+  isDragging: false,
+  itemId: null,
+  currentX: 0,
+  currentY: 0,
+  isOverBlobbi: false,
 };
 
 // ─── Released Item Component ──────────────────────────────────────────────────
@@ -138,52 +167,180 @@ interface ReleasedItemProps {
   data: ReleasedItemData;
   /** Whether this item is currently being used (prevents interaction) */
   isBeingUsed?: boolean;
+  /** Current drag state */
+  dragState: DragState;
+  /** Callbacks for drag events */
+  onDragStart: (item: CompanionItem, x: number, y: number) => void;
+  onDragMove: (x: number, y: number) => void;
+  onDragEnd: () => void;
+  /** Callback for click (when not dragging) */
   onCollect?: (item: CompanionItem) => void;
 }
 
 /**
- * A released item that is either falling or has landed.
+ * A released item that is either falling, landed, or being dragged.
  * This is a single continuous visual element - just the emoji.
  * No circle container, no badge - just the item itself.
+ * 
+ * Supports:
+ * - Click to use (when landed, if not dragged)
+ * - Drag to Blobbi to use (when landed)
  */
-function ReleasedItem({ data, isBeingUsed = false, onCollect }: ReleasedItemProps) {
-  const { item, state, x, y } = data;
+function ReleasedItem({ 
+  data, 
+  isBeingUsed = false, 
+  dragState,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  onCollect,
+}: ReleasedItemProps) {
+  const { item, state } = data;
+  
+  // Local refs for tracking pointer state
+  const pointerDownRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  const isDraggingLocalRef = useRef(false);
+  const elementRef = useRef<HTMLDivElement>(null);
   
   const isFalling = state === 'falling';
   const isLanded = state === 'landed';
-  const canInteract = isLanded && !isBeingUsed;
+  const isDragging = state === 'dragging';
+  const isThisItemDragging = dragState.isDragging && dragState.itemId === item.id;
+  
+  // Calculate display position - use drag position if dragging, otherwise use data position
+  const displayX = isThisItemDragging ? dragState.currentX : data.x;
+  const displayY = isThisItemDragging ? dragState.currentY : data.y;
+  
+  // Can interact when landed and not being used
+  const canInteract = isLanded && !isBeingUsed && !dragState.isDragging;
+  
+  // Handle pointer down - start tracking for potential drag
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (!isLanded || isBeingUsed) return;
+    
+    // Capture pointer for drag tracking
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    
+    pointerDownRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      pointerId: e.pointerId,
+    };
+    isDraggingLocalRef.current = false;
+  }, [isLanded, isBeingUsed]);
+  
+  // Handle pointer move - detect drag start and update position
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!pointerDownRef.current) return;
+    
+    const dx = e.clientX - pointerDownRef.current.x;
+    const dy = e.clientY - pointerDownRef.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Check if we've moved enough to start dragging
+    if (!isDraggingLocalRef.current && distance > HANGING_CONFIG.dragThreshold) {
+      isDraggingLocalRef.current = true;
+      onDragStart(item, e.clientX, e.clientY);
+    }
+    
+    // If dragging, update position
+    if (isDraggingLocalRef.current) {
+      onDragMove(e.clientX, e.clientY);
+    }
+  }, [item, onDragStart, onDragMove]);
+  
+  // Handle pointer up - end drag or trigger click
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (!pointerDownRef.current) return;
+    
+    // Release pointer capture
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // Ignore if capture was already released
+    }
+    
+    const wasDragging = isDraggingLocalRef.current;
+    
+    // Reset local state
+    pointerDownRef.current = null;
+    isDraggingLocalRef.current = false;
+    
+    if (wasDragging) {
+      // End drag
+      onDragEnd();
+    } else {
+      // It was a click (no significant movement)
+      onCollect?.(item);
+    }
+  }, [item, onCollect, onDragEnd]);
+  
+  // Handle pointer cancel (e.g., interrupted by system)
+  const handlePointerCancel = useCallback((e: React.PointerEvent) => {
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // Ignore
+    }
+    
+    if (isDraggingLocalRef.current) {
+      onDragEnd();
+    }
+    
+    pointerDownRef.current = null;
+    isDraggingLocalRef.current = false;
+  }, [onDragEnd]);
   
   return (
     <div
+      ref={elementRef}
       className={cn(
-        "fixed pointer-events-auto select-none",
-        "transition-transform duration-100",
+        "fixed select-none touch-none",
+        "transition-transform",
+        // Quick transitions for non-dragging states
+        !isThisItemDragging && "duration-100",
+        // Instant position updates when dragging
+        isThisItemDragging && "duration-0",
+        // Visual feedback when dragging over Blobbi
+        isThisItemDragging && dragState.isOverBlobbi && "scale-125",
         // Hover effect only for interactable landed items
-        canInteract && "hover:scale-125 cursor-pointer",
+        canInteract && "hover:scale-125 cursor-grab",
+        // Grabbing cursor while dragging
+        isThisItemDragging && "cursor-grabbing",
         // Falling items or items being used can't be interacted with
         (isFalling || isBeingUsed) && "pointer-events-none",
+        // Always enable pointer events for landed/dragging items
+        (isLanded || isDragging) && "pointer-events-auto",
         // Pulse animation when being used
         isBeingUsed && "animate-pulse"
       )}
       style={{
-        left: x,
-        top: y,
+        left: displayX,
+        top: displayY,
         transform: 'translate(-50%, -50%)',
-        zIndex: isFalling ? 10004 : 10003,
-        // Add subtle shadow for depth, reduce opacity when being used
-        filter: isLanded ? 'drop-shadow(0 2px 3px rgba(0,0,0,0.2))' : 'drop-shadow(0 3px 6px rgba(0,0,0,0.25))',
+        zIndex: isThisItemDragging ? 10006 : isFalling ? 10004 : 10003,
+        // Add subtle shadow for depth
+        filter: isThisItemDragging 
+          ? 'drop-shadow(0 8px 12px rgba(0,0,0,0.35))'
+          : isLanded 
+            ? 'drop-shadow(0 2px 3px rgba(0,0,0,0.2))' 
+            : 'drop-shadow(0 3px 6px rgba(0,0,0,0.25))',
         opacity: isBeingUsed ? 0.6 : 1,
       }}
-      onClick={() => canInteract && onCollect?.(item)}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       role={canInteract ? 'button' : undefined}
-      aria-label={canInteract ? `${item.name} on ground. Click to pick up.` : undefined}
+      aria-label={canInteract ? `${item.name} on ground. Click or drag to Blobbi to use.` : undefined}
     >
       <span
         style={{ 
           fontSize: HANGING_CONFIG.fallingEmojiSize,
           // Subtle rotation during fall for liveliness
-          transform: isFalling ? 'rotate(-5deg)' : 'rotate(0deg)',
-          transition: 'transform 100ms ease-out',
+          transform: isFalling ? 'rotate(-5deg)' : isThisItemDragging ? 'rotate(5deg)' : 'rotate(0deg)',
+          transition: isThisItemDragging ? 'transform 50ms ease-out' : 'transform 100ms ease-out',
+          display: 'block',
         }}
         role="img"
         aria-hidden="true"
@@ -218,8 +375,11 @@ export function HangingItems({
   // Track items currently being used (to prevent double-use)
   const [itemsBeingUsed, setItemsBeingUsed] = useState<Set<string>>(new Set());
   
-  // Track released items with their full state (falling/landed)
+  // Track released items with their full state (falling/landed/dragging)
   const [releasedItems, setReleasedItems] = useState<Map<string, ReleasedItemData>>(new Map());
+  
+  // Drag state
+  const [dragState, setDragState] = useState<DragState>(initialDragState);
   
   // Animation frame ref for fall animation
   const animationRef = useRef<number | null>(null);
@@ -240,6 +400,10 @@ export function HangingItems({
   
   // Calculate the Y position where hanging items are (bottom of circle)
   const hangingBottomY = HANGING_CONFIG.lineLength + HANGING_CONFIG.circleSize;
+  
+  // Calculate Blobbi center for drop detection
+  const blobbiCenterX = companionPosition ? companionPosition.x + companionSize / 2 : 0;
+  const blobbiCenterY = companionPosition ? companionPosition.y + companionSize / 2 : 0;
   
   // Animation loop function (defined once, uses refs)
   const runAnimationLoop = useCallback(() => {
@@ -345,10 +509,10 @@ export function HangingItems({
   }, [isVisible, selectedAction, containerState]);
   
   /**
-   * Attempt to use an item (via contact or click).
+   * Attempt to use an item (via contact, click, or drag-drop).
    * Only removes the item from screen if use succeeds.
    */
-  const attemptUseItem = useCallback(async (item: CompanionItem, source: 'contact' | 'click') => {
+  const attemptUseItem = useCallback(async (item: CompanionItem, source: 'contact' | 'click' | 'drag-drop') => {
     // Prevent double-use while an operation is in progress
     if (itemsBeingUsed.has(item.id)) {
       return;
@@ -395,17 +559,15 @@ export function HangingItems({
     }
   }, [itemsBeingUsed, onItemUse, onItemCollected]);
   
-  // Contact detection with Blobbi
+  // Contact detection with Blobbi (for auto-use)
   useEffect(() => {
     if (!companionPosition) return;
-    
-    // Blobbi's center position
-    const blobbiCenterX = companionPosition.x + companionSize / 2;
-    const blobbiCenterY = companionPosition.y + companionSize / 2;
+    // Don't check contact while dragging
+    if (dragState.isDragging) return;
     
     // Check each landed item for contact
     releasedItems.forEach((data, id) => {
-      // Skip items that are being used or are still falling
+      // Skip items that are being used, still falling, or being dragged
       if (data.state !== 'landed' || itemsBeingUsed.has(id)) {
         return;
       }
@@ -423,7 +585,118 @@ export function HangingItems({
         attemptUseItem(data.item, 'contact');
       }
     });
-  }, [companionPosition, companionSize, releasedItems, itemsBeingUsed, attemptUseItem]);
+  }, [companionPosition, companionSize, releasedItems, itemsBeingUsed, attemptUseItem, dragState.isDragging, blobbiCenterX, blobbiCenterY]);
+  
+  // ─── Drag Handlers ────────────────────────────────────────────────────────────
+  
+  const handleDragStart = useCallback((item: CompanionItem, x: number, y: number) => {
+    // Get current item data
+    const itemData = releasedItems.get(item.id);
+    if (!itemData || itemData.state !== 'landed') return;
+    
+    // Update item state to dragging and store original position
+    setReleasedItems(prev => {
+      const next = new Map(prev);
+      const current = next.get(item.id);
+      if (current) {
+        next.set(item.id, {
+          ...current,
+          state: 'dragging',
+          dragStartX: current.x,
+          dragStartY: current.y,
+        });
+      }
+      return next;
+    });
+    
+    // Check if over Blobbi
+    const isOverBlobbi = companionPosition 
+      ? Math.sqrt(Math.pow(x - blobbiCenterX, 2) + Math.pow(y - blobbiCenterY, 2)) < HANGING_CONFIG.dropRadius
+      : false;
+    
+    setDragState({
+      isDragging: true,
+      itemId: item.id,
+      currentX: x,
+      currentY: y,
+      isOverBlobbi,
+    });
+  }, [releasedItems, companionPosition, blobbiCenterX, blobbiCenterY]);
+  
+  const handleDragMove = useCallback((x: number, y: number) => {
+    if (!dragState.isDragging) return;
+    
+    // Check if over Blobbi
+    const isOverBlobbi = companionPosition 
+      ? Math.sqrt(Math.pow(x - blobbiCenterX, 2) + Math.pow(y - blobbiCenterY, 2)) < HANGING_CONFIG.dropRadius
+      : false;
+    
+    setDragState(prev => ({
+      ...prev,
+      currentX: x,
+      currentY: y,
+      isOverBlobbi,
+    }));
+  }, [dragState.isDragging, companionPosition, blobbiCenterX, blobbiCenterY]);
+  
+  const handleDragEnd = useCallback(() => {
+    if (!dragState.isDragging || !dragState.itemId) {
+      setDragState(initialDragState);
+      return;
+    }
+    
+    const itemId = dragState.itemId;
+    const itemData = releasedItems.get(itemId);
+    
+    if (!itemData) {
+      setDragState(initialDragState);
+      return;
+    }
+    
+    // Check if dropped on Blobbi
+    if (dragState.isOverBlobbi) {
+      // Attempt to use the item
+      attemptUseItem(itemData.item, 'drag-drop');
+      
+      // Reset item state to landed (at drop position) while waiting for use result
+      setReleasedItems(prev => {
+        const next = new Map(prev);
+        const current = next.get(itemId);
+        if (current) {
+          next.set(itemId, {
+            ...current,
+            state: 'landed',
+            x: dragState.currentX,
+            y: dragState.currentY,
+            dragStartX: undefined,
+            dragStartY: undefined,
+          });
+        }
+        return next;
+      });
+    } else {
+      // Dropped elsewhere - return to drop position (where it was released)
+      setReleasedItems(prev => {
+        const next = new Map(prev);
+        const current = next.get(itemId);
+        if (current) {
+          next.set(itemId, {
+            ...current,
+            state: 'landed',
+            // Keep item at current drag position (where it was dropped)
+            x: dragState.currentX,
+            y: dragState.currentY,
+            dragStartX: undefined,
+            dragStartY: undefined,
+          });
+        }
+        return next;
+      });
+    }
+    
+    // Reset drag state
+    setDragState(initialDragState);
+  }, [dragState, releasedItems, attemptUseItem]);
   
   // Handle hanging item click - release the item
   const handleItemClick = useCallback((item: CompanionItem, xPosition: number) => {
@@ -622,12 +895,31 @@ export function HangingItems({
         </div>
       )}
       
-      {/* Released items (falling and landed) - rendered as continuous objects */}
+      {/* Visual feedback: Blobbi glow when item is being dragged over */}
+      {dragState.isDragging && dragState.isOverBlobbi && companionPosition && (
+        <div
+          className="fixed rounded-full pointer-events-none animate-pulse"
+          style={{
+            left: companionPosition.x - 10,
+            top: companionPosition.y - 10,
+            width: companionSize + 20,
+            height: companionSize + 20,
+            background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 70%)',
+            zIndex: 10002,
+          }}
+        />
+      )}
+      
+      {/* Released items (falling, landed, and dragging) */}
       {Array.from(releasedItems.values()).map(data => (
         <ReleasedItem
           key={`released-${data.item.id}`}
           data={data}
           isBeingUsed={itemsBeingUsed.has(data.item.id)}
+          dragState={dragState}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
           onCollect={handleLandedItemClick}
         />
       ))}
