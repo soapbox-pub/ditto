@@ -295,10 +295,32 @@ export function calculateFallEntryAnimation(
     
     case 'stuck_permanent': {
       // Truly stuck - waiting for user to drag and rescue
-      // Just hold position at stuck point, no movement
+      // Add a wiggle/struggle animation to indicate Blobbi needs help
+      const stuckElapsed = Date.now() - entryState.phaseStartTime;
+      const t = stuckElapsed / 1000; // Convert to seconds
+      
+      // Struggle wiggle: rapid side-to-side with occasional pause
+      // Creates a "trying to get unstuck" feel
+      const wiggleCycle = t % 2; // 2-second cycle
+      let wiggleX = 0;
+      let wiggleRotation = 0;
+      let wiggleY = 0;
+      
+      if (wiggleCycle < 1.2) {
+        // Active struggle phase (1.2 seconds)
+        const struggleT = wiggleCycle / 1.2;
+        // Rapid side-to-side wiggle
+        wiggleX = Math.sin(struggleT * Math.PI * 8) * 4;
+        // Rotation matches the wiggle
+        wiggleRotation = Math.sin(struggleT * Math.PI * 8) * 8;
+        // Small vertical tugs
+        wiggleY = Math.abs(Math.sin(struggleT * Math.PI * 6)) * 3;
+      }
+      // else: pause phase (0.8 seconds) - stays still, "resting"
+      
       return {
-        position: { x: groundPosition.x, y: stuckY },
-        rotation: 0,
+        position: { x: groundPosition.x + wiggleX, y: stuckY + wiggleY },
+        rotation: wiggleRotation,
         scaleX: 1,
         scaleY: 1,
         complete: false,
