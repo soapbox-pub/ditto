@@ -364,10 +364,7 @@ function MobileNavItem({
       <div className="size-9 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
         <Icon className="size-3.5 text-primary" />
       </div>
-      <div className="flex-1 min-w-0">
-        <span className="font-semibold text-sm truncate block">{item.label}</span>
-        <span className="text-xs text-muted-foreground truncate block">{item.path}</span>
-      </div>
+      <span className="font-semibold text-sm truncate">{item.label}</span>
     </button>
   );
 }
