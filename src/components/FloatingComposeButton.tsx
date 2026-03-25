@@ -77,7 +77,7 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
       >
         {/* FAB background: user's avatar shape (emoji mask) or circle (default) */}
         <div
-          className="absolute inset-0 bg-primary rounded-full"
+          className={`absolute inset-0 bg-primary ${shapeMaskStyle ? '' : 'rounded-full'}`}
           style={shapeMaskStyle}
         />
         {/* Plus icon centered on the button */}
