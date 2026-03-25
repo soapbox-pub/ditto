@@ -26,7 +26,7 @@ import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo } from '@/lib/countries';
-import { EXTRA_KINDS } from '@/lib/extraKinds';
+
 
 /** Default classes shared by all comment context rows. */
 const ROW_CLASS = 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden';
@@ -71,21 +71,31 @@ function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
   return undefined;
 }
 
-/** Hardcoded kind-to-label map for fallback when the event hasn't loaded. */
+/**
+ * Singular comment-context labels for every supported kind.
+ * Must use singular form with article ("a post", "an article") since these
+ * appear as "Commenting on {label}". EXTRA_KINDS labels are plural/categorical
+ * ("Requests to Vanish", "User Statuses") and must NOT be used directly.
+ */
 const KIND_LABELS: Record<number, string> = {
   1: 'a post',
+  6: 'a repost',
   7: 'a reaction',
+  16: 'a repost',
   20: 'a photo',
   21: 'a video',
   22: 'a short video',
+  62: 'a request to vanish',
   1063: 'a file',
   1068: 'a poll',
   1111: 'a comment',
   1222: 'a voice message',
   1617: 'a patch',
   1618: 'a pull request',
+  3367: 'a color moment',
+  7516: 'a found log',
   15128: 'an nsite',
-  35128: 'an nsite',
+  16767: 'a theme',
   30008: 'profile badges',
   30009: 'a badge',
   30023: 'an article',
@@ -94,22 +104,21 @@ const KIND_LABELS: Record<number, string> = {
   30055: 'a podcast trailer',
   30063: 'a release',
   30311: 'a stream',
+  30315: 'a status',
   30617: 'a repository',
   30817: 'a custom NIP',
   31922: 'a calendar event',
   31923: 'a calendar event',
   32267: 'an app',
+  34139: 'a playlist',
   34236: 'a vine',
   34550: 'a community',
+  35128: 'an nsite',
   36767: 'a theme',
-  16767: 'a theme',
   36787: 'a track',
-  34139: 'a playlist',
   37381: 'a Magic deck',
   37516: 'a geocache',
   39089: 'a follow pack',
-  3367: 'a color moment',
-  7516: 'a found log',
 };
 
 /** Kind-specific icons — matches sidebar and NoteCard icons. */
@@ -148,19 +157,12 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
 };
 
 /**
- * Get a human-readable label for a kind number.
- * Used both as a fallback when an event hasn't loaded yet (from rootKind string)
- * and as a last resort inside getEventDisplayName.
+ * Get a singular comment-context label for a kind number.
+ * Only uses KIND_LABELS (which has proper singular forms with articles).
+ * Never falls through to EXTRA_KINDS labels since those are plural/categorical.
  */
 function getKindLabel(kind: number): string {
-  if (KIND_LABELS[kind]) return KIND_LABELS[kind];
-
-  const kindDef = EXTRA_KINDS.find((def) =>
-    def.subKinds?.some((sub) => sub.kind === kind) || def.kind === kind,
-  );
-  if (kindDef) return kindDef.label.toLowerCase();
-
-  return 'a post';
+  return KIND_LABELS[kind] ?? 'a post';
 }
 
 /** Parse a rootKind string into a label, handling both numeric and external content kinds. */
