@@ -16,6 +16,7 @@ import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
 import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
+import { EXTRA_KINDS, getKindIcon } from '@/lib/extraKinds';
 
 /** NIP-62 Request to Vanish. */
 const VANISH_KIND = 62;
@@ -105,7 +106,7 @@ function EmbeddedNoteCard({
   className,
   disableHoverCards,
 }: {
-  event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][] };
+  event: { id: string; kind: number; pubkey: string; content: string; created_at: number; tags: string[][] };
   className?: string;
   disableHoverCards?: boolean;
 }) {
@@ -142,9 +143,18 @@ function EmbeddedNoteCard({
     const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
     const title = getTag('title') || getTag('name') || getTag('d');
     const description = getTag('summary') || getTag('description');
-    if (!title && !description) return undefined;
-    return { title, description };
-  }, [truncatedContent, event.tags]);
+
+    // Build a kind label line for context (e.g. "nsite · 31 files")
+    const kindDef = EXTRA_KINDS.find((def) =>
+      def.subKinds?.some((sub) => sub.kind === event.kind) || def.kind === event.kind
+      || def.extraFeedKinds?.includes(event.kind),
+    );
+    const kindLabel = kindDef?.label.toLowerCase();
+    const KindIcon = getKindIcon(event.kind);
+
+    if (!title && !description && !kindLabel) return undefined;
+    return { title, description, kindLabel, KindIcon };
+  }, [truncatedContent, event.tags, event.kind]);
 
   // Extract first image for a small thumbnail
   const firstImage = useMemo(() => {
@@ -266,6 +276,12 @@ function EmbeddedNoteCard({
             )}
             {tagMeta.description && (
               <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{tagMeta.description}</p>
+            )}
+            {tagMeta.kindLabel && (
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                {tagMeta.KindIcon && <tagMeta.KindIcon className="size-3 shrink-0" />}
+                {tagMeta.kindLabel}
+              </p>
             )}
           </>
         ) : null}
