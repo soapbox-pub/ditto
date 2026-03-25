@@ -95,6 +95,7 @@ function getKindLabel(rootKind: string | undefined): string {
   }
 
   if (kindNum === 7) return 'a reaction';
+  if (kindNum === 15128 || kindNum === 35128) return 'an nsite';
   if (kindNum === 32267) return 'an app';
   if (kindNum === 30063) return 'a release';
 

@@ -22,7 +22,7 @@ import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_REGEX, extractVideoUrls, extractAudioU
 const VANISH_KIND = 62;
 
 /** Kinds that render as a full NoteCard instead of the generic embed card. */
-const NOTECARD_KINDS = new Set([30000, 39089]);
+const NOTECARD_KINDS = new Set([30000, 39089, 15128]);
 
 /** Bech32 charset used by NIP-19 identifiers. */
 const B32 = '023456789acdefghjklmnpqrstuvwxyz';

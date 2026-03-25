@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /** Kinds that render as a full NoteCard instead of a generic embed. */
-const NOTECARD_KINDS = new Set([30000, 39089]);
+const NOTECARD_KINDS = new Set([30000, 39089, 35128]);
 
 interface EmbeddedNaddrProps {
   /** The decoded naddr coordinates. */

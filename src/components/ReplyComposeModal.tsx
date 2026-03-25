@@ -13,6 +13,7 @@ import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { NoteContent } from '@/components/NoteContent';
+import { NsiteCard } from '@/components/NsiteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LinkEmbed } from '@/components/LinkEmbed';
 import { VanishCardCompact } from '@/components/VanishEventContent';
@@ -179,6 +180,15 @@ function EmbeddedPost({ event }: { event: NostrEvent }) {
   // Kind 62 (Request to Vanish) — show a compact vanish preview
   if (event.kind === 62) {
     return <VanishCardCompact event={event} timestamp={timeAgo(event.created_at)} className="mx-4 mb-2" />;
+  }
+
+  // Nsite deployments — show the NsiteCard instead of empty content
+  if (event.kind === 15128 || event.kind === 35128) {
+    return (
+      <div className="mx-4 mb-2">
+        <NsiteCard event={event} />
+      </div>
+    );
   }
 
   return <EmbeddedNote event={event} />;
