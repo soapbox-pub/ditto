@@ -56,7 +56,6 @@ export type {
   UseItemResult as ContextUseItemResult,
   UseItemFunction,
   BlobbiActionsContextValue,
-  BlobbiActionsRegistration,
 } from './BlobbiActionsContext';
 
 // Hooks
