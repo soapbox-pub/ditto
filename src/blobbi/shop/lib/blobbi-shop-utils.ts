@@ -4,7 +4,9 @@ import type { ItemEffect } from '../types/shop.types';
 
 /**
  * Format item effects as a concise summary string for display in list rows.
- * Shows up to 3 effects in a compact format.
+ * 
+ * @deprecated Use `<ItemEffectDisplay variant="inline" />` component instead
+ * for consistent effect rendering across all Blobbi UIs.
  * 
  * @example
  * formatEffectSummary({ hunger: 15, hygiene: -2, energy: 5 })
@@ -15,11 +17,18 @@ export function formatEffectSummary(effect: ItemEffect | undefined): string {
     return 'No effects';
   }
 
-  const effectEntries = Object.entries(effect)
-    .filter(([_, value]) => value !== undefined)
-    .slice(0, 3); // Show max 3 effects for compactness
+  // Use canonical stat order for consistency
+  const STAT_ORDER: (keyof ItemEffect)[] = ['hunger', 'happiness', 'energy', 'hygiene', 'health'];
+  const entries: Array<[string, number]> = [];
+  
+  for (const stat of STAT_ORDER) {
+    const value = effect[stat];
+    if (value !== undefined && value !== 0) {
+      entries.push([stat, value]);
+    }
+  }
 
-  return effectEntries
+  return entries
     .map(([stat, value]) => {
       const sign = value > 0 ? '+' : '';
       const statName = stat.replace('_', ' ');

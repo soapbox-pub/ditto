@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 import type { ShopItem } from '../types/shop.types';
-import { formatEffectSummary } from '../lib/blobbi-shop-utils';
+import { ItemEffectDisplay } from './ItemEffectDisplay';
 import { cn, formatCompactNumber } from '@/lib/utils';
 
 interface BlobbiShopItemRowProps {
@@ -14,8 +14,6 @@ interface BlobbiShopItemRowProps {
 export function BlobbiShopItemRow({ item, availableCoins, onPurchaseClick }: BlobbiShopItemRowProps) {
   const isDisabled = item.status === 'disabled';
   const isAffordable = !isDisabled && availableCoins >= item.price;
-
-  const effectSummary = formatEffectSummary(item.effect);
 
   return (
     <div
@@ -41,9 +39,7 @@ export function BlobbiShopItemRow({ item, availableCoins, onPurchaseClick }: Blo
             {item.type}
           </Badge>
         </div>
-        <p className="text-sm text-muted-foreground truncate">
-          {effectSummary}
-        </p>
+        <ItemEffectDisplay effect={item.effect} variant="inline" />
       </div>
 
       {/* Price & Purchase Button */}

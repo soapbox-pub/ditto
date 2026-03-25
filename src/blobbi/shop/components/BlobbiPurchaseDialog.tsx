@@ -9,11 +9,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 
 import type { ShopItem } from '../types/shop.types';
-import { cn, formatCompactNumber } from '@/lib/utils';
+import { ItemEffectDisplay } from './ItemEffectDisplay';
+import { formatCompactNumber } from '@/lib/utils';
 
 interface BlobbiPurchaseDialogProps {
   open: boolean;
@@ -154,24 +154,7 @@ export function BlobbiPurchaseDialog({
           {item.effect && Object.keys(item.effect).length > 0 && (
             <div className="p-4 rounded-lg bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-500/20">
               <h4 className="text-sm font-medium mb-2">Effects per item</h4>
-              <div className="grid grid-cols-2 gap-2">
-                {Object.entries(item.effect).map(([stat, value]) => (
-                  <div key={stat} className="flex items-center gap-2">
-                    <Badge
-                      variant={value > 0 ? 'default' : 'secondary'}
-                      className={cn(
-                        'text-xs',
-                        value > 0 ? 'bg-green-500/20 text-green-700 dark:text-green-300' : 'bg-red-500/20 text-red-700 dark:text-red-300'
-                      )}
-                    >
-                      {value > 0 ? '+' : ''}{value}
-                    </Badge>
-                    <span className="text-xs capitalize">
-                      {stat.replace('_', ' ')}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <ItemEffectDisplay effect={item.effect} variant="grid" />
             </div>
           )}
         </div>
