@@ -228,9 +228,11 @@ export function itemPath(
 }
 
 /**
- * Search sidebar items by label. Returns items whose label starts with or
- * contains the query (case-insensitive). Prefix matches are sorted first.
- * Auth-requiring items are excluded when the user is not logged in.
+ * Search sidebar items by label. Matches when the query is a prefix of the
+ * full label or of any word within the label (e.g. "arch" matches "Archive"
+ * and "Internet Archive" but not "Search"). Whole-label prefix matches are
+ * sorted before word-boundary matches. Auth-requiring items are excluded
+ * when the user is not logged in.
  */
 export function searchSidebarItems(
   query: string,
@@ -240,19 +242,23 @@ export function searchSidebarItems(
   if (q.length === 0) return [];
 
   const prefixMatches: SidebarItemDef[] = [];
-  const substringMatches: SidebarItemDef[] = [];
+  const wordMatches: SidebarItemDef[] = [];
 
   for (const item of SIDEBAR_ITEMS) {
     if (item.requiresAuth && !isLoggedIn) continue;
     const label = item.label.toLowerCase();
     if (label.startsWith(q)) {
       prefixMatches.push(item);
-    } else if (label.includes(q)) {
-      substringMatches.push(item);
+    } else {
+      // Check if query matches the start of any word in the label
+      const words = label.split(/\s+/);
+      if (words.some((word) => word.startsWith(q))) {
+        wordMatches.push(item);
+      }
     }
   }
 
-  return [...prefixMatches, ...substringMatches];
+  return [...prefixMatches, ...wordMatches];
 }
 
 /** Check if a sidebar item is active given the current location. */
