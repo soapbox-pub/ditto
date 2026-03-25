@@ -1,39 +1,39 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
-import { useQueryClient } from '@tanstack/react-query';
-import { BookMarked, Loader2, Search, X } from 'lucide-react';
-import { useSeoMeta } from '@unhead/react';
+import { useQueryClient } from "@tanstack/react-query";
+import { useSeoMeta } from "@unhead/react";
+import { BookMarked, Loader2, Search, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useInView } from "react-intersection-observer";
+import { useNavigate } from "react-router-dom";
+import { BookFeedItem, BookFeedItemSkeleton } from "@/components/BookFeedItem";
+import { FeedEmptyState } from "@/components/FeedEmptyState";
+import { KindInfoButton } from "@/components/KindInfoButton";
+import { PageHeader } from "@/components/PageHeader";
+import { PullToRefresh } from "@/components/PullToRefresh";
+import { SubHeaderBar } from "@/components/SubHeaderBar";
+import { TabButton } from "@/components/TabButton";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useLayoutOptions } from "@/contexts/LayoutContext";
+import { useAppContext } from "@/hooks/useAppContext";
+import { useBookFeed } from "@/hooks/useBookFeed";
+import { type BookSearchResult, useBookSearch } from "@/hooks/useBookSearch";
+import { usePrefetchBookSummaries } from "@/hooks/useBookSummary";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useFeedTab } from "@/hooks/useFeedTab";
+import type { ExtraKindDef } from "@/lib/extraKinds";
 
-import { SubHeaderBar } from '@/components/SubHeaderBar';
-import { TabButton } from '@/components/TabButton';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
-import { PullToRefresh } from '@/components/PullToRefresh';
-import { FeedEmptyState } from '@/components/FeedEmptyState';
-import { KindInfoButton } from '@/components/KindInfoButton';
-import { PageHeader } from '@/components/PageHeader';
-import { BookFeedItem, BookFeedItemSkeleton } from '@/components/BookFeedItem';
-import { useBookFeed } from '@/hooks/useBookFeed';
-import { useBookSearch, type BookSearchResult } from '@/hooks/useBookSearch';
-import { usePrefetchBookSummaries } from '@/hooks/useBookSummary';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useFeedTab } from '@/hooks/useFeedTab';
-import { useAppContext } from '@/hooks/useAppContext';
-import { useLayoutOptions } from '@/contexts/LayoutContext';
-import type { ExtraKindDef } from '@/lib/extraKinds';
-
-type FeedTab = 'follows' | 'global';
+type FeedTab = "follows" | "global";
 
 const booksDef: ExtraKindDef = {
   kind: 31985,
-  id: 'books',
-  label: 'Books',
-  description: 'Book reviews and discussions',
+  id: "books",
+  label: "Books",
+  description: "Book reviews and discussions",
   addressable: true,
-  section: 'social',
-  blurb: 'Discover book reviews, ratings, and discussions from the Nostr community. Track your reading and share your thoughts using the Bookstr protocol.',
-  sites: [{ url: 'https://bookstr.xyz/', name: 'Bookstr' }],
+  section: "social",
+  blurb:
+    "Discover book reviews, ratings, and discussions from the Nostr community. Track your reading and share your thoughts using the Bookstr protocol.",
+  sites: [{ url: "https://bookstr.xyz/", name: "Bookstr" }],
 };
 
 export function BooksPage() {
@@ -41,11 +41,15 @@ export function BooksPage() {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useFeedTab<FeedTab>('books', ['follows', 'global']);
+  const [activeTab, setActiveTab] = useFeedTab<FeedTab>("books", [
+    "follows",
+    "global",
+  ]);
 
   useSeoMeta({
     title: `Books | ${config.appName}`,
-    description: 'Book reviews, ratings, and discussions from the Nostr community',
+    description:
+      "Book reviews, ratings, and discussions from the Nostr community",
   });
 
   useLayoutOptions({ hasSubHeader: !!user });
@@ -68,27 +72,28 @@ export function BooksPage() {
     }
   }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
 
-  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
+  const { ref: scrollRef, inView } = useInView({
+    threshold: 0,
+    rootMargin: "400px",
+  });
 
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) fetchNextPage();
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['book-feed', activeTab] });
+    await queryClient.invalidateQueries({ queryKey: ["book-feed", activeTab] });
   }, [queryClient, activeTab]);
 
   // Flatten and deduplicate across pages
   const events = useMemo(() => {
     if (!rawData?.pages) return [];
     const seen = new Set<string>();
-    return rawData.pages
-      .flat()
-      .filter((event) => {
-        if (seen.has(event.id)) return false;
-        seen.add(event.id);
-        return true;
-      });
+    return rawData.pages.flat().filter((event) => {
+      if (seen.has(event.id)) return false;
+      seen.add(event.id);
+      return true;
+    });
   }, [rawData?.pages]);
 
   // Batch-prefetch book metadata for all visible ISBNs (4 concurrent requests)
@@ -98,17 +103,28 @@ export function BooksPage() {
 
   return (
     <main className="pb-16 sidebar:pb-0">
+      <PageHeader title="Books" icon={<BookMarked className="size-5" />}>
+        <KindInfoButton
+          kindDef={booksDef}
+          icon={<BookMarked className="size-10" />}
+        />
+      </PageHeader>
+
       {/* Follows / Global tabs */}
       {user && (
         <SubHeaderBar>
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
-          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
+          <TabButton
+            label="Follows"
+            active={activeTab === "follows"}
+            onClick={() => setActiveTab("follows")}
+          />
+          <TabButton
+            label="Global"
+            active={activeTab === "global"}
+            onClick={() => setActiveTab("global")}
+          />
         </SubHeaderBar>
       )}
-
-      <PageHeader title="Books" icon={<BookMarked className="size-5" />}>
-        <KindInfoButton kindDef={booksDef} icon={<BookMarked className="size-10" />} />
-      </PageHeader>
 
       {/* Book search bar */}
       <BookSearchBar />
@@ -139,11 +155,13 @@ export function BooksPage() {
         ) : (
           <FeedEmptyState
             message={
-              activeTab === 'follows'
-                ? 'No book posts from people you follow yet.'
-                : 'No book posts or reviews found. Book-related posts tagged with #bookstr or referencing ISBNs will appear here.'
+              activeTab === "follows"
+                ? "No book posts from people you follow yet."
+                : "No book posts or reviews found. Book-related posts tagged with #bookstr or referencing ISBNs will appear here."
             }
-            onSwitchToGlobal={activeTab === 'follows' ? () => setActiveTab('global') : undefined}
+            onSwitchToGlobal={
+              activeTab === "follows" ? () => setActiveTab("global") : undefined
+            }
           />
         )}
       </PullToRefresh>
@@ -160,8 +178,8 @@ function BookSearchBar() {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -185,7 +203,12 @@ function BookSearchBar() {
   useEffect(() => {
     if (debouncedQuery.length >= 2 && results && results.length > 0) {
       setDropdownOpen(true);
-    } else if (debouncedQuery.length >= 2 && results && results.length === 0 && !isFetching) {
+    } else if (
+      debouncedQuery.length >= 2 &&
+      results &&
+      results.length === 0 &&
+      !isFetching
+    ) {
       setDropdownOpen(true); // show "no results"
     }
   }, [debouncedQuery, results, isFetching]);
@@ -193,39 +216,48 @@ function BookSearchBar() {
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setDropdownOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelect = useCallback((isbn: string) => {
-    setQuery('');
-    setDebouncedQuery('');
-    setDropdownOpen(false);
-    inputRef.current?.blur();
-    navigate(`/i/isbn:${isbn}`);
-  }, [navigate]);
+  const handleSelect = useCallback(
+    (isbn: string) => {
+      setQuery("");
+      setDebouncedQuery("");
+      setDropdownOpen(false);
+      inputRef.current?.blur();
+      navigate(`/i/isbn:${isbn}`);
+    },
+    [navigate],
+  );
 
   const handleClear = useCallback(() => {
-    setQuery('');
-    setDebouncedQuery('');
+    setQuery("");
+    setDebouncedQuery("");
     setDropdownOpen(false);
     inputRef.current?.focus();
   }, []);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      setDropdownOpen(false);
-      inputRef.current?.blur();
-    }
-    if (e.key === 'Enter' && results && results.length > 0) {
-      e.preventDefault();
-      handleSelect(results[0].isbn);
-    }
-  }, [results, handleSelect]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setDropdownOpen(false);
+        inputRef.current?.blur();
+      }
+      if (e.key === "Enter" && results && results.length > 0) {
+        e.preventDefault();
+        handleSelect(results[0].isbn);
+      }
+    },
+    [results, handleSelect],
+  );
 
   return (
     <div ref={containerRef} className="relative px-4 pb-3">
@@ -290,7 +322,13 @@ function BookSearchBar() {
   );
 }
 
-function BookSearchResultItem({ book, onSelect }: { book: BookSearchResult; onSelect: (isbn: string) => void }) {
+function BookSearchResultItem({
+  book,
+  onSelect,
+}: {
+  book: BookSearchResult;
+  onSelect: (isbn: string) => void;
+}) {
   return (
     <button
       type="button"
@@ -303,7 +341,9 @@ function BookSearchResultItem({ book, onSelect }: { book: BookSearchResult; onSe
           alt=""
           className="w-8 h-11 rounded object-cover shrink-0"
           loading="lazy"
-          onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+          onError={(e) => {
+            (e.currentTarget as HTMLElement).style.display = "none";
+          }}
         />
       ) : (
         <div className="w-8 h-11 rounded bg-secondary flex items-center justify-center shrink-0">
@@ -313,10 +353,14 @@ function BookSearchResultItem({ book, onSelect }: { book: BookSearchResult; onSe
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{book.title}</p>
         {book.authors.length > 0 && (
-          <p className="text-xs text-muted-foreground truncate">{book.authors.join(', ')}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {book.authors.join(", ")}
+          </p>
         )}
         {book.firstPublishYear && (
-          <p className="text-xs text-muted-foreground/60">{book.firstPublishYear}</p>
+          <p className="text-xs text-muted-foreground/60">
+            {book.firstPublishYear}
+          </p>
         )}
       </div>
     </button>
