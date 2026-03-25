@@ -2,7 +2,7 @@ import type React from 'react';
 import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
-import { Rocket } from 'lucide-react';
+import { BookOpen, MapPin, Rocket } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
@@ -415,23 +415,12 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
     return <UrlCommentContext url={identifier} className={className} />;
   }
 
-  // Determine display text and link
-  let displayText: string;
-
+  // ISO 3166 country/subdivision identifiers get special treatment
   if (identifier.startsWith('iso3166:')) {
-    const code = identifier.slice('iso3166:'.length);
-    const info = getCountryInfo(code);
-    if (info) {
-      displayText = info.subdivisionName
-        ? `${info.flag} ${info.subdivisionName}`
-        : `${info.flag} ${info.name}`;
-    } else {
-      displayText = identifier;
-    }
-  } else {
-    displayText = identifier;
+    return <CountryCommentContext identifier={identifier} className={className} />;
   }
 
+  // Generic fallback for other external identifiers
   const link = `/i/${encodeURIComponent(identifier)}`;
 
   return (
@@ -441,7 +430,7 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
         className="text-primary hover:underline truncate"
         onClick={(e) => e.stopPropagation()}
       >
-        {displayText}
+        {identifier}
       </Link>
     </CommentContextRow>
   );
@@ -488,22 +477,120 @@ function UrlCommentContext({ url, className }: { url: string; className?: string
   );
 }
 
-/** Comment context for ISBN identifiers — fetches and displays the book title. */
+/** Comment context for ISO 3166 country/subdivision identifiers — shows flag and name with hover preview. */
+function CountryCommentContext({ identifier, className }: { identifier: string; className?: string }) {
+  const code = identifier.slice('iso3166:'.length);
+  const info = getCountryInfo(code);
+  const link = `/i/${encodeURIComponent(identifier)}`;
+
+  const displayText = info
+    ? info.subdivisionName
+      ? `${info.flag} ${info.subdivisionName}`
+      : `${info.flag} ${info.name}`
+    : identifier;
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className}>
+      <HoverCard openDelay={300} closeDelay={150}>
+        <HoverCardTrigger asChild>
+          <Link
+            to={link}
+            className="text-primary hover:underline truncate cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {displayText}
+          </Link>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          className="w-64 p-0 rounded-2xl shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-3 px-4 py-3">
+            <span className="text-2xl leading-none shrink-0" role="img" aria-label={info ? `Flag of ${info.name}` : code}>
+              {info?.flag ?? '🌍'}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <MapPin className="size-3 shrink-0" />
+                <span>{info?.subdivisionName ? 'Region' : 'Country'}</span>
+              </div>
+              <p className="text-sm font-medium truncate mt-0.5">
+                {info?.subdivisionName ?? info?.name ?? code}
+              </p>
+              {info?.subdivisionName && info.name && (
+                <p className="text-xs text-muted-foreground truncate">
+                  {info.name}
+                </p>
+              )}
+            </div>
+          </div>
+        </HoverCardContent>
+      </HoverCard>
+    </CommentContextRow>
+  );
+}
+
+/** Comment context for ISBN identifiers — fetches and displays the book title with hover preview. */
 function IsbnCommentContext({ identifier, className }: { identifier: string; className?: string }) {
   const isbn = identifier.slice('isbn:'.length);
   const { data: bookInfo, isLoading } = useBookInfo(isbn);
   const link = `/i/${encodeURIComponent(identifier)}`;
   const displayText = bookInfo?.title ?? identifier;
+  const coverUrl = bookInfo?.cover?.medium || bookInfo?.cover?.large;
+  const authors = bookInfo?.authors?.map((a) => a.name).join(', ');
 
   return (
     <CommentContextRow prefix="Commenting on" className={className} loading={isLoading}>
-      <Link
-        to={link}
-        className="text-primary hover:underline truncate"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {displayText}
-      </Link>
+      <HoverCard openDelay={300} closeDelay={150}>
+        <HoverCardTrigger asChild>
+          <Link
+            to={link}
+            className="text-primary hover:underline truncate cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {displayText}
+          </Link>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          className="w-72 p-0 rounded-2xl shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-3 px-4 py-3">
+            {coverUrl ? (
+              <img
+                src={coverUrl}
+                alt={bookInfo?.title || 'Book cover'}
+                className="w-9 h-12 rounded object-cover shrink-0"
+                loading="lazy"
+              />
+            ) : (
+              <div className="w-9 h-12 rounded bg-secondary flex items-center justify-center shrink-0">
+                <BookOpen className="size-4 text-muted-foreground/40" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <BookOpen className="size-3 shrink-0" />
+                <span>Book</span>
+              </div>
+              <p className="text-sm font-medium truncate mt-0.5">
+                {bookInfo?.title || `ISBN ${isbn}`}
+              </p>
+              {authors && (
+                <p className="text-xs text-muted-foreground truncate">
+                  by {authors}
+                </p>
+              )}
+            </div>
+          </div>
+        </HoverCardContent>
+      </HoverCard>
     </CommentContextRow>
   );
 }
