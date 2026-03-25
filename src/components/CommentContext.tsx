@@ -5,7 +5,7 @@ import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, BookOpen, Camera, Clapperboard, FileText, Film,
   GitBranch, GitPullRequest, MapPin, MessageSquare, Mic, Music,
-  Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles, Users,
+  Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
