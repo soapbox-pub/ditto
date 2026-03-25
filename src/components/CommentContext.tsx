@@ -3,11 +3,14 @@ import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
-  Award, BookOpen, FileText, Globe, Layers, MapPin, MessageSquare, Mic,
-  Package, Palette, Radio, Rocket, SmilePlus, Users,
+  Award, BarChart3, BookOpen, Camera, Clapperboard, FileText, Film,
+  GitBranch, GitPullRequest, MapPin, MessageSquare, Mic, Music,
+  Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Users,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { CardsIcon } from '@/components/icons/CardsIcon';
+import { ChestIcon } from '@/components/icons/ChestIcon';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { LinkPreview } from '@/components/LinkPreview';
@@ -109,35 +112,39 @@ const KIND_LABELS: Record<number, string> = {
   7516: 'a found log',
 };
 
-/** Kind-specific icons. */
+/** Kind-specific icons — matches sidebar and NoteCard icons. */
 const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: string }>>> = {
   1: MessageSquare,
-  20: Globe,
-  21: Globe,
-  22: Globe,
+  20: Camera,
+  21: Film,
+  22: Film,
   1063: FileText,
-  1068: Layers,
+  1068: BarChart3,
   1222: Mic,
   1617: FileText,
-  1618: FileText,
+  1618: GitPullRequest,
   15128: Rocket,
   35128: Rocket,
   30008: Award,
   30009: Award,
-  30023: FileText,
+  30023: BookOpen,
   30030: SmilePlus,
-  30054: Radio,
-  30055: Radio,
+  30054: Podcast,
+  30055: Podcast,
   30063: Package,
   30311: Radio,
-  30617: Globe,
+  30617: GitBranch,
   32267: Package,
-  34236: Globe,
+  34236: Clapperboard,
   36767: Palette,
   16767: Palette,
-  36787: Globe,
-  37381: Globe,
-  39089: Users,
+  36787: Music,
+  34139: Music,
+  37381: CardsIcon,
+  37516: ChestIcon,
+  7516: ChestIcon,
+  39089: PartyPopper,
+  3367: Palette,
 };
 
 /**
