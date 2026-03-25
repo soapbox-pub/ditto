@@ -50,6 +50,7 @@ import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { MusicDetailContent } from "@/components/MusicDetailContent";
 import { NoteCard } from "@/components/NoteCard";
 import { NoteContent } from "@/components/NoteContent";
+import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
 import { PatchCard } from "@/components/PatchCard";
 import { PodcastDetailContent } from "@/components/PodcastDetailContent";
@@ -123,6 +124,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === BADGE_PROFILE_KIND) return "Badge Collection";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
   if (kind === 32267) return "App Details";
+  if (kind === 15128 || kind === 35128) return "Nsite";
   if (kind === VANISH_KIND) return "Request to Vanish";
   return "Post Details";
 }
@@ -871,9 +873,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isPatch = event.kind === 1617;
   const isPullRequest = event.kind === 1618;
   const isCustomNip = event.kind === 30817;
+  const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
   const isVanish = event.kind === VANISH_KIND;
-  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip;
+  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
     !isPoll &&
@@ -1554,6 +1557,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             ) : isCustomNip ? (
               <div className="mt-3">
                 <CustomNipCard event={event} preview={false} />
+              </div>
+            ) : isNsite ? (
+              <div className="mt-3">
+                <NsiteCard event={event} />
               </div>
             ) : isZapstoreApp ? (
               <ZapstoreAppContent event={event} />
