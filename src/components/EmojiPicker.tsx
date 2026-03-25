@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useRef, useMemo } from 'react';
-import { Picker } from 'emoji-mart';
-import data from '@emoji-mart/data';
-import { useTheme } from '@/hooks/useTheme';
-import type { CustomEmoji } from '@/hooks/useCustomEmojis';
+import data from "@emoji-mart/data";
+import { Picker } from "emoji-mart";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import type { CustomEmoji } from "@/hooks/useCustomEmojis";
+import { useTheme } from "@/hooks/useTheme";
 
 /** A native Unicode emoji selection. */
 export interface NativeEmojiSelection {
-  type: 'native';
+  type: "native";
   emoji: string;
 }
 
 /** A custom NIP-30 emoji selection. */
 export interface CustomEmojiSelection {
-  type: 'custom';
+  type: "custom";
   shortcode: string;
   url: string;
 }
@@ -58,18 +58,20 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
   // `theme` is intentionally in the dependency array to trigger recomputation
   // when the theme changes, even though we read from CSS vars instead.
   const resolvedTheme = useMemo(() => {
-    if (typeof document === 'undefined') return 'light';
-    const bg = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
-    if (!bg) return 'light';
+    if (typeof document === "undefined") return "light";
+    const bg = getComputedStyle(document.documentElement)
+      .getPropertyValue("--background")
+      .trim();
+    if (!bg) return "light";
     // HSL format from Tailwind CSS vars: "H S% L%" — check lightness
     const parts = bg.split(/\s+/);
     const lightness = parseFloat(parts[parts.length - 1]);
     if (!isNaN(lightness)) {
-      return lightness < 50 ? 'dark' : 'light';
+      return lightness < 50 ? "dark" : "light";
     }
-    return 'light';
+    return "light";
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [theme]) as 'dark' | 'light';
+  }, [theme]) as "dark" | "light";
   const onSelectRef = useRef(onSelect);
 
   // Keep callback ref up to date without re-creating the picker.
@@ -79,14 +81,14 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
     if (emoji.src) {
       // Custom emoji — has an image URL
       onSelectRef.current({
-        type: 'custom',
+        type: "custom",
         shortcode: emoji.id,
         url: emoji.src,
       });
     } else if (emoji.native) {
       // Native Unicode emoji
       onSelectRef.current({
-        type: 'native',
+        type: "native",
         emoji: emoji.native,
       });
     }
@@ -95,16 +97,18 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
   // Build emoji-mart custom categories from NIP-30 emoji list
   const customCategories = useMemo(() => {
     if (!customEmojis || customEmojis.length === 0) return undefined;
-    return [{
-      id: 'custom-nostr',
-      name: 'Custom',
-      emojis: customEmojis.map((e) => ({
-        id: e.shortcode,
-        name: e.shortcode,
-        keywords: [e.shortcode],
-        skins: [{ src: e.url }],
-      })),
-    }];
+    return [
+      {
+        id: "custom-nostr",
+        name: "Custom",
+        emojis: customEmojis.map((e) => ({
+          id: e.shortcode,
+          name: e.shortcode,
+          keywords: [e.shortcode],
+          skins: [{ src: e.url }],
+        })),
+      },
+    ];
   }, [customEmojis]);
 
   useEffect(() => {
@@ -116,11 +120,11 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
       data,
       onEmojiSelect: handleSelect,
       theme: resolvedTheme,
-      previewPosition: 'none',
-      skinTonePosition: 'search',
-      set: 'native',
+      previewPosition: "none",
+      skinTonePosition: "search",
+      set: "native",
       maxFrequentRows: 2,
-      navPosition: 'bottom',
+      navPosition: "bottom",
       perLine: 8,
       parent: container,
     };
@@ -136,8 +140,9 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
     requestAnimationFrame(() => {
       const shadowRoot = (container.firstChild as HTMLElement)?.shadowRoot;
       if (shadowRoot) {
-        const style = document.createElement('style');
-        style.textContent = '.sticky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background-color: var(--em-color-background) !important; } input { font-size: 16px !important; }';
+        const style = document.createElement("style");
+        style.textContent =
+          ".sticky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background-color: var(--em-color-background) !important; } input { font-size: 16px !important; } #nav button { color: rgba(var(--em-rgb-color), .85) !important; } #nav button[aria-selected] { color: rgb(var(--em-rgb-accent)) !important; }";
         shadowRoot.appendChild(style);
       }
     });
@@ -157,7 +162,7 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
     <div
       ref={containerRef}
       className="emoji-mart-wrapper"
-      style={{ isolation: 'isolate' }}
+      style={{ isolation: "isolate" }}
       onWheel={(e) => {
         // Prevent scroll from bubbling to the page
         e.stopPropagation();
