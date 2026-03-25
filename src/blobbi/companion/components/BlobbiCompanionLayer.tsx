@@ -22,8 +22,11 @@ import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { calculateGroundY } from '../utils/movement';
 import {
   useCompanionActionMenu,
+  useBlobbiActions,
   CompanionActionMenu,
   HangingItems,
+  CATEGORY_TO_ACTION,
+  type CompanionItem,
 } from '../interaction';
 import type { Position } from '../types/companion.types';
 
@@ -83,16 +86,53 @@ export function BlobbiCompanionLayer() {
     isActive: isVisible,
     stage: companion?.stage,
     onItemClick: (item) => {
-      // For now, just log - item consumption will be implemented later
+      // Item was clicked in the hanging menu - this releases it
       console.log('[CompanionLayer] Item released:', item);
     },
   });
   
-  // Handle item collected by Blobbi (contact or manual pickup)
-  const handleItemCollected = useCallback((item: { id: string; name: string }) => {
-    console.log('[CompanionLayer] Item collected by Blobbi:', item.name);
-    // TODO: Apply item effects, decrement inventory, trigger Blobbi reaction
-  }, []);
+  // Get Blobbi actions from context (provided by parent, e.g., BlobbiPage)
+  const { useItem: contextUseItem, canUseItems } = useBlobbiActions();
+  
+  /**
+   * Handle item use - called when item contacts Blobbi or is clicked.
+   * Uses the BlobbiActionsContext to perform the actual item use.
+   * Returns success/failure to control whether item is removed from screen.
+   */
+  const handleItemUse = useCallback(async (item: CompanionItem): Promise<{ success: boolean; error?: string }> => {
+    // Resolve the action from the item category
+    const action = CATEGORY_TO_ACTION[item.category];
+    
+    if (!action) {
+      console.warn('[CompanionLayer] No action for item category:', item.category);
+      return { success: false, error: `Cannot use ${item.category} items` };
+    }
+    
+    if (!canUseItems) {
+      console.warn('[CompanionLayer] Cannot use items - context not available');
+      return { success: false, error: 'Item use not available' };
+    }
+    
+    console.log('[CompanionLayer] Using item:', item.name, 'with action:', action);
+    
+    try {
+      const result = await contextUseItem(item.id, action, 1);
+      
+      if (result.success) {
+        console.log('[CompanionLayer] Item used successfully:', item.name, result.statsChanged);
+        // Close the menu after successful use
+        closeMenu();
+        return { success: true };
+      } else {
+        console.warn('[CompanionLayer] Item use failed:', result.error);
+        return { success: false, error: result.error };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[CompanionLayer] Item use error:', errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  }, [canUseItems, contextUseItem, closeMenu]);
   
   // Handle companion click
   const handleCompanionClick = useCallback(() => {
@@ -249,7 +289,7 @@ export function BlobbiCompanionLayer() {
         companionPosition={renderedPosition}
         companionSize={config.size}
         onItemRelease={handleItemClick}
-        onItemCollected={handleItemCollected}
+        onItemUse={handleItemUse}
       />
     </div>
   );

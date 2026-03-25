@@ -60,6 +60,14 @@ interface ReleasedItemData {
   fallStartTime: number;
 }
 
+/** Result of attempting to use an item */
+interface ItemUseAttemptResult {
+  /** Whether the item was successfully used */
+  success: boolean;
+  /** Error message if failed */
+  error?: string;
+}
+
 /** Props for the HangingItems component */
 interface HangingItemsProps {
   /** Whether to show the hanging items */
@@ -80,7 +88,16 @@ interface HangingItemsProps {
   onItemRelease?: (item: CompanionItem) => void;
   /** Callback when an item finishes falling and lands */
   onItemLanded?: (item: CompanionItem) => void;
-  /** Callback when an item is collected by Blobbi (contact) */
+  /** 
+   * Callback to use an item. Returns success/failure.
+   * Item is only removed from screen if this returns success.
+   * If not provided, items disappear immediately on contact (legacy behavior).
+   */
+  onItemUse?: (item: CompanionItem) => Promise<ItemUseAttemptResult>;
+  /** 
+   * Callback when an item is collected by Blobbi (contact).
+   * @deprecated Use onItemUse instead for proper item consumption flow.
+   */
   onItemCollected?: (item: CompanionItem) => void;
 }
 
@@ -119,6 +136,8 @@ const HANGING_CONFIG = {
 
 interface ReleasedItemProps {
   data: ReleasedItemData;
+  /** Whether this item is currently being used (prevents interaction) */
+  isBeingUsed?: boolean;
   onCollect?: (item: CompanionItem) => void;
 }
 
@@ -127,33 +146,37 @@ interface ReleasedItemProps {
  * This is a single continuous visual element - just the emoji.
  * No circle container, no badge - just the item itself.
  */
-function ReleasedItem({ data, onCollect }: ReleasedItemProps) {
+function ReleasedItem({ data, isBeingUsed = false, onCollect }: ReleasedItemProps) {
   const { item, state, x, y } = data;
   
   const isFalling = state === 'falling';
   const isLanded = state === 'landed';
+  const canInteract = isLanded && !isBeingUsed;
   
   return (
     <div
       className={cn(
         "fixed pointer-events-auto select-none",
         "transition-transform duration-100",
-        // Hover effect only for landed items
-        isLanded && "hover:scale-125 cursor-pointer",
-        // Falling items can't be interacted with
-        isFalling && "pointer-events-none"
+        // Hover effect only for interactable landed items
+        canInteract && "hover:scale-125 cursor-pointer",
+        // Falling items or items being used can't be interacted with
+        (isFalling || isBeingUsed) && "pointer-events-none",
+        // Pulse animation when being used
+        isBeingUsed && "animate-pulse"
       )}
       style={{
         left: x,
         top: y,
         transform: 'translate(-50%, -50%)',
         zIndex: isFalling ? 10004 : 10003,
-        // Add subtle shadow for depth
+        // Add subtle shadow for depth, reduce opacity when being used
         filter: isLanded ? 'drop-shadow(0 2px 3px rgba(0,0,0,0.2))' : 'drop-shadow(0 3px 6px rgba(0,0,0,0.25))',
+        opacity: isBeingUsed ? 0.6 : 1,
       }}
-      onClick={() => isLanded && onCollect?.(item)}
-      role={isLanded ? 'button' : undefined}
-      aria-label={isLanded ? `${item.name} on ground. Click to pick up.` : undefined}
+      onClick={() => canInteract && onCollect?.(item)}
+      role={canInteract ? 'button' : undefined}
+      aria-label={canInteract ? `${item.name} on ground. Click to pick up.` : undefined}
     >
       <span
         style={{ 
@@ -183,6 +206,7 @@ export function HangingItems({
   companionSize = 108, // Should match DEFAULT_COMPANION_CONFIG.size
   onItemRelease,
   onItemLanded,
+  onItemUse,
   onItemCollected,
 }: HangingItemsProps) {
   // Container animation state
@@ -190,6 +214,9 @@ export function HangingItems({
   
   // Track which items have been released (by ID) - these are no longer "hanging"
   const [releasedItemIds, setReleasedItemIds] = useState<Set<string>>(new Set());
+  
+  // Track items currently being used (to prevent double-use)
+  const [itemsBeingUsed, setItemsBeingUsed] = useState<Set<string>>(new Set());
   
   // Track released items with their full state (falling/landed)
   const [releasedItems, setReleasedItems] = useState<Map<string, ReleasedItemData>>(new Map());
@@ -317,6 +344,57 @@ export function HangingItems({
     }
   }, [isVisible, selectedAction, containerState]);
   
+  /**
+   * Attempt to use an item (via contact or click).
+   * Only removes the item from screen if use succeeds.
+   */
+  const attemptUseItem = useCallback(async (item: CompanionItem, source: 'contact' | 'click') => {
+    // Prevent double-use while an operation is in progress
+    if (itemsBeingUsed.has(item.id)) {
+      return;
+    }
+    
+    // Mark as being used
+    setItemsBeingUsed(prev => new Set(prev).add(item.id));
+    
+    try {
+      // If onItemUse is provided, use the async flow
+      if (onItemUse) {
+        console.log(`[HangingItems] Attempting to use item (${source}):`, item.name);
+        const result = await onItemUse(item);
+        
+        if (result.success) {
+          console.log(`[HangingItems] Item used successfully:`, item.name);
+          // Remove from released items only on success
+          setReleasedItems(prev => {
+            const next = new Map(prev);
+            next.delete(item.id);
+            return next;
+          });
+        } else {
+          console.log(`[HangingItems] Item use failed:`, item.name, result.error);
+          // Item stays on screen - user can try again
+        }
+      } else {
+        // Legacy behavior: call onItemCollected and remove immediately
+        console.log(`[HangingItems] Item collected (legacy):`, item.name);
+        onItemCollected?.(item);
+        setReleasedItems(prev => {
+          const next = new Map(prev);
+          next.delete(item.id);
+          return next;
+        });
+      }
+    } finally {
+      // Clear the "being used" state
+      setItemsBeingUsed(prev => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  }, [itemsBeingUsed, onItemUse, onItemCollected]);
+  
   // Contact detection with Blobbi
   useEffect(() => {
     if (!companionPosition) return;
@@ -326,35 +404,26 @@ export function HangingItems({
     const blobbiCenterY = companionPosition.y + companionSize / 2;
     
     // Check each landed item for contact
-    const itemsToRemove: string[] = [];
-    
     releasedItems.forEach((data, id) => {
-      if (data.state === 'landed') {
-        // Calculate distance between Blobbi center and item center
-        const dx = blobbiCenterX - data.x;
-        const dy = blobbiCenterY - data.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        // Contact threshold is sum of radii
-        const contactThreshold = companionSize / 2 + HANGING_CONFIG.contactRadius;
-        
-        if (distance < contactThreshold) {
-          itemsToRemove.push(id);
-          console.log('[HangingItems] Item collected by Blobbi:', data.item.name);
-          onItemCollected?.(data.item);
-        }
+      // Skip items that are being used or are still falling
+      if (data.state !== 'landed' || itemsBeingUsed.has(id)) {
+        return;
+      }
+      
+      // Calculate distance between Blobbi center and item center
+      const dx = blobbiCenterX - data.x;
+      const dy = blobbiCenterY - data.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Contact threshold is sum of radii
+      const contactThreshold = companionSize / 2 + HANGING_CONFIG.contactRadius;
+      
+      if (distance < contactThreshold) {
+        // Use the item via the async flow
+        attemptUseItem(data.item, 'contact');
       }
     });
-    
-    // Remove collected items
-    if (itemsToRemove.length > 0) {
-      setReleasedItems(prev => {
-        const next = new Map(prev);
-        itemsToRemove.forEach(id => next.delete(id));
-        return next;
-      });
-    }
-  }, [companionPosition, companionSize, releasedItems, onItemCollected]);
+  }, [companionPosition, companionSize, releasedItems, itemsBeingUsed, attemptUseItem]);
   
   // Handle hanging item click - release the item
   const handleItemClick = useCallback((item: CompanionItem, xPosition: number) => {
@@ -393,18 +462,9 @@ export function HangingItems({
   
   // Manual pickup of landed item (clicking on it)
   const handleLandedItemClick = useCallback((item: CompanionItem) => {
-    console.log('[HangingItems] Landed item manually picked up:', item.name);
-    
-    // Remove from released items
-    setReleasedItems(prev => {
-      const next = new Map(prev);
-      next.delete(item.id);
-      return next;
-    });
-    
-    // Treat as collected
-    onItemCollected?.(item);
-  }, [onItemCollected]);
+    // Use the async flow (same as contact)
+    attemptUseItem(item, 'click');
+  }, [attemptUseItem]);
   
   // Calculate horizontal positions for items (centered)
   const totalWidth = (items.length - 1) * HANGING_CONFIG.itemSpacing;
@@ -567,6 +627,7 @@ export function HangingItems({
         <ReleasedItem
           key={`released-${data.item.id}`}
           data={data}
+          isBeingUsed={itemsBeingUsed.has(data.item.id)}
           onCollect={handleLandedItemClick}
         />
       ))}
