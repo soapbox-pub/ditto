@@ -58,10 +58,17 @@ export type {
   BlobbiActionsContextValue,
 } from './BlobbiActionsContext';
 
+// Shared item use hook types
+export type {
+  UseBlobbiItemUseOptions,
+  UseBlobbiItemUseResult,
+} from './useBlobbiItemUse';
+
 // Hooks
 export { useCompanionActionMenu } from './useCompanionActionMenu';
 export { useClickDetection } from './useClickDetection';
 export { useCompanionItemUse } from './useCompanionItemUse';
+export { useBlobbiItemUse } from './useBlobbiItemUse';
 
 // Context
 export {

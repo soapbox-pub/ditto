@@ -101,6 +101,11 @@ interface HangingItemsProps {
    * @deprecated Use onItemUse instead for proper item consumption flow.
    */
   onItemCollected?: (item: CompanionItem) => void;
+  /**
+   * Check if an item is on cooldown (recently attempted).
+   * If provided, items on cooldown won't trigger contact-based auto-use.
+   */
+  isItemOnCooldown?: (itemId: string) => boolean;
 }
 
 // ─── Configuration ────────────────────────────────────────────────────────────
@@ -136,6 +141,10 @@ const HANGING_CONFIG = {
   dragThreshold: 5,
   /** Drop-on-Blobbi radius (how close to Blobbi center to trigger use) */
   dropRadius: 80,
+  /** Cooldown after failed item use attempt (ms) */
+  failedUseCooldown: 3000,
+  /** Cooldown after successful item use (ms) */
+  successUseCooldown: 500,
 };
 
 // ─── Drag State Hook ──────────────────────────────────────────────────────────
@@ -365,6 +374,7 @@ export function HangingItems({
   onItemLanded,
   onItemUse,
   onItemCollected,
+  isItemOnCooldown,
 }: HangingItemsProps) {
   // Container animation state
   const [containerState, setContainerState] = useState<ContainerState>('hidden');
@@ -392,6 +402,37 @@ export function HangingItems({
   // Ref to access latest releasedItems in animation loop without re-triggering effect
   const releasedItemsRef = useRef<Map<string, ReleasedItemData>>(releasedItems);
   releasedItemsRef.current = releasedItems;
+  
+  // ─── Zone Entry Detection ───
+  // Track which items are currently inside the contact zone
+  // Contact auto-use only triggers when item ENTERS the zone (transitions from outside to inside)
+  const itemsInZoneRef = useRef<Set<string>>(new Set());
+  
+  // Local item cooldown tracking (fallback if isItemOnCooldown not provided)
+  const localCooldownsRef = useRef<Map<string, number>>(new Map());
+  
+  // Check if an item is on cooldown (uses prop if available, else local)
+  const checkItemCooldown = useCallback((itemId: string): boolean => {
+    if (isItemOnCooldown) {
+      return isItemOnCooldown(itemId);
+    }
+    // Local fallback cooldown check
+    const expiresAt = localCooldownsRef.current.get(itemId);
+    if (!expiresAt) return false;
+    if (Date.now() >= expiresAt) {
+      localCooldownsRef.current.delete(itemId);
+      return false;
+    }
+    return true;
+  }, [isItemOnCooldown]);
+  
+  // Set local cooldown for an item
+  const setLocalCooldown = useCallback((itemId: string, success: boolean) => {
+    const cooldownMs = success 
+      ? HANGING_CONFIG.successUseCooldown 
+      : HANGING_CONFIG.failedUseCooldown;
+    localCooldownsRef.current.set(itemId, Date.now() + cooldownMs);
+  }, []);
   
   // Ref for onItemLanded callback
   const onItemLandedRef = useRef(onItemLanded);
@@ -524,8 +565,20 @@ export function HangingItems({
    * 
    * Uses refs for callbacks and itemsBeingUsed to maintain stable identity
    * and prevent effect/callback loops.
+   * 
+   * Includes cooldown protection:
+   * - Checks cooldown before attempting
+   * - Sets cooldown after attempt (longer on failure)
    */
   const attemptUseItem = useCallback(async (item: CompanionItem, source: 'contact' | 'click' | 'drag-drop') => {
+    // Check cooldown first (prevents retry spam)
+    if (checkItemCooldown(item.id)) {
+      if (import.meta.env.DEV) {
+        console.log(`[HangingItems] Item on cooldown, skipping:`, item.name);
+      }
+      return;
+    }
+    
     // Prevent double-use while an operation is in progress
     if (itemsBeingUsedRef.current.has(item.id)) {
       if (import.meta.env.DEV) {
@@ -538,6 +591,8 @@ export function HangingItems({
     itemsBeingUsedRef.current = new Set(itemsBeingUsedRef.current).add(item.id);
     forceUpdate(c => c + 1); // Trigger re-render for visual feedback
     
+    let success = false;
+    
     try {
       // If onItemUse is provided, use the async flow
       const onItemUseFn = onItemUseRef.current;
@@ -548,6 +603,7 @@ export function HangingItems({
         const result = await onItemUseFn(item);
         
         if (result.success) {
+          success = true;
           if (import.meta.env.DEV) {
             console.log(`[HangingItems] Item used successfully:`, item.name);
           }
@@ -557,14 +613,17 @@ export function HangingItems({
             next.delete(item.id);
             return next;
           });
+          // Also remove from zone tracking
+          itemsInZoneRef.current.delete(item.id);
         } else {
           if (import.meta.env.DEV) {
             console.log(`[HangingItems] Item use failed:`, item.name, result.error);
           }
-          // Item stays on screen - user can try again
+          // Item stays on screen - user can try again after cooldown
         }
       } else {
         // Legacy behavior: call onItemCollected and remove immediately
+        success = true;
         if (import.meta.env.DEV) {
           console.log(`[HangingItems] Item collected (legacy):`, item.name);
         }
@@ -574,6 +633,7 @@ export function HangingItems({
           next.delete(item.id);
           return next;
         });
+        itemsInZoneRef.current.delete(item.id);
       }
     } finally {
       // Clear the "being used" state
@@ -581,14 +641,26 @@ export function HangingItems({
       newSet.delete(item.id);
       itemsBeingUsedRef.current = newSet;
       forceUpdate(c => c + 1);
+      
+      // Set cooldown (longer on failure to prevent retry spam)
+      setLocalCooldown(item.id, success);
     }
-  }, []); // No dependencies - uses refs for everything
+  }, [checkItemCooldown, setLocalCooldown]); // Minimal dependencies - rest uses refs
   
   // Contact detection with Blobbi (for auto-use)
-  // IMPORTANT: This effect carefully avoids triggering loops by:
-  // 1. Using ref for itemsBeingUsed check (no dependency)
-  // 2. Not depending on attemptUseItem (stable identity now)
-  // 3. Only running when position/items actually change
+  // 
+  // ZONE ENTRY DETECTION: Items only auto-use when they ENTER the contact zone.
+  // This prevents continuous retries while an item remains overlapping with Blobbi.
+  // 
+  // Flow:
+  // 1. Track which items are currently inside the zone (itemsInZoneRef)
+  // 2. Only trigger use when item transitions from outside → inside
+  // 3. Item must leave the zone before it can trigger again
+  // 
+  // Protection layers:
+  // - Zone entry detection (this effect)
+  // - Cooldown check in attemptUseItem
+  // - itemsBeingUsedRef to prevent double-calls
   useEffect(() => {
     if (!companionPosition) return;
     // Don't check contact while dragging
@@ -596,8 +668,7 @@ export function HangingItems({
     
     // Check each landed item for contact
     releasedItems.forEach((data, id) => {
-      // Skip items that are being used, still falling, or being dragged
-      // Use ref to check - avoids dependency and thus callback recreation
+      // Skip items that are being used or still falling
       if (data.state !== 'landed' || itemsBeingUsedRef.current.has(id)) {
         return;
       }
@@ -609,10 +680,26 @@ export function HangingItems({
       
       // Contact threshold is sum of radii
       const contactThreshold = companionSize / 2 + HANGING_CONFIG.contactRadius;
+      const isInZone = distance < contactThreshold;
+      const wasInZone = itemsInZoneRef.current.has(id);
       
-      if (distance < contactThreshold) {
-        // Use the item via the async flow
-        attemptUseItem(data.item, 'contact');
+      if (isInZone) {
+        if (!wasInZone) {
+          // Item just ENTERED the zone - mark it and attempt use
+          itemsInZoneRef.current.add(id);
+          
+          // Only attempt use on zone ENTRY (not while already in zone)
+          // Cooldown and other guards are checked inside attemptUseItem
+          attemptUseItem(data.item, 'contact');
+        }
+        // If already in zone, do nothing (prevents retry loops)
+      } else {
+        // Item is outside the zone
+        if (wasInZone) {
+          // Item just LEFT the zone - remove from tracking
+          // This allows it to trigger again if it re-enters
+          itemsInZoneRef.current.delete(id);
+        }
       }
     });
   }, [companionPosition, companionSize, releasedItems, attemptUseItem, dragState.isDragging, blobbiCenterX, blobbiCenterY]);

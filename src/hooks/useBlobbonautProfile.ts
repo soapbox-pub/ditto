@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -123,18 +123,30 @@ export function useBlobbonautProfile() {
     return `${profile.d}:${profile.event.created_at}`;
   }, [query.data]);
   
+  // Track last synced signature to prevent redundant cache updates
+  const lastSyncedSignatureRef = useRef<string>('');
+  
   // Update boot cache when we get fresh data from relays
-  // Use the signature to prevent unnecessary updates
-  useMemo(() => {
+  // FIXED: Moved from useMemo to useEffect - side effects should not be in useMemo
+  useEffect(() => {
+    // Guard: no data or no user
     if (!query.data || !user?.pubkey) return;
+    
+    // Guard: data doesn't belong to current user
     if (query.data.event.pubkey !== user.pubkey) return;
+    
+    // Guard: already synced this exact signature (prevents redundant updates)
+    if (lastSyncedSignatureRef.current === profileSignature) return;
+    
+    // Mark as synced before updating to prevent loops
+    lastSyncedSignatureRef.current = profileSignature;
     
     setBootCache(prev => {
       const prevSignature = prev?.profile 
         ? `${prev.profile.d}:${prev.profile.event.created_at}`
         : '';
       
-      // Skip update if nothing changed
+      // Skip update if nothing actually changed
       if (prev?.pubkey === user.pubkey && prevSignature === profileSignature) {
         return prev;
       }
@@ -146,8 +158,7 @@ export function useBlobbonautProfile() {
         cachedAt: Date.now(),
       };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileSignature, user?.pubkey]);
+  }, [profileSignature, user?.pubkey, query.data, setBootCache]);
   
   // Helper to invalidate and refetch after publishing
   const invalidate = useCallback(() => {
