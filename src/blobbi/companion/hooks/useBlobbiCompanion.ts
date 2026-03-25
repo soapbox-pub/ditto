@@ -234,6 +234,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     isPermanentlyStuck: _isPermanentlyStuck,
     isHiddenForTransition,
     currentInspectionDirection,
+    wasResolvedFromStuck,
     acknowledgeCompletion,
   } = useBlobbiEntryAnimation({
     isActive: isVisible,
@@ -260,8 +261,13 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     // Only sync position once when entry transitions to complete
     if (entryJustCompleted && !prevEntryCompleteRef.current) {
       // Entry just completed - sync motion position to where entry animation ended
-      // This is groundPosition (center of screen) for vertical entry animations
-      setPosition(groundPosition);
+      // For normal entry: use groundPosition (center of screen)
+      // For stuck rescue: motion.position already has the drag release position, so skip setPosition
+      if (!wasResolvedFromStuck) {
+        setPosition(groundPosition);
+      }
+      // If wasResolvedFromStuck, motion.position is already correct (drag release position)
+      // Motion system will handle gravity/falling from that position naturally
       
       // Use requestAnimationFrame to ensure the position is rendered before
       // we switch from entry animation to motion position
@@ -270,7 +276,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
       });
     }
     prevEntryCompleteRef.current = entryJustCompleted;
-  }, [entryJustCompleted, setPosition, groundPosition, acknowledgeCompletion]);
+  }, [entryJustCompleted, wasResolvedFromStuck, setPosition, groundPosition, acknowledgeCompletion]);
   
   // Gaze management - passes entry inspection direction for eye control during entry
   const { gaze, eyeOffset } = useBlobbiCompanionGaze({
