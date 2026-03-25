@@ -10,7 +10,7 @@ import type { ThemeDefinition } from '@/lib/themeEvent';
 import { themePresets, coreToTokens, resolveTheme, resolveThemeConfig, type CoreThemeColors, type ThemeTokens, type ThemeConfig, type ThemesConfig, type ThemeFont, type ThemeBackground } from '@/themes';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
-import { FontPicker } from '@/components/FontPicker';
+import { FontSection } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -866,14 +866,19 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               ))}
             </div>
 
-            {/* Body Font */}
-            <FontPicker label="Body Font" />
-
-            {/* Title Font */}
-            <FontPicker
-              label="Title Font"
-              value={theme === 'custom' ? customTheme?.titleFont : undefined}
-              onChange={(titleFont) => {
+            {/* Fonts (body + title) */}
+            <FontSection
+              bodyFont={theme === 'custom' ? customTheme?.font : undefined}
+              onBodyFontChange={(font) => {
+                const currentColors = customTheme?.colors ?? {
+                  background: '228 20% 10%',
+                  text: '210 40% 98%',
+                  primary: '258 70% 60%',
+                };
+                applyCustomTheme({ ...customTheme, colors: currentColors, font });
+              }}
+              titleFont={theme === 'custom' ? customTheme?.titleFont : undefined}
+              onTitleFontChange={(titleFont) => {
                 const currentColors = customTheme?.colors ?? {
                   background: '228 20% 10%',
                   text: '210 40% 98%',

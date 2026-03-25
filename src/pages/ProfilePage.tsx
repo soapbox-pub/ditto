@@ -84,7 +84,7 @@ import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resol
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
-import { FontPicker } from '@/components/FontPicker';
+import { FontSection } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { formatNumber } from '@/lib/formatNumber';
@@ -1401,9 +1401,11 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     () => profileThemeColors ? (profileThemeFont ?? { family: 'Inter' }) : undefined,
     [profileThemeColors, profileThemeFont],
   );
+  // Title font falls back to the body font when not explicitly set,
+  // so the display name inherits the theme's body font rather than the default.
   const effectiveProfileTitleFont = useMemo(
-    () => profileThemeColors ? profileThemeTitleFont : undefined,
-    [profileThemeColors, profileThemeTitleFont],
+    () => profileThemeColors ? (profileThemeTitleFont ?? effectiveProfileFont) : undefined,
+    [profileThemeColors, profileThemeTitleFont, effectiveProfileFont],
   );
   const effectiveProfileBackground = profileThemeColors ? profileThemeBackground : undefined;
 
@@ -2722,18 +2724,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 ))}
               </div>
 
-              {/* Body Font */}
-              <FontPicker
-                label="Body Font"
-                value={localProfileFont}
-                onChange={setLocalProfileFont}
-              />
-
-              {/* Title Font */}
-              <FontPicker
-                label="Title Font"
-                value={localProfileTitleFont}
-                onChange={setLocalProfileTitleFont}
+              {/* Fonts (body + title) */}
+              <FontSection
+                bodyFont={localProfileFont}
+                onBodyFontChange={setLocalProfileFont}
+                titleFont={localProfileTitleFont}
+                onTitleFontChange={setLocalProfileTitleFont}
               />
 
               {/* Background */}
