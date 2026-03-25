@@ -29,6 +29,7 @@ export { useBlobbiCompanionGaze } from './hooks/useBlobbiCompanionGaze';
 export { useBlobbiAttention } from './hooks/useBlobbiAttention';
 export { useBlobbiEntryAnimation } from './hooks/useBlobbiEntryAnimation';
 export { useTypingAttention } from './hooks/useTypingAttention';
+export { useCompanionItemReaction } from './hooks/useCompanionItemReaction';
 
 // ─── Core ─────────────────────────────────────────────────────────────────────
 

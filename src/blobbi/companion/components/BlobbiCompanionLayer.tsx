@@ -17,6 +17,7 @@
 import { useCallback, useState } from 'react';
 
 import { useBlobbiCompanion } from '../hooks/useBlobbiCompanion';
+import { useCompanionItemReaction } from '../hooks/useCompanionItemReaction';
 import { BlobbiCompanion } from './BlobbiCompanion';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { calculateGroundY } from '../utils/movement';
@@ -27,6 +28,7 @@ import {
   HangingItems,
   CATEGORY_TO_ACTION,
   type CompanionItem,
+  type ItemLandedData,
 } from '../interaction';
 import type { Position } from '../types/companion.types';
 
@@ -61,6 +63,7 @@ export function BlobbiCompanionLayer() {
     startDrag,
     updateDrag,
     endDrag,
+    triggerAttention,
   } = useBlobbiCompanion();
   
   const config = DEFAULT_COMPANION_CONFIG;
@@ -73,6 +76,47 @@ export function BlobbiCompanionLayer() {
   const handlePositionUpdate = useCallback((position: Position) => {
     setRenderedPosition(position);
   }, []);
+  
+  // Callback for glancing at items (when Blobbi doesn't need them)
+  const handleGlanceAtItem = useCallback((position: Position) => {
+    triggerAttention(position, {
+      duration: 800,
+      priority: 'low',
+      source: 'item-landed:glance',
+      isGlance: true,
+    });
+  }, [triggerAttention]);
+  
+  // Callback for walking to items (when Blobbi needs them)
+  // For now, we just glance more intensely - full walking behavior 
+  // would require deeper integration with the state machine
+  const handleWalkToItem = useCallback((position: Position) => {
+    // TODO: Implement actual walking behavior via useBlobbiCompanionState
+    // For now, trigger a longer attention to simulate interest
+    triggerAttention(position, {
+      duration: 1500,
+      priority: 'normal',
+      source: 'item-landed:need',
+      isGlance: false, // Use longer cooldown for "interested" attention
+    });
+  }, [triggerAttention]);
+  
+  // Item reaction hook - determines if Blobbi needs items and how to react
+  const { reactToItemLanding } = useCompanionItemReaction({
+    isActive: isVisible && !isEntering,
+    onGlance: handleGlanceAtItem,
+    onWalkTo: handleWalkToItem,
+  });
+  
+  // Handle when an item finishes falling and lands on the ground
+  const handleItemLanded = useCallback((data: ItemLandedData) => {
+    if (import.meta.env.DEV) {
+      console.log('[CompanionLayer] Item landed:', data.item.name, 'at', { x: data.x, y: data.y });
+    }
+    
+    // React to the item landing based on Blobbi's needs
+    reactToItemLanding(data.item.category, { x: data.x, y: data.y });
+  }, [reactToItemLanding]);
   
   // Action menu state
   const {
@@ -309,6 +353,7 @@ export function BlobbiCompanionLayer() {
         companionPosition={renderedPosition}
         companionSize={config.size}
         onItemRelease={handleItemClick}
+        onItemLanded={handleItemLanded}
         onItemUse={handleItemUse}
         isItemOnCooldown={isItemOnCooldown}
       />

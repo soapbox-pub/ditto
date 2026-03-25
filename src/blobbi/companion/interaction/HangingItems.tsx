@@ -76,6 +76,18 @@ interface ItemUseAttemptResult {
   error?: string;
 }
 
+/** Data passed when an item lands */
+export interface ItemLandedData {
+  /** The item that landed */
+  item: CompanionItem;
+  /** Unique instance ID */
+  instanceId: string;
+  /** X position where the item landed */
+  x: number;
+  /** Y position where the item landed */
+  y: number;
+}
+
 /** Props for the HangingItems component */
 interface HangingItemsProps {
   /** Whether to show the hanging items */
@@ -94,8 +106,11 @@ interface HangingItemsProps {
   companionSize?: number;
   /** Callback when an item is clicked/released */
   onItemRelease?: (item: CompanionItem) => void;
-  /** Callback when an item finishes falling and lands */
-  onItemLanded?: (item: CompanionItem) => void;
+  /** 
+   * Callback when an item finishes falling and lands on the ground.
+   * Includes position info for Blobbi to react to.
+   */
+  onItemLanded?: (data: ItemLandedData) => void;
   /** 
    * Callback to use an item. Returns success/failure.
    * Item is only removed from screen if this returns success.
@@ -133,8 +148,12 @@ const HANGING_CONFIG = {
   slideAnimationDuration: 350,
   /** Stagger delay between items during open (ms) */
   staggerDelay: 40,
-  /** Duration of the fall animation (ms) */
-  fallDuration: 600,
+  /** Base fall duration for full-screen falls (ms) - shorter falls scale proportionally */
+  baseFallDuration: 600,
+  /** Minimum fall duration even for very short falls (ms) */
+  minFallDuration: 150,
+  /** Reference fall distance for base duration (pixels) */
+  baseFallDistance: 500,
   /** Ground offset from bottom of viewport */
   defaultGroundOffset: 40,
   /** Size of quantity badge */
@@ -468,6 +487,16 @@ export function HangingItems({
   const blobbiCenterX = companionPosition ? companionPosition.x + companionSize / 2 : 0;
   const blobbiCenterY = companionPosition ? companionPosition.y + companionSize / 2 : 0;
   
+  /**
+   * Calculate fall duration based on distance.
+   * Shorter falls have proportionally shorter durations.
+   */
+  const calculateFallDuration = useCallback((fallDistance: number): number => {
+    const ratio = fallDistance / HANGING_CONFIG.baseFallDistance;
+    const duration = HANGING_CONFIG.baseFallDuration * Math.sqrt(ratio); // sqrt for more natural feel
+    return Math.max(HANGING_CONFIG.minFallDuration, duration);
+  }, []);
+  
   // Animation loop function (defined once, uses refs)
   const runAnimationLoop = useCallback(() => {
     if (isAnimatingRef.current) return; // Already running
@@ -485,7 +514,11 @@ export function HangingItems({
         if (data.state === 'falling') {
           hasActiveFalls = true;
           const elapsed = now - data.fallStartTime;
-          const progress = Math.min(elapsed / HANGING_CONFIG.fallDuration, 1);
+          
+          // Calculate duration based on fall distance for natural feel
+          const fallDistance = data.targetY - data.startY;
+          const fallDuration = calculateFallDuration(fallDistance);
+          const progress = Math.min(elapsed / fallDuration, 1);
           
           // Easing function for natural fall (accelerate then slow)
           const easeProgress = progress < 0.8 
@@ -496,8 +529,14 @@ export function HangingItems({
           
           if (progress >= 1) {
             // Landing complete
-            updates.push({ id, data: { ...data, state: 'landed', y: data.targetY } });
-            onItemLandedRef.current?.(data.item);
+            const landedData = { ...data, state: 'landed' as const, y: data.targetY };
+            updates.push({ id, data: landedData });
+            onItemLandedRef.current?.({
+              item: data.item,
+              instanceId: data.instanceId,
+              x: data.x,
+              y: data.targetY,
+            });
           } else {
             // Update position during fall
             updates.push({ id, data: { ...data, y: newY } });
@@ -833,27 +872,59 @@ export function HangingItems({
       // Attempt to use the item (will remove it on success)
       attemptUseItem(instanceId, itemData.item, 'drag-drop');
     } else {
-      // Dropped elsewhere - keep item at drop position
-      setReleasedItems(prev => {
-        const next = new Map(prev);
-        const current = next.get(instanceId);
-        if (current) {
-          next.set(instanceId, {
-            ...current,
-            state: 'landed',
-            x: dragState.currentX,
-            y: dragState.currentY,
-            dragStartX: undefined,
-            dragStartY: undefined,
-          });
-        }
-        return next;
-      });
+      // Dropped elsewhere - check if we need to apply gravity
+      const dropY = dragState.currentY;
+      const isAboveGround = dropY < groundY;
+      
+      if (isAboveGround) {
+        // Item is above ground - start falling from drop position
+        const now = performance.now();
+        setReleasedItems(prev => {
+          const next = new Map(prev);
+          const current = next.get(instanceId);
+          if (current) {
+            next.set(instanceId, {
+              ...current,
+              state: 'falling',
+              x: dragState.currentX,
+              y: dropY,
+              startY: dropY,
+              targetY: groundY,
+              fallStartTime: now,
+              dragStartX: undefined,
+              dragStartY: undefined,
+            });
+          }
+          return next;
+        });
+        
+        // Start animation loop to handle the fall
+        setTimeout(() => {
+          runAnimationLoop();
+        }, 0);
+      } else {
+        // Already at or below ground - just land it
+        setReleasedItems(prev => {
+          const next = new Map(prev);
+          const current = next.get(instanceId);
+          if (current) {
+            next.set(instanceId, {
+              ...current,
+              state: 'landed',
+              x: dragState.currentX,
+              y: groundY, // Snap to ground
+              dragStartX: undefined,
+              dragStartY: undefined,
+            });
+          }
+          return next;
+        });
+      }
     }
     
     // Reset drag state
     setDragState(initialDragState);
-  }, [dragState, releasedItems, attemptUseItem]);
+  }, [dragState, releasedItems, attemptUseItem, groundY, runAnimationLoop]);
   
   // Handle hanging item click - release one instance of the item
   const handleItemClick = useCallback((item: CompanionItem, xPosition: number) => {

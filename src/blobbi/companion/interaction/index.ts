@@ -30,6 +30,9 @@ export type {
   ClickDetectionConfig,
 } from './types';
 
+// HangingItems types
+export type { ItemLandedData } from './HangingItems';
+
 export {
   MENU_ACTIONS,
   INITIAL_MENU_STATE,
@@ -81,3 +84,18 @@ export {
 // Components
 export { CompanionActionMenu } from './CompanionActionMenu';
 export { HangingItems } from './HangingItems';
+
+// Need Detection
+export {
+  NEED_THRESHOLDS,
+  checkStatNeed,
+  checkItemCategoryNeed,
+  getAllNeeds,
+  hasCriticalNeed,
+  hasAnyNeed,
+} from './needDetection';
+
+export type {
+  NeedPriority,
+  NeedCheckResult,
+} from './needDetection';
