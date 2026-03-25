@@ -305,16 +305,6 @@ export function FontSection({ bodyFont, onBodyFontChange, titleFont, onTitleFont
   titleFont?: ThemeFont | undefined;
   onTitleFontChange?: (font: ThemeFont | undefined) => void;
 }) {
-  const bodyFamily = bodyFont ? resolveCssFamily(bodyFont.family) : undefined;
-  const titleFamily = titleFont ? resolveCssFamily(titleFont.family) : undefined;
-
-  // Resolve display families for the preview.
-  // Title falls back to body, body falls back to default.
-  const previewTitleFamily = titleFamily ?? bodyFamily;
-  const previewBodyFamily = bodyFamily;
-
-  const hasAnyFont = bodyFont || titleFont;
-
   return (
     <div className="space-y-3">
       <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
@@ -337,24 +327,6 @@ export function FontSection({ bodyFont, onBodyFontChange, titleFont, onTitleFont
           </div>
         </div>
       </div>
-
-      {/* Combined live preview */}
-      {hasAnyFont && (
-        <div className="rounded-lg border border-border bg-card/50 px-3.5 py-3 space-y-0.5 transition-all">
-          <p
-            className="text-base font-bold truncate leading-tight"
-            style={previewTitleFamily ? { fontFamily: `"${previewTitleFamily}", sans-serif` } : undefined}
-          >
-            Display Name
-          </p>
-          <p
-            className="text-xs text-muted-foreground leading-snug"
-            style={previewBodyFamily ? { fontFamily: `"${previewBodyFamily}", sans-serif` } : undefined}
-          >
-            This is how body text looks on your profile.
-          </p>
-        </div>
-      )}
     </div>
   );
 }
