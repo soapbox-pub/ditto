@@ -6,7 +6,6 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
-import { NoteCard } from '@/components/NoteCard';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { VanishCardCompact } from '@/components/VanishEventContent';
 import { useEvent } from '@/hooks/useEvent';
@@ -20,9 +19,6 @@ import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_REGEX, extractVideoUrls, extractAudioU
 
 /** NIP-62 Request to Vanish. */
 const VANISH_KIND = 62;
-
-/** Kinds that render as a full NoteCard instead of the generic embed card. */
-const NOTECARD_KINDS = new Set([30000, 39089, 15128]);
 
 /** Bech32 charset used by NIP-19 identifiers. */
 const B32 = '023456789acdefghjklmnpqrstuvwxyz';
@@ -95,15 +91,6 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
     return <EmbeddedNoteTombstone eventId={eventId} relays={relays} authorHint={authorHint} className={className} />;
   }
 
-  // For follow packs / lists, render the same rich NoteCard used in feeds
-  if (NOTECARD_KINDS.has(event.kind)) {
-    return (
-      <div className={className} onClick={(e) => e.stopPropagation()}>
-        <NoteCard event={event} compact className="rounded-2xl border border-border !border-b overflow-hidden" />
-      </div>
-    );
-  }
-
   // NIP-62 vanish events get their own dramatic inline card
   if (event.kind === VANISH_KIND) {
     return <EmbeddedVanishCardWrapper event={event} className={className} />;
@@ -148,6 +135,16 @@ function EmbeddedNoteCard({
     if (cleaned.length <= MAX_CONTENT_LENGTH) return cleaned;
     return cleaned.slice(0, MAX_CONTENT_LENGTH).trimEnd() + '…';
   }, [event.content]);
+
+  // For non-text kinds with empty content, extract title/description from tags
+  const tagMeta = useMemo(() => {
+    if (truncatedContent) return undefined;
+    const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
+    const title = getTag('title') || getTag('name') || getTag('d');
+    const description = getTag('summary') || getTag('description');
+    if (!title && !description) return undefined;
+    return { title, description };
+  }, [truncatedContent, event.tags]);
 
   // Extract first image for a small thumbnail
   const firstImage = useMemo(() => {
@@ -255,13 +252,22 @@ function EmbeddedNoteCard({
           </span>
         </div>
 
-        {/* Content warning notice or text preview */}
+        {/* Content warning notice or text preview or tag-based metadata */}
         {hasCW && config.contentWarningPolicy === 'blur' ? (
           <p className="text-xs text-muted-foreground italic">
             Content warning{cwTag?.[1] ? <>{' '}&ldquo;{cwTag[1]}&rdquo;</> : ''}
           </p>
         ) : truncatedContent ? (
           <EmbedContentPreview text={truncatedContent} disableHoverCards={disableHoverCards} />
+        ) : tagMeta ? (
+          <>
+            {tagMeta.title && (
+              <p className="text-sm font-semibold leading-snug line-clamp-2">{tagMeta.title}</p>
+            )}
+            {tagMeta.description && (
+              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{tagMeta.description}</p>
+            )}
+          </>
         ) : null}
 
         {/* Attachment indicators for stripped media/links */}

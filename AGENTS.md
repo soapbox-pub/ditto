@@ -289,16 +289,14 @@ When adding support for a new Nostr event kind to the application, the kind must
    - Add the kind number to an existing feed definition's `extraFeedKinds` array, or create a new `ExtraKindDef` entry
 
 5. **Kind label registries** -- these are separate maps that resolve kind numbers to human-readable strings. All must be updated:
-   - `getKindLabel()` in `src/components/CommentContext.tsx` -- used for "Commenting on an nsite" text
+   - `KIND_LABELS` and `KIND_ICONS` in `src/components/CommentContext.tsx` -- used for "Commenting on an nsite" text and inline icons
    - `WELL_KNOWN_KIND_LABELS` in `src/components/ExternalContentHeader.tsx` -- used in addressable event preview headers
    - The icon fallback in `AddressableEventPreview` in the same file
 
-6. **Inline embeds / quote posts** -- events can be quoted inline via `nostr:nevent1...` or `nostr:naddr1...` URIs in note content:
-   - `src/components/EmbeddedNote.tsx` -- for non-addressable kinds: add to `NOTECARD_KINDS` set so it renders the full NoteCard (with your card component inside) instead of trying to show `event.content` as text
-   - `src/components/EmbeddedNaddr.tsx` -- for addressable kinds: same pattern, add to `NOTECARD_KINDS`
+6. **Inline embeds / quote posts** -- events can be quoted inline via `nostr:nevent1...` or `nostr:naddr1...` URIs in note content. Both `EmbeddedNote` and `EmbeddedNaddr` render a compact card (author + title/content preview) for all kinds automatically — no per-kind registration needed. The same components are reused by CommentContext hover cards and the reply composer.
 
 7. **Reply composer** (`src/components/ReplyComposeModal.tsx`):
-   - Add a kind check in the `EmbeddedPost` component so the reply-to preview shows the card component instead of empty/raw content
+   - The `EmbeddedPost` component delegates to the shared `EmbeddedNote`/`EmbeddedNaddr` components — no per-kind registration needed
 
 #### Why so many places?
 

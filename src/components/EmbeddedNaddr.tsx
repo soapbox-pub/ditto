@@ -6,7 +6,6 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
-import { NoteCard } from '@/components/NoteCard';
 import { parseBadgeDefinition } from '@/components/BadgeContent';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -14,9 +13,6 @@ import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
-
-/** Kinds that render as a full NoteCard instead of a generic embed. */
-const NOTECARD_KINDS = new Set([30000, 39089, 35128]);
 
 interface EmbeddedNaddrProps {
   /** The decoded naddr coordinates. */
@@ -70,15 +66,6 @@ export function EmbeddedNaddr({ addr, className }: EmbeddedNaddrProps) {
 
   if (isError || !event) {
     return <EmbeddedNaddrTombstone addr={addr} className={className} />;
-  }
-
-  // For follow packs / starter packs, render the same NoteCard used in feeds (without actions)
-  if (NOTECARD_KINDS.has(event.kind)) {
-    return (
-      <div className={className} onClick={(e) => e.stopPropagation()}>
-        <NoteCard event={event} compact className="rounded-2xl border border-border !border-b overflow-hidden" />
-      </div>
-    );
   }
 
   // Badge definitions get a compact showcase instead of a link-preview card
