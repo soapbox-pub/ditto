@@ -51,6 +51,8 @@ interface UseBlobbiCompanionResult {
   entryProgress: number;
   /** Full entry animation state with phase info */
   entryState: EntryState;
+  /** Whether entry was resolved from stuck_permanent (affects position handoff) */
+  wasResolvedFromStuck: boolean;
   /** Current inspection direction during entry (for rendering) */
   inspectionDirection: InspectionDirection | null;
   /** Ground position for vertical entry (center of screen, at ground level) */
@@ -302,6 +304,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     isEntering,
     entryProgress: entryState.progress,
     entryState,
+    wasResolvedFromStuck,
     inspectionDirection: currentInspectionDirection,
     groundPosition,
     viewport,

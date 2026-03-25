@@ -44,6 +44,8 @@ interface BlobbiCompanionProps {
   entryProgress: number;
   /** Full entry animation state with phase info */
   entryState: EntryState;
+  /** Whether entry was resolved from stuck_permanent (affects position handoff) */
+  wasResolvedFromStuck?: boolean;
   /** Ground position for vertical entry (center of screen) */
   groundPosition: Position;
   /** Viewport dimensions */
@@ -70,6 +72,7 @@ export function BlobbiCompanion({
   isEntering,
   entryProgress: _entryProgress,
   entryState,
+  wasResolvedFromStuck = false,
   groundPosition,
   viewport,
   onStartDrag,
@@ -122,9 +125,11 @@ export function BlobbiCompanion({
   // Use entry animation position while:
   // - isEntering is true (animation actively playing), OR
   // - entryState.phase is not 'idle' (animation just completed but position not yet synced)
-  // This prevents the "snap to ground" bug where isEntering becomes false before
-  // motion.position is synced to the final entry position.
-  const useEntryPosition = isEntering || entryState.phase !== 'idle';
+  // EXCEPTION: When entry was resolved from stuck (user dragged to rescue), skip entry position
+  // for 'complete' phase since motion.position has the correct drag release position.
+  // This prevents the visual flash where 'complete' phase returns groundPosition.
+  const isCompletedFromStuck = wasResolvedFromStuck && entryState.phase === 'complete';
+  const useEntryPosition = (isEntering || entryState.phase !== 'idle') && !isCompletedFromStuck;
   
   if (useEntryPosition && !motion.isDragging) {
     // Calculate vertical entry animation based on entry type
@@ -163,6 +168,7 @@ export function BlobbiCompanion({
     y = motion.position.y;
   } else {
     // Normal behavior - position from motion, animation handled by floatOffset
+    // This also handles stuck rescue: motion.position has the drag release position
     x = motion.position.x;
     y = motion.position.y;
   }
