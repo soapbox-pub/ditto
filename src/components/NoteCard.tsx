@@ -5,6 +5,7 @@ import {
   FileText,
   GitBranch,
   GitPullRequest,
+  Mail,
   MessageCircle,
   Rocket,
   MoreHorizontal,
@@ -64,6 +65,7 @@ import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
+import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { VanishCardCompact } from "@/components/VanishEventContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -261,6 +263,7 @@ export const NoteCard = memo(function NoteCard({
   const isCustomNip = event.kind === 30817;
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
+  const isEncryptedDM = event.kind === 4;
   const isVanish = event.kind === 62;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
@@ -285,6 +288,7 @@ export const NoteCard = memo(function NoteCard({
     !isAudioKind &&
     !isDevKind &&
     !isZapstoreApp &&
+    !isEncryptedDM &&
     !isVanish;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
@@ -470,6 +474,8 @@ export const NoteCard = memo(function NoteCard({
           <NsiteCard event={event} />
         ) : isZapstoreApp ? (
           <ZapstoreAppContent event={event} compact />
+        ) : isEncryptedDM ? (
+          <EncryptedMessageContent event={event} compact />
         ) : (
           <TruncatedNoteContent
             event={event}
@@ -1557,7 +1563,7 @@ function FollowPackAuthorLine({ pubkey, createdAt }: { pubkey: string; createdAt
   );
 }
 
-interface EventActionHeaderProps {
+export interface EventActionHeaderProps {
   /** Pubkey of the person performing the action. */
   pubkey: string;
   /** Lucide icon component shown to the left of the author name. */
@@ -1583,6 +1589,11 @@ interface KindHeaderConfig {
 }
 
 const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
+  4: {
+    icon: Mail,
+    action: "sent an",
+    noun: "encrypted message",
+  },
   37516: {
     icon: ChestIcon,
     action: "hid a",
@@ -1682,7 +1693,7 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
 };
 
 /** Generic action header: icon · [author name] [action] [linked noun] */
-function EventActionHeader({
+export function EventActionHeader({
   pubkey,
   icon: Icon,
   iconClassName,

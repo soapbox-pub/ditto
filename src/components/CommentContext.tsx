@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, BookOpen, Camera, Clapperboard, FileText, Film,
-  GitBranch, GitPullRequest, MapPin, MessageSquare, Mic, Music,
+  GitBranch, GitPullRequest, Mail, MapPin, MessageSquare, Mic, Music,
   Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -79,6 +79,7 @@ function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
  */
 const KIND_LABELS: Record<number, string> = {
   1: 'a post',
+  4: 'an encrypted message',
   6: 'a repost',
   7: 'a reaction',
   16: 'a repost',
@@ -124,6 +125,7 @@ const KIND_LABELS: Record<number, string> = {
 /** Kind-specific icons — matches sidebar and NoteCard icons. */
 const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: string }>>> = {
   1: MessageSquare,
+  4: Mail,
   20: Camera,
   21: Film,
   22: Film,
