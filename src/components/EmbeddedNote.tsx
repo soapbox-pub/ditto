@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { VanishCardCompact } from '@/components/VanishEventContent';
+import { EncryptedMessageCompact } from '@/components/EncryptedMessageContent';
 import { useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -95,6 +96,11 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
   // NIP-62 vanish events get their own dramatic inline card
   if (event.kind === VANISH_KIND) {
     return <EmbeddedVanishCardWrapper event={event} className={className} />;
+  }
+
+  // Kind 4 encrypted DMs get a compact card instead of rendering ciphertext
+  if (event.kind === 4) {
+    return <EncryptedMessageCompact event={event} className={className} />;
   }
 
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} />;
