@@ -91,45 +91,65 @@ export function BlobbiCompanionLayer() {
     },
   });
   
-  // Get Blobbi actions from context (provided by parent, e.g., BlobbiPage)
-  const { useItem: contextUseItem, canUseItems } = useBlobbiActions();
+  // Get Blobbi actions from context
+  // This now works even when BlobbiPage is not mounted (uses built-in fallback)
+  const { 
+    useItem: contextUseItem, 
+    canUseItems, 
+    isItemOnCooldown 
+  } = useBlobbiActions();
   
   /**
    * Handle item use - called when item contacts Blobbi or is clicked.
    * Uses the BlobbiActionsContext to perform the actual item use.
    * Returns success/failure to control whether item is removed from screen.
+   * 
+   * Now works from any page (not just /blobbi) thanks to the built-in
+   * fallback in BlobbiActionsContext.
    */
   const handleItemUse = useCallback(async (item: CompanionItem): Promise<{ success: boolean; error?: string }> => {
     // Resolve the action from the item category
     const action = CATEGORY_TO_ACTION[item.category];
     
     if (!action) {
-      console.warn('[CompanionLayer] No action for item category:', item.category);
+      if (import.meta.env.DEV) {
+        console.warn('[CompanionLayer] No action for item category:', item.category);
+      }
       return { success: false, error: `Cannot use ${item.category} items` };
     }
     
     if (!canUseItems) {
-      console.warn('[CompanionLayer] Cannot use items - context not available');
-      return { success: false, error: 'Item use not available' };
+      if (import.meta.env.DEV) {
+        console.warn('[CompanionLayer] Cannot use items - no companion selected');
+      }
+      return { success: false, error: 'No companion selected' };
     }
     
-    console.log('[CompanionLayer] Using item:', item.name, 'with action:', action);
+    if (import.meta.env.DEV) {
+      console.log('[CompanionLayer] Using item:', item.name, 'with action:', action);
+    }
     
     try {
       const result = await contextUseItem(item.id, action, 1);
       
       if (result.success) {
-        console.log('[CompanionLayer] Item used successfully:', item.name, result.statsChanged);
+        if (import.meta.env.DEV) {
+          console.log('[CompanionLayer] Item used successfully:', item.name, result.statsChanged);
+        }
         // Close the menu after successful use
         closeMenu();
         return { success: true };
       } else {
-        console.warn('[CompanionLayer] Item use failed:', result.error);
+        if (import.meta.env.DEV) {
+          console.warn('[CompanionLayer] Item use failed:', result.error);
+        }
         return { success: false, error: result.error };
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[CompanionLayer] Item use error:', errorMessage);
+      if (import.meta.env.DEV) {
+        console.error('[CompanionLayer] Item use error:', errorMessage);
+      }
       return { success: false, error: errorMessage };
     }
   }, [canUseItems, contextUseItem, closeMenu]);
@@ -290,6 +310,7 @@ export function BlobbiCompanionLayer() {
         companionSize={config.size}
         onItemRelease={handleItemClick}
         onItemUse={handleItemUse}
+        isItemOnCooldown={isItemOnCooldown}
       />
     </div>
   );
