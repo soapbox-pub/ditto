@@ -66,21 +66,19 @@ function familyFromFilename(filename: string): string {
 }
 
 /**
- * Font picker component for selecting a single custom font.
+ * Bare font picker combobox — no section header, no preview text.
  *
  * Supports two modes:
- * - **Uncontrolled** (default): reads/writes via `useTheme().applyCustomTheme()`
+ * - **Uncontrolled** (default): reads/writes the body font via `useTheme().applyCustomTheme()`
  * - **Controlled**: pass `value` and `onChange` props to manage state externally
  *
  * Also supports uploading a custom font file via Blossom.
  */
-export function FontPicker({ value, onChange, label: labelText = 'Font' }: {
+export function FontPicker({ value, onChange }: {
   /** Controlled value — overrides useTheme() when provided. */
   value?: ThemeFont | undefined;
   /** Controlled onChange — called instead of applyCustomTheme() when provided. */
   onChange?: (font: ThemeFont | undefined) => void;
-  /** Label text shown above the picker. Defaults to "Font". */
-  label?: string;
 } = {}) {
   const { theme, customTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
@@ -171,12 +169,7 @@ export function FontPicker({ value, onChange, label: labelText = 'Font' }: {
   };
 
   return (
-    <div className="space-y-2">
-      <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-        <Type className="size-3.5" />
-        {labelText}
-      </span>
-
+    <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -287,14 +280,71 @@ export function FontPicker({ value, onChange, label: labelText = 'Font' }: {
         className="hidden"
         onChange={handleFileUpload}
       />
+    </>
+  );
+}
 
-      {currentFont && (
-        <p
-          className="text-sm text-muted-foreground"
-          style={{ fontFamily: `"${resolveCssFamily(currentFont.family)}", sans-serif` }}
-        >
-          The quick brown fox jumps over the lazy dog.
-        </p>
+/**
+ * Unified font section with body + title pickers and a live preview.
+ *
+ * Shows a single "Fonts" header, two labeled rows (Body / Title),
+ * and a combined preview showing both fonts in context.
+ */
+export function FontSection({ bodyFont, onBodyFontChange, titleFont, onTitleFontChange }: {
+  bodyFont?: ThemeFont | undefined;
+  onBodyFontChange?: (font: ThemeFont | undefined) => void;
+  titleFont?: ThemeFont | undefined;
+  onTitleFontChange?: (font: ThemeFont | undefined) => void;
+}) {
+  const bodyFamily = bodyFont ? resolveCssFamily(bodyFont.family) : undefined;
+  const titleFamily = titleFont ? resolveCssFamily(titleFont.family) : undefined;
+
+  // Resolve display families for the preview.
+  // Title falls back to body, body falls back to default.
+  const previewTitleFamily = titleFamily ?? bodyFamily;
+  const previewBodyFamily = bodyFamily;
+
+  const hasAnyFont = bodyFont || titleFont;
+
+  return (
+    <div className="space-y-3">
+      <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+        <Type className="size-3.5" />
+        Fonts
+      </span>
+
+      {/* Two-row picker layout */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground w-10 shrink-0">Body</span>
+          <div className="flex-1">
+            <FontPicker value={bodyFont} onChange={onBodyFontChange} />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground w-10 shrink-0">Title</span>
+          <div className="flex-1">
+            <FontPicker value={titleFont} onChange={onTitleFontChange} />
+          </div>
+        </div>
+      </div>
+
+      {/* Combined live preview */}
+      {hasAnyFont && (
+        <div className="rounded-lg border border-border bg-card/50 px-3.5 py-3 space-y-0.5 transition-all">
+          <p
+            className="text-base font-bold truncate leading-tight"
+            style={previewTitleFamily ? { fontFamily: `"${previewTitleFamily}", sans-serif` } : undefined}
+          >
+            Display Name
+          </p>
+          <p
+            className="text-xs text-muted-foreground leading-snug"
+            style={previewBodyFamily ? { fontFamily: `"${previewBodyFamily}", sans-serif` } : undefined}
+          >
+            This is how body text looks on your profile.
+          </p>
+        </div>
       )}
     </div>
   );
