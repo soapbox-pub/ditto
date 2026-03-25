@@ -113,6 +113,10 @@ export function useBlobbiEntryAnimation({
   const routeChangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasCompletedFirstEntryRef = useRef(false);
   
+  // Track if user has started dragging during stuck_permanent phase
+  // This prevents auto-resolving stuck state before user actually drags
+  const hasDraggedDuringStuckRef = useRef(false);
+  
   /**
    * Calculate total duration for the current entry type (normal flow).
    */
@@ -227,11 +231,35 @@ export function useBlobbiEntryAnimation({
   }, [entryState.phase]);
   
   /**
-   * Handle drag release when permanently stuck.
+   * Reset drag tracking when entering stuck_permanent phase.
    */
   useEffect(() => {
-    // When user releases drag while permanently stuck, resolve the stuck state
-    if (entryState.phase === 'stuck_permanent' && !isDragging) {
+    if (entryState.phase === 'stuck_permanent') {
+      // Reset drag tracking when becoming stuck
+      hasDraggedDuringStuckRef.current = false;
+    }
+  }, [entryState.phase]);
+  
+  /**
+   * Track when user starts dragging during stuck_permanent.
+   */
+  useEffect(() => {
+    if (entryState.phase === 'stuck_permanent' && isDragging) {
+      // User started dragging while stuck - mark it so we know to resolve on release
+      hasDraggedDuringStuckRef.current = true;
+    }
+  }, [entryState.phase, isDragging]);
+  
+  /**
+   * Handle drag release when permanently stuck.
+   * Only resolves if user has actually dragged (not just because isDragging starts as false).
+   */
+  useEffect(() => {
+    // Only resolve if:
+    // 1. We're in stuck_permanent phase
+    // 2. User has started dragging at least once during this stuck state
+    // 3. User has now released the drag
+    if (entryState.phase === 'stuck_permanent' && hasDraggedDuringStuckRef.current && !isDragging) {
       // Small delay to let the drag release settle
       const timeout = setTimeout(() => {
         resolvePermanentStuck();
