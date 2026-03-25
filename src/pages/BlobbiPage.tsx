@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X, Footprints } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X, Footprints, Wrench } from 'lucide-react';
 // TODO: Re-import when features are implemented: Footprints, PictureInPicture2
 // Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
 // Note: Sparkles kept for BlobbiBottomBar center action button
@@ -81,6 +81,7 @@ import {
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
+import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates } from '@/blobbi/dev';
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -462,6 +463,21 @@ function BlobbiContent() {
     await executeDirectAction({ action });
   }, [executeDirectAction]);
   
+  // ─── DEV ONLY: State Editor Hook ───
+  const { mutateAsync: executeDevUpdate, isPending: isDevUpdating } = useBlobbiDevUpdate({
+    companion,
+    updateCompanionEvent,
+    invalidateCompanion,
+  });
+  
+  // State for dev editor modal
+  const [showDevEditor, setShowDevEditor] = useState(false);
+  
+  // Handler for dev editor apply
+  const handleDevEditorApply = useCallback(async (updates: BlobbiDevUpdates) => {
+    await executeDevUpdate(updates);
+  }, [executeDevUpdate]);
+  
   // ─── Determine UI State ───
   // Clear separation of cases based on profile and pet data
   
@@ -691,6 +707,11 @@ function BlobbiContent() {
       invalidateCompanion={invalidateCompanion}
       setStoredSelectedD={setStoredSelectedD}
       ensureCanonicalBeforeAction={ensureCanonicalBeforeAction}
+      // DEV ONLY: State editor props
+      showDevEditor={showDevEditor}
+      setShowDevEditor={setShowDevEditor}
+      onDevEditorApply={handleDevEditorApply}
+      isDevUpdating={isDevUpdating}
     />
   );
 }
@@ -760,6 +781,11 @@ interface BlobbiDashboardProps {
     profileAllTags: string[][];
     profileStorage: import('@/lib/blobbi').StorageItem[];
   } | null>;
+  // DEV ONLY: State editor props
+  showDevEditor: boolean;
+  setShowDevEditor: (show: boolean) => void;
+  onDevEditorApply: (updates: BlobbiDevUpdates) => Promise<void>;
+  isDevUpdating: boolean;
 }
 
 function BlobbiDashboard({
@@ -789,6 +815,11 @@ function BlobbiDashboard({
   invalidateCompanion,
   setStoredSelectedD,
   ensureCanonicalBeforeAction,
+  // DEV ONLY
+  showDevEditor,
+  setShowDevEditor,
+  onDevEditorApply,
+  isDevUpdating,
 }: BlobbiDashboardProps) {
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
@@ -1293,6 +1324,8 @@ function BlobbiDashboard({
           isEvolutionAction={canStartEvolution}
           // DEV ONLY: Instant stage transition (bypasses tasks)
           onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
+          // DEV ONLY: Open state editor modal
+          onDevOpenEditor={() => setShowDevEditor(true)}
         />
         
         {/* Blobbi Name */}
@@ -1611,6 +1644,17 @@ function BlobbiDashboard({
         onConfirm={handleStartEvolution}
         isPending={isStartingEvolution}
       />
+      
+      {/* DEV ONLY: Blobbi State Editor Modal */}
+      {import.meta.env.DEV && (
+        <BlobbiDevEditor
+          isOpen={showDevEditor}
+          onClose={() => setShowDevEditor(false)}
+          companion={companion}
+          onApply={onDevEditorApply}
+          isUpdating={isDevUpdating}
+        />
+      )}
     </DashboardShell>
   );
 }
@@ -1680,6 +1724,8 @@ interface BlobbiDashboardFloatingControlsProps {
   isEvolutionAction?: boolean;
   /** DEV ONLY: Instant stage transition callback (bypasses tasks) */
   onDevInstantTransition?: () => void;
+  /** DEV ONLY: Open state editor callback */
+  onDevOpenEditor?: () => void;
 }
 
 /**
@@ -1732,6 +1778,7 @@ function BlobbiDashboardFloatingControls({
   isIncubationAction = false,
   isEvolutionAction = false,
   onDevInstantTransition,
+  onDevOpenEditor,
 }: BlobbiDashboardFloatingControlsProps) {
   // Left-side buttons
   const leftButtons: FloatingActionDef[] = [
@@ -1870,6 +1917,28 @@ function BlobbiDashboardFloatingControls({
             <TooltipContent side="left">
               <p className="text-amber-600 dark:text-amber-400">
                 {stage === 'egg' ? 'Dev Hatch' : 'Dev Evolve'}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+        
+        {/* DEV ONLY: State editor button */}
+        {/* Opens a modal to directly edit Blobbi state */}
+        {import.meta.env.DEV && onDevOpenEditor && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onDevOpenEditor}
+                className="size-10 rounded-full bg-amber-500/10 backdrop-blur-sm border-dashed border-amber-500/50 hover:bg-amber-500/20 hover:border-amber-500/70 transition-all shadow-sm text-amber-600 dark:text-amber-400"
+              >
+                <Wrench className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p className="text-amber-600 dark:text-amber-400">
+                Dev State Editor
               </p>
             </TooltipContent>
           </Tooltip>
