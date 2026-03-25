@@ -2,7 +2,10 @@ import type React from 'react';
 import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
-import { BookOpen, MapPin, Rocket } from 'lucide-react';
+import {
+  Award, BookOpen, FileText, Globe, Layers, MapPin, MessageSquare, Mic,
+  Package, Palette, Radio, Rocket, SmilePlus, Users,
+} from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
@@ -65,19 +68,76 @@ function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
   return undefined;
 }
 
-/** Hardcoded kind-to-label map for kinds not covered by EXTRA_KINDS. */
+/** Hardcoded kind-to-label map for fallback when the event hasn't loaded. */
 const KIND_LABELS: Record<number, string> = {
+  1: 'a post',
   7: 'a reaction',
+  20: 'a photo',
+  21: 'a video',
+  22: 'a short video',
+  1063: 'a file',
+  1068: 'a poll',
+  1111: 'a comment',
+  1222: 'a voice message',
+  1617: 'a patch',
+  1618: 'a pull request',
   15128: 'an nsite',
   35128: 'an nsite',
-  32267: 'an app',
+  30008: 'profile badges',
+  30009: 'a badge',
+  30023: 'an article',
+  30030: 'an emoji pack',
+  30054: 'a podcast episode',
+  30055: 'a podcast trailer',
   30063: 'a release',
+  30311: 'a stream',
+  30617: 'a repository',
+  30817: 'a custom NIP',
+  31922: 'a calendar event',
+  31923: 'a calendar event',
+  32267: 'an app',
+  34236: 'a vine',
+  34550: 'a community',
+  36767: 'a theme',
+  16767: 'a theme',
+  36787: 'a track',
+  34139: 'a playlist',
+  37381: 'a Magic deck',
+  37516: 'a geocache',
+  39089: 'a follow pack',
+  3367: 'a color moment',
+  7516: 'a found log',
 };
 
 /** Kind-specific icons. */
 const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: string }>>> = {
+  1: MessageSquare,
+  20: Globe,
+  21: Globe,
+  22: Globe,
+  1063: FileText,
+  1068: Layers,
+  1222: Mic,
+  1617: FileText,
+  1618: FileText,
   15128: Rocket,
   35128: Rocket,
+  30008: Award,
+  30009: Award,
+  30023: FileText,
+  30030: SmilePlus,
+  30054: Radio,
+  30055: Radio,
+  30063: Package,
+  30311: Radio,
+  30617: Globe,
+  32267: Package,
+  34236: Globe,
+  36767: Palette,
+  16767: Palette,
+  36787: Globe,
+  37381: Globe,
+  39089: Users,
 };
 
 /**
@@ -110,6 +170,27 @@ function getRootKindLabel(rootKind: string | undefined): string {
   return getKindLabel(kindNum);
 }
 
+/** Suffix that describes the kind, appended after a title (e.g. "Wet Dry World theme"). */
+const KIND_SUFFIXES: Partial<Record<number, string>> = {
+  30009: 'badge',
+  30030: 'emoji pack',
+  36767: 'theme',
+  16767: 'theme',
+  39089: 'follow pack',
+  37381: 'deck',
+  37516: 'geocache',
+  34550: 'community',
+  30054: 'episode',
+  30055: 'trailer',
+  34139: 'playlist',
+};
+
+/** Postfix that replaces the default pattern (e.g. "Ditto on Zapstore" instead of "Ditto app"). */
+const KIND_POSTFIXES: Partial<Record<number, string>> = {
+  32267: 'on Zapstore',
+  30063: 'release',
+};
+
 /** Get a display name for an event based on its kind and tags. */
 function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.ComponentType<{ className?: string }> } {
   const icon = KIND_ICONS[event.kind];
@@ -122,17 +203,26 @@ function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.Co
     return { text: siteName ? `${siteName} nsite` : 'an nsite', icon };
   }
 
-  // Try title tag first (used by articles, themes, follow packs, etc.)
+  // Extract a title-like string from tags
   const title = event.tags.find(([name]) => name === 'title')?.[1];
-  if (title) return { text: title, icon };
-
-  // Try name tag (used by communities, emoji packs, etc.)
   const name = event.tags.find(([name]) => name === 'name')?.[1];
-  if (name) return { text: name, icon };
-
-  // Try d tag (addressable events use this as an identifier)
   const dTag = event.tags.find(([name]) => name === 'd')?.[1];
-  if (dTag) return { text: dTag, icon };
+  const displayTitle = title || name || dTag;
+
+  // Kinds with a custom postfix (e.g. "Ditto on Zapstore")
+  const postfix = KIND_POSTFIXES[event.kind];
+  if (postfix && displayTitle) {
+    return { text: `${displayTitle} ${postfix}`, icon };
+  }
+
+  // Kinds with a suffix (e.g. "Beagle Owner badge", "Wet Dry World theme")
+  const suffix = KIND_SUFFIXES[event.kind];
+  if (suffix && displayTitle) {
+    return { text: `${displayTitle} ${suffix}`, icon };
+  }
+
+  // Generic: just use the title if available
+  if (displayTitle) return { text: displayTitle, icon };
 
   // Fall back to kind label
   return { text: getKindLabel(event.kind), icon };
@@ -276,6 +366,11 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
     return <ProfileCommentContext pubkey={root.addr.pubkey} className={className} />;
   }
 
+  // Kind 30008 (profile badges) roots — show "@User's profile badges"
+  if (root.addr?.kind === 30008) {
+    return <ProfileBadgesCommentContext root={root} className={className} />;
+  }
+
   return <GenericAddrCommentContext root={root} className={className} />;
 }
 
@@ -297,6 +392,55 @@ function ProfileCommentContext({ pubkey, className }: { pubkey: string; classNam
           @{displayName}
         </Link>
       </ProfileHoverCard>
+    </CommentContextRow>
+  );
+}
+
+/** Comment context for kind 30008 (profile badges) roots — shows "Commenting on @User's profile badges". */
+function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
+  const pubkey = root.addr?.pubkey ?? '';
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name ?? genUserName(pubkey);
+  const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
+
+  // Build naddr link for the profile badges event
+  const link = useMemo(() => {
+    if (!root.addr) return undefined;
+    try { return `/${nip19.naddrEncode({ kind: root.addr.kind, pubkey: root.addr.pubkey, identifier: root.addr.identifier })}`; } catch { return undefined; }
+  }, [root.addr]);
+
+  // Hover content for the addressable event
+  const hoverContent = root.addr ? (
+    <EmbeddedNaddr
+      addr={{ kind: root.addr.kind, pubkey: root.addr.pubkey, identifier: root.addr.identifier }}
+      className="border-0 rounded-none"
+    />
+  ) : undefined;
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className} loading={author.isLoading}>
+      <ProfileHoverCard pubkey={pubkey} asChild>
+        <Link
+          to={`/${npubEncoded}`}
+          className="text-primary hover:underline truncate"
+          onClick={(e) => e.stopPropagation()}
+        >
+          @{displayName}
+        </Link>
+      </ProfileHoverCard>
+      {link && hoverContent ? (
+        <>
+          <span className="shrink-0">'s</span>
+          <EventHoverLink
+            display={{ text: 'profile badges', icon: Award }}
+            link={link}
+            hoverContent={hoverContent}
+          />
+        </>
+      ) : (
+        <span className="truncate">'s profile badges</span>
+      )}
     </CommentContextRow>
   );
 }
@@ -366,7 +510,7 @@ function EventCommentContext({ root, className }: { root: CommentRoot; className
   );
 }
 
-/** Comment context for kind 7 reaction roots — shows "Commenting on {emoji} by {name}". */
+/** Comment context for kind 7 reaction roots — shows "Commenting on {emoji} by @{name}". */
 function ReactionCommentContext({ event, className }: { event: NostrEvent; className?: string }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -393,7 +537,7 @@ function ReactionCommentContext({ event, className }: { event: NostrEvent; class
             className="text-primary hover:underline truncate cursor-pointer"
             onClick={(e) => e.stopPropagation()}
           >
-            {displayName}
+            @{displayName}
           </Link>
         </ProfileHoverCard>
       )}
@@ -548,9 +692,10 @@ function IsbnCommentContext({ identifier, className }: { identifier: string; cla
         <HoverCardTrigger asChild>
           <Link
             to={link}
-            className="text-primary hover:underline truncate cursor-pointer"
+            className="inline-flex items-center gap-1 text-primary hover:underline truncate cursor-pointer"
             onClick={(e) => e.stopPropagation()}
           >
+            <BookOpen className="size-3.5 shrink-0" />
             {displayText}
           </Link>
         </HoverCardTrigger>
