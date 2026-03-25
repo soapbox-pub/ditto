@@ -9,11 +9,11 @@ import {
   Rocket,
   MoreHorizontal,
   Package,
-  Palette,
   Play,
   Radio,
   Share2,
   SmilePlus,
+  Sparkles,
   Users,
   Zap,
 } from "lucide-react";
@@ -1602,13 +1602,13 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     nounRoute: "/decks",
   },
   36767: {
-    icon: Palette,
+    icon: Sparkles,
     action: "shared a",
     noun: "theme",
     nounRoute: "/themes",
   },
   16767: {
-    icon: Palette,
+    icon: Sparkles,
     action: "updated their",
     noun: "theme",
     nounRoute: "/themes",
