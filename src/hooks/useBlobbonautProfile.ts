@@ -59,23 +59,21 @@ export function useBlobbonautProfile() {
     return bootCache.profile;
   }, [bootCache, user?.pubkey]);
   
-  // Debug logging at hook start
-  console.log('[useBlobbonautProfile] Hook state:', {
-    pubkey: user?.pubkey,
-    enabled: !!user?.pubkey,
-    hasCachedProfile: !!cachedProfile,
-    bootCachePubkey: bootCache?.pubkey,
-    bootCachedAt: bootCache?.cachedAt ? new Date(bootCache.cachedAt).toISOString() : null,
-  });
+  // Debug logging removed - was causing console flood on every render
+  // If debugging is needed, uncomment this block temporarily:
+  // if (import.meta.env.DEV) {
+  //   console.log('[useBlobbonautProfile] Hook state:', {
+  //     pubkey: user?.pubkey,
+  //     enabled: !!user?.pubkey,
+  //     hasCachedProfile: !!cachedProfile,
+  //   });
+  // }
   
   // Main query to fetch the profile from relays
   const query = useQuery({
     queryKey: ['blobbonaut-profile', user?.pubkey],
     queryFn: async ({ signal }) => {
-      console.log('[useBlobbonautProfile] QUERY FN CALLED');
-      
       if (!user?.pubkey) {
-        console.log('[useBlobbonautProfile] No pubkey, returning null');
         return null;
       }
       
@@ -88,29 +86,18 @@ export function useBlobbonautProfile() {
         '#d': dValues,
       };
       
-      console.log('[useBlobbonautProfile] Sending query with filter:', JSON.stringify(filter, null, 2));
-      
       const events = await nostr.query([filter], { signal });
-      
-      console.log('[useBlobbonautProfile] Events received:', events.length);
       
       // Filter to valid events and find the newest
       const validEvents = events
         .filter(isValidBlobbonautEvent)
         .sort((a, b) => b.created_at - a.created_at);
       
-      console.log('[useBlobbonautProfile] Valid events:', validEvents.length);
-      
       if (validEvents.length === 0) {
-        console.log('[useBlobbonautProfile] No valid events found');
         return null;
       }
       
       const latestEvent = validEvents[0];
-      console.log('[useBlobbonautProfile] Selected event:', {
-        created_at: latestEvent.created_at,
-        d: latestEvent.tags.find(([n]) => n === 'd')?.[1],
-      });
       
       return parseBlobbonautEvent(latestEvent) ?? null;
     },

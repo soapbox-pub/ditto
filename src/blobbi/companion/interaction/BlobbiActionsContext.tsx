@@ -12,6 +12,11 @@
  * 
  * This allows the floating companion to use items regardless of which page
  * the user is on, as long as BlobbiPage has been visited and is still mounted.
+ * 
+ * Performance considerations:
+ * - Registration uses refs to avoid triggering re-renders on every state change
+ * - Consumer hook returns stable identities to prevent cascading re-renders
+ * - Debug logs are gated behind DEV and only log on actual state changes
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -42,16 +47,6 @@ export type UseItemFunction = (
 ) => Promise<UseItemResult>;
 
 /**
- * Registration data from BlobbiPage.
- */
-export interface BlobbiActionsRegistration {
-  /** The item use function */
-  useItem: UseItemFunction;
-  /** Whether an item use operation is currently in progress */
-  isUsingItem: boolean;
-}
-
-/**
  * Context value for Blobbi actions (consumer side).
  */
 export interface BlobbiActionsContextValue {
@@ -73,11 +68,15 @@ export interface BlobbiActionsContextValue {
  */
 interface BlobbiActionsContextInternal {
   /** Register item-use functionality (called by BlobbiPage) */
-  register: (registration: BlobbiActionsRegistration) => void;
-  /** Unregister item-use functionality (called by BlobbiPage on unmount) */
-  unregister: () => void;
-  /** Current registration (null if not registered) */
-  registration: BlobbiActionsRegistration | null;
+  registerRef: React.MutableRefObject<UseItemFunction | null>;
+  /** Whether items can currently be used */
+  canUseItemsRef: React.MutableRefObject<boolean>;
+  /** Whether an item is currently being used */
+  isUsingItemRef: React.MutableRefObject<boolean>;
+  /** Force update consumers (called sparingly) */
+  notifyUpdate: () => void;
+  /** Subscribe to updates */
+  subscribe: (callback: () => void) => () => void;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -95,23 +94,37 @@ interface BlobbiActionsProviderProps {
  * 
  * Should be placed at the app level, wrapping BlobbiCompanionLayer.
  * BlobbiPage will register its item-use function when mounted.
+ * 
+ * Uses refs instead of state to avoid triggering re-renders on every registration update.
  */
 export function BlobbiActionsProvider({ children }: BlobbiActionsProviderProps) {
-  const [registration, setRegistration] = useState<BlobbiActionsRegistration | null>(null);
+  // Use refs to store registration data - avoids re-renders on every update
+  const registerRef = useRef<UseItemFunction | null>(null);
+  const canUseItemsRef = useRef<boolean>(false);
+  const isUsingItemRef = useRef<boolean>(false);
   
-  const register = useCallback((reg: BlobbiActionsRegistration) => {
-    setRegistration(reg);
+  // Subscribers for manual notification
+  const subscribersRef = useRef<Set<() => void>>(new Set());
+  
+  const subscribe = useCallback((callback: () => void) => {
+    subscribersRef.current.add(callback);
+    return () => {
+      subscribersRef.current.delete(callback);
+    };
   }, []);
   
-  const unregister = useCallback(() => {
-    setRegistration(null);
+  const notifyUpdate = useCallback(() => {
+    subscribersRef.current.forEach(cb => cb());
   }, []);
   
+  // Stable context value - never changes identity
   const value = useMemo<BlobbiActionsContextInternal>(() => ({
-    register,
-    unregister,
-    registration,
-  }), [register, unregister, registration]);
+    registerRef,
+    canUseItemsRef,
+    isUsingItemRef,
+    notifyUpdate,
+    subscribe,
+  }), [notifyUpdate, subscribe]);
   
   return (
     <BlobbiActionsContext.Provider value={value}>
@@ -127,37 +140,43 @@ export function BlobbiActionsProvider({ children }: BlobbiActionsProviderProps) 
  * 
  * Returns the context value with the registered item-use function,
  * or a no-op if no registration is active.
+ * 
+ * Uses subscription pattern to only re-render when necessary.
  */
 export function useBlobbiActions(): BlobbiActionsContextValue {
   const context = useContext(BlobbiActionsContext);
   
-  const canUseItems = context?.registration !== null && context?.registration !== undefined;
-  const isUsingItem = context?.registration?.isUsingItem ?? false;
+  // Force re-render counter (only used when registration changes)
+  const [, forceUpdate] = useState(0);
   
+  // Subscribe to updates
+  useEffect(() => {
+    if (!context) return;
+    return context.subscribe(() => {
+      forceUpdate(c => c + 1);
+    });
+  }, [context]);
+  
+  // Create stable useItem function that reads from ref
   const useItem = useCallback<UseItemFunction>(async (itemId, action, quantity = 1) => {
-    if (!context?.registration) {
-      console.warn('[BlobbiActions] Cannot use items - no registration active (BlobbiPage not mounted)');
+    if (!context?.registerRef.current) {
+      if (import.meta.env.DEV) {
+        console.warn('[BlobbiActions] Cannot use items - no registration active');
+      }
       return {
         success: false,
         error: 'Item use not available - please visit Blobbi page first',
       };
     }
     
-    return context.registration.useItem(itemId, action, quantity);
-  }, [context?.registration]);
+    return context.registerRef.current(itemId, action, quantity);
+  }, [context]);
   
-  // Debug log when context changes
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.log('[BlobbiActions] Context state:', {
-        hasContext: !!context,
-        hasRegistration: !!context?.registration,
-        canUseItems,
-        isUsingItem,
-      });
-    }
-  }, [context, canUseItems, isUsingItem]);
+  // Read current values from refs
+  const canUseItems = context?.canUseItemsRef.current ?? false;
+  const isUsingItem = context?.isUsingItemRef.current ?? false;
   
+  // Return stable object (only useItem is truly stable, the booleans may differ)
   return useMemo(() => ({
     useItem,
     isUsingItem,
@@ -172,21 +191,24 @@ export function useBlobbiActions(): BlobbiActionsContextValue {
  * 
  * Call this in BlobbiPage with the current useItem function and isUsingItem state.
  * The registration will be automatically cleaned up on unmount.
+ * 
+ * Uses refs to avoid triggering re-renders in consumers on every prop change.
  */
 export function useBlobbiActionsRegistration(
-  useItem: UseItemFunction | null,
+  useItemFn: UseItemFunction | null,
   isUsingItem: boolean
 ): void {
   const context = useContext(BlobbiActionsContext);
-  const useItemRef = useRef(useItem);
   
-  // Keep ref updated to avoid stale closures
-  useEffect(() => {
-    useItemRef.current = useItem;
-  }, [useItem]);
+  // Track previous values to detect actual changes
+  const prevCanUseRef = useRef<boolean>(false);
   
-  // Create a stable wrapper that uses the ref
-  const stableUseItem = useCallback<UseItemFunction>(async (itemId, action, quantity) => {
+  // Keep useItemFn in a ref to avoid stale closures
+  const useItemRef = useRef(useItemFn);
+  useItemRef.current = useItemFn;
+  
+  // Create a stable wrapper that delegates to the ref
+  const stableUseItem = useCallback<UseItemFunction>(async (itemId, action, quantity = 1) => {
     if (!useItemRef.current) {
       return {
         success: false,
@@ -196,36 +218,41 @@ export function useBlobbiActionsRegistration(
     return useItemRef.current(itemId, action, quantity);
   }, []);
   
-  // Register/update when useItem or isUsingItem changes
+  // Update refs and notify only when canUseItems actually changes
   useEffect(() => {
     if (!context) {
-      console.warn('[BlobbiActions] Cannot register - BlobbiActionsProvider not found in tree');
+      if (import.meta.env.DEV) {
+        console.warn('[BlobbiActions] Cannot register - BlobbiActionsProvider not found');
+      }
       return;
     }
     
-    if (useItem) {
-      context.register({
-        useItem: stableUseItem,
-        isUsingItem,
-      });
+    const canUseItems = useItemFn !== null;
+    
+    // Update refs
+    context.registerRef.current = canUseItems ? stableUseItem : null;
+    context.canUseItemsRef.current = canUseItems;
+    context.isUsingItemRef.current = isUsingItem;
+    
+    // Only notify consumers if canUseItems changed (major state change)
+    if (prevCanUseRef.current !== canUseItems) {
+      prevCanUseRef.current = canUseItems;
+      context.notifyUpdate();
       
       if (import.meta.env.DEV) {
-        console.log('[BlobbiActions] Registered item-use function', { isUsingItem });
-      }
-    } else {
-      context.unregister();
-      
-      if (import.meta.env.DEV) {
-        console.log('[BlobbiActions] Unregistered (useItem is null)');
+        console.log('[BlobbiActions] Registration changed:', { canUseItems, isUsingItem });
       }
     }
-  }, [context, useItem, stableUseItem, isUsingItem]);
+  }, [context, useItemFn, stableUseItem, isUsingItem]);
   
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (context) {
-        context.unregister();
+        context.registerRef.current = null;
+        context.canUseItemsRef.current = false;
+        context.isUsingItemRef.current = false;
+        context.notifyUpdate();
         
         if (import.meta.env.DEV) {
           console.log('[BlobbiActions] Unregistered on unmount');

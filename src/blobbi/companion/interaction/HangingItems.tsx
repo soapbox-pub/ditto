@@ -373,7 +373,9 @@ export function HangingItems({
   const [releasedItemIds, setReleasedItemIds] = useState<Set<string>>(new Set());
   
   // Track items currently being used (to prevent double-use)
-  const [itemsBeingUsed, setItemsBeingUsed] = useState<Set<string>>(new Set());
+  // Use a ref to avoid callback identity changes that trigger effect loops
+  const itemsBeingUsedRef = useRef<Set<string>>(new Set());
+  const [, forceUpdate] = useState(0); // For forcing re-render when itemsBeingUsed changes
   
   // Track released items with their full state (falling/landed/dragging)
   const [releasedItems, setReleasedItems] = useState<Map<string, ReleasedItemData>>(new Map());
@@ -394,6 +396,14 @@ export function HangingItems({
   // Ref for onItemLanded callback
   const onItemLandedRef = useRef(onItemLanded);
   onItemLandedRef.current = onItemLanded;
+  
+  // Ref for onItemUse callback to avoid recreating attemptUseItem
+  const onItemUseRef = useRef(onItemUse);
+  onItemUseRef.current = onItemUse;
+  
+  // Ref for onItemCollected callback
+  const onItemCollectedRef = useRef(onItemCollected);
+  onItemCollectedRef.current = onItemCollected;
   
   // Calculate ground Y position (where items land)
   const groundY = viewportHeight - groundOffset - HANGING_CONFIG.landedItemSize / 2;
@@ -511,24 +521,36 @@ export function HangingItems({
   /**
    * Attempt to use an item (via contact, click, or drag-drop).
    * Only removes the item from screen if use succeeds.
+   * 
+   * Uses refs for callbacks and itemsBeingUsed to maintain stable identity
+   * and prevent effect/callback loops.
    */
   const attemptUseItem = useCallback(async (item: CompanionItem, source: 'contact' | 'click' | 'drag-drop') => {
     // Prevent double-use while an operation is in progress
-    if (itemsBeingUsed.has(item.id)) {
+    if (itemsBeingUsedRef.current.has(item.id)) {
+      if (import.meta.env.DEV) {
+        console.log(`[HangingItems] Skipping duplicate use attempt for:`, item.name);
+      }
       return;
     }
     
-    // Mark as being used
-    setItemsBeingUsed(prev => new Set(prev).add(item.id));
+    // Mark as being used (use ref to avoid state changes that trigger loops)
+    itemsBeingUsedRef.current = new Set(itemsBeingUsedRef.current).add(item.id);
+    forceUpdate(c => c + 1); // Trigger re-render for visual feedback
     
     try {
       // If onItemUse is provided, use the async flow
-      if (onItemUse) {
-        console.log(`[HangingItems] Attempting to use item (${source}):`, item.name);
-        const result = await onItemUse(item);
+      const onItemUseFn = onItemUseRef.current;
+      if (onItemUseFn) {
+        if (import.meta.env.DEV) {
+          console.log(`[HangingItems] Attempting to use item (${source}):`, item.name);
+        }
+        const result = await onItemUseFn(item);
         
         if (result.success) {
-          console.log(`[HangingItems] Item used successfully:`, item.name);
+          if (import.meta.env.DEV) {
+            console.log(`[HangingItems] Item used successfully:`, item.name);
+          }
           // Remove from released items only on success
           setReleasedItems(prev => {
             const next = new Map(prev);
@@ -536,13 +558,17 @@ export function HangingItems({
             return next;
           });
         } else {
-          console.log(`[HangingItems] Item use failed:`, item.name, result.error);
+          if (import.meta.env.DEV) {
+            console.log(`[HangingItems] Item use failed:`, item.name, result.error);
+          }
           // Item stays on screen - user can try again
         }
       } else {
         // Legacy behavior: call onItemCollected and remove immediately
-        console.log(`[HangingItems] Item collected (legacy):`, item.name);
-        onItemCollected?.(item);
+        if (import.meta.env.DEV) {
+          console.log(`[HangingItems] Item collected (legacy):`, item.name);
+        }
+        onItemCollectedRef.current?.(item);
         setReleasedItems(prev => {
           const next = new Map(prev);
           next.delete(item.id);
@@ -551,15 +577,18 @@ export function HangingItems({
       }
     } finally {
       // Clear the "being used" state
-      setItemsBeingUsed(prev => {
-        const next = new Set(prev);
-        next.delete(item.id);
-        return next;
-      });
+      const newSet = new Set(itemsBeingUsedRef.current);
+      newSet.delete(item.id);
+      itemsBeingUsedRef.current = newSet;
+      forceUpdate(c => c + 1);
     }
-  }, [itemsBeingUsed, onItemUse, onItemCollected]);
+  }, []); // No dependencies - uses refs for everything
   
   // Contact detection with Blobbi (for auto-use)
+  // IMPORTANT: This effect carefully avoids triggering loops by:
+  // 1. Using ref for itemsBeingUsed check (no dependency)
+  // 2. Not depending on attemptUseItem (stable identity now)
+  // 3. Only running when position/items actually change
   useEffect(() => {
     if (!companionPosition) return;
     // Don't check contact while dragging
@@ -568,7 +597,8 @@ export function HangingItems({
     // Check each landed item for contact
     releasedItems.forEach((data, id) => {
       // Skip items that are being used, still falling, or being dragged
-      if (data.state !== 'landed' || itemsBeingUsed.has(id)) {
+      // Use ref to check - avoids dependency and thus callback recreation
+      if (data.state !== 'landed' || itemsBeingUsedRef.current.has(id)) {
         return;
       }
       
@@ -585,7 +615,7 @@ export function HangingItems({
         attemptUseItem(data.item, 'contact');
       }
     });
-  }, [companionPosition, companionSize, releasedItems, itemsBeingUsed, attemptUseItem, dragState.isDragging, blobbiCenterX, blobbiCenterY]);
+  }, [companionPosition, companionSize, releasedItems, attemptUseItem, dragState.isDragging, blobbiCenterX, blobbiCenterY]);
   
   // ─── Drag Handlers ────────────────────────────────────────────────────────────
   
@@ -653,12 +683,16 @@ export function HangingItems({
       return;
     }
     
+    // Capture original position before any state changes
+    const originalX = itemData.dragStartX ?? itemData.x;
+    const originalY = itemData.dragStartY ?? itemData.y;
+    
     // Check if dropped on Blobbi
     if (dragState.isOverBlobbi) {
-      // Attempt to use the item
-      attemptUseItem(itemData.item, 'drag-drop');
-      
-      // Reset item state to landed (at drop position) while waiting for use result
+      // IMPORTANT: When dropping on Blobbi, we reset the item to its ORIGINAL position
+      // before attempting to use it. This prevents the contact detection effect from
+      // also triggering (since the item won't be near Blobbi anymore).
+      // If use succeeds, the item is removed. If it fails, it's already back in place.
       setReleasedItems(prev => {
         const next = new Map(prev);
         const current = next.get(itemId);
@@ -666,16 +700,19 @@ export function HangingItems({
           next.set(itemId, {
             ...current,
             state: 'landed',
-            x: dragState.currentX,
-            y: dragState.currentY,
+            x: originalX,
+            y: originalY,
             dragStartX: undefined,
             dragStartY: undefined,
           });
         }
         return next;
       });
+      
+      // Attempt to use the item (will remove it on success)
+      attemptUseItem(itemData.item, 'drag-drop');
     } else {
-      // Dropped elsewhere - return to drop position (where it was released)
+      // Dropped elsewhere - keep item at drop position
       setReleasedItems(prev => {
         const next = new Map(prev);
         const current = next.get(itemId);
@@ -683,7 +720,6 @@ export function HangingItems({
           next.set(itemId, {
             ...current,
             state: 'landed',
-            // Keep item at current drag position (where it was dropped)
             x: dragState.currentX,
             y: dragState.currentY,
             dragStartX: undefined,
@@ -915,7 +951,7 @@ export function HangingItems({
         <ReleasedItem
           key={`released-${data.item.id}`}
           data={data}
-          isBeingUsed={itemsBeingUsed.has(data.item.id)}
+          isBeingUsed={itemsBeingUsedRef.current.has(data.item.id)}
           dragState={dragState}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
