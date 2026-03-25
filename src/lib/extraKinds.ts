@@ -1,6 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { ComponentType } from 'react';
 import { Globe, GitPullRequestArrow, MessageSquareMore, CircleAlert } from 'lucide-react';
+import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
 /** A sub-kind that lives under a parent ExtraKindDef. */
@@ -520,7 +521,9 @@ export function getPageKinds(def: ExtraKindDef, feedSettings: FeedSettings): num
  * a label more specific than their parent category.
  */
 const KIND_SPECIFIC_LABELS: Record<number, string> = {
+  6: 'repost',
   7: 'reaction',
+  16: 'repost',
   1617: 'patch',
   1618: 'patch comment',
   15128: 'nsite',
@@ -534,6 +537,8 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
  * Specific icons for kinds that need a different icon than their parent category.
  */
 const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: string }>>> = {
+  6: RepostIcon,
+  16: RepostIcon,
   1617: GitPullRequestArrow,
   1618: MessageSquareMore,
   15128: Globe,
