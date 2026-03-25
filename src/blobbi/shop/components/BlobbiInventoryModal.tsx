@@ -23,6 +23,7 @@ import type { ShopItem } from '../types/shop.types';
 import { getShopItemById } from '../lib/blobbi-shop-items';
 import { canUseItemForStage } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { cn } from '@/lib/utils';
+import { ItemEffectDisplay } from './ItemEffectDisplay';
 
 interface BlobbiInventoryModalProps {
   open: boolean;
@@ -189,24 +190,8 @@ export function BlobbiInventoryModal({
                         </Badge>
                       </div>
                       {/* Effect preview - desktop only inline */}
-                      <div className="hidden sm:flex items-center gap-2">
-                        {item.effect && Object.keys(item.effect).length > 0 && (
-                          <span className="text-xs text-muted-foreground">
-                            {Object.entries(item.effect).map(([stat, value]) => (
-                              <span key={stat} className="mr-2">
-                                <span
-                                  className={cn(
-                                    'font-medium',
-                                    value > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-                                  )}
-                                >
-                                  {value > 0 ? '+' : ''}{value}
-                                </span>{' '}
-                                {stat.replace('_', ' ')}
-                              </span>
-                            )).slice(0, 2)}
-                          </span>
-                        )}
+                      <div className="hidden sm:block">
+                        <ItemEffectDisplay effect={item.effect} variant="inline" />
                       </div>
                       {/* Show blocked reason - desktop only inline */}
                       {!item.canUse && item.reason && (
@@ -259,23 +244,7 @@ export function BlobbiInventoryModal({
                       <Badge variant="secondary" className="text-xs capitalize">
                         {item.type}
                       </Badge>
-                      {item.effect && Object.keys(item.effect).length > 0 && (
-                        <span className="text-xs text-muted-foreground">
-                          {Object.entries(item.effect).map(([stat, value]) => (
-                            <span key={stat} className="mr-2">
-                              <span
-                                className={cn(
-                                  'font-medium',
-                                  value > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-                                )}
-                              >
-                                {value > 0 ? '+' : ''}{value}
-                              </span>{' '}
-                              {stat.replace('_', ' ')}
-                            </span>
-                          )).slice(0, 2)}
-                        </span>
-                      )}
+                      <ItemEffectDisplay effect={item.effect} variant="inline" />
                     </div>
                     {/* Show blocked reason on mobile */}
                     {!item.canUse && item.reason && (
@@ -432,22 +401,7 @@ function InventoryUseConfirmDialog({
               <h4 className="text-sm font-medium mb-2">
                 Total effect{quantity > 1 ? ` (x${quantity})` : ''}
               </h4>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(totalEffect).map(([stat, value]) => (
-                  <Badge
-                    key={stat}
-                    variant="secondary"
-                    className={cn(
-                      'text-xs',
-                      value > 0
-                        ? 'bg-green-500/20 text-green-700 dark:text-green-300'
-                        : 'bg-red-500/20 text-red-700 dark:text-red-300'
-                    )}
-                  >
-                    {value > 0 ? '+' : ''}{value} {stat}
-                  </Badge>
-                ))}
-              </div>
+              <ItemEffectDisplay effect={totalEffect} variant="badges" />
             </div>
           )}
         </div>
