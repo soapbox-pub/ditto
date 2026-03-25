@@ -5,6 +5,7 @@ import {
   FileText,
   GitBranch,
   GitPullRequest,
+  Globe,
   MessageCircle,
   MoreHorizontal,
   Package,
@@ -42,6 +43,7 @@ import { FollowPackContent } from "@/components/FollowPackContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
+import { NsiteCard } from "@/components/NsiteCard";
 import { ImageGallery } from "@/components/ImageGallery";
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
@@ -257,9 +259,10 @@ export const NoteCard = memo(function NoteCard({
   const isPatch = event.kind === 1617;
   const isPullRequest = event.kind === 1618;
   const isCustomNip = event.kind === 30817;
+  const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
   const isVanish = event.kind === 62;
-  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip;
+  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
     !isPoll &&
@@ -463,6 +466,8 @@ export const NoteCard = memo(function NoteCard({
           <PullRequestCard event={event} />
         ) : isCustomNip ? (
           <CustomNipCard event={event} />
+        ) : isNsite ? (
+          <NsiteCard event={event} />
         ) : isZapstoreApp ? (
           <ZapstoreAppContent event={event} compact />
         ) : (
@@ -1660,6 +1665,18 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: FileCode,
     action: "proposed a",
     noun: "NIP",
+    nounRoute: "/development",
+  },
+  15128: {
+    icon: Globe,
+    action: "deployed an",
+    noun: "nsite",
+    nounRoute: "/development",
+  },
+  35128: {
+    icon: Globe,
+    action: "deployed an",
+    noun: "nsite",
     nounRoute: "/development",
   },
 };
