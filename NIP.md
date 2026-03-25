@@ -29,7 +29,8 @@ A theme consists of colors, optional fonts, and an optional background. Colors a
     ["c", "#1a1a2e", "background"],
     ["c", "#e0e0e0", "text"],
     ["c", "#6c3ce0", "primary"],
-    ["f", "Inter", "https://example.com/inter.woff2"],
+    ["f", "Inter", "https://example.com/inter.woff2", "body"],
+    ["f", "Playfair Display", "https://example.com/playfair.woff2", "title"],
     ["bg", "url https://example.com/bg.jpg", "mode cover", "m image/jpeg", "dim 1920x1080"],
     ["title", "MK Dark Theme"],
     ["alt", "Custom theme: MK Dark Theme"]
@@ -74,7 +75,8 @@ Replaceable event that represents the user's currently active profile theme. Onl
     ["c", "#1a1a2e", "background"],
     ["c", "#e0e0e0", "text"],
     ["c", "#6c3ce0", "primary"],
-    ["f", "Inter", "https://example.com/inter.woff2"],
+    ["f", "Inter", "https://example.com/inter.woff2", "body"],
+    ["f", "Playfair Display", "https://example.com/playfair.woff2", "title"],
     ["bg", "url https://example.com/bg.jpg", "mode cover", "m image/jpeg"],
     ["title", "MK Dark Theme"],
     ["alt", "Active profile theme"]
@@ -124,18 +126,30 @@ Format: `["c", "#rrggbb", "<marker>"]`
 
 ### Font Tag
 
-Format: `["f", "<family>", "<url>"]`
+Format: `["f", "<family>", "<url>", "<role>"]`
 
 | Index | Required | Description                                                                                   |
 |-------|----------|-----------------------------------------------------------------------------------------------|
 | 0     | Yes      | Tag name: `"f"`                                                                               |
 | 1     | Yes      | CSS `font-family` name (e.g. `"Inter"`)                                                       |
 | 2     | Yes      | Direct URL to a font file (`.woff2`, `.ttf`, `.otf`)                                          |
+| 3     | Yes      | Font role: `"body"` or `"title"`                                                              |
+
+**Roles:**
+
+| Role      | Applies to                                      |
+|-----------|--------------------------------------------------|
+| `"body"`  | All text globally (body, headings, UI elements)  |
+| `"title"` | The user's profile display name                  |
+
+**Rules:**
 
 - The `f` tag is optional on the event.
-- At most one `f` tag per event is allowed.
-- The font applies globally to all text (body, headings, UI elements).
+- At most one `f` tag per role is allowed (i.e. one body font and one title font).
+- The `"body"` font tag MUST be ordered before the `"title"` font tag. This ensures backward-compatible clients that only read the first `f` tag will pick up the body font.
 - If the URL fails to load, the client SHOULD fall back to a default font gracefully.
+- Clients that do not recognize a role SHOULD ignore that `f` tag.
+- Legacy events with an `f` tag that has no role marker (only 3 elements) SHOULD be treated as `"body"`.
 - Variable font files (covering multiple weights in a single file) are preferred.
 
 ### Background Tag
