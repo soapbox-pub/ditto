@@ -17,19 +17,19 @@ function hexToBase36(hex: string): string {
 	return b36.padStart(50, "0");
 }
 
-/** Build the nosto.re gateway URL for an nsite event. */
-function getNostoreUrl(event: NostrEvent): string {
+/** Build the nsite.lol gateway URL for an nsite event. */
+function getNsiteUrl(event: NostrEvent): string {
 	const dTag = event.tags.find(([n]) => n === "d")?.[1];
 
 	if (event.kind === 35128 && dTag) {
-		// Named site: <pubkeyB36><dTag>.nosto.re
+		// Named site: <pubkeyB36><dTag>.nsite.lol
 		const pubkeyB36 = hexToBase36(event.pubkey);
-		return `https://${pubkeyB36}${dTag}.nosto.re`;
+		return `https://${pubkeyB36}${dTag}.nsite.lol`;
 	}
 
-	// Root site (kind 15128): <npub>.nosto.re
+	// Root site (kind 15128): <npub>.nsite.lol
 	const npub = nip19.npubEncode(event.pubkey);
-	return `https://${npub}.nosto.re`;
+	return `https://${npub}.nsite.lol`;
 }
 
 /** Renders an nsite deployment card for kind 15128 (root site) or 35128 (named site). */
@@ -42,7 +42,7 @@ export function NsiteCard({ event }: NsiteCardProps) {
 	const serverTags = event.tags.filter(([n]) => n === "server");
 
 	const isNamed = event.kind === 35128 && !!dTag;
-	const siteUrl = getNostoreUrl(event);
+	const siteUrl = getNsiteUrl(event);
 	const displayName = title || (isNamed ? dTag : "Root Site");
 
 	return (
