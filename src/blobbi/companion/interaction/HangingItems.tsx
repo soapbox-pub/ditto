@@ -7,18 +7,21 @@
  * 
  * State Model:
  * - Container states: hidden → opening → open → closing → hidden
- * - Item lifecycle: hanging → released (falling) → landed → (optional drag) → used
+ * - Hanging items = available inventory that can still be released
+ * - Released/dropped items = instances currently in the world (tracked with unique IDs)
+ * - Multiple instances of the same item type can exist simultaneously on the ground
  * 
  * Key Design Principle:
- * When an item is released, only the EMOJI falls - not the circle container.
- * The same visual element continues from falling to landed state (no respawn).
+ * The hanging row represents "releasable quantity" - clicking releases ONE instance
+ * and immediately decrements the visible quantity. A new hanging copy remains if
+ * quantity > 1. The released instance tracks separately with a unique instance ID.
  * 
  * Features:
  * - Smooth open/close slide animations (items descend/ascend)
  * - Thin vertical lines from the top of screen
  * - Circular containers for hanging items
- * - Click releases item: circle disappears, emoji falls
- * - Continuous visual: same emoji from fall to ground
+ * - Click releases item: one instance falls, remaining quantity stays hanging
+ * - Multiple dropped instances of same item type can exist
  * - Contact detection: items auto-use when touching Blobbi
  * - Click-to-use: click landed items to use them
  * - Drag-and-drop: drag landed items to Blobbi to use them
@@ -42,8 +45,11 @@ type ContainerState = 'hidden' | 'opening' | 'open' | 'closing';
 /** Lifecycle state of a released item */
 type ReleasedItemState = 'falling' | 'landed' | 'dragging';
 
-/** Data for a released item (tracks its entire lifecycle after being clicked) */
+/** Data for a released item instance (tracks its entire lifecycle after being clicked) */
 interface ReleasedItemData {
+  /** Unique instance ID (different from item.id - allows multiple instances of same item type) */
+  instanceId: string;
+  /** The item data (note: item.id is the item TYPE id, not the instance) */
   item: CompanionItem;
   state: ReleasedItemState;
   /** X position (center of item) */
@@ -152,8 +158,8 @@ const HANGING_CONFIG = {
 interface DragState {
   /** Whether currently dragging */
   isDragging: boolean;
-  /** Item ID being dragged (or null) */
-  itemId: string | null;
+  /** Instance ID being dragged (or null) */
+  instanceId: string | null;
   /** Current drag position X */
   currentX: number;
   /** Current drag position Y */
@@ -164,7 +170,7 @@ interface DragState {
 
 const initialDragState: DragState = {
   isDragging: false,
-  itemId: null,
+  instanceId: null,
   currentX: 0,
   currentY: 0,
   isOverBlobbi: false,
@@ -179,11 +185,11 @@ interface ReleasedItemProps {
   /** Current drag state */
   dragState: DragState;
   /** Callbacks for drag events */
-  onDragStart: (item: CompanionItem, x: number, y: number) => void;
+  onDragStart: (instanceId: string, item: CompanionItem, x: number, y: number) => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: () => void;
   /** Callback for click (when not dragging) */
-  onCollect?: (item: CompanionItem) => void;
+  onCollect?: (instanceId: string, item: CompanionItem) => void;
 }
 
 /**
@@ -214,7 +220,7 @@ function ReleasedItem({
   const isFalling = state === 'falling';
   const isLanded = state === 'landed';
   const isDragging = state === 'dragging';
-  const isThisItemDragging = dragState.isDragging && dragState.itemId === item.id;
+  const isThisItemDragging = dragState.isDragging && dragState.instanceId === data.instanceId;
   
   // Calculate display position - use drag position if dragging, otherwise use data position
   const displayX = isThisItemDragging ? dragState.currentX : data.x;
@@ -249,14 +255,14 @@ function ReleasedItem({
     // Check if we've moved enough to start dragging
     if (!isDraggingLocalRef.current && distance > HANGING_CONFIG.dragThreshold) {
       isDraggingLocalRef.current = true;
-      onDragStart(item, e.clientX, e.clientY);
+      onDragStart(data.instanceId, item, e.clientX, e.clientY);
     }
     
     // If dragging, update position
     if (isDraggingLocalRef.current) {
       onDragMove(e.clientX, e.clientY);
     }
-  }, [item, onDragStart, onDragMove]);
+  }, [data.instanceId, item, onDragStart, onDragMove]);
   
   // Handle pointer up - end drag or trigger click
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -280,9 +286,9 @@ function ReleasedItem({
       onDragEnd();
     } else {
       // It was a click (no significant movement)
-      onCollect?.(item);
+      onCollect?.(data.instanceId, item);
     }
-  }, [item, onCollect, onDragEnd]);
+  }, [data.instanceId, item, onCollect, onDragEnd]);
   
   // Handle pointer cancel (e.g., interrupted by system)
   const handlePointerCancel = useCallback((e: React.PointerEvent) => {
@@ -379,15 +385,21 @@ export function HangingItems({
   // Container animation state
   const [containerState, setContainerState] = useState<ContainerState>('hidden');
   
-  // Track which items have been released (by ID) - these are no longer "hanging"
-  const [releasedItemIds, setReleasedItemIds] = useState<Set<string>>(new Set());
+  // Track how many instances of each item type have been released (not yet used)
+  // Key: item.id (type ID), Value: count of released instances
+  const [releasedCountByItemId, setReleasedCountByItemId] = useState<Map<string, number>>(new Map());
+  
+  // Counter for generating unique instance IDs
+  const instanceCounterRef = useRef(0);
   
   // Track items currently being used (to prevent double-use)
   // Use a ref to avoid callback identity changes that trigger effect loops
+  // Key: instanceId (not item.id)
   const itemsBeingUsedRef = useRef<Set<string>>(new Set());
   const [, forceUpdate] = useState(0); // For forcing re-render when itemsBeingUsed changes
   
   // Track released items with their full state (falling/landed/dragging)
+  // Key: instanceId (unique per dropped instance), Value: ReleasedItemData
   const [releasedItems, setReleasedItems] = useState<Map<string, ReleasedItemData>>(new Map());
   
   // Drag state
@@ -550,8 +562,8 @@ export function HangingItems({
         // Transition to hidden after animation
         const timer = setTimeout(() => {
           setContainerState('hidden');
-          // Clear released item IDs when closing (but keep released items on ground)
-          setReleasedItemIds(new Set());
+          // Clear released counts when closing (but keep released items on ground)
+          setReleasedCountByItemId(new Map());
         }, HANGING_CONFIG.slideAnimationDuration);
         
         return () => clearTimeout(timer);
@@ -560,35 +572,39 @@ export function HangingItems({
   }, [isVisible, selectedAction, containerState]);
   
   /**
-   * Attempt to use an item (via contact, click, or drag-drop).
+   * Attempt to use an item instance (via contact, click, or drag-drop).
    * Only removes the item from screen if use succeeds.
    * 
    * Uses refs for callbacks and itemsBeingUsed to maintain stable identity
    * and prevent effect/callback loops.
    * 
    * Includes cooldown protection:
-   * - Checks cooldown before attempting
+   * - Checks cooldown before attempting (by instanceId)
    * - Sets cooldown after attempt (longer on failure)
+   * 
+   * @param instanceId - Unique instance ID (for tracking this specific dropped item)
+   * @param item - The item data
+   * @param source - How the item was used
    */
-  const attemptUseItem = useCallback(async (item: CompanionItem, source: 'contact' | 'click' | 'drag-drop') => {
-    // Check cooldown first (prevents retry spam)
-    if (checkItemCooldown(item.id)) {
+  const attemptUseItem = useCallback(async (instanceId: string, item: CompanionItem, source: 'contact' | 'click' | 'drag-drop') => {
+    // Check cooldown first (prevents retry spam) - use instanceId for cooldown tracking
+    if (checkItemCooldown(instanceId)) {
       if (import.meta.env.DEV) {
-        console.log(`[HangingItems] Item on cooldown, skipping:`, item.name);
+        console.log(`[HangingItems] Item on cooldown, skipping:`, item.name, instanceId);
       }
       return;
     }
     
     // Prevent double-use while an operation is in progress
-    if (itemsBeingUsedRef.current.has(item.id)) {
+    if (itemsBeingUsedRef.current.has(instanceId)) {
       if (import.meta.env.DEV) {
-        console.log(`[HangingItems] Skipping duplicate use attempt for:`, item.name);
+        console.log(`[HangingItems] Skipping duplicate use attempt for:`, item.name, instanceId);
       }
       return;
     }
     
     // Mark as being used (use ref to avoid state changes that trigger loops)
-    itemsBeingUsedRef.current = new Set(itemsBeingUsedRef.current).add(item.id);
+    itemsBeingUsedRef.current = new Set(itemsBeingUsedRef.current).add(instanceId);
     forceUpdate(c => c + 1); // Trigger re-render for visual feedback
     
     let success = false;
@@ -598,23 +614,32 @@ export function HangingItems({
       const onItemUseFn = onItemUseRef.current;
       if (onItemUseFn) {
         if (import.meta.env.DEV) {
-          console.log(`[HangingItems] Attempting to use item (${source}):`, item.name);
+          console.log(`[HangingItems] Attempting to use item (${source}):`, item.name, instanceId);
         }
         const result = await onItemUseFn(item);
         
         if (result.success) {
           success = true;
           if (import.meta.env.DEV) {
-            console.log(`[HangingItems] Item used successfully:`, item.name);
+            console.log(`[HangingItems] Item used successfully:`, item.name, instanceId);
           }
-          // Remove from released items only on success
+          // Remove from released items only on success (by instanceId)
           setReleasedItems(prev => {
             const next = new Map(prev);
-            next.delete(item.id);
+            next.delete(instanceId);
             return next;
           });
           // Also remove from zone tracking
-          itemsInZoneRef.current.delete(item.id);
+          itemsInZoneRef.current.delete(instanceId);
+          // Decrement the released count for this item type (since the instance is now consumed)
+          setReleasedCountByItemId(prev => {
+            const next = new Map(prev);
+            const currentCount = next.get(item.id) || 0;
+            if (currentCount > 0) {
+              next.set(item.id, currentCount - 1);
+            }
+            return next;
+          });
         } else {
           if (import.meta.env.DEV) {
             console.log(`[HangingItems] Item use failed:`, item.name, result.error);
@@ -625,25 +650,34 @@ export function HangingItems({
         // Legacy behavior: call onItemCollected and remove immediately
         success = true;
         if (import.meta.env.DEV) {
-          console.log(`[HangingItems] Item collected (legacy):`, item.name);
+          console.log(`[HangingItems] Item collected (legacy):`, item.name, instanceId);
         }
         onItemCollectedRef.current?.(item);
         setReleasedItems(prev => {
           const next = new Map(prev);
-          next.delete(item.id);
+          next.delete(instanceId);
           return next;
         });
-        itemsInZoneRef.current.delete(item.id);
+        itemsInZoneRef.current.delete(instanceId);
+        // Decrement the released count for this item type
+        setReleasedCountByItemId(prev => {
+          const next = new Map(prev);
+          const currentCount = next.get(item.id) || 0;
+          if (currentCount > 0) {
+            next.set(item.id, currentCount - 1);
+          }
+          return next;
+        });
       }
     } finally {
       // Clear the "being used" state
       const newSet = new Set(itemsBeingUsedRef.current);
-      newSet.delete(item.id);
+      newSet.delete(instanceId);
       itemsBeingUsedRef.current = newSet;
       forceUpdate(c => c + 1);
       
       // Set cooldown (longer on failure to prevent retry spam)
-      setLocalCooldown(item.id, success);
+      setLocalCooldown(instanceId, success);
     }
   }, [checkItemCooldown, setLocalCooldown]); // Minimal dependencies - rest uses refs
   
@@ -690,7 +724,7 @@ export function HangingItems({
           
           // Only attempt use on zone ENTRY (not while already in zone)
           // Cooldown and other guards are checked inside attemptUseItem
-          attemptUseItem(data.item, 'contact');
+          attemptUseItem(data.instanceId, data.item, 'contact');
         }
         // If already in zone, do nothing (prevents retry loops)
       } else {
@@ -706,17 +740,17 @@ export function HangingItems({
   
   // ─── Drag Handlers ────────────────────────────────────────────────────────────
   
-  const handleDragStart = useCallback((item: CompanionItem, x: number, y: number) => {
-    // Get current item data
-    const itemData = releasedItems.get(item.id);
+  const handleDragStart = useCallback((instanceId: string, item: CompanionItem, x: number, y: number) => {
+    // Get current item data (by instanceId)
+    const itemData = releasedItems.get(instanceId);
     if (!itemData || itemData.state !== 'landed') return;
     
     // Update item state to dragging and store original position
     setReleasedItems(prev => {
       const next = new Map(prev);
-      const current = next.get(item.id);
+      const current = next.get(instanceId);
       if (current) {
-        next.set(item.id, {
+        next.set(instanceId, {
           ...current,
           state: 'dragging',
           dragStartX: current.x,
@@ -733,7 +767,7 @@ export function HangingItems({
     
     setDragState({
       isDragging: true,
-      itemId: item.id,
+      instanceId,
       currentX: x,
       currentY: y,
       isOverBlobbi,
@@ -757,13 +791,13 @@ export function HangingItems({
   }, [dragState.isDragging, companionPosition, blobbiCenterX, blobbiCenterY]);
   
   const handleDragEnd = useCallback(() => {
-    if (!dragState.isDragging || !dragState.itemId) {
+    if (!dragState.isDragging || !dragState.instanceId) {
       setDragState(initialDragState);
       return;
     }
     
-    const itemId = dragState.itemId;
-    const itemData = releasedItems.get(itemId);
+    const instanceId = dragState.instanceId;
+    const itemData = releasedItems.get(instanceId);
     
     if (!itemData) {
       setDragState(initialDragState);
@@ -782,9 +816,9 @@ export function HangingItems({
       // If use succeeds, the item is removed. If it fails, it's already back in place.
       setReleasedItems(prev => {
         const next = new Map(prev);
-        const current = next.get(itemId);
+        const current = next.get(instanceId);
         if (current) {
-          next.set(itemId, {
+          next.set(instanceId, {
             ...current,
             state: 'landed',
             x: originalX,
@@ -797,14 +831,14 @@ export function HangingItems({
       });
       
       // Attempt to use the item (will remove it on success)
-      attemptUseItem(itemData.item, 'drag-drop');
+      attemptUseItem(instanceId, itemData.item, 'drag-drop');
     } else {
       // Dropped elsewhere - keep item at drop position
       setReleasedItems(prev => {
         const next = new Map(prev);
-        const current = next.get(itemId);
+        const current = next.get(instanceId);
         if (current) {
-          next.set(itemId, {
+          next.set(instanceId, {
             ...current,
             state: 'landed',
             x: dragState.currentX,
@@ -821,15 +855,25 @@ export function HangingItems({
     setDragState(initialDragState);
   }, [dragState, releasedItems, attemptUseItem]);
   
-  // Handle hanging item click - release the item
+  // Handle hanging item click - release one instance of the item
   const handleItemClick = useCallback((item: CompanionItem, xPosition: number) => {
     const now = performance.now();
     
-    // Mark as released (removes from hanging display)
-    setReleasedItemIds(prev => new Set(prev).add(item.id));
+    // Generate unique instance ID for this dropped item
+    instanceCounterRef.current += 1;
+    const instanceId = `${item.id}-${now}-${instanceCounterRef.current}`;
     
-    // Create released item data
+    // Increment the released count for this item type
+    setReleasedCountByItemId(prev => {
+      const next = new Map(prev);
+      const currentCount = next.get(item.id) || 0;
+      next.set(item.id, currentCount + 1);
+      return next;
+    });
+    
+    // Create released item data with unique instance ID
     const releasedData: ReleasedItemData = {
+      instanceId,
       item,
       state: 'falling',
       x: xPosition,
@@ -839,10 +883,10 @@ export function HangingItems({
       fallStartTime: now,
     };
     
-    // Add to released items
+    // Add to released items (keyed by instanceId, not item.id)
     setReleasedItems(prev => {
       const next = new Map(prev);
-      next.set(item.id, releasedData);
+      next.set(instanceId, releasedData);
       return next;
     });
     
@@ -857,9 +901,9 @@ export function HangingItems({
   }, [hangingBottomY, groundY, onItemRelease, runAnimationLoop]);
   
   // Manual pickup of landed item (clicking on it)
-  const handleLandedItemClick = useCallback((item: CompanionItem) => {
+  const handleLandedItemClick = useCallback((instanceId: string, item: CompanionItem) => {
     // Use the async flow (same as contact)
-    attemptUseItem(item, 'click');
+    attemptUseItem(instanceId, item, 'click');
   }, [attemptUseItem]);
   
   // Calculate horizontal positions for items (centered)
@@ -870,8 +914,15 @@ export function HangingItems({
     return viewportCenterX + startX + index * HANGING_CONFIG.itemSpacing;
   };
   
-  // Filter items to only show those still hanging
-  const hangingItems = items.filter(item => !releasedItemIds.has(item.id));
+  // Calculate hanging items with their remaining quantities
+  // An item appears in the hanging row if (quantity - releasedCount) > 0
+  const hangingItems = items
+    .map(item => {
+      const releasedCount = releasedCountByItemId.get(item.id) || 0;
+      const remainingQuantity = item.quantity - releasedCount;
+      return { ...item, quantity: remainingQuantity };
+    })
+    .filter(item => item.quantity > 0);
   
   // Should we render the hanging container?
   const shouldRenderContainer = containerState !== 'hidden' || (isVisible && selectedAction);
@@ -1036,9 +1087,9 @@ export function HangingItems({
       {/* Released items (falling, landed, and dragging) */}
       {Array.from(releasedItems.values()).map(data => (
         <ReleasedItem
-          key={`released-${data.item.id}`}
+          key={`released-${data.instanceId}`}
           data={data}
-          isBeingUsed={itemsBeingUsedRef.current.has(data.item.id)}
+          isBeingUsed={itemsBeingUsedRef.current.has(data.instanceId)}
           dragState={dragState}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
