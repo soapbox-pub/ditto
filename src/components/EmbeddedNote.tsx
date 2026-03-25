@@ -16,7 +16,7 @@ import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
 import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
-import { EXTRA_KINDS, getKindIcon } from '@/lib/extraKinds';
+import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
 
 /** NIP-62 Request to Vanish. */
 const VANISH_KIND = 62;
@@ -144,12 +144,8 @@ function EmbeddedNoteCard({
     const title = getTag('title') || getTag('name') || getTag('d');
     const description = getTag('summary') || getTag('description');
 
-    // Build a kind label line for context (e.g. "nsite · 31 files")
-    const kindDef = EXTRA_KINDS.find((def) =>
-      def.subKinds?.some((sub) => sub.kind === event.kind) || def.kind === event.kind
-      || def.extraFeedKinds?.includes(event.kind),
-    );
-    const kindLabel = kindDef?.label.toLowerCase();
+    // Build a kind label line for context (e.g. "nsite")
+    const kindLabel = getKindLabel(event.kind);
     const KindIcon = getKindIcon(event.kind);
 
     if (!title && !description && !kindLabel) return undefined;

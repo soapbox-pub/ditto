@@ -513,6 +513,41 @@ export function getPageKinds(def: ExtraKindDef, feedSettings: FeedSettings): num
     .map((sub) => sub.kind);
 }
 
+/**
+ * Specific labels for kinds that don't have their own top-level ExtraKindDef.
+ * These are kinds buried in `extraFeedKinds` arrays or otherwise needing
+ * a label more specific than their parent category.
+ */
+const KIND_SPECIFIC_LABELS: Record<number, string> = {
+  7: 'reaction',
+  1617: 'patch',
+  1618: 'patch comment',
+  15128: 'nsite',
+  35128: 'nsite',
+  30817: 'repository issue',
+  32267: 'app',
+  30063: 'release',
+};
+
+/**
+ * Get a human-readable label for a specific kind number.
+ * Resolution order: subKind label → KIND_SPECIFIC_LABELS → direct def label.
+ * Returns undefined if the kind is completely unknown.
+ */
+export function getKindLabel(kind: number): string | undefined {
+  // Check subKinds first (they carry their own label)
+  for (const def of EXTRA_KINDS) {
+    const sub = def.subKinds?.find((s) => s.kind === kind);
+    if (sub) return sub.label.toLowerCase();
+  }
+  // Check specific overrides (extraFeedKinds items, etc.)
+  if (KIND_SPECIFIC_LABELS[kind]) return KIND_SPECIFIC_LABELS[kind];
+  // Check top-level def
+  const def = EXTRA_KINDS.find((d) => d.kind === kind);
+  if (def) return def.label.toLowerCase();
+  return undefined;
+}
+
 /** Map from kind number to ExtraKindDef id, for quick icon lookup. */
 const KIND_TO_ID = new Map<number, string>();
 for (const def of EXTRA_KINDS) {

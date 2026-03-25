@@ -12,7 +12,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
-import { EXTRA_KINDS, getKindIcon } from '@/lib/extraKinds';
+import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 interface EmbeddedNaddrProps {
@@ -191,14 +191,11 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
     return description.slice(0, MAX_CONTENT_LENGTH).trimEnd() + '…';
   }, [description]);
 
-  // Kind label for context (e.g. "development" with icon)
+  // Kind label for context (e.g. "nsite" with icon)
   const kindMeta = useMemo(() => {
-    const kindDef = EXTRA_KINDS.find((def) =>
-      def.subKinds?.some((sub) => sub.kind === event.kind) || def.kind === event.kind
-      || def.extraFeedKinds?.includes(event.kind),
-    );
-    if (!kindDef) return undefined;
-    return { label: kindDef.label.toLowerCase(), Icon: getKindIcon(event.kind) };
+    const label = getKindLabel(event.kind);
+    if (!label) return undefined;
+    return { label, Icon: getKindIcon(event.kind) };
   }, [event.kind]);
 
   return (
