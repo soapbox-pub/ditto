@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect, type ReactNode } from 'react';
-import { ArrowLeft, Pencil, Send, Sticker } from 'lucide-react';
+import { ArrowLeft, Loader2, Pencil, Send, Sticker } from 'lucide-react';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
@@ -12,6 +12,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { toast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
+import { backgroundTextColor } from '@/lib/colorUtils';
 import {
   LETTER_KIND,
   FONT_OPTIONS,
@@ -30,6 +31,7 @@ import { StickerPicker } from './StickerPicker';
 import { DrawingCanvas } from './DrawingCanvas';
 import { LetterRecipientInput } from './LetterRecipientInput';
 import { StationeryBackground } from './StationeryBackground';
+import { SendAnimation, useEnvelopeDimensions } from './SendAnimation';
 
 /** Lightweight letter preview used inside the send animation */
 function AnimationLetter({ content, width }: { content: LetterContent; width: number }) {
@@ -82,21 +84,12 @@ const BODY_MAX_LENGTH = 220;
 
 type Overlay = 'none' | 'font' | 'stationery' | 'frame' | 'sticker' | 'draw';
 
-interface SendAnimationData {
-  content: LetterContent;
-  bgColor: string;
-  primaryColor: string;
-  recipientName: string;
-  recipientPicture?: string;
-}
-
 interface ComposeLetterSheetProps {
   onClose: () => void;
-  onSent?: (data: SendAnimationData) => void;
   toPubkey?: string;
 }
 
-export function ComposeLetterSheet({ onClose, onSent, toPubkey }: ComposeLetterSheetProps) {
+export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProps) {
   const { user } = useCurrentUser();
   const { mutateAsync: createEvent } = useNostrPublish();
   const queryClient = useQueryClient();
@@ -135,6 +128,9 @@ export function ComposeLetterSheet({ onClose, onSent, toPubkey }: ComposeLetterS
   const [stickers, setStickers] = useState<LetterSticker[]>([]);
   const { emojis: customEmojis } = useCustomEmojis();
   const [sealing, setSealing] = useState(false);
+  const [sendAnimationContent, setSendAnimationContent] = useState<LetterContent | null>(null);
+  const envDims = useEnvelopeDimensions();
+  const animLetterW = envDims.letterW;
 
   // Once encrypted settings load, apply saved stationery preference (if any).
   // isThemeDefault is false only when the user has an explicit saved stationery.
@@ -259,15 +255,7 @@ export function ComposeLetterSheet({ onClose, onSent, toPubkey }: ComposeLetterS
       queryClient.invalidateQueries({ queryKey: ['letters-sent'] });
       queryClient.invalidateQueries({ queryKey: ['letters-inbox'] });
 
-      const resolvedSt = resolveStationery(letterContent.stationery ?? { color: '#F5E6D3' });
-      onSent?.({
-        content: letterContent,
-        bgColor: resolvedSt.color ?? '#F5E6D3',
-        primaryColor: resolvedSt.primaryColor ?? '#7c52e0',
-        recipientName,
-        recipientPicture: recipientAuthor.data?.metadata?.picture,
-      });
-      onClose();
+      setSendAnimationContent(letterContent);
     } catch (err) {
       console.error('Failed to send letter:', err);
       setSealing(false);
@@ -280,11 +268,42 @@ export function ComposeLetterSheet({ onClose, onSent, toPubkey }: ComposeLetterS
     || recipientAuthor.data?.metadata?.name
     || (resolvedRecipient ? genUserName(resolvedRecipient) : 'friend');
 
+  const resolvedSt = useMemo(() => resolveStationery(stationery ?? { color: '#F5E6D3' }), [stationery]);
+  const bgColor = resolvedSt.color ?? '#F5E6D3';
+  const primaryColor = resolvedSt.primaryColor ?? '#7c52e0';
+  const textColor = resolvedSt.textColor ?? backgroundTextColor(bgColor);
+
+  // Stable content ref so animLetterElement doesn't change identity on re-renders
+  const animContentRef = useRef(sendAnimationContent);
+  if (sendAnimationContent) animContentRef.current = sendAnimationContent;
+  const animLetterElement = useMemo(
+    () => <AnimationLetter content={animContentRef.current ?? { body: '' }} width={animLetterW} />,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sendAnimationContent, animLetterW],
+  );
+
   return (
     <>
+      {/* Pre-render letter hidden so images/fonts are loaded before animation fires */}
+      <div aria-hidden className="absolute opacity-0 pointer-events-none" style={{ width: animLetterW, top: -9999 }}>
+        <AnimationLetter content={buildLetterContent()} width={animLetterW} />
+      </div>
+      {sendAnimationContent && (
+        <SendAnimation
+          letterElement={animLetterElement}
+          letterWidth={animLetterW}
+          recipientName={recipientName}
+          recipientPicture={recipientAuthor.data?.metadata?.picture}
+          bgColor={bgColor}
+          primaryColor={primaryColor}
+          textColor={textColor}
+          onComplete={onClose}
+        />
+      )}
       <div
         ref={bodyAreaRef}
-        className="absolute inset-0 z-10 bg-background flex flex-col overflow-y-auto"
+        className="absolute inset-0 z-40 bg-background flex flex-col overflow-y-auto"
+        style={sendAnimationContent ? { visibility: 'hidden', pointerEvents: 'none' } : undefined}
       >
       <LetterEditor
         state={{
@@ -338,7 +357,7 @@ export function ComposeLetterSheet({ onClose, onSent, toPubkey }: ComposeLetterS
           </>
         }
         beforeCard={
-          <div className="max-w-xl mx-auto w-full px-5 pt-4 pb-2">
+          <div className="max-w-xl mx-auto w-full px-5 pb-2" style={{ paddingTop: `calc(${ARC_OVERHANG_PX}px + 2.5rem)` }}>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-muted-foreground shrink-0 w-14">To</span>
               {!initialRecipient ? (
@@ -415,7 +434,7 @@ export function ComposeLetterSheet({ onClose, onSent, toPubkey }: ComposeLetterS
           disabled={!canSend || sealing}
           title="Send letter"
           icon={sealing
-            ? <span className="animate-spin text-lg">✉️</span>
+            ? <Loader2 size={18} className="animate-spin" />
             : <Send strokeWidth={3} size={18} />
           }
         />
@@ -429,16 +448,13 @@ export function ComposeLetterSheet({ onClose, onSent, toPubkey }: ComposeLetterS
               disabled={!canSend || sealing}
               title="Send letter"
               icon={sealing
-                ? <span className="animate-spin text-lg">✉️</span>
+                ? <Loader2 size={18} className="animate-spin" />
                 : <Send strokeWidth={3} size={18} />
               }
             />
           </div>
         </div>
       </div>
-
-      {/* Space so card isn't hidden behind FAB */}
-      <div className="h-28 sidebar:hidden" />
     </div>
     </>
   );

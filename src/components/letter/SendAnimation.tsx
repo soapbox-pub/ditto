@@ -8,7 +8,7 @@
  * The wax seal uses the stationery's primary color and the Ditto logo.
  */
 
-import { useId, useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { useId, useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo } from 'react';
 import { hexToRgb, rgbToHex } from '@/lib/colorUtils';
 
 // ---------------------------------------------------------------------------
@@ -85,12 +85,26 @@ function darkenHex(hex: string, amount: number): string {
   return rgbToHex(dark(r), dark(g), dark(b));
 }
 
+function blendHex(hex: string, targetHex: string, amount: number): string {
+  const [r1, g1, b1] = hexToRgb(hex);
+  const [r2, g2, b2] = hexToRgb(targetHex);
+  return rgbToHex(
+    Math.round(r1 + (r2 - r1) * amount),
+    Math.round(g1 + (g2 - g1) * amount),
+    Math.round(b1 + (b2 - b1) * amount),
+  );
+}
+
 function envelopeColors(bgHex: string, primaryHex: string) {
+  // Tint the envelope body slightly toward the primary color so it
+  // contrasts with the raw background even on matching themes.
+  const body  = blendHex(bgHex, primaryHex, 0.08);
+  const inner = blendHex(bgHex, primaryHex, 0.18);
   return {
-    body:   bgHex,
-    inner:  mixHex(bgHex, 0.12),
-    stroke: darkenHex(bgHex, 0.18),
-    corner: darkenHex(bgHex, 0.10),
+    body,
+    inner,
+    stroke: darkenHex(body, 0.20),
+    corner: darkenHex(body, 0.12),
     // Seal: use primary color
     sealBase:   primaryHex,
     sealDark:   darkenHex(primaryHex, 0.12),
@@ -148,6 +162,8 @@ interface SendAnimationProps {
   bgColor: string;
   /** Primary hex color of the stationery (used for wax seal) */
   primaryColor: string;
+  /** Text/foreground color of the stationery (used for V-fold crease lines) */
+  textColor: string;
   onComplete: () => void;
 }
 
@@ -158,7 +174,7 @@ interface SendAnimationProps {
 export function SendAnimation({
   letterElement, letterWidth,
   recipientName, recipientPicture,
-  bgColor, primaryColor,
+  bgColor, primaryColor, textColor,
   onComplete,
 }: SendAnimationProps) {
   const d = useEnvelopeDimensions();
@@ -176,7 +192,7 @@ export function SendAnimation({
   const cleanup = useCallback(() => { cancelRef.current?.(); cancelRef.current = undefined; }, []);
   useEffect(() => () => cleanup(), [cleanup]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     cancelRef.current = animateVal(9000, setT, () => {
       onCompleteRef.current();
     }, ease.inOutCubic);
@@ -285,7 +301,7 @@ export function SendAnimation({
                   />
                   <path
                     d={`M0,${d.flapY} L${d.envW / 2 - d.r},${d.flapTriH - d.r} Q${d.envW / 2},${d.flapTriH} ${d.envW / 2 + d.r},${d.flapTriH - d.r} L${d.envW},${d.flapY}`}
-                    stroke={C.stroke} strokeWidth={d.strokeV} strokeLinecap="round" strokeLinejoin="round" fill="none"
+                    stroke={textColor} strokeWidth={d.strokeV} strokeLinecap="round" strokeLinejoin="round" fill="none"
                   />
                 </svg>
               </div>
@@ -296,7 +312,7 @@ export function SendAnimation({
                 style={{
                   backgroundColor: C.body,
                   borderRadius: d.r,
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05)',
+                  boxShadow: '0 8px 40px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.06)',
                 }}
               />
 
@@ -350,6 +366,15 @@ export function SendAnimation({
                 <path
                   d={`M0,${d.flapY} L${d.envW / 2 - d.r},${d.vY - d.r} Q${d.envW / 2},${d.vY} ${d.envW / 2 + d.r},${d.vY - d.r} L${d.envW},${d.flapY} L${d.envW},${d.envH - d.r} Q${d.envW},${d.envH} ${d.envW - d.r},${d.envH} L${d.r},${d.envH} Q0,${d.envH} 0,${d.envH - d.r} Z`}
                   fill={C.body}
+                />
+                {/* V crease lines in stationery text color */}
+                <path
+                  d={`M0,${d.flapY} L${d.envW / 2 - d.r},${d.vY - d.r} Q${d.envW / 2},${d.vY} ${d.envW / 2 + d.r},${d.vY - d.r} L${d.envW},${d.flapY}`}
+                  fill="none"
+                  stroke={textColor}
+                  strokeWidth={d.strokeV}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
               </svg>
 
