@@ -16,15 +16,17 @@
   <path d="M 100 65 Q 115 73 118 90 Q 115 107 100 115 Q 85 107 82 90 Q 85 73 100 65" fill="url(#roseyPetal3)" />
   <circle cx="100" cy="90" r="20" fill="url(#roseyCenter)" />
   
-  <!-- Eyes -->
+  <!-- Eyes (white base) -->
   <circle cx="90" cy="85" r="8" fill="white" />
   <circle cx="110" cy="85" r="8" fill="white" />
+  
+  <!-- Pupils (dark circles + highlights) -->
   <circle cx="90" cy="85" r="5" fill="#1f2937" />
   <circle cx="110" cy="85" r="5" fill="#1f2937" />
   <circle cx="92" cy="83" r="2" fill="white" />
   <circle cx="112" cy="83" r="2" fill="white" />
   
-  <!-- Sweet smile -->
+  <!-- Mouth -->
   <path d="M 92 100 Q 100 106 108 100" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
   
   <!-- Rosy cheeks -->

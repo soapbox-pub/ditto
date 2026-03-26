@@ -44,11 +44,13 @@
   <circle cx="70" cy="45" r="12" fill="#374151" />
   <circle cx="130" cy="45" r="12" fill="#374151" />
   
-  <!-- Eyes -->
+  <!-- Eyes (black patches + white base) -->
   <circle cx="85" cy="82" r="20" fill="#1f2937" />
   <circle cx="115" cy="82" r="20" fill="#1f2937" />
   <circle cx="85" cy="82" r="12" fill="url(#pandiEyeWhite3D)" />
   <circle cx="115" cy="82" r="12" fill="url(#pandiEyeWhite3D)" />
+  
+  <!-- Pupils (dark circles + highlights) -->
   <circle cx="85" cy="82" r="8" fill="url(#pandiPupil3D)" />
   <circle cx="115" cy="82" r="8" fill="url(#pandiPupil3D)" />
   <circle cx="88" cy="79" r="3" fill="white" />
@@ -57,7 +59,7 @@
   <!-- Nose -->
   <path d="M 100 95 L 95 105 L 105 105 Z" fill="url(#pandiNose3D)" />
   
-  <!-- Happy mouth -->
+  <!-- Mouth -->
   <path d="M 90 110 Q 100 118 110 110" stroke="url(#pandiMouth3D)" stroke-width="3" fill="none" stroke-linecap="round" />
   
   <!-- Arms -->

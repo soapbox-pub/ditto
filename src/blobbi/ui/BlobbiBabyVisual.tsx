@@ -10,6 +10,7 @@ import { useMemo, useRef, useEffect } from 'react';
 
 import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
 import { addEyeAnimation } from './lib/eye-animation';
+import { applyEmotion, type BlobbiEmotion } from './lib/emotions';
 import { useBlobbiEyes, type BlobbiLookMode } from './lib/useBlobbiEyes';
 import { cn } from '@/lib/utils';
 import type { Blobbi } from '@/types/blobbi';
@@ -46,6 +47,12 @@ export interface BlobbiBabyVisualProps {
    * Values should be -1 to 1, will be converted to pixel movement.
    */
   externalEyeOffset?: ExternalEyeOffset;
+  /** 
+   * Emotional state to display.
+   * Adds visual overlays like eyebrows, modified mouth, and tears.
+   * Default: 'neutral' (no modifications)
+   */
+  emotion?: BlobbiEmotion;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -60,7 +67,7 @@ export interface BlobbiBabyVisualProps {
  * - Eyes always track the mouse cursor (instant, real-time)
  * - Renders safely using dangerouslySetInnerHTML
  */
-export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, className }: BlobbiBabyVisualProps) {
+export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, emotion = 'neutral', className }: BlobbiBabyVisualProps) {
   const isSleeping = isBlobbiSleeping(blobbi);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -112,11 +119,18 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
 
     // Add eye animation wrappers (only when not sleeping)
     if (!isSleeping) {
-      return addEyeAnimation(colorizedSvg);
+      let animatedSvg = addEyeAnimation(colorizedSvg);
+      
+      // Apply emotion overlays (eyebrows, sad mouth, tears, etc.)
+      if (emotion !== 'neutral') {
+        animatedSvg = applyEmotion(animatedSvg, emotion);
+      }
+      
+      return animatedSvg;
     }
 
     return colorizedSvg;
-  }, [blobbi, isSleeping]);
+  }, [blobbi, isSleeping, emotion]);
 
   return (
     <div

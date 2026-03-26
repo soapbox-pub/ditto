@@ -12,15 +12,17 @@
   <line x1="100" y1="85" x2="100" y2="155" stroke="#65a30d" stroke-width="2" opacity="0.5" />
   <line x1="108" y1="85" x2="108" y2="155" stroke="#65a30d" stroke-width="2" opacity="0.5" />
   
-  <!-- Eyes -->
+  <!-- Eyes (white base) -->
   <circle cx="90" cy="105" r="8" fill="white" />
   <circle cx="110" cy="105" r="8" fill="white" />
+  
+  <!-- Pupils (dark circles + highlights) -->
   <circle cx="90" cy="105" r="5" fill="#1f2937" />
   <circle cx="110" cy="105" r="5" fill="#1f2937" />
   <circle cx="92" cy="103" r="2" fill="white" />
   <circle cx="112" cy="103" r="2" fill="white" />
   
-  <!-- Sweet smile -->
+  <!-- Mouth -->
   <path d="M 92 120 Q 100 126 108 120" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
   
   <!-- Tiny spines -->

@@ -37,15 +37,17 @@
   <ellipse cx="100" cy="100" rx="35" ry="45" fill="url(#droppiInner)" opacity="0.6" />
   <ellipse cx="90" cy="80" rx="20" ry="25" fill="url(#droppiHighlight)" opacity="0.7" />
   
-  <!-- Eyes -->
+  <!-- Eyes (white base) -->
   <circle cx="85" cy="95" r="12" fill="white" />
   <circle cx="115" cy="95" r="12" fill="white" />
+  
+  <!-- Pupils (dark circles + highlights) -->
   <circle cx="85" cy="95" r="8" fill="#0891b2" />
   <circle cx="115" cy="95" r="8" fill="#0891b2" />
   <circle cx="88" cy="92" r="4" fill="white" />
   <circle cx="118" cy="92" r="4" fill="white" />
   
-  <!-- Gentle smile -->
+  <!-- Mouth -->
   <path d="M 88 115 Q 100 123 112 115" stroke="#0891b2" stroke-width="3" fill="none" stroke-linecap="round" />
   
   <!-- Little arms -->
