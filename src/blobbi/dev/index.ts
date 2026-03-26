@@ -7,3 +7,7 @@
 
 export { BlobbiDevEditor, type BlobbiDevUpdates } from './BlobbiDevEditor';
 export { useBlobbiDevUpdate } from './useBlobbiDevUpdate';
+
+// Emotion testing tools
+export { EmotionDevProvider, useEmotionDev, useEffectiveEmotion } from './EmotionDevContext';
+export { BlobbiEmotionPanel } from './BlobbiEmotionPanel';

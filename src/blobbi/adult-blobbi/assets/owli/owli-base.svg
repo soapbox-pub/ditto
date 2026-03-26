@@ -52,9 +52,11 @@
   <path d="M 65 65 L 70 52 L 77 65 Z" fill="url(#owliEarInner)" />
   <path d="M 123 65 L 130 52 L 135 65 Z" fill="url(#owliEarInner)" />
   
-  <!-- Eyes -->
+  <!-- Eyes (white base) -->
   <circle cx="80" cy="100" r="22" fill="url(#owliEyeWhite3D)" />
   <circle cx="120" cy="100" r="22" fill="url(#owliEyeWhite3D)" />
+  
+  <!-- Pupils (dark circles + highlights) -->
   <circle cx="80" cy="100" r="14" fill="url(#owliPupil3D)" />
   <circle cx="120" cy="100" r="14" fill="url(#owliPupil3D)" />
   <circle cx="84" cy="96" r="5" fill="white" opacity="0.9" />

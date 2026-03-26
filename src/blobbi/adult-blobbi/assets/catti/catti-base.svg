@@ -56,19 +56,21 @@
   <path d="M 70 62 L 64 52 L 76 58 Z" fill="url(#cattiEarInner)" />
   <path d="M 130 62 L 136 52 L 124 58 Z" fill="url(#cattiEarInner)" />
   
-  <!-- Eyes -->
+  <!-- Eyes (white/base eye shapes) -->
   <ellipse cx="85" cy="100" rx="12" ry="16" fill="url(#cattiEyeWhite3D)" />
   <ellipse cx="115" cy="100" rx="12" ry="16" fill="url(#cattiEyeWhite3D)" />
+  
+  <!-- Pupils (pupil + highlights) -->
   <ellipse cx="85" cy="100" rx="8" ry="12" fill="url(#cattiPupil3D)" />
   <ellipse cx="115" cy="100" rx="8" ry="12" fill="url(#cattiPupil3D)" />
   <ellipse cx="87" cy="97" rx="3" ry="4" fill="white" opacity="0.9" />
   <ellipse cx="117" cy="97" rx="3" ry="4" fill="white" opacity="0.9" />
   
-  <!-- Enhanced cat nose -->
+  <!-- Nose -->
   <path d="M 94 115 L 100 122 L 106 115 Z" fill="url(#cattiNose3D)" />
   <path d="M 96 116 L 100 120 L 104 116 Z" fill="url(#cattiNoseHighlight)" />
   
-  <!-- Cat mouth -->
+  <!-- Mouth -->
   <path d="M 100 122 Q 88 128 82 122" stroke="url(#cattiMouth3D)" stroke-width="2.5" fill="none" stroke-linecap="round" />
   <path d="M 100 122 Q 112 128 118 122" stroke="url(#cattiMouth3D)" stroke-width="2.5" fill="none" stroke-linecap="round" />
   

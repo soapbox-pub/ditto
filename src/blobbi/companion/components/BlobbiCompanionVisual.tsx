@@ -9,6 +9,7 @@ import { useMemo, useRef } from 'react';
 
 import { BlobbiBabyVisual } from '@/blobbi/ui/BlobbiBabyVisual';
 import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
+import { useEffectiveEmotion } from '@/blobbi/dev';
 import { cn } from '@/lib/utils';
 import type { CompanionData, EyeOffset, CompanionDirection } from '../types/companion.types';
 import type { Blobbi } from '@/types/blobbi';
@@ -84,6 +85,9 @@ export function BlobbiCompanionVisual({
   const containerRef = useRef<HTMLDivElement>(null);
   
   const blobbi = useMemo(() => toBlobiForVisual(companion), [companion]);
+  
+  // DEV ONLY: Get effective emotion from dev context
+  const effectiveEmotion = useEffectiveEmotion();
   
   // Eye offset is now passed directly to the visual components via externalEyeOffset prop
   // This is more reliable than DOM manipulation which can be overwritten by useBlobbiEyes
@@ -229,6 +233,7 @@ export function BlobbiCompanionVisual({
             reaction={reaction}
             lookMode="forward"
             externalEyeOffset={eyeOffset}
+            emotion={effectiveEmotion}
             className="size-full"
           />
         )}
@@ -238,6 +243,7 @@ export function BlobbiCompanionVisual({
             reaction={reaction}
             lookMode="forward"
             externalEyeOffset={eyeOffset}
+            emotion={effectiveEmotion}
             className="size-full"
           />
         )}

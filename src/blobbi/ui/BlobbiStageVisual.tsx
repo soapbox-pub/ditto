@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import type { BlobbiCompanion } from '@/lib/blobbi';
 import type { Blobbi } from '@/types/blobbi';
 import type { BlobbiLookMode } from './lib/useBlobbiEyes';
+import type { BlobbiEmotion } from './lib/emotions';
 
 export type { BlobbiLookMode };
 
@@ -45,6 +46,12 @@ export interface BlobbiStageVisualProps {
   lookMode?: BlobbiLookMode;
   /** Disable blinking animation (for photo/export mode) */
   disableBlink?: boolean;
+  /** 
+   * Emotional state to display.
+   * Adds visual overlays like eyebrows, modified mouth, and tears.
+   * Default: 'neutral' (no modifications)
+   */
+  emotion?: BlobbiEmotion;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -117,6 +124,7 @@ export function BlobbiStageVisual({
   reaction = 'idle',
   lookMode = 'follow-pointer',
   disableBlink = false,
+  emotion = 'neutral',
   className,
 }: BlobbiStageVisualProps) {
   const { stage } = companion;
@@ -162,6 +170,7 @@ export function BlobbiStageVisual({
           reaction={effectiveReaction}
           lookMode={lookMode}
           disableBlink={disableBlink}
+          emotion={emotion}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />
@@ -178,6 +187,7 @@ export function BlobbiStageVisual({
           reaction={effectiveReaction}
           lookMode={lookMode}
           disableBlink={disableBlink}
+          emotion={emotion}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />

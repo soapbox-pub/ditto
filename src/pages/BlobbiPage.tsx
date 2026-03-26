@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X, Footprints, Wrench } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X, Footprints, Wrench, Theater } from 'lucide-react';
 // TODO: Re-import when features are implemented: Footprints, PictureInPicture2
 // Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
 // Note: Sparkles kept for BlobbiBottomBar center action button
@@ -81,7 +81,7 @@ import {
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
-import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates } from '@/blobbi/dev';
+import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion } from '@/blobbi/dev';
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -840,6 +840,12 @@ function BlobbiDashboard({
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   
+  // DEV ONLY: Emotion panel state
+  const [showEmotionPanel, setShowEmotionPanel] = useState(false);
+  
+  // DEV ONLY: Get effective emotion (dev override or default)
+  const effectiveEmotion = useEffectiveEmotion();
+  
   // Adoption flow modal state
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
   
@@ -1326,6 +1332,8 @@ function BlobbiDashboard({
           onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
           // DEV ONLY: Open state editor modal
           onDevOpenEditor={() => setShowDevEditor(true)}
+          // DEV ONLY: Open emotion tester panel
+          onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
         />
         
         {/* Blobbi Name */}
@@ -1360,6 +1368,7 @@ function BlobbiDashboard({
               size="lg"
               animated={!isSleeping}
               reaction={blobbiReaction}
+              emotion={effectiveEmotion}
               className="size-48 sm:size-56"
             />
           </div>
@@ -1655,6 +1664,14 @@ function BlobbiDashboard({
           isUpdating={isDevUpdating}
         />
       )}
+      
+      {/* DEV ONLY: Blobbi Emotion Tester Panel */}
+      {import.meta.env.DEV && (
+        <BlobbiEmotionPanel
+          isOpen={showEmotionPanel}
+          onClose={() => setShowEmotionPanel(false)}
+        />
+      )}
     </DashboardShell>
   );
 }
@@ -1726,6 +1743,8 @@ interface BlobbiDashboardFloatingControlsProps {
   onDevInstantTransition?: () => void;
   /** DEV ONLY: Open state editor callback */
   onDevOpenEditor?: () => void;
+  /** DEV ONLY: Open emotion tester callback */
+  onDevOpenEmotionPanel?: () => void;
 }
 
 /**
@@ -1779,6 +1798,7 @@ function BlobbiDashboardFloatingControls({
   isEvolutionAction = false,
   onDevInstantTransition,
   onDevOpenEditor,
+  onDevOpenEmotionPanel,
 }: BlobbiDashboardFloatingControlsProps) {
   // Left-side buttons
   const leftButtons: FloatingActionDef[] = [
@@ -1939,6 +1959,28 @@ function BlobbiDashboardFloatingControls({
             <TooltipContent side="left">
               <p className="text-amber-600 dark:text-amber-400">
                 Dev State Editor
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+        
+        {/* DEV ONLY: Emotion tester button */}
+        {/* Opens a panel to test different emotions on Blobbi */}
+        {import.meta.env.DEV && onDevOpenEmotionPanel && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onDevOpenEmotionPanel}
+                className="size-10 rounded-full bg-amber-500/10 backdrop-blur-sm border-dashed border-amber-500/50 hover:bg-amber-500/20 hover:border-amber-500/70 transition-all shadow-sm text-amber-600 dark:text-amber-400"
+              >
+                <Theater className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p className="text-amber-600 dark:text-amber-400">
+                Dev Emotion Tester
               </p>
             </TooltipContent>
           </Tooltip>

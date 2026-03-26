@@ -18,15 +18,17 @@
   <path d="M 100 50 Q 75 65 68 85 Q 65 105 75 120 Q 85 130 100 135 Q 115 130 125 120 Q 135 105 132 85 Q 125 65 100 50" 
         fill="url(#breezyInner)" opacity="0.6" />
   
-  <!-- Eyes -->
+  <!-- Eyes (white base) -->
   <circle cx="85" cy="90" r="10" fill="white" />
   <circle cx="115" cy="90" r="10" fill="white" />
+  
+  <!-- Pupils (dark circles + highlights) -->
   <circle cx="85" cy="90" r="6" fill="#1f2937" />
   <circle cx="115" cy="90" r="6" fill="#1f2937" />
   <circle cx="87" cy="88" r="3" fill="white" />
   <circle cx="117" cy="88" r="3" fill="white" />
   
-  <!-- Cheerful smile -->
+  <!-- Mouth -->
   <path d="M 85 110 Q 100 120 115 110" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
   
   <!-- Little arms -->

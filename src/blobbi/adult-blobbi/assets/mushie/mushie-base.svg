@@ -14,15 +14,17 @@
   <circle cx="130" cy="100" r="5" fill="white" opacity="0.6" />
   <circle cx="70" cy="100" r="5" fill="white" opacity="0.6" />
   
-  <!-- Eyes -->
+  <!-- Eyes (white base) -->
   <circle cx="88" cy="130" r="8" fill="white" />
   <circle cx="112" cy="130" r="8" fill="white" />
+  
+  <!-- Pupils (dark circles + highlights) -->
   <circle cx="88" cy="130" r="5" fill="#1f2937" />
   <circle cx="112" cy="130" r="5" fill="#1f2937" />
   <circle cx="90" cy="128" r="2" fill="white" />
   <circle cx="114" cy="128" r="2" fill="white" />
   
-  <!-- Happy smile -->
+  <!-- Mouth -->
   <path d="M 88 145 Q 100 153 112 145" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
   
   <!-- Little arms -->

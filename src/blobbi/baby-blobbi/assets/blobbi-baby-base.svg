@@ -35,15 +35,17 @@
   <!-- Soft inner glow -->
   <ellipse cx="50" cy="45" rx="15" ry="20" fill="white" opacity="0.2" />
   
-  <!-- Eyes -->
+  <!-- Eyes (white/base eye shapes) -->
   <ellipse cx="38" cy="45" rx="8" ry="10" fill="url(#blobbiEyeGradient)" />
   <ellipse cx="62" cy="45" rx="8" ry="10" fill="url(#blobbiEyeGradient)" />
+  
+  <!-- Pupils (pupil + highlights) -->
   <circle cx="38" cy="46" r="6" fill="url(#blobbiPupilGradient)" />
   <circle cx="62" cy="46" r="6" fill="url(#blobbiPupilGradient)" />
   <circle cx="40" cy="44" r="2" fill="white" />
   <circle cx="64" cy="44" r="2" fill="white" />
   
-  <!-- Happy mouth -->
+  <!-- Mouth -->
   <path d="M 42 62 Q 50 68 58 62" stroke="url(#blobbiMouthGradient)" stroke-width="2.5" fill="none" stroke-linecap="round" />
   
   <!-- Soft blush for cuteness -->

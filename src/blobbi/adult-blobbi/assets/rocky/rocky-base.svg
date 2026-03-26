@@ -43,31 +43,33 @@
       repeatCount="indefinite" />
   </g>
 
-  <!-- Corpo do Rocky -->
+  <!-- Rocky's body -->
   <path d="M 100 50 L 130 70 L 140 110 L 130 150 L 100 165 L 70 150 L 60 110 L 70 70 Z" fill="url(#rockyBody)" />
   <path d="M 100 55 L 125 72 L 135 108 L 125 145 L 100 158 L 75 145 L 65 108 L 75 72 Z" fill="url(#rockyInner)" opacity="0.8" />
 
-  <!-- Textura -->
+  <!-- Texture -->
   <path d="M 75 80 L 125 85" stroke="#57534e" stroke-width="2" opacity="0.5" />
   <path d="M 70 110 L 130 115" stroke="#57534e" stroke-width="2" opacity="0.5" />
   <path d="M 80 140 L 120 135" stroke="#57534e" stroke-width="2" opacity="0.5" />
 
-  <!-- Eyes -->
+  <!-- Eyes (white base) -->
   <circle cx="85" cy="95" r="12" fill="white" />
   <circle cx="115" cy="95" r="12" fill="white" />
+  
+  <!-- Pupils (dark circles + highlights) -->
   <circle cx="85" cy="95" r="8" fill="#1f2937" />
   <circle cx="115" cy="95" r="8" fill="#1f2937" />
   <circle cx="88" cy="92" r="4" fill="white" />
   <circle cx="118" cy="92" r="4" fill="white" />
 
-  <!-- Boca -->
+  <!-- Mouth -->
   <path d="M 88 115 Q 100 123 112 115" stroke="#1f2937" stroke-width="4" fill="none" stroke-linecap="round" />
 
-  <!-- Braços -->
+  <!-- Arms -->
   <ellipse cx="55" cy="110" rx="12" ry="8" fill="url(#rockyArm)" transform="rotate(-15 55 110)" />
   <ellipse cx="145" cy="110" rx="12" ry="8" fill="url(#rockyArm)" transform="rotate(15 145 110)" />
 
-  <!-- Pernas -->
+  <!-- Legs -->
   <ellipse cx="85" cy="160" rx="15" ry="10" fill="url(#rockyLeg)" />
   <ellipse cx="115" cy="160" rx="15" ry="10" fill="url(#rockyLeg)" />
 
