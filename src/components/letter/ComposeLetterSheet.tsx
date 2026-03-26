@@ -12,10 +12,10 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { toast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
-import { resolveStationery } from '@/lib/letterTypes';
 import {
   LETTER_KIND,
   FONT_OPTIONS,
+  resolveStationery,
   type Stationery,
   type FrameStyle,
   type LetterContent,
@@ -29,7 +29,6 @@ import { LetterStickers } from './LetterStickers';
 import { StickerPicker } from './StickerPicker';
 import { DrawingCanvas } from './DrawingCanvas';
 import { LetterRecipientInput } from './LetterRecipientInput';
-import { SendAnimation, useEnvelopeDimensions } from './SendAnimation';
 import { StationeryBackground } from './StationeryBackground';
 
 /** Lightweight letter preview used inside the send animation */
@@ -83,12 +82,21 @@ const BODY_MAX_LENGTH = 220;
 
 type Overlay = 'none' | 'font' | 'stationery' | 'frame' | 'sticker' | 'draw';
 
+interface SendAnimationData {
+  content: LetterContent;
+  bgColor: string;
+  primaryColor: string;
+  recipientName: string;
+  recipientPicture?: string;
+}
+
 interface ComposeLetterSheetProps {
   onClose: () => void;
+  onSent?: (data: SendAnimationData) => void;
   toPubkey?: string;
 }
 
-export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProps) {
+export function ComposeLetterSheet({ onClose, onSent, toPubkey }: ComposeLetterSheetProps) {
   const { user } = useCurrentUser();
   const { mutateAsync: createEvent } = useNostrPublish();
   const queryClient = useQueryClient();
@@ -127,9 +135,6 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   const [stickers, setStickers] = useState<LetterSticker[]>([]);
   const { emojis: customEmojis } = useCustomEmojis();
   const [sealing, setSealing] = useState(false);
-  const [sendAnimationContent, setSendAnimationContent] = useState<LetterContent | null>(null);
-  const envDims = useEnvelopeDimensions();
-  const animLetterW = envDims.letterW;
 
   // Once encrypted settings load, apply saved stationery preference (if any).
   // isThemeDefault is false only when the user has an explicit saved stationery.
@@ -254,7 +259,15 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
       queryClient.invalidateQueries({ queryKey: ['letters-sent'] });
       queryClient.invalidateQueries({ queryKey: ['letters-inbox'] });
 
-      setSendAnimationContent(letterContent);
+      const resolvedSt = resolveStationery(letterContent.stationery ?? { color: '#F5E6D3' });
+      onSent?.({
+        content: letterContent,
+        bgColor: resolvedSt.color ?? '#F5E6D3',
+        primaryColor: resolvedSt.primaryColor ?? '#7c52e0',
+        recipientName,
+        recipientPicture: recipientAuthor.data?.metadata?.picture,
+      });
+      onClose();
     } catch (err) {
       console.error('Failed to send letter:', err);
       setSealing(false);
@@ -267,28 +280,11 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
     || recipientAuthor.data?.metadata?.name
     || (resolvedRecipient ? genUserName(resolvedRecipient) : 'friend');
 
-  // Derive envelope + seal colors from the current stationery
-  const resolvedSt = resolveStationery(stationery);
-  const bgColor      = resolvedSt.color ?? '#F5E6D3';
-  const primaryColor = resolvedSt.primaryColor ?? '#7c52e0';
-
   return (
     <>
-      {sendAnimationContent && (
-        <SendAnimation
-          letterElement={<AnimationLetter content={sendAnimationContent} width={animLetterW} />}
-          letterWidth={animLetterW}
-          recipientName={recipientName}
-          recipientPicture={recipientAuthor.data?.metadata?.picture}
-          bgColor={bgColor}
-          primaryColor={primaryColor}
-          onComplete={onClose}
-        />
-      )}
       <div
         ref={bodyAreaRef}
-        className="min-h-screen bg-background flex flex-col"
-        style={sendAnimationContent ? { visibility: 'hidden', position: 'fixed' } : undefined}
+        className="absolute inset-0 z-10 bg-background flex flex-col overflow-y-auto"
       >
       <LetterEditor
         state={{

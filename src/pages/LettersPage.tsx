@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, PenLine, Settings } from 'lucide-react';
@@ -17,8 +17,58 @@ import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LetterCard } from '@/components/letter/LetterCard';
 import { ComposeLetterSheet } from '@/components/letter/ComposeLetterSheet';
+import { SendAnimation, useEnvelopeDimensions } from '@/components/letter/SendAnimation';
+import { StationeryBackground } from '@/components/letter/StationeryBackground';
+import { useStationeryColors } from '@/hooks/useStationeryColors';
+import { FONT_OPTIONS, type LetterContent } from '@/lib/letterTypes';
 
 type Tab = 'inbox' | 'sent';
+
+interface SendAnimationData {
+  content: LetterContent;
+  bgColor: string;
+  primaryColor: string;
+  recipientName: string;
+  recipientPicture?: string;
+}
+
+/** Lightweight letter preview used inside the send animation */
+function AnimationLetter({ content, width }: { content: LetterContent; width: number }) {
+  const { text: textColor, line: lineColor } = useStationeryColors(content.stationery);
+  const fontFamily = content.stationery?.fontFamily ?? FONT_OPTIONS[0].family;
+  const lh = Math.round(width * 0.084);
+
+  return (
+    <div className="relative" style={{ containerType: 'inline-size', width }}>
+      <StationeryBackground
+        stationery={content.stationery}
+        frame={content.stationery?.frame}
+        frameTint={content.stationery?.frameTint}
+        className="rounded-2xl"
+      >
+        <div className="relative z-10 flex flex-col" style={{ aspectRatio: '5 / 4', padding: '5cqw' }}>
+          <p
+            className="whitespace-pre-wrap font-semibold tracking-wide overflow-hidden flex-1 min-h-0"
+            style={{
+              fontSize: '4.8cqw', lineHeight: `${lh}px`, letterSpacing: '0.06em',
+              paddingTop: '0.5cqw', fontFamily, color: textColor,
+              backgroundImage: `linear-gradient(to bottom, transparent ${lh - 3}px, ${lineColor} ${lh - 3}px)`,
+              backgroundSize: `100% ${lh}px`, backgroundRepeat: 'repeat-y',
+              maxHeight: `${lh * 5}px`,
+            }}
+          >
+            {content.body}
+          </p>
+          {content.closing && (
+            <div className="flex flex-col items-end" style={{ paddingTop: '6cqw', gap: '3cqw', paddingRight: '4cqw', fontFamily }}>
+              <p style={{ fontSize: '4.8cqw', color: textColor }}>{content.closing}</p>
+            </div>
+          )}
+        </div>
+      </StationeryBackground>
+    </div>
+  );
+}
 
 function LetterSkeleton() {
   return (
@@ -42,6 +92,9 @@ export function LettersPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('inbox');
   const [composing, setComposing] = useState(false);
+  const [sendAnim, setSendAnim] = useState<SendAnimationData | null>(null);
+  const envDims = useEnvelopeDimensions();
+  const animLetterW = envDims.letterW;
 
   useLayoutOptions({ showFAB: false, hasSubHeader: !!user });
 
@@ -58,10 +111,6 @@ export function LettersPage() {
   const { data: sent, isLoading: sentLoading } = useSentLetters();
 
   useSeoMeta({ title: 'Letters', description: 'Your private encrypted letters' });
-
-  if (composing) {
-    return <ComposeLetterSheet onClose={() => setComposing(false)} />;
-  }
 
   if (!user) {
     return (
@@ -87,7 +136,24 @@ export function LettersPage() {
   const isLoading = tab === 'inbox' ? inboxLoading : sentLoading;
 
   return (
-    <main className="min-h-screen pb-16 sidebar:pb-0">
+    <main className="relative min-h-screen pb-16 sidebar:pb-0">
+      {composing && (
+        <ComposeLetterSheet
+          onClose={() => setComposing(false)}
+          onSent={(data) => { setSendAnim(data); setComposing(false); }}
+        />
+      )}
+      {sendAnim && (
+        <SendAnimation
+          letterElement={<AnimationLetter content={sendAnim.content} width={animLetterW} />}
+          letterWidth={animLetterW}
+          recipientName={sendAnim.recipientName}
+          recipientPicture={sendAnim.recipientPicture}
+          bgColor={sendAnim.bgColor}
+          primaryColor={sendAnim.primaryColor}
+          onComplete={() => setSendAnim(null)}
+        />
+      )}
       <PageHeader title="Letters" icon={<Mail className="size-5" />} backTo="/" alwaysShowBack>
         <button
           onClick={() => navigate('/settings/letters')}
