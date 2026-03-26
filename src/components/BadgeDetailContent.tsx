@@ -554,6 +554,19 @@ function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: str
   const tilt = useCardTilt(18, 1.06);
   const glareRef = useRef<HTMLDivElement>(null);
 
+  // Mask string that clips overlays to the badge image's visible pixels.
+  // This ensures glare and edge effects don't paint over transparent areas.
+  const imageMask: React.CSSProperties = {
+    maskImage: `url(${heroImage})`,
+    WebkitMaskImage: `url(${heroImage})`,
+    maskSize: 'cover',
+    WebkitMaskSize: 'cover',
+    maskRepeat: 'no-repeat',
+    WebkitMaskRepeat: 'no-repeat',
+    maskPosition: 'center',
+    WebkitMaskPosition: 'center',
+  };
+
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       tilt.onPointerMove(e);
@@ -618,24 +631,20 @@ function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: str
         <img
           src={heroImage}
           alt={badgeName}
-          className="size-36 rounded-2xl object-cover drop-shadow-lg"
+          className="size-36 object-cover drop-shadow-lg"
           loading="lazy"
           draggable={false}
         />
-        {/* Specular glare overlay */}
+        {/* Specular glare overlay — masked to the image's alpha channel */}
         <div
           ref={glareRef}
-          className="absolute inset-0 rounded-2xl pointer-events-none"
+          className="absolute inset-0 pointer-events-none"
           style={{
             opacity: 0,
             transition: 'opacity 0.4s ease-out',
             mixBlendMode: 'overlay',
+            ...imageMask,
           }}
-          aria-hidden="true"
-        />
-        {/* Edge shadow for depth */}
-        <div
-          className="absolute inset-0 rounded-2xl pointer-events-none ring-1 ring-black/10 dark:ring-white/10"
           aria-hidden="true"
         />
       </div>
