@@ -224,7 +224,7 @@ export function SendAnimation({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-background flex items-center justify-center overflow-hidden"
+      className="absolute inset-0 z-50 bg-background flex items-center justify-center overflow-hidden"
       style={{ opacity: 1 - fadeOutP }}
     >
       {/* Envelope animation */}
