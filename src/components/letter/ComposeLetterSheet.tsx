@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { ArrowLeft, Pencil, Send, Sticker } from 'lucide-react';
+import { ArcBackground } from '@/components/ArcBackground';
 import { nip19 } from 'nostr-tools';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -226,8 +227,9 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   return (
     <div ref={bodyAreaRef} className="min-h-screen bg-background flex flex-col">
       {/* Page header — back + title + send */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm">
-        <div className="flex items-center gap-2 px-2 py-2 min-h-[52px]">
+      <header className="sticky top-0 z-50 safe-area-top">
+        <ArcBackground variant="down" />
+        <div className="relative flex items-center gap-2 px-2 py-2 min-h-[52px]">
           <button
             onClick={onClose}
             className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
