@@ -5,8 +5,10 @@ import { Sparkles, RotateCcw } from 'lucide-react';
 import { useLetterPreferences } from '@/hooks/useLetterPreferences';
 import { useThemeStationery } from '@/hooks/useThemeStationery';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import {
   FONT_OPTIONS,
   type Stationery,
@@ -23,6 +25,7 @@ function toSerializable(s: Stationery): SerializableStationery {
 
 export function LetterPreferencesSection() {
   const { user } = useCurrentUser();
+  useLayoutOptions({ hasSubHeader: true });
   const { prefs, updatePrefs, resetStationery, isThemeDefault } = useLetterPreferences();
   const themeStationery = useThemeStationery();
 
@@ -91,7 +94,11 @@ export function LetterPreferencesSection() {
         }}
         overlay={overlay}
         setOverlay={(o) => setOverlay(o as BaseOverlay)}
-        stickyHeader={false}
+        renderToolbar={(buttons) => (
+          <SubHeaderBar noArc innerClassName="px-2 gap-1 justify-end">
+            {buttons}
+          </SubHeaderBar>
+        )}
         beforeCard={
           <div className="pt-4 max-w-xl mx-auto w-full px-5">
             {isThemeDefault ? (
