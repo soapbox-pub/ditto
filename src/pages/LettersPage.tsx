@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Send, PenLine, Settings } from 'lucide-react';
+import { FabButton } from '@/components/FabButton';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useInbox, useSentLetters } from '@/hooks/useLetters';
@@ -158,13 +159,16 @@ export function LettersPage() {
       </div>
 
       {/* Compose FAB */}
-      <button
-        onClick={() => setComposing(true)}
-        className="fixed bottom-20 right-5 sidebar:bottom-6 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
-        title="Write a letter"
-      >
-        <PenLine className="w-6 h-6" strokeWidth={2.5} />
-      </button>
+      <div className="fixed bottom-fab right-6 z-30 sidebar:hidden">
+        <FabButton onClick={() => setComposing(true)} icon={<PenLine size={18} strokeWidth={3} />} title="Write a letter" />
+      </div>
+      <div className="hidden sidebar:block sticky bottom-6 z-30 pointer-events-none">
+        <div className="flex justify-end pr-4">
+          <div className="pointer-events-auto">
+            <FabButton onClick={() => setComposing(true)} icon={<PenLine size={18} strokeWidth={3} />} title="Write a letter" />
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
