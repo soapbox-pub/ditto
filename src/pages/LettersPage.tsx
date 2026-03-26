@@ -14,24 +14,24 @@ import { PageHeader } from '@/components/PageHeader';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
-import { Skeleton } from '@/components/ui/skeleton';
-import { LetterCard } from '@/components/letter/LetterCard';
+import { EnvelopeCard } from '@/components/letter/EnvelopeCard';
+import { LetterDetailSheet } from '@/components/letter/LetterDetailSheet';
 import { ComposeLetterSheet } from '@/components/letter/ComposeLetterSheet';
+import type { Letter } from '@/lib/letterTypes';
 
 type Tab = 'inbox' | 'sent';
 
-function LetterSkeleton() {
+/** Skeleton envelope matching the grid tile shape. */
+function EnvelopeSkeleton({ index }: { index: number }) {
   return (
-    <div className="rounded-3xl overflow-hidden shadow-sm">
-      <Skeleton className="h-16 w-full" />
-      <div className="bg-card px-4 pb-5 pt-1">
-        <div className="flex items-center gap-3">
-          <Skeleton className="w-9 h-9 rounded-full" />
-          <div className="flex-1 space-y-1">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-3 w-20" />
-          </div>
-        </div>
+    <div
+      className="envelope-skeleton flex flex-col items-center gap-2"
+      style={{ animationDelay: `${index * 150}ms` }}
+    >
+      <div className="w-full rounded-lg bg-muted/60" style={{ aspectRatio: '4 / 3' }} />
+      <div className="flex flex-col items-center gap-1 w-full">
+        <div className="h-3 w-14 rounded-full bg-muted/50" />
+        <div className="h-2 w-10 rounded-full bg-muted/30" />
       </div>
     </div>
   );
@@ -42,6 +42,7 @@ export function LettersPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('inbox');
   const [composing, setComposing] = useState(false);
+  const [selectedLetter, setSelectedLetter] = useState<Letter | null>(null);
 
   useLayoutOptions({ showFAB: false, hasSubHeader: !!user, noOverscroll: composing });
 
@@ -109,14 +110,14 @@ export function LettersPage() {
       </SubHeaderBar>
       <div style={{ height: ARC_OVERHANG_PX }} />
 
-      {/* Letter list */}
-      <div className="px-4 py-2 space-y-3">
+      {/* Envelope grid */}
+      <div className="px-4 py-3">
         {isLoading && (
-          <>
-            <LetterSkeleton />
-            <LetterSkeleton />
-            <LetterSkeleton />
-          </>
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sidebar:grid-cols-3">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <EnvelopeSkeleton key={i} index={i} />
+            ))}
+          </div>
         )}
 
         {!isLoading && activeLetters && activeLetters.length === 0 && (
@@ -134,20 +135,33 @@ export function LettersPage() {
             </p>
             {tab === 'inbox' && (
               <p className="text-xs text-muted-foreground opacity-70">
-                ask a friend to send you a letter on lief.pages.dev
+                ask a friend to send you a letter
               </p>
             )}
           </div>
         )}
 
-        {!isLoading && activeLetters?.map((letter) => (
-          <LetterCard
-            key={letter.event.id}
-            letter={letter}
-            mode={tab}
-          />
-        ))}
+        {!isLoading && activeLetters && activeLetters.length > 0 && (
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sidebar:grid-cols-3">
+            {activeLetters.map((letter, i) => (
+              <EnvelopeCard
+                key={letter.event.id}
+                letter={letter}
+                mode={tab}
+                index={i}
+                onClick={() => setSelectedLetter(letter)}
+              />
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Letter detail drawer */}
+      <LetterDetailSheet
+        letter={selectedLetter}
+        mode={tab}
+        onClose={() => setSelectedLetter(null)}
+      />
 
       {/* Compose FAB */}
       <div className="fixed bottom-fab right-6 z-30 sidebar:hidden">
