@@ -28,7 +28,6 @@ import { HomePage } from "./pages/HomePage";
 import Index from "./pages/Index";
 import { KindFeedPage } from "./pages/KindFeedPage";
 import { MagicSettingsPage } from "./pages/MagicSettingsPage";
-import Messages from "./pages/Messages";
 import { MusicFeedPage } from "./pages/MusicFeedPage";
 import { NetworkSettingsPage } from "./pages/NetworkSettingsPage";
 import { NIP19Page } from "./pages/NIP19Page";
@@ -102,7 +101,6 @@ export function AppRouter() {
             <Route path="/" element={<HomePage />} />
             <Route path="/feed" element={<Index />} />
             <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/messages" element={<Messages />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/trends" element={<TrendsPage />} />
             <Route path="/profile" element={<ProfileRedirect />} />
