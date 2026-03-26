@@ -11,7 +11,6 @@ import {
   Loader2,
   MessageCircle,
   MoreHorizontal,
-  Quote,
   Radio,
   Share2,
   Star,
@@ -1236,8 +1235,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   const interactionQuoteCount = interactions?.quotes.length ?? 0;
   const quoteCount = interactionQuoteCount || (stats?.quotes ?? 0);
-  // Used by compact action-button bars (reaction, repost, vanish views)
-  const repostTotal = stats?.reposts ?? 0;
+  const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
   const hasStats = !!(
     stats?.reposts ||
     quoteCount ||
@@ -1882,24 +1880,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   title={isReposted ? "Undo repost" : "Reposts"}
                 >
                   <RepostIcon className="size-5" />
-                  {stats?.reposts ? (
-                    <span className="text-sm tabular-nums">{formatNumber(stats.reposts)}</span>
+                  {repostTotal ? (
+                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
                   ) : null}
                 </button>
               )}
             </RepostMenu>
-
-            {/* Quotes */}
-            <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Quotes"
-              onClick={() => openInteractions("quotes")}
-            >
-              <Quote className="size-5" />
-              {quoteCount ? (
-                <span className="text-sm tabular-nums">{formatNumber(quoteCount)}</span>
-              ) : null}
-            </button>
 
             {/* React */}
             <ReactionButton
