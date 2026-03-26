@@ -115,7 +115,6 @@ const hardcodedConfig: AppConfig = {
   sidebarOrder: [
     "feed",
     "notifications",
-    "messages",
     "search",
     "bookmarks",
     "profile",
