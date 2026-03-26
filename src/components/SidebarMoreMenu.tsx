@@ -90,7 +90,7 @@ function ItemRow({ item, onAdd, onClose }: { item: HiddenSidebarItem; onAdd: (id
         className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors cursor-pointer"
       >
         {sidebarItemIcon(item.id, 'size-5 shrink-0')}
-        <span className="truncate">{item.label}</span>
+        <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{item.label}</span>
       </button>
       <button
         onClick={() => { onAdd(item.id); onClose(); }}
@@ -282,7 +282,7 @@ export function SidebarMoreMenu({
             <div key={item.id} className="flex items-center">
               <Link to={itemPath(item.id, undefined, homePage)} onClick={() => { onOpenChange(false); onNavigate?.(); }} className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors">
                 {sidebarItemIcon(item.id, 'size-5 shrink-0')}
-                <span className="truncate">{item.label}</span>
+                <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{item.label}</span>
               </Link>
               <button onClick={() => { onAdd(item.id); onOpenChange(false); }} className="size-8 flex items-center justify-center shrink-0 rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title={`Add ${item.label} to sidebar`}>
                 <Plus className="size-4" strokeWidth={4} />

@@ -102,7 +102,7 @@ export function ExternalContentSidebarItem({
         <span className="shrink-0">
           <ExternalSidebarIcon id={id} />
         </span>
-        <span className="truncate">
+        <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
           <ExternalSidebarLabel id={id} />
         </span>
       </Link>
