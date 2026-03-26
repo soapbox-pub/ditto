@@ -21,10 +21,17 @@ interface BlobbiEmotionPanelProps {
 
 // ─── Emotion Options ──────────────────────────────────────────────────────────
 
+/**
+ * Emotion options for the dev panel.
+ * 
+ * NOTE: The base/default Blobbi expression is visually "happy" (smiling mouth).
+ * The 'neutral' internal key keeps this default - we label it "Default (Happy)"
+ * in the UI to accurately reflect what the user sees.
+ */
 const EMOTIONS: Array<{ value: BlobbiEmotion; label: string; emoji: string }> = [
-  { value: 'neutral', label: 'Neutral', emoji: '😐' },
+  { value: 'neutral', label: 'Default', emoji: '😊' },
   { value: 'sad', label: 'Sad', emoji: '😢' },
-  { value: 'happy', label: 'Happy', emoji: '😊' },
+  { value: 'happy', label: 'Extra Happy', emoji: '😄' },
   { value: 'angry', label: 'Angry', emoji: '😠' },
   { value: 'surprised', label: 'Surprised', emoji: '😲' },
   { value: 'sleepy', label: 'Sleepy', emoji: '😴' },
@@ -62,7 +69,8 @@ export function BlobbiEmotionPanel({ isOpen, onClose }: BlobbiEmotionPanelProps)
         
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Select an emotion to preview how it looks on your Blobbi. 
+            Select an emotion to preview how it looks on your Blobbi.
+            The default expression is already happy-looking (smiling).
             This is a dev-only tool and doesn't affect real state.
           </p>
           
@@ -92,7 +100,7 @@ export function BlobbiEmotionPanel({ isOpen, onClose }: BlobbiEmotionPanelProps)
                 onClick={clearDevEmotion}
                 className="w-full text-muted-foreground"
               >
-                Reset to Default
+                Reset to Default (Happy)
               </Button>
             </div>
           )}

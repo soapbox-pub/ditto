@@ -36,12 +36,8 @@ export interface EmotionConfig {
 }
 
 export interface PupilModification {
-  /** Move main highlight downward (0 = no change, 1 = bottom of pupil) */
-  highlightOffsetY: number;
-  /** Add secondary highlight for watery effect */
-  addWateryHighlight: boolean;
-  /** Size of watery highlight relative to pupil (0-1) */
-  wateryHighlightSize?: number;
+  /** Add watery eye effect with repositioned highlights and blue fill */
+  wateryEyes: boolean;
 }
 
 export interface EyebrowConfig {
@@ -69,22 +65,26 @@ export interface TearConfig {
 /**
  * Predefined emotion configurations
  */
+/**
+ * Predefined emotion configurations
+ * 
+ * NOTE: The base/default Blobbi expression is visually "happy" (smiling mouth).
+ * The 'neutral' key means "no modifications" - it keeps the default happy look.
+ */
 export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
   neutral: {
-    // No modifications - use base SVG as-is
+    // No modifications - keeps the default happy-looking expression
   },
   sad: {
     pupilModification: {
-      highlightOffsetY: 0.6, // Move highlight down
-      addWateryHighlight: true,
-      wateryHighlightSize: 0.5,
+      wateryEyes: true,
     },
-    mouthCurve: -1, // Frown
+    mouthCurve: -1, // Invert the smile to a frown
     eyebrows: {
-      angle: 15, // Worried angle
-      offsetY: -8,
-      strokeWidth: 2,
-      color: '#1f2937',
+      angle: -15, // Worried/sad angle: eyebrows angle UP toward center (/\)
+      offsetY: -10, // Positioned above eyes
+      strokeWidth: 1.5, // Thinner, subtle
+      color: '#374151', // Slightly lighter
     },
     tears: {
       enabled: true,
@@ -93,24 +93,22 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
     },
   },
   happy: {
-    mouthCurve: 1.2, // Big smile
-    // Could add sparkle eyes, rosy cheeks, etc.
+    // The base expression is already happy, so minimal changes needed
+    mouthCurve: 1.2, // Slightly bigger smile if desired
   },
   angry: {
     mouthCurve: -0.5, // Slight frown
     eyebrows: {
-      angle: -20, // Angry angle (slanted inward)
-      offsetY: -6,
-      strokeWidth: 2.5,
-      color: '#1f2937',
+      angle: 20, // Angry angle: eyebrows angle DOWN toward center (\/)
+      offsetY: -10, // Positioned above eyes
+      strokeWidth: 2.5, // Thick, prominent
+      color: '#1f2937', // Dark
     },
   },
   surprised: {
     mouthCurve: 0, // O mouth (could be implemented differently)
-    // Could add wide eyes
   },
   sleepy: {
-    // Half-closed eyes effect handled elsewhere
     mouthCurve: 0,
   },
 };
@@ -126,8 +124,13 @@ export interface EyePosition {
 
 export interface MouthPosition {
   startX: number;
+  startY: number;
+  controlX: number;
+  controlY: number;
   endX: number;
-  centerY: number;
+  endY: number;
+  /** Original stroke attributes from the SVG */
+  strokeAttrs?: string;
 }
 
 /**
@@ -164,7 +167,9 @@ export function detectEyePositions(svgText: string): EyePosition[] {
 
   // If no blobbi-eye groups found, fall back to direct pupil detection
   if (eyes.length === 0) {
-    const pupilRegex = /<circle[^>]*fill="(#1f2937|#374151|#1e1b4b|#0891b2)"[^>]*\/>/g;
+    // Match circles with dark fill colors OR gradient fills containing "Pupil" in the ID
+    // This handles both direct hex colors and gradient references like url(#blobbiPupilGradient)
+    const pupilRegex = /<circle[^>]*fill="(#1f2937|#374151|#1e1b4b|#0891b2|url\([^)]*[Pp]upil[^)]*\))"[^>]*\/>/g;
     const pupils: Array<{ cx: number; cy: number; radius: number }> = [];
     
     let pupilMatch;
@@ -264,13 +269,21 @@ function detectMouthByMarker(svgText: string): MouthDetectionResult | null {
  * Extract mouth position from mouth SVG elements
  */
 function extractMouthPositionFromElements(elements: string): MouthPosition | null {
-  // Look for path with M...Q curve
+  // Look for path with M...Q curve: M startX startY Q controlX controlY endX endY
   const pathMatch = elements.match(/d="M\s*([\d.]+)\s+([\d.]+)\s*Q\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)"/);
   if (pathMatch) {
+    // Extract stroke-width for style preservation
+    const strokeWidthMatch = elements.match(/stroke-width="([^"]*)"/);
+    const strokeWidth = strokeWidthMatch ? strokeWidthMatch[1] : '2.5';
+    
     return {
       startX: parseFloat(pathMatch[1]),
+      startY: parseFloat(pathMatch[2]),
+      controlX: parseFloat(pathMatch[3]),
+      controlY: parseFloat(pathMatch[4]),
       endX: parseFloat(pathMatch[5]),
-      centerY: parseFloat(pathMatch[2]),
+      endY: parseFloat(pathMatch[6]),
+      strokeAttrs: `stroke="#1f2937" stroke-width="${strokeWidth}"`,
     };
   }
   return null;
@@ -281,21 +294,33 @@ function extractMouthPositionFromElements(elements: string): MouthPosition | nul
  */
 function detectMouthByRegex(svgText: string): MouthDetectionResult | null {
   // Look for smile/mouth path with Q curve
-  const mouthRegex = /<path[^>]*d="M\s*([\d.]+)\s+([\d.]+)\s*Q\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)"[^>]*stroke[^>]*\/>/g;
+  const mouthRegex = /<path[^>]*d="M\s*([\d.]+)\s+([\d.]+)\s*Q\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)"([^>]*stroke[^>]*)\/>/g;
   
   let match;
   while ((match = mouthRegex.exec(svgText)) !== null) {
     const startX = parseFloat(match[1]);
     const startY = parseFloat(match[2]);
+    const controlX = parseFloat(match[3]);
+    const controlY = parseFloat(match[4]);
     const endX = parseFloat(match[5]);
+    const endY = parseFloat(match[6]);
+    const strokePart = match[7] || '';
     
     // Check if this looks like a mouth (horizontal, in lower portion of typical blobbi)
-    if (Math.abs(startY - parseFloat(match[6])) < 5 && startY > 40) {
+    if (Math.abs(startY - endY) < 5 && startY > 40) {
+      // Extract stroke-width from the matched attributes
+      const strokeWidthMatch = strokePart.match(/stroke-width="([^"]*)"/);
+      const strokeWidth = strokeWidthMatch ? strokeWidthMatch[1] : '2.5';
+      
       return {
         position: {
           startX,
+          startY,
+          controlX,
+          controlY,
           endX,
-          centerY: startY,
+          endY,
+          strokeAttrs: `stroke="#1f2937" stroke-width="${strokeWidth}"`,
         },
       };
     }
@@ -305,45 +330,45 @@ function detectMouthByRegex(svgText: string): MouthDetectionResult | null {
 }
 
 /**
- * Hide mouth elements in the SVG by adding opacity="0" to mouth paths.
- * This preserves the structure while visually hiding the mouth.
+ * Replace mouth <path> elements in the SVG with new mouth content.
+ * 
+ * SAFE APPROACH: Only targets <path> elements that match mouth patterns.
+ * Does NOT slice or remove any other SVG content.
  * 
  * Strategy:
- * 1. Look for paths after <!-- Mouth --> marker
- * 2. Fallback to regex matching for mouth-like paths
+ * 1. Find mouth paths (Q-curve paths that look like mouths)
+ * 2. Replace the FIRST one with the sad mouth
+ * 3. Remove any additional mouth paths (for double-sided mouths like cat)
+ * 4. Keep EVERYTHING else untouched
+ * 
+ * @param svgText - The SVG content
+ * @param newMouthSvg - The replacement mouth SVG markup
+ * @returns Modified SVG with mouth paths replaced (rest unchanged)
  */
-function hideMouthElements(svgText: string): string {
-  // Try marker-based approach first
-  const markerMatch = svgText.match(/<!--\s*Mouth[^>]*-->/i);
+function replaceMouthSection(svgText: string, newMouthSvg: string): string {
+  // Mouth path pattern: <path ... d="M x y Q cx cy ex ey" ... stroke ... />
+  // This matches Q-curve paths typically used for smile/frown mouths
+  const mouthPathRegex = /<path[^>]*d="M\s*[\d.]+\s+[\d.]+\s*Q\s*[\d.]+\s+[\d.]+\s+[\d.]+\s+[\d.]+"[^>]*stroke[^>]*\/>/g;
   
-  if (markerMatch && markerMatch.index !== undefined) {
-    // Find all paths after the mouth marker until next section
-    const markerEndIndex = markerMatch.index + markerMatch[0].length;
-    const beforeMarker = svgText.slice(0, markerEndIndex);
-    const afterMarker = svgText.slice(markerEndIndex);
-    
-    // Find where mouth section ends (next comment or certain elements)
-    const nextSectionMatch = afterMarker.match(/(?:<!--(?!\s*Mouth)|<(?:ellipse|g\s|rect)[^>]*(?:id|class)=)/i);
-    const mouthSectionEnd = nextSectionMatch?.index ?? afterMarker.length;
-    
-    const mouthSection = afterMarker.slice(0, mouthSectionEnd);
-    const afterMouthSection = afterMarker.slice(mouthSectionEnd);
-    
-    // Add opacity="0" to all paths in mouth section
-    const hiddenMouthSection = mouthSection.replace(
-      /(<path\s)/g,
-      '$1opacity="0" '
-    );
-    
-    return beforeMarker + hiddenMouthSection + afterMouthSection;
+  // Find all mouth path matches
+  const matches = svgText.match(mouthPathRegex);
+  
+  if (!matches || matches.length === 0) {
+    // No mouth paths found - return SVG unchanged (fail safe)
+    return svgText;
   }
   
-  // Fallback: hide mouth paths by regex
-  const mouthPathRegex = /(<path[^>]*d="M\s*[\d.]+\s+[\d.]+\s*Q\s*[\d.]+\s+[\d.]+\s+[\d.]+\s+[\d.]+")([^>]*stroke[^>]*)(\/?>)/g;
-  return svgText.replace(mouthPathRegex, (match) => {
-    // Only hide if not already hidden
-    if (match.includes('opacity="0"')) return match;
-    return match.replace('stroke=', 'opacity="0" stroke=');
+  // Replace ONLY the first mouth path with the sad mouth
+  let replaced = false;
+  return svgText.replace(mouthPathRegex, () => {
+    if (!replaced) {
+      replaced = true;
+      // Replace first mouth path with the sad mouth
+      return newMouthSvg;
+    }
+    // Remove additional mouth paths (e.g., cat has two paths for whisker-style mouth)
+    // This prevents double-mouth but only removes OTHER mouth paths, nothing else
+    return '';
   });
 }
 
@@ -392,18 +417,36 @@ export function generateEyebrows(eyes: EyePosition[], config: EyebrowConfig): st
 }
 
 /**
- * Generate sad mouth SVG (inverted curve)
+ * Generate sad mouth SVG by inverting the original smile curve.
+ * 
+ * The original smile has the control point BELOW the baseline (making it curve down).
+ * To create a frown, we flip the control point to be ABOVE the baseline by the same amount.
+ * 
+ * Original: M startX startY Q controlX controlY endX endY
+ * - If controlY > startY, it's a smile (curves down)
+ * - To invert: newControlY = startY - (controlY - startY)
+ * 
+ * The mouth is also shifted down slightly so the frown sits at a natural position
+ * (inverting the curve alone makes it appear too high visually).
  */
 export function generateSadMouth(mouth: MouthPosition): string {
-  const curveAmount = 8; // How much the curve dips
-  const controlY = mouth.centerY + curveAmount; // Control point below for frown
-  const centerX = (mouth.startX + mouth.endX) / 2;
+  // Calculate the baseline Y (average of start and end Y)
+  const baselineY = (mouth.startY + mouth.endY) / 2;
+  
+  // Calculate how much the original control point deviates from baseline
+  const curveAmount = mouth.controlY - baselineY;
+  
+  // Invert: if it was below baseline (positive), put it above (negative)
+  const invertedControlY = baselineY - curveAmount;
+  
+  // Shift the entire mouth down slightly so it sits at a natural position
+  // The frown needs to be lower to look correct (roughly half the curve amount)
+  const yOffset = Math.abs(curveAmount) * 0.5;
   
   return `<path 
     class="blobbi-mouth blobbi-mouth-sad"
-    d="M ${mouth.startX} ${mouth.centerY} Q ${centerX} ${controlY} ${mouth.endX} ${mouth.centerY}" 
-    stroke="#1f2937" 
-    stroke-width="3" 
+    d="M ${mouth.startX} ${mouth.startY + yOffset} Q ${mouth.controlX} ${invertedControlY + yOffset} ${mouth.endX} ${mouth.endY + yOffset}" 
+    ${mouth.strokeAttrs || 'stroke="#1f2937" stroke-width="2.5"'}
     fill="none" 
     stroke-linecap="round"
   />`;
@@ -471,26 +514,73 @@ export function generateTears(eyes: EyePosition[], config: TearConfig, seed?: nu
 }
 
 /**
- * Generate watery eye highlight modification
- * This creates additional highlights for the sad watery eye effect
+ * Generate watery/sad eye effect
+ * 
+ * Creates visual elements for each eye:
+ * 1. Blue watery fill at BOTTOM of eye (lower 1/3, like pooling tears)
+ * 2. Large white highlight at TOP-LEFT of pupil
+ * 3. Smaller white highlight more to the RIGHT side
+ * 
+ * These highlights override/replace the visual effect of the default highlights
+ * by being rendered on top with full opacity.
  */
-export function generateWateryHighlights(eyes: EyePosition[], config: PupilModification): string {
-  if (!config.addWateryHighlight) return '';
-  
+export function generateSadEyeEffects(eyes: EyePosition[]): string {
   return eyes.map(eye => {
-    // Position the watery highlight at top-left of pupil
-    const highlightX = eye.cx - eye.radius * 0.3;
-    const highlightY = eye.cy - eye.radius * 0.4;
-    const size = eye.radius * (config.wateryHighlightSize ?? 0.5);
+    // 1. TOP-LEFT highlight - LARGER, main watery shine
+    const topLeftX = eye.cx - eye.radius * 0.35;
+    const topLeftY = eye.cy - eye.radius * 0.3;
+    const topLeftSize = eye.radius * 0.45; // Larger
     
-    return `<circle 
-      class="blobbi-watery-highlight blobbi-watery-highlight-${eye.side}"
-      cx="${highlightX}" 
-      cy="${highlightY}" 
-      r="${size}"
-      fill="white"
-      opacity="0.6"
-    />`;
+    // 2. RIGHT highlight - SMALLER, secondary shine
+    const rightX = eye.cx + eye.radius * 0.3;
+    const rightY = eye.cy - eye.radius * 0.1;
+    const rightSize = eye.radius * 0.25; // Smaller
+    
+    // 3. Blue watery fill - LOWER 1/3 of the eye
+    // Use a path to create a proper "lower fill" shape (flat top, curved bottom)
+    // This looks like water pooling at the bottom of the eye
+    const waterTop = eye.cy + eye.radius * 0.2; // Start at ~middle-lower area
+    const waterBottom = eye.cy + eye.radius * 0.9; // Extend to near bottom
+    const waterWidth = eye.radius * 0.85;
+    
+    return `
+    <!-- Sad eye effects for ${eye.side} eye -->
+    <g class="blobbi-sad-eye blobbi-sad-eye-${eye.side}">
+      <!-- Blue watery fill at bottom of eye (lower 1/3, flat top) -->
+      <path
+        d="M ${eye.cx - waterWidth} ${waterTop} 
+           Q ${eye.cx - waterWidth} ${waterBottom} ${eye.cx} ${waterBottom}
+           Q ${eye.cx + waterWidth} ${waterBottom} ${eye.cx + waterWidth} ${waterTop}
+           Z"
+        fill="#7dd3fc"
+        opacity="0.45"
+      >
+        <animate 
+          attributeName="opacity" 
+          values="0.35;0.55;0.35" 
+          dur="2s" 
+          repeatCount="indefinite"
+        />
+      </path>
+      
+      <!-- Top-left highlight (LARGER) -->
+      <circle 
+        cx="${topLeftX}" 
+        cy="${topLeftY}" 
+        r="${topLeftSize}"
+        fill="white"
+        opacity="0.9"
+      />
+      
+      <!-- Right highlight (SMALLER) -->
+      <circle 
+        cx="${rightX}" 
+        cy="${rightY}" 
+        r="${rightSize}"
+        fill="white"
+        opacity="0.75"
+      />
+    </g>`;
   }).join('\n');
 }
 
@@ -545,18 +635,19 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion): string {
     overlays.push(generateEyebrows(eyes, config.eyebrows));
   }
   
-  // Handle mouth modification
+  // Handle mouth modification (sad = frown)
   if (config.mouthCurve !== undefined && config.mouthCurve < 0 && mouth) {
-    // Hide original mouth elements
-    svgText = hideMouthElements(svgText);
+    // Generate the sad mouth SVG
+    const sadMouthSvg = generateSadMouth(mouth.position);
     
-    // Add replacement mouth in overlays
-    overlays.push(generateSadMouth(mouth.position));
+    // Replace the original mouth section with the sad mouth
+    // This removes the original mouth entirely - no overlay, no double-mouth
+    svgText = replaceMouthSection(svgText, sadMouthSvg);
   }
   
-  // Generate watery highlights
-  if (config.pupilModification && eyes.length > 0) {
-    overlays.push(generateWateryHighlights(eyes, config.pupilModification));
+  // Generate sad eye effects (watery eyes with repositioned highlights)
+  if (config.pupilModification?.wateryEyes && eyes.length > 0) {
+    overlays.push(generateSadEyeEffects(eyes));
   }
   
   // Generate tears
