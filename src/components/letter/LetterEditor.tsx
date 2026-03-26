@@ -1,11 +1,8 @@
 /**
- * LetterEditor — shared toolbar, drawer, and preview card used by both
- * ComposeLetterSheet and LetterPreferencesPage. Callers provide:
- *
- *   - state for font/stationery/frame/closing/signature
- *   - optional body content to render inside the card (textarea or placeholder)
- *   - optional extra toolbar buttons (stickers, draw)
- *   - optional children rendered after the card (stickers layer)
+ * LetterEditor — drawer + preview card shared by ComposeLetterSheet and
+ * LetterPreferencesSection. The tool buttons (Aa / paintbrush / frame / extras)
+ * are exposed via the `renderToolbar` render prop so callers can place them
+ * inside any sticky header (e.g. SubHeaderBar).
  */
 
 import { useState, useRef, useEffect, type ReactNode } from 'react';
@@ -48,7 +45,7 @@ export function FrameIcon({ className, strokeWidth = 2 }: { className?: string; 
 }
 
 // ---------------------------------------------------------------------------
-// Overlay types — base set shared by all consumers
+// Overlay types
 // ---------------------------------------------------------------------------
 
 export type BaseOverlay = 'none' | 'font' | 'stationery' | 'frame';
@@ -80,26 +77,29 @@ export interface LetterEditorState {
 
 interface LetterEditorProps {
   state: LetterEditorState;
-  /** Content rendered inside the toolbar header bar (e.g. back button) — placed before the toggle buttons */
-  headerLeft?: ReactNode;
-  /** Extra buttons rendered after the base font/stationery/frame toggles */
+  /**
+   * Render prop that receives the tool buttons (Aa / paintbrush / frame / extras)
+   * as a ReactNode. Callers place this inside their sticky header (SubHeaderBar etc.).
+   */
+  renderToolbar: (buttons: ReactNode) => ReactNode;
+  /** Extra buttons appended after the base Aa / paintbrush / frame buttons. */
   extraButtons?: ReactNode;
-  /** Extra drawer panels keyed by overlay name. Rendered when the overlay matches. */
+  /** Extra drawer panels for custom overlay names. */
   extraDrawerContent?: ReactNode;
-  /** Current overlay — managed externally so callers can add custom overlays */
+  /** Current overlay name. */
   overlay: string;
   setOverlay: (o: string) => void;
-  /** Body content rendered inside the card above the outro (e.g. textarea or placeholder) */
-  bodyContent?: (ctx: { lineHeightPx: number; stationeryTextColor: string; stationeryLineColor: string; resolvedFontFamily: string }) => ReactNode;
-  /** Content rendered after the StationeryBackground inside the card ref div (e.g. stickers layer) */
+  /** Content rendered inside the card body (e.g. textarea). */
+  bodyContent?: (ctx: {
+    lineHeightPx: number;
+    stationeryTextColor: string;
+    stationeryLineColor: string;
+    resolvedFontFamily: string;
+  }) => ReactNode;
+  /** Content rendered over the card (e.g. sticker layer). */
   cardOverlay?: ReactNode;
-  /** Content rendered between toolbar and preview card (e.g. recipient row, blurb) */
+  /** Content rendered between the toolbar area and the preview card. */
   beforeCard?: ReactNode;
-  /**
-   * When false, the toolbar buttons render as a plain non-sticky row (for use inside
-   * a page that already has its own sticky header). Default true (fullscreen compose mode).
-   */
-  stickyHeader?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ interface LetterEditorProps {
 
 export function LetterEditor({
   state,
-  headerLeft,
+  renderToolbar,
   extraButtons,
   extraDrawerContent,
   overlay,
@@ -116,7 +116,6 @@ export function LetterEditor({
   bodyContent,
   cardOverlay,
   beforeCard,
-  stickyHeader = true,
 }: LetterEditorProps) {
   const {
     selectedFont, setSelectedFont,
@@ -147,10 +146,9 @@ export function LetterEditor({
   const isBaseOverlay = (o: string): o is BaseOverlay => ['none', 'font', 'stationery', 'frame'].includes(o);
   const drawerOpen = overlay !== 'none';
 
-  const toolbarRow = (
-    <div className="flex items-center gap-1 px-4 py-2">
-      {headerLeft}
-      <div className="flex-1" />
+  // The raw tool buttons — passed to renderToolbar so the caller decides placement
+  const toolButtons = (
+    <>
       <button
         onClick={() => setOverlay(overlay === 'font' ? 'none' : 'font')}
         className={`px-3 py-2 rounded-2xl transition-colors text-sm font-semibold tracking-tight ${
@@ -183,7 +181,7 @@ export function LetterEditor({
         <FrameIcon className="h-6 w-6" strokeWidth={2.5} />
       </button>
       {extraButtons}
-    </div>
+    </>
   );
 
   const drawer = (
@@ -229,8 +227,10 @@ export function LetterEditor({
     </div>
   );
 
-  const card = (
+  return (
     <>
+      {renderToolbar(toolButtons)}
+      {drawer}
       {beforeCard}
       <div
         className="max-w-xl mx-auto w-full flex-1"
@@ -295,30 +295,6 @@ export function LetterEditor({
           {cardOverlay}
         </div>
       </div>
-    </>
-  );
-
-  if (!stickyHeader) {
-    // Settings page mode: plain non-sticky toolbar row + drawer + card
-    return (
-      <>
-        <div>
-          {toolbarRow}
-          {drawer}
-        </div>
-        {card}
-      </>
-    );
-  }
-
-  // Compose mode: full sticky header with backdrop blur
-  return (
-    <>
-      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
-        {toolbarRow}
-        {drawer}
-      </div>
-      {card}
     </>
   );
 }

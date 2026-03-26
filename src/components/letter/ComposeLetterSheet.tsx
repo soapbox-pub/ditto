@@ -19,6 +19,8 @@ import {
 import { useLetterPreferences } from '@/hooks/useLetterPreferences';
 import { useThemeStationery } from '@/hooks/useThemeStationery';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { LetterEditor } from './LetterEditor';
 import { LetterStickers } from './LetterStickers';
 import { StickerPicker } from './StickerPicker';
@@ -55,6 +57,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
 
   const { prefs, isThemeDefault } = useLetterPreferences();
   const themeStationery = useThemeStationery();
+  useLayoutOptions({ hasSubHeader: true });
 
 
   const [resolvedRecipient, setResolvedRecipient] = useState<string | undefined>(initialRecipient);
@@ -248,7 +251,11 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
         }}
         overlay={overlay}
         setOverlay={(o) => setOverlay(o as Overlay)}
-        stickyHeader={false}
+        renderToolbar={(buttons) => (
+          <SubHeaderBar noArc innerClassName="px-2 gap-1 justify-end">
+            {buttons}
+          </SubHeaderBar>
+        )}
         extraButtons={
           <>
             {customEmojis.length > 0 && (
