@@ -550,6 +550,9 @@ function AwardeeCardSkeleton() {
  * perspective space while a specular glare overlay tracks the pointer,
  * making the badge feel like a tangible, glossy object.
  */
+/** Extra padding (px) around the badge that expands the pointer hit-area. */
+const INTERACT_PAD = 80;
+
 function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: string }) {
   const tilt = useCardTilt(18, 1.06);
   const glareRef = useRef<HTMLDivElement>(null);
@@ -571,13 +574,14 @@ function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: str
     (e: React.PointerEvent<HTMLDivElement>) => {
       tilt.onPointerMove(e);
 
-      // Move the specular glare to follow the cursor
+      // Move the specular glare to follow the cursor.
+      // Coordinates are mapped to the image area (inset by INTERACT_PAD).
       const el = tilt.ref.current;
       const glare = glareRef.current;
       if (!el || !glare) return;
       const rect = el.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      const x = ((e.clientX - rect.left - INTERACT_PAD) / (rect.width - INTERACT_PAD * 2)) * 100;
+      const y = ((e.clientY - rect.top - INTERACT_PAD) / (rect.height - INTERACT_PAD * 2)) * 100;
       glare.style.background = `radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.08) 35%, transparent 65%)`;
       glare.style.opacity = '1';
     },
@@ -620,13 +624,17 @@ function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: str
         />
       </div>
 
-      {/* 3D-tiltable badge */}
+      {/*
+        3D-tiltable badge. The large padding expands the pointer hit-area
+        well beyond the image so the mouse begins influencing tilt from a
+        distance. Negative margin compensates so layout stays unchanged.
+      */}
       <div
         ref={tilt.ref}
-        style={{ ...tilt.style, transformStyle: 'preserve-3d' }}
+        style={{ ...tilt.style, transformStyle: 'preserve-3d', padding: INTERACT_PAD, margin: -INTERACT_PAD }}
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
-        className="relative cursor-grab active:cursor-grabbing select-none"
+        className="relative select-none"
       >
         <img
           src={heroImage}
@@ -638,8 +646,9 @@ function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: str
         {/* Specular glare overlay — masked to the image's alpha channel */}
         <div
           ref={glareRef}
-          className="absolute inset-0 pointer-events-none"
+          className="absolute pointer-events-none"
           style={{
+            inset: INTERACT_PAD,
             opacity: 0,
             transition: 'opacity 0.4s ease-out',
             mixBlendMode: 'overlay',
