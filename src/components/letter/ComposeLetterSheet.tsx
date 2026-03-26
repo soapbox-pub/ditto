@@ -55,6 +55,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   const { prefs, isThemeDefault } = useLetterPreferences();
   const themeStationery = useThemeStationery();
 
+
   const [resolvedRecipient, setResolvedRecipient] = useState<string | undefined>(initialRecipient);
   const [body, setBody] = useState('');
   const [closing, setClosing] = useState(() => prefs.closing ?? 'Warmly,');

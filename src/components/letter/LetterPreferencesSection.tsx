@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, Sparkles, RotateCcw } from 'lucide-react';
 
 import { useLetterPreferences } from '@/hooks/useLetterPreferences';
+import { useThemeStationery } from '@/hooks/useThemeStationery';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -24,8 +25,9 @@ export function LetterPreferencesSection() {
   const { user } = useCurrentUser();
   const navigate = useNavigate();
   const { prefs, updatePrefs, resetStationery, isThemeDefault } = useLetterPreferences();
+  const themeStationery = useThemeStationery();
 
-  // Track first render so we don't fire the persist effect on mount
+  // Track whether any user-driven change has happened so we don't persist on mount
   const mountedRef = useRef(false);
 
   const [closing, setClosing] = useState(() => prefs.closing ?? 'Warmly,');
@@ -33,9 +35,10 @@ export function LetterPreferencesSection() {
   const [selectedFont, setSelectedFont] = useState(
     () => FONT_OPTIONS.find((f) => f.value === prefs.font) ?? FONT_OPTIONS[0],
   );
-  // Initial stationery is either the saved preference or the theme default (already baked in)
+  // When isThemeDefault, use the live theme stationery directly (not from prefs).
+  // When a custom stationery is saved, use that.
   const [stationery, setStationery] = useState<Stationery>(
-    () => prefs.stationery as Stationery ?? { color: '#F5E6D3' },
+    () => isThemeDefault ? themeStationery : (prefs.stationery as Stationery ?? themeStationery),
   );
   const [frame, setFrame] = useState<FrameStyle>(() => prefs.frame ?? 'none');
   const [frameTint, setFrameTint] = useState(() => prefs.frameTint ?? false);
@@ -43,41 +46,30 @@ export function LetterPreferencesSection() {
   const [friendsOnlySearch, setFriendsOnlySearch] = useState(() => prefs.friendsOnlySearch ?? false);
   const [overlay, setOverlay] = useState<BaseOverlay>('none');
 
-  // Persist non-stationery prefs on every change (skip mount)
+  // Keep preview in sync with the live theme when no custom stationery is saved
+  useEffect(() => {
+    if (isThemeDefault) {
+      setStationery(themeStationery);
+    }
+  }, [isThemeDefault, themeStationery]);
+
+  // Persist non-stationery prefs on change (skip mount)
   useEffect(() => {
     if (!mountedRef.current || !user) return;
-    updatePrefs({
-      font: selectedFont.value,
-      frame,
-      frameTint,
-      closing,
-      signature,
-      friendsOnlyInbox,
-      friendsOnlySearch,
-    });
+    updatePrefs({ font: selectedFont.value, frame, frameTint, closing, signature, friendsOnlyInbox, friendsOnlySearch });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFont, frame, frameTint, closing, signature, friendsOnlyInbox, friendsOnlySearch]);
 
-  // Persist stationery only when the user explicitly picks one (skip mount)
-  useEffect(() => {
-    if (!mountedRef.current || !user) return;
-    updatePrefs({ stationery: toSerializable(stationery) });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stationery]);
+  // Mark as mounted
+  useEffect(() => { mountedRef.current = true; }, []);
 
-  // When the user resets to theme (isThemeDefault flips to true), sync local state
-  // so the preview card reflects the theme immediately without a page reload.
-  useEffect(() => {
-    if (isThemeDefault) {
-      setStationery(prefs.stationery as Stationery ?? { color: '#F5E6D3' });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isThemeDefault]);
-
-  // Mark as mounted after all initial effects have run
-  useEffect(() => {
-    mountedRef.current = true;
-  }, []);
+  // When the user picks stationery, persist it (not called on theme-sync updates
+  // because those go through setStationery directly, not this handler)
+  const handleSetStationery = (s: Stationery) => {
+    setStationery(s);
+    if (!user) return;
+    updatePrefs({ stationery: toSerializable(s) });
+  };
 
   if (!user) {
     return (
@@ -92,7 +84,7 @@ export function LetterPreferencesSection() {
       <LetterEditor
         state={{
           selectedFont, setSelectedFont,
-          stationery, setStationery,
+          stationery, setStationery: handleSetStationery,
           frame, setFrame,
           frameTint, setFrameTint,
           closing, setClosing,
@@ -116,7 +108,6 @@ export function LetterPreferencesSection() {
         }
         beforeCard={
           <div className="pt-4 max-w-xl mx-auto w-full px-5">
-            {/* Theme default / reset banner */}
             {isThemeDefault ? (
               <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-primary/8 border border-primary/20 text-sm mb-3">
                 <Sparkles className="w-4 h-4 text-primary shrink-0" />
@@ -134,11 +125,7 @@ export function LetterPreferencesSection() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    resetStationery();
-                    // Update the local state to reflect the theme immediately
-                    // (the prefs hook will re-derive from theme after reset)
-                  }}
+                  onClick={resetStationery}
                   className="h-7 px-2 text-xs gap-1"
                 >
                   <RotateCcw className="w-3 h-3" />
@@ -180,7 +167,6 @@ export function LetterPreferencesSection() {
           These defaults apply when you start a new letter. You can always change them while composing.
         </p>
 
-        {/* Inbox section */}
         <div className="space-y-3">
           <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">inbox</h3>
           <div className="flex items-center justify-between gap-4">
@@ -188,14 +174,10 @@ export function LetterPreferencesSection() {
               <p className="text-sm font-medium">Friends only</p>
               <p className="text-xs text-muted-foreground">Only show letters from people you follow</p>
             </div>
-            <Switch
-              checked={friendsOnlyInbox}
-              onCheckedChange={setFriendsOnlyInbox}
-            />
+            <Switch checked={friendsOnlyInbox} onCheckedChange={setFriendsOnlyInbox} />
           </div>
         </div>
 
-        {/* Compose section */}
         <div className="space-y-3">
           <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">compose</h3>
           <div className="flex items-center justify-between gap-4">
@@ -203,10 +185,7 @@ export function LetterPreferencesSection() {
               <p className="text-sm font-medium">Friends only</p>
               <p className="text-xs text-muted-foreground">Only suggest friends when choosing a recipient</p>
             </div>
-            <Switch
-              checked={friendsOnlySearch}
-              onCheckedChange={setFriendsOnlySearch}
-            />
+            <Switch checked={friendsOnlySearch} onCheckedChange={setFriendsOnlySearch} />
           </div>
         </div>
       </div>
