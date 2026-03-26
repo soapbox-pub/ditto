@@ -7,7 +7,6 @@ import {
   GitPullRequest,
   Mail,
   MessageCircle,
-  Quote,
   Rocket,
   MoreHorizontal,
   Package,
@@ -586,30 +585,16 @@ export const NoteCard = memo(function NoteCard({
                 title={isReposted ? "Undo repost" : "Repost"}
               >
                 <RepostIcon className="size-5" />
-                {stats?.reposts ? (
+                {stats?.reposts || stats?.quotes ? (
                   <span className="text-sm tabular-nums">
-                    {formatNumber(stats.reposts)}
+                    {formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0))}
                   </span>
                 ) : null}
               </button>
             )}
           </RepostMenu>
 
-      {stats?.quotes ? (
-        <button
-          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-          title="Quotes"
-          onClick={(e) => {
-            e.stopPropagation();
-            openPost();
-          }}
-        >
-          <Quote className="size-5" />
-          <span className="text-sm tabular-nums">{formatNumber(stats.quotes)}</span>
-        </button>
-      ) : null}
-
-      <ReactionButton
+          <ReactionButton
         eventId={event.id}
         eventPubkey={event.pubkey}
         eventKind={event.kind}
