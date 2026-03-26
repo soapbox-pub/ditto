@@ -554,7 +554,7 @@ function AwardeeCardSkeleton() {
 const INTERACT_PAD = 80;
 
 function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: string }) {
-  const tilt = useCardTilt(18, 1.06);
+  const tilt = useCardTilt(30, 1.06);
   const glareRef = useRef<HTMLDivElement>(null);
 
   // Mask string that clips overlays to the badge image's visible pixels.
