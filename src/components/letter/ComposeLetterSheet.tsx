@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef, useCallback, useEffect, type CSSProperties } from 'react';
-import { ArrowLeft, Pencil, Sticker } from 'lucide-react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { ArrowLeft, Pencil, Send, Sticker } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -14,9 +14,9 @@ import {
   type FrameStyle,
   type LetterContent,
   type LetterSticker,
-  presetToStationery,
 } from '@/lib/letterTypes';
 import { useLetterPreferences } from '@/hooks/useLetterPreferences';
+import { useThemeStationery } from '@/hooks/useThemeStationery';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { LetterEditor } from './LetterEditor';
 import { LetterStickers } from './LetterStickers';
@@ -52,7 +52,8 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
     return undefined;
   }, [toPubkey]);
 
-  const { prefs } = useLetterPreferences();
+  const { prefs, isThemeDefault } = useLetterPreferences();
+  const themeStationery = useThemeStationery();
 
   const [resolvedRecipient, setResolvedRecipient] = useState<string | undefined>(initialRecipient);
   const [body, setBody] = useState('');
@@ -61,22 +62,45 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   const [selectedFont, setSelectedFont] = useState(
     () => FONT_OPTIONS.find((f) => f.value === prefs.font) ?? FONT_OPTIONS[0],
   );
-  const [stationery, setStationery] = useState<Stationery>(
-    () => (prefs.stationery as Stationery) ?? presetToStationery('parchment') ?? { color: '#F5E6D3' },
-  );
+  // Start from the live theme stationery immediately — don't wait for encrypted settings.
+  // If the user has saved a custom stationery preference, switch to it once prefs load.
+  const [stationery, setStationery] = useState<Stationery>(themeStationery);
   const [frame, setFrame] = useState<FrameStyle>(() => prefs.frame ?? 'none');
   const [frameTint, setFrameTint] = useState(() => prefs.frameTint ?? false);
   const [overlay, setOverlay] = useState<Overlay>('none');
   const [stickers, setStickers] = useState<LetterSticker[]>([]);
   const { emojis: customEmojis } = useCustomEmojis();
   const [sealing, setSealing] = useState(false);
-  const [flyingAway, setFlyingAway] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const recipientAuthor = useAuthor(resolvedRecipient);
-  const recipientName = recipientAuthor.data?.metadata?.display_name
-    || recipientAuthor.data?.metadata?.name
-    || (resolvedRecipient ? genUserName(resolvedRecipient) : 'friend');
+  // Once encrypted settings load, apply saved stationery preference (if any).
+  // isThemeDefault is false only when the user has an explicit saved stationery.
+  const prefsLoadedRef = useRef(false);
+  useEffect(() => {
+    if (prefsLoadedRef.current) return;
+    if (!isThemeDefault && prefs.stationery) {
+      setStationery(prefs.stationery as Stationery);
+      prefsLoadedRef.current = true;
+    } else if (isThemeDefault) {
+      // Settings loaded and confirmed no override — stay with theme stationery.
+      // Keep the live theme stationery in sync if the theme changes.
+      prefsLoadedRef.current = true;
+    }
+  }, [isThemeDefault, prefs.stationery]);
+
+  // Keep stationery in sync with the live theme when using the theme default.
+  // If the user has explicitly chosen a stationery in this session, don't override it.
+  const userPickedStationery = useRef(false);
+  const handleSetStationery = useCallback((s: Stationery) => {
+    userPickedStationery.current = true;
+    setStationery(s);
+  }, []);
+
+  useEffect(() => {
+    if (!userPickedStationery.current && isThemeDefault) {
+      setStationery(themeStationery);
+    }
+  }, [themeStationery, isThemeDefault]);
 
   const [textareaPadPx, setTextareaPadPx] = useState(0);
   useEffect(() => {
@@ -172,17 +196,19 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
       queryClient.invalidateQueries({ queryKey: ['letters-sent'] });
       queryClient.invalidateQueries({ queryKey: ['letters-inbox'] });
 
-      setFlyingAway(true);
-      await new Promise((r) => setTimeout(r, 420));
       setSent(true);
       setTimeout(onClose, 1800);
     } catch (err) {
       console.error('Failed to send letter:', err);
       setSealing(false);
-      setFlyingAway(false);
       toast({ title: "couldn't send that one", variant: 'destructive' });
     }
   };
+
+  const recipientAuthor = useAuthor(resolvedRecipient);
+  const recipientName = recipientAuthor.data?.metadata?.display_name
+    || recipientAuthor.data?.metadata?.name
+    || (resolvedRecipient ? genUserName(resolvedRecipient) : 'friend');
 
   if (sent) {
     return (
@@ -201,7 +227,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
       <LetterEditor
         state={{
           selectedFont, setSelectedFont,
-          stationery, setStationery,
+          stationery, setStationery: handleSetStationery,
           frame, setFrame,
           frameTint, setFrameTint,
           closing, setClosing,
@@ -252,7 +278,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
           </>
         }
         beforeCard={
-          <div className="max-w-xl mx-auto w-full px-5 pt-4 pb-4 space-y-2">
+          <div className="max-w-xl mx-auto w-full px-5 pt-4 pb-2">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-muted-foreground shrink-0 w-14">To</span>
               {!initialRecipient ? (
@@ -322,53 +348,30 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
         }
       />
 
-      {/* Send button — fixed to bottom */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pb-6">
+      {/* Send button — in normal flow below the card */}
+      <div className="max-w-xl mx-auto w-full px-5 py-6">
         <button
           onClick={handleSend}
           disabled={!canSend || sealing}
-          style={{
-            WebkitTapHighlightColor: 'transparent',
-            ...(flyingAway
-              ? {
-                  animation: 'none',
-                  transform: 'translateY(-100vh) scale(0.8)',
-                  transition: 'transform 0.42s cubic-bezier(0.4, 0, 0.2, 1)',
-                  pointerEvents: 'none' as const,
-                }
-              : !canSend || sealing
-                ? {
-                    transform: 'translateY(8px)',
-                    opacity: 0.5,
-                    transition: 'transform 0.3s ease-out, opacity 0.3s ease',
-                  }
-                : {}
-            ),
-          } as CSSProperties}
-          className="group relative disabled:cursor-not-allowed"
-        >
-          <div className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg shadow-lg transition-all duration-150 ${
+          className={`w-full flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg shadow-sm transition-all duration-150 ${
             canSend && !sealing
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:-translate-y-1 active:scale-95 active:translate-y-0'
-              : 'bg-muted text-muted-foreground'
-          }`}>
-            {sealing ? (
-              <>
-                <span className="animate-spin">✉️</span>
-                <span>sealing...</span>
-              </>
-            ) : (
-              <>
-                <span>✉️</span>
-                <span>send letter</span>
-              </>
-            )}
-          </div>
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]'
+              : 'bg-muted text-muted-foreground cursor-not-allowed'
+          }`}
+        >
+          {sealing ? (
+            <>
+              <span className="animate-spin inline-block">✉️</span>
+              <span>sealing...</span>
+            </>
+          ) : (
+            <>
+              <Send className="w-5 h-5" strokeWidth={2.5} />
+              <span>send letter</span>
+            </>
+          )}
         </button>
       </div>
-
-      {/* Bottom padding so content doesn't hide behind the send button */}
-      <div className="h-28" />
     </div>
   );
 }

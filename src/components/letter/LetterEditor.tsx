@@ -89,8 +89,6 @@ interface LetterEditorProps {
   /** Current overlay — managed externally so callers can add custom overlays */
   overlay: string;
   setOverlay: (o: string) => void;
-  /** Toolbar bar background color. Defaults to parchment tan. */
-  toolbarBg?: string;
   /** Body content rendered inside the card above the outro (e.g. textarea or placeholder) */
   bodyContent?: (ctx: { lineHeightPx: number; stationeryTextColor: string; stationeryLineColor: string; resolvedFontFamily: string }) => ReactNode;
   /** Content rendered after the StationeryBackground inside the card ref div (e.g. stickers layer) */
@@ -110,7 +108,6 @@ export function LetterEditor({
   extraDrawerContent,
   overlay,
   setOverlay,
-  toolbarBg = 'rgba(245, 230, 211, 0.92)',
   bodyContent,
   cardOverlay,
   beforeCard,
@@ -146,9 +143,9 @@ export function LetterEditor({
 
   return (
     <>
-      <div className="sticky top-0 z-50" style={{ backgroundColor: toolbarBg }}>
+      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm">
         {/* Toolbar */}
-        <header className="backdrop-blur-sm border-b border-border" style={{ backgroundColor: toolbarBg }}>
+        <header className="border-b border-border bg-background/95">
           <div className="max-w-xl mx-auto px-5 py-3.5 min-h-[76px] flex items-center gap-1">
             {headerLeft}
             <div className="flex-1" />
