@@ -17,17 +17,20 @@ import { resolveFontUrl } from '@/lib/fontLoader';
 /**
  * Resolve font URLs for Nostr publishing.
  * Bundled fonts get CDN URLs, others keep their existing URL.
+ * If no title font is set, it falls back to the body font so published
+ * events always include both font tags when a body font is present.
  */
 function resolveThemeForPublishing(config: ThemeConfig): ThemeConfig {
+  const effectiveTitleFont = config.titleFont ?? config.font;
   return {
     ...config,
     font: config.font ? {
       family: config.font.family,
       url: resolveFontUrl(config.font.family, config.font.url),
     } : undefined,
-    titleFont: config.titleFont ? {
-      family: config.titleFont.family,
-      url: resolveFontUrl(config.titleFont.family, config.titleFont.url),
+    titleFont: effectiveTitleFont ? {
+      family: effectiveTitleFont.family,
+      url: resolveFontUrl(effectiveTitleFont.family, effectiveTitleFont.url),
     } : undefined,
   };
 }
