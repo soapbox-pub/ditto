@@ -54,10 +54,12 @@ export interface EyebrowConfig {
 export interface TearConfig {
   /** Enable tear animation */
   enabled: boolean;
-  /** Tear falls from which eye ('left' | 'right' | 'random' | 'both') */
-  eye: 'left' | 'right' | 'random' | 'both';
-  /** Animation duration in seconds */
+  /** Tear falls from which eye */
+  eye: 'left' | 'right' | 'random' | 'both' | 'alternating';
+  /** Animation duration in seconds (full cycle: appear, fall, fade) */
   duration: number;
+  /** Pause between tear cycles in seconds (optional) */
+  pauseBetween?: number;
 }
 
 // ─── Emotion Configurations ───────────────────────────────────────────────────
@@ -88,8 +90,9 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
     },
     tears: {
       enabled: true,
-      eye: 'random',
-      duration: 3,
+      eye: 'alternating', // Alternates between eyes over time
+      duration: 6, // Slower: 6 seconds per tear cycle
+      pauseBetween: 3, // 3 second pause between tears
     },
   },
   happy: {
@@ -455,19 +458,69 @@ export function generateSadMouth(mouth: MouthPosition): string {
 /**
  * Generate tear drop SVG with animation
  * 
+ * For 'alternating' mode: creates tears on both eyes but they alternate timing,
+ * so only one tear is visible at a time and they switch sides each cycle.
+ * 
  * @param eyes - Eye positions detected from SVG
  * @param config - Tear configuration
  * @param seed - Optional seed for deterministic "random" eye selection (e.g., SVG hash or Blobbi ID)
  */
 export function generateTears(eyes: EyePosition[], config: TearConfig, seed?: number): string {
-  // Determine which eye(s) to add tears to
+  const pause = config.pauseBetween ?? 0;
+  const fullCycleDuration = config.duration + pause;
+  
+  if (config.eye === 'alternating') {
+    // Alternating mode: both eyes get tears, but offset timing so they alternate
+    // This creates the effect of tears switching sides without render flickering
+    return eyes.map((eye, index) => {
+      const tearStartY = eye.cy + eye.radius + 2;
+      const tearEndY = tearStartY + 30;
+      // Offset each eye by half the full cycle + pause, so they alternate
+      const delay = index * fullCycleDuration;
+      // Total animation cycle includes the tear + pause before next
+      const totalCycle = fullCycleDuration * eyes.length;
+      
+      return `
+    <g class="blobbi-tear blobbi-tear-${eye.side}">
+      <!-- Tear drop shape - alternates with other eye -->
+      <ellipse 
+        cx="${eye.cx}" 
+        cy="${tearStartY}"
+        rx="2.5" 
+        ry="4"
+        fill="url(#tearGradient)"
+        opacity="0"
+      >
+        <!-- Fall animation -->
+        <animate 
+          attributeName="cy" 
+          values="${tearStartY};${tearEndY};${tearStartY}" 
+          keyTimes="0;${config.duration / totalCycle};1"
+          dur="${totalCycle}s" 
+          begin="${delay}s"
+          repeatCount="indefinite"
+        />
+        <!-- Opacity: visible only during this eye's turn -->
+        <animate 
+          attributeName="opacity" 
+          values="0;0.8;0.8;0;0" 
+          keyTimes="0;${0.05 * config.duration / totalCycle};${0.8 * config.duration / totalCycle};${config.duration / totalCycle};1"
+          dur="${totalCycle}s" 
+          begin="${delay}s"
+          repeatCount="indefinite"
+        />
+      </ellipse>
+    </g>`;
+    }).join('\n');
+  }
+  
+  // Non-alternating modes
   let targetEyes: EyePosition[];
   
   if (config.eye === 'both') {
     targetEyes = eyes;
   } else if (config.eye === 'random') {
     // Use deterministic selection based on seed (defaults to left eye if no seed)
-    // This prevents flickering on re-renders while still allowing variety
     const eyeIndex = seed !== undefined ? Math.abs(seed) % eyes.length : 0;
     const selectedEye = eyes[eyeIndex];
     targetEyes = selectedEye ? [selectedEye] : [];
@@ -496,15 +549,15 @@ export function generateTears(eyes: EyePosition[], config: TearConfig, seed?: nu
         <animate 
           attributeName="cy" 
           values="${tearStartY};${tearEndY}" 
-          dur="${config.duration}s" 
+          dur="${fullCycleDuration}s" 
           begin="${delay}s"
           repeatCount="indefinite"
         />
         <animate 
           attributeName="opacity" 
-          values="0;0.8;0.8;0" 
-          keyTimes="0;0.1;0.8;1"
-          dur="${config.duration}s" 
+          values="0;0.8;0.8;0;0" 
+          keyTimes="0;0.05;${0.8 * config.duration / fullCycleDuration};${config.duration / fullCycleDuration};1"
+          dur="${fullCycleDuration}s" 
           begin="${delay}s"
           repeatCount="indefinite"
         />
@@ -514,80 +567,101 @@ export function generateTears(eyes: EyePosition[], config: TearConfig, seed?: nu
 }
 
 /**
- * Generate watery/sad eye effect
- * 
- * Creates visual elements for each eye:
- * 1. Blue watery fill at BOTTOM of the EYE WHITE (not pupil) - like pooled tears
- * 2. UPPER white highlight - larger, in upper area of pupil
- * 3. LOWER white highlight - smaller, clearly in lower area of pupil
- * 
- * The blue water is positioned relative to the eye white (which is larger than pupil).
- * Eye white is typically ~1.3-1.7x the pupil radius and slightly higher.
+ * Generate the blue watery fill for sad eyes (as overlay on eye white).
+ * This stays as an overlay since it's on the eye white, not tracking with pupil.
  */
-export function generateSadEyeEffects(eyes: EyePosition[]): string {
+export function generateSadEyeWaterFill(eyes: EyePosition[]): string {
   return eyes.map(eye => {
     // Estimate eye white dimensions (eye white is larger than pupil)
-    // Typically eye white rx ≈ pupil radius * 1.3, ry ≈ pupil radius * 1.7
     const eyeWhiteRx = eye.radius * 1.35;
     const eyeWhiteRy = eye.radius * 1.65;
-    // Eye white center is typically slightly above pupil center
     const eyeWhiteCy = eye.cy - eye.radius * 0.15;
     
-    // 1. UPPER highlight - LARGER, clearly in upper area of pupil
-    const upperX = eye.cx - eye.radius * 0.25;
-    const upperY = eye.cy - eye.radius * 0.55; // Clearly upper
-    const upperSize = eye.radius * 0.4;
-    
-    // 2. LOWER highlight - SMALLER, clearly in lower area of pupil
-    const lowerX = eye.cx + eye.radius * 0.15;
-    const lowerY = eye.cy + eye.radius * 0.35; // Clearly lower
-    const lowerSize = eye.radius * 0.25;
-    
-    // 3. Blue watery fill - sits at BOTTOM of the EYE WHITE
-    // This is positioned relative to the eye white ellipse, not the pupil
-    const waterTop = eyeWhiteCy + eyeWhiteRy * 0.3; // Start in lower portion of eye white
-    const waterBottom = eyeWhiteCy + eyeWhiteRy * 0.95; // Near bottom of eye white
-    const waterWidth = eyeWhiteRx * 0.85; // Slightly narrower than eye white
+    // Blue watery fill - sits at BOTTOM of the EYE WHITE
+    const waterTop = eyeWhiteCy + eyeWhiteRy * 0.3;
+    const waterBottom = eyeWhiteCy + eyeWhiteRy * 0.95;
+    const waterWidth = eyeWhiteRx * 0.85;
     
     return `
-    <!-- Sad eye effects for ${eye.side} eye -->
-    <g class="blobbi-sad-eye blobbi-sad-eye-${eye.side}">
-      <!-- Blue watery fill at bottom of EYE WHITE (pooled tears) -->
-      <path
-        d="M ${eye.cx - waterWidth} ${waterTop} 
-           Q ${eye.cx - waterWidth} ${waterBottom} ${eye.cx} ${waterBottom}
-           Q ${eye.cx + waterWidth} ${waterBottom} ${eye.cx + waterWidth} ${waterTop}
-           Z"
-        fill="#7dd3fc"
-        opacity="0.4"
-      >
-        <animate 
-          attributeName="opacity" 
-          values="0.3;0.5;0.3" 
-          dur="2s" 
-          repeatCount="indefinite"
-        />
-      </path>
-      
-      <!-- Upper highlight (LARGER, clearly in upper pupil area) -->
-      <circle 
-        cx="${upperX}" 
-        cy="${upperY}" 
-        r="${upperSize}"
-        fill="white"
-        opacity="0.9"
+    <!-- Blue watery fill for ${eye.side} eye -->
+    <path
+      class="blobbi-sad-water blobbi-sad-water-${eye.side}"
+      d="M ${eye.cx - waterWidth} ${waterTop} 
+         Q ${eye.cx - waterWidth} ${waterBottom} ${eye.cx} ${waterBottom}
+         Q ${eye.cx + waterWidth} ${waterBottom} ${eye.cx + waterWidth} ${waterTop}
+         Z"
+      fill="#7dd3fc"
+      opacity="0.4"
+    >
+      <animate 
+        attributeName="opacity" 
+        values="0.3;0.5;0.3" 
+        dur="2s" 
+        repeatCount="indefinite"
       />
-      
-      <!-- Lower highlight (SMALLER, clearly in lower pupil area) -->
-      <circle 
-        cx="${lowerX}" 
-        cy="${lowerY}" 
-        r="${lowerSize}"
-        fill="white"
-        opacity="0.8"
-      />
-    </g>`;
+    </path>`;
   }).join('\n');
+}
+
+/**
+ * Generate the sad highlight SVG elements (to be injected into blobbi-eye groups).
+ * Returns just the circle elements, not wrapped in a group.
+ */
+function generateSadHighlightElements(eye: EyePosition): string {
+  // UPPER highlight - LARGER, clearly in upper area of pupil
+  const upperX = eye.cx - eye.radius * 0.25;
+  const upperY = eye.cy - eye.radius * 0.55;
+  const upperSize = eye.radius * 0.4;
+  
+  // LOWER highlight - SMALLER, clearly in lower area of pupil
+  const lowerX = eye.cx + eye.radius * 0.15;
+  const lowerY = eye.cy + eye.radius * 0.35;
+  const lowerSize = eye.radius * 0.25;
+  
+  return `
+      <!-- Sad upper highlight -->
+      <circle cx="${upperX}" cy="${upperY}" r="${upperSize}" fill="white" opacity="0.9" class="blobbi-sad-highlight" />
+      <!-- Sad lower highlight -->
+      <circle cx="${lowerX}" cy="${lowerY}" r="${lowerSize}" fill="white" opacity="0.8" class="blobbi-sad-highlight" />`;
+}
+
+/**
+ * Apply sad eye modifications to the SVG:
+ * 1. Hide original highlights inside blobbi-eye groups
+ * 2. Inject sad highlights INTO blobbi-eye groups (so they track with pupil)
+ * 
+ * This ensures sad highlights move with eye tracking and blink properly.
+ */
+export function applySadEyeHighlights(svgText: string, eyes: EyePosition[]): string {
+  // Process each eye - find blobbi-eye groups and modify them
+  for (const eye of eyes) {
+    // Find the blobbi-eye group for this side
+    const eyeGroupRegex = new RegExp(
+      `(<g\\s+class="blobbi-eye\\s+blobbi-eye-${eye.side}"[^>]*>)([\\s\\S]*?)(</g>)`,
+      'i'
+    );
+    
+    const match = svgText.match(eyeGroupRegex);
+    if (match) {
+      const [fullMatch, openTag, content, closeTag] = match;
+      
+      // Hide original white highlights (small white circles) by adding opacity="0"
+      // Original highlights are typically: <circle ... fill="white" ... />
+      const modifiedContent = content.replace(
+        /(<circle[^>]*fill="white"[^>]*)(\/?>)/gi,
+        '$1 opacity="0" $2'
+      );
+      
+      // Add sad highlights at the end of the group content
+      const sadHighlights = generateSadHighlightElements(eye);
+      const newContent = modifiedContent + sadHighlights;
+      
+      // Replace in SVG
+      svgText = svgText.replace(fullMatch, openTag + newContent + closeTag);
+    }
+  }
+  
+  return svgText;
 }
 
 // ─── Main Emotion Application ─────────────────────────────────────────────────
@@ -653,7 +727,12 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion): string {
   
   // Generate sad eye effects (watery eyes with repositioned highlights)
   if (config.pupilModification?.wateryEyes && eyes.length > 0) {
-    overlays.push(generateSadEyeEffects(eyes));
+    // 1. Apply sad highlights INTO the blobbi-eye groups (for tracking/blinking)
+    //    This also hides the original highlights
+    svgText = applySadEyeHighlights(svgText, eyes);
+    
+    // 2. Add blue water fill as overlay (on eye white, doesn't need to track)
+    overlays.push(generateSadEyeWaterFill(eyes));
   }
   
   // Generate tears
