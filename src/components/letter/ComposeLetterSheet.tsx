@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { ArrowLeft, Pencil, Send, Sticker } from 'lucide-react';
-import { ArcBackground } from '@/components/ArcBackground';
+import { FabButton } from '@/components/FabButton';
 import { nip19 } from 'nostr-tools';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -226,35 +226,16 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
 
   return (
     <div ref={bodyAreaRef} className="min-h-screen bg-background flex flex-col">
-      {/* Page header — back + title + send */}
-      <header className="sticky top-0 z-50 safe-area-top">
-        <ArcBackground variant="down" />
-        <div className="relative flex items-center gap-2 px-2 py-2 min-h-[52px]">
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            <ArrowLeft className="size-5" />
-          </button>
-          <h1 className="text-xl font-bold flex-1 truncate">Write a Letter</h1>
-          <button
-            onClick={handleSend}
-            disabled={!canSend || sealing}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm transition-all ${
-              canSend && !sealing
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
-                : 'bg-muted text-muted-foreground cursor-not-allowed'
-            }`}
-          >
-            {sealing ? (
-              <span className="animate-spin inline-block">✉️</span>
-            ) : (
-              <Send className="size-4" strokeWidth={2.5} />
-            )}
-            <span>{sealing ? 'Sending...' : 'Send'}</span>
-          </button>
-        </div>
-      </header>
+      {/* Page header — back + title */}
+      <div className="flex items-center gap-2 px-2 py-2 mt-4 mb-1">
+        <button
+          onClick={onClose}
+          className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        >
+          <ArrowLeft className="size-5" />
+        </button>
+        <h1 className="text-xl font-bold flex-1 truncate">Write a Letter</h1>
+      </div>
 
       <LetterEditor
         state={{
@@ -373,6 +354,37 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
         }
       />
 
+      {/* Send FAB — fixed bottom right, matches app FAB style */}
+      <div className="fixed bottom-fab right-6 z-30 sidebar:hidden">
+        <FabButton
+          onClick={handleSend}
+          disabled={!canSend || sealing}
+          title="Send letter"
+          icon={sealing
+            ? <span className="animate-spin text-lg">✉️</span>
+            : <Send strokeWidth={3} size={18} />
+          }
+        />
+      </div>
+      {/* Desktop FAB — sticky within column */}
+      <div className="hidden sidebar:block sticky bottom-6 z-30 pointer-events-none">
+        <div className="flex justify-end pr-4">
+          <div className="pointer-events-auto">
+            <FabButton
+              onClick={handleSend}
+              disabled={!canSend || sealing}
+              title="Send letter"
+              icon={sealing
+                ? <span className="animate-spin text-lg">✉️</span>
+                : <Send strokeWidth={3} size={18} />
+              }
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Space so card isn't hidden behind FAB */}
+      <div className="h-28 sidebar:hidden" />
     </div>
   );
 }
