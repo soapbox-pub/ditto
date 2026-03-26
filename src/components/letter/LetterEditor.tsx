@@ -1,12 +1,14 @@
 /**
- * LetterEditor — drawer + preview card shared by ComposeLetterSheet and
- * LetterPreferencesSection. The tool buttons (Aa / paintbrush / frame / extras)
- * are exposed via the `renderToolbar` render prop so callers can place them
- * inside any sticky header (e.g. SubHeaderBar).
+ * LetterEditor — drawer and preview card for composing/previewing letters.
+ *
+ * Callers own the sticky header. LetterEditor exposes its toolbar buttons
+ * via the `renderToolbarButtons` render prop so callers can place them
+ * inline in their own header row alongside back buttons, titles, etc.
  */
 
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { Paintbrush } from 'lucide-react';
+import { TabButton } from '@/components/TabButton';
 
 import {
   FONT_OPTIONS,
@@ -45,13 +47,13 @@ export function FrameIcon({ className, strokeWidth = 2 }: { className?: string; 
 }
 
 // ---------------------------------------------------------------------------
-// Overlay types
+// Overlay types — base set shared by all consumers
 // ---------------------------------------------------------------------------
 
 export type BaseOverlay = 'none' | 'font' | 'stationery' | 'frame';
 
 // ---------------------------------------------------------------------------
-// LetterEditor props
+// LetterEditor types
 // ---------------------------------------------------------------------------
 
 export interface LetterEditorFont {
@@ -78,27 +80,24 @@ export interface LetterEditorState {
 interface LetterEditorProps {
   state: LetterEditorState;
   /**
-   * Render prop that receives the tool buttons (Aa / paintbrush / frame / extras)
-   * as a ReactNode. Callers place this inside their sticky header (SubHeaderBar etc.).
+   * Render prop — receives the toolbar button nodes and the sliding drawer so
+   * the caller can compose them into their own sticky header+drawer region.
+   * The drawer is passed separately so callers that want the arc-then-drawer
+   * pattern can render it outside the SubHeaderBar.
    */
-  renderToolbar: (buttons: ReactNode) => ReactNode;
-  /** Extra buttons appended after the base Aa / paintbrush / frame buttons. */
+  renderToolbarButtons: (buttons: ReactNode, drawer: ReactNode) => ReactNode;
+  /** Extra buttons appended after the base Aa/paintbrush/frame buttons. */
   extraButtons?: ReactNode;
-  /** Extra drawer panels for custom overlay names. */
+  /** Extra drawer panels for overlays beyond 'font'/'stationery'/'frame'. */
   extraDrawerContent?: ReactNode;
-  /** Current overlay name. */
+  /** Current overlay — managed externally so callers can add custom overlays. */
   overlay: string;
   setOverlay: (o: string) => void;
-  /** Content rendered inside the card body (e.g. textarea). */
-  bodyContent?: (ctx: {
-    lineHeightPx: number;
-    stationeryTextColor: string;
-    stationeryLineColor: string;
-    resolvedFontFamily: string;
-  }) => ReactNode;
-  /** Content rendered over the card (e.g. sticker layer). */
+  /** Body content rendered inside the card above the outro. */
+  bodyContent?: (ctx: { lineHeightPx: number; stationeryTextColor: string; stationeryLineColor: string; resolvedFontFamily: string }) => ReactNode;
+  /** Content rendered on top of the card (e.g. stickers layer). */
   cardOverlay?: ReactNode;
-  /** Content rendered between the toolbar area and the preview card. */
+  /** Content rendered between the drawer and the card (e.g. recipient row). */
   beforeCard?: ReactNode;
 }
 
@@ -108,7 +107,7 @@ interface LetterEditorProps {
 
 export function LetterEditor({
   state,
-  renderToolbar,
+  renderToolbarButtons,
   extraButtons,
   extraDrawerContent,
   overlay,
@@ -146,40 +145,31 @@ export function LetterEditor({
   const isBaseOverlay = (o: string): o is BaseOverlay => ['none', 'font', 'stationery', 'frame'].includes(o);
   const drawerOpen = overlay !== 'none';
 
-  // The raw tool buttons — passed to renderToolbar so the caller decides placement
-  const toolButtons = (
+  // The toolbar buttons — passed to renderToolbarButtons so the caller
+  // can embed them in their own sticky header row.
+  const toolbarButtons = (
     <>
-      <button
+      <TabButton
+        label="Font"
+        active={overlay === 'font'}
         onClick={() => setOverlay(overlay === 'font' ? 'none' : 'font')}
-        className={`px-3 py-2 rounded-2xl transition-colors text-sm font-semibold tracking-tight ${
-          overlay === 'font'
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-        }`}
       >
-        <span className="text-lg font-bold">Aa</span>
-      </button>
-      <button
+        <span className="text-base font-bold">Aa</span>
+      </TabButton>
+      <TabButton
+        label="Stationery"
+        active={overlay === 'stationery'}
         onClick={() => setOverlay(overlay === 'stationery' ? 'none' : 'stationery')}
-        className={`p-2.5 rounded-2xl transition-colors ${
-          overlay === 'stationery'
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-        }`}
       >
-        <Paintbrush className="h-6 w-6" strokeWidth={2.5} />
-      </button>
-      <button
+        <Paintbrush className="h-5 w-5" strokeWidth={2.5} />
+      </TabButton>
+      <TabButton
+        label="Frame"
+        active={overlay === 'frame'}
         onClick={() => setOverlay(overlay === 'frame' ? 'none' : 'frame')}
-        className={`p-2.5 rounded-2xl transition-colors ${
-          overlay === 'frame'
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-        }`}
-        title="frame"
       >
-        <FrameIcon className="h-6 w-6" strokeWidth={2.5} />
-      </button>
+        <FrameIcon className="h-5 w-5" strokeWidth={2.5} />
+      </TabButton>
       {extraButtons}
     </>
   );
@@ -229,11 +219,13 @@ export function LetterEditor({
 
   return (
     <>
-      {renderToolbar(toolButtons)}
-      {drawer}
+      {/* Caller composes the toolbar buttons and drawer into their own sticky region */}
+      {renderToolbarButtons(toolbarButtons, drawer)}
+
       {beforeCard}
+
       <div
-        className="max-w-xl mx-auto w-full flex-1"
+        className="max-w-xl mx-auto w-full"
         style={frame !== 'none' ? { padding: '28px 44px 44px' } : { padding: '0 16px 16px' }}
       >
         <div ref={cardRef} className="relative" style={{ containerType: 'inline-size' }}>
@@ -245,7 +237,6 @@ export function LetterEditor({
           >
             <div className="relative z-10 flex flex-col" style={{ aspectRatio: '5 / 4', padding: '5cqw' }}>
               {bodyContent?.({ lineHeightPx, stationeryTextColor, stationeryLineColor, resolvedFontFamily })}
-              {/* Outro — closing + signature */}
               <div className="flex flex-col items-end" style={{ paddingTop: '4cqw', gap: '3cqw', paddingRight: '4cqw' }}>
                 <Select value={closing || '__none__'} onValueChange={(v) => setClosing(v === '__none__' ? '' : v)}>
                   <SelectTrigger

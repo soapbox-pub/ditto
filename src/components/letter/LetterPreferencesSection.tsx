@@ -1,14 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { Sparkles, RotateCcw } from 'lucide-react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Sparkles, RotateCcw } from 'lucide-react';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 
 import { useLetterPreferences } from '@/hooks/useLetterPreferences';
 import { useThemeStationery } from '@/hooks/useThemeStationery';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { SubHeaderBar } from '@/components/SubHeaderBar';
 import {
   FONT_OPTIONS,
   type Stationery,
@@ -25,7 +24,7 @@ function toSerializable(s: Stationery): SerializableStationery {
 
 export function LetterPreferencesSection() {
   const { user } = useCurrentUser();
-  useLayoutOptions({ hasSubHeader: true });
+  const navigate = useNavigate();
   const { prefs, updatePrefs, resetStationery, isThemeDefault } = useLetterPreferences();
   const themeStationery = useThemeStationery();
 
@@ -94,10 +93,22 @@ export function LetterPreferencesSection() {
         }}
         overlay={overlay}
         setOverlay={(o) => setOverlay(o as BaseOverlay)}
-        renderToolbar={(buttons) => (
-          <SubHeaderBar noArc innerClassName="px-2 gap-1 justify-end">
-            {buttons}
-          </SubHeaderBar>
+        renderToolbarButtons={(buttons: ReactNode, drawer: ReactNode) => (
+          <div className="sticky top-0 z-50">
+            <div className="flex items-center gap-4 px-4 mt-4 mb-1">
+              <button
+                onClick={() => navigate('/letters')}
+                className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors"
+              >
+                <ArrowLeft className="size-5" />
+              </button>
+              <h1 className="text-xl font-bold flex-1 truncate">Letter Preferences</h1>
+            </div>
+            {drawer}
+            <SubHeaderBar className="relative">
+              {buttons}
+            </SubHeaderBar>
+          </div>
         )}
         beforeCard={
           <div className="pt-4 max-w-xl mx-auto w-full px-5">

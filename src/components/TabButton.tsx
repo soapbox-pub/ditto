@@ -61,7 +61,7 @@ export function TabButton({ label, active, onClick, disabled, className, childre
       onMouseLeave={handleMouseLeave}
       disabled={disabled}
       className={cn(
-        'flex-1 py-1.5 text-center text-sm font-medium transition-colors relative px-4 whitespace-nowrap',
+        'flex-1 flex items-center justify-center py-1.5 text-sm font-medium transition-colors relative px-4 whitespace-nowrap',
         active ? 'text-foreground' : 'text-muted-foreground',
         disabled && 'opacity-50 cursor-not-allowed',
         className,

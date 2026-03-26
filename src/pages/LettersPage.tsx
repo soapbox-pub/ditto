@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Send, PenLine, Settings } from 'lucide-react';
+import { Mail, PenLine, Settings } from 'lucide-react';
 import { FabButton } from '@/components/FabButton';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useInbox, useSentLetters } from '@/hooks/useLetters';
 import { useLetterPreferences } from '@/hooks/useLetterPreferences';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { PageHeader } from '@/components/PageHeader';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { TabButton } from '@/components/TabButton';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LetterCard } from '@/components/letter/LetterCard';
 import { ComposeLetterSheet } from '@/components/letter/ComposeLetterSheet';
@@ -38,6 +42,8 @@ export function LettersPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('inbox');
   const [composing, setComposing] = useState(false);
+
+  useLayoutOptions({ showFAB: false, hasSubHeader: !!user });
 
   const { prefs } = useLetterPreferences();
   const followListData = useFollowList();
@@ -82,41 +88,22 @@ export function LettersPage() {
 
   return (
     <main className="min-h-screen pb-16 sidebar:pb-0">
-      <PageHeader title="Letters" icon={<Mail className="size-5" />} backTo="/" />
-
-      {/* Tabs + settings */}
-      <div className="flex items-center gap-1 px-4 pt-2 pb-1">
-        <button
-          onClick={() => setTab('inbox')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-            tab === 'inbox'
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-          }`}
-        >
-          <Mail className="w-4 h-4" />
-          Inbox
-        </button>
-        <button
-          onClick={() => setTab('sent')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-            tab === 'sent'
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-          }`}
-        >
-          <Send className="w-4 h-4" />
-          Sent
-        </button>
-        <div className="flex-1" />
+      <PageHeader title="Letters" icon={<Mail className="size-5" />} backTo="/" alwaysShowBack>
         <button
           onClick={() => navigate('/settings/letters')}
-          className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          className="p-2 rounded-full text-muted-foreground hover:text-foreground transition-colors"
           title="Letter preferences"
         >
           <Settings className="w-4 h-4" />
         </button>
-      </div>
+      </PageHeader>
+
+      {/* Tabs */}
+      <SubHeaderBar>
+        <TabButton label="Inbox" active={tab === 'inbox'} onClick={() => setTab('inbox')} />
+        <TabButton label="Sent" active={tab === 'sent'} onClick={() => setTab('sent')} />
+      </SubHeaderBar>
+      <div style={{ height: ARC_OVERHANG_PX }} />
 
       {/* Letter list */}
       <div className="px-4 py-2 space-y-3">

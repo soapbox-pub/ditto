@@ -1,5 +1,8 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import { ArrowLeft, Pencil, Send, Sticker } from 'lucide-react';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { TabButton } from '@/components/TabButton';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { FabButton } from '@/components/FabButton';
 import { nip19 } from 'nostr-tools';
 import { useQueryClient } from '@tanstack/react-query';
@@ -19,8 +22,6 @@ import {
 import { useLetterPreferences } from '@/hooks/useLetterPreferences';
 import { useThemeStationery } from '@/hooks/useThemeStationery';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
-import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { LetterEditor } from './LetterEditor';
 import { LetterStickers } from './LetterStickers';
 import { StickerPicker } from './StickerPicker';
@@ -57,7 +58,6 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
 
   const { prefs, isThemeDefault } = useLetterPreferences();
   const themeStationery = useThemeStationery();
-  useLayoutOptions({ hasSubHeader: true });
 
 
   const [resolvedRecipient, setResolvedRecipient] = useState<string | undefined>(initialRecipient);
@@ -229,17 +229,6 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
 
   return (
     <div ref={bodyAreaRef} className="min-h-screen bg-background flex flex-col">
-      {/* Page header — back + title */}
-      <div className="flex items-center gap-2 px-2 py-2 mt-4 mb-1">
-        <button
-          onClick={onClose}
-          className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-        >
-          <ArrowLeft className="size-5" />
-        </button>
-        <h1 className="text-xl font-bold flex-1 truncate">Write a Letter</h1>
-      </div>
-
       <LetterEditor
         state={{
           selectedFont, setSelectedFont,
@@ -251,37 +240,38 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
         }}
         overlay={overlay}
         setOverlay={(o) => setOverlay(o as Overlay)}
-        renderToolbar={(buttons) => (
-          <SubHeaderBar noArc innerClassName="px-2 gap-1 justify-end">
-            {buttons}
-          </SubHeaderBar>
+        renderToolbarButtons={(buttons: ReactNode, drawer: ReactNode) => (
+          <div className="sticky top-0 z-10">
+            {drawer}
+            <SubHeaderBar className="relative">
+              <button
+                onClick={onClose}
+                className="pl-3 pr-1 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              >
+                <ArrowLeft className="size-5" />
+              </button>
+              {buttons}
+            </SubHeaderBar>
+          </div>
         )}
         extraButtons={
           <>
             {customEmojis.length > 0 && (
-              <button
+              <TabButton
+                label="Stickers"
+                active={overlay === 'sticker'}
                 onClick={() => setOverlay(overlay === 'sticker' ? 'none' : 'sticker')}
-                className={`p-2.5 rounded-2xl transition-colors ${
-                  overlay === 'sticker'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-                title="stickers"
               >
-                <Sticker className="h-6 w-6" strokeWidth={2.5} />
-              </button>
+                <Sticker className="h-5 w-5" strokeWidth={2.5} />
+              </TabButton>
             )}
-            <button
+            <TabButton
+              label="Draw"
+              active={overlay === 'draw'}
               onClick={() => setOverlay(overlay === 'draw' ? 'none' : 'draw')}
-              className={`p-2.5 rounded-2xl transition-colors ${
-                overlay === 'draw'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-              title="draw sticker"
             >
-              <Pencil className="h-6 w-6" strokeWidth={2.5} />
-            </button>
+              <Pencil className="h-5 w-5" strokeWidth={2.5} />
+            </TabButton>
           </>
         }
         extraDrawerContent={
