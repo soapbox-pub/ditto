@@ -9,8 +9,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { toast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
+import { resolveStationery } from '@/lib/letterTypes';
 import {
   LETTER_KIND,
   FONT_OPTIONS,
@@ -27,6 +29,55 @@ import { LetterStickers } from './LetterStickers';
 import { StickerPicker } from './StickerPicker';
 import { DrawingCanvas } from './DrawingCanvas';
 import { LetterRecipientInput } from './LetterRecipientInput';
+import { SendAnimation, useEnvelopeDimensions } from './SendAnimation';
+import { StationeryBackground } from './StationeryBackground';
+
+/** Lightweight letter preview used inside the send animation */
+function AnimationLetter({ content, width }: { content: LetterContent; width: number }) {
+  const { text: textColor, line: lineColor } = useStationeryColors(content.stationery);
+  const resolved = resolveStationery(content.stationery ?? { color: '#F5E6D3' });
+  const fontFamily = resolved.fontFamily ?? FONT_OPTIONS[0].family;
+  const lh = Math.round(width * 0.084);
+
+  return (
+    <div className="relative" style={{ containerType: 'inline-size', width }}>
+      <StationeryBackground
+        stationery={content.stationery}
+        frame={content.stationery?.frame}
+        frameTint={content.stationery?.frameTint}
+        className="rounded-2xl"
+      >
+        <div className="relative z-10 flex flex-col" style={{ aspectRatio: '5 / 4', padding: '5cqw' }}>
+          <p
+            className="whitespace-pre-wrap font-semibold tracking-wide overflow-hidden flex-1 min-h-0"
+            style={{
+              fontSize: '4.8cqw',
+              lineHeight: `${lh}px`,
+              letterSpacing: '0.06em',
+              paddingTop: '0.5cqw',
+              fontFamily,
+              color: textColor,
+              backgroundImage: `linear-gradient(to bottom, transparent ${lh - 3}px, ${lineColor} ${lh - 3}px)`,
+              backgroundSize: `100% ${lh}px`,
+              backgroundRepeat: 'repeat-y',
+              maxHeight: `${lh * 5}px`,
+            }}
+          >
+            {content.body}
+          </p>
+          {content.closing && (
+            <div className="flex flex-col items-end" style={{ paddingTop: '6cqw', gap: '3cqw', paddingRight: '4cqw', fontFamily }}>
+              <p style={{ fontSize: '4.8cqw', color: textColor }}>{content.closing}</p>
+            </div>
+          )}
+        </div>
+      </StationeryBackground>
+      {content.stickers && content.stickers.length > 0 && (
+        <LetterStickers stickers={content.stickers} />
+      )}
+    </div>
+  );
+}
 
 const BODY_MAX_LENGTH = 220;
 
@@ -76,7 +127,9 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   const [stickers, setStickers] = useState<LetterSticker[]>([]);
   const { emojis: customEmojis } = useCustomEmojis();
   const [sealing, setSealing] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [sendAnimationContent, setSendAnimationContent] = useState<LetterContent | null>(null);
+  const envDims = useEnvelopeDimensions();
+  const animLetterW = envDims.letterW;
 
   // Once encrypted settings load, apply saved stationery preference (if any).
   // isThemeDefault is false only when the user has an explicit saved stationery.
@@ -201,8 +254,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
       queryClient.invalidateQueries({ queryKey: ['letters-sent'] });
       queryClient.invalidateQueries({ queryKey: ['letters-inbox'] });
 
-      setSent(true);
-      setTimeout(onClose, 1800);
+      setSendAnimationContent(letterContent);
     } catch (err) {
       console.error('Failed to send letter:', err);
       setSealing(false);
@@ -215,20 +267,29 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
     || recipientAuthor.data?.metadata?.name
     || (resolvedRecipient ? genUserName(resolvedRecipient) : 'friend');
 
-  if (sent) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4 px-8">
-          <div className="text-6xl animate-bounce">✉️</div>
-          <p className="text-xl font-semibold">letter sent!</p>
-          <p className="text-muted-foreground">your letter is on its way to {recipientName}</p>
-        </div>
-      </div>
-    );
-  }
+  // Derive envelope + seal colors from the current stationery
+  const resolvedSt = resolveStationery(stationery);
+  const bgColor      = resolvedSt.color ?? '#F5E6D3';
+  const primaryColor = resolvedSt.primaryColor ?? '#7c52e0';
 
   return (
-    <div ref={bodyAreaRef} className="min-h-screen bg-background flex flex-col">
+    <>
+      {sendAnimationContent && (
+        <SendAnimation
+          letterElement={<AnimationLetter content={sendAnimationContent} width={animLetterW} />}
+          letterWidth={animLetterW}
+          recipientName={recipientName}
+          recipientPicture={recipientAuthor.data?.metadata?.picture}
+          bgColor={bgColor}
+          primaryColor={primaryColor}
+          onComplete={onClose}
+        />
+      )}
+      <div
+        ref={bodyAreaRef}
+        className="min-h-screen bg-background flex flex-col"
+        style={sendAnimationContent ? { visibility: 'hidden', position: 'fixed' } : undefined}
+      >
       <LetterEditor
         state={{
           selectedFont, setSelectedFont,
@@ -383,5 +444,6 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
       {/* Space so card isn't hidden behind FAB */}
       <div className="h-28 sidebar:hidden" />
     </div>
+    </>
   );
 }
