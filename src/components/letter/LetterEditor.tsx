@@ -302,7 +302,7 @@ export function LetterEditor({
     // Settings page mode: plain non-sticky toolbar row + drawer + card
     return (
       <>
-        <div className="border-b border-border">
+        <div>
           {toolbarRow}
           {drawer}
         </div>
