@@ -4,6 +4,9 @@
  * Hook for managing NIP-51 Follow Sets (kind 30000).
  * Follow Sets are addressable events identified by a `d` tag.
  * Each list has a title and contains `p` tags (pubkeys).
+ *
+ * Supports NIP-51 encrypted (private) items: pubkeys stored in the
+ * encrypted `content` field are merged with public `p` tags.
  */
 import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
@@ -11,7 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { useFollowPacks } from './useFollowPacks';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NostrSigner } from '@nostrify/nostrify';
 
 export interface UserList {
   /** Unique d-tag identifier */
@@ -22,8 +25,10 @@ export interface UserList {
   description?: string;
   /** Optional image URL (from `image` or `thumb` tag) */
   image?: string;
-  /** Pubkeys in this list */
+  /** All pubkeys in this list (public + private, deduplicated) */
   pubkeys: string[];
+  /** Pubkeys that were stored in the encrypted content (private items) */
+  privatePubkeys: string[];
   /** The underlying Nostr event */
   event: NostrEvent;
 }
@@ -31,7 +36,55 @@ export interface UserList {
 /** d-tags reserved by NIP-51 for other purposes — filter these out. */
 const DEPRECATED_DTAGS = new Set(['mute', 'pin', 'bookmark', 'communities']);
 
-/** Parse a kind 30000 event into a UserList. */
+/**
+ * Detect whether encrypted content uses NIP-04 (legacy) or NIP-44 encoding.
+ * NIP-51 says: "Clients can automatically discover if the encryption is NIP-04
+ * or NIP-44 by searching for 'iv' in the ciphertext."
+ */
+function isNip04Encrypted(content: string): boolean {
+  return content.includes('?iv=');
+}
+
+/**
+ * Decrypt encrypted content from a NIP-51 list event, handling both NIP-44 and
+ * legacy NIP-04 formats for backward compatibility per NIP-51.
+ */
+async function decryptListContent(
+  content: string,
+  signer: NostrSigner,
+  pubkey: string,
+): Promise<string[][] | null> {
+  if (!content) return null;
+
+  try {
+    let decrypted: string | null = null;
+
+    if (isNip04Encrypted(content)) {
+      if (signer.nip04) {
+        decrypted = await signer.nip04.decrypt(pubkey, content);
+      } else {
+        console.warn('List uses NIP-04 encryption but signer does not support nip04');
+        return null;
+      }
+    } else {
+      if (signer.nip44) {
+        decrypted = await signer.nip44.decrypt(pubkey, content);
+      } else {
+        console.warn('List uses NIP-44 encryption but signer does not support nip44');
+        return null;
+      }
+    }
+
+    if (!decrypted) return null;
+    const tags = JSON.parse(decrypted) as string[][];
+    return Array.isArray(tags) ? tags : null;
+  } catch (error) {
+    console.error('Failed to decrypt list content:', error);
+    return null;
+  }
+}
+
+/** Parse a kind 30000 event into a UserList (public tags only, no decryption). */
 function parseListEvent(event: NostrEvent): UserList {
   const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
   const id = getTag('d') ?? '';
@@ -39,7 +92,61 @@ function parseListEvent(event: NostrEvent): UserList {
   const description = getTag('description') || getTag('summary') || undefined;
   const image = getTag('image') || getTag('thumb') || undefined;
   const pubkeys = event.tags.filter(([n]) => n === 'p').map(([, pk]) => pk);
-  return { id, title, description, image, pubkeys, event };
+  return { id, title, description, image, pubkeys, privatePubkeys: [], event };
+}
+
+/**
+ * Parse a kind 30000 event with decryption of private items.
+ * Private `p` tags from the encrypted content are merged with public tags.
+ */
+async function parseListEventWithDecryption(
+  event: NostrEvent,
+  signer: NostrSigner,
+  pubkey: string,
+): Promise<UserList> {
+  const base = parseListEvent(event);
+
+  if (!event.content) return base;
+
+  const privateTags = await decryptListContent(event.content, signer, pubkey);
+  if (!privateTags) return base;
+
+  const privatePubkeys = privateTags
+    .filter(([n]) => n === 'p')
+    .map(([, pk]) => pk)
+    .filter(Boolean);
+
+  if (privatePubkeys.length === 0) return base;
+
+  // Merge public + private pubkeys, deduplicated
+  const publicSet = new Set(base.pubkeys);
+  const allPubkeys = [...base.pubkeys];
+  for (const pk of privatePubkeys) {
+    if (!publicSet.has(pk)) {
+      allPubkeys.push(pk);
+    }
+  }
+
+  return { ...base, pubkeys: allPubkeys, privatePubkeys };
+}
+
+/**
+ * Re-encrypt private pubkeys back into the content field.
+ * Returns empty string if there are no private items.
+ */
+async function encryptPrivateTags(
+  privatePubkeys: string[],
+  signer: NostrSigner,
+  pubkey: string,
+): Promise<string> {
+  if (privatePubkeys.length === 0) return '';
+  if (!signer.nip44) {
+    console.warn('Cannot re-encrypt private list items: signer does not support NIP-44');
+    return '';
+  }
+  const tags = privatePubkeys.map((pk) => ['p', pk]);
+  const plaintext = JSON.stringify(tags);
+  return signer.nip44.encrypt(pubkey, plaintext);
 }
 
 export function useUserLists() {
@@ -77,7 +184,7 @@ export function useUserLists() {
         }
       }
 
-      return listEvents
+      const filtered = listEvents
         .filter((e) => {
           const dTag = e.tags.find(([n]) => n === 'd')?.[1] ?? '';
           if (DEPRECATED_DTAGS.has(dTag)) return false;
@@ -85,12 +192,20 @@ export function useUserLists() {
           const coord = `30000:${user.pubkey}:${dTag}`;
           if (deletedCoords.has(coord)) return false;
           // Filter out empty replacement events (from deletion step 1)
+          // (note: events with encrypted content but no public tags are kept)
           const hasPTags = e.tags.some(([n]) => n === 'p');
           const hasTitle = e.tags.some(([n]) => n === 'title' || n === 'name');
-          if (!hasPTags && !hasTitle) return false;
+          const hasContent = !!e.content;
+          if (!hasPTags && !hasTitle && !hasContent) return false;
           return true;
-        })
-        .map(parseListEvent);
+        });
+
+      // Decrypt private items in each list event
+      const parsed = await Promise.all(
+        filtered.map((e) => parseListEventWithDecryption(e, user.signer, user.pubkey)),
+      );
+
+      return parsed;
     },
     enabled: !!user,
     staleTime: 60 * 1000,
@@ -133,9 +248,10 @@ export function useUserLists() {
       if (list.pubkeys.includes(pubkey) || rawPubkeys.includes(pubkey)) return;
 
       const newTags = [...list.event.tags, ['p', pubkey]];
+      const content = await encryptPrivateTags(list.privatePubkeys, user.signer, user.pubkey);
       await publishEvent({
         kind: 30000,
-        content: list.event.content ?? '',
+        content,
         tags: newTags,
       } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
     },
@@ -151,12 +267,16 @@ export function useUserLists() {
       const list = lists.find((l) => l.id === listId);
       if (!list) throw new Error('List not found');
 
+      // Remove from public tags
       const newTags = list.event.tags.filter(
         ([name, pk]) => !(name === 'p' && pk === pubkey),
       );
+      // Remove from private pubkeys too
+      const newPrivatePubkeys = list.privatePubkeys.filter((pk) => pk !== pubkey);
+      const content = await encryptPrivateTags(newPrivatePubkeys, user.signer, user.pubkey);
       await publishEvent({
         kind: 30000,
-        content: list.event.content ?? '',
+        content,
         tags: newTags,
       } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
     },
@@ -179,9 +299,10 @@ export function useUserLists() {
       if (!newTags.find(([n]) => n === 'title')) {
         newTags.push(['title', title.trim()]);
       }
+      const content = await encryptPrivateTags(list.privatePubkeys, user.signer, user.pubkey);
       await publishEvent({
         kind: 30000,
-        content: list.event.content ?? '',
+        content,
         tags: newTags,
       } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
     },

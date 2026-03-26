@@ -57,7 +57,7 @@ function parseRemoteList(event: NostrEvent): UserList {
   const description = getTag('description') || getTag('summary') || undefined;
   const image = getTag('image') || getTag('thumb') || undefined;
   const pubkeys = event.tags.filter(([n]) => n === 'p').map(([, pk]) => pk);
-  return { id, title, description, image, pubkeys, event };
+  return { id, title, description, image, pubkeys, privatePubkeys: [], event };
 }
 
 type Tab = 'feed' | 'members';
