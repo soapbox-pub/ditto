@@ -225,6 +225,35 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
 
   return (
     <div ref={bodyAreaRef} className="min-h-screen bg-background flex flex-col">
+      {/* Page header — back + title + send */}
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm">
+        <div className="flex items-center gap-2 px-2 py-2 min-h-[52px]">
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            <ArrowLeft className="size-5" />
+          </button>
+          <h1 className="text-xl font-bold flex-1 truncate">Write a Letter</h1>
+          <button
+            onClick={handleSend}
+            disabled={!canSend || sealing}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm transition-all ${
+              canSend && !sealing
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
+            }`}
+          >
+            {sealing ? (
+              <span className="animate-spin inline-block">✉️</span>
+            ) : (
+              <Send className="size-4" strokeWidth={2.5} />
+            )}
+            <span>{sealing ? 'Sending...' : 'Send'}</span>
+          </button>
+        </div>
+      </header>
+
       <LetterEditor
         state={{
           selectedFont, setSelectedFont,
@@ -236,14 +265,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
         }}
         overlay={overlay}
         setOverlay={(o) => setOverlay(o as Overlay)}
-        headerLeft={
-          <button
-            onClick={onClose}
-            className="p-2.5 rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <ArrowLeft className="h-6 w-6" strokeWidth={2.5} />
-          </button>
-        }
+        stickyHeader={false}
         extraButtons={
           <>
             {customEmojis.length > 0 && (
@@ -349,30 +371,6 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
         }
       />
 
-      {/* Send button — in normal flow below the card */}
-      <div className="max-w-xl mx-auto w-full px-5 py-6">
-        <button
-          onClick={handleSend}
-          disabled={!canSend || sealing}
-          className={`w-full flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg shadow-sm transition-all duration-150 ${
-            canSend && !sealing
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]'
-              : 'bg-muted text-muted-foreground cursor-not-allowed'
-          }`}
-        >
-          {sealing ? (
-            <>
-              <span className="animate-spin inline-block">✉️</span>
-              <span>sealing...</span>
-            </>
-          ) : (
-            <>
-              <Send className="w-5 h-5" strokeWidth={2.5} />
-              <span>send letter</span>
-            </>
-          )}
-        </button>
-      </div>
     </div>
   );
 }
