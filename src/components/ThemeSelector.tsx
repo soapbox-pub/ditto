@@ -845,7 +845,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
             onScroll={updateBuilderScroll}
           >
           <DialogHeader className="text-center">
-            <DialogTitle className="text-center">{editingTheme ? 'Edit Theme' : 'New Theme'}</DialogTitle>
+            <DialogTitle className="text-center" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{editingTheme ? 'Edit Theme' : 'New Theme'}</DialogTitle>
             <DialogDescription className="text-center">
               {editingTheme
                 ? `Editing "${editingTheme.title}"`
