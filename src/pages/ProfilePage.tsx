@@ -2001,7 +2001,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
                   {/* NIP-38 thought bubble — floats beside the avatar over the banner */}
                   {feedSettings.showUserStatuses !== false && profileStatus.status && (
-                    <div className="absolute -top-2 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
+                    <div className="absolute top-3 md:top-4 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
                       <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg">
                         <p className="text-xs md:text-sm text-foreground italic truncate pr-1">
                           {profileStatus.url ? (
@@ -2012,9 +2012,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                             profileStatus.status
                           )}
                         </p>
-                        {/* Speech bubble triangle tail — slightly angled toward avatar */}
-                        <div className="absolute -bottom-[6px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-t-[6px] border-t-border" />
-                        <div className="absolute -bottom-[5px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-t-[6px] border-t-background" />
+                        {/* Speech bubble triangle tail — bottom-left corner, points diagonally down-left toward avatar */}
+                        <div className="absolute -bottom-[7px] left-1 size-0 border-t-[8px] border-t-border border-r-[8px] border-r-transparent" />
+                        <div className="absolute -bottom-[5.5px] left-1 size-0 border-t-[7px] border-t-background border-r-[7px] border-r-transparent" />
                       </div>
                     </div>
                   )}
