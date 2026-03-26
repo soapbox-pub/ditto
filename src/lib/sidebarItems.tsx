@@ -15,6 +15,7 @@ import {
   Earth,
   Film,
   HelpCircle,
+  Mail,
   MessageSquare,
   MessageSquareMore,
   Mic,
@@ -130,6 +131,13 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     requiresAuth: true,
   },
   { id: "settings", label: "Settings", path: "/settings", icon: Settings },
+  {
+    id: "letters",
+    label: "Letters",
+    path: "/letters",
+    icon: Mail,
+    requiresAuth: true,
+  },
   {
     id: "ai-chat",
     label: "AI Chat",
