@@ -7,6 +7,7 @@ import {
   GitPullRequest,
   Mail,
   MessageCircle,
+  Quote,
   Rocket,
   MoreHorizontal,
   Package,
@@ -247,6 +248,7 @@ export const NoteCard = memo(function NoteCard({
   const isProfileBadges = event.kind === 30008;
   const isBadge = isBadgeDefinition || isProfileBadges;
   const isReaction = event.kind === 7;
+  const isRepost = event.kind === 6 || event.kind === 16;
   const isPhoto = event.kind === 20;
   const isNormalVideo = event.kind === 21;
   const isShortVideo = event.kind === 22;
@@ -283,6 +285,7 @@ export const NoteCard = memo(function NoteCard({
     !isEmojiPack &&
     !isBadge &&
     !isReaction &&
+    !isRepost &&
     !isPhoto &&
     !isVideo &&
     !isAudioKind &&
@@ -583,14 +586,28 @@ export const NoteCard = memo(function NoteCard({
                 title={isReposted ? "Undo repost" : "Repost"}
               >
                 <RepostIcon className="size-5" />
-                {stats?.reposts || stats?.quotes ? (
+                {stats?.reposts ? (
                   <span className="text-sm tabular-nums">
-                    {formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0))}
+                    {formatNumber(stats.reposts)}
                   </span>
                 ) : null}
               </button>
             )}
           </RepostMenu>
+
+      {stats?.quotes ? (
+        <button
+          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+          title="Quotes"
+          onClick={(e) => {
+            e.stopPropagation();
+            openPost();
+          }}
+        >
+          <Quote className="size-5" />
+          <span className="text-sm tabular-nums">{formatNumber(stats.quotes)}</span>
+        </button>
+      ) : null}
 
       <ReactionButton
         eventId={event.id}
@@ -851,6 +868,154 @@ export const NoteCard = memo(function NoteCard({
                   </Link>
                 </ProfileHoverCard>
                 <span className="text-sm text-muted-foreground">reacted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                  {timeAgo(event.created_at)}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  // ── Repost layout (kind 6 / 16) — compact activity-style card ──
+  if (isRepost) {
+    // Threaded repost (used in AncestorThread with connector line)
+    if (threaded || threadedLast) {
+      return (
+        <article
+          className={cn(
+            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+            threaded ? "pb-0" : "pb-3 border-b border-border",
+            className,
+          )}
+          onClick={handleCardClick}
+          onAuxClick={handleAuxClick}
+        >
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {/* Repost icon bubble instead of avatar */}
+              <div className="flex items-center justify-center size-10 rounded-full bg-accent/10 shrink-0">
+                <RepostIcon className="size-5 text-accent" />
+              </div>
+              {threaded && (
+                <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
+              )}
+            </div>
+            <div
+              className={cn(
+                "flex-1 min-w-0 flex items-center min-h-10",
+                threaded && "pb-3",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                {author.isLoading ? (
+                  <Skeleton className="size-6 rounded-full shrink-0" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link
+                      to={profileUrl}
+                      className="shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Avatar shape={avatarShape} className="size-6">
+                        <AvatarImage
+                          src={metadata?.picture}
+                          alt={displayName}
+                        />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                          {displayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                {author.isLoading ? (
+                  <Skeleton className="h-3.5 w-20" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link
+                      to={profileUrl}
+                      className="font-semibold text-sm hover:underline truncate"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {author.data?.event ? (
+                        <EmojifiedText tags={author.data.event.tags}>
+                          {displayName}
+                        </EmojifiedText>
+                      ) : (
+                        displayName
+                      )}
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                <span className="text-sm text-muted-foreground">reposted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                  {timeAgo(event.created_at)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </article>
+      );
+    }
+
+    // Normal repost card (standalone or in feed)
+    return (
+      <article
+        className={cn(
+          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        <div className="flex items-center gap-3">
+          {/* Repost icon */}
+          <div className="flex items-center justify-center size-11 rounded-full bg-accent/10 shrink-0">
+            <RepostIcon className="size-5 text-accent" />
+          </div>
+
+          {/* Author + "reposted" label */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {author.isLoading ? (
+              <>
+                <Skeleton className="size-6 rounded-full shrink-0" />
+                <Skeleton className="h-4 w-24" />
+              </>
+            ) : (
+              <>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link
+                    to={profileUrl}
+                    className="shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Avatar shape={avatarShape} className="size-6">
+                      <AvatarImage src={metadata?.picture} alt={displayName} />
+                      <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                        {displayName[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                </ProfileHoverCard>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link
+                    to={profileUrl}
+                    className="font-semibold text-sm hover:underline truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {author.data?.event ? (
+                      <EmojifiedText tags={author.data.event.tags}>
+                        {displayName}
+                      </EmojifiedText>
+                    ) : (
+                      displayName
+                    )}
+                  </Link>
+                </ProfileHoverCard>
+                <span className="text-sm text-muted-foreground">reposted</span>
                 <span className="text-xs text-muted-foreground ml-auto shrink-0">
                   {timeAgo(event.created_at)}
                 </span>

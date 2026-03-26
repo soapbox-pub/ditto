@@ -158,11 +158,6 @@ function EmbeddedNoteCard({
     return { title, description, kindLabel, KindIcon };
   }, [truncatedContent, event.tags, event.kind]);
 
-  // Extract first image for a small thumbnail
-  const firstImage = useMemo(() => {
-    return event.content.match(IMAGE_URL_REGEX)?.[0] ?? null;
-  }, [event.content]);
-
   // Detect stripped attachments to show indicator chips
   const attachments = useMemo(() => {
     const imgs = (event.content.match(new RegExp(IMAGE_URL_REGEX.source, 'gi')) || []).length;
@@ -204,21 +199,6 @@ function EmbeddedNoteCard({
         }
       }}
     >
-      {/* Optional image thumbnail — skip when content-warning is blurred */}
-      {firstImage && !(hasCW && config.contentWarningPolicy === 'blur') && (
-        <div className="w-full overflow-hidden">
-          <img
-            src={firstImage}
-            alt=""
-            className="w-full h-[160px] object-cover"
-            loading="lazy"
-            onError={(e) => {
-              (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
-            }}
-          />
-        </div>
-      )}
-
       {/* Note content */}
       <div className="px-3 py-2 space-y-1">
         {/* Author row */}
@@ -289,12 +269,12 @@ function EmbeddedNoteCard({
         ) : null}
 
         {/* Attachment indicators for stripped media/links */}
-        {!hasCW && (attachments.imgs > (firstImage ? 1 : 0) || attachments.vids > 0 || attachments.auds > 0 || attachments.apps > 0 || attachments.links > 0) && (
+        {!hasCW && (attachments.imgs > 0 || attachments.vids > 0 || attachments.auds > 0 || attachments.apps > 0 || attachments.links > 0) && (
           <div className="flex items-center gap-2 flex-wrap">
-            {attachments.imgs > (firstImage ? 1 : 0) && (
+            {attachments.imgs > 0 && (
               <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                 <Image className="size-3" />
-                {attachments.imgs > 1 ? `${attachments.imgs} images` : '1 image'}
+                {attachments.imgs > 1 ? `${attachments.imgs} images` : 'Image'}
               </span>
             )}
             {attachments.vids > 0 && (

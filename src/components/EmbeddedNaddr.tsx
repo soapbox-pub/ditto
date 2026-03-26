@@ -1,7 +1,7 @@
 import { type ReactNode, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
-import { Award, MessageSquareOff } from 'lucide-react';
+import { Award, Image, MessageSquareOff } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -222,21 +222,6 @@ function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: Nos
         }
       }}
     >
-      {/* Image */}
-      {image && (
-        <div className="w-full overflow-hidden">
-          <img
-            src={image}
-            alt=""
-            className="w-full h-[180px] object-cover"
-            loading="lazy"
-            onError={(e) => {
-              (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
-            }}
-          />
-        </div>
-      )}
-
       {/* Text content */}
       <div className="px-3 py-2 space-y-1">
         {/* Author row */}
@@ -296,13 +281,21 @@ function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: Nos
           </p>
         )}
 
-        {/* Kind label for context */}
-        {kindMeta && (
-          <p className="flex items-center gap-1 text-xs text-muted-foreground">
-            {kindMeta.Icon && <kindMeta.Icon className="size-3 shrink-0" />}
-            {kindMeta.label}
-          </p>
-        )}
+        {/* Kind label and attachment indicators */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {kindMeta && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              {kindMeta.Icon && <kindMeta.Icon className="size-3 shrink-0" />}
+              {kindMeta.label}
+            </span>
+          )}
+          {image && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Image className="size-3" />
+              Image
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -365,7 +358,6 @@ function EmbeddedNaddrTombstone({ addr, className }: { addr: AddrCoords; classNa
 function EmbeddedNaddrSkeleton({ className }: { className?: string }) {
   return (
     <div className={cn('rounded-2xl border border-border overflow-hidden', className)}>
-      <Skeleton className="w-full h-[180px] rounded-none" />
       <div className="px-3.5 py-2.5 space-y-2">
         <div className="flex items-center gap-2">
           <Skeleton className="size-5 rounded-full" />
