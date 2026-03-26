@@ -517,68 +517,74 @@ export function generateTears(eyes: EyePosition[], config: TearConfig, seed?: nu
  * Generate watery/sad eye effect
  * 
  * Creates visual elements for each eye:
- * 1. Blue watery fill at BOTTOM of eye (lower 1/3, like pooling tears)
- * 2. Large white highlight at TOP-LEFT of pupil
- * 3. Smaller white highlight more to the RIGHT side
+ * 1. Blue watery fill at BOTTOM of the EYE WHITE (not pupil) - like pooled tears
+ * 2. UPPER white highlight - larger, in upper area of pupil
+ * 3. LOWER white highlight - smaller, clearly in lower area of pupil
  * 
- * These highlights override/replace the visual effect of the default highlights
- * by being rendered on top with full opacity.
+ * The blue water is positioned relative to the eye white (which is larger than pupil).
+ * Eye white is typically ~1.3-1.7x the pupil radius and slightly higher.
  */
 export function generateSadEyeEffects(eyes: EyePosition[]): string {
   return eyes.map(eye => {
-    // 1. TOP-LEFT highlight - LARGER, main watery shine
-    const topLeftX = eye.cx - eye.radius * 0.35;
-    const topLeftY = eye.cy - eye.radius * 0.3;
-    const topLeftSize = eye.radius * 0.45; // Larger
+    // Estimate eye white dimensions (eye white is larger than pupil)
+    // Typically eye white rx ≈ pupil radius * 1.3, ry ≈ pupil radius * 1.7
+    const eyeWhiteRx = eye.radius * 1.35;
+    const eyeWhiteRy = eye.radius * 1.65;
+    // Eye white center is typically slightly above pupil center
+    const eyeWhiteCy = eye.cy - eye.radius * 0.15;
     
-    // 2. RIGHT highlight - SMALLER, secondary shine
-    const rightX = eye.cx + eye.radius * 0.3;
-    const rightY = eye.cy - eye.radius * 0.1;
-    const rightSize = eye.radius * 0.25; // Smaller
+    // 1. UPPER highlight - LARGER, clearly in upper area of pupil
+    const upperX = eye.cx - eye.radius * 0.25;
+    const upperY = eye.cy - eye.radius * 0.55; // Clearly upper
+    const upperSize = eye.radius * 0.4;
     
-    // 3. Blue watery fill - LOWER 1/3 of the eye
-    // Use a path to create a proper "lower fill" shape (flat top, curved bottom)
-    // This looks like water pooling at the bottom of the eye
-    const waterTop = eye.cy + eye.radius * 0.2; // Start at ~middle-lower area
-    const waterBottom = eye.cy + eye.radius * 0.9; // Extend to near bottom
-    const waterWidth = eye.radius * 0.85;
+    // 2. LOWER highlight - SMALLER, clearly in lower area of pupil
+    const lowerX = eye.cx + eye.radius * 0.15;
+    const lowerY = eye.cy + eye.radius * 0.35; // Clearly lower
+    const lowerSize = eye.radius * 0.25;
+    
+    // 3. Blue watery fill - sits at BOTTOM of the EYE WHITE
+    // This is positioned relative to the eye white ellipse, not the pupil
+    const waterTop = eyeWhiteCy + eyeWhiteRy * 0.3; // Start in lower portion of eye white
+    const waterBottom = eyeWhiteCy + eyeWhiteRy * 0.95; // Near bottom of eye white
+    const waterWidth = eyeWhiteRx * 0.85; // Slightly narrower than eye white
     
     return `
     <!-- Sad eye effects for ${eye.side} eye -->
     <g class="blobbi-sad-eye blobbi-sad-eye-${eye.side}">
-      <!-- Blue watery fill at bottom of eye (lower 1/3, flat top) -->
+      <!-- Blue watery fill at bottom of EYE WHITE (pooled tears) -->
       <path
         d="M ${eye.cx - waterWidth} ${waterTop} 
            Q ${eye.cx - waterWidth} ${waterBottom} ${eye.cx} ${waterBottom}
            Q ${eye.cx + waterWidth} ${waterBottom} ${eye.cx + waterWidth} ${waterTop}
            Z"
         fill="#7dd3fc"
-        opacity="0.45"
+        opacity="0.4"
       >
         <animate 
           attributeName="opacity" 
-          values="0.35;0.55;0.35" 
+          values="0.3;0.5;0.3" 
           dur="2s" 
           repeatCount="indefinite"
         />
       </path>
       
-      <!-- Top-left highlight (LARGER) -->
+      <!-- Upper highlight (LARGER, clearly in upper pupil area) -->
       <circle 
-        cx="${topLeftX}" 
-        cy="${topLeftY}" 
-        r="${topLeftSize}"
+        cx="${upperX}" 
+        cy="${upperY}" 
+        r="${upperSize}"
         fill="white"
         opacity="0.9"
       />
       
-      <!-- Right highlight (SMALLER) -->
+      <!-- Lower highlight (SMALLER, clearly in lower pupil area) -->
       <circle 
-        cx="${rightX}" 
-        cy="${rightY}" 
-        r="${rightSize}"
+        cx="${lowerX}" 
+        cy="${lowerY}" 
+        r="${lowerSize}"
         fill="white"
-        opacity="0.75"
+        opacity="0.8"
       />
     </g>`;
   }).join('\n');
