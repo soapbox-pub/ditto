@@ -196,7 +196,7 @@ export function LetterEditor({
             transition: 'max-height 0.25s ease-in-out',
           }}
         >
-          <div className="max-w-xl mx-auto w-full bg-background rounded-b-3xl px-4 pb-5 pt-3 border-b border-border">
+          <div className="max-w-xl mx-auto w-full px-4 pb-5 pt-3">
             {overlay === 'font' && (
               <div className="flex gap-2 flex-wrap">
                 {FONT_OPTIONS.map((font) => (
