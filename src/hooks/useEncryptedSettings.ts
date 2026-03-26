@@ -8,6 +8,7 @@ import { useCurrentUser } from './useCurrentUser';
 import type { Theme, FeedSettings, ContentWarningPolicy, SavedFeed } from '@/contexts/AppContext';
 import type { ThemeConfig } from '@/themes';
 import type { ContentFilter } from './useContentFilters';
+import type { LetterPreferences } from '@/lib/letterTypes';
 import { EncryptedSettingsSchema } from '@/lib/schemas';
 
 /**
@@ -75,6 +76,8 @@ export interface EncryptedSettings {
   sentryDsn?: string;
   /** Saved feed tabs created from the search page. */
   savedFeeds?: SavedFeed[];
+  /** Letter preferences (stationery, font, frame, closing, signature, inbox filters) */
+  letterPreferences?: LetterPreferences;
 }
 
 /**
