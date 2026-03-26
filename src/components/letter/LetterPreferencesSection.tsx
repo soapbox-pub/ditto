@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Sparkles, RotateCcw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Sparkles, RotateCcw } from 'lucide-react';
 
 import { useLetterPreferences } from '@/hooks/useLetterPreferences';
 import { useThemeStationery } from '@/hooks/useThemeStationery';
@@ -23,7 +23,6 @@ function toSerializable(s: Stationery): SerializableStationery {
 
 export function LetterPreferencesSection() {
   const { user } = useCurrentUser();
-  const navigate = useNavigate();
   const { prefs, updatePrefs, resetStationery, isThemeDefault } = useLetterPreferences();
   const themeStationery = useThemeStationery();
 
@@ -92,20 +91,7 @@ export function LetterPreferencesSection() {
         }}
         overlay={overlay}
         setOverlay={(o) => setOverlay(o as BaseOverlay)}
-        headerLeft={
-          <>
-            <button
-              onClick={() => navigate('/letters')}
-              className="p-2.5 rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <ArrowLeft className="h-6 w-6" strokeWidth={2.5} />
-            </button>
-            <div className="flex items-center gap-2 ml-1">
-              <Mail className="h-5 w-5 text-muted-foreground" />
-              <span className="text-base font-semibold">Letter Preferences</span>
-            </div>
-          </>
-        }
+        stickyHeader={false}
         beforeCard={
           <div className="pt-4 max-w-xl mx-auto w-full px-5">
             {isThemeDefault ? (

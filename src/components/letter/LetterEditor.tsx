@@ -95,6 +95,11 @@ interface LetterEditorProps {
   cardOverlay?: ReactNode;
   /** Content rendered between toolbar and preview card (e.g. recipient row, blurb) */
   beforeCard?: ReactNode;
+  /**
+   * When false, the toolbar buttons render as a plain non-sticky row (for use inside
+   * a page that already has its own sticky header). Default true (fullscreen compose mode).
+   */
+  stickyHeader?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,6 +116,7 @@ export function LetterEditor({
   bodyContent,
   cardOverlay,
   beforeCard,
+  stickyHeader = true,
 }: LetterEditorProps) {
   const {
     selectedFont, setSelectedFont,
@@ -141,108 +147,94 @@ export function LetterEditor({
   const isBaseOverlay = (o: string): o is BaseOverlay => ['none', 'font', 'stationery', 'frame'].includes(o);
   const drawerOpen = overlay !== 'none';
 
-  return (
-    <>
-      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm">
-        {/* Toolbar */}
-        <header className="border-b border-border bg-background/95">
-          <div className="max-w-xl mx-auto px-5 py-3.5 min-h-[76px] flex items-center gap-1">
-            {headerLeft}
-            <div className="flex-1" />
+  const toolbarRow = (
+    <div className="flex items-center gap-1 px-4 py-2">
+      {headerLeft}
+      <div className="flex-1" />
+      <button
+        onClick={() => setOverlay(overlay === 'font' ? 'none' : 'font')}
+        className={`px-3 py-2 rounded-2xl transition-colors text-sm font-semibold tracking-tight ${
+          overlay === 'font'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+        }`}
+      >
+        <span className="text-lg font-bold">Aa</span>
+      </button>
+      <button
+        onClick={() => setOverlay(overlay === 'stationery' ? 'none' : 'stationery')}
+        className={`p-2.5 rounded-2xl transition-colors ${
+          overlay === 'stationery'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+        }`}
+      >
+        <Paintbrush className="h-6 w-6" strokeWidth={2.5} />
+      </button>
+      <button
+        onClick={() => setOverlay(overlay === 'frame' ? 'none' : 'frame')}
+        className={`p-2.5 rounded-2xl transition-colors ${
+          overlay === 'frame'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+        }`}
+        title="frame"
+      >
+        <FrameIcon className="h-6 w-6" strokeWidth={2.5} />
+      </button>
+      {extraButtons}
+    </div>
+  );
 
-            <button
-              onClick={() => setOverlay(overlay === 'font' ? 'none' : 'font')}
-              className={`px-3 py-2 rounded-2xl transition-colors text-sm font-semibold tracking-tight ${
-                overlay === 'font'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              <span className="text-lg font-bold">Aa</span>
-            </button>
-
-            <button
-              onClick={() => setOverlay(overlay === 'stationery' ? 'none' : 'stationery')}
-              className={`p-2.5 rounded-2xl transition-colors ${
-                overlay === 'stationery'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              <Paintbrush className="h-6 w-6" strokeWidth={2.5} />
-            </button>
-
-            <button
-              onClick={() => setOverlay(overlay === 'frame' ? 'none' : 'frame')}
-              className={`p-2.5 rounded-2xl transition-colors ${
-                overlay === 'frame'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-              title="frame"
-            >
-              <FrameIcon className="h-6 w-6" strokeWidth={2.5} />
-            </button>
-
-            {extraButtons}
+  const drawer = (
+    <div
+      style={{
+        overflow: 'hidden',
+        maxHeight: drawerOpen ? '400px' : '0',
+        transition: 'max-height 0.25s ease-in-out',
+      }}
+    >
+      <div className="max-w-xl mx-auto w-full px-4 pb-5 pt-3">
+        {overlay === 'font' && (
+          <div className="flex gap-2 flex-wrap">
+            {FONT_OPTIONS.map((font) => (
+              <button
+                key={font.value}
+                onClick={() => setSelectedFont(font)}
+                className={`px-4 py-2.5 rounded-2xl text-base font-medium transition-all ${
+                  selectedFont.value === font.value
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+                style={{ fontFamily: font.family }}
+              >
+                {font.label}
+              </button>
+            ))}
           </div>
-        </header>
-
-        {/* Sliding drawer */}
-        <div
-          style={{
-            overflow: 'hidden',
-            maxHeight: drawerOpen ? '400px' : '0',
-            transition: 'max-height 0.25s ease-in-out',
-          }}
-        >
-          <div className="max-w-xl mx-auto w-full px-4 pb-5 pt-3">
-            {overlay === 'font' && (
-              <div className="flex gap-2 flex-wrap">
-                {FONT_OPTIONS.map((font) => (
-                  <button
-                    key={font.value}
-                    onClick={() => setSelectedFont(font)}
-                    className={`px-4 py-2.5 rounded-2xl text-base font-medium transition-all ${
-                      selectedFont.value === font.value
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'bg-muted text-muted-foreground hover:text-foreground'
-                    }`}
-                    style={{ fontFamily: font.family }}
-                  >
-                    {font.label}
-                  </button>
-                ))}
-              </div>
-            )}
-            {overlay === 'stationery' && (
-              <StationeryPicker
-                selected={stationery}
-                onSelect={setStationery}
-              />
-            )}
-            {overlay === 'frame' && (
-              <FramePicker
-                frame={frame}
-                frameTint={frameTint}
-                onFrameSelect={setFrame}
-                onFrameTintChange={setFrameTint}
-              />
-            )}
-            {!isBaseOverlay(overlay) && extraDrawerContent}
-          </div>
-        </div>
+        )}
+        {overlay === 'stationery' && (
+          <StationeryPicker selected={stationery} onSelect={setStationery} />
+        )}
+        {overlay === 'frame' && (
+          <FramePicker
+            frame={frame}
+            frameTint={frameTint}
+            onFrameSelect={setFrame}
+            onFrameTintChange={setFrameTint}
+          />
+        )}
+        {!isBaseOverlay(overlay) && extraDrawerContent}
       </div>
+    </div>
+  );
 
+  const card = (
+    <>
       {beforeCard}
-
-      {/* Preview card */}
       <div
         className="max-w-xl mx-auto w-full flex-1"
-        style={frame !== 'none'
-          ? { padding: '28px 44px 44px' }
-          : { padding: '0 16px 16px' }
-        }
+        style={frame !== 'none' ? { padding: '28px 44px 44px' } : { padding: '0 16px 16px' }}
       >
         <div ref={cardRef} className="relative" style={{ containerType: 'inline-size' }}>
           <StationeryBackground
@@ -253,7 +245,6 @@ export function LetterEditor({
           >
             <div className="relative z-10 flex flex-col" style={{ aspectRatio: '5 / 4', padding: '5cqw' }}>
               {bodyContent?.({ lineHeightPx, stationeryTextColor, stationeryLineColor, resolvedFontFamily })}
-
               {/* Outro — closing + signature */}
               <div className="flex flex-col items-end" style={{ paddingTop: '4cqw', gap: '3cqw', paddingRight: '4cqw' }}>
                 <Select value={closing || '__none__'} onValueChange={(v) => setClosing(v === '__none__' ? '' : v)}>
@@ -301,10 +292,33 @@ export function LetterEditor({
               </div>
             </div>
           </StationeryBackground>
-
           {cardOverlay}
         </div>
       </div>
+    </>
+  );
+
+  if (!stickyHeader) {
+    // Settings page mode: plain non-sticky toolbar row + drawer + card
+    return (
+      <>
+        <div className="border-b border-border">
+          {toolbarRow}
+          {drawer}
+        </div>
+        {card}
+      </>
+    );
+  }
+
+  // Compose mode: full sticky header with backdrop blur
+  return (
+    <>
+      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+        {toolbarRow}
+        {drawer}
+      </div>
+      {card}
     </>
   );
 }
