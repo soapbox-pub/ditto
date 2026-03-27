@@ -97,14 +97,37 @@ function darkenColor(color: string, percent: number): string {
 
 /**
  * Check if element is an eye white
+ * 
+ * IMPORTANT: We must distinguish between:
+ * - EyeWhite gradients (actual white part of eye) - INCLUDE
+ * - EyeBase gradients (colored eye rim, e.g., froggi's green bulge) - EXCLUDE
+ * - Eye gradients without "Base" (generic eye white) - INCLUDE
  */
 function isEyeWhiteElement(element: string, radius: number): boolean {
-  // Check for eye gradient (e.g., blobbiEyeGradient, cattiEyeWhite3D)
-  if (/fill="url\(#[^"]*[Ee]ye[^"]*\)"/.test(element)) {
-    return true;
+  // Extract the gradient ID from the fill attribute
+  const gradientMatch = element.match(/fill="url\(#([^"]+)\)"/);
+  
+  if (gradientMatch) {
+    const gradientId = gradientMatch[1];
+    
+    // EXCLUDE: EyeBase patterns (e.g., froggiEyeBase3D) - these are colored eye rims, not the white part
+    if (/[Ee]ye[Bb]ase/i.test(gradientId)) {
+      return false;
+    }
+    
+    // INCLUDE: EyeWhite patterns (e.g., cattiEyeWhite3D, froggiEyeWhite3D)
+    if (/[Ee]ye[Ww]hite/i.test(gradientId)) {
+      return true;
+    }
+    
+    // INCLUDE: Generic Eye gradients without "Base" (e.g., blobbiEyeGradient, crystiEye)
+    // This catches baby Blobbi and other forms that use simple "Eye" naming
+    if (/[Ee]ye/i.test(gradientId) && !/[Bb]ase/i.test(gradientId)) {
+      return true;
+    }
   }
 
-  // Check for plain white with sufficient size (like cloudi)
+  // Check for plain white with sufficient size (like cloudi, rosey, etc.)
   const isWhite =
     element.includes('fill="white"') ||
     element.includes("fill='white'") ||
