@@ -19,7 +19,7 @@
 /**
  * Available emotion states for Blobbies
  */
-export type BlobbiEmotion = 'neutral' | 'sad' | 'happy' | 'angry' | 'surprised' | 'sleepy' | 'curious' | 'dizzy' | 'excited' | 'excitedB' | 'mischievous' | 'adoring';
+export type BlobbiEmotion = 'neutral' | 'sad' | 'happy' | 'angry' | 'surprised' | 'sleepy' | 'curious' | 'dizzy' | 'excited' | 'excitedB' | 'mischievous' | 'adoring' | 'hungry';
 
 /**
  * Blobbi variant for variant-specific adjustments
@@ -54,6 +54,12 @@ export interface EmotionConfig {
   starEyes?: StarEyesConfig;
   /** Big smile mouth (wider than normal) */
   bigSmile?: BigSmileConfig;
+  /** Drool drop from corner of mouth */
+  drool?: DroolConfig;
+  /** Food icon (fork/knife) above head */
+  foodIcon?: FoodIconConfig;
+  /** Droopy/weak mouth (less curved than sad) */
+  droopyMouth?: DroopyMouthConfig;
 }
 
 export interface PupilModification {
@@ -154,6 +160,27 @@ export interface BigSmileConfig {
   /** Scale factor for the smile width (1.0 = normal, 1.5 = 50% wider) */
   widthScale: number;
   /** Scale factor for the smile curve depth (1.0 = normal, 1.5 = deeper curve) */
+  curveScale: number;
+}
+
+export interface DroolConfig {
+  /** Enable drool effect */
+  enabled: boolean;
+  /** Which side of the mouth the drool appears (default: 'right') */
+  side?: 'left' | 'right';
+}
+
+export interface FoodIconConfig {
+  /** Enable food icon above head */
+  enabled: boolean;
+  /** Icon type (default: 'utensils') */
+  type?: 'utensils' | 'plate';
+}
+
+export interface DroopyMouthConfig {
+  /** Scale factor for mouth width (smaller = narrower, more tired look) */
+  widthScale: number;
+  /** Scale factor for curve depth (smaller = less pronounced frown) */
   curveScale: number;
 }
 
@@ -321,6 +348,35 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
       rx: 3, // Same as curious
       ry: 3.5,
       filled: true,
+    },
+  },
+  hungry: {
+    // Watery eyes like sad, but WITHOUT the blue water fill (not crying, just wanting)
+    pupilModification: {
+      wateryEyes: true,
+      includeWaterFill: false, // No blue semicircle - this is longing, not crying
+    },
+    // Same worried/longing eyebrows as sad
+    eyebrows: {
+      angle: -15, // Worried/sad angle: eyebrows angle UP toward center (/\)
+      offsetY: -10, // Positioned above eyes
+      strokeWidth: 1.5, // Thinner, subtle
+      color: '#374151', // Slightly lighter
+    },
+    // Droopy mouth - less curved than sad, more "low energy" feeling
+    droopyMouth: {
+      widthScale: 0.85, // Slightly narrower (tired/weak)
+      curveScale: 0.6, // Much less pronounced frown (soft droopy, not full frown)
+    },
+    // Drool from corner of mouth
+    drool: {
+      enabled: true,
+      side: 'right', // Drool on right side of mouth
+    },
+    // Fork/knife icon above head
+    foodIcon: {
+      enabled: true,
+      type: 'utensils',
     },
   },
 };
@@ -1533,6 +1589,152 @@ function applyStarEyes(svgText: string, eyes: EyePosition[], config: StarEyesCon
   return svgText;
 }
 
+// ─── Droopy Mouth Generation ──────────────────────────────────────────────────
+
+/**
+ * Generate a droopy/weak mouth for the hungry expression.
+ * Similar to sad mouth but with less pronounced curve (softer, more tired feeling).
+ * The curve is inverted like sad (frown) but smaller and narrower.
+ */
+function generateDroopyMouth(mouth: MouthPosition, config: DroopyMouthConfig): string {
+  // Calculate the baseline Y (average of start and end Y)
+  const baselineY = (mouth.startY + mouth.endY) / 2;
+  const centerX = (mouth.startX + mouth.endX) / 2;
+  
+  // Calculate how much the original control point deviates from baseline
+  const curveAmount = mouth.controlY - baselineY;
+  
+  // Invert the curve (frown) but with reduced intensity
+  const invertedControlY = baselineY - (curveAmount * config.curveScale);
+  
+  // Scale the width (narrower for tired/weak look)
+  const halfWidth = ((mouth.endX - mouth.startX) / 2) * config.widthScale;
+  const scaledStartX = centerX - halfWidth;
+  const scaledEndX = centerX + halfWidth;
+  
+  // Shift the entire mouth down slightly (less than sad mouth)
+  const yOffset = Math.abs(curveAmount) * 0.3;
+  
+  return `<path 
+    class="blobbi-mouth blobbi-mouth-droopy"
+    d="M ${scaledStartX} ${baselineY + yOffset} Q ${centerX} ${invertedControlY + yOffset} ${scaledEndX} ${baselineY + yOffset}" 
+    ${mouth.strokeAttrs || 'stroke="#1f2937" stroke-width="2.5"'}
+    fill="none" 
+    stroke-linecap="round"
+  />`;
+}
+
+// ─── Drool Generation ─────────────────────────────────────────────────────────
+
+/**
+ * Generate a drool drop from the corner of the mouth.
+ * Creates a small, cute drool droplet with subtle animation.
+ */
+function generateDrool(mouth: MouthPosition, config: DroolConfig): string {
+  const side = config.side || 'right';
+  
+  // Position at the corner of the mouth
+  // Account for the droopy mouth being slightly narrower and lower
+  const baselineY = (mouth.startY + mouth.endY) / 2;
+  const yOffset = Math.abs(mouth.controlY - baselineY) * 0.3; // Match droopy mouth offset
+  
+  // Drool starts at the corner of the mouth
+  const droolX = side === 'right' 
+    ? mouth.endX - 2  // Slightly inside right corner
+    : mouth.startX + 2; // Slightly inside left corner
+  const droolStartY = baselineY + yOffset + 1; // Just below mouth line
+  
+  // Drool drop path - a teardrop shape
+  const dropSize = 3;
+  const dropLength = 6;
+  
+  return `<g class="blobbi-drool">
+    <!-- Drool drop with subtle wobble animation -->
+    <path
+      d="M ${droolX} ${droolStartY} 
+         Q ${droolX - dropSize * 0.3} ${droolStartY + dropLength * 0.4} ${droolX} ${droolStartY + dropLength * 0.6}
+         Q ${droolX + dropSize * 0.5} ${droolStartY + dropLength * 0.8} ${droolX} ${droolStartY + dropLength}
+         Q ${droolX - dropSize * 0.5} ${droolStartY + dropLength * 0.8} ${droolX} ${droolStartY + dropLength * 0.6}
+         Q ${droolX + dropSize * 0.3} ${droolStartY + dropLength * 0.4} ${droolX} ${droolStartY}
+         Z"
+      fill="url(#droolGradient)"
+      opacity="0.85"
+    >
+      <!-- Subtle wobble animation -->
+      <animate
+        attributeName="d"
+        values="M ${droolX} ${droolStartY} Q ${droolX - dropSize * 0.3} ${droolStartY + dropLength * 0.4} ${droolX} ${droolStartY + dropLength * 0.6} Q ${droolX + dropSize * 0.5} ${droolStartY + dropLength * 0.8} ${droolX} ${droolStartY + dropLength} Q ${droolX - dropSize * 0.5} ${droolStartY + dropLength * 0.8} ${droolX} ${droolStartY + dropLength * 0.6} Q ${droolX + dropSize * 0.3} ${droolStartY + dropLength * 0.4} ${droolX} ${droolStartY} Z;
+                M ${droolX} ${droolStartY} Q ${droolX - dropSize * 0.4} ${droolStartY + dropLength * 0.45} ${droolX - 0.3} ${droolStartY + dropLength * 0.65} Q ${droolX + dropSize * 0.4} ${droolStartY + dropLength * 0.85} ${droolX - 0.3} ${droolStartY + dropLength + 0.5} Q ${droolX - dropSize * 0.6} ${droolStartY + dropLength * 0.75} ${droolX - 0.3} ${droolStartY + dropLength * 0.65} Q ${droolX + dropSize * 0.2} ${droolStartY + dropLength * 0.35} ${droolX} ${droolStartY} Z;
+                M ${droolX} ${droolStartY} Q ${droolX - dropSize * 0.3} ${droolStartY + dropLength * 0.4} ${droolX} ${droolStartY + dropLength * 0.6} Q ${droolX + dropSize * 0.5} ${droolStartY + dropLength * 0.8} ${droolX} ${droolStartY + dropLength} Q ${droolX - dropSize * 0.5} ${droolStartY + dropLength * 0.8} ${droolX} ${droolStartY + dropLength * 0.6} Q ${droolX + dropSize * 0.3} ${droolStartY + dropLength * 0.4} ${droolX} ${droolStartY} Z"
+        dur="2s"
+        repeatCount="indefinite"
+        calcMode="spline"
+        keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
+      />
+    </path>
+    <!-- Small highlight on drool -->
+    <ellipse 
+      cx="${droolX - 0.5}" 
+      cy="${droolStartY + dropLength * 0.3}" 
+      rx="0.8" 
+      ry="1"
+      fill="white"
+      opacity="0.6"
+    />
+  </g>`;
+}
+
+// ─── Food Icon Generation ─────────────────────────────────────────────────────
+
+/**
+ * Generate a small fork and knife icon above the Blobbi's head.
+ * Positioned subtly to the right, above the head.
+ */
+function generateFoodIcon(config: FoodIconConfig): string {
+  // Position above head, slightly to the right
+  // For a 100x100 viewBox (baby) or 200x200 (adult), we use relative positions
+  const iconX = 68; // Slightly right of center
+  const iconY = 8;  // Above the head
+  const iconSize = 10;
+  
+  if (config.type === 'plate') {
+    // Plate with utensils (more complex)
+    return `<g class="blobbi-food-icon" opacity="0.7">
+      <!-- Plate circle -->
+      <circle cx="${iconX}" cy="${iconY + 3}" r="${iconSize * 0.5}" fill="none" stroke="#9ca3af" stroke-width="0.8" />
+      <!-- Fork (left) -->
+      <path d="M ${iconX - 4} ${iconY - 2} L ${iconX - 4} ${iconY + 5}" stroke="#9ca3af" stroke-width="0.8" stroke-linecap="round" />
+      <path d="M ${iconX - 5} ${iconY - 2} L ${iconX - 5} ${iconY + 1}" stroke="#9ca3af" stroke-width="0.6" stroke-linecap="round" />
+      <path d="M ${iconX - 3} ${iconY - 2} L ${iconX - 3} ${iconY + 1}" stroke="#9ca3af" stroke-width="0.6" stroke-linecap="round" />
+      <!-- Knife (right) -->
+      <path d="M ${iconX + 4} ${iconY - 2} L ${iconX + 4} ${iconY + 5}" stroke="#9ca3af" stroke-width="0.8" stroke-linecap="round" />
+      <path d="M ${iconX + 4} ${iconY - 2} Q ${iconX + 5.5} ${iconY} ${iconX + 4} ${iconY + 2}" fill="none" stroke="#9ca3af" stroke-width="0.6" />
+    </g>`;
+  }
+  
+  // Default: Simple fork and knife (utensils)
+  return `<g class="blobbi-food-icon" opacity="0.65">
+    <!-- Fork (left) - 3 tines -->
+    <g transform="translate(${iconX - 5}, ${iconY})">
+      <!-- Handle -->
+      <path d="M 2 3 L 2 8" stroke="#6b7280" stroke-width="1" stroke-linecap="round" />
+      <!-- Tines -->
+      <path d="M 0.5 0 L 0.5 3" stroke="#6b7280" stroke-width="0.7" stroke-linecap="round" />
+      <path d="M 2 0 L 2 3" stroke="#6b7280" stroke-width="0.7" stroke-linecap="round" />
+      <path d="M 3.5 0 L 3.5 3" stroke="#6b7280" stroke-width="0.7" stroke-linecap="round" />
+      <!-- Tine connector -->
+      <path d="M 0.5 3 L 3.5 3" stroke="#6b7280" stroke-width="0.7" />
+    </g>
+    <!-- Knife (right) -->
+    <g transform="translate(${iconX + 2}, ${iconY})">
+      <!-- Blade -->
+      <path d="M 0 0 L 0 4 Q 2 3 0 0" fill="#6b7280" />
+      <!-- Handle -->
+      <path d="M 0 4 L 0 8" stroke="#6b7280" stroke-width="1.2" stroke-linecap="round" />
+    </g>
+  </g>`;
+}
+
 // ─── Big Smile Generation ─────────────────────────────────────────────────────
 
 /**
@@ -1993,6 +2195,36 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: B
   if (config.bigSmile && mouth) {
     const bigSmileSvg = generateBigSmile(mouth.position, config.bigSmile);
     svgText = replaceMouthSection(svgText, bigSmileSvg);
+  }
+  
+  // Generate droopy mouth (for hungry)
+  if (config.droopyMouth && mouth) {
+    const droopyMouthSvg = generateDroopyMouth(mouth.position, config.droopyMouth);
+    svgText = replaceMouthSection(svgText, droopyMouthSvg);
+  }
+  
+  // Generate drool (for hungry)
+  if (config.drool?.enabled && mouth) {
+    // Add drool gradient to defs
+    const droolDefs = `
+      <radialGradient id="droolGradient" cx="0.3" cy="0.2">
+        <stop offset="0%" stop-color="#f0f9ff" />
+        <stop offset="60%" stop-color="#e0f2fe" />
+        <stop offset="100%" stop-color="#bae6fd" />
+      </radialGradient>`;
+    
+    if (svgText.includes('<defs>')) {
+      svgText = svgText.replace('<defs>', '<defs>' + droolDefs);
+    } else {
+      svgText = svgText.replace(/(<svg[^>]*>)/, `$1\n  <defs>${droolDefs}\n  </defs>`);
+    }
+    
+    overlays.push(generateDrool(mouth.position, config.drool));
+  }
+  
+  // Generate food icon (for hungry)
+  if (config.foodIcon?.enabled) {
+    overlays.push(generateFoodIcon(config.foodIcon));
   }
   
   // Insert overlays before closing </svg> tag
