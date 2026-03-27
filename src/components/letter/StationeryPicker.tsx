@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -387,16 +388,13 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
                   Color moments are beautiful color combinations created and shared by the community. Each one gives your letter a unique palette and mood.
                 </p>
                 <p>
-                  Discover and create your own on{' '}
-                  <a
-                    href="https://espy.you/espy"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    to="/colors"
+                    onClick={() => setInfoOpen(false)}
                     className="text-foreground font-medium underline underline-offset-2 hover:no-underline"
                   >
-                    espy.you
-                  </a>
-                  .
+                    Discover and create color moments
+                  </Link>
                 </p>
               </div>
             </>
@@ -408,19 +406,16 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
               </DialogHeader>
               <div className="space-y-3 text-sm text-muted-foreground">
                 <p>
-                  Ditto themes are UI themes for the Ditto client, shared by the community. Letters borrows their colors and fonts to style your letter.
+                  Ditto themes are UI themes shared by the community. Letters borrows their colors and fonts to style your letter.
                 </p>
                 <p>
-                  Browse and create your own on{' '}
-                  <a
-                    href="https://ditto.pub/mew"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    to="/themes"
+                    onClick={() => setInfoOpen(false)}
                     className="text-foreground font-medium underline underline-offset-2 hover:no-underline"
                   >
-                    Ditto
-                  </a>
-                  .
+                    Browse and create themes
+                  </Link>
                 </p>
               </div>
             </>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Sticker, Info } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -79,6 +80,15 @@ export function StickerPicker({ onSelect }: StickerPickerProps) {
             </p>
             <p>
               Add emoji packs to your profile to make them available as stickers.
+            </p>
+            <p>
+              <Link
+                to="/emojis"
+                onClick={() => setInfoOpen(false)}
+                className="text-foreground font-medium underline underline-offset-2 hover:no-underline"
+              >
+                Browse emoji packs
+              </Link>
             </p>
           </div>
         </DialogContent>
