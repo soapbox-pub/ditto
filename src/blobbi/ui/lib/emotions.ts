@@ -50,6 +50,10 @@ export interface EmotionConfig {
   animatedEyebrows?: AnimatedEyebrowsConfig;
   /** Small/smug smile (for mischievous) */
   smallSmile?: SmallSmileConfig;
+  /** Star eyes effect (replaces normal eyes with stars) */
+  starEyes?: StarEyesConfig;
+  /** Big smile mouth (wider than normal) */
+  bigSmile?: BigSmileConfig;
 }
 
 export interface PupilModification {
@@ -131,6 +135,24 @@ export interface AnimatedEyebrowsConfig {
 export interface SmallSmileConfig {
   /** Scale factor for the smile (0.5 = half size, 1.0 = normal) */
   scale: number;
+}
+
+export interface StarEyesConfig {
+  /** Enable star eyes effect */
+  enabled: boolean;
+  /** Number of points on the star (default: 5) */
+  points?: number;
+  /** Fill color for the stars (default: golden yellow) */
+  color?: string;
+  /** Scale factor relative to pupil size (default: 1.5) */
+  scale?: number;
+}
+
+export interface BigSmileConfig {
+  /** Scale factor for the smile width (1.0 = normal, 1.5 = 50% wider) */
+  widthScale: number;
+  /** Scale factor for the smile curve depth (1.0 = normal, 1.5 = deeper curve) */
+  curveScale: number;
 }
 
 // ─── Emotion Configurations ───────────────────────────────────────────────────
@@ -238,25 +260,17 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
     },
   },
   excited: {
-    // Normal eyes (no watery effect)
-    // Use the same eyebrow config as sad, but with animation
-    eyebrows: {
-      angle: -15, // Same as sad
-      offsetY: -10, // Same as sad
-      strokeWidth: 1.5, // Same as sad
-      color: '#374151', // Same as sad
-    },
-    // Animated eyebrows bouncing up and down
-    animatedEyebrows: {
+    // Star eyes replace normal pupils
+    starEyes: {
       enabled: true,
-      bounceDuration: 0.5, // Fast, energetic bounce
-      bounceAmount: 3, // Pixels to move up
+      points: 5, // 5-pointed star
+      color: '#fbbf24', // Golden yellow (amber-400)
+      scale: 1.4, // Slightly larger than pupils
     },
-    // Curious round mouth
-    roundMouth: {
-      rx: 3, // Same as curious
-      ry: 3.5,
-      filled: true,
+    // Big happy smile
+    bigSmile: {
+      widthScale: 1.3, // 30% wider
+      curveScale: 1.4, // 40% deeper curve for extra happy look
     },
   },
   mischievous: {
@@ -1319,6 +1333,143 @@ function generateSmallSmile(mouth: MouthPosition, config: SmallSmileConfig): str
   />`;
 }
 
+// ─── Star Eyes Generation ─────────────────────────────────────────────────────
+
+/**
+ * Create a 5-pointed star path centered at (cx, cy) with given size.
+ * Uses the standard star polygon formula.
+ */
+function createStarPath(cx: number, cy: number, outerRadius: number, innerRadius: number, points: number = 5): string {
+  const pathPoints: string[] = [];
+  const angleOffset = -Math.PI / 2; // Start from top
+  
+  for (let i = 0; i < points * 2; i++) {
+    const angle = angleOffset + (i * Math.PI) / points;
+    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+    const x = cx + radius * Math.cos(angle);
+    const y = cy + radius * Math.sin(angle);
+    
+    if (i === 0) {
+      pathPoints.push(`M ${x.toFixed(2)} ${y.toFixed(2)}`);
+    } else {
+      pathPoints.push(`L ${x.toFixed(2)} ${y.toFixed(2)}`);
+    }
+  }
+  
+  pathPoints.push('Z'); // Close the path
+  return pathPoints.join(' ');
+}
+
+/**
+ * Generate star shapes for the excited star eyes effect.
+ * These replace the normal pupils with cute stars.
+ */
+function generateStarEyes(eyes: EyePosition[], config: StarEyesConfig): string {
+  const color = config.color || '#fbbf24'; // Default: amber-400
+  const scale = config.scale || 1.4;
+  const points = config.points || 5;
+  
+  return eyes.map(eye => {
+    // Star size based on pupil radius
+    const outerRadius = eye.radius * scale;
+    const innerRadius = outerRadius * 0.4; // Inner radius is 40% of outer for nice star shape
+    
+    const starPath = createStarPath(eye.cx, eye.cy, outerRadius, innerRadius, points);
+    
+    return `<g class="blobbi-star-eye blobbi-star-eye-${eye.side}">
+      <path
+        d="${starPath}"
+        fill="${color}"
+        stroke="#f59e0b"
+        stroke-width="0.5"
+      />
+      <!-- Small highlight on star -->
+      <circle cx="${eye.cx - outerRadius * 0.2}" cy="${eye.cy - outerRadius * 0.3}" r="${outerRadius * 0.15}" fill="white" opacity="0.7" />
+    </g>`;
+  }).join('\n');
+}
+
+/**
+ * Generate CSS styles for star eyes effect.
+ * Hides the normal eyes when star eyes are shown.
+ */
+function generateStarEyesStyles(): string {
+  return `
+  <style type="text/css">
+    /* Hide normal eyes when star eyes are active */
+    .blobbi-star-eyes .blobbi-blink {
+      opacity: 0;
+    }
+  </style>`;
+}
+
+/**
+ * Apply star eyes effect to the SVG.
+ */
+function applyStarEyes(svgText: string, eyes: EyePosition[], config: StarEyesConfig): string {
+  // Add 'blobbi-star-eyes' class to SVG root
+  svgText = svgText.replace(/<svg([^>]*)>/, (match, attrs) => {
+    if (attrs.includes('class="')) {
+      return match.replace(/class="([^"]*)"/, 'class="$1 blobbi-star-eyes"');
+    } else if (attrs.includes("class='")) {
+      return match.replace(/class='([^']*)'/, "class='$1 blobbi-star-eyes'");
+    } else {
+      return `<svg${attrs} class="blobbi-star-eyes">`;
+    }
+  });
+  
+  // Add star eyes styles
+  const starStyles = generateStarEyesStyles();
+  if (svgText.includes('<defs>')) {
+    svgText = svgText.replace('<defs>', '<defs>' + starStyles);
+  } else {
+    svgText = svgText.replace(/(<svg[^>]*>)/, '$1' + starStyles);
+  }
+  
+  // Generate star overlays
+  const stars = generateStarEyes(eyes, config);
+  
+  // Insert stars before closing </svg> tag
+  const starOverlay = `
+  <!-- Excited star eyes -->
+  <g class="blobbi-star-eyes-group">
+    ${stars}
+  </g>`;
+  
+  svgText = svgText.replace('</svg>', starOverlay + '\n</svg>');
+  
+  return svgText;
+}
+
+// ─── Big Smile Generation ─────────────────────────────────────────────────────
+
+/**
+ * Generate a bigger/wider smile by scaling the original mouth.
+ */
+function generateBigSmile(mouth: MouthPosition, config: BigSmileConfig): string {
+  const centerX = (mouth.startX + mouth.endX) / 2;
+  const baselineY = (mouth.startY + mouth.endY) / 2;
+  
+  // Scale the mouth width
+  const halfWidth = (mouth.endX - mouth.startX) / 2;
+  const scaledHalfWidth = halfWidth * config.widthScale;
+  const scaledStartX = centerX - scaledHalfWidth;
+  const scaledEndX = centerX + scaledHalfWidth;
+  
+  // Scale the curve depth (how far down the smile curves)
+  const curveDepth = mouth.controlY - baselineY;
+  const scaledCurveDepth = curveDepth * config.curveScale;
+  const scaledControlY = baselineY + scaledCurveDepth;
+  
+  return `<path 
+    class="blobbi-mouth blobbi-mouth-big"
+    d="M ${scaledStartX} ${baselineY} Q ${centerX} ${scaledControlY} ${scaledEndX} ${baselineY}" 
+    ${mouth.strokeAttrs || 'stroke="#1f2937" stroke-width="2.5"'}
+    fill="none" 
+    stroke-linecap="round"
+  />`;
+}
+
 // ─── Sleepy Animation Generation ──────────────────────────────────────────────
 
 /**
@@ -1702,6 +1853,17 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: B
     svgText = replaceMouthSection(svgText, smallSmileSvg);
   }
   
+  // Generate star eyes (for excited)
+  if (config.starEyes?.enabled && eyes.length > 0) {
+    svgText = applyStarEyes(svgText, eyes, config.starEyes);
+  }
+  
+  // Generate big smile (for excited)
+  if (config.bigSmile && mouth) {
+    const bigSmileSvg = generateBigSmile(mouth.position, config.bigSmile);
+    svgText = replaceMouthSection(svgText, bigSmileSvg);
+  }
+  
   // Insert overlays before closing </svg> tag
   if (overlays.length > 0) {
     const overlayGroup = `
@@ -1721,5 +1883,5 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: B
  */
 export function emotionAffectsEyes(emotion: BlobbiEmotion): boolean {
   const config = EMOTION_CONFIGS[emotion];
-  return !!(config?.pupilModification);
+  return !!(config?.pupilModification || config?.starEyes?.enabled || config?.dizzyEffect?.enabled);
 }

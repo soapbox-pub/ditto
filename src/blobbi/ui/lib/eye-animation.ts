@@ -3,11 +3,13 @@
  *
  * Transforms SVG content to add eye animation capability.
  *
- * Two separate animation layers:
- * 1. TRACKING: Wraps pupil + highlight in <g class="blobbi-eye"> for mouse following
- * 2. BLINKING: Wraps entire eye (white + pupil + highlight) in <g class="blobbi-blink"> for blink
+ * Three layers per eye:
+ * 1. EYELID BACK: Ellipse behind eye white, matches eye white shape, darker body color
+ * 2. TRACKING: Wraps pupil + highlight in <g class="blobbi-eye"> for mouse following
+ * 3. BLINKING: Wraps entire eye (white + pupil + highlight) in <g class="blobbi-blink"> for blink
  *
  * This separation ensures:
+ * - Eyelid back is visible when eyes close (via blink scaleY)
  * - Only pupil/highlight move when tracking mouse
  * - Entire eye closes when blinking
  * - Eye white stays fixed during mouse tracking
@@ -45,6 +47,8 @@ interface FullEyeGroup {
   blinkCenterX: number;
   /** Blink center Y - from eye white if available, otherwise from pupil */
   blinkCenterY: number;
+  /** Eye white geometry for eyelid generation (rx, ry for ellipse) */
+  eyeWhiteGeometry: { rx: number; ry: number } | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -52,8 +56,36 @@ interface FullEyeGroup {
 // Dark colors used for pupils
 const PUPIL_COLORS = ['#1f2937', '#374151', '#1e293b', '#111827', '#0f172a', '#64748b'];
 
+// Default eyelid color (used when no base color is provided)
+const DEFAULT_EYELID_COLOR = '#6d28d9';
+
 // Max distance for elements to belong to the same eye
 const EYE_PROXIMITY = 15;
+
+// How much to darken the base color for eyelids (0-100)
+const EYELID_DARKEN_AMOUNT = 15;
+
+// ─── Color Helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Darken a hex color by a percentage
+ */
+function darkenColor(color: string, percent: number): string {
+  if (!color.startsWith('#')) return color;
+  
+  const num = parseInt(color.slice(1), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = Math.max(0, (num >> 16) - amt);
+  const G = Math.max(0, ((num >> 8) & 0x00FF) - amt);
+  const B = Math.max(0, (num & 0x0000FF) - amt);
+  
+  return '#' + (
+    0x1000000 +
+    R * 0x10000 +
+    G * 0x100 +
+    B
+  ).toString(16).slice(1).toUpperCase();
+}
 
 // ─── Detection Helpers ────────────────────────────────────────────────────────
 
@@ -240,6 +272,23 @@ function groupFullEyes(elements: ElementInfo[]): FullEyeGroup[] {
     // Use eye white center for blink anchor (more accurate), fallback to pupil
     const blinkAnchor = closestEyeWhite || pupil;
 
+    // Extract eye white geometry (rx, ry) for eyelid generation
+    let eyeWhiteGeometry: { rx: number; ry: number } | null = null;
+    if (closestEyeWhite) {
+      const rxMatch = closestEyeWhite.match.match(/rx="(\d+\.?\d*)"/);
+      const ryMatch = closestEyeWhite.match.match(/ry="(\d+\.?\d*)"/);
+      const rMatch = closestEyeWhite.match.match(/\br="(\d+\.?\d*)"/);
+      
+      if (rxMatch && ryMatch) {
+        // Ellipse: use rx and ry
+        eyeWhiteGeometry = { rx: parseFloat(rxMatch[1]), ry: parseFloat(ryMatch[1]) };
+      } else if (rMatch) {
+        // Circle: use r for both
+        const r = parseFloat(rMatch[1]);
+        eyeWhiteGeometry = { rx: r, ry: r };
+      }
+    }
+
     groups.push({
       eyeWhite: closestEyeWhite,
       pupil,
@@ -247,22 +296,57 @@ function groupFullEyes(elements: ElementInfo[]): FullEyeGroup[] {
       side: pupil.cx < midX ? 'left' : 'right',
       blinkCenterX: blinkAnchor.cx,
       blinkCenterY: blinkAnchor.cy,
+      eyeWhiteGeometry,
     });
   }
 
   return groups;
 }
 
+// ─── Eyelid Generation ────────────────────────────────────────────────────────
+
+/**
+ * Generate an eyelid background ellipse that matches the eye white shape.
+ * This sits behind the eye and becomes visible when the eye closes (blink).
+ */
+function generateEyelidElement(
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  side: 'left' | 'right',
+  color: string
+): string {
+  return `<ellipse 
+      class="blobbi-eyelid blobbi-eyelid-${side}"
+      cx="${cx}" 
+      cy="${cy}" 
+      rx="${rx}" 
+      ry="${ry}"
+      fill="${color}"
+    />`;
+}
+
 // ─── SVG Transformation ───────────────────────────────────────────────────────
+
+/**
+ * Options for eye animation
+ */
+export interface EyeAnimationOptions {
+  /** Base body color for deriving eyelid color (optional) */
+  baseColor?: string;
+}
 
 /**
  * Add eye animation capability to SVG content.
  *
- * Creates two nested groups per eye:
- * 1. Outer group (blobbi-blink): wraps entire eye for blink animation (scaleY)
- * 2. Inner group (blobbi-eye): wraps only pupil+highlight for mouse tracking (translate)
+ * Creates layers per eye:
+ * 1. Eyelid back (blobbi-eyelid): ellipse behind eye, darker body color
+ * 2. Outer group (blobbi-blink): wraps eye white + tracking group for blink animation (scaleY)
+ * 3. Inner group (blobbi-eye): wraps only pupil+highlight for mouse tracking (translate)
  *
  * Structure:
+ * <ellipse class="blobbi-eyelid" ... />  <!-- eyelid back - behind everything -->
  * <g class="blobbi-blink blobbi-blink-left">  <!-- blink: scaleY -->
  *   <ellipse ... />  <!-- eye white - NOT tracked -->
  *   <g class="blobbi-eye blobbi-eye-left">  <!-- tracking: translate -->
@@ -271,7 +355,7 @@ function groupFullEyes(elements: ElementInfo[]): FullEyeGroup[] {
  *   </g>
  * </g>
  */
-export function addEyeAnimation(svgText: string): string {
+export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions): string {
   const elements = parseElements(svgText);
   const eyeGroups = groupFullEyes(elements);
 
@@ -286,6 +370,10 @@ export function addEyeAnimation(svgText: string): string {
   }
 
   const operations: Operation[] = [];
+
+  // Derive eyelid color from base color (or use default)
+  const baseColor = options?.baseColor || DEFAULT_EYELID_COLOR;
+  const eyelidColor = darkenColor(baseColor, EYELID_DARKEN_AMOUNT);
 
   for (const group of eyeGroups) {
     // Collect all elements for this eye (for removal tracking)
@@ -326,12 +414,27 @@ export function addEyeAnimation(svgText: string): string {
     ${blinkContent}
   </g>`;
 
-    // First element gets replaced with the full structure
+    // Generate eyelid element (behind the eye) if we have geometry
+    let fullReplacement = blinkGroup;
+    if (group.eyeWhiteGeometry && group.eyeWhite) {
+      const eyelidElement = generateEyelidElement(
+        group.blinkCenterX,
+        group.blinkCenterY,
+        group.eyeWhiteGeometry.rx,
+        group.eyeWhiteGeometry.ry,
+        group.side,
+        eyelidColor
+      );
+      // Eyelid goes BEFORE the blink group (so it's behind)
+      fullReplacement = eyelidElement + '\n  ' + blinkGroup;
+    }
+
+    // First element gets replaced with the full structure (eyelid + blink group)
     operations.push({
       type: 'replace',
       index: first.index,
       endIndex: first.endIndex,
-      replacement: blinkGroup,
+      replacement: fullReplacement,
     });
 
     // Remaining elements get removed
