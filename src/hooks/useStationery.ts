@@ -22,27 +22,19 @@ function validateTheme(event: NostrEvent): NostrEvent | null {
   return event;
 }
 
-const COLOR_MOMENT_RELAYS = [
-  'wss://relay.ditto.pub',
-  'wss://relay.primal.net',
-  'wss://relay.damus.io',
-  'wss://nos.lol',
-];
-
 /** Fetch a page of color moments for stationery infinite scroll */
 export function useColorMomentsPage(limit = 24, until?: number, authors?: string[]) {
   const { nostr } = useNostr();
   return useQuery({
     queryKey: ['color-moments-page', limit, until, authors ?? null],
     queryFn: async () => {
-      const relay = nostr.group(COLOR_MOMENT_RELAYS);
       const filter = {
         kinds: [COLOR_MOMENT_KIND],
         limit,
         ...(until ? { until } : {}),
         ...(authors && authors.length > 0 ? { authors } : {}),
       };
-      const events = await relay.query([filter]);
+      const events = await nostr.query([filter]);
       // Deduplicate by event id
       const seen = new Map<string, NostrEvent>();
       for (const e of events) seen.set(e.id, e);

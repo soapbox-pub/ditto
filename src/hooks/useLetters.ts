@@ -1,5 +1,6 @@
+import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { useCurrentUser } from './useCurrentUser';
 import {
@@ -8,6 +9,9 @@ import {
   type LetterContent,
   type Stationery,
 } from '@/lib/letterTypes';
+
+const PAGE_SIZE = 50;
+const EMPTY_DELETED = new Set<string>();
 
 /** Parse a letter event into a Letter object (without decrypting).
  *  All presentation data (stationery, frame, font) is inside the
@@ -38,73 +42,130 @@ function getDeletedIds(deletionEvents: NostrEvent[]): Set<string> {
   return ids;
 }
 
-/** Fetch inbox letters (letters sent to the current user).
+/** Fetch inbox letters (letters sent to the current user) with cursor-based pagination.
  *  When `friendPubkeys` is provided, only letters from those pubkeys are returned. */
 export function useInbox(friendPubkeys?: string[]) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
 
-  return useQuery({
-    queryKey: ['letters-inbox', user?.pubkey, friendPubkeys ?? null],
+  // Fetch all deletion IDs once (not paginated — deletion events are small)
+  const deletionsQuery = useQuery({
+    queryKey: ['letters-deletions', user?.pubkey],
     queryFn: async () => {
+      if (!user) return new Set<string>();
+      const deletions = await nostr.query([{ kinds: [5], authors: [user.pubkey], '#k': [String(LETTER_KIND)], limit: 500 }]);
+      return getDeletedIds(deletions);
+    },
+    enabled: !!user,
+  });
+  const deletedIds = deletionsQuery.data ?? EMPTY_DELETED;
+
+  const infiniteQuery = useInfiniteQuery({
+    queryKey: ['letters-inbox', user?.pubkey, friendPubkeys ?? null],
+    queryFn: async ({ pageParam }: { pageParam: number | undefined }) => {
       if (!user) return [];
 
-      // When filtering to friends, use authors filter at the relay level for efficiency
       const filter: NostrFilter = {
         kinds: [LETTER_KIND],
         '#p': [user.pubkey],
-        limit: 50,
+        limit: PAGE_SIZE,
       };
+      if (pageParam) filter.until = pageParam;
       if (friendPubkeys) {
-        // If user has no friends yet, return empty (no authors = match nothing)
         if (friendPubkeys.length === 0) return [];
         filter.authors = friendPubkeys;
       }
 
-      // Fetch letters and the user's own deletion requests in one pass
-      const [events, deletions] = await Promise.all([
-        nostr.query([filter]),
-        nostr.query([{ kinds: [5], authors: [user.pubkey], '#k': [String(LETTER_KIND)], limit: 50 }]),
-      ]);
-
-      const deletedIds = getDeletedIds(deletions);
-
+      const events = await nostr.query([filter]);
       return events
         .map(parseLetterEvent)
         .filter((l): l is Letter => l !== null)
-        .filter((l) => !deletedIds.has(l.event.id))
         .sort((a, b) => b.timestamp - a.timestamp);
+    },
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length < PAGE_SIZE) return undefined;
+      const oldest = lastPage[lastPage.length - 1];
+      return oldest ? oldest.timestamp : undefined;
     },
     enabled: !!user,
   });
+
+  // Flatten pages and filter out deleted letters
+  const data = useMemo(() => {
+    if (!infiniteQuery.data) return undefined;
+    return infiniteQuery.data.pages
+      .flat()
+      .filter((l) => !deletedIds.has(l.event.id));
+  }, [infiniteQuery.data, deletedIds]);
+
+  return {
+    data,
+    isLoading: infiniteQuery.isLoading,
+    fetchNextPage: infiniteQuery.fetchNextPage,
+    hasNextPage: infiniteQuery.hasNextPage,
+    isFetchingNextPage: infiniteQuery.isFetchingNextPage,
+  };
 }
 
-/** Fetch sent letters (letters authored by the current user) */
+/** Fetch sent letters (letters authored by the current user) with cursor-based pagination. */
 export function useSentLetters() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
 
-  return useQuery({
-    queryKey: ['letters-sent', user?.pubkey],
+  // Reuse the same deletion query (keyed by pubkey, shared across inbox/sent)
+  const deletionsQuery = useQuery({
+    queryKey: ['letters-deletions', user?.pubkey],
     queryFn: async () => {
-      if (!user) return [];
-
-      // Fetch letters and the user's own deletion requests in one pass
-      const [events, deletions] = await Promise.all([
-        nostr.query([{ kinds: [LETTER_KIND], authors: [user.pubkey], limit: 50 }]),
-        nostr.query([{ kinds: [5], authors: [user.pubkey], '#k': [String(LETTER_KIND)], limit: 50 }]),
-      ]);
-
-      const deletedIds = getDeletedIds(deletions);
-
-      return events
-        .map(parseLetterEvent)
-        .filter((l): l is Letter => l !== null)
-        .filter((l) => !deletedIds.has(l.event.id))
-        .sort((a, b) => b.timestamp - a.timestamp);
+      if (!user) return new Set<string>();
+      const deletions = await nostr.query([{ kinds: [5], authors: [user.pubkey], '#k': [String(LETTER_KIND)], limit: 500 }]);
+      return getDeletedIds(deletions);
     },
     enabled: !!user,
   });
+  const deletedIds = deletionsQuery.data ?? EMPTY_DELETED;
+
+  const infiniteQuery = useInfiniteQuery({
+    queryKey: ['letters-sent', user?.pubkey],
+    queryFn: async ({ pageParam }: { pageParam: number | undefined }) => {
+      if (!user) return [];
+
+      const filter: NostrFilter = {
+        kinds: [LETTER_KIND],
+        authors: [user.pubkey],
+        limit: PAGE_SIZE,
+      };
+      if (pageParam) filter.until = pageParam;
+
+      const events = await nostr.query([filter]);
+      return events
+        .map(parseLetterEvent)
+        .filter((l): l is Letter => l !== null)
+        .sort((a, b) => b.timestamp - a.timestamp);
+    },
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length < PAGE_SIZE) return undefined;
+      const oldest = lastPage[lastPage.length - 1];
+      return oldest ? oldest.timestamp : undefined;
+    },
+    enabled: !!user,
+  });
+
+  const data = useMemo(() => {
+    if (!infiniteQuery.data) return undefined;
+    return infiniteQuery.data.pages
+      .flat()
+      .filter((l) => !deletedIds.has(l.event.id));
+  }, [infiniteQuery.data, deletedIds]);
+
+  return {
+    data,
+    isLoading: infiniteQuery.isLoading,
+    fetchNextPage: infiniteQuery.fetchNextPage,
+    hasNextPage: infiniteQuery.hasNextPage,
+    isFetchingNextPage: infiniteQuery.isFetchingNextPage,
+  };
 }
 
 /** Result of decrypting a letter — includes extracted presentation data */

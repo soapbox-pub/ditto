@@ -3,10 +3,11 @@
  * Tap backdrop to dismiss.
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { Loader2, Lock } from 'lucide-react';
 import { useDecryptLetter } from '@/hooks/useLetters';
 import { FONT_OPTIONS, LINE_HEIGHT_RATIO, type Letter } from '@/lib/letterTypes';
+import { ensureLetterFonts } from '@/lib/letterUtils';
 import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { LetterStickers } from './LetterStickers';
@@ -37,6 +38,9 @@ export function LetterDetailSheet({ letter, onClose }: LetterDetailSheetProps) {
   const letterFontFamily = rawFont
     ? (rawFont.includes(',') ? rawFont : `${rawFont}, ${FONT_OPTIONS[0].family}`)
     : FONT_OPTIONS[0].family;
+
+  // Lazy-load the letter's font when decrypted content is available
+  useLayoutEffect(() => { ensureLetterFonts(letterFontFamily); }, [letterFontFamily]);
 
   // ResizeObserver for ruled line height — re-attaches when the dialog opens (letter changes)
   useEffect(() => {

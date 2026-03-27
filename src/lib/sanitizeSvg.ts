@@ -68,14 +68,21 @@ const ALLOWED_ATTRS = [
   'points',
 ];
 
+/** Maximum SVG string length (256 KB). Anything larger is likely malicious or degenerate. */
+const MAX_SVG_LENGTH = 256 * 1024;
+
 /**
  * Sanitize an SVG string so it is safe to inject via `dangerouslySetInnerHTML`.
  *
  * Returns a clean SVG string with only allowlisted elements and attributes.
  * Any scripts, event handlers, foreignObject, use/image elements, data URIs,
  * and other dangerous constructs are stripped.
+ *
+ * SVGs exceeding MAX_SVG_LENGTH are rejected outright to prevent denial-of-service
+ * via oversized payloads that would force DOMPurify to parse megabytes of markup.
  */
 export function sanitizeSvg(dirty: string): string {
+  if (dirty.length > MAX_SVG_LENGTH) return '';
   return DOMPurify.sanitize(dirty, {
     USE_PROFILES: { svg: true, svgFilters: false },
     ALLOWED_TAGS,

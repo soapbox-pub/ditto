@@ -15,16 +15,6 @@ import './index.css';
 
 import '@fontsource-variable/inter';
 
-// Letter fonts — loaded eagerly so received letters render correctly
-import '@fontsource-variable/fredoka';
-import '@fontsource/caveat';
-import '@fontsource/pacifico';
-import '@fontsource/pirata-one';
-import '@fontsource/special-elite';
-import '@fontsource/creepster';
-import '@fontsource/silkscreen';
-import '@fontsource/permanent-marker';
-
 // ─── Native status bar theming (Android APK / iOS) ───────────────────────────
 // Keeps the OS top chrome in sync with the active app theme.
 // Runs before React so the very first paint matches the persisted theme.

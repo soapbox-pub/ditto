@@ -54,12 +54,18 @@ export function LetterPreferencesSection() {
     }
   }, [isThemeDefault, themeStationery]);
 
-  // Persist non-stationery prefs on change (skip mount)
+  // Persist non-stationery prefs on change (skip mount).
+  // `updatePrefs` is intentionally omitted — its identity changes on every settings
+  // update (because it closes over `settings`), which would cause an infinite loop:
+  // effect → updatePrefs → settings change → new updatePrefs → effect.
+  // `user` is omitted because the guard (`!user`) short-circuits if absent and
+  // the component already renders a login prompt when user is null.
+  const updatePrefsRef = useRef(updatePrefs);
+  updatePrefsRef.current = updatePrefs;
   useEffect(() => {
     if (!mountedRef.current || !user) return;
-    updatePrefs({ font: selectedFont.value, frame, frameTint, closing, signature, friendsOnlyInbox, friendsOnlySearch });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFont, frame, frameTint, closing, signature, friendsOnlyInbox, friendsOnlySearch]);
+    updatePrefsRef.current({ font: selectedFont.value, frame, frameTint, closing, signature, friendsOnlyInbox, friendsOnlySearch });
+  }, [selectedFont, frame, frameTint, closing, signature, friendsOnlyInbox, friendsOnlySearch, user]);
 
   // Mark as mounted
   useEffect(() => { mountedRef.current = true; }, []);

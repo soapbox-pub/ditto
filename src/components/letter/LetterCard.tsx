@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { Mail, MailOpen, Loader2, Lock, MoreHorizontal, Link2, Trash2, Braces } from 'lucide-react';
@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
 import { FONT_OPTIONS, LETTER_KIND, LINE_HEIGHT_RATIO, type Letter } from '@/lib/letterTypes';
+import { ensureLetterFonts } from '@/lib/letterUtils';
 import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { LetterStickers } from './LetterStickers';
@@ -101,6 +102,9 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
   const letterFontFamily = rawFont
     ? (rawFont.includes(',') ? rawFont : `${rawFont}, ${FONT_OPTIONS[0].family}`)
     : FONT_OPTIONS[0].family;
+
+  // Lazy-load the letter's font when decrypted content is available
+  useLayoutEffect(() => { ensureLetterFonts(letterFontFamily); }, [letterFontFamily]);
 
   useEffect(() => {
     const el = letterRef.current;

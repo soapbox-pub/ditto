@@ -302,12 +302,12 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   const primaryColor = resolvedSt.primaryColor ?? '#7c52e0';
   const textColor = resolvedSt.textColor ?? backgroundTextColor(bgColor);
 
-  // Stable content ref so animLetterElement doesn't change identity on re-renders
-  const animContentRef = useRef(sendAnimationContent);
-  if (sendAnimationContent) animContentRef.current = sendAnimationContent;
+  // Memoize the animation letter element — only recompute when content or width changes.
+  // Uses sendAnimationContent directly (not a ref) so deps are exhaustive.
   const animLetterElement = useMemo(
-    () => <AnimationLetter content={animContentRef.current ?? { body: '' }} width={animLetterW} />,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => sendAnimationContent
+      ? <AnimationLetter content={sendAnimationContent} width={animLetterW} />
+      : <AnimationLetter content={{ body: '' }} width={animLetterW} />,
     [sendAnimationContent, animLetterW],
   );
 
