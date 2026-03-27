@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useSeoMeta } from '@unhead/react';
-import { Bell, BellOff, AlertTriangle, Heart, Repeat2, Zap, AtSign, MessageSquare, Users, Award } from 'lucide-react';
+import { Bell, BellOff, AlertTriangle, Heart, Repeat2, Zap, AtSign, MessageSquare, Users, Award, Mail } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { Switch } from '@/components/ui/switch';
@@ -11,7 +11,7 @@ import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { toast } from '@/hooks/useToast';
 
-type NotificationPrefKey = 'reactions' | 'reposts' | 'zaps' | 'mentions' | 'comments' | 'badges';
+type NotificationPrefKey = 'reactions' | 'reposts' | 'zaps' | 'mentions' | 'comments' | 'badges' | 'letters';
 
 interface NotificationTypeRow {
   key: NotificationPrefKey;
@@ -63,6 +63,13 @@ const NOTIFICATION_TYPES: NotificationTypeRow[] = [
     kinds: [8],
     description: 'When someone awards you a badge',
     icon: <Award className="size-5" />,
+  },
+  {
+    key: 'letters',
+    label: 'Letters',
+    kinds: [8211],
+    description: 'When someone sends you a letter',
+    icon: <Mail className="size-5" />,
   },
 ];
 

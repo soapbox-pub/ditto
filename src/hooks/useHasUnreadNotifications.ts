@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
+import { LETTER_KIND } from '@/lib/letterTypes';
 
 /**
  * Lightweight hook that checks whether the user has any unread notifications.
@@ -30,7 +31,7 @@ export function useHasUnreadNotifications(): boolean {
 
       const events = await nostr.query(
         [{
-          kinds: [1, 6, 16, 7, 9735, 1111, 1222, 1244],
+          kinds: [1, 6, 16, 7, 9735, 1111, 1222, 1244, LETTER_KIND],
           '#p': [user.pubkey],
           since: notificationsCursor + 1,
           limit: 1,
