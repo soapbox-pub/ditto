@@ -141,14 +141,22 @@ MARKETING_VERSION = X.Y.Z;
 
 Do NOT change `CURRENT_PROJECT_VERSION` -- it stays at `1` (may be managed separately for App Store submissions in the future).
 
-### Step 7: Commit the Release
+### Step 7: Copy Changelog to Public Directory
+
+The changelog is served at runtime by the app from the `public/` directory. After updating `CHANGELOG.md`, copy it:
 
 ```bash
-git add package.json CHANGELOG.md android/app/build.gradle ios/App/App.xcodeproj/project.pbxproj
+cp CHANGELOG.md public/CHANGELOG.md
+```
+
+### Step 8: Commit the Release
+
+```bash
+git add package.json CHANGELOG.md public/CHANGELOG.md android/app/build.gradle ios/App/App.xcodeproj/project.pbxproj
 git commit -m "release: vX.Y.Z"
 ```
 
-### Step 8: Tag the Release
+### Step 9: Tag the Release
 
 ```bash
 git tag vX.Y.Z
@@ -156,7 +164,7 @@ git tag vX.Y.Z
 
 The tag format is `v` followed by the semver version with no suffix. Examples: `v2.0.0`, `v2.1.0`, `v2.1.1`.
 
-### Step 9: Push
+### Step 10: Push
 
 ```bash
 git push origin main --tags
@@ -167,7 +175,7 @@ This triggers the GitLab CI pipeline which will:
 2. Create a GitLab Release with download links
 3. Publish the APK to Zapstore
 
-### Step 10: Confirm
+### Step 11: Confirm
 
 After pushing, inform the user:
 - The new version number
@@ -180,6 +188,7 @@ After pushing, inform the user:
 |------|---------------|-------|
 | `package.json` | `version` field | Source of truth for the version |
 | `CHANGELOG.md` | Prepend new section | User-facing changelog |
+| `public/CHANGELOG.md` | Copy from `CHANGELOG.md` | Served at runtime by the app |
 | `android/app/build.gradle` | `versionName` on line 17 | `versionCode` is managed by CI |
 | `ios/App/App.xcodeproj/project.pbxproj` | `MARKETING_VERSION` (4 occurrences) | `CURRENT_PROJECT_VERSION` stays at 1 |
 
@@ -205,7 +214,7 @@ If you tagged the wrong version and haven't pushed yet:
 git tag -d vX.Y.Z          # delete the local tag
 git reset --soft HEAD~1     # undo the commit but keep changes staged
 ```
-Then redo steps 4-9 with the correct version.
+Then redo steps 4-10 with the correct version.
 
 ### Already pushed a bad release
 This requires manual intervention. Inform the user and suggest they delete the tag and release from GitLab manually, then re-run the release process.

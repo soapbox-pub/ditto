@@ -53,6 +53,7 @@ import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
 import { WorldPage } from "./pages/WorldPage";
 import { ArchivePage } from "./pages/ArchivePage";
 import { BlueskyPage } from "./pages/BlueskyPage";
+import { ChangelogPage } from "./pages/ChangelogPage";
 import { WikipediaPage } from "./pages/WikipediaPage";
 
 const pollsDef = getExtraKindDef("polls")!;
@@ -213,6 +214,7 @@ export function AppRouter() {
             <Route path="/help" element={<HelpPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/safety" element={<CSAEPolicyPage />} />
+            <Route path="/changelog" element={<ChangelogPage />} />
             <Route path="/r/*" element={<RelayPage />} />
             <Route
               path="/settings/lists"
