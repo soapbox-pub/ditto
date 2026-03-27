@@ -15,6 +15,7 @@ import {
   Earth,
   Film,
   HelpCircle,
+
   MessageSquare,
   MessageSquareMore,
   Mic,
@@ -37,6 +38,7 @@ import { ChestIcon } from "@/components/icons/ChestIcon";
 import { PlanetIcon } from "@/components/icons/PlanetIcon";
 import { WikipediaIcon } from "@/components/icons/WikipediaIcon";
 import { BlueskyIcon } from "@/components/icons/BlueskyIcon";
+import { MailboxIcon } from "@/components/icons/MailboxIcon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -130,6 +132,13 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     requiresAuth: true,
   },
   { id: "settings", label: "Settings", path: "/settings", icon: Settings },
+  {
+    id: "letters",
+    label: "Letters",
+    path: "/letters",
+    icon: MailboxIcon,
+    requiresAuth: true,
+  },
   {
     id: "ai-chat",
     label: "AI Chat",
