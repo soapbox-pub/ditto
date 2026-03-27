@@ -1,7 +1,8 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { BookMarked, Copy, ExternalLink, Globe, Wand2 } from "lucide-react";
+import { BookMarked, Copy, Check, ExternalLink, Globe, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { NostrURI } from "@/lib/NostrURI";
 
 interface GitRepoCardProps {
 	event: NostrEvent;
@@ -22,9 +23,6 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 	const name = event.tags.find(([n]) => n === "name")?.[1];
 	const description = event.tags.find(([n]) => n === "description")?.[1];
 	const webUrls = event.tags.filter(([n]) => n === "web").map(([, v]) => v);
-	const cloneUrls = event.tags
-		.filter(([n]) => n === "clone")
-		.map(([, v]) => v);
 	const isPersonalFork = event.tags.some(
 		([n, v]) => n === "t" && v === "personal-fork",
 	);
@@ -32,6 +30,10 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 		([n, v]) => n === "t" && v === "shakespeare",
 	);
 	const dTag = event.tags.find(([n]) => n === "d")?.[1] ?? "";
+
+	// Nostr clone URI (nostr://npub/relay/identifier)
+	const nostrUri = NostrURI.fromEvent(event);
+	const nostrCloneUrl = nostrUri.toString();
 
 	// Shakespeare + web URL = this is a deployed application, not a repo
 	const isApp = hasShakespeare && !!webUrls[0];
@@ -48,9 +50,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 		setTimeout(() => setCopied(false), 2000);
 	};
 
-	const shakespeareUrl = cloneUrls[0]
-		? `https://shakespeare.diy/clone?url=${encodeURIComponent(cloneUrls[0])}`
-		: "https://shakespeare.diy";
+	const shakespeareUrl = `https://shakespeare.diy/clone?url=${encodeURIComponent(nostrCloneUrl)}`;
 
 	return (
 		<div className="mt-2 rounded-2xl border border-border overflow-hidden">
@@ -85,31 +85,29 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 					</p>
 				)}
 
-				{/* Clone URL -- hidden for apps */}
-				{!isApp && cloneUrls[0] && (
-					<div className="group/clone flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
+				{/* Nostr clone URI */}
+				<div className="group/nostr flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
 						<code className="flex-1 text-[11px] font-mono text-muted-foreground truncate select-all">
-							{cloneUrls[0]}
+							{nostrCloneUrl}
 						</code>
 						<Button
 							variant="ghost"
 							size="sm"
-							className="h-5 w-5 p-0 shrink-0 opacity-50 group-hover/clone:opacity-100 transition-opacity"
+							className="h-5 w-5 p-0 shrink-0 opacity-50 group-hover/nostr:opacity-100 transition-opacity"
 							onClick={(e) => {
 								e.stopPropagation();
-								handleCopy(cloneUrls[0]);
+								handleCopy(nostrCloneUrl);
 							}}
 						>
-							<Copy className="size-3" />
+							{copied ? <Check className="size-3" /> : <Copy className="size-3" />}
 							<span className="sr-only">
 								{copied ? "Copied" : "Copy"}
 							</span>
 						</Button>
-					</div>
-				)}
+				</div>
 
 				{/* Action buttons */}
-				{(hasShakespeare || isApp || webUrls[0] || cloneUrls[0]) && (
+				{(hasShakespeare || isApp || webUrls[0]) && (
 					<div className="flex flex-wrap gap-2 pt-0.5">
 						{hasShakespeare && (
 							<button
@@ -159,18 +157,6 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 							>
 								<Globe className="size-3" />
 								Browse Repository
-							</button>
-						) : !hasShakespeare && cloneUrls[0] ? (
-							<button
-								type="button"
-								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
-								onClick={(e) => {
-									e.stopPropagation();
-									handleCopy(cloneUrls[0]);
-								}}
-							>
-								<Copy className="size-3" />
-								{copied ? "Copied!" : "Copy Clone URL"}
 							</button>
 						) : null}
 					</div>

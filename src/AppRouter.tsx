@@ -31,7 +31,6 @@ import { HomePage } from "./pages/HomePage";
 import Index from "./pages/Index";
 import { KindFeedPage } from "./pages/KindFeedPage";
 import { MagicSettingsPage } from "./pages/MagicSettingsPage";
-import Messages from "./pages/Messages";
 import { MusicFeedPage } from "./pages/MusicFeedPage";
 import { NetworkSettingsPage } from "./pages/NetworkSettingsPage";
 import { NIP19Page } from "./pages/NIP19Page";
@@ -57,7 +56,10 @@ import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
 import { WorldPage } from "./pages/WorldPage";
 import { ArchivePage } from "./pages/ArchivePage";
 import { BlueskyPage } from "./pages/BlueskyPage";
+import { ChangelogPage } from "./pages/ChangelogPage";
 import { WikipediaPage } from "./pages/WikipediaPage";
+import { LettersPage } from "./pages/LettersPage";
+import { LetterPreferencesPage } from "./pages/LetterPreferencesPage";
 
 const pollsDef = getExtraKindDef("polls")!;
 const colorsDef = getExtraKindDef("colors")!;
@@ -108,7 +110,6 @@ export function AppRouter() {
             <Route path="/" element={<HomePage />} />
             <Route path="/feed" element={<Index />} />
             <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/messages" element={<Messages />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/trends" element={<TrendsPage />} />
             <Route path="/profile" element={<ProfileRedirect />} />
@@ -219,9 +220,12 @@ export function AppRouter() {
             <Route path="/archive" element={<ArchivePage />} />
             <Route path="/bluesky" element={<BlueskyPage />} />
             <Route path="/wikipedia" element={<WikipediaPage />} />
+            <Route path="/letters" element={<LettersPage />} />
+            <Route path="/settings/letters" element={<LetterPreferencesPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/safety" element={<CSAEPolicyPage />} />
+            <Route path="/changelog" element={<ChangelogPage />} />
             <Route path="/r/*" element={<RelayPage />} />
             <Route
               path="/settings/lists"

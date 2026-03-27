@@ -58,7 +58,7 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
           className="w-full rounded-xl object-cover max-h-96 mb-6"
         />
       )}
-      <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-headings:font-bold prose-a:text-primary prose-img:rounded-lg">
+      <div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">
         <Markdown rehypePlugins={[rehypeSanitize]}>
           {event.content}
         </Markdown>

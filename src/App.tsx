@@ -103,8 +103,8 @@ const hardcodedConfig: AppConfig = {
     showPodcasts: true,
     feedIncludePodcastEpisodes: true,
     feedIncludePodcastTrailers: true,
-    showDevelopment: false,
-    feedIncludeDevelopment: false,
+    showDevelopment: true,
+    feedIncludeDevelopment: true,
     showBadges: true,
     showBadgeDefinitions: true,
     showProfileBadges: true,
@@ -116,7 +116,6 @@ const hardcodedConfig: AppConfig = {
   sidebarOrder: [
     "feed",
     "notifications",
-    "messages",
     "search",
     "bookmarks",
     "profile",

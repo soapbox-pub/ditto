@@ -20,6 +20,8 @@ import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useWikipediaSearch, type WikipediaSearchResult } from '@/hooks/useWikipediaSearch';
 import { useArchiveSearch, type ArchiveSearchResult } from '@/hooks/useArchiveSearch';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
+import { searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
 
 interface MobileSearchSheetProps {
@@ -30,6 +32,7 @@ interface MobileSearchSheetProps {
 export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useCurrentUser();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +49,9 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
 
   // Country suggestion (local, synchronous)
   const countryMatch = useMemo(() => searchCountry(query), [query]);
+
+  // Nav item suggestions (local, synchronous)
+  const navItems = useMemo(() => searchSidebarItems(query, !!user), [query, user]);
 
   // URL detection — show "Comment on" option when query is a full URL
   const queryIsUrl = useMemo(() => isFullUrl(query), [query]);
@@ -79,11 +85,14 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   const hasIdentifier = !!identifierMatch;
   const hasWikipedia = !!wikipediaResult;
   const hasArchive = !!archiveResult;
+  const navItemCount = navItems.length;
 
-  const totalItems = profileCount + (hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0) + (hasIdentifier ? 1 : 0) + (hasWikipedia ? 1 : 0) + (hasArchive ? 1 : 0);
+  const totalItems = navItemCount + profileCount + (hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0) + (hasIdentifier ? 1 : 0) + (hasWikipedia ? 1 : 0) + (hasArchive ? 1 : 0);
 
-  // Order: [identifier?, commentUrl?, country?(top), ...profiles, country?(bottom), wikipedia?, archive?]
+  // Order: [...navItems, identifier?, commentUrl?, country?(top), ...profiles, country?(bottom), wikipedia?, archive?]
   let nextMobileIdx = 0;
+  const navItemStartIndex = nextMobileIdx;
+  nextMobileIdx += navItemCount;
   const identifierIndex = hasIdentifier ? nextMobileIdx++ : -1;
   const urlCommentIndex = hasUrlComment ? nextMobileIdx++ : -1;
   const countryTopIndex = (hasCountry && countryAtTop) ? nextMobileIdx++ : -1;
@@ -132,6 +141,11 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
     navigate(path);
   }, [navigate, handleClose]);
 
+  const handleSelectNavItem = useCallback((item: SidebarItemDef) => {
+    handleClose();
+    navigate(item.path);
+  }, [navigate, handleClose]);
+
   const handleSelectWikipedia = useCallback((result: WikipediaSearchResult) => {
     handleClose();
     navigate(`/i/${encodeURIComponent(result.url)}`);
@@ -166,7 +180,9 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (selectedIndex >= 0 && selectedIndex < totalItems) {
-        if (hasIdentifier && selectedIndex === identifierIndex) {
+        if (navItemCount > 0 && selectedIndex >= navItemStartIndex && selectedIndex < navItemStartIndex + navItemCount) {
+          handleSelectNavItem(navItems[selectedIndex - navItemStartIndex]);
+        } else if (hasIdentifier && selectedIndex === identifierIndex) {
           // Identifier item navigation path is determined by the component
           // Trigger via its onClick handler
           const sheet = document.querySelector('[data-mobile-search-results]');
@@ -198,7 +214,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
     }
   };
 
-  const hasResults = query.trim().length > 0 && (hasIdentifier || hasUrlComment || hasCountry || hasWikipedia || hasArchive || (profiles && profiles.length > 0));
+  const hasResults = query.trim().length > 0 && (navItemCount > 0 || hasIdentifier || hasUrlComment || hasCountry || hasWikipedia || hasArchive || (profiles && profiles.length > 0));
 
   if (!open) return null;
 
@@ -216,6 +232,14 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
         {/* Results list — reversed so closest to input = most relevant */}
         {hasResults && (
           <div data-mobile-search-results className="flex flex-col-reverse bg-popover/95 rounded-2xl mx-6 mb-0.5 overflow-hidden max-h-[55vh] overflow-y-auto shadow-lg">
+            {navItems.map((item, index) => (
+              <MobileNavItem
+                key={item.id}
+                item={item}
+                isSelected={index + navItemStartIndex === selectedIndex}
+                onClick={handleSelectNavItem}
+              />
+            ))}
             {hasIdentifier && (
               <MobileIdentifierItem
                 match={identifierMatch!}
@@ -311,6 +335,37 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
         </div>
       </div>
     </>
+  );
+}
+
+function MobileNavItem({
+  item,
+  isSelected,
+  onClick,
+}: {
+  item: SidebarItemDef;
+  isSelected: boolean;
+  onClick: (item: SidebarItemDef) => void;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <button
+      data-search-item
+      role="option"
+      aria-selected={isSelected}
+      className={cn(
+        'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+      onClick={() => onClick(item)}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <div className="size-9 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+        <Icon className="size-3.5 text-primary" />
+      </div>
+      <span className="font-semibold text-sm truncate">{item.label}</span>
+    </button>
   );
 }
 

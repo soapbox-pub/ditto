@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Award, Copy, Check, Users, Gift, Loader2, MessageCircle, Newspaper, MoreHorizontal } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -33,6 +33,7 @@ import { genUserName } from '@/lib/genUserName';
 import { formatNumber } from '@/lib/formatNumber';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { parseBadgeDefinition } from '@/components/BadgeContent';
+import { useCardTilt } from '@/hooks/useCardTilt';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { AwardBadgeDialog } from '@/components/AwardBadgeDialog';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
@@ -146,40 +147,9 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
 
   return (
     <div>
-      {/* Hero badge image */}
+      {/* Hero badge image with 3D tilt */}
       {heroImage ? (
-        <div className="relative isolate flex justify-center py-10 overflow-hidden">
-          {/* Rotating light rays */}
-          <div
-            className="absolute -z-10 pointer-events-none"
-            aria-hidden="true"
-            style={{
-              width: 420,
-              height: 420,
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-            }}
-          >
-            <div
-              className="w-full h-full animate-badge-spotlight"
-              style={{
-                background: `repeating-conic-gradient(
-                  hsl(var(--primary) / 0.08) 0deg 6deg,
-                  transparent 6deg 18deg
-                )`,
-                maskImage: 'radial-gradient(circle, black 15%, transparent 70%)',
-                WebkitMaskImage: 'radial-gradient(circle, black 15%, transparent 70%)',
-              }}
-            />
-          </div>
-          <img
-            src={heroImage}
-            alt={badge.name}
-            className="size-36 rounded-2xl object-cover drop-shadow-lg relative z-[1]"
-            loading="lazy"
-          />
-        </div>
+        <BadgeHero heroImage={heroImage} badgeName={badge.name} />
       ) : (
         <div className="flex items-center justify-center h-[180px]">
           <Award className="size-16 text-primary/20" />
@@ -570,6 +540,122 @@ function AwardeeCardSkeleton() {
       <div className="flex-1 min-w-0 space-y-1.5">
         <Skeleton className="h-4 w-28" />
         <Skeleton className="h-3 w-48" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Badge hero with interactive 3D tilt. Hovering moves the badge in
+ * perspective space while a specular glare overlay tracks the pointer,
+ * making the badge feel like a tangible, glossy object.
+ */
+/** Extra padding (px) around the badge that expands the pointer hit-area. */
+const INTERACT_PAD = 80;
+
+function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: string }) {
+  const tilt = useCardTilt(30, 1.06);
+  const glareRef = useRef<HTMLDivElement>(null);
+
+  // Mask string that clips overlays to the badge image's visible pixels.
+  // This ensures glare and edge effects don't paint over transparent areas.
+  const imageMask: React.CSSProperties = {
+    maskImage: `url(${heroImage})`,
+    WebkitMaskImage: `url(${heroImage})`,
+    maskSize: 'cover',
+    WebkitMaskSize: 'cover',
+    maskRepeat: 'no-repeat',
+    WebkitMaskRepeat: 'no-repeat',
+    maskPosition: 'center',
+    WebkitMaskPosition: 'center',
+  };
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      tilt.onPointerMove(e);
+
+      // Move the specular glare to follow the cursor.
+      // Coordinates are mapped to the image area (inset by INTERACT_PAD).
+      const el = tilt.ref.current;
+      const glare = glareRef.current;
+      if (!el || !glare) return;
+      const rect = el.getBoundingClientRect();
+      const x = ((e.clientX - rect.left - INTERACT_PAD) / (rect.width - INTERACT_PAD * 2)) * 100;
+      const y = ((e.clientY - rect.top - INTERACT_PAD) / (rect.height - INTERACT_PAD * 2)) * 100;
+      glare.style.background = `radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.08) 35%, transparent 65%)`;
+      glare.style.opacity = '1';
+    },
+    [tilt],
+  );
+
+  const handlePointerLeave = useCallback(
+    () => {
+      tilt.onPointerLeave();
+      const glare = glareRef.current;
+      if (glare) glare.style.opacity = '0';
+    },
+    [tilt],
+  );
+
+  return (
+    <div className="relative isolate flex justify-center py-10 overflow-hidden">
+      {/* Rotating light rays (behind tilt container) */}
+      <div
+        className="absolute -z-10 pointer-events-none"
+        aria-hidden="true"
+        style={{
+          width: 420,
+          height: 420,
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+        }}
+      >
+        <div
+          className="w-full h-full animate-badge-spotlight"
+          style={{
+            background: `repeating-conic-gradient(
+              hsl(var(--primary) / 0.08) 0deg 6deg,
+              transparent 6deg 18deg
+            )`,
+            maskImage: 'radial-gradient(circle, black 15%, transparent 70%)',
+            WebkitMaskImage: 'radial-gradient(circle, black 15%, transparent 70%)',
+          }}
+        />
+      </div>
+
+      {/*
+        3D-tiltable badge. The large padding expands the pointer hit-area
+        well beyond the image so the mouse begins influencing tilt from a
+        distance. Negative margin compensates so layout stays unchanged.
+      */}
+      <div
+        ref={tilt.ref}
+        style={{ ...tilt.style, transformStyle: 'preserve-3d', padding: INTERACT_PAD, margin: -INTERACT_PAD }}
+        onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
+        className="relative select-none"
+      >
+        <img
+          src={heroImage}
+          alt={badgeName}
+          className="size-36 object-cover drop-shadow-lg"
+          loading="lazy"
+          draggable={false}
+        />
+        {/* Specular glare overlay — masked to the image's alpha channel */}
+        <div
+          ref={glareRef}
+          className="absolute pointer-events-none"
+          style={{
+            inset: INTERACT_PAD,
+            opacity: 0,
+            transition: 'opacity 0.4s ease-out',
+            mixBlendMode: 'overlay',
+            ...imageMask,
+          }}
+          aria-hidden="true"
+        />
       </div>
     </div>
   );

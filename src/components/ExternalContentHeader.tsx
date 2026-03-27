@@ -1084,6 +1084,8 @@ function hasVideo(tags: string[][]): boolean {
 const WELL_KNOWN_KIND_LABELS: Record<number, string> = {
   32267: 'App',
   30063: 'Release',
+  15128: 'Nsite',
+  35128: 'Nsite',
 };
 
 export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
@@ -1107,6 +1109,7 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
     if (kindDef?.id) return CONTENT_KIND_ICONS[kindDef.id] ?? FileText;
     // Fallback icons for well-known kinds not in EXTRA_KINDS
     if (addr.kind === 32267 || addr.kind === 30063) return Package;
+    if (addr.kind === 15128 || addr.kind === 35128) return Globe;
     return FileText;
   }, [kindDef, addr.kind]);
 
