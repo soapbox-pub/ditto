@@ -1031,13 +1031,13 @@ function generateAngerRiseEffect(bodyPath: BodyPathInfo, config: BodyEffectConfi
  * Sleepy "Micro-Sleep" Animation
  * 
  * Creates a cute dozing-off cycle where Blobbi:
- * 1. Starts awake with normal smile
- * 2. Eyes slowly close while mouth transitions: smile → flat → small round
- * 3. Eyes fully close with visible curved eyelid lines
- * 4. Zzz appears above head
+ * 1. Starts awake with normal smile, Zzz starts appearing softly
+ * 2. Eyes slowly close while mouth transitions: smile → U-shaped sleepy mouth
+ * 3. Eyes fully close (completely hidden) with visible curved eyelid lines
+ * 4. Zzz fully visible above head
  * 5. Stays asleep briefly (~1 second)
  * 6. Wakes up with quick right-left glance
- * 7. Mouth returns to smile
+ * 7. Mouth returns from U-shaped back to smile
  * 8. Cycle repeats
  */
 
@@ -1060,19 +1060,20 @@ function generateSleepyStyles(config: SleepyAnimationConfig): string {
   return `
   <style type="text/css">
     /* Main eye closing/opening animation */
+    /* Eyes fully close to scaleY(0) so original eye is completely hidden */
     @keyframes sleepy-eye-close {
       0%, 10% { transform: scaleY(1); }
       35% { transform: scaleY(0.1); }
-      50%, 62% { transform: scaleY(0.05); }
+      40%, 62% { transform: scaleY(0); }
       75% { transform: scaleY(1); }
       100% { transform: scaleY(1); }
     }
     
-    /* Closed eye line visibility */
+    /* Closed eye line visibility - appears when eyes are closing */
     @keyframes sleepy-closed-eye {
       0%, 30% { opacity: 0; }
-      40%, 65% { opacity: 1; }
-      75%, 100% { opacity: 0; }
+      38%, 65% { opacity: 1; }
+      73%, 100% { opacity: 0; }
     }
     
     /* Wake-up glance animation (applied to blobbi-eye groups) */
@@ -1083,16 +1084,19 @@ function generateSleepyStyles(config: SleepyAnimationConfig): string {
       88%, 100% { transform: translateX(0); }
     }
     
-    /* Zzz fade in/out */
+    /* Zzz fade in/out - starts appearing from the beginning, softly at first */
     @keyframes sleepy-zzz {
-      0%, 25% { opacity: 0; }
-      40%, 60% { opacity: 1; }
+      0% { opacity: 0; }
+      10% { opacity: 0.2; }
+      20% { opacity: 0.4; }
+      35%, 60% { opacity: 1; }
       70%, 100% { opacity: 0; }
     }
     
-    /* Zzz float up animation */
+    /* Zzz float up animation - starts floating from the beginning */
     @keyframes sleepy-zzz-float {
-      0%, 25% { transform: translateY(0); }
+      0% { transform: translateY(0); }
+      35% { transform: translateY(-4px); }
       60% { transform: translateY(-8px); }
       70%, 100% { transform: translateY(-10px); }
     }
@@ -1121,41 +1125,35 @@ function generateSleepyStyles(config: SleepyAnimationConfig): string {
 
 /**
  * Generate animated sleepy mouth that transitions:
- * smile → flat line → small round → flat line → smile
+ * smile → U-shaped sleepy mouth → smile
  * 
  * Uses SVG SMIL animation on path d attribute for smooth morphing.
+ * No intermediate flat line - direct transition to the cute U-shaped mouth.
  */
 function generateSleepyMouth(mouth: MouthPosition, config: SleepyAnimationConfig): string {
   const dur = config.cycleDuration;
   
-  // Calculate mouth center for round mouth position
+  // Calculate mouth center for U-shaped mouth position
   const centerX = (mouth.startX + mouth.endX) / 2;
   const baselineY = (mouth.startY + mouth.endY) / 2;
   
   // 1. Original smile path
   const smilePath = `M ${mouth.startX} ${mouth.startY} Q ${mouth.controlX} ${mouth.controlY} ${mouth.endX} ${mouth.endY}`;
   
-  // 2. Flat line path (straight)
-  const flatPath = `M ${mouth.startX} ${baselineY} Q ${centerX} ${baselineY} ${mouth.endX} ${baselineY}`;
-  
-  // 3. Small round mouth (using same path structure but forming a small O)
-  // We approximate a small circle using the Q curve by making start/end close together
+  // 2. U-shaped sleepy mouth (small, cute, rounded)
   const roundRadius = 3;
-  const roundPath = `M ${centerX - roundRadius} ${baselineY} Q ${centerX - roundRadius} ${baselineY + roundRadius * 1.5} ${centerX} ${baselineY + roundRadius * 1.5} Q ${centerX + roundRadius} ${baselineY + roundRadius * 1.5} ${centerX + roundRadius} ${baselineY}`;
+  const uMouthPath = `M ${centerX - roundRadius} ${baselineY} Q ${centerX - roundRadius} ${baselineY + roundRadius * 1.5} ${centerX} ${baselineY + roundRadius * 1.5} Q ${centerX + roundRadius} ${baselineY + roundRadius * 1.5} ${centerX + roundRadius} ${baselineY}`;
   
-  // Intermediate: slightly less curved smile
-  const slightCurveY = baselineY + (mouth.controlY - baselineY) * 0.5;
-  const slightCurvePath = `M ${mouth.startX} ${mouth.startY} Q ${mouth.controlX} ${slightCurveY} ${mouth.endX} ${mouth.endY}`;
+  // Intermediate: smile that's starting to close (less wide, transitioning toward U)
+  const transitionPath = `M ${centerX - roundRadius * 2} ${baselineY} Q ${centerX} ${mouth.controlY * 0.7 + baselineY * 0.3} ${centerX + roundRadius * 2} ${baselineY}`;
   
-  // Timeline:
+  // Timeline - direct smile to U-shaped transition:
   // 0-10%:   smile (awake)
-  // 10-20%:  smile → slight curve (getting sleepy)
-  // 20-30%:  slight curve → flat (more sleepy)
-  // 30-40%:  flat → round (falling asleep)
-  // 40-62%:  round (asleep)
-  // 62-70%:  round → flat (waking)
-  // 70-80%:  flat → slight curve
-  // 80-90%:  slight curve → smile
+  // 10-25%:  smile → transition (getting sleepy)
+  // 25-40%:  transition → U-shaped (falling asleep)
+  // 40-62%:  U-shaped (asleep)
+  // 62-75%:  U-shaped → transition (waking)
+  // 75-90%:  transition → smile
   // 90-100%: smile (awake, glancing)
   
   return `<path 
@@ -1167,12 +1165,12 @@ function generateSleepyMouth(mouth: MouthPosition, config: SleepyAnimationConfig
   >
     <animate
       attributeName="d"
-      values="${smilePath};${smilePath};${slightCurvePath};${flatPath};${roundPath};${roundPath};${flatPath};${slightCurvePath};${smilePath};${smilePath}"
-      keyTimes="0;0.10;0.20;0.30;0.40;0.62;0.70;0.80;0.90;1"
+      values="${smilePath};${smilePath};${transitionPath};${uMouthPath};${uMouthPath};${transitionPath};${smilePath};${smilePath}"
+      keyTimes="0;0.10;0.25;0.40;0.62;0.75;0.90;1"
       dur="${dur}s"
       repeatCount="indefinite"
       calcMode="spline"
-      keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"
+      keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"
     />
   </path>`;
 }
