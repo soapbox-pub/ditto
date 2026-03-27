@@ -59,6 +59,38 @@ export const BLOBBI_PREVIEW_REROLL_COST = 10;
 /** Cost to adopt a Blobbi from the preview */
 export const BLOBBI_ADOPTION_COST = 100;
 
+// ─── Date/Time Utilities ──────────────────────────────────────────────────────
+
+/**
+ * Get the current local day as a YYYY-MM-DD string.
+ * Uses the user's local timezone for day boundary calculation.
+ */
+export function getLocalDayString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Parse a YYYY-MM-DD string into a Date object (at midnight local time).
+ */
+export function parseLocalDayString(dayString: string): Date {
+  const [year, month, day] = dayString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * Get the number of days between two local day strings.
+ * Returns 0 if same day, 1 if consecutive days, etc.
+ */
+export function getDaysDifference(dayA: string, dayB: string): number {
+  const dateA = parseLocalDayString(dayA);
+  const dateB = parseLocalDayString(dayB);
+  const diffMs = Math.abs(dateB.getTime() - dateA.getTime());
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type BlobbiStage = 'egg' | 'baby' | 'adult';
@@ -231,6 +263,10 @@ export interface BlobbiCompanion {
   experience: number | undefined;
   /** Consecutive care days */
   careStreak: number | undefined;
+  /** Unix timestamp (seconds) of last streak update */
+  careStreakLastAt: number | undefined;
+  /** Local day string (YYYY-MM-DD) of last streak update */
+  careStreakLastDay: string | undefined;
   /** 
    * @deprecated Incubation time in seconds - no longer used.
    * Task system uses state_started_at instead.
@@ -908,6 +944,8 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     breedingReady: parseBooleanTag(tags, 'breeding_ready', false),
     experience: parseNumericTag(tags, 'experience'),
     careStreak: parseNumericTag(tags, 'care_streak'),
+    careStreakLastAt: parseNumericTag(tags, 'care_streak_last_at'),
+    careStreakLastDay: getTagValue(tags, 'care_streak_last_day'),
     incubationTime: parseNumericTag(tags, 'incubation_time'),
     startIncubation: parseNumericTag(tags, 'start_incubation'),
     adultType: getTagValue(tags, 'adult_type'),
@@ -1002,7 +1040,9 @@ export function buildEggTags(
     ['generation', '1'],
     ['breeding_ready', 'false'],
     ['experience', '0'],
-    ['care_streak', '0'],
+    ['care_streak', '1'],
+    ['care_streak_last_at', now],
+    ['care_streak_last_day', getLocalDayString()],
     ['hunger', DEFAULT_EGG_STATS.hunger.toString()],
     ['happiness', DEFAULT_EGG_STATS.happiness.toString()],
     ['health', DEFAULT_EGG_STATS.health.toString()],
@@ -1042,7 +1082,7 @@ export const MANAGED_BLOBBI_STATE_TAG_NAMES = new Set([
   // Identity/personality tags (MUST persist across stage transitions)
   'personality', 'trait', 'favorite_food', 'voice_type', 'mood',
   // Progression tags
-  'experience', 'care_streak',
+  'experience', 'care_streak', 'care_streak_last_at', 'care_streak_last_day',
   // Social/flag tags
   'visible_to_others', 'breeding_ready',
   // Task system tags (removed after stage transitions)
@@ -1421,7 +1461,7 @@ export function buildMigrationTags(
     // Stat tags
     'hunger', 'happiness', 'health', 'hygiene', 'energy',
     // Progression tags
-    'experience', 'care_streak',
+    'experience', 'care_streak', 'care_streak_last_at', 'care_streak_last_day',
     // Social/flag tags
     'visible_to_others', 'generation', 'breeding_ready',
     // Personality tags (preserve if they exist, do NOT generate)

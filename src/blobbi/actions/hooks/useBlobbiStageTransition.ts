@@ -27,6 +27,7 @@ import {
 } from '@/lib/blobbi';
 import { applyBlobbiDecay } from '@/lib/blobbi-decay';
 import { validateAndRepairBlobbiTags } from '@/lib/blobbi-tag-schema';
+import { getStreakTagUpdates } from '../lib/blobbi-streak';
 
 // ─── Content Helpers ──────────────────────────────────────────────────────────
 
@@ -172,6 +173,9 @@ export function useBlobbiHatch({
       const nowStr = now.toString();
       
       // Build the updated tags using the central merge function
+      // Get streak updates (hatching counts as care activity!)
+      const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
+      
       const mergedTags = updateBlobbiTags(canonical.allTags, {
         stage: 'baby',
         state: 'active', // Newly hatched babies are awake
@@ -180,6 +184,7 @@ export function useBlobbiHatch({
         health: babyStats.health.toString(),
         hygiene: babyStats.hygiene.toString(),
         energy: babyStats.energy.toString(),
+        ...streakUpdates,
         last_interaction: nowStr,
         last_decay_at: nowStr,
       });
@@ -323,6 +328,9 @@ export function useBlobbiEvolve({
       // This preserves ALL identity attributes (personality, trait, favorite_food, etc.)
       const nowStr = now.toString();
       
+      // Get streak updates (evolving counts as care activity!)
+      const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
+      
       // Build the updated tags using the central merge function
       const mergedTags = updateBlobbiTags(canonical.allTags, {
         stage: 'adult',
@@ -332,6 +340,7 @@ export function useBlobbiEvolve({
         health: adultStats.health.toString(),
         hygiene: adultStats.hygiene.toString(),
         energy: adultStats.energy.toString(),
+        ...streakUpdates,
         last_interaction: nowStr,
         last_decay_at: nowStr,
       });

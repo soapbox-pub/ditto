@@ -15,7 +15,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
 import type { BlobbiCompanion, BlobbiStage } from '@/lib/blobbi';
-import { KIND_BLOBBI_STATE, updateBlobbiTags } from '@/lib/blobbi';
+import { KIND_BLOBBI_STATE, updateBlobbiTags, getLocalDayString } from '@/lib/blobbi';
 import type { BlobbiDevUpdates } from './BlobbiDevEditor';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -127,6 +127,9 @@ export function useBlobbiDevUpdate({
       }
       if (updates.careStreak !== undefined) {
         tagUpdates.care_streak = updates.careStreak.toString();
+        // Also update the streak metadata when manually setting streak
+        tagUpdates.care_streak_last_at = now.toString();
+        tagUpdates.care_streak_last_day = getLocalDayString();
         changedFields.push('care_streak');
       }
       if (updates.breedingReady !== undefined) {

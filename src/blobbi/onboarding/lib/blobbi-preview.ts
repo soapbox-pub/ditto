@@ -13,6 +13,7 @@ import {
   deriveBlobbiSeedV1,
   generatePetId10,
   getCanonicalBlobbiD,
+  getLocalDayString,
   type BlobbiVisualTraits,
   type BlobbiStats,
 } from '@/lib/blobbi';
@@ -135,7 +136,9 @@ export function previewToEventTags(preview: BlobbiEggPreview): string[][] {
     ['generation', '1'],
     ['breeding_ready', 'false'],
     ['experience', '0'],
-    ['care_streak', '0'],
+    ['care_streak', '1'],
+    ['care_streak_last_at', now],
+    ['care_streak_last_day', getLocalDayString(new Date(preview.createdAt * 1000))],
     ['hunger', preview.stats.hunger.toString()],
     ['happiness', preview.stats.happiness.toString()],
     ['health', preview.stats.health.toString()],
@@ -179,7 +182,9 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     generation: 1,
     breedingReady: false,
     experience: 0,
-    careStreak: 0,
+    careStreak: 1,
+    careStreakLastAt: preview.createdAt,
+    careStreakLastDay: getLocalDayString(new Date(preview.createdAt * 1000)),
     incubationTime: undefined, // Deprecated field, no longer used
     startIncubation: undefined, // Deprecated field, no longer used
     adultType: undefined, // Eggs don't have adult type

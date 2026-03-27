@@ -31,6 +31,7 @@ import {
 } from '../lib/blobbi-action-utils';
 import { trackMultipleDailyMissionActions } from '../lib/daily-mission-tracker';
 import type { DailyMissionAction } from '../lib/daily-missions';
+import { getStreakTagUpdates } from '../lib/blobbi-streak';
 import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';
 import { EVOLVE_REQUIRED_INTERACTIONS } from './useEvolveTasks';
 
@@ -284,8 +285,12 @@ export function useBlobbiUseInventoryItem({
         updatedTags = incrementInteractionTaskTags(canonical.allTags, EVOLVE_REQUIRED_INTERACTIONS).updatedTags;
       }
       
+      // Get streak updates (will only update if needed based on day)
+      const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
+      
       const blobbiTags = updateBlobbiTags(updatedTags, {
         ...statsUpdate,
+        ...streakUpdates,
         last_interaction: nowStr,
         last_decay_at: nowStr,
       });
