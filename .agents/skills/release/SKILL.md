@@ -9,14 +9,14 @@ This skill guides you through publishing a new release of the app. It handles ve
 
 ## Overview
 
-- **Version format**: Semantic versioning (X.Y.Z), starting from 2.0.0
+- **Version format**: Marketing version (X.Y.Z), starting from 2.0.0. **This is NOT semver.** Version numbers are chosen based on how the release looks to end users, not based on API compatibility or breaking changes. Think of it like an app store version -- the number reflects the perceived significance of the update to a regular user.
 - **Version source of truth**: `package.json` `version` field
 - **Changelog**: `CHANGELOG.md` in repo root, using [Keep a Changelog](https://keepachangelog.com/) format
-- **Version bumping**: Marketing-driven (not strict semver)
-  - **Patch (Z)**: Bug fixes, minor tweaks, dependency updates, small UI adjustments
-  - **Minor (Y)**: New user-facing features, significant UI changes, new pages/screens
+- **Version bumping**:
+  - **Patch (Z)**: Most releases. Bug fixes, tweaks, internal improvements, anything a user wouldn't specifically notice or seek out.
+  - **Minor (Y)**: Releases with headline features -- things worth announcing. A user should be able to look at the minor bump and think "oh, something new happened."
   - **Major (X)**: Only when the user explicitly requests it (milestones, rebrands, major redesigns)
-- **CI trigger**: Pushing a semver tag (`v2.1.0`) triggers the CI pipeline to build APKs, create a GitLab release, and publish to Zapstore
+- **CI trigger**: Pushing a version tag (`v2.1.0`) triggers the CI pipeline to build APKs, create a GitLab release, and publish to Zapstore
 
 ## Release Procedure
 
@@ -69,11 +69,11 @@ Analyze the commits from Step 3 and determine the appropriate bump level:
 
 | Bump | When to use | Example |
 |------|-------------|---------|
-| **Patch** | Bug fixes, minor tweaks, dependency updates, small UI polish | 2.0.0 -> 2.0.1 |
-| **Minor** | New user-facing features, new screens/pages, significant UI changes | 2.0.1 -> 2.1.0 |
+| **Patch** | Bug fixes, minor tweaks, dependency updates, small UI polish, internal tooling, developer-facing pages, CI/build changes, settings/admin screens | 2.0.0 -> 2.0.1 |
+| **Minor** | Significant new product features that change how users interact with the app -- the kind of thing you'd highlight in an app store update or announce on social media (e.g., new content type support, DM redesign, new social features, theme system overhaul) | 2.0.1 -> 2.1.0 |
 | **Major** | ONLY when the user explicitly instructs a major bump | 2.1.0 -> 3.0.0 |
 
-**Default to patch** when in doubt. Choose minor if there are clearly new features. Never auto-bump major.
+**Default to patch** when in doubt. The bar for a minor bump is high -- ask yourself: "Would a regular user notice and care about this change?" If the answer is no, it's a patch. Internal pages (changelog, settings, about screens), infrastructure improvements, CI fixes, and developer tooling are always patch-level regardless of whether they technically add a new page or screen.
 
 When bumping minor, reset patch to 0 (e.g., 2.0.3 -> 2.1.0).
 When bumping major, reset minor and patch to 0 (e.g., 2.3.1 -> 3.0.0).
