@@ -73,7 +73,7 @@ export function ChangelogPage() {
     <main className="min-h-screen pb-16 sidebar:pb-0">
       <PageHeader title="Changelog" icon={<ScrollText className="size-5" />} backTo="/settings" />
 
-      <div className="px-4 pb-8 space-y-4">
+      <div className="px-4 pt-3 pb-8 space-y-4">
         {error ? (
           <p className="text-sm text-muted-foreground pt-4">Failed to load changelog.</p>
         ) : content === null ? (
