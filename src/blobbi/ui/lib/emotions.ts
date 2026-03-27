@@ -57,8 +57,10 @@ export interface EmotionConfig {
 }
 
 export interface PupilModification {
-  /** Add watery eye effect with repositioned highlights and blue fill */
+  /** Add watery eye effect with repositioned highlights */
   wateryEyes: boolean;
+  /** Include blue watery fill at bottom of eye (default: true when wateryEyes is true) */
+  includeWaterFill?: boolean;
 }
 
 export interface EyebrowConfig {
@@ -293,9 +295,10 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
     },
   },
   adoring: {
-    // Same watery eyes as sad (with highlights/watery effect)
+    // Watery eyes with highlights but WITHOUT the blue water fill
     pupilModification: {
       wateryEyes: true,
+      includeWaterFill: false, // No blue semicircle, only sad keeps that
     },
     // No eyebrows
     // Curious round mouth
@@ -1391,13 +1394,13 @@ function generateStarEyes(eyes: EyePosition[], config: StarEyesConfig): string {
 
 /**
  * Generate CSS styles for star eyes effect.
- * Hides the normal eyes when star eyes are shown.
+ * Hides the pupils but keeps the white eye circles visible behind the stars.
  */
 function generateStarEyesStyles(): string {
   return `
   <style type="text/css">
-    /* Hide normal eyes when star eyes are active */
-    .blobbi-star-eyes .blobbi-blink {
+    /* Hide only the pupils/tracking group, keep eye whites visible */
+    .blobbi-star-eyes .blobbi-eye {
       opacity: 0;
     }
   </style>`;
@@ -1504,16 +1507,6 @@ function generateSleepyStyles(config: SleepyAnimationConfig): string {
   
   return `
   <style type="text/css">
-    /* Main eye closing/opening animation */
-    /* Eyes fully close to scaleY(0) so original eye is completely hidden */
-    @keyframes sleepy-eye-close {
-      0%, 10% { transform: scaleY(1); }
-      35% { transform: scaleY(0.1); }
-      40%, 62% { transform: scaleY(0); }
-      75% { transform: scaleY(1); }
-      100% { transform: scaleY(1); }
-    }
-    
     /* Closed eye line visibility - appears when eyes are closing */
     @keyframes sleepy-closed-eye {
       0%, 30% { opacity: 0; }
@@ -1544,12 +1537,6 @@ function generateSleepyStyles(config: SleepyAnimationConfig): string {
       35% { transform: translateY(-4px); }
       60% { transform: translateY(-8px); }
       70%, 100% { transform: translateY(-10px); }
-    }
-    
-    .blobbi-sleepy .blobbi-blink {
-      animation: sleepy-eye-close ${dur}s ease-in-out infinite;
-      transform-origin: center;
-      transform-box: fill-box;
     }
     
     .blobbi-sleepy .blobbi-eye {
@@ -1679,6 +1666,46 @@ function generateSleepyZzz(): string {
  * 3. Closed eye curved lines
  * 4. Zzz floating text
  */
+/**
+ * Generate SMIL animations for clip-path rect to create sleepy eye closing effect.
+ * Uses the new clip-path blink system instead of scaleY.
+ * 
+ * Timeline (matching the original):
+ * 0-10%:   Eyes open (clip at full height)
+ * 10-35%:  Eyes slowly closing (clip shrinks from top)
+ * 35-62%:  Eyes fully closed (clip at minimum)
+ * 62-75%:  Eyes opening
+ * 75-100%: Eyes open (with wake-up glance via CSS)
+ */
+function generateSleepyClipAnimations(svgText: string, config: SleepyAnimationConfig): string {
+  const dur = config.cycleDuration;
+  
+  // Find all clip-path rects and add SMIL animations to them
+  // Pattern: <rect class="blobbi-blink-clip-rect" x="..." y="..." width="..." height="..." />
+  const clipRectRegex = /<rect\s+class="blobbi-blink-clip-rect"\s+x="([^"]+)"\s+y="([^"]+)"\s+width="([^"]+)"\s+height="([^"]+)"\s*\/>/g;
+  
+  return svgText.replace(clipRectRegex, (match, x, y, width, height) => {
+    const baseY = parseFloat(y);
+    const fullHeight = parseFloat(height);
+    
+    // Calculate closed position (95% of height hidden, clip moves down)
+    const closedOffset = fullHeight * 0.95;
+    const closedY = baseY + closedOffset;
+    const closedHeight = fullHeight - closedOffset;
+    
+    // Timeline keyTimes: open -> closing -> closed -> opening -> open
+    // 0%, 10% = open | 35% = closed | 40-62% = closed | 75% = open | 100% = open
+    const yValues = `${baseY};${baseY};${closedY};${closedY};${baseY};${baseY}`;
+    const heightValues = `${fullHeight};${fullHeight};${closedHeight};${closedHeight};${fullHeight};${fullHeight}`;
+    const keyTimes = '0;0.10;0.35;0.62;0.75;1';
+    
+    return `<rect class="blobbi-blink-clip-rect" x="${x}" y="${y}" width="${width}" height="${height}">
+        <animate attributeName="y" values="${yValues}" keyTimes="${keyTimes}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1" />
+        <animate attributeName="height" values="${heightValues}" keyTimes="${keyTimes}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1" />
+      </rect>`;
+  });
+}
+
 function applySleepyAnimation(svgText: string, eyes: EyePosition[], mouth: MouthDetectionResult | null, config: SleepyAnimationConfig): string {
   // Add 'blobbi-sleepy' class to the SVG root element for CSS targeting
   svgText = svgText.replace(/<svg([^>]*)>/, (match, attrs) => {
@@ -1691,13 +1718,16 @@ function applySleepyAnimation(svgText: string, eyes: EyePosition[], mouth: Mouth
     }
   });
   
-  // Add the CSS animations
+  // Add the CSS animations (for closed eye lines, wake-up glance, Zzz)
   const sleepyStyles = generateSleepyStyles(config);
   if (svgText.includes('<defs>')) {
     svgText = svgText.replace('<defs>', '<defs>' + sleepyStyles);
   } else {
     svgText = svgText.replace(/(<svg[^>]*>)/, '$1' + sleepyStyles);
   }
+  
+  // Add SMIL animations to clip-path rects for eye closing effect
+  svgText = generateSleepyClipAnimations(svgText, config);
   
   // Replace mouth with animated sleepy mouth
   if (mouth) {
@@ -1803,8 +1833,11 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: B
     svgText = applySadEyeHighlights(svgText, eyes);
     
     // 2. Apply blue water fill INTO blobbi-blink groups (after eye white, before pupil)
-    //    This ensures water appears above eye white but below pupil, and blinks with the eye
-    svgText = applySadEyeWaterFill(svgText, eyes);
+    //    Only if includeWaterFill is not explicitly set to false (default is true for backward compat)
+    const includeWaterFill = config.pupilModification.includeWaterFill !== false;
+    if (includeWaterFill) {
+      svgText = applySadEyeWaterFill(svgText, eyes);
+    }
   }
   
   // Generate tears
