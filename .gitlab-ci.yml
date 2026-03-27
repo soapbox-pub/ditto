@@ -152,6 +152,8 @@ release:
     - build-apk
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  variables:
+    GLAB_TOKEN: $CI_JOB_TOKEN
   script:
     - echo "Creating release for $CI_COMMIT_TAG"
     # Extract the latest changelog section for the release description.
