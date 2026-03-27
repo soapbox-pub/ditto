@@ -66,15 +66,25 @@
     }
   }
 
-  /* Mobile top bar height + safe area inset for sticky elements */
+  /* Mobile top bar height + safe area inset for sticky elements.
+     Transitions smoothly to top:0 when the top bar hides on scroll
+     (signalled by the ancestor [data-nav-hidden] attribute). */
   .top-mobile-bar {
     top: calc(var(--top-bar-height) + env(safe-area-inset-top, 0px));
   }
 
-  /* Negative margin to pull content area up behind the mobile top bar (only when it's visible) */
+  /* On mobile only: animate the sticky offset and slide to top when nav hides. */
   @media (max-width: 899px) {
-    .-mt-mobile-bar {
-      margin-top: calc(-1 * var(--top-bar-height) - env(safe-area-inset-top, 0px));
+    .top-mobile-bar {
+      transition: top 300ms ease-in-out;
+    }
+
+    [data-nav-hidden] .top-mobile-bar {
+      top: 0;
+    }
+
+    /* Top padding to clear the fixed mobile top bar. */
+    .pt-mobile-bar {
       padding-top: calc(var(--top-bar-height) + env(safe-area-inset-top, 0px));
     }
   }

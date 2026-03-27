@@ -32,6 +32,7 @@ import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
 import { Button } from '@/components/ui/button';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 type NotificationTab = 'all' | 'mentions';
@@ -128,6 +129,9 @@ export function NotificationsPage() {
           />
         ))}
       </SubHeaderBar>
+
+      {/* Spacer for the arc overhang so content doesn't overlap the arc */}
+      <div style={{ height: ARC_OVERHANG_PX }} />
 
       {/* Content */}
       <PullToRefresh onRefresh={handleRefresh}>
