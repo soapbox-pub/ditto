@@ -170,8 +170,10 @@ The tag format is `v` followed by the semver version with no suffix. Examples: `
 ### Step 10: Push
 
 ```bash
-git push origin main --tags
+git push origin main vX.Y.Z
 ```
+
+**CRITICAL**: Push only the specific tag being released. NEVER use `--tags` -- that pushes ALL local tags, including stale or deleted ones.
 
 This triggers the GitLab CI pipeline which will:
 1. Build a signed Android APK and AAB
