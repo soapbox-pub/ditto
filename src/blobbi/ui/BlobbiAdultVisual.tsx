@@ -129,8 +129,9 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
       let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId: blobbi.id });
       
       // Apply emotion overlays (eyebrows, sad mouth, tears, etc.)
+      // Pass form for form-specific adjustments (e.g., owli/froggi eyebrow positioning)
       if (emotion !== 'neutral') {
-        animatedSvg = applyEmotion(animatedSvg, emotion);
+        animatedSvg = applyEmotion(animatedSvg, emotion, 'adult', form);
       }
       
       return animatedSvg;
