@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageSquare, Loader2, Award, Check } from 'lucide-react';
+import { Zap, AtSign, MessageSquare, Loader2, Award, Check, Mail } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -31,6 +31,7 @@ import { useAcceptBadge } from '@/hooks/useAcceptBadge';
 import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
+import { LETTER_KIND } from '@/lib/letterTypes';
 import { Button } from '@/components/ui/button';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -199,6 +200,8 @@ function GroupedNotificationView({ group }: { group: GroupedNotificationItem }) 
       return solo
         ? <BadgeAwardNotification item={group.actors[0]} isNew={group.isNew} />
         : <BadgeAwardNotificationGroup group={group} />;
+    case LETTER_KIND:
+      return <LetterNotification item={group.actors[0]} isNew={group.isNew} />;
     default:
       return null;
   }
@@ -592,6 +595,30 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
         />
       </div>
       <NoteCard event={item.event} className="border-0" />
+    </NotificationWrapper>
+  );
+}
+
+// ──────────────────────────────────────
+// Letter Notification (kind 8211, always standalone)
+// ──────────────────────────────────────
+function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  return (
+    <NotificationWrapper isNew={isNew}>
+      <div className="px-4 py-3">
+        <NotificationHeader
+          actorPubkey={item.event.pubkey}
+          icon={<Mail className="size-4 text-primary" />}
+          action="sent you a letter"
+        />
+        <Link
+          to="/letters"
+          className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mt-1"
+        >
+          <Mail className="size-3" />
+          View in Letters
+        </Link>
+      </div>
     </NotificationWrapper>
   );
 }
