@@ -159,7 +159,6 @@ export function LettersPage() {
       {/* Letter detail drawer */}
       <LetterDetailSheet
         letter={selectedLetter}
-        mode={tab}
         onClose={() => setSelectedLetter(null)}
       />
 

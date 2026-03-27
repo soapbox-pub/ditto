@@ -207,6 +207,33 @@ export function tokensToCoreColors(tokens: ThemeTokens): CoreThemeColors {
   };
 }
 
+// ─── Hex color manipulation ───────────────────────────────────────────
+
+/** Darken a hex color by a factor (0 = no change, 1 = black). */
+export function darkenHex(hex: string, amount: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  const dark = (c: number) => Math.max(0, Math.round(c * (1 - amount)));
+  return rgbToHex(dark(r), dark(g), dark(b));
+}
+
+/** Lighten a hex color by a factor (0 = no change, 1 = white). */
+export function lightenHex(hex: string, amount: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  const light = (c: number) => Math.min(255, Math.round(c + (255 - c) * amount));
+  return rgbToHex(light(r), light(g), light(b));
+}
+
+/** Blend two hex colors by a factor (0 = hex1, 1 = hex2). */
+export function blendHex(hex1: string, hex2: string, amount: number): string {
+  const [r1, g1, b1] = hexToRgb(hex1);
+  const [r2, g2, b2] = hexToRgb(hex2);
+  return rgbToHex(
+    Math.round(r1 + (r2 - r1) * amount),
+    Math.round(g1 + (g2 - g1) * amount),
+    Math.round(b1 + (b2 - b1) * amount),
+  );
+}
+
 // ─── Letter stationery color utilities ────────────────────────────────
 
 /** WCAG 2.1 relative luminance of a hex color (0 = black, 1 = white). */

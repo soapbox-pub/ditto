@@ -9,7 +9,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
-import { FONT_OPTIONS, LETTER_KIND, type Letter } from '@/lib/letterTypes';
+import { FONT_OPTIONS, LETTER_KIND, LINE_HEIGHT_RATIO, type Letter } from '@/lib/letterTypes';
 import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { LetterStickers } from './LetterStickers';
@@ -110,7 +110,7 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const w = entry.contentBoxSize?.[0]?.inlineSize ?? entry.contentRect.width;
-        setLineHeightPx(Math.round(w * 0.084));
+        setLineHeightPx(Math.round(w * LINE_HEIGHT_RATIO));
       });
     });
     ro.observe(el);

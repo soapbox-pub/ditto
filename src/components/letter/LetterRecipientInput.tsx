@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { nip19 } from 'nostr-tools';
 import { Loader2, X } from 'lucide-react';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
@@ -27,7 +27,8 @@ export function LetterRecipientInput({ onSelect, initialNpub, friendsOnly = fals
 
   const { data: searchResults, isLoading } = useSearchProfiles(selected ? '' : query);
   const followListData = useFollowList();
-  const followedPubkeys = new Set(followListData.data?.pubkeys ?? []);
+  const followPubkeyArray = followListData.data?.pubkeys;
+  const followedPubkeys = useMemo(() => new Set(followPubkeyArray ?? []), [followPubkeyArray]);
 
   const profiles = (() => {
     const all = searchResults ?? [];

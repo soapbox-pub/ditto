@@ -4,6 +4,12 @@ export const LETTER_KIND = 8211;
 export const COLOR_MOMENT_KIND = 3367;
 export const THEME_KIND = 36767;
 
+/** Default stationery background color (parchment). */
+export const DEFAULT_STATIONERY_COLOR = '#F5E6D3';
+
+/** Ratio of ruled-line height to card width. Used across letter rendering components. */
+export const LINE_HEIGHT_RATIO = 0.084;
+
 /** A sticker placed on top of the letter card */
 export interface LetterSticker {
   /** Image URL of the sticker (empty string for drawn stickers) */
@@ -203,7 +209,7 @@ export interface Letter {
  * No gradients.
  */
 export const STATIONERY_PRESETS: Record<string, { name: string; color: string; emoji?: string }> = {
-  parchment: { name: 'Parchment', color: '#F5E6D3', emoji: undefined },
+  parchment: { name: 'Parchment', color: DEFAULT_STATIONERY_COLOR, emoji: undefined },
   meadow:    { name: 'Meadow',    color: '#C8E6C9', emoji: '🌿' },
   twilight:  { name: 'Twilight',  color: '#E1BEE7', emoji: '🌙' },
   ocean:     { name: 'Ocean',     color: '#B3E5FC', emoji: '🌊' },
@@ -276,12 +282,12 @@ export function presetToStationery(key: string): Stationery | undefined {
 
 /** Build a Stationery from a kind 3367 color moment event. */
 export function colorMomentToStationery(event: NostrEvent): Stationery {
-  const color = event.tags.find(([n]) => n === 'c')?.[1] ?? '#F5E6D3';
+  const color = event.tags.find(([n]) => n === 'c')?.[1] ?? DEFAULT_STATIONERY_COLOR;
   return { color, event };
 }
 
 /** Build a Stationery from a kind 36767 theme event. */
 export function themeToStationery(event: NostrEvent): Stationery {
   const bg = event.tags.filter(([n]) => n === 'c').find(([, , marker]) => marker === 'background');
-  return { color: bg?.[1] ?? '#F5E6D3', event };
+  return { color: bg?.[1] ?? DEFAULT_STATIONERY_COLOR, event };
 }
