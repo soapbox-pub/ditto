@@ -58,6 +58,13 @@ const settingsSections: SettingsSection[] = [
     requiresAuth: true,
   },
   {
+    id: 'letters',
+    label: 'Letters',
+    description: 'Default stationery, font, frame, and inbox preferences for encrypted letters',
+    path: '/settings/letters',
+    requiresAuth: true,
+  },
+  {
     id: 'advanced',
     label: 'Advanced',
     description: 'Wallet, system, and power user settings',

@@ -55,6 +55,8 @@ import { ArchivePage } from "./pages/ArchivePage";
 import { BlueskyPage } from "./pages/BlueskyPage";
 import { ChangelogPage } from "./pages/ChangelogPage";
 import { WikipediaPage } from "./pages/WikipediaPage";
+import { LettersPage } from "./pages/LettersPage";
+import { LetterPreferencesPage } from "./pages/LetterPreferencesPage";
 
 const pollsDef = getExtraKindDef("polls")!;
 const colorsDef = getExtraKindDef("colors")!;
@@ -211,6 +213,8 @@ export function AppRouter() {
             <Route path="/archive" element={<ArchivePage />} />
             <Route path="/bluesky" element={<BlueskyPage />} />
             <Route path="/wikipedia" element={<WikipediaPage />} />
+            <Route path="/letters" element={<LettersPage />} />
+            <Route path="/settings/letters" element={<LetterPreferencesPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/safety" element={<CSAEPolicyPage />} />
