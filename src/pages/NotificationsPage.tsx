@@ -41,6 +41,62 @@ import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 type NotificationTab = 'all' | 'mentions';
 
+/**
+ * Maps event kind numbers to bare noun labels for notification action text.
+ * e.g. "reacted to your **badge**", "reposted your **theme**".
+ * Falls back to "post" for unknown kinds.
+ */
+const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
+  1: 'post',
+  4: 'encrypted message',
+  6: 'repost',
+  7: 'reaction',
+  16: 'repost',
+  20: 'photo',
+  21: 'video',
+  22: 'video',
+  62: 'request to vanish',
+  1063: 'file',
+  1068: 'poll',
+  1111: 'comment',
+  1222: 'voice message',
+  1617: 'patch',
+  1618: 'pull request',
+  3367: 'color moment',
+  7516: 'found log',
+  15128: 'nsite',
+  16767: 'theme',
+  30008: 'profile badges',
+  30009: 'badge',
+  30023: 'article',
+  30030: 'emoji pack',
+  30054: 'podcast episode',
+  30055: 'podcast trailer',
+  30063: 'release',
+  30311: 'stream',
+  30315: 'status',
+  30617: 'repository',
+  30817: 'custom NIP',
+  31922: 'calendar event',
+  31923: 'calendar event',
+  32267: 'app',
+  34139: 'playlist',
+  34236: 'vine',
+  34550: 'community',
+  35128: 'nsite',
+  36767: 'theme',
+  36787: 'track',
+  37381: 'Magic deck',
+  37516: 'treasure',
+  39089: 'follow pack',
+};
+
+/** Get a bare noun label for a kind number, defaulting to "post". */
+function getNotificationKindNoun(kind: number | undefined): string {
+  if (kind === undefined) return 'post';
+  return NOTIFICATION_KIND_NOUNS[kind] ?? 'post';
+}
+
 export function NotificationsPage() {
   const { config } = useAppContext();
 
@@ -369,6 +425,7 @@ function ActorLink({ pubkey, name }: { pubkey: string; name: string }) {
 // Like Notification (single actor)
 // ──────────────────────────────────────
 function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const noun = getNotificationKindNoun(item.referencedEvent?.kind);
   return (
     <NotificationWrapper isNew={isNew}>
       <div className="px-4 pt-3">
@@ -379,7 +436,7 @@ function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: bool
               <ReactionEmoji content={item.event.content.trim()} tags={item.event.tags} className="inline-block h-4 w-4" />
             </span>
           }
-          action="reacted to your post"
+          action={`reacted to your ${noun}`}
         />
       </div>
       <ReferencedNoteCard item={item} />
@@ -391,13 +448,14 @@ function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: bool
 // Repost Notification (single actor)
 // ──────────────────────────────────────
 function RepostNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const noun = getNotificationKindNoun(item.referencedEvent?.kind);
   return (
     <NotificationWrapper isNew={isNew}>
       <div className="px-4 pt-3">
         <NotificationHeader
           actorPubkey={item.event.pubkey}
           icon={<RepostIcon className="size-4 text-accent" />}
-          action="reposted your note"
+          action={`reposted your ${noun}`}
         />
       </div>
       <ReferencedNoteCard item={item} />
@@ -466,6 +524,7 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
 function LikeNotificationGroup({ group }: { group: GroupedNotificationItem }) {
   // Use the first actor's reaction emoji as the icon
   const firstEvent = group.actors[0].event;
+  const noun = getNotificationKindNoun(group.referencedEvent?.kind);
   return (
     <NotificationWrapper isNew={group.isNew}>
       <GroupHeader
@@ -475,7 +534,7 @@ function LikeNotificationGroup({ group }: { group: GroupedNotificationItem }) {
             <ReactionEmoji content={firstEvent.content.trim()} tags={firstEvent.tags} className="inline-block h-4 w-4" />
           </span>
         }
-        action="reacted to your post"
+        action={`reacted to your ${noun}`}
       />
       <ReferencedNoteCard item={group.actors[0]} />
     </NotificationWrapper>
@@ -486,12 +545,13 @@ function LikeNotificationGroup({ group }: { group: GroupedNotificationItem }) {
 // Repost Notification (grouped)
 // ──────────────────────────────────────
 function RepostNotificationGroup({ group }: { group: GroupedNotificationItem }) {
+  const noun = getNotificationKindNoun(group.referencedEvent?.kind);
   return (
     <NotificationWrapper isNew={group.isNew}>
       <GroupHeader
         actors={group.actors}
         icon={<RepostIcon className="size-4 text-accent" />}
-        action="reposted your note"
+        action={`reposted your ${noun}`}
       />
       <ReferencedNoteCard item={group.actors[0]} />
     </NotificationWrapper>
@@ -586,7 +646,9 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
   // If the parent kind tag is "1111", this is a reply to a comment; otherwise it's a
   // top-level comment on a piece of content the user authored.
   const parentKind = item.event.tags.find(([name]) => name === 'k')?.[1];
-  const action = parentKind === '1111' ? 'replied to your comment' : 'commented on your post';
+  const parentKindNum = parentKind ? parseInt(parentKind, 10) : undefined;
+  const noun = getNotificationKindNoun(isNaN(parentKindNum as number) ? undefined : parentKindNum);
+  const action = parentKind === '1111' ? 'replied to your comment' : `commented on your ${noun}`;
 
   return (
     <NotificationWrapper isNew={isNew}>
