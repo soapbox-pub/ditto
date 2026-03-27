@@ -69,6 +69,7 @@ import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
 import { ProfileRecoveryDialog } from '@/components/ProfileRecoveryDialog';
+import { GiveBadgeDialog } from '@/components/GiveBadgeDialog';
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
@@ -155,6 +156,7 @@ interface ProfileMoreMenuProps {
 
 function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile }: ProfileMoreMenuProps) {
   const { toast } = useToast();
+  const { user } = useCurrentUser();
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
@@ -164,6 +166,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const [reportOpen, setReportOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [giveBadgeOpen, setGiveBadgeOpen] = useState(false);
 
   const close = () => onOpenChange(false);
 
@@ -220,6 +223,11 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     setTimeout(() => setRecoveryOpen(true), 150);
   };
 
+  const handleGiveBadge = () => {
+    close();
+    setTimeout(() => setGiveBadgeOpen(true), 150);
+  };
+
   return (
   <>
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -268,6 +276,13 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             <Separator />
 
             <div className="py-1">
+              {user && (
+                <MenuRow
+                  icon={<Award className="size-5" />}
+                  label="Give badge"
+                  onClick={handleGiveBadge}
+                />
+              )}
               <MenuRow
                 icon={<VolumeX className="size-5" />}
                 label={userMuted ? `Unmute @${displayName}` : `Mute @${displayName}`}
@@ -310,6 +325,15 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
       <ProfileRecoveryDialog
         open={recoveryOpen}
         onOpenChange={setRecoveryOpen}
+      />
+    )}
+
+    {!isOwnProfile && (
+      <GiveBadgeDialog
+        open={giveBadgeOpen}
+        onOpenChange={setGiveBadgeOpen}
+        recipientPubkey={pubkey}
+        recipientName={displayName}
       />
     )}
   </>
@@ -1731,7 +1755,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   }, []);
 
   useLayoutOptions(pubkey ? {
-    rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} onMediaClick={handleSidebarMediaClick} />,
+    rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} onMediaClick={handleSidebarMediaClick} pubkey={pubkey} />,
     showFAB: !(activeTab === 'wall' && !profileFollowsMe),
     onFabClick: activeTab === 'wall' ? openWallCompose : undefined,
     hasSubHeader: true,
