@@ -33,6 +33,8 @@ export interface EmotionConfig {
   eyebrows?: EyebrowConfig;
   /** Add tears animation */
   tears?: TearConfig;
+  /** Body color effect (e.g., anger rising red) */
+  bodyEffect?: BodyEffectConfig;
 }
 
 export interface PupilModification {
@@ -60,6 +62,15 @@ export interface TearConfig {
   duration: number;
   /** Pause between tear cycles in seconds (optional) */
   pauseBetween?: number;
+}
+
+export interface BodyEffectConfig {
+  /** Type of body effect */
+  type: 'anger-rise';
+  /** Color for the effect (e.g., red for anger) */
+  color: string;
+  /** Animation duration in seconds */
+  duration: number;
 }
 
 // ─── Emotion Configurations ───────────────────────────────────────────────────
@@ -106,6 +117,11 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
       offsetY: -10, // Positioned above eyes
       strokeWidth: 2.5, // Thick, prominent
       color: '#1f2937', // Dark
+    },
+    bodyEffect: {
+      type: 'anger-rise',
+      color: '#ef4444', // Red-500
+      duration: 2, // 2 seconds to fill
     },
   },
   surprised: {
@@ -567,23 +583,20 @@ export function generateTears(eyes: EyePosition[], config: TearConfig, seed?: nu
 }
 
 /**
- * Generate the blue watery fill for sad eyes (as overlay on eye white).
- * This stays as an overlay since it's on the eye white, not tracking with pupil.
+ * Generate the blue watery fill SVG element for a single eye.
  */
-export function generateSadEyeWaterFill(eyes: EyePosition[]): string {
-  return eyes.map(eye => {
-    // Estimate eye white dimensions (eye white is larger than pupil)
-    const eyeWhiteRx = eye.radius * 1.35;
-    const eyeWhiteRy = eye.radius * 1.65;
-    const eyeWhiteCy = eye.cy - eye.radius * 0.15;
-    
-    // Blue watery fill - sits at BOTTOM of the EYE WHITE
-    const waterTop = eyeWhiteCy + eyeWhiteRy * 0.3;
-    const waterBottom = eyeWhiteCy + eyeWhiteRy * 0.95;
-    const waterWidth = eyeWhiteRx * 0.85;
-    
-    return `
-    <!-- Blue watery fill for ${eye.side} eye -->
+function generateWaterFillElement(eye: EyePosition): string {
+  // Estimate eye white dimensions (eye white is larger than pupil)
+  const eyeWhiteRx = eye.radius * 1.35;
+  const eyeWhiteRy = eye.radius * 1.65;
+  const eyeWhiteCy = eye.cy - eye.radius * 0.15;
+  
+  // Blue watery fill - sits at BOTTOM of the EYE WHITE
+  const waterTop = eyeWhiteCy + eyeWhiteRy * 0.3;
+  const waterBottom = eyeWhiteCy + eyeWhiteRy * 0.95;
+  const waterWidth = eyeWhiteRx * 0.85;
+  
+  return `<!-- Blue watery fill for ${eye.side} eye -->
     <path
       class="blobbi-sad-water blobbi-sad-water-${eye.side}"
       d="M ${eye.cx - waterWidth} ${waterTop} 
@@ -600,7 +613,43 @@ export function generateSadEyeWaterFill(eyes: EyePosition[]): string {
         repeatCount="indefinite"
       />
     </path>`;
-  }).join('\n');
+}
+
+/**
+ * Apply blue watery fill to eyes by inserting it inside the blobbi-blink groups.
+ * 
+ * The water fill is inserted AFTER the eye white ellipse but BEFORE the blobbi-eye group.
+ * This ensures:
+ * 1. Water fill appears above eye white but below pupil
+ * 2. Water fill participates in blink animation (scales with the blink group)
+ * 3. Water fill does NOT track with mouse (stays fixed like eye white)
+ */
+export function applySadEyeWaterFill(svgText: string, eyes: EyePosition[]): string {
+  for (const eye of eyes) {
+    // Find the blobbi-blink group for this eye
+    // Structure: <g class="blobbi-blink blobbi-blink-left" ...>
+    //              <ellipse ... /> <!-- eye white -->
+    //              <g class="blobbi-eye ..."> <!-- tracking group -->
+    const blinkGroupRegex = new RegExp(
+      `(<g[^>]*class="[^"]*blobbi-blink-${eye.side}[^"]*"[^>]*>)` + // Opening blink tag (capture)
+      `([\\s\\S]*?)` + // Content before blobbi-eye (capture - eye white is here)
+      `(<g[^>]*class="[^"]*blobbi-eye-${eye.side}[^"]*"[^>]*>)`, // Opening blobbi-eye tag (capture)
+      'i'
+    );
+    
+    const match = svgText.match(blinkGroupRegex);
+    
+    if (match && match.index !== undefined) {
+      const [fullMatch, blinkOpenTag, contentBetween, eyeOpenTag] = match;
+      const waterFill = generateWaterFillElement(eye);
+      
+      // Insert water fill after eye white (contentBetween) but before blobbi-eye group
+      const replacement = `${blinkOpenTag}${contentBetween}${waterFill}\n    ${eyeOpenTag}`;
+      svgText = svgText.replace(fullMatch, replacement);
+    }
+  }
+  
+  return svgText;
 }
 
 /**
@@ -675,9 +724,10 @@ export function applySadEyeHighlights(svgText: string, eyes: EyePosition[]): str
         }
         
         // Hide original white highlights (small white circles) by adding opacity="0"
+        // We need to insert opacity="0" BEFORE the closing /> or >
         const modifiedContent = content.replace(
-          /(<circle[^>]*fill="white"[^>]*)(\/?>)/gi,
-          '$1 opacity="0" $2'
+          /<circle([^>]*fill="white"[^/]*)\s*\/>/gi,
+          '<circle$1 opacity="0" />'
         );
         
         // Add sad highlights at the end of the group content
@@ -697,6 +747,147 @@ export function applySadEyeHighlights(svgText: string, eyes: EyePosition[]): str
   }
   
   return svgText;
+}
+
+// ─── Body Effect Generation ───────────────────────────────────────────────────
+
+/**
+ * Detect the body path from the SVG.
+ * Looks for the main body path (usually has "Body" in comment or uses body gradient).
+ * 
+ * Returns the path's d attribute and its bounding box estimate.
+ */
+interface BodyPathInfo {
+  pathD: string;
+  minY: number;
+  maxY: number;
+}
+
+function detectBodyPath(svgText: string): BodyPathInfo | null {
+  // Strategy 1: Look for path with body gradient fill
+  const bodyGradientMatch = svgText.match(/<path[^>]*d="([^"]+)"[^>]*fill="url\(#[^"]*[Bb]ody[^"]*\)"[^>]*\/>/);
+  if (bodyGradientMatch) {
+    const pathD = bodyGradientMatch[1];
+    const bounds = estimatePathBounds(pathD);
+    return { pathD, ...bounds };
+  }
+  
+  // Strategy 2: Look for path after "Main body" comment
+  const commentMatch = svgText.match(/<!--[^>]*[Bb]ody[^>]*-->\s*<path[^>]*d="([^"]+)"/);
+  if (commentMatch) {
+    const pathD = commentMatch[1];
+    const bounds = estimatePathBounds(pathD);
+    return { pathD, ...bounds };
+  }
+  
+  return null;
+}
+
+/**
+ * Estimate the bounding box of a path from its d attribute.
+ * Simple extraction of Y values from the path data.
+ */
+function estimatePathBounds(pathD: string): { minY: number; maxY: number } {
+  // Extract all numbers from the path
+  const numbers = pathD.match(/-?\d+\.?\d*/g)?.map(Number) || [];
+  
+  // Y values are typically at odd indices in M/Q/L commands, but we can
+  // just look for reasonable Y bounds (usually in 0-100 range for blobbi)
+  let minY = 100;
+  let maxY = 0;
+  
+  // Simple heuristic: numbers > 5 and < 100 are likely coordinates
+  for (let i = 1; i < numbers.length; i += 2) {
+    const y = numbers[i];
+    if (y !== undefined && y >= 5 && y <= 100) {
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  
+  // Fallback if we couldn't detect bounds
+  if (minY >= maxY) {
+    minY = 10;
+    maxY = 90;
+  }
+  
+  return { minY, maxY };
+}
+
+/**
+ * Generate the anger-rise body effect.
+ * 
+ * Creates a red overlay that animates from the bottom of the body upward,
+ * simulating anger "rising" inside the Blobbi.
+ * 
+ * Uses a clipPath to constrain the effect to the body shape.
+ */
+function generateAngerRiseEffect(bodyPath: BodyPathInfo, config: BodyEffectConfig): { defs: string; overlay: string } {
+  const { pathD, minY, maxY } = bodyPath;
+  const bodyHeight = maxY - minY;
+  
+  // Unique IDs for this effect
+  const clipId = 'blobbi-anger-clip';
+  const gradientId = 'blobbi-anger-gradient';
+  
+  // Create a linear gradient that animates from transparent to red (bottom to top)
+  // The gradient goes from bottom (100% = red) to top (0% = transparent)
+  // We animate the gradient stops to create the "rising" effect
+  const defs = `
+    <!-- Anger rise effect definitions -->
+    <clipPath id="${clipId}">
+      <path d="${pathD}" />
+    </clipPath>
+    <linearGradient id="${gradientId}" x1="0" y1="1" x2="0" y2="0">
+      <!-- Bottom stop: red, animates opacity from 0 to 0.5 -->
+      <stop offset="0%" stop-color="${config.color}">
+        <animate 
+          attributeName="stop-opacity" 
+          values="0;0.5;0.5" 
+          keyTimes="0;0.5;1"
+          dur="${config.duration}s" 
+          fill="freeze"
+        />
+      </stop>
+      <!-- Middle stop: animates position from 0% to 100% (rising effect) -->
+      <stop stop-color="${config.color}">
+        <animate 
+          attributeName="offset" 
+          values="0;1" 
+          dur="${config.duration}s" 
+          fill="freeze"
+        />
+        <animate 
+          attributeName="stop-opacity" 
+          values="0;0.4;0.4" 
+          keyTimes="0;0.3;1"
+          dur="${config.duration}s" 
+          fill="freeze"
+        />
+      </stop>
+      <!-- Top stop: transparent (the "surface" of the rising anger) -->
+      <stop stop-color="${config.color}" stop-opacity="0">
+        <animate 
+          attributeName="offset" 
+          values="0;1" 
+          dur="${config.duration}s" 
+          fill="freeze"
+        />
+      </stop>
+    </linearGradient>`;
+  
+  // Create the overlay rect that fills the body area, clipped to body shape
+  const overlay = `
+    <!-- Anger rise overlay -->
+    <rect 
+      class="blobbi-anger-rise"
+      x="0" y="${minY}" 
+      width="100" height="${bodyHeight}"
+      fill="url(#${gradientId})"
+      clip-path="url(#${clipId})"
+    />`;
+  
+  return { defs, overlay };
 }
 
 // ─── Main Emotion Application ─────────────────────────────────────────────────
@@ -771,12 +962,9 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion): string {
     //    This also hides the original highlights
     svgText = applySadEyeHighlights(svgText, eyes);
     
-    // 2. Add blue water fill as overlay (on eye white, doesn't need to track)
-    const waterFill = generateSadEyeWaterFill(eyes);
-    if (import.meta.env.DEV) {
-      console.log('[Sad Eyes] Water fill generated, length:', waterFill.length);
-    }
-    overlays.push(waterFill);
+    // 2. Apply blue water fill INTO blobbi-blink groups (after eye white, before pupil)
+    //    This ensures water appears above eye white but below pupil, and blinks with the eye
+    svgText = applySadEyeWaterFill(svgText, eyes);
   }
   
   // Generate tears
@@ -784,6 +972,30 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion): string {
     // Generate a deterministic seed from SVG content for consistent tear eye selection
     const seed = hashString(svgText);
     overlays.push(generateTears(eyes, config.tears, seed));
+  }
+  
+  // Generate body effect (e.g., anger rise)
+  if (config.bodyEffect) {
+    const bodyPath = detectBodyPath(svgText);
+    if (bodyPath) {
+      const effect = generateAngerRiseEffect(bodyPath, config.bodyEffect);
+      
+      // Add defs for the body effect
+      if (svgText.includes('<defs>')) {
+        svgText = svgText.replace('<defs>', '<defs>' + effect.defs);
+      } else {
+        svgText = svgText.replace(/(<svg[^>]*>)/, `$1\n  <defs>${effect.defs}\n  </defs>`);
+      }
+      
+      // Add the overlay right after the body path (so it appears on top of body but below other elements)
+      // Find the body path and insert the overlay after it
+      const bodyPathRegex = /<path[^>]*d="[^"]*"[^>]*fill="url\(#[^"]*[Bb]ody[^"]*\)"[^>]*\/>/;
+      const bodyPathMatch = svgText.match(bodyPathRegex);
+      if (bodyPathMatch && bodyPathMatch.index !== undefined) {
+        const insertPos = bodyPathMatch.index + bodyPathMatch[0].length;
+        svgText = svgText.slice(0, insertPos) + effect.overlay + svgText.slice(insertPos);
+      }
+    }
   }
   
   // Insert overlays before closing </svg> tag
