@@ -179,7 +179,7 @@ export function LetterEditor({
     <div
       style={{
         overflow: 'hidden',
-        maxHeight: drawerOpen ? '400px' : '0',
+        maxHeight: drawerOpen ? (overlay === 'draw' ? '600px' : '400px') : '0',
         transition: 'max-height 0.25s ease-in-out',
       }}
     >
