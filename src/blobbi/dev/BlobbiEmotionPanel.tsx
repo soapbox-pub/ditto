@@ -36,6 +36,9 @@ const EMOTIONS: Array<{ value: BlobbiEmotion; label: string; emoji: string }> = 
   { value: 'surprised', label: 'Surprised', emoji: '😲' },
   { value: 'curious', label: 'Curious', emoji: '🤔' },
   { value: 'sleepy', label: 'Sleepy', emoji: '😴' },
+  { value: 'dizzy', label: 'Dizzy', emoji: '😵' },
+  { value: 'excited', label: 'Excited', emoji: '🤩' },
+  { value: 'mischievous', label: 'Mischievous', emoji: '😏' },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
