@@ -674,10 +674,20 @@ function hashString(str: string): number {
  * @param eyes - Eye positions
  * @param config - Eyebrow configuration
  * @param variant - Blobbi variant for variant-specific adjustments
+ * @param form - Optional adult form for form-specific adjustments
  */
-export function generateEyebrows(eyes: EyePosition[], config: EyebrowConfig, variant: BlobbiVariant = 'adult'): string {
+export function generateEyebrows(eyes: EyePosition[], config: EyebrowConfig, variant: BlobbiVariant = 'adult', form?: string): string {
   // Baby-specific adjustment: move eyebrows slightly farther from eyes
-  const variantOffsetAdjustment = variant === 'baby' ? -2 : 0;
+  let variantOffsetAdjustment = variant === 'baby' ? -2 : 0;
+  
+  // Form-specific adjustments for adult forms with larger eyes
+  if (variant === 'adult' && form) {
+    if (form === 'owli') {
+      variantOffsetAdjustment = -12; // Owli has large round eyes, move eyebrows higher
+    } else if (form === 'froggi') {
+      variantOffsetAdjustment = -10; // Froggi has large eyes, move eyebrows higher
+    }
+  }
   
   return eyes.map(eye => {
     // Apply per-eye overrides if present
@@ -2057,9 +2067,10 @@ function applySleepyAnimation(svgText: string, eyes: EyePosition[], mouth: Mouth
  * @param svgText - The base SVG content
  * @param emotion - The emotion to apply
  * @param variant - The Blobbi variant (baby/adult) for variant-specific adjustments
+ * @param form - Optional adult form for form-specific adjustments (e.g., owli, froggi)
  * @returns Modified SVG with emotion overlays
  */
-export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: BlobbiVariant = 'adult'): string {
+export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: BlobbiVariant = 'adult', form?: string): string {
   if (emotion === 'neutral') {
     return svgText;
   }
@@ -2095,7 +2106,7 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: B
   
   // Generate eyebrows
   if (config.eyebrows && eyes.length > 0) {
-    overlays.push(generateEyebrows(eyes, config.eyebrows, variant));
+    overlays.push(generateEyebrows(eyes, config.eyebrows, variant, form));
   }
   
   // Handle mouth modification
