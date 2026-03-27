@@ -50,7 +50,7 @@ export function ChangelogPage() {
         ) : (
           <div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-li:marker:text-muted-foreground prose-hr:border-border">
             <Markdown rehypePlugins={[rehypeSanitize]}>
-              {content}
+              {content.replace(/^# .+\n+/, '')}
             </Markdown>
           </div>
         )}
