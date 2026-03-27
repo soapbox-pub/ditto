@@ -19,7 +19,7 @@
 /**
  * Available emotion states for Blobbies
  */
-export type BlobbiEmotion = 'neutral' | 'sad' | 'happy' | 'angry' | 'surprised' | 'sleepy' | 'curious' | 'dizzy' | 'excited' | 'mischievous';
+export type BlobbiEmotion = 'neutral' | 'sad' | 'happy' | 'angry' | 'surprised' | 'sleepy' | 'curious' | 'dizzy' | 'excited' | 'mischievous' | 'adoring';
 
 /**
  * Blobbi variant for variant-specific adjustments
@@ -238,10 +238,7 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
     },
   },
   excited: {
-    // Reuse the same watery eye effect as sad
-    pupilModification: {
-      wateryEyes: true,
-    },
+    // Normal eyes (no watery effect)
     // Use the same eyebrow config as sad, but with animation
     eyebrows: {
       angle: -15, // Same as sad
@@ -255,8 +252,12 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
       bounceDuration: 0.5, // Fast, energetic bounce
       bounceAmount: 3, // Pixels to move up
     },
-    // Happy smile (use default or slightly enhanced)
-    mouthCurve: 1.2, // Same as happy
+    // Curious round mouth
+    roundMouth: {
+      rx: 3, // Same as curious
+      ry: 3.5,
+      filled: true,
+    },
   },
   mischievous: {
     // Use the same eyebrow config as angry (V-shape), but with animation
@@ -275,6 +276,19 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
     // Small smug smile
     smallSmile: {
       scale: 0.7, // 70% of normal smile size
+    },
+  },
+  adoring: {
+    // Same watery eyes as sad (with highlights/watery effect)
+    pupilModification: {
+      wateryEyes: true,
+    },
+    // No eyebrows
+    // Curious round mouth
+    roundMouth: {
+      rx: 3, // Same as curious
+      ry: 3.5,
+      filled: true,
     },
   },
 };
