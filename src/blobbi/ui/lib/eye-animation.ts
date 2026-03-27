@@ -54,7 +54,12 @@ interface FullEyeGroup {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 // Dark colors used for pupils
-const PUPIL_COLORS = ['#1f2937', '#374151', '#1e293b', '#111827', '#0f172a', '#64748b'];
+// These are the solid fill colors used in adult Blobbi SVGs for pupils
+// - #1f2937, #374151, #1e293b, #111827, #0f172a: Dark gray/slate colors (most forms)
+// - #64748b: Slate color (cloudi)
+// - #1e1b4b: Dark indigo (starri, crysti)
+// - #0891b2: Cyan (droppi)
+const PUPIL_COLORS = ['#1f2937', '#374151', '#1e293b', '#111827', '#0f172a', '#64748b', '#1e1b4b', '#0891b2'];
 
 // Default eyelid color (used when no base color is provided)
 const DEFAULT_EYELID_COLOR = '#6d28d9';
