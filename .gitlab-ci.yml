@@ -162,11 +162,11 @@ release:
       if [ -z "$RELEASE_NOTES" ]; then
         RELEASE_NOTES="Ditto ${CI_COMMIT_TAG}"
       fi
-    - echo "$RELEASE_NOTES" > /tmp/release-notes.md
+    - echo "$RELEASE_NOTES" > release-notes.md
   release:
     tag_name: $CI_COMMIT_TAG
     name: $CI_COMMIT_TAG
-    description: /tmp/release-notes.md
+    description: './release-notes.md'
     assets:
       links:
         - name: Ditto-${CI_COMMIT_TAG}.apk
