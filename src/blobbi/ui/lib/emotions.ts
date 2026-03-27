@@ -1028,96 +1028,135 @@ function generateAngerRiseEffect(bodyPath: BodyPathInfo, config: BodyEffectConfi
 // ─── Sleepy Animation Generation ──────────────────────────────────────────────
 
 /**
- * Generate the sleepy tired-blink animation.
+ * Sleepy "Micro-Sleep" Animation
  * 
- * Creates a 3-stage tired blink cycle:
- * 1. Small blink (~25% closed)
- * 2. Medium blink (~55% closed)  
- * 3. Heavy blink (~80% closed)
- * 
- * The animation loops infinitely with smooth transitions.
- * 
- * Returns CSS style block to be inserted into the SVG.
+ * Creates a cute dozing-off cycle where Blobbi:
+ * 1. Starts awake with normal smile
+ * 2. Eyes slowly close while mouth transitions: smile → flat → small round
+ * 3. Eyes fully close with visible curved eyelid lines
+ * 4. Zzz appears above head
+ * 5. Stays asleep briefly (~1 second)
+ * 6. Wakes up with quick right-left glance
+ * 7. Mouth returns to smile
+ * 8. Cycle repeats
  */
-function generateSleepyEyeAnimation(config: SleepyAnimationConfig): string {
+
+/**
+ * Generate CSS animations for the sleepy micro-sleep cycle.
+ * 
+ * Timeline (8 second cycle):
+ * 0-10%:   Awake, eyes open
+ * 10-35%:  Getting sleepy, eyes slowly closing
+ * 35-50%:  Eyes fully closed, entering sleep
+ * 50-62%:  Asleep (hold)
+ * 62-75%:  Waking up, eyes opening
+ * 75-82%:  Quick glance right
+ * 82-90%:  Quick glance left
+ * 90-100%: Return to normal, reset
+ */
+function generateSleepyStyles(config: SleepyAnimationConfig): string {
   const dur = config.cycleDuration;
-  
-  // Timing breakdown for the 3-stage blink cycle:
-  // Phase 1 (small blink): 0% - 25% of cycle
-  // Phase 2 (medium blink): 25% - 55% of cycle
-  // Phase 3 (heavy blink): 55% - 90% of cycle
-  // Recovery: 90% - 100% of cycle
-  
-  // scaleY values for each blink stage:
-  // 1.0 = fully open
-  // 0.75 = small blink (25% closed)
-  // 0.45 = medium blink (55% closed)
-  // 0.2 = heavy blink (80% closed)
   
   return `
   <style type="text/css">
-    @keyframes sleepy-blink {
-      /* Start: eyes open */
-      0% { transform: scaleY(1); }
-      
-      /* Phase 1: Small blink - close slightly */
-      8% { transform: scaleY(0.75); }
-      15% { transform: scaleY(1); }
-      
-      /* Phase 2: Medium blink - close more */
-      30% { transform: scaleY(1); }
-      38% { transform: scaleY(0.45); }
-      48% { transform: scaleY(1); }
-      
-      /* Phase 3: Heavy blink - almost fully closed */
-      60% { transform: scaleY(1); }
-      70% { transform: scaleY(0.2); }
-      85% { transform: scaleY(1); }
-      
-      /* Hold open before restart */
+    /* Main eye closing/opening animation */
+    @keyframes sleepy-eye-close {
+      0%, 10% { transform: scaleY(1); }
+      35% { transform: scaleY(0.1); }
+      50%, 62% { transform: scaleY(0.05); }
+      75% { transform: scaleY(1); }
       100% { transform: scaleY(1); }
     }
     
+    /* Closed eye line visibility */
+    @keyframes sleepy-closed-eye {
+      0%, 30% { opacity: 0; }
+      40%, 65% { opacity: 1; }
+      75%, 100% { opacity: 0; }
+    }
+    
+    /* Wake-up glance animation (applied to blobbi-eye groups) */
+    @keyframes sleepy-wake-glance {
+      0%, 75% { transform: translateX(0); }
+      78%, 80% { transform: translateX(2px); }
+      83%, 85% { transform: translateX(-2px); }
+      88%, 100% { transform: translateX(0); }
+    }
+    
+    /* Zzz fade in/out */
+    @keyframes sleepy-zzz {
+      0%, 25% { opacity: 0; }
+      40%, 60% { opacity: 1; }
+      70%, 100% { opacity: 0; }
+    }
+    
+    /* Zzz float up animation */
+    @keyframes sleepy-zzz-float {
+      0%, 25% { transform: translateY(0); }
+      60% { transform: translateY(-8px); }
+      70%, 100% { transform: translateY(-10px); }
+    }
+    
     .blobbi-sleepy .blobbi-blink {
-      animation: sleepy-blink ${dur}s ease-in-out infinite;
+      animation: sleepy-eye-close ${dur}s ease-in-out infinite;
       transform-origin: center;
       transform-box: fill-box;
+    }
+    
+    .blobbi-sleepy .blobbi-eye {
+      animation: sleepy-wake-glance ${dur}s ease-in-out infinite;
+    }
+    
+    .blobbi-sleepy .blobbi-closed-eye {
+      animation: sleepy-closed-eye ${dur}s ease-in-out infinite;
+    }
+    
+    .blobbi-sleepy .blobbi-zzz {
+      animation: 
+        sleepy-zzz ${dur}s ease-in-out infinite,
+        sleepy-zzz-float ${dur}s ease-in-out infinite;
     }
   </style>`;
 }
 
 /**
- * Generate the sleepy mouth animation.
+ * Generate animated sleepy mouth that transitions:
+ * smile → flat line → small round → flat line → smile
  * 
- * The mouth transitions from smile → flat → smile in sync with the eye blink cycle.
- * Uses SVG SMIL animation to animate the path's d attribute.
- * 
- * @param mouth - Original mouth position
- * @param config - Sleepy animation config
+ * Uses SVG SMIL animation on path d attribute for smooth morphing.
  */
 function generateSleepyMouth(mouth: MouthPosition, config: SleepyAnimationConfig): string {
   const dur = config.cycleDuration;
   
-  // Original smile path
+  // Calculate mouth center for round mouth position
+  const centerX = (mouth.startX + mouth.endX) / 2;
+  const baselineY = (mouth.startY + mouth.endY) / 2;
+  
+  // 1. Original smile path
   const smilePath = `M ${mouth.startX} ${mouth.startY} Q ${mouth.controlX} ${mouth.controlY} ${mouth.endX} ${mouth.endY}`;
   
-  // Flat path (straight line at the baseline)
-  const baselineY = (mouth.startY + mouth.endY) / 2;
-  const flatPath = `M ${mouth.startX} ${baselineY} Q ${mouth.controlX} ${baselineY} ${mouth.endX} ${baselineY}`;
+  // 2. Flat line path (straight)
+  const flatPath = `M ${mouth.startX} ${baselineY} Q ${centerX} ${baselineY} ${mouth.endX} ${baselineY}`;
   
-  // Slightly less curved (phase 1)
-  const slightCurveY = baselineY + (mouth.controlY - baselineY) * 0.7;
+  // 3. Small round mouth (using same path structure but forming a small O)
+  // We approximate a small circle using the Q curve by making start/end close together
+  const roundRadius = 3;
+  const roundPath = `M ${centerX - roundRadius} ${baselineY} Q ${centerX - roundRadius} ${baselineY + roundRadius * 1.5} ${centerX} ${baselineY + roundRadius * 1.5} Q ${centerX + roundRadius} ${baselineY + roundRadius * 1.5} ${centerX + roundRadius} ${baselineY}`;
+  
+  // Intermediate: slightly less curved smile
+  const slightCurveY = baselineY + (mouth.controlY - baselineY) * 0.5;
   const slightCurvePath = `M ${mouth.startX} ${mouth.startY} Q ${mouth.controlX} ${slightCurveY} ${mouth.endX} ${mouth.endY}`;
   
-  // Almost flat (phase 2)
-  const almostFlatY = baselineY + (mouth.controlY - baselineY) * 0.3;
-  const almostFlatPath = `M ${mouth.startX} ${baselineY} Q ${mouth.controlX} ${almostFlatY} ${mouth.endX} ${baselineY}`;
-  
-  // Timing synced with eye animation:
-  // 0-15%: smile (during/after small blink)
-  // 15-48%: transitioning to slight curve (during medium blink)
-  // 48-85%: transitioning to flat (during heavy blink)
-  // 85-100%: returning to smile
+  // Timeline:
+  // 0-10%:   smile (awake)
+  // 10-20%:  smile → slight curve (getting sleepy)
+  // 20-30%:  slight curve → flat (more sleepy)
+  // 30-40%:  flat → round (falling asleep)
+  // 40-62%:  round (asleep)
+  // 62-70%:  round → flat (waking)
+  // 70-80%:  flat → slight curve
+  // 80-90%:  slight curve → smile
+  // 90-100%: smile (awake, glancing)
   
   return `<path 
     class="blobbi-mouth blobbi-mouth-sleepy"
@@ -1128,26 +1167,72 @@ function generateSleepyMouth(mouth: MouthPosition, config: SleepyAnimationConfig
   >
     <animate
       attributeName="d"
-      values="${smilePath};${smilePath};${slightCurvePath};${slightCurvePath};${almostFlatPath};${flatPath};${flatPath};${smilePath};${smilePath}"
-      keyTimes="0;0.15;0.25;0.40;0.55;0.70;0.85;0.95;1"
+      values="${smilePath};${smilePath};${slightCurvePath};${flatPath};${roundPath};${roundPath};${flatPath};${slightCurvePath};${smilePath};${smilePath}"
+      keyTimes="0;0.10;0.20;0.30;0.40;0.62;0.70;0.80;0.90;1"
       dur="${dur}s"
       repeatCount="indefinite"
       calcMode="spline"
-      keySplines="0.4 0 0.6 1; 0.4 0 0.6 1; 0.4 0 0.6 1; 0.4 0 0.6 1; 0.4 0 0.6 1; 0.4 0 0.6 1; 0.4 0 0.6 1; 0.4 0 0.6 1"
+      keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"
     />
   </path>`;
 }
 
 /**
- * Apply sleepy animation to the SVG.
+ * Generate closed eye lines - curved lines that appear when eyes are fully closed.
+ * These sit at the eye position and look like shut eyelids.
+ */
+function generateClosedEyeLines(eyes: EyePosition[]): string {
+  return eyes.map(eye => {
+    // Create a slightly curved line at the eye center
+    // The curve is gentle, like a closed eyelid
+    const lineWidth = eye.radius * 1.8;
+    const startX = eye.cx - lineWidth / 2;
+    const endX = eye.cx + lineWidth / 2;
+    const curveDepth = eye.radius * 0.3;
+    
+    return `<path
+      class="blobbi-closed-eye blobbi-closed-eye-${eye.side}"
+      d="M ${startX} ${eye.cy} Q ${eye.cx} ${eye.cy + curveDepth} ${endX} ${eye.cy}"
+      stroke="#374151"
+      stroke-width="2"
+      stroke-linecap="round"
+      fill="none"
+      opacity="0"
+    />`;
+  }).join('\n');
+}
+
+/**
+ * Generate Zzz text above the head.
+ * Appears during the sleep portion of the cycle.
+ */
+function generateSleepyZzz(): string {
+  // Position above the typical Blobbi head (around y=5-15 for a 100x100 viewBox)
+  return `<g class="blobbi-zzz" opacity="0">
+    <text x="70" y="12" font-family="system-ui, sans-serif" font-size="8" font-weight="bold" fill="#6b7280">
+      z
+    </text>
+    <text x="76" y="8" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#6b7280">
+      z
+    </text>
+    <text x="84" y="3" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#6b7280">
+      z
+    </text>
+  </g>`;
+}
+
+/**
+ * Apply the complete sleepy micro-sleep animation to the SVG.
  * 
- * This adds a 'blobbi-sleepy' class to the SVG root element and inserts
- * CSS animation for the tired-blink effect + animated mouth.
+ * This adds:
+ * 1. CSS animations for eye closing, wake-up glance
+ * 2. Animated mouth (smile → flat → round → smile)
+ * 3. Closed eye curved lines
+ * 4. Zzz floating text
  */
 function applySleepyAnimation(svgText: string, eyes: EyePosition[], mouth: MouthDetectionResult | null, config: SleepyAnimationConfig): string {
   // Add 'blobbi-sleepy' class to the SVG root element for CSS targeting
   svgText = svgText.replace(/<svg([^>]*)>/, (match, attrs) => {
-    // Check if class attribute exists
     if (attrs.includes('class="')) {
       return match.replace(/class="([^"]*)"/, 'class="$1 blobbi-sleepy"');
     } else if (attrs.includes("class='")) {
@@ -1157,14 +1242,12 @@ function applySleepyAnimation(svgText: string, eyes: EyePosition[], mouth: Mouth
     }
   });
   
-  // Add the CSS animation for sleepy blinks
-  const sleepyStyle = generateSleepyEyeAnimation(config);
-  
-  // Insert style into defs or after opening svg tag
+  // Add the CSS animations
+  const sleepyStyles = generateSleepyStyles(config);
   if (svgText.includes('<defs>')) {
-    svgText = svgText.replace('<defs>', '<defs>' + sleepyStyle);
+    svgText = svgText.replace('<defs>', '<defs>' + sleepyStyles);
   } else {
-    svgText = svgText.replace(/(<svg[^>]*>)/, '$1' + sleepyStyle);
+    svgText = svgText.replace(/(<svg[^>]*>)/, '$1' + sleepyStyles);
   }
   
   // Replace mouth with animated sleepy mouth
@@ -1172,6 +1255,20 @@ function applySleepyAnimation(svgText: string, eyes: EyePosition[], mouth: Mouth
     const sleepyMouthSvg = generateSleepyMouth(mouth.position, config);
     svgText = replaceMouthSection(svgText, sleepyMouthSvg);
   }
+  
+  // Generate overlays (closed eye lines + Zzz)
+  const closedEyeLines = generateClosedEyeLines(eyes);
+  const zzz = generateSleepyZzz();
+  
+  // Insert overlays before closing </svg> tag
+  const sleepyOverlays = `
+  <!-- Sleepy overlays -->
+  <g class="blobbi-sleepy-overlays">
+    ${closedEyeLines}
+    ${zzz}
+  </g>`;
+  
+  svgText = svgText.replace('</svg>', sleepyOverlays + '\n</svg>');
   
   return svgText;
 }
