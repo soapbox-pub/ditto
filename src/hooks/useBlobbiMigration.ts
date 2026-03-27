@@ -122,7 +122,7 @@ export function useBlobbiMigration() {
    * 2. Ensures a seed exists (generates one if missing)
    * 3. Preserves name, stage, stats, state, timestamps
    * 4. Publishes a canonical 31124 event
-   * 5. Updates the Blobbonaut profile (31125)
+   * 5. Updates the Blobbonaut profile (kind 11125)
    * 6. Updates local state (query cache, localStorage)
    */
   const migrateLegacyBlobbi = useCallback(async (

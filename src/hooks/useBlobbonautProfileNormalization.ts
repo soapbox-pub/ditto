@@ -1,10 +1,12 @@
 /**
- * useBlobbonautProfileNormalization - Auto-normalize profiles missing required tags
+ * useBlobbonautProfileNormalization - Auto-normalize profiles
  * 
- * This hook checks if the loaded profile is missing the pettingLevel tag,
- * and if so, publishes an updated profile with pettingLevel: 0 added.
+ * This hook handles two types of normalization:
  * 
- * This normalization happens transparently and only once per profile.
+ * 1. Tag normalization: Adds missing required tags like pettingLevel
+ * 2. Kind migration: Migrates legacy kind 31125 profiles to new kind 11125
+ * 
+ * Both normalizations happen transparently and only once per profile.
  */
 
 import { useEffect, useRef } from 'react';
@@ -16,6 +18,7 @@ import {
   KIND_BLOBBONAUT_PROFILE,
   profileNeedsPettingLevelNormalization,
   buildNormalizedProfileTags,
+  isLegacyBlobbonautKind,
   type BlobbonautProfile,
 } from '@/lib/blobbi';
 
@@ -49,9 +52,12 @@ export function useBlobbonautProfileNormalization({
     // Skip if already normalized this specific event
     if (normalizedEventIds.current.has(profile.event.id)) return;
     
-    // Check if normalization is needed
-    if (!profileNeedsPettingLevelNormalization(profile)) {
-      // Mark as "seen" so we don't check again
+    // Check what normalization is needed
+    const needsTagNormalization = profileNeedsPettingLevelNormalization(profile);
+    const needsKindMigration = isLegacyBlobbonautKind(profile.event);
+    
+    // If no normalization needed, mark as seen and return
+    if (!needsTagNormalization && !needsKindMigration) {
       normalizedEventIds.current.add(profile.event.id);
       return;
     }
@@ -59,13 +65,19 @@ export function useBlobbonautProfileNormalization({
     // Mark as in-progress to prevent duplicate runs
     normalizedEventIds.current.add(profile.event.id);
     
-    console.log('[ProfileNormalization] Profile missing pettingLevel, normalizing...');
+    const reasons: string[] = [];
+    if (needsTagNormalization) reasons.push('missing pettingLevel');
+    if (needsKindMigration) reasons.push('legacy kind 31125 → 11125');
+    
+    console.log(`[ProfileNormalization] Profile needs normalization: ${reasons.join(', ')}`);
     
     // Perform async normalization
     const normalize = async () => {
       try {
+        // Build normalized tags (handles both tag fixes and preserves all data)
         const normalizedTags = buildNormalizedProfileTags(profile);
         
+        // Always publish to the NEW kind (11125), regardless of source kind
         const event = await publishEvent({
           kind: KIND_BLOBBONAUT_PROFILE,
           content: '',
@@ -75,7 +87,7 @@ export function useBlobbonautProfileNormalization({
         updateProfileEvent(event);
         invalidateProfile();
         
-        console.log('[ProfileNormalization] Profile normalized successfully');
+        console.log('[ProfileNormalization] Profile normalized successfully to kind', KIND_BLOBBONAUT_PROFILE);
       } catch (error) {
         console.error('[ProfileNormalization] Failed to normalize profile:', error);
         // Remove from set so it can retry on next render

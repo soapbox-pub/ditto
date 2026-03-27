@@ -2,7 +2,7 @@
  * useClaimMissionReward - Hook for claiming daily mission rewards
  * 
  * Handles:
- * - Persisting coin rewards to kind 31125 Blobbonaut profile
+ * - Persisting coin rewards to kind 11125 Blobbonaut profile
  * - Updating localStorage mission state
  * - Idempotent claiming (prevents double-credit)
  * - Optimistic cache updates
@@ -66,7 +66,7 @@ function writeMissionsState(state: DailyMissionsState): void {
 /**
  * Hook to claim daily mission rewards.
  * 
- * This hook persists coin rewards to the kind 31125 Blobbonaut profile event,
+ * This hook persists coin rewards to the kind 11125 Blobbonaut profile event,
  * ensuring rewards are stored on-chain rather than just in localStorage.
  * 
  * @param currentProfile - The current Blobbonaut profile (required for coin updates)
@@ -123,7 +123,7 @@ export function useClaimMissionReward(
         coins: newTotalCoins.toString(),
       });
 
-      // Publish updated profile event to kind 31125
+      // Publish updated profile event to kind 11125
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
         content: '',

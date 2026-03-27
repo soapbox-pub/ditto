@@ -93,7 +93,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
  * 3. Ensures canonical format before action
  * 4. Applies item effects to Blobbi stats
  * 5. Updates Blobbi state (kind 31124)
- * 6. Decrements item from profile storage (kind 31125)
+ * 6. Decrements item from profile storage (kind 11125)
  * 7. Invalidates relevant queries
  */
 export function useBlobbiUseInventoryItem({
@@ -298,7 +298,7 @@ export function useBlobbiUseInventoryItem({
 
       updateCompanionEvent(blobbiEvent);
 
-      // ─── Update Profile Storage (kind 31125) ───
+      // ─── Update Profile Storage (kind 11125) ───
       // CRITICAL: Use canonical.profileStorage and canonical.profileAllTags
       // instead of profile.storage/profile.allTags to avoid restoring
       // stale/legacy values after migration

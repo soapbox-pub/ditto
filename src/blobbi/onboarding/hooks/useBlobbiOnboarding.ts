@@ -2,15 +2,20 @@
  * useBlobbiOnboarding - Hook to manage Blobbi onboarding flow
  * 
  * This hook orchestrates the entire onboarding process:
- * 1. Profile creation with name (only if no profile exists)
+ * 1. Auto profile creation (using kind 0 name, no user input needed)
  * 2. Adoption question (if profile exists but no pets)
  * 3. Egg preview with reroll/adopt
  * 
  * CRITICAL: The initial step is derived from the profile state, not hardcoded.
  * This ensures correct behavior on page refresh.
+ * 
+ * Profile creation is automatic - when the user enters Blobbi for the first time,
+ * the profile is created using their kind 0 display_name/name, falling back to
+ * "Blobbonaut" if no name is available. This eliminates the need for a manual
+ * name entry step.
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -37,7 +42,13 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type OnboardingStep = 'profile' | 'adoption-question' | 'preview';
+/** 
+ * Onboarding steps:
+ * - 'creating-profile': Auto-creating profile (no user input needed)
+ * - 'adoption-question': Ask if user wants to adopt a Blobbi
+ * - 'preview': Show egg preview with reroll/adopt options
+ */
+export type OnboardingStep = 'creating-profile' | 'adoption-question' | 'preview';
 
 export interface OnboardingState {
   /** Current step in the onboarding flow */
@@ -57,8 +68,6 @@ export interface OnboardingState {
 }
 
 export interface OnboardingActions {
-  /** Create profile with the given name */
-  createProfile: (name: string) => Promise<void>;
   /** Start the adoption preview flow */
   startAdoptionPreview: () => void;
   /** Generate a new preview (reroll) */
@@ -86,7 +95,7 @@ export interface UseBlobbiOnboardingResult {
  * Derive the correct initial onboarding step based on profile state and mode.
  * 
  * Normal mode:
- * - No profile → 'profile'
+ * - No profile → 'creating-profile' (auto-create using kind 0 name)
  * - Profile exists, no pets → 'adoption-question'
  * - Profile exists with pets → should not be in onboarding at all
  * 
@@ -104,7 +113,7 @@ function deriveInitialStep(
   }
   
   if (!profile) {
-    return 'profile';
+    return 'creating-profile';
   }
   
   // Profile exists but no pets (normal onboarding)
@@ -201,29 +210,29 @@ export function useBlobbiOnboarding({
       derivedStep: correctStep,
     });
     
-    // Case 1: Step is 'profile' but profile exists → move to 'adoption-question'
+    // Case 1: Step is 'creating-profile' but profile exists → move to 'adoption-question'
     // This handles profile loading from cache/relay after initial render
-    if (step === 'profile' && profile) {
+    if (step === 'creating-profile' && profile) {
       console.log('[useBlobbiOnboarding] Profile loaded, moving to adoption-question');
       setStep('adoption-question');
       setBlobbonautName(profile.name);
       return;
     }
     
-    // Case 2: Step is 'adoption-question' but no profile → move back to 'profile'
+    // Case 2: Step is 'adoption-question' but no profile → move back to 'creating-profile'
     // This handles edge cases where profile becomes null (shouldn't happen normally)
     if (step === 'adoption-question' && !profile) {
-      console.log('[useBlobbiOnboarding] Profile lost, moving back to profile creation');
-      setStep('profile');
+      console.log('[useBlobbiOnboarding] Profile lost, moving back to creating-profile');
+      setStep('creating-profile');
       setBlobbonautName(undefined);
       return;
     }
     
-    // Case 3: Step is 'preview' but no profile → move back to 'profile'
+    // Case 3: Step is 'preview' but no profile → move back to 'creating-profile'
     // User somehow got to preview without a profile (shouldn't happen)
     if (step === 'preview' && !profile) {
-      console.log('[useBlobbiOnboarding] No profile in preview step, moving back to profile creation');
-      setStep('profile');
+      console.log('[useBlobbiOnboarding] No profile in preview step, moving back to creating-profile');
+      setStep('creating-profile');
       setPreview(null);
       setBlobbonautName(undefined);
       return;
@@ -235,55 +244,88 @@ export function useBlobbiOnboarding({
   // Coins: from profile if exists, otherwise from preview state
   const coins = profile?.coins ?? previewCoins;
   
-  // ─── Actions ──────────────────────────────────────────────────────────────────
+  // ─── Auto Profile Creation ────────────────────────────────────────────────────
+  
+  // Track if we've already attempted to create profile (to avoid duplicates)
+  const profileCreationAttempted = useRef(false);
   
   /**
-   * Create profile with name and initial coins
+   * Auto-create profile when step is 'creating-profile'.
+   * Uses the user's kind 0 name, falling back to "Blobbonaut" if not available.
    */
-  const createProfile = useCallback(async (name: string) => {
-    if (!user?.pubkey) return;
-    
-    setIsProcessing(true);
-    setActionInProgress('create-profile');
-    
-    try {
-      // Build tags with name and initial coins
-      const baseTags = buildBlobbonautTags(user.pubkey);
-      const tagsWithName = [
-        ...baseTags,
-        ['name', name],
-        ['coins', INITIAL_BLOBBONAUT_COINS.toString()],
-      ];
-      
-      const event = await publishEvent({
-        kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
-        tags: tagsWithName,
-      });
-      
-      updateProfileEvent(event);
-      setBlobbonautName(name);
-      invalidateProfile();
-      
-      toast({
-        title: 'Profile created!',
-        description: `Welcome to Blobbi, ${name}!`,
-      });
-      
-      // Move to adoption question step
-      setStep('adoption-question');
-    } catch (error) {
-      console.error('Failed to create profile:', error);
-      toast({
-        title: 'Failed to create profile',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsProcessing(false);
-      setActionInProgress(null);
+  useEffect(() => {
+    // Only run when step is 'creating-profile'
+    if (step !== 'creating-profile') {
+      profileCreationAttempted.current = false; // Reset when leaving this step
+      return;
     }
-  }, [user?.pubkey, publishEvent, updateProfileEvent, invalidateProfile]);
+    
+    // Skip if already attempting or no user
+    if (profileCreationAttempted.current || !user?.pubkey) return;
+    
+    // Skip if profile already exists (loading from cache/relay)
+    if (profile) return;
+    
+    // Skip if already processing
+    if (isProcessing) return;
+    
+    // Mark as attempted to prevent duplicate calls
+    profileCreationAttempted.current = true;
+    
+    // Determine the name to use: kind 0 name or fallback
+    const name = suggestedName || 'Blobbonaut';
+    
+    console.log('[useBlobbiOnboarding] Auto-creating profile with name:', name);
+    
+    const createProfileAsync = async () => {
+      setIsProcessing(true);
+      setActionInProgress('create-profile');
+      
+      try {
+        // Build tags with name and initial coins
+        const baseTags = buildBlobbonautTags(user.pubkey);
+        const tagsWithName = [
+          ...baseTags,
+          ['name', name],
+          ['coins', INITIAL_BLOBBONAUT_COINS.toString()],
+        ];
+        
+        const event = await publishEvent({
+          kind: KIND_BLOBBONAUT_PROFILE,
+          content: '',
+          tags: tagsWithName,
+        });
+        
+        updateProfileEvent(event);
+        setBlobbonautName(name);
+        invalidateProfile();
+        
+        toast({
+          title: 'Welcome to Blobbi!',
+          description: `Your profile has been created, ${name}!`,
+        });
+        
+        // Move to adoption question step
+        setStep('adoption-question');
+      } catch (error) {
+        console.error('Failed to create profile:', error);
+        toast({
+          title: 'Failed to create profile',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive',
+        });
+        // Reset so user can retry
+        profileCreationAttempted.current = false;
+      } finally {
+        setIsProcessing(false);
+        setActionInProgress(null);
+      }
+    };
+    
+    createProfileAsync();
+  }, [step, user?.pubkey, profile, isProcessing, suggestedName, publishEvent, updateProfileEvent, invalidateProfile]);
+  
+  // ─── Actions ──────────────────────────────────────────────────────────────────
   
   /**
    * Start the adoption preview flow
@@ -475,7 +517,6 @@ export function useBlobbiOnboarding({
       blobbonautName,
     },
     actions: {
-      createProfile,
       startAdoptionPreview,
       rerollPreview,
       setPreviewName,
