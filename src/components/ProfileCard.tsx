@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type AvatarShape, isValidAvatarShape, isEmoji, getAvatarMaskUrlAsync, shapedAvatarBorderStyle } from '@/lib/avatarShape';
-import { isBlobbiShape } from '@/lib/blobbiShapes';
-import { CheckCircle2, Pencil, Plus, Trash2, ChevronDown, ImagePlus, SmilePlus, X as XIcon, Egg } from 'lucide-react';
+import { CheckCircle2, Pencil, Plus, Trash2, ChevronDown, ImagePlus, SmilePlus, X as XIcon } from 'lucide-react';
 import { genUserName } from '@/lib/genUserName';
 import { BioContent } from '@/components/BioContent';
 import { cn } from '@/lib/utils';
@@ -15,8 +14,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { EmojiPicker, type EmojiSelection } from '@/components/EmojiPicker';
-import { BlobbiShapePicker } from '@/components/BlobbiShapePicker';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BadgeShowcaseGrid } from '@/components/BadgeShowcaseGrid';
@@ -136,8 +133,7 @@ export function ProfileCard({
   const rawShape = metadata.shape;
   const shape: AvatarShape | undefined = isValidAvatarShape(rawShape) ? rawShape : undefined;
   const isEmojiShape = !!shape && isEmoji(shape);
-  const isBlobbi = !!shape && isBlobbiShape(shape);
-  const hasCustomShape = isEmojiShape || isBlobbi;
+  const hasCustomShape = isEmojiShape;
 
   // State for async-loaded mask URL for the hover overlay
   const [overlayMaskUrl, setOverlayMaskUrl] = useState<string>('');
@@ -271,38 +267,14 @@ export function ProfileCard({
                 <DialogContent className="w-fit max-w-[calc(100vw-2rem)] p-0 gap-0 overflow-hidden">
                   <DialogHeader className="px-4 pt-4 pb-2">
                     <DialogTitle className="text-base">Set avatar shape</DialogTitle>
-                    <DialogDescription>Pick a shape to mask your avatar</DialogDescription>
+                    <DialogDescription>Pick an emoji to mask your avatar</DialogDescription>
                   </DialogHeader>
-                  <Tabs defaultValue="emoji" className="w-full">
-                    <div className="px-4 pb-2">
-                      <TabsList className="w-full grid grid-cols-2">
-                        <TabsTrigger value="emoji" className="gap-1.5">
-                          <SmilePlus className="size-4" />
-                          Emoji
-                        </TabsTrigger>
-                        <TabsTrigger value="blobbi" className="gap-1.5">
-                          <Egg className="size-4" />
-                          Blobbids
-                        </TabsTrigger>
-                      </TabsList>
-                    </div>
-                    <TabsContent value="emoji" className="mt-0">
-                      <EmojiPicker onSelect={(selection: EmojiSelection) => {
-                        if (selection.type === 'native') {
-                          onAvatarShape?.(selection.emoji);
-                          setEmojiPickerOpen(false);
-                        }
-                      }} />
-                    </TabsContent>
-                    <TabsContent value="blobbi" className="mt-0 px-4 pb-4">
-                      <BlobbiShapePicker
-                        onSelect={(shapeValue) => {
-                          onAvatarShape?.(shapeValue);
-                          setEmojiPickerOpen(false);
-                        }}
-                      />
-                    </TabsContent>
-                  </Tabs>
+                  <EmojiPicker onSelect={(selection: EmojiSelection) => {
+                    if (selection.type === 'native') {
+                      onAvatarShape?.(selection.emoji);
+                      setEmojiPickerOpen(false);
+                    }
+                  }} />
                   {hasCustomShape && (
                     <div className="px-4 pb-4 pt-2 border-t">
                       <Button

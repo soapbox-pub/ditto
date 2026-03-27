@@ -76,26 +76,6 @@ export interface EvolveTasksResult {
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
 /**
- * Extract the 'shape' property from kind 0 metadata content.
- */
-function extractShapeFromMetadata(event: NostrEvent): string | undefined {
-  try {
-    const content = JSON.parse(event.content);
-    return content.shape;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Check if a shape is a Blobbi shape (starts with "blobbi:").
- */
-function isBlobbiShape(shape: string | undefined): boolean {
-  if (!shape || typeof shape !== 'string') return false;
-  return shape.startsWith('blobbi:');
-}
-
-/**
  * Check if a post is a valid Blobbi evolve post.
  * Must contain the evolve prefix and all required hashtags including the Blobbi name.
  * 
@@ -137,11 +117,10 @@ export function isValidEvolvePost(event: NostrEvent, blobbiName: string): boolea
  * 2. Create 3 Color Moments (kind 3367)
  * 3. Create 1 Evolve Post (kind 1) - lighter than hatch, evolve-specific
  * 4. Interact 21 times (tracked via companion.tasks cache)
- * 5. Use Blobbi Shape (kind 0) - shape starts with "blobbi:"
- * 6. Edit Wall once (kind 16769)
+ * 5. Edit Wall once (kind 16769)
  * 
  * DYNAMIC TASK (stat-based, NEVER cached):
- * 7. Maintain All Stats >= 80
+ * 6. Maintain All Stats >= 80
  * 
  * @param companion - The Blobbi companion (must be in evolving state)
  * @param interactionCount - Current interaction count from companion tasks cache
@@ -308,23 +287,7 @@ export function useEvolveTasks(
     // No action - just interact with Blobbi
   });
   
-  // 5. Use Blobbi Shape (PERSISTENT)
-  const currentShape = data?.profileAfter ? extractShapeFromMetadata(data.profileAfter) : undefined;
-  const hasBlobbiShape = isBlobbiShape(currentShape);
-  tasks.push({
-    id: 'blobbi_shape',
-    name: 'Use Blobbi Shape',
-    description: 'Set a Blobbi avatar shape in your profile',
-    current: hasBlobbiShape ? 1 : 0,
-    required: 1,
-    completed: hasBlobbiShape,
-    type: 'persistent',
-    action: 'navigate',
-    actionTarget: '/settings/profile',
-    actionLabel: 'Edit Profile',
-  });
-  
-  // 6. Edit Wall once (PERSISTENT)
+  // 5. Edit Wall once (PERSISTENT)
   const wallEditCount = data?.wallEditEvents?.length ?? 0;
   const hasWallEdit = wallEditCount >= 1;
   tasks.push({

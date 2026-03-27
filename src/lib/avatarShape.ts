@@ -1,12 +1,9 @@
 import type React from 'react';
 
-import { isBlobbiShape, parseBlobbiShapeId, getBlobbiShape, getBlobbiMaskUrl, getBlobbiMaskUrlAsync } from './blobbiShapes';
-
 /**
  * An avatar shape is stored in kind-0 metadata as the `shape` property.
  * Supported formats:
  * - Emoji string (e.g., "🐱", "⭐") - uses emoji glyph as mask
- * - Blobbi shape (e.g., "blobbi:baby", "blobbi:catti") - uses Blobbi silhouette as mask
  *
  * When absent or invalid, avatars render as circles (the default).
  */
@@ -37,18 +34,11 @@ export function isEmoji(value: string): boolean {
  * Type guard for valid avatar shape values.
  * Valid shapes are:
  * - Emoji strings (non-ASCII, short)
- * - Blobbi shapes (prefixed with "blobbi:")
  */
 export function isValidAvatarShape(value: unknown): value is AvatarShape {
   if (typeof value !== 'string' || value.length === 0) return false;
 
-  // Check if it's a Blobbi shape
-  if (isBlobbiShape(value)) {
-    const shapeId = parseBlobbiShapeId(value);
-    return !!shapeId && !!getBlobbiShape(shapeId);
-  }
-
-  // Otherwise, must be an emoji
+  // Must be an emoji
   return isEmoji(value);
 }
 
@@ -66,7 +56,7 @@ export function getAvatarShape(metadata: { [key: string]: unknown } | undefined)
 
 /**
  * CSS filter that creates a crisp, solid outline around a shaped avatar
- * (emoji or Blobbi), mimicking the appearance of `border-4 border-background`
+ * (emoji), mimicking the appearance of `border-4 border-background`
  * without clipping the mask shape. Apply this to a **wrapper** around the
  * masked `<Avatar>`.
  */
@@ -89,24 +79,10 @@ const emojiMaskCache = new Map<string, string>();
 // ── Unified mask URL getter ──────────────────────────────────────────────
 
 /**
- * Get mask URL for any avatar shape type (emoji or Blobbi).
+ * Get mask URL for emoji avatar shapes.
  * Returns empty string if shape is invalid or mask generation fails.
- *
- * Note: For Blobbi shapes, this may return empty string on first call
- * while the PNG mask is being generated. Use getAvatarMaskUrlAsync for
- * guaranteed results.
  */
 export function getAvatarMaskUrl(shape: string): string {
-  // Check if Blobbi shape first
-  if (isBlobbiShape(shape)) {
-    const shapeId = parseBlobbiShapeId(shape);
-    if (shapeId) {
-      return getBlobbiMaskUrl(shapeId);
-    }
-    return '';
-  }
-
-  // Otherwise treat as emoji
   if (isEmoji(shape)) {
     return getEmojiMaskUrl(shape);
   }
@@ -116,19 +92,9 @@ export function getAvatarMaskUrl(shape: string): string {
 
 /**
  * Async version of getAvatarMaskUrl.
- * This is the preferred method for Blobbi shapes as it guarantees the PNG mask is ready.
+ * For emoji, this is equivalent to the sync version.
  */
 export async function getAvatarMaskUrlAsync(shape: string): Promise<string> {
-  // Check if Blobbi shape first
-  if (isBlobbiShape(shape)) {
-    const shapeId = parseBlobbiShapeId(shape);
-    if (shapeId) {
-      return getBlobbiMaskUrlAsync(shapeId);
-    }
-    return '';
-  }
-
-  // Otherwise treat as emoji (sync is fine for emoji)
   if (isEmoji(shape)) {
     return getEmojiMaskUrl(shape);
   }

@@ -18,8 +18,7 @@ export type DailyMissionAction =
   | 'sing'          // Sing direct action
   | 'play_music'    // Play music direct action
   | 'sleep'         // Put Blobbi to sleep
-  | 'take_photo'    // Take a photo of Blobbi
-  | 'change_shape'; // Change profile avatar shape to blobbi:*
+  | 'take_photo';   // Take a photo of Blobbi
 
 /**
  * Definition of a daily mission in the pool
@@ -132,17 +131,6 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     requiredCount: 1,
     reward: 20,
     weight: 6,
-  },
-
-  // ─── Low Frequency Missions ───────────────────────────────────────────────
-  {
-    id: 'change_shape_1',
-    title: 'Show off your Blobbi',
-    description: 'Set your profile avatar to a Blobbi shape',
-    action: 'change_shape',
-    requiredCount: 1,
-    reward: 40,
-    weight: 2,
   },
 
   // ─── Rare Missions ────────────────────────────────────────────────────────
