@@ -12,20 +12,22 @@
  *   │    ╱           ╲   │  ← V-fold body = opaque paper
  *   │  ╱               ╲ │
  *   └────────────────────┘
+ *     name            3h
  *
  * The closed flap shows the real StationeryBackground (images, palettes, emoji).
- * Below the V crease is the opaque paper body with corner folds.
+ * Below the V crease is the opaque paper body with corner folds and subtle shading.
  * Avatar wax seal at the V vertex.
+ * Label: name left-aligned, shorthand time right-aligned.
  */
 
 import { useMemo } from 'react';
+import { Clock } from 'lucide-react';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useDecryptLetter } from '@/hooks/useLetters';
 import { genUserName } from '@/lib/genUserName';
 import { resolveStationery, type Letter } from '@/lib/letterTypes';
-import { hexToRgb, rgbToHex } from '@/lib/colorUtils';
+import { hexToRgb, rgbToHex, hexLuminance } from '@/lib/colorUtils';
 import { StationeryBackground } from './StationeryBackground';
-import { formatDistanceToNow } from 'date-fns';
 
 interface EnvelopeCardProps {
   letter: Letter;
@@ -54,27 +56,53 @@ function darkenHex(hex: string, amount: number): string {
   return rgbToHex(dark(r), dark(g), dark(b));
 }
 
+function lightenHex(hex: string, amount: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  const light = (c: number) => Math.min(255, Math.round(c + (255 - c) * amount));
+  return rgbToHex(light(r), light(g), light(b));
+}
+
 function deriveColors(bgHex: string, primaryHex: string) {
   const body = blendHex(bgHex, primaryHex, 0.08);
+  const isDark = hexLuminance(body) < 0.45;
   return {
     body,
+    bodyLight: lightenHex(body, 0.06),
+    bodyDark: darkenHex(body, 0.06),
     stroke: darkenHex(body, 0.20),
     corner: darkenHex(body, 0.12),
+    shadow: darkenHex(body, 0.30),
+    text: isDark ? lightenHex(body, 0.55) : darkenHex(body, 0.55),
+    textMuted: isDark ? lightenHex(body, 0.40) : darkenHex(body, 0.40),
   };
 }
 
 // ---------------------------------------------------------------------------
-// Proportions — from SendAnimation's calcDims at W=200
-//   envH=126, flapY=19 (V-fold starts), vY=82 (V vertex)
-//   The body rect is the whole envelope. The closed flap covers from top to
-//   the V crease. Below that is the V-fold front pocket.
-//
-//   V vertex at 65% from top of body (vY/envH = 82/126 ≈ 0.65)
-//   V-fold starts at 15% from top (flapY/envH = 19/126 ≈ 0.15)
+// Shorthand relative time — "3m", "2h", "5d", "3w", etc.
 // ---------------------------------------------------------------------------
 
-const V_PCT = 65;     // V vertex as % from top
-const FLAP_Y_PCT = 15; // where V-fold / flap boundary line starts from top
+function shortTimeAgo(ts: number): string {
+  const secs = Math.max(0, Math.floor(Date.now() / 1000 - ts));
+  if (secs < 60) return 'now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `${weeks}w`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo`;
+  return `${Math.floor(days / 365)}y`;
+}
+
+// ---------------------------------------------------------------------------
+// Proportions — from SendAnimation's calcDims at W=200
+// ---------------------------------------------------------------------------
+
+const V_PCT = 65;
+const FLAP_Y_PCT = 15;
 
 export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps) {
   const otherPubkey = mode === 'inbox' ? letter.sender : letter.recipient;
@@ -83,7 +111,7 @@ export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps
 
   const displayName = author.data?.metadata?.name || genUserName(otherPubkey);
   const avatar = author.data?.metadata?.picture;
-  const timeAgo = formatDistanceToNow(new Date(letter.timestamp * 1000), { addSuffix: true });
+  const timeStr = shortTimeAgo(letter.timestamp);
 
   const stationery = decrypted?.stationery;
   const resolved = useMemo(() => resolveStationery(stationery ?? { color: '#F5E6D3' }), [stationery]);
@@ -91,15 +119,12 @@ export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps
   const primaryColor = resolved.primaryColor ?? resolved.colors?.[0] ?? bgColor;
   const C = useMemo(() => deriveColors(bgColor, primaryColor), [bgColor, primaryColor]);
 
-  // Closed flap shape: covers from top-left(0,0) → top-right(100%,0) → right at flapY(100%,15%)
-  // → V vertex(50%,65%) → left at flapY(0,15%)
-  // This is the back face of the SendAnimation flap after it closes down onto the body.
   const flapClip = `polygon(0% 0%, 100% 0%, 100% ${FLAP_Y_PCT}%, 50% ${V_PCT}%, 0% ${FLAP_Y_PCT}%)`;
 
   return (
     <button
       onClick={onClick}
-      className="envelope-card group flex flex-col items-center gap-1.5 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg"
+      className="envelope-card group outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl w-full"
       style={{ '--entrance-delay': `${index * 60}ms` } as React.CSSProperties}
       title={`${mode === 'inbox' ? 'From' : 'To'} ${displayName}`}
     >
@@ -107,14 +132,19 @@ export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps
       <div
         className="envelope-body relative w-full overflow-hidden rounded-xl"
         style={{
-          aspectRatio: '200 / 126',
-          boxShadow: `0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)`,
+          aspectRatio: '200 / 136',
+          boxShadow: `0 4px 16px ${C.shadow}22, 0 2px 6px ${C.shadow}18`,
         }}
       >
-        {/* Layer 0: Body paper color */}
-        <div className="absolute inset-0" style={{ backgroundColor: C.body }} />
+        {/* Layer 0: Body paper — subtle gradient for depth */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `linear-gradient(170deg, ${C.bodyLight} 0%, ${C.body} 45%, ${C.bodyDark} 100%)`,
+          }}
+        />
 
-        {/* Layer 1: Closed flap = StationeryBackground clipped to the flap shape */}
+        {/* Layer 1: Closed flap = StationeryBackground clipped to flap shape */}
         <div
           className="absolute inset-0"
           style={{ clipPath: flapClip, zIndex: 1 }}
@@ -125,21 +155,28 @@ export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps
           />
         </div>
 
-        {/* Layer 2: V-fold front pocket + crease lines + corner folds (SVG) */}
+        {/* Layer 2: V-fold front pocket + crease lines + corner folds + shading */}
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none"
-          viewBox="0 0 200 126"
+          viewBox="0 0 200 136"
           preserveAspectRatio="none"
           style={{ zIndex: 2 }}
         >
-          {/* V-fold front pocket — opaque paper below the V crease */}
+          <defs>
+            <linearGradient id={`vfold-${letter.event.id}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={C.body} />
+              <stop offset="100%" stopColor={C.bodyDark} />
+            </linearGradient>
+          </defs>
+
+          {/* V-fold front pocket */}
           <path
-            d={`M0,${FLAP_Y_PCT * 1.26} L92,${V_PCT * 1.26 - 10} Q100,${V_PCT * 1.26} 108,${V_PCT * 1.26 - 10} L200,${FLAP_Y_PCT * 1.26} L200,118 Q200,126 192,126 L8,126 Q0,126 0,118 Z`}
-            fill={C.body}
+            d={`M0,${FLAP_Y_PCT * 1.36} L92,${V_PCT * 1.36 - 10} Q100,${V_PCT * 1.36} 108,${V_PCT * 1.36 - 10} L200,${FLAP_Y_PCT * 1.36} L200,128 Q200,136 192,136 L8,136 Q0,136 0,128 Z`}
+            fill={`url(#vfold-${letter.event.id})`}
           />
           {/* V crease line */}
           <path
-            d={`M0,${FLAP_Y_PCT * 1.26} L92,${V_PCT * 1.26 - 10} Q100,${V_PCT * 1.26} 108,${V_PCT * 1.26 - 10} L200,${FLAP_Y_PCT * 1.26}`}
+            d={`M0,${FLAP_Y_PCT * 1.36} L92,${V_PCT * 1.36 - 10} Q100,${V_PCT * 1.36} 108,${V_PCT * 1.36 - 10} L200,${FLAP_Y_PCT * 1.36}`}
             fill="none"
             stroke={C.stroke}
             strokeWidth="1.4"
@@ -148,29 +185,52 @@ export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps
             opacity="0.3"
           />
           {/* Corner fold diagonals */}
-          <path d="M2,124 L70,63" stroke={C.corner} strokeWidth="1.2" strokeLinecap="round" fill="none" opacity="0.4" />
-          <path d="M198,124 L130,63" stroke={C.corner} strokeWidth="1.2" strokeLinecap="round" fill="none" opacity="0.4" />
+          <path d="M2,134 L70,70" stroke={C.corner} strokeWidth="1.2" strokeLinecap="round" fill="none" opacity="0.4" />
+          <path d="M198,134 L130,70" stroke={C.corner} strokeWidth="1.2" strokeLinecap="round" fill="none" opacity="0.4" />
+          {/* Subtle bottom edge shadow */}
+          <rect x="0" y="132" width="200" height="4" rx="2" fill={C.shadow} opacity="0.06" />
         </svg>
 
-        {/* Layer 3: Avatar wax seal at V vertex */}
+        {/* Layer 4: Name + time inside the envelope bottom */}
+        <div
+          className="absolute left-0 right-0 bottom-0 flex flex-col items-start px-2.5 pb-1.5 pt-0.5"
+          style={{ zIndex: 3 }}
+        >
+          <span
+            className="flex items-center gap-0.5 text-[9px] font-medium leading-tight"
+            style={{ color: C.textMuted }}
+          >
+            <Clock className="w-2 h-2" />
+            {timeStr}
+          </span>
+          <span
+            className="text-[11px] font-semibold truncate leading-tight max-w-full"
+            style={{ color: C.text }}
+          >
+            {displayName}
+          </span>
+        </div>
+
+        {/* Layer 3: Avatar wax seal — positioned above V vertex */}
         <div
           className="absolute z-10"
           style={{
             left: '50%',
-            top: `${V_PCT}%`,
+            top: `${V_PCT - 8}%`,
             transform: 'translate(-50%, -50%)',
           }}
         >
           <div
             className="rounded-full transition-transform duration-200 group-hover:scale-110 overflow-hidden"
             style={{
-              width: 26,
-              height: 26,
-              boxShadow: `0 2px 6px ${C.stroke}55, inset 0 1px 2px rgba(255,255,255,0.25)`,
-              border: `2px solid ${darkenHex(primaryColor, 0.15)}`,
+              width: 40,
+              height: 40,
+              boxShadow: `0 3px 10px ${C.shadow}77, 0 1px 3px ${C.shadow}44, inset 0 1.5px 3px rgba(255,255,255,0.3)`,
+              border: `3px solid ${darkenHex(primaryColor, 0.18)}`,
               background: `
-                radial-gradient(ellipse at 35% 30%, rgba(255,255,255,0.18) 0%, transparent 50%),
-                radial-gradient(circle at 50% 50%, ${primaryColor}, ${darkenHex(primaryColor, 0.15)})
+                radial-gradient(ellipse at 35% 30%, rgba(255,255,255,0.22) 0%, transparent 50%),
+                radial-gradient(ellipse at 65% 70%, rgba(0,0,0,0.12) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, ${primaryColor}, ${darkenHex(primaryColor, 0.18)})
               `,
             }}
           >
@@ -181,7 +241,7 @@ export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps
                 <img
                   src="/logo.svg"
                   alt=""
-                  style={{ width: 14, height: 14, filter: 'brightness(0) invert(1) opacity(0.8)' }}
+                  style={{ width: 22, height: 22, filter: 'brightness(0) invert(1) opacity(0.85)' }}
                 />
               </div>
             )}
@@ -189,15 +249,6 @@ export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps
         </div>
       </div>
 
-      {/* Label */}
-      <div className="flex flex-col items-center gap-0 w-full px-0.5 min-w-0">
-        <span className="text-xs font-medium text-foreground truncate w-full text-center leading-tight">
-          {displayName}
-        </span>
-        <span className="text-[10px] text-muted-foreground leading-tight">
-          {timeAgo}
-        </span>
-      </div>
     </button>
   );
 }
