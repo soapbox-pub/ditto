@@ -1,8 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect, type ReactNode } from 'react';
-import { ArrowLeft, Loader2, Pencil, Send, Sticker } from 'lucide-react';
+import { ArrowLeft, Loader2, Pencil, Send, Sticker, X } from 'lucide-react';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
-import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { FabButton } from '@/components/FabButton';
 import { nip19 } from 'nostr-tools';
 import { useQueryClient } from '@tanstack/react-query';
@@ -31,7 +30,8 @@ import { LetterEditor } from './LetterEditor';
 import { LetterStickers } from './LetterStickers';
 import { StickerPicker } from './StickerPicker';
 import { DrawingCanvas } from './DrawingCanvas';
-import { LetterRecipientInput } from './LetterRecipientInput';
+import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { StationeryBackground } from './StationeryBackground';
 import { SendAnimation, useEnvelopeDimensions } from './SendAnimation';
 
@@ -83,6 +83,33 @@ function AnimationLetter({ content, width }: { content: LetterContent; width: nu
 }
 
 const BODY_MAX_LENGTH = 220;
+
+/** Inline chip showing the selected recipient with avatar + name + optional clear. */
+function SelectedRecipient({ pubkey, onClear }: { pubkey: string; onClear?: () => void }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.display_name || metadata?.name || genUserName(pubkey);
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-muted/60 min-w-0">
+      <Avatar className="size-6 shrink-0">
+        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarFallback className="bg-primary/15 text-[10px] font-bold text-primary">
+          {displayName[0]?.toUpperCase() || '?'}
+        </AvatarFallback>
+      </Avatar>
+      <span className="text-base font-medium truncate">{displayName}</span>
+      {onClear && (
+        <button
+          onClick={onClear}
+          className="text-muted-foreground hover:text-foreground shrink-0 transition-colors p-0.5"
+        >
+          <X className="size-4" strokeWidth={3} />
+        </button>
+      )}
+    </div>
+  );
+}
 
 type Overlay = 'none' | 'font' | 'stationery' | 'frame' | 'sticker' | 'draw';
 
@@ -359,21 +386,24 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
           </>
         }
         beforeCard={
-          <div className="max-w-xl mx-auto w-full px-5 pb-2" style={{ paddingTop: `calc(${ARC_OVERHANG_PX}px + 2.5rem)` }}>
-            <div className="flex items-center gap-2">
+          <div className="max-w-xl mx-auto w-full px-5 pb-2 pt-4 max-sidebar:pt-[calc(20px+2.5rem)]">
+            <div className="flex items-center">
               <span className="text-sm font-medium text-muted-foreground shrink-0 w-14">To</span>
-              {!initialRecipient ? (
+              {!initialRecipient && !resolvedRecipient ? (
                 <div className="flex-1">
-                  <LetterRecipientInput
-                    onSelect={(pubkey) => setResolvedRecipient(pubkey)}
-                    initialNpub={resolvedRecipient ? nip19.npubEncode(resolvedRecipient) : undefined}
-                    friendsOnly={prefs.friendsOnlySearch}
+                  <ProfileSearchDropdown
+                    placeholder="search for a person..."
+                    onSelect={(profile) => setResolvedRecipient(profile.pubkey)}
+                    hideCountry
+                    className="w-full"
+                    inputClassName="rounded-2xl bg-muted/60 border-0 focus-visible:ring-2 focus-visible:ring-primary/20 text-base h-auto py-2"
                   />
                 </div>
               ) : (
-                <span className="text-sm font-semibold text-foreground">
-                  {nip19.npubEncode(initialRecipient).slice(0, 16)}...
-                </span>
+                <SelectedRecipient
+                  pubkey={resolvedRecipient ?? initialRecipient!}
+                  onClear={initialRecipient ? undefined : () => setResolvedRecipient(undefined)}
+                />
               )}
             </div>
           </div>
