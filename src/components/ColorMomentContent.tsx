@@ -12,7 +12,7 @@ function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
 }
 
-function getColors(tags: string[][]): string[] {
+export function getColors(tags: string[][]): string[] {
   return tags
     .filter(([n]) => n === 'c')
     .map(([, v]) => v)
@@ -238,7 +238,7 @@ function enforceContrast(hsl: string, bgHsl: string, targetRatio: number): strin
  * 3. primary    = most saturated remaining color; if contrast < 3:1 against
  *                 background, adjust its lightness until it passes
  */
-function paletteToTheme(colors: string[]): CoreThemeColors {
+export function paletteToTheme(colors: string[]): CoreThemeColors {
   if (colors.length === 0) {
     return { background: '0 0% 10%', text: '0 0% 98%', primary: '258 70% 55%' };
   }
