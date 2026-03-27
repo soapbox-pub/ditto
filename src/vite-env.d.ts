@@ -7,6 +7,10 @@ declare module '@fontsource/comic-relief/*';
 interface ImportMetaEnv {
   /** Hex pubkey of the nostr-push server for Web Push notifications. */
   readonly VITE_NOSTR_PUSH_PUBKEY?: string;
+  /** Semver version from package.json (e.g., "2.0.0"). */
+  readonly VERSION: string;
+  /** ISO 8601 timestamp of when the app was built (e.g., "2026-03-26T19:42:00.000Z"). */
+  readonly BUILD_DATE: string;
 }
 
 /**
