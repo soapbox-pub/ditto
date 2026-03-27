@@ -19,7 +19,7 @@
 /**
  * Available emotion states for Blobbies
  */
-export type BlobbiEmotion = 'neutral' | 'sad' | 'happy' | 'angry' | 'surprised' | 'sleepy' | 'curious' | 'dizzy' | 'excited' | 'mischievous' | 'adoring';
+export type BlobbiEmotion = 'neutral' | 'sad' | 'happy' | 'angry' | 'surprised' | 'sleepy' | 'curious' | 'dizzy' | 'excited' | 'excitedB' | 'mischievous' | 'adoring';
 
 /**
  * Blobbi variant for variant-specific adjustments
@@ -273,6 +273,21 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
     bigSmile: {
       widthScale: 1.3, // 30% wider
       curveScale: 1.4, // 40% deeper curve for extra happy look
+    },
+  },
+  excitedB: {
+    // Variation B: star eyes + round mouth (like curious)
+    starEyes: {
+      enabled: true,
+      points: 5, // 5-pointed star
+      color: '#fbbf24', // Golden yellow (amber-400)
+      scale: 0.9, // Same as excited
+    },
+    // Round "O" mouth like curious (no smile)
+    roundMouth: {
+      rx: 3.5, // Slightly larger than curious
+      ry: 4,
+      filled: true,
     },
   },
   mischievous: {
@@ -1390,39 +1405,56 @@ function generateStarElement(eye: EyePosition, config: StarEyesConfig): string {
 }
 
 /**
- * Generate sparkle elements around the eyes for the excited effect.
- * Small animated sparkles that twinkle around the star eyes.
+ * Generate a single sparkle element at specified position.
  */
-function generateSparkles(eyes: EyePosition[], config: StarEyesConfig): string {
+function createSparkleElement(x: number, y: number, size: number, color: string, delay: number, duration: number): string {
+  return `<g class="blobbi-sparkle" style="transform-origin: ${x}px ${y}px;">
+      <path 
+        d="M ${x} ${y - size} L ${x + size * 0.3} ${y} L ${x} ${y + size} L ${x - size * 0.3} ${y} Z M ${x - size} ${y} L ${x} ${y + size * 0.3} L ${x + size} ${y} L ${x} ${y - size * 0.3} Z"
+        fill="${color}"
+        opacity="0"
+      >
+        <animate attributeName="opacity" values="0;0.7;0" dur="${duration}s" begin="${delay}s" repeatCount="indefinite" />
+      </path>
+    </g>`;
+}
+
+/**
+ * Generate sparkle elements around the entire Blobbi for the excited effect.
+ * Subtle, soft sparkles distributed around the body perimeter.
+ */
+function generateSparkles(config: StarEyesConfig): string {
   const color = config.color || '#fbbf24';
   
-  return eyes.map(eye => {
-    const sparkleRadius = eye.radius * 0.15;
-    const orbitRadius = eye.radius * 2.2; // Distance from eye center
-    
-    // Create 4 sparkles around each eye at different angles
-    const sparkles = [0, 45, 135, 180].map((angleDeg, i) => {
-      const angle = (angleDeg * Math.PI) / 180;
-      const x = eye.cx + orbitRadius * Math.cos(angle);
-      const y = eye.cy + orbitRadius * Math.sin(angle);
-      const delay = i * 0.3; // Stagger the animations
-      
-      // Small 4-pointed star sparkle
-      const sparkleSize = sparkleRadius * (0.8 + Math.random() * 0.4);
-      
-      return `<g class="blobbi-sparkle" opacity="0">
-        <path 
-          d="M ${x} ${y - sparkleSize} L ${x + sparkleSize * 0.3} ${y} L ${x} ${y + sparkleSize} L ${x - sparkleSize * 0.3} ${y} Z M ${x - sparkleSize} ${y} L ${x} ${y + sparkleSize * 0.3} L ${x + sparkleSize} ${y} L ${x} ${y - sparkleSize * 0.3} Z"
-          fill="${color}"
-        >
-          <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="${delay}s" repeatCount="indefinite" />
-          <animateTransform attributeName="transform" type="scale" values="0.5;1.2;0.5" dur="1.5s" begin="${delay}s" repeatCount="indefinite" additive="sum" />
-        </path>
-      </g>`;
-    });
-    
-    return sparkles.join('\n    ');
-  }).join('\n  ');
+  // Sparkle positions around the Blobbi body
+  // Assuming viewBox is roughly 100x100 for baby, 200x200 for adult
+  // These positions create a halo effect around the character
+  const sparklePositions = [
+    // Top area
+    { x: 30, y: 8, size: 2.5, delay: 0 },
+    { x: 50, y: 5, size: 3, delay: 0.8 },
+    { x: 70, y: 8, size: 2, delay: 1.6 },
+    // Upper sides
+    { x: 15, y: 25, size: 2.5, delay: 0.4 },
+    { x: 85, y: 25, size: 2.5, delay: 1.2 },
+    // Middle sides  
+    { x: 10, y: 50, size: 2, delay: 0.6 },
+    { x: 90, y: 50, size: 2.5, delay: 1.4 },
+    // Lower sides
+    { x: 15, y: 75, size: 2, delay: 1.0 },
+    { x: 85, y: 75, size: 2, delay: 0.2 },
+    // Bottom corners
+    { x: 25, y: 90, size: 2.5, delay: 1.8 },
+    { x: 75, y: 90, size: 2, delay: 0.5 },
+  ];
+  
+  const sparkles = sparklePositions.map(({ x, y, size, delay }) => {
+    // Vary the duration slightly for more organic feel
+    const duration = 2 + (delay * 0.3);
+    return createSparkleElement(x, y, size, color, delay, duration);
+  });
+  
+  return sparkles.join('\n  ');
 }
 
 /**
@@ -1488,10 +1520,10 @@ function applyStarEyes(svgText: string, eyes: EyePosition[], config: StarEyesCon
     }
   }
   
-  // Add sparkles as a separate overlay (they don't need to track)
-  const sparkles = generateSparkles(eyes, config);
+  // Add sparkles around the entire Blobbi as a separate overlay
+  const sparkles = generateSparkles(config);
   const sparkleOverlay = `
-  <!-- Excited sparkles -->
+  <!-- Excited sparkles around Blobbi -->
   <g class="blobbi-sparkles-group">
     ${sparkles}
   </g>`;
