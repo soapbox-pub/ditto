@@ -46,7 +46,7 @@ build-apk:
   timeout: 15 minutes
   needs: []
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+-/
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   variables:
     ANDROID_SDK_ROOT: /opt/android-sdk
     ANDROID_HOME: /opt/android-sdk
@@ -97,8 +97,7 @@ build-apk:
       storeFile=my-upload-key.keystore
       EOF
   script:
-    # Extract version from git tag (e.g., v2026.03.16+974041a)
-    # versionName: full calver+sha string (e.g., 2026.03.16+974041a)
+    # Extract semver version from git tag (e.g., v2.1.0 -> 2.1.0)
     - TAG="${CI_COMMIT_TAG#v}"
     - VERSION_NAME="${TAG}"
     - VERSION_CODE="${CI_PIPELINE_IID}"
@@ -152,13 +151,27 @@ release:
   needs:
     - build-apk
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+-/
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   script:
     - echo "Creating release for $CI_COMMIT_TAG"
+    # Extract the latest changelog section for the release description.
+    # Reads from "## [version]" to the next "## [" or end of file.
+    - |
+      VERSION="${CI_COMMIT_TAG#v}"
+      RELEASE_NOTES=$(awk "/^## \\[${VERSION}\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md)
+      if [ -z "$RELEASE_NOTES" ]; then
+        RELEASE_NOTES="Ditto ${CI_COMMIT_TAG}"
+      fi
+      echo "RELEASE_NOTES<<ENDOFNOTES" >> release.env
+      echo "$RELEASE_NOTES" >> release.env
+      echo "ENDOFNOTES" >> release.env
+  artifacts:
+    reports:
+      dotenv: release.env
   release:
     tag_name: $CI_COMMIT_TAG
     name: $CI_COMMIT_TAG
-    description: "Ditto $CI_COMMIT_TAG"
+    description: $RELEASE_NOTES
     assets:
       links:
         - name: "Ditto-${CI_COMMIT_TAG}.apk"
@@ -174,7 +187,7 @@ publish-zapstore:
   needs:
     - build-apk
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+-/
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   variables:
     SIGN_WITH: $ZAPSTORE_BUNKER_URL
   script:

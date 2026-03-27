@@ -171,6 +171,11 @@ export function SettingsPage() {
         <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/20 to-primary/30" />
       </div>
 
+      {/* Version footer */}
+      <p className="text-center text-[11px] text-muted-foreground/50 select-none pt-1 pb-2">
+        v{import.meta.env.VERSION} ({new Date(import.meta.env.BUILD_DATE).toLocaleDateString()})
+      </p>
+
       {/* Magic sigil — appears after 2 min inactivity, only when magic is locked */}
       {!config.magicMouse && sigilVisible && (<div className="flex justify-center pt-16 pb-12">
         <button
