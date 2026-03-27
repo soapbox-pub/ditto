@@ -4,10 +4,12 @@
  */
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
-import { Loader2, Lock, Gift, Check } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useDecryptLetter } from '@/hooks/useLetters';
-import { FONT_OPTIONS, LINE_HEIGHT_RATIO, COLOR_MOMENT_KIND, THEME_KIND, type Letter } from '@/lib/letterTypes';
+import { FONT_OPTIONS, LINE_HEIGHT_RATIO, COLOR_MOMENT_KIND, THEME_KIND, resolveStationery, colorMomentToStationery, themeToStationery, type Letter } from '@/lib/letterTypes';
+import { hexLuminance, backgroundTextColor } from '@/lib/colorUtils';
+import { ColorPaletteDisplay, type PaletteLayout } from './ColorPaletteDisplay';
 import { ensureLetterFonts } from '@/lib/letterUtils';
 import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
@@ -16,7 +18,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { toast } from '@/hooks/useToast';
 import { paletteToTheme, getColors } from '@/components/ColorMomentContent';
 import { parseThemeDefinition } from '@/lib/themeEvent';
-import { coreToTokens, type ThemeConfig } from '@/themes';
+import type { ThemeConfig } from '@/themes';
 import {
   Dialog,
   DialogContent,
@@ -27,27 +29,7 @@ import {
 // Attached gift — color moment or theme that can be applied on the spot
 // ---------------------------------------------------------------------------
 
-function hsl(value: string): string {
-  return `hsl(${value})`;
-}
-
-/** Mini mockup showing how the theme looks — background, text, primary. */
-function ThemeSwatch({ bg, text, primary, className }: { bg: string; text: string; primary: string; className?: string }) {
-  return (
-    <div
-      className={`rounded-xl overflow-hidden ${className ?? ''}`}
-      style={{ background: hsl(bg) }}
-    >
-      <div className="flex flex-col gap-1.5 p-3">
-        <div className="h-2 w-3/4 rounded-full" style={{ background: hsl(text), opacity: 0.7 }} />
-        <div className="h-2 w-1/2 rounded-full" style={{ background: hsl(text), opacity: 0.4 }} />
-        <div className="h-6 w-16 rounded-lg mt-1" style={{ background: hsl(primary) }} />
-      </div>
-    </div>
-  );
-}
-
-/** Renders an "attached gift" for a letter with an embedded event. */
+/** Renders an attached gift — present box overlapping a themed bubble. */
 function LetterAttachment({ event }: { event: NostrEvent }) {
   const { applyCustomTheme, theme, customTheme, setTheme } = useTheme();
   const [applied, setApplied] = useState(false);
@@ -58,15 +40,21 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
       const colors = getColors(event.tags);
       if (colors.length < 2) return null;
       const core = paletteToTheme(colors);
-      return { type: 'color-moment' as const, label: 'Color Moment', colors, core };
+      const stationery = colorMomentToStationery(event);
+      const resolved = resolveStationery(stationery);
+      return { type: 'color-moment' as const, label: 'Color Moment', colors, core, resolved };
     }
     if (event.kind === THEME_KIND) {
       const parsed = parseThemeDefinition(event);
       if (!parsed) return null;
+      const stationery = themeToStationery(event);
+      const resolved = resolveStationery(stationery);
       return {
         type: 'theme' as const,
-        label: parsed.title ?? 'Ditto Theme',
+        label: parsed.title ?? 'Theme',
+        colors: [] as string[],
         core: parsed.colors,
+        resolved,
         themeConfig: { colors: parsed.colors, font: parsed.font, titleFont: parsed.titleFont, background: parsed.background, title: parsed.title } as ThemeConfig,
       };
     }
@@ -104,68 +92,86 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
 
   if (!attachment) return null;
 
-  const tokens = coreToTokens(attachment.core);
+  const { resolved } = attachment;
+  const bg = resolved.color;
+  const primary = `hsl(${attachment.core.primary})`;
+  // Use a visible border when the bg is very light to avoid white-on-white
+  const needsBorder = hexLuminance(bg) > 0.85;
+  const ribbonColor = attachment.type === 'color-moment'
+    ? (attachment.colors[Math.floor(attachment.colors.length / 2)] ?? primary)
+    : primary;
+  // Derive readable text color from the scrimmed background
+  const textColor = backgroundTextColor(bg);
 
   return (
     <button
       onClick={handleApply}
-      className="w-full mt-4 group relative"
+      className="relative max-w-[220px] mx-auto mt-16 block transition-transform duration-200 active:scale-95 hover:scale-[1.02] focus-visible:outline-none"
+      title={applied ? 'Theme applied!' : `Tap to use "${attachment.label}" as your theme`}
     >
-      {/* Ribbon connector */}
-      <div className="flex justify-center -mb-1 relative z-10">
-        <div className="w-8 h-3 rounded-t-lg" style={{ background: hsl(tokens.primary) }} />
+      {/* Present box — overlaps the bubble top */}
+      <div className="flex justify-center relative z-10 mb-[-20px]">
+        <svg width="56" height="60" viewBox="0 0 56 60" fill="none" className="drop-shadow-sm">
+          {/* Box body */}
+          <rect x="4" y="26" width="48" height="32" rx="3" fill={bg} stroke={needsBorder ? '#0001' : 'none'} strokeWidth="1" />
+          <rect x="4" y="26" width="48" height="8" rx="3" fill="white" opacity="0.07" />
+          {/* Ribbon vertical */}
+          <rect x="24" y="26" width="8" height="32" fill={ribbonColor} opacity="0.8" />
+          {/* Ribbon horizontal */}
+          <rect x="4" y="38" width="48" height="6" fill={ribbonColor} opacity="0.8" />
+          {/* Lid */}
+          <rect x="2" y="18" width="52" height="10" rx="2.5" fill={bg} stroke={needsBorder ? '#0001' : ribbonColor} strokeWidth={needsBorder ? 1 : 0.5} strokeOpacity={needsBorder ? 1 : 0.2} />
+          <rect x="2" y="18" width="52" height="4" rx="2.5" fill="white" opacity="0.1" />
+          {/* Lid ribbon */}
+          <rect x="24" y="18" width="8" height="10" fill={ribbonColor} opacity="0.8" />
+          {/* Bow — left loop */}
+          <ellipse cx="20" cy="14" rx="8" ry="6" fill={ribbonColor} />
+          <ellipse cx="19.5" cy="12.5" rx="4.5" ry="3" fill="white" opacity="0.2" />
+          {/* Bow — right loop */}
+          <ellipse cx="36" cy="14" rx="8" ry="6" fill={ribbonColor} />
+          <ellipse cx="36.5" cy="12.5" rx="4.5" ry="3" fill="white" opacity="0.2" />
+          {/* Bow — knot */}
+          <ellipse cx="28" cy="16" rx="5" ry="4" fill={ribbonColor} />
+          <ellipse cx="28" cy="15" rx="2.5" ry="2" fill="white" opacity="0.15" />
+        </svg>
       </div>
 
-      {/* Gift card */}
+      {/* Themed bubble */}
       <div
-        className="relative rounded-2xl border-2 overflow-hidden transition-transform active:scale-[0.97]"
+        className="relative rounded-2xl overflow-hidden"
         style={{
-          borderColor: hsl(tokens.border),
-          background: hsl(tokens.card),
+          background: bg,
+          border: needsBorder ? '1px solid hsl(var(--border))' : `1px solid ${ribbonColor}22`,
         }}
       >
-        {/* Horizontal ribbon stripe */}
-        <div
-          className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-6 opacity-20"
-          style={{ background: hsl(tokens.primary) }}
-        />
-
-        <div className="relative flex items-center gap-3 px-4 py-3">
-          <div
-            className="size-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: hsl(tokens.primary) + '1a' }}
-          >
-            {applied
-              ? <Check className="size-5" style={{ color: hsl(tokens.primary) }} />
-              : <Gift className="size-5" style={{ color: hsl(tokens.primary) }} />
-            }
-          </div>
-
-          <div className="flex-1 min-w-0 text-left">
-            <p className="text-sm font-semibold truncate" style={{ color: hsl(tokens.cardForeground) }}>
-              {attachment.label}
-            </p>
-            <p className="text-xs" style={{ color: hsl(tokens.mutedForeground) }}>
-              {applied ? 'Applied to your Ditto' : 'Tap to use as your theme'}
-            </p>
-          </div>
-
-          {/* Mini swatch */}
-          {attachment.type === 'color-moment' && (
-            <div className="flex gap-0.5 shrink-0">
-              {attachment.colors.slice(0, 5).map((c, i) => (
-                <div key={i} className="size-5 rounded-full" style={{ background: c }} />
-              ))}
-            </div>
-          )}
-          {attachment.type === 'theme' && (
-            <ThemeSwatch
-              bg={attachment.core.background}
-              text={attachment.core.text}
-              primary={attachment.core.primary}
-              className="w-20 shrink-0"
+        {/* Background: actual color moment pattern or theme image */}
+        {attachment.type === 'color-moment' && attachment.colors.length > 0 && (
+          <ColorPaletteDisplay
+            colors={attachment.colors}
+            layout={(resolved.layout as PaletteLayout) || 'horizontal'}
+            className="absolute inset-0"
+          />
+        )}
+        {attachment.type === 'theme' && resolved.imageUrl && (
+          <div className="absolute inset-0">
+            <img
+              src={resolved.imageUrl}
+              alt=""
+              className="w-full h-full object-cover"
             />
-          )}
+          </div>
+        )}
+        {/* Scrim for text readability */}
+        <div className="absolute inset-0" style={{ background: `${bg}bb` }} />
+
+        {/* Content */}
+        <div className="relative px-4 pt-7 pb-3.5 text-center">
+          <p className="text-xs font-semibold truncate" style={{ color: textColor }}>
+            {attachment.label}
+          </p>
+          <p className="text-[11px] mt-0.5" style={{ color: textColor, opacity: 0.6 }}>
+            {applied ? 'Applied as your theme' : 'Tap to use as theme'}
+          </p>
         </div>
       </div>
     </button>
