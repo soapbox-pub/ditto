@@ -7,6 +7,7 @@
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
+| 8211  | Encrypted Letter     | Encrypted personal letter with visual stationery      |
 
 ---
 
