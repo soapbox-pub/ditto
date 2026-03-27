@@ -313,6 +313,14 @@
   }
 }
 
+/* Drawn SVG stickers — ensure inline SVGs fill their container */
+[data-sticker] svg,
+.sticker-svg-wrap svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 /* Letter send animation keyframes */
 @keyframes letter-send-fade-up {
   from { opacity: 0; transform: translateY(8px); }

@@ -6,10 +6,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Loader2, Lock } from 'lucide-react';
 import { useDecryptLetter } from '@/hooks/useLetters';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { useQueryClient } from '@tanstack/react-query';
-import { FONT_OPTIONS, LETTER_KIND, type Letter } from '@/lib/letterTypes';
+import { FONT_OPTIONS, type Letter } from '@/lib/letterTypes';
 import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { LetterStickers } from './LetterStickers';
@@ -42,24 +39,35 @@ export function LetterDetailSheet({ letter, mode, onClose }: LetterDetailSheetPr
     ? (rawFont.includes(',') ? rawFont : `${rawFont}, ${FONT_OPTIONS[0].family}`)
     : FONT_OPTIONS[0].family;
 
+  // ResizeObserver for ruled line height — re-attaches when the dialog opens (letter changes)
   useEffect(() => {
+    if (!letter) return;
+    // Small delay to let the Dialog portal mount and layout
+    const timer = setTimeout(() => {
+      const el = letterRef.current;
+      if (!el) return;
+      const w = el.getBoundingClientRect().width;
+      if (w > 0) setLineHeightPx(Math.round(w * 0.084));
+    }, 50);
+
     const el = letterRef.current;
-    if (!el) return;
+    if (!el) return () => clearTimeout(timer);
+
     let raf: number;
     const ro = new ResizeObserver(([entry]) => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const w = entry.contentBoxSize?.[0]?.inlineSize ?? entry.contentRect.width;
-        setLineHeightPx(Math.round(w * 0.084));
+        if (w > 0) setLineHeightPx(Math.round(w * 0.084));
       });
     });
     ro.observe(el);
-    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
-  }, [letter?.event.id]);
+    return () => { clearTimeout(timer); ro.disconnect(); cancelAnimationFrame(raf); };
+  }, [letter]);
 
   return (
     <Dialog open={!!letter} onOpenChange={(open) => { if (!open) onClose(); }}>
-        <DialogContent className="p-0 gap-0 border-none bg-transparent shadow-none max-w-[calc(100vw-2rem)] sm:max-w-lg overflow-visible [&>button]:hidden">
+      <DialogContent className="p-0 gap-0 border-none bg-transparent shadow-none max-w-[calc(100vw-2rem)] sm:max-w-lg overflow-visible [&>button]:hidden">
         <DialogTitle className="sr-only">Letter</DialogTitle>
 
         <div style={effectiveFrame && effectiveFrame !== 'none'
