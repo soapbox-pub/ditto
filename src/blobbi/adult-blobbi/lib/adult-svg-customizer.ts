@@ -383,22 +383,172 @@ function customizeStarri(svgText: string, baseColor: string): string {
   return svg;
 }
 
+/**
+ * Breezy: Body, inner, veins, arms, legs, and floating leaves should use Blobbi color
+ * Gradients: breezyBody, breezyInner, breezyVein, breezyArm, breezyLeg, breezyFloating
+ */
+function customizeBreezy(svgText: string, baseColor: string): string {
+  let svg = svgText;
+  
+  // Body (4-stop leaf gradient)
+  svg = replaceGradient(svg, 'breezyBody', buildRadialGradient4Stop('breezyBody', baseColor));
+  
+  // Inner highlight (lighter, 2-stop)
+  svg = replaceGradient(svg, 'breezyInner', buildRadialGradient2Stop('breezyInner', lightenColor(baseColor, 40), '0.4', '0.3'));
+  
+  // Veins (linear gradient, darker)
+  svg = replaceGradient(svg, 'breezyVein', `<linearGradient id="breezyVein" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" style="stop-color:${darkenColor(baseColor, 20)};stop-opacity:1" />
+      <stop offset="50%" style="stop-color:${darkenColor(baseColor, 10)};stop-opacity:1" />
+      <stop offset="100%" style="stop-color:${darkenColor(baseColor, 20)};stop-opacity:1" />
+    </linearGradient>`);
+  
+  // Arms (2-stop)
+  svg = replaceGradient(svg, 'breezyArm', buildRadialGradient2Stop('breezyArm', lightenColor(baseColor, 15)));
+  
+  // Legs (2-stop)
+  svg = replaceGradient(svg, 'breezyLeg', buildRadialGradient2Stop('breezyLeg', baseColor, '0.3', '0.2'));
+  
+  // Floating leaves
+  svg = replaceGradient(svg, 'breezyFloating', buildRadialGradient2Stop('breezyFloating', lightenColor(baseColor, 25), '0.5', '0.5'));
+  
+  return svg;
+}
+
+/**
+ * Bloomi: Petals, center, and pollen should use Blobbi color
+ * Note: Bloomi has 6 different colored petals - we'll make them all use variations of the base color
+ * Gradients: bloomiPetal1-6, bloomiCenter, bloomiPollen
+ */
+function customizeBloomi(svgText: string, baseColor: string): string {
+  let svg = svgText;
+  
+  // All 6 petals use variations of the Blobbi color
+  // Create a gradient effect across petals by varying lightness
+  svg = replaceGradient(svg, 'bloomiPetal1', buildRadialGradient2Stop('bloomiPetal1', lightenColor(baseColor, 30)));
+  svg = replaceGradient(svg, 'bloomiPetal2', buildRadialGradient2Stop('bloomiPetal2', lightenColor(baseColor, 20)));
+  svg = replaceGradient(svg, 'bloomiPetal3', buildRadialGradient2Stop('bloomiPetal3', lightenColor(baseColor, 10)));
+  svg = replaceGradient(svg, 'bloomiPetal4', buildRadialGradient2Stop('bloomiPetal4', baseColor));
+  svg = replaceGradient(svg, 'bloomiPetal5', buildRadialGradient2Stop('bloomiPetal5', darkenColor(baseColor, 10)));
+  svg = replaceGradient(svg, 'bloomiPetal6', buildRadialGradient2Stop('bloomiPetal6', darkenColor(baseColor, 5)));
+  
+  // Center (3-stop, lighter than petals - this is where the face is)
+  svg = replaceGradient(svg, 'bloomiCenter', `<radialGradient id="bloomiCenter" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:${lightenColor(baseColor, 45)};stop-opacity:1" />
+      <stop offset="50%" style="stop-color:${lightenColor(baseColor, 35)};stop-opacity:1" />
+      <stop offset="100%" style="stop-color:${lightenColor(baseColor, 25)};stop-opacity:1" />
+    </radialGradient>`);
+  
+  // Pollen (floating particles)
+  svg = replaceGradient(svg, 'bloomiPollen', buildRadialGradient2Stop('bloomiPollen', lightenColor(baseColor, 40), '0.5', '0.5'));
+  
+  return svg;
+}
+
+/**
+ * Cacti: Body and arms should use Blobbi color (pot keeps original red)
+ * Gradients: cactiBody, cactiArm
+ */
+function customizeCacti(svgText: string, baseColor: string): string {
+  let svg = svgText;
+  
+  // Body (4-stop)
+  svg = replaceGradient(svg, 'cactiBody', buildRadialGradient4Stop('cactiBody', baseColor));
+  
+  // Arms (2-stop)
+  svg = replaceGradient(svg, 'cactiArm', buildRadialGradient2Stop('cactiArm', lightenColor(baseColor, 10)));
+  
+  return svg;
+}
+
+/**
+ * Cloudi: Body, highlights, and raindrops should use Blobbi color
+ * Gradients: cloudiBody, cloudiHighlight, cloudiRain
+ */
+function customizeCloudi(svgText: string, baseColor: string): string {
+  let svg = svgText;
+  
+  // Body (3-stop, cloud-like progression from light to slightly darker)
+  svg = replaceGradient(svg, 'cloudiBody', `<radialGradient id="cloudiBody" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:${lightenColor(baseColor, 45)};stop-opacity:1" />
+      <stop offset="50%" style="stop-color:${lightenColor(baseColor, 30)};stop-opacity:1" />
+      <stop offset="100%" style="stop-color:${lightenColor(baseColor, 15)};stop-opacity:1" />
+    </radialGradient>`);
+  
+  // Highlights (very light, semi-transparent feel)
+  svg = replaceGradient(svg, 'cloudiHighlight', `<radialGradient id="cloudiHighlight" cx="0.4" cy="0.3">
+      <stop offset="0%" style="stop-color:${lightenColor(baseColor, 50)};stop-opacity:1" />
+      <stop offset="100%" style="stop-color:${lightenColor(baseColor, 40)};stop-opacity:0.5" />
+    </radialGradient>`);
+  
+  // Raindrops (use darker version of the color)
+  svg = replaceGradient(svg, 'cloudiRain', buildRadialGradient2Stop('cloudiRain', darkenColor(baseColor, 10), '0.5', '0.3'));
+  
+  return svg;
+}
+
+/**
+ * Crysti: Body and inner should use Blobbi color (facets keep their colorful nature)
+ * Gradients: crystiBody, crystiInner
+ */
+function customizeCrysti(svgText: string, baseColor: string): string {
+  let svg = svgText;
+  
+  // Body (4-stop crystal gradient)
+  svg = replaceGradient(svg, 'crystiBody', buildRadialGradient4Stop('crystiBody', baseColor));
+  
+  // Inner highlight (semi-transparent white feel preserved but tinted)
+  svg = replaceGradient(svg, 'crystiInner', `<radialGradient id="crystiInner" cx="0.4" cy="0.3">
+      <stop offset="0%" style="stop-color:${lightenColor(baseColor, 50)};stop-opacity:1" />
+      <stop offset="100%" style="stop-color:${lightenColor(baseColor, 35)};stop-opacity:0.3" />
+    </radialGradient>`);
+  
+  return svg;
+}
+
+/**
+ * Owli: Body, ears, and wings should use Blobbi color (beak keeps yellow/orange)
+ * Gradients: owliBody3D, owliEar3D, owliWing3D, owliWingHighlight
+ */
+function customizeOwli(svgText: string, baseColor: string): string {
+  let svg = svgText;
+  
+  // Body (3-stop)
+  svg = replaceGradient(svg, 'owliBody3D', buildRadialGradient3Stop('owliBody3D', baseColor));
+  
+  // Ears (2-stop, slightly darker)
+  svg = replaceGradient(svg, 'owliEar3D', buildRadialGradient2Stop('owliEar3D', darkenColor(baseColor, 10), '0.3', '0.2'));
+  
+  // Wings (2-stop)
+  svg = replaceGradient(svg, 'owliWing3D', buildRadialGradient2Stop('owliWing3D', darkenColor(baseColor, 15), '0.3', '0.2'));
+  
+  // Wing highlights (lighter)
+  svg = replaceGradient(svg, 'owliWingHighlight', buildRadialGradient2Stop('owliWingHighlight', lightenColor(baseColor, 10), '0.4', '0.3'));
+  
+  return svg;
+}
+
 // ─── Form Customizer Map ──────────────────────────────────────────────────────
 
 type FormCustomizer = (svgText: string, baseColor: string) => string;
 
 const FORM_CUSTOMIZERS: Partial<Record<AdultForm, FormCustomizer>> = {
+  bloomi: customizeBloomi,
+  breezy: customizeBreezy,
+  cacti: customizeCacti,
   catti: customizeCatti,
+  cloudi: customizeCloudi,
+  crysti: customizeCrysti,
   droppi: customizeDroppi,
   flammi: customizeFlammi,
   froggi: customizeFroggi,
   leafy: customizeLeafy,
   mushie: customizeMushie,
+  owli: customizeOwli,
   rocky: customizeRocky,
   rosey: customizeRosey,
   starri: customizeStarri,
-  // owli and pandi keep original colors (no customizer)
-  // bloomi, breezy, cacti, cloudi, crysti may need customizers later
+  // pandi keeps original colors - it's a panda with black/white coloring by design
 };
 
 // ─── Main Customization ───────────────────────────────────────────────────────
