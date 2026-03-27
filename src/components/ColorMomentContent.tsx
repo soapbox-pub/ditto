@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useId } from 'react';
 
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
-import { hexToHslString, hexToRgb, rgbToHsl, hslToRgb, getLuminance, getContrastRatio, parseHsl, formatHsl } from '@/lib/colorUtils';
+import { hexToHslString, hexToRgb, rgbToHsl, hslToRgb, getLuminance, getContrastRatio, parseHsl, formatHsl, hexLuminance } from '@/lib/colorUtils';
 import type { CoreThemeColors } from '@/themes';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -194,10 +194,6 @@ function DiagonalStripesLayout({ colors }: { colors: string[] }) {
 }
 
 // ─── Palette → theme mapping ─────────────────────────────
-
-function hexLuminance(hex: string): number {
-  return getLuminance(...hexToRgb(hex));
-}
 
 function hexContrast(hex1: string, hex2: string): number {
   return getContrastRatio(hexToRgb(hex1), hexToRgb(hex2));

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { type Stationery, resolveStationery } from '@/lib/letterTypes';
+import { type Stationery, resolveStationery, DEFAULT_STATIONERY_COLOR } from '@/lib/letterTypes';
 import {
   paletteTextColor,
   paletteTextColorFaint,
@@ -10,7 +10,7 @@ import {
 } from '@/lib/colorUtils';
 
 /** Default stationery when none is provided */
-const DEFAULT_STATIONERY: Stationery = { color: '#F5E6D3' };
+const DEFAULT_STATIONERY: Stationery = { color: DEFAULT_STATIONERY_COLOR };
 
 /**
  * useStationeryColors

@@ -9,7 +9,7 @@
  */
 
 import { useId, useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo } from 'react';
-import { hexToRgb, rgbToHex } from '@/lib/colorUtils';
+import { hexToRgb, rgbToHex, darkenHex, blendHex } from '@/lib/colorUtils';
 
 // ---------------------------------------------------------------------------
 // Easing + animation driver
@@ -77,22 +77,6 @@ function mixHex(hex: string, lightAmount: number): string {
   const [r, g, b] = hexToRgb(hex);
   const mix = (c: number) => Math.min(255, Math.round(c + (255 - c) * lightAmount));
   return rgbToHex(mix(r), mix(g), mix(b));
-}
-
-function darkenHex(hex: string, amount: number): string {
-  const [r, g, b] = hexToRgb(hex);
-  const dark = (c: number) => Math.max(0, Math.round(c * (1 - amount)));
-  return rgbToHex(dark(r), dark(g), dark(b));
-}
-
-function blendHex(hex: string, targetHex: string, amount: number): string {
-  const [r1, g1, b1] = hexToRgb(hex);
-  const [r2, g2, b2] = hexToRgb(targetHex);
-  return rgbToHex(
-    Math.round(r1 + (r2 - r1) * amount),
-    Math.round(g1 + (g2 - g1) * amount),
-    Math.round(b1 + (b2 - b1) * amount),
-  );
 }
 
 function envelopeColors(bgHex: string, primaryHex: string) {

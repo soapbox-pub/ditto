@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Loader2, Lock } from 'lucide-react';
 import { useDecryptLetter } from '@/hooks/useLetters';
-import { FONT_OPTIONS, type Letter } from '@/lib/letterTypes';
+import { FONT_OPTIONS, LINE_HEIGHT_RATIO, type Letter } from '@/lib/letterTypes';
 import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { LetterStickers } from './LetterStickers';
@@ -18,11 +18,10 @@ import {
 
 interface LetterDetailSheetProps {
   letter: Letter | null;
-  mode: 'inbox' | 'sent';
   onClose: () => void;
 }
 
-export function LetterDetailSheet({ letter, mode, onClose }: LetterDetailSheetProps) {
+export function LetterDetailSheet({ letter, onClose }: LetterDetailSheetProps) {
   const letterRef = useRef<HTMLDivElement>(null);
   const [lineHeightPx, setLineHeightPx] = useState(0);
 
@@ -47,7 +46,7 @@ export function LetterDetailSheet({ letter, mode, onClose }: LetterDetailSheetPr
       const el = letterRef.current;
       if (!el) return;
       const w = el.getBoundingClientRect().width;
-      if (w > 0) setLineHeightPx(Math.round(w * 0.084));
+      if (w > 0) setLineHeightPx(Math.round(w * LINE_HEIGHT_RATIO));
     }, 50);
 
     const el = letterRef.current;
@@ -58,7 +57,7 @@ export function LetterDetailSheet({ letter, mode, onClose }: LetterDetailSheetPr
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const w = entry.contentBoxSize?.[0]?.inlineSize ?? entry.contentRect.width;
-        if (w > 0) setLineHeightPx(Math.round(w * 0.084));
+        if (w > 0) setLineHeightPx(Math.round(w * LINE_HEIGHT_RATIO));
       });
     });
     ro.observe(el);

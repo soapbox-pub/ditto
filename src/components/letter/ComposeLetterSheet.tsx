@@ -16,6 +16,8 @@ import { backgroundTextColor } from '@/lib/colorUtils';
 import {
   LETTER_KIND,
   FONT_OPTIONS,
+  LINE_HEIGHT_RATIO,
+  DEFAULT_STATIONERY_COLOR,
   resolveStationery,
   type Stationery,
   type FrameStyle,
@@ -36,9 +38,9 @@ import { SendAnimation, useEnvelopeDimensions } from './SendAnimation';
 /** Lightweight letter preview used inside the send animation */
 function AnimationLetter({ content, width }: { content: LetterContent; width: number }) {
   const { text: textColor, line: lineColor } = useStationeryColors(content.stationery);
-  const resolved = resolveStationery(content.stationery ?? { color: '#F5E6D3' });
+  const resolved = resolveStationery(content.stationery ?? { color: DEFAULT_STATIONERY_COLOR });
   const fontFamily = resolved.fontFamily ?? FONT_OPTIONS[0].family;
-  const lh = Math.round(width * 0.084);
+  const lh = Math.round(width * LINE_HEIGHT_RATIO);
 
   return (
     <div className="relative" style={{ containerType: 'inline-size', width }}>
@@ -268,8 +270,8 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
     || recipientAuthor.data?.metadata?.name
     || (resolvedRecipient ? genUserName(resolvedRecipient) : 'friend');
 
-  const resolvedSt = useMemo(() => resolveStationery(stationery ?? { color: '#F5E6D3' }), [stationery]);
-  const bgColor = resolvedSt.color ?? '#F5E6D3';
+  const resolvedSt = useMemo(() => resolveStationery(stationery ?? { color: DEFAULT_STATIONERY_COLOR }), [stationery]);
+  const bgColor = resolvedSt.color ?? DEFAULT_STATIONERY_COLOR;
   const primaryColor = resolvedSt.primaryColor ?? '#7c52e0';
   const textColor = resolvedSt.textColor ?? backgroundTextColor(bgColor);
 

@@ -5,6 +5,8 @@
  * matching the approach used in mew and espy for kind 3367 color moments.
  */
 
+import { hexLuminance } from '@/lib/colorUtils';
+
 export type PaletteLayout =
   | 'horizontal'
   | 'vertical'
@@ -169,14 +171,6 @@ function DiagonalStripesLayout({ colors }: { colors: string[] }) {
   );
 }
 
-function hexLum(hex: string): number {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16) / 255;
-  const g = parseInt(h.slice(2, 4), 16) / 255;
-  const b = parseInt(h.slice(4, 6), 16) / 255;
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
 export function ColorPaletteDisplay({
   colors,
   layout = 'horizontal',
@@ -185,7 +179,7 @@ export function ColorPaletteDisplay({
 }: ColorPaletteDisplayProps) {
   if (colors.length === 0) return null;
 
-  const avgLum = colors.reduce((s, c) => s + hexLum(c), 0) / colors.length;
+  const avgLum = colors.reduce((s, c) => s + hexLuminance(c), 0) / colors.length;
   const emojiColorClass = avgLum > 0.5 ? 'text-black/80' : 'text-white/90';
 
   return (

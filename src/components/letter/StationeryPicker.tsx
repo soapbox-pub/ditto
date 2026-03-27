@@ -244,7 +244,8 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
 
   const { user } = useCurrentUser();
   const followListData = useFollowList();
-  const followList = new Set(followListData.data?.pubkeys ?? []);
+  const followPubkeyArray = followListData.data?.pubkeys;
+  const followList = useMemo(() => new Set(followPubkeyArray ?? []), [followPubkeyArray]);
 
   const scopedAuthors = useMemo(() => {
     if (scope === 'mine') return user ? [user.pubkey] : undefined;

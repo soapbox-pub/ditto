@@ -13,6 +13,7 @@ import { TabButton } from '@/components/TabButton';
 import {
   FONT_OPTIONS,
   CLOSING_PRESETS,
+  LINE_HEIGHT_RATIO,
   type Stationery,
   type FrameStyle,
 } from '@/lib/letterTypes';
@@ -133,7 +134,7 @@ export function LetterEditor({
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
       const w = entry.contentBoxSize?.[0]?.inlineSize ?? entry.contentRect.width;
-      setLineHeightPx(Math.round(w * 0.084));
+      setLineHeightPx(Math.round(w * LINE_HEIGHT_RATIO));
     });
     ro.observe(el);
     return () => ro.disconnect();

@@ -13,34 +13,23 @@
 import { useMemo } from 'react';
 import {
   FRAME_PRESETS,
+  DEFAULT_STATIONERY_COLOR,
   type Stationery,
   type ResolvedStationery,
   type FrameStyle,
   resolveStationery,
 } from '@/lib/letterTypes';
 import { ColorPaletteDisplay, type PaletteLayout } from './ColorPaletteDisplay';
-import { hexLuminance } from '@/lib/colorUtils';
+import { hexLuminance, darkenHex } from '@/lib/colorUtils';
 
 export type { PaletteLayout } from './ColorPaletteDisplay';
 
-const DEFAULT_STATIONERY: Stationery = { color: '#F5E6D3' };
+const DEFAULT_STATIONERY: Stationery = { color: DEFAULT_STATIONERY_COLOR };
 
 function frameTintColor(resolved: ResolvedStationery): string {
   if (resolved.primaryColor) return resolved.primaryColor;
   if (resolved.colors && resolved.colors.length >= 1) return resolved.colors[0];
   return resolved.color ?? '#3a7a3a';
-}
-
-function darkenHex(hex: string, amount: number): string {
-  if (!hex) return '#000000';
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const f = 1 - amount;
-  const dr = Math.round(r * f);
-  const dg = Math.round(g * f);
-  const db = Math.round(b * f);
-  return `#${dr.toString(16).padStart(2, '0')}${dg.toString(16).padStart(2, '0')}${db.toString(16).padStart(2, '0')}`;
 }
 
 interface EmojiFrameProps {

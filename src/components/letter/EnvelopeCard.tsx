@@ -25,8 +25,8 @@ import { Clock } from 'lucide-react';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useDecryptLetter } from '@/hooks/useLetters';
 import { genUserName } from '@/lib/genUserName';
-import { resolveStationery, type Letter } from '@/lib/letterTypes';
-import { hexToRgb, rgbToHex, hexLuminance } from '@/lib/colorUtils';
+import { resolveStationery, DEFAULT_STATIONERY_COLOR, type Letter } from '@/lib/letterTypes';
+import { hexLuminance, darkenHex, lightenHex, blendHex } from '@/lib/colorUtils';
 import { StationeryBackground } from './StationeryBackground';
 
 interface EnvelopeCardProps {
@@ -37,30 +37,8 @@ interface EnvelopeCardProps {
 }
 
 // ---------------------------------------------------------------------------
-// Color helpers — matches SendAnimation
+// Color helpers
 // ---------------------------------------------------------------------------
-
-function blendHex(hex1: string, hex2: string, amount: number): string {
-  const [r1, g1, b1] = hexToRgb(hex1);
-  const [r2, g2, b2] = hexToRgb(hex2);
-  return rgbToHex(
-    Math.round(r1 + (r2 - r1) * amount),
-    Math.round(g1 + (g2 - g1) * amount),
-    Math.round(b1 + (b2 - b1) * amount),
-  );
-}
-
-function darkenHex(hex: string, amount: number): string {
-  const [r, g, b] = hexToRgb(hex);
-  const dark = (c: number) => Math.max(0, Math.round(c * (1 - amount)));
-  return rgbToHex(dark(r), dark(g), dark(b));
-}
-
-function lightenHex(hex: string, amount: number): string {
-  const [r, g, b] = hexToRgb(hex);
-  const light = (c: number) => Math.min(255, Math.round(c + (255 - c) * amount));
-  return rgbToHex(light(r), light(g), light(b));
-}
 
 function deriveColors(bgHex: string, primaryHex: string) {
   const body = blendHex(bgHex, primaryHex, 0.08);
@@ -114,7 +92,7 @@ export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps
   const timeStr = shortTimeAgo(letter.timestamp);
 
   const stationery = decrypted?.stationery;
-  const resolved = useMemo(() => resolveStationery(stationery ?? { color: '#F5E6D3' }), [stationery]);
+  const resolved = useMemo(() => resolveStationery(stationery ?? { color: DEFAULT_STATIONERY_COLOR }), [stationery]);
   const bgColor = resolved.color;
   const primaryColor = resolved.primaryColor ?? resolved.colors?.[0] ?? bgColor;
   const C = useMemo(() => deriveColors(bgColor, primaryColor), [bgColor, primaryColor]);
