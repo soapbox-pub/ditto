@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, PenLine, Settings, Loader2 } from 'lucide-react';
+import { PenLine, Settings, Loader2 } from 'lucide-react';
+import { MailboxIcon } from '@/components/icons/MailboxIcon';
 import { Button } from '@/components/ui/button';
 import { FabButton } from '@/components/FabButton';
 
@@ -71,10 +72,10 @@ export function LettersPage() {
   if (!user) {
     return (
       <main className="min-h-screen pb-16 sidebar:pb-0">
-        <PageHeader title="Letters" icon={<Mail className="size-5" />} backTo="/" />
+        <PageHeader title="Letters" icon={<MailboxIcon className="size-5" />} backTo="/" />
         <div className="flex flex-col items-center justify-center py-24 gap-6 px-6 text-center">
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-            <Mail className="w-10 h-10 text-primary" />
+            <MailboxIcon className="w-10 h-10 text-primary" />
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-semibold">Your personal inbox</h2>
@@ -101,7 +102,7 @@ export function LettersPage() {
           onClose={() => setComposing(false)}
         />
       )}
-      <PageHeader title="Letters" icon={<Mail className="size-5" />} backTo="/" alwaysShowBack>
+      <PageHeader title="Letters" icon={<MailboxIcon className="size-5" />} backTo="/" alwaysShowBack>
         <button
           onClick={() => navigate('/settings/letters')}
           className="p-2 rounded-full text-muted-foreground hover:text-foreground transition-colors"
@@ -131,7 +132,7 @@ export function LettersPage() {
         {!isLoading && activeLetters && activeLetters.length === 0 && (
           <div className="py-16 text-center space-y-3">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
-              <Mail className="w-8 h-8 text-muted-foreground opacity-50" />
+              <MailboxIcon className="w-8 h-8 text-muted-foreground opacity-50" />
             </div>
             <p className="text-muted-foreground text-sm">
               {tab === 'inbox'
