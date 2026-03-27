@@ -50,6 +50,59 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
     setPortalContainer(node ?? undefined);
   }, []);
 
+  // Prevent the compose modal from closing when the user interacts with a
+  // nested dialog (e.g. the emoji/GIF picker).  On mobile it is very easy to
+  // tap the emoji picker overlay and accidentally dismiss the compose modal,
+  // losing the draft.  We detect nested-dialog interactions by checking
+  // whether the click target lives inside another Radix Dialog portal that
+  // sits above this modal.
+  const isNestedDialogInteraction = useCallback((e: Event) => {
+    const target = e.target as HTMLElement | null;
+    if (!target) return false;
+    // Radix Dialog overlays have data-state and sit inside [role="dialog"]
+    // portals.  If the target is inside a dialog element that is NOT our own
+    // DialogContent, a nested dialog is open.
+    const closestDialog = target.closest('[role="dialog"]');
+    if (closestDialog && portalContainer && closestDialog !== portalContainer) {
+      return true;
+    }
+    // Also catch clicks on the overlay itself (data-radix-dialog-overlay or
+    // the backdrop element) that belongs to a nested dialog.
+    const closestOverlay = target.closest('[data-radix-dialog-overlay]');
+    if (closestOverlay) {
+      // Check if this overlay belongs to our dialog or a nested one.
+      // Our overlay is a sibling of our DialogContent, not a descendant.
+      // If the overlay is rendered inside our portal container's parent
+      // (the same portal), it could be ours.  But if there are multiple
+      // overlays, the topmost (last in DOM) belongs to the nested dialog.
+      const allOverlays = document.querySelectorAll('[data-radix-dialog-overlay]');
+      if (allOverlays.length > 1) {
+        return true;
+      }
+    }
+    return false;
+  }, [portalContainer]);
+
+  const handleInteractOutside = useCallback((e: Event) => {
+    if (isNestedDialogInteraction(e)) {
+      e.preventDefault();
+    }
+  }, [isNestedDialogInteraction]);
+
+  const handleEscapeKeyDown = useCallback((e: KeyboardEvent) => {
+    // When a nested dialog is open, Radix will close it first via its own
+    // handler.  But the escape event can bubble and also close the parent
+    // modal.  We prevent that by checking if any nested dialog is currently
+    // open (any dialog with data-state="open" that is not ours).
+    const openDialogs = document.querySelectorAll('[role="dialog"][data-state="open"]');
+    const hasNestedDialog = Array.from(openDialogs).some(
+      (el) => portalContainer && el !== portalContainer,
+    );
+    if (hasNestedDialog) {
+      e.preventDefault();
+    }
+  }, [portalContainer]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -61,6 +114,8 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
           const textarea = target.querySelector('textarea');
           textarea?.focus();
         }}
+        onInteractOutside={handleInteractOutside}
+        onEscapeKeyDown={handleEscapeKeyDown}
       >
         <PortalContainerProvider value={portalContainer}>
           {/* Header */}
