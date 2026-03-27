@@ -4,7 +4,7 @@ import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Zap, AtSign, MessageSquare, Loader2, Award, Check, Mail } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAppContext } from '@/hooks/useAppContext';
 
@@ -31,7 +31,8 @@ import { useAcceptBadge } from '@/hooks/useAcceptBadge';
 import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
-import { LETTER_KIND } from '@/lib/letterTypes';
+import { LETTER_KIND, type Letter } from '@/lib/letterTypes';
+import { EnvelopeCard } from '@/components/letter/EnvelopeCard';
 import { Button } from '@/components/ui/button';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -603,21 +604,34 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
 // Letter Notification (kind 8211, always standalone)
 // ──────────────────────────────────────
 function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const navigate = useNavigate();
+
+  const letter = useMemo<Letter>(() => ({
+    event: item.event,
+    sender: item.event.pubkey,
+    recipient: item.event.tags.find(([name]) => name === 'p')?.[1] ?? '',
+    decrypted: false,
+    timestamp: item.event.created_at,
+  }), [item.event]);
+
   return (
     <NotificationWrapper isNew={isNew}>
-      <div className="px-4 py-3">
+      <div className="px-4 pt-3">
         <NotificationHeader
           actorPubkey={item.event.pubkey}
           icon={<Mail className="size-4 text-primary" />}
           action="sent you a letter"
         />
-        <Link
-          to="/letters"
-          className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mt-1"
-        >
-          <Mail className="size-3" />
-          View in Letters
-        </Link>
+      </div>
+      <div className="px-4 pb-3 pt-1">
+        <div className="max-w-[160px]">
+          <EnvelopeCard
+            letter={letter}
+            mode="inbox"
+            index={0}
+            onClick={() => navigate('/letters')}
+          />
+        </div>
       </div>
     </NotificationWrapper>
   );
