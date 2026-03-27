@@ -32,6 +32,8 @@ import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
 import { Button } from '@/components/ui/button';
+import { BadgeThumbnail } from '@/components/BadgeThumbnail';
+import type { BadgeData } from '@/components/BadgeContent';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 
@@ -616,15 +618,19 @@ function unslugify(slug: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Hook: resolve the display name for a single badge award event. */
-function useBadgeAwardName(awardEvent: NostrEvent): string | undefined {
+/** Hook: resolve the display name and badge data for a single badge award event. */
+function useBadgeAward(awardEvent: NostrEvent): { name: string | undefined; badge: BadgeData | undefined } {
   const parsed = useMemo(() => parseBadgeATag(awardEvent), [awardEvent]);
   const refs = useMemo(() => (parsed ? [parsed] : []), [parsed]);
   const { badgeMap } = useBadgeDefinitions(refs);
 
-  if (!parsed) return undefined;
+  if (!parsed) return { name: undefined, badge: undefined };
   const aTag = `${BADGE_DEFINITION_KIND}:${parsed.pubkey}:${parsed.identifier}`;
-  return badgeMap.get(aTag)?.name || unslugify(parsed.identifier);
+  const definition = badgeMap.get(aTag);
+  return {
+    name: definition?.name || unslugify(parsed.identifier),
+    badge: definition ?? undefined,
+  };
 }
 
 // ──────────────────────────────────────
@@ -675,7 +681,7 @@ function AcceptBadgeButton({ awardEvent }: { awardEvent: NostrEvent }) {
 // Badge Award Notification (single actor)
 // ──────────────────────────────────────
 function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
-  const badgeName = useBadgeAwardName(item.event);
+  const { name: badgeName, badge } = useBadgeAward(item.event);
 
   return (
     <NotificationWrapper isNew={isNew}>
@@ -692,6 +698,17 @@ function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew
             <AcceptBadgeButton awardEvent={item.event} />
           </div>
         </div>
+        {badge && (
+          <div className="mt-2 flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-2">
+            <BadgeThumbnail badge={badge} size={48} className="shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{badge.name}</p>
+              {badge.description && (
+                <p className="text-xs text-muted-foreground line-clamp-2">{badge.description}</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </NotificationWrapper>
   );
@@ -723,17 +740,27 @@ function BadgeAwardNotificationGroup({ group }: { group: GroupedNotificationItem
         {group.actors.map((actor) => {
           const parsed = parseBadgeATag(actor.event);
           const aTag = parsed ? `${BADGE_DEFINITION_KIND}:${parsed.pubkey}:${parsed.identifier}` : undefined;
-          const badgeName = aTag ? badgeMap.get(aTag)?.name : undefined;
-          const displayName = badgeName || (parsed ? unslugify(parsed.identifier) : undefined);
+          const badge = aTag ? badgeMap.get(aTag) : undefined;
+          const displayName = badge?.name || (parsed ? unslugify(parsed.identifier) : undefined);
 
           return (
-            <div key={actor.event.id} className="flex items-center justify-between gap-2">
-              {displayName && (
-                <span className="text-xs text-muted-foreground truncate">
-                  {displayName}
-                </span>
+            <div key={actor.event.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-2">
+              {badge ? (
+                <BadgeThumbnail badge={badge} size={36} className="shrink-0" />
+              ) : (
+                <div className="shrink-0 size-9 rounded-lg border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
+                  <Award className="size-4 text-primary/30" />
+                </div>
               )}
-              <div className="shrink-0 ml-auto">
+              <div className="flex-1 min-w-0">
+                {displayName && (
+                  <p className="text-sm font-medium truncate">{displayName}</p>
+                )}
+                {badge?.description && (
+                  <p className="text-xs text-muted-foreground line-clamp-1">{badge.description}</p>
+                )}
+              </div>
+              <div className="shrink-0">
                 <AcceptBadgeButton awardEvent={actor.event} />
               </div>
             </div>
