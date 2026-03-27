@@ -70,6 +70,9 @@ import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
 import { ProfileRecoveryDialog } from '@/components/ProfileRecoveryDialog';
 import { GiveBadgeDialog } from '@/components/GiveBadgeDialog';
+import { BadgeThumbnail } from '@/components/BadgeThumbnail';
+import { useProfileBadges } from '@/hooks/useProfileBadges';
+import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
@@ -1593,7 +1596,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       }
     }
     return events;
-  }, [mediaData?.pages]);
+   }, [mediaData?.pages]);
+
+  // Profile badges for bio section
+  const { refs: badgeRefs } = useProfileBadges(pubkey);
+  const firstBadgeRefs = useMemo(() => badgeRefs.slice(0, 5), [badgeRefs]);
+  const { badgeMap } = useBadgeDefinitions(firstBadgeRefs);
 
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {
@@ -1755,7 +1763,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   }, []);
 
   useLayoutOptions(pubkey ? {
-    rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} onMediaClick={handleSidebarMediaClick} pubkey={pubkey} />,
+    rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} onMediaClick={handleSidebarMediaClick} />,
     showFAB: !(activeTab === 'wall' && !profileFollowsMe),
     onFabClick: activeTab === 'wall' ? openWallCompose : undefined,
     hasSubHeader: true,
@@ -2168,6 +2176,27 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 <p className="mt-3 text-sm whitespace-pre-wrap break-words overflow-hidden">
                   <BioContent tags={metadataEvent?.tags}>{metadata.about}</BioContent>
                 </p>
+              )}
+
+              {/* Badge preview */}
+              {badgeRefs.length > 0 && (
+                <div className="flex items-center gap-1.5 mt-2">
+                  {firstBadgeRefs.map((ref) => {
+                    const badge = badgeMap.get(ref.aTag);
+                    if (!badge) return null;
+                    return (
+                      <Link
+                        key={ref.aTag}
+                        to={`/${nip19.naddrEncode({ kind: 30009, pubkey: ref.pubkey, identifier: ref.identifier })}`}
+                      >
+                        <BadgeThumbnail badge={badge} size={32} className="transition-transform hover:scale-110" />
+                      </Link>
+                    );
+                  })}
+                  {badgeRefs.length > 5 && (
+                    <span className="text-[10px] text-muted-foreground font-medium">+{badgeRefs.length - 5}</span>
+                  )}
+                </div>
               )}
 
               {/* Profile fields shown inline on mobile (sidebar is hidden below xl) */}
