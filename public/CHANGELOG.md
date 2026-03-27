@@ -1,14 +1,9 @@
 # Changelog
 
-## [2.1.0] - 2026-03-26
+## [2.0.1] - 2026-03-26
 
 ### Added
-- In-app changelog page so you can see what's new without leaving Ditto
-- Pre-release indicator in settings for those living on the edge
-
-### Fixed
-- Changelog page no longer shows a duplicate title
-- CI release pipeline uses the correct command for publishing
+- Tap the version number in settings to see what's new
 
 ## [2.0.0] - 2026-03-26
 

@@ -108,6 +108,9 @@ Prepend a new section to `CHANGELOG.md` directly below the `# Changelog` heading
 - Use present tense ("Add dark mode toggle", not "Added dark mode toggle")
 - Focus on what the user sees/experiences, not internal implementation details
 - Use the current date in YYYY-MM-DD format
+- **Collapse related work into one entry.** If a feature was added and then fixed/tweaked across multiple commits in the same release, present the finished result as a single "Added" entry. Never list something as "Added" and then also list fixes for that same thing -- the user sees the end product, not the development history.
+- **Omit purely internal changes.** CI fixes, build pipeline tweaks, developer tooling, and infrastructure changes should be omitted from the changelog entirely unless they have a direct, visible impact on the user experience. The changelog is for users, not developers.
+- **Compare the actual code between versions** to understand what really changed, rather than just reading commit messages. Commit messages may over- or under-represent the significance of changes.
 
 ### Step 6: Update Version in All Files
 
