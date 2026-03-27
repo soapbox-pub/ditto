@@ -63,7 +63,8 @@ const DEFAULT_EYELID_COLOR = '#6d28d9';
 const EYE_PROXIMITY = 15;
 
 // How much to darken the base color for eyelids (0-100)
-const EYELID_DARKEN_AMOUNT = 15;
+// Keep it subtle so it reads as an eyelid, not a shadow
+const EYELID_DARKEN_AMOUNT = 8;
 
 // ─── Color Helpers ────────────────────────────────────────────────────────────
 
@@ -370,6 +371,7 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
   }
 
   const operations: Operation[] = [];
+  const clipPathDefs: string[] = [];
 
   // Derive eyelid color from base color (or use default)
   const baseColor = options?.baseColor || DEFAULT_EYELID_COLOR;
@@ -408,9 +410,28 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
       blinkContent = trackingGroup;
     }
 
-    // Store blink center as data attributes for the animation loop to use
-    // This is more reliable than CSS transform-origin for SVG transforms
-    const blinkGroup = `<g class="blobbi-blink blobbi-blink-${group.side}" data-cx="${group.blinkCenterX}" data-cy="${group.blinkCenterY}">
+    // Calculate eye bounds for clip-path blink animation
+    // The clip-path will crop the eye from top to bottom to simulate eyelid closing
+    const eyeGeom = group.eyeWhiteGeometry;
+    const eyeTop = eyeGeom ? group.blinkCenterY - eyeGeom.ry : group.blinkCenterY - group.pupil.radius;
+    const eyeBottom = eyeGeom ? group.blinkCenterY + eyeGeom.ry : group.blinkCenterY + group.pupil.radius;
+    const eyeLeft = eyeGeom ? group.blinkCenterX - eyeGeom.rx : group.blinkCenterX - group.pupil.radius;
+    const eyeRight = eyeGeom ? group.blinkCenterX + eyeGeom.rx : group.blinkCenterX + group.pupil.radius;
+    const eyeHeight = eyeBottom - eyeTop;
+    const eyeWidth = eyeRight - eyeLeft;
+    
+    // Add some padding to the clip rect to ensure nothing gets cut off unexpectedly
+    const clipPadding = 2;
+    const clipTop = eyeTop - clipPadding;
+    const clipLeft = eyeLeft - clipPadding;
+    const clipWidth = eyeWidth + clipPadding * 2;
+    const clipHeight = eyeHeight + clipPadding * 2;
+
+    // Store eye geometry as data attributes for the animation loop
+    // data-eye-top/bottom define the clipping bounds for blink animation
+    // data-clip-id references the clipPath element
+    const clipId = `blobbi-blink-clip-${group.side}`;
+    const blinkGroup = `<g class="blobbi-blink blobbi-blink-${group.side}" data-cx="${group.blinkCenterX}" data-cy="${group.blinkCenterY}" data-eye-top="${clipTop}" data-eye-bottom="${eyeBottom + clipPadding}" data-clip-height="${clipHeight}" data-clip-id="${clipId}" clip-path="url(#${clipId})">
     ${blinkContent}
   </g>`;
 
@@ -428,6 +449,15 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
       // Eyelid goes BEFORE the blink group (so it's behind)
       fullReplacement = eyelidElement + '\n  ' + blinkGroup;
     }
+    
+    // Generate clipPath definition for this eye
+    // The rect starts at full height and will be animated to shrink from top
+    const clipPathDef = `<clipPath id="${clipId}">
+      <rect class="blobbi-blink-clip-rect" x="${clipLeft}" y="${clipTop}" width="${clipWidth}" height="${clipHeight}" />
+    </clipPath>`;
+    
+    // Store clipPath to add to defs later
+    clipPathDefs.push(clipPathDef);
 
     // First element gets replaced with the full structure (eyelid + blink group)
     operations.push({
@@ -457,6 +487,16 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
       result = result.slice(0, op.index) + op.replacement + result.slice(op.endIndex);
     } else if (op.type === 'remove') {
       result = result.slice(0, op.index) + result.slice(op.endIndex);
+    }
+  }
+  
+  // Add clipPath definitions to SVG defs
+  if (clipPathDefs.length > 0) {
+    const defsContent = clipPathDefs.join('\n    ');
+    if (result.includes('<defs>')) {
+      result = result.replace('<defs>', `<defs>\n    ${defsContent}`);
+    } else {
+      result = result.replace(/(<svg[^>]*>)/, `$1\n  <defs>\n    ${defsContent}\n  </defs>`);
     }
   }
 

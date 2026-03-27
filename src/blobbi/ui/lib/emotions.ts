@@ -1622,20 +1622,26 @@ function generateSleepyMouth(mouth: MouthPosition, config: SleepyAnimationConfig
 
 /**
  * Generate closed eye lines - curved lines that appear when eyes are fully closed.
- * These sit at the eye position and look like shut eyelids.
+ * These sit below the eye center to align with the final closed eyelid position.
+ * The blink animation clips from top, so closed eyes appear lower than center.
  */
 function generateClosedEyeLines(eyes: EyePosition[]): string {
   return eyes.map(eye => {
-    // Create a slightly curved line at the eye center
-    // The curve is gentle, like a closed eyelid
+    // Create a slightly curved line below the eye center
+    // Position it lower to match where the eye "closes to" with the new clip-path blink
     const lineWidth = eye.radius * 1.8;
     const startX = eye.cx - lineWidth / 2;
     const endX = eye.cx + lineWidth / 2;
-    const curveDepth = eye.radius * 0.3;
+    const curveDepth = eye.radius * 0.25;
+    
+    // Offset the line downward to align with the closed eye position
+    // The blink clips ~95% of the eye, so the line should be near the bottom
+    const yOffset = eye.radius * 0.7; // Move down by 70% of radius
+    const lineY = eye.cy + yOffset;
     
     return `<path
       class="blobbi-closed-eye blobbi-closed-eye-${eye.side}"
-      d="M ${startX} ${eye.cy} Q ${eye.cx} ${eye.cy + curveDepth} ${endX} ${eye.cy}"
+      d="M ${startX} ${lineY} Q ${eye.cx} ${lineY + curveDepth} ${endX} ${lineY}"
       stroke="#374151"
       stroke-width="2"
       stroke-linecap="round"

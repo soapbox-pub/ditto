@@ -68,7 +68,7 @@ const BLINK_MAX_INTERVAL = 5000; // Maximum time between blinks (ms)
 const BLINK_CLOSE_DURATION = 80; // Time to close eyes (ms)
 const BLINK_CLOSED_DURATION = 100; // Time eyes stay closed (ms)
 const BLINK_OPEN_DURATION = 120; // Time to open eyes (ms)
-const BLINK_CLOSED_SCALE = 0.1; // ScaleY when eyes are closed
+const BLINK_CLOSED_AMOUNT = 0.95; // How much of the eye to hide when closed (0.95 = 95% hidden)
 const DOUBLE_BLINK_CHANCE = 0.2; // 20% chance for double blink
 
 // ─── Global Mouse Position ────────────────────────────────────────────────────
@@ -111,35 +111,36 @@ function getNextBlinkInterval(): number {
 }
 
 /**
- * Calculate scaleY for current blink phase
- * Uses easing for natural feel
+ * Calculate blink progress for current blink phase.
+ * Returns a value from 0 (eyes fully open) to 1 (eyes fully closed).
+ * Uses easing for natural feel.
  */
-function calculateBlinkScale(state: BlinkState, currentTime: number): number {
+function calculateBlinkProgress(state: BlinkState, currentTime: number): number {
   const elapsed = currentTime - state.phaseStartTime;
 
   switch (state.phase) {
     case 'open':
-      return 1;
+      return 0; // Fully open
 
     case 'closing': {
       // Fast close with ease-in
       const progress = Math.min(elapsed / BLINK_CLOSE_DURATION, 1);
       const eased = progress * progress; // ease-in (accelerate)
-      return 1 - eased * (1 - BLINK_CLOSED_SCALE);
+      return eased * BLINK_CLOSED_AMOUNT;
     }
 
     case 'closed':
-      return BLINK_CLOSED_SCALE;
+      return BLINK_CLOSED_AMOUNT; // Almost fully closed
 
     case 'opening': {
       // Slower open with ease-out
       const progress = Math.min(elapsed / BLINK_OPEN_DURATION, 1);
       const eased = 1 - (1 - progress) * (1 - progress); // ease-out (decelerate)
-      return BLINK_CLOSED_SCALE + eased * (1 - BLINK_CLOSED_SCALE);
+      return BLINK_CLOSED_AMOUNT * (1 - eased);
     }
 
     default:
-      return 1;
+      return 0;
   }
 }
 
@@ -246,12 +247,19 @@ export function useBlobbiEyes(
         rightEyesRef.current.forEach((el) => {
           el.setAttribute('transform', 'translate(0 0)');
         });
-        // Reset blink transforms
-        leftBlinkRef.current.forEach((el) => {
-          el.setAttribute('transform', 'scale(1 1)');
-        });
-        rightBlinkRef.current.forEach((el) => {
-          el.setAttribute('transform', 'scale(1 1)');
+        // Reset clip-paths to fully open
+        [...leftBlinkRef.current, ...rightBlinkRef.current].forEach((el) => {
+          const clipId = el.getAttribute('data-clip-id');
+          const eyeTopAttr = el.getAttribute('data-eye-top');
+          const clipHeightAttr = el.getAttribute('data-clip-height');
+          
+          if (clipId && eyeTopAttr && clipHeightAttr && containerRef.current) {
+            const clipRect = containerRef.current.querySelector(`#${clipId} rect`) as SVGRectElement | null;
+            if (clipRect) {
+              clipRect.setAttribute('y', eyeTopAttr);
+              clipRect.setAttribute('height', clipHeightAttr);
+            }
+          }
         });
       };
       resetEyes();
@@ -329,8 +337,8 @@ export function useBlobbiEyes(
         return;
       }
 
-      // ─── Calculate Blink Scale ─────────────────────────────────────────
-      let blinkScaleY = 1; // Default: eyes fully open
+      // ─── Calculate Blink Progress ─────────────────────────────────────────
+      let blinkProgress = 0; // Default: eyes fully open (0 = open, 1 = closed)
 
       if (!disableBlink) {
         // Initialize blink state if needed
@@ -340,13 +348,13 @@ export function useBlobbiEyes(
             phaseStartTime: timestamp,
             nextBlinkTime: timestamp + getNextBlinkInterval(),
             pendingDoubleBlink: false,
-            scaleY: 1,
+            scaleY: 1, // Legacy field, not used anymore
           };
         }
 
         // Update blink state machine
         blinkStateRef.current = updateBlinkState(blinkStateRef.current, timestamp);
-        blinkScaleY = calculateBlinkScale(blinkStateRef.current, timestamp);
+        blinkProgress = calculateBlinkProgress(blinkStateRef.current, timestamp);
       }
 
       // ─── Calculate Eye Position ───────────────────────────────────────
@@ -388,24 +396,39 @@ export function useBlobbiEyes(
       }
       // If disableTracking is true, external system handles eye position
 
-      // ─── Apply Blink Transform (whole eye) ────────────────────────────────
-      // Scale around eye center using: translate(cx,cy) scale(1,blinkY) translate(-cx,-cy)
-      // This keeps the eye in place instead of shifting down during blink.
-      // Center coordinates come from data-cx/data-cy attributes (set from actual SVG element positions)
-      const applyBlinkTransform = (el: SVGGElement) => {
-        const cxAttr = el.getAttribute('data-cx');
-        const cyAttr = el.getAttribute('data-cy');
+      // ─── Apply Blink via Clip-Path ────────────────────────────────────────
+      // Instead of scaling the eye, we crop it from top to bottom using clip-path.
+      // This creates a natural "eyelid closing" effect where the eye keeps its shape
+      // but the visible area shrinks from top, revealing the eyelid behind.
+      // 
+      // The clip-path rect's Y position moves down as the blink progresses,
+      // effectively hiding more of the eye from the top.
+      const applyBlinkClip = (el: SVGGElement) => {
+        const clipId = el.getAttribute('data-clip-id');
+        const eyeTopAttr = el.getAttribute('data-eye-top');
+        const clipHeightAttr = el.getAttribute('data-clip-height');
 
-        if (cxAttr && cyAttr) {
-          const cx = parseFloat(cxAttr);
-          const cy = parseFloat(cyAttr);
-          // Scale around center: translate to origin, scale, translate back
-          el.setAttribute('transform', `translate(${cx} ${cy}) scale(1 ${blinkScaleY}) translate(${-cx} ${-cy})`);
+        if (clipId && eyeTopAttr && clipHeightAttr && containerRef.current) {
+          const eyeTop = parseFloat(eyeTopAttr);
+          const fullHeight = parseFloat(clipHeightAttr);
+          
+          // Find the clip rect element
+          const clipRect = containerRef.current.querySelector(`#${clipId} rect`) as SVGRectElement | null;
+          if (clipRect) {
+            // Calculate new Y position and height based on blink progress
+            // As blinkProgress goes from 0 to 1, the rect moves down and shrinks
+            const closedOffset = fullHeight * blinkProgress;
+            const newY = eyeTop + closedOffset;
+            const newHeight = fullHeight - closedOffset;
+            
+            clipRect.setAttribute('y', newY.toString());
+            clipRect.setAttribute('height', Math.max(0.1, newHeight).toString());
+          }
         }
       };
 
-      leftBlinkRef.current.forEach(applyBlinkTransform);
-      rightBlinkRef.current.forEach(applyBlinkTransform);
+      leftBlinkRef.current.forEach(applyBlinkClip);
+      rightBlinkRef.current.forEach(applyBlinkClip);
 
       // Continue animation loop
       animationRef.current = requestAnimationFrame(animate);
