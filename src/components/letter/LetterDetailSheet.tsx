@@ -104,11 +104,7 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
   const textColor = backgroundTextColor(bg);
 
   return (
-    <button
-      onClick={handleApply}
-      className="relative max-w-[220px] mx-auto mt-16 block transition-transform duration-200 active:scale-95 hover:scale-[1.02] focus-visible:outline-none"
-      title={applied ? 'Theme applied!' : `Tap to use "${attachment.label}" as your theme`}
-    >
+    <div className="relative max-w-[220px] mx-auto mt-16 pointer-events-none">
       {/* Present box — overlaps the bubble top */}
       <div className="flex justify-center relative z-10 mb-[-20px]">
         <svg width="56" height="60" viewBox="0 0 56 60" fill="none" className="drop-shadow-sm">
@@ -136,9 +132,13 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
         </svg>
       </div>
 
-      {/* Themed bubble */}
+      {/* Themed bubble — clickable */}
       <div
-        className="relative rounded-2xl overflow-hidden"
+        onClick={handleApply}
+        role="button"
+        tabIndex={0}
+        title={applied ? 'Theme applied!' : `Tap to use "${attachment.label}" as your theme`}
+        className="relative rounded-2xl overflow-hidden pointer-events-auto cursor-pointer transition-transform duration-200 active:scale-95 hover:scale-[1.02]"
         style={{
           background: bg,
           border: needsBorder ? '1px solid hsl(var(--border))' : `1px solid ${ribbonColor}22`,
@@ -174,7 +174,7 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
           </p>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
