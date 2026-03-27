@@ -262,12 +262,12 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
     },
   },
   excited: {
-    // Star eyes replace normal pupils
+    // Star eyes replace normal pupils - smaller and tracks with eye movement
     starEyes: {
       enabled: true,
       points: 5, // 5-pointed star
       color: '#fbbf24', // Golden yellow (amber-400)
-      scale: 1.4, // Slightly larger than pupils
+      scale: 0.9, // Slightly smaller than pupil for cute look
     },
     // Big happy smile
     bigSmile: {
@@ -1364,22 +1364,20 @@ function createStarPath(cx: number, cy: number, outerRadius: number, innerRadius
 }
 
 /**
- * Generate star shapes for the excited star eyes effect.
- * These replace the normal pupils with cute stars.
+ * Generate a single star SVG element for insertion into blobbi-eye group.
  */
-function generateStarEyes(eyes: EyePosition[], config: StarEyesConfig): string {
+function generateStarElement(eye: EyePosition, config: StarEyesConfig): string {
   const color = config.color || '#fbbf24'; // Default: amber-400
-  const scale = config.scale || 1.4;
+  const scale = config.scale || 1.0;
   const points = config.points || 5;
   
-  return eyes.map(eye => {
-    // Star size based on pupil radius
-    const outerRadius = eye.radius * scale;
-    const innerRadius = outerRadius * 0.4; // Inner radius is 40% of outer for nice star shape
-    
-    const starPath = createStarPath(eye.cx, eye.cy, outerRadius, innerRadius, points);
-    
-    return `<g class="blobbi-star-eye blobbi-star-eye-${eye.side}">
+  // Star size based on pupil radius - smaller for cute look
+  const outerRadius = eye.radius * scale;
+  const innerRadius = outerRadius * 0.4; // Inner radius is 40% of outer for nice star shape
+  
+  const starPath = createStarPath(eye.cx, eye.cy, outerRadius, innerRadius, points);
+  
+  return `<g class="blobbi-star-eye blobbi-star-eye-${eye.side}">
       <path
         d="${starPath}"
         fill="${color}"
@@ -1389,25 +1387,66 @@ function generateStarEyes(eyes: EyePosition[], config: StarEyesConfig): string {
       <!-- Small highlight on star -->
       <circle cx="${eye.cx - outerRadius * 0.2}" cy="${eye.cy - outerRadius * 0.3}" r="${outerRadius * 0.15}" fill="white" opacity="0.7" />
     </g>`;
-  }).join('\n');
+}
+
+/**
+ * Generate sparkle elements around the eyes for the excited effect.
+ * Small animated sparkles that twinkle around the star eyes.
+ */
+function generateSparkles(eyes: EyePosition[], config: StarEyesConfig): string {
+  const color = config.color || '#fbbf24';
+  
+  return eyes.map(eye => {
+    const sparkleRadius = eye.radius * 0.15;
+    const orbitRadius = eye.radius * 2.2; // Distance from eye center
+    
+    // Create 4 sparkles around each eye at different angles
+    const sparkles = [0, 45, 135, 180].map((angleDeg, i) => {
+      const angle = (angleDeg * Math.PI) / 180;
+      const x = eye.cx + orbitRadius * Math.cos(angle);
+      const y = eye.cy + orbitRadius * Math.sin(angle);
+      const delay = i * 0.3; // Stagger the animations
+      
+      // Small 4-pointed star sparkle
+      const sparkleSize = sparkleRadius * (0.8 + Math.random() * 0.4);
+      
+      return `<g class="blobbi-sparkle" opacity="0">
+        <path 
+          d="M ${x} ${y - sparkleSize} L ${x + sparkleSize * 0.3} ${y} L ${x} ${y + sparkleSize} L ${x - sparkleSize * 0.3} ${y} Z M ${x - sparkleSize} ${y} L ${x} ${y + sparkleSize * 0.3} L ${x + sparkleSize} ${y} L ${x} ${y - sparkleSize * 0.3} Z"
+          fill="${color}"
+        >
+          <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="${delay}s" repeatCount="indefinite" />
+          <animateTransform attributeName="transform" type="scale" values="0.5;1.2;0.5" dur="1.5s" begin="${delay}s" repeatCount="indefinite" additive="sum" />
+        </path>
+      </g>`;
+    });
+    
+    return sparkles.join('\n    ');
+  }).join('\n  ');
 }
 
 /**
  * Generate CSS styles for star eyes effect.
- * Hides the pupils but keeps the white eye circles visible behind the stars.
+ * Hides the original pupils but keeps the white eye circles and allows stars to show.
  */
 function generateStarEyesStyles(): string {
   return `
   <style type="text/css">
-    /* Hide only the pupils/tracking group, keep eye whites visible */
-    .blobbi-star-eyes .blobbi-eye {
+    /* Hide original pupil circles, but the star elements we inject are visible */
+    .blobbi-star-eyes .blobbi-eye > circle:not(.blobbi-star-eye *),
+    .blobbi-star-eyes .blobbi-eye > circle[fill]:not([fill="white"]) {
       opacity: 0;
+    }
+    /* Ensure star elements are visible */
+    .blobbi-star-eyes .blobbi-star-eye {
+      opacity: 1;
     }
   </style>`;
 }
 
 /**
  * Apply star eyes effect to the SVG.
+ * Inserts stars INTO the blobbi-eye groups so they track with eye movement.
  */
 function applyStarEyes(svgText: string, eyes: EyePosition[], config: StarEyesConfig): string {
   // Add 'blobbi-star-eyes' class to SVG root
@@ -1429,17 +1468,35 @@ function applyStarEyes(svgText: string, eyes: EyePosition[], config: StarEyesCon
     svgText = svgText.replace(/(<svg[^>]*>)/, '$1' + starStyles);
   }
   
-  // Generate star overlays
-  const stars = generateStarEyes(eyes, config);
+  // Insert stars INTO each blobbi-eye group so they track with eye movement
+  for (const eye of eyes) {
+    const starElement = generateStarElement(eye, config);
+    
+    // Find the blobbi-eye group for this side and insert the star before the closing </g>
+    const eyeGroupRegex = new RegExp(
+      `(<g[^>]*class="[^"]*blobbi-eye-${eye.side}[^"]*"[^>]*>)([\\s\\S]*?)(</g>)`,
+      'i'
+    );
+    
+    const match = svgText.match(eyeGroupRegex);
+    if (match) {
+      // Insert star at the end of the group (so it renders on top)
+      svgText = svgText.replace(
+        eyeGroupRegex,
+        `$1$2\n    ${starElement}\n  $3`
+      );
+    }
+  }
   
-  // Insert stars before closing </svg> tag
-  const starOverlay = `
-  <!-- Excited star eyes -->
-  <g class="blobbi-star-eyes-group">
-    ${stars}
+  // Add sparkles as a separate overlay (they don't need to track)
+  const sparkles = generateSparkles(eyes, config);
+  const sparkleOverlay = `
+  <!-- Excited sparkles -->
+  <g class="blobbi-sparkles-group">
+    ${sparkles}
   </g>`;
   
-  svgText = svgText.replace('</svg>', starOverlay + '\n</svg>');
+  svgText = svgText.replace('</svg>', sparkleOverlay + '\n</svg>');
   
   return svgText;
 }
@@ -1507,11 +1564,11 @@ function generateSleepyStyles(config: SleepyAnimationConfig): string {
   
   return `
   <style type="text/css">
-    /* Closed eye line visibility - appears when eyes are closing */
+    /* Closed eye line visibility - appears when eyes are fully closed, disappears immediately on open */
     @keyframes sleepy-closed-eye {
-      0%, 30% { opacity: 0; }
-      38%, 65% { opacity: 1; }
-      73%, 100% { opacity: 0; }
+      0%, 33% { opacity: 0; }
+      35%, 62% { opacity: 1; }
+      63%, 100% { opacity: 0; }
     }
     
     /* Wake-up glance animation (applied to blobbi-eye groups) */
@@ -1610,20 +1667,23 @@ function generateSleepyMouth(mouth: MouthPosition, config: SleepyAnimationConfig
 /**
  * Generate closed eye lines - curved lines that appear when eyes are fully closed.
  * These sit below the eye center to align with the final closed eyelid position.
- * The blink animation clips from top, so closed eyes appear lower than center.
+ * The curve matches the natural shape of a closed eyelid (following the eye's curvature).
  */
 function generateClosedEyeLines(eyes: EyePosition[]): string {
   return eyes.map(eye => {
-    // Create a slightly curved line below the eye center
-    // Position it lower to match where the eye "closes to" with the new clip-path blink
-    const lineWidth = eye.radius * 1.8;
+    // Create a curved line that follows the bottom curvature of the eye
+    // Width matches the eye white width for natural look
+    const lineWidth = eye.radius * 1.6;
     const startX = eye.cx - lineWidth / 2;
     const endX = eye.cx + lineWidth / 2;
-    const curveDepth = eye.radius * 0.25;
+    
+    // Curve depth matches the natural curvature of the bottom of an eye
+    // More pronounced curve for a natural closed eyelid appearance
+    const curveDepth = eye.radius * 0.5;
     
     // Offset the line downward to align with the closed eye position
     // The blink clips ~95% of the eye, so the line should be near the bottom
-    const yOffset = eye.radius * 0.7; // Move down by 70% of radius
+    const yOffset = eye.radius * 0.75; // Move down by 75% of radius
     const lineY = eye.cy + yOffset;
     
     return `<path
