@@ -102,6 +102,8 @@ function darkenColor(color: string, percent: number): string {
  * - EyeWhite gradients (actual white part of eye) - INCLUDE
  * - EyeBase gradients (colored eye rim, e.g., froggi's green bulge) - EXCLUDE
  * - Eye gradients without "Base" (generic eye white) - INCLUDE
+ * - Plain white fills are ONLY eye whites if they're large (radius >= 8)
+ *   Smaller white fills (5-7) are likely highlights, not eye whites
  */
 function isEyeWhiteElement(element: string, radius: number): boolean {
   // Extract the gradient ID from the fill attribute
@@ -127,7 +129,9 @@ function isEyeWhiteElement(element: string, radius: number): boolean {
     }
   }
 
-  // Check for plain white with sufficient size (like cloudi, rosey, etc.)
+  // Check for plain white fills - must be LARGE to be an eye white
+  // Adults use r=8-12 for eye whites, r=2-6 for highlights
+  // Use radius >= 8 threshold to avoid catching highlights as eye whites
   const isWhite =
     element.includes('fill="white"') ||
     element.includes("fill='white'") ||
@@ -136,7 +140,7 @@ function isEyeWhiteElement(element: string, radius: number): boolean {
     element.includes('fill="#FFF"') ||
     element.includes('fill="#FFFFFF"');
 
-  if (isWhite && radius >= 5) {
+  if (isWhite && radius >= 8) {
     return true;
   }
 
@@ -163,7 +167,11 @@ function isPupilElement(element: string): boolean {
 }
 
 /**
- * Check if element is a highlight (small white element)
+ * Check if element is a highlight (white element, typically small)
+ * 
+ * Highlights are the white reflective spots on the pupil.
+ * They're white fills that are smaller than eye whites.
+ * Adults use r=2-6 for highlights, r=8+ for eye whites.
  */
 function isHighlightElement(element: string, radius: number): boolean {
   const isWhite =
@@ -174,7 +182,9 @@ function isHighlightElement(element: string, radius: number): boolean {
     element.includes('fill="#FFF"') ||
     element.includes('fill="#FFFFFF"');
 
-  return isWhite && radius <= 4;
+  // Highlights are white fills with radius < 8 (the eye white threshold)
+  // This captures adult highlights at r=2-6 and baby highlights at r=2
+  return isWhite && radius < 8;
 }
 
 /**
@@ -364,6 +374,8 @@ function generateEyelidElement(
 export interface EyeAnimationOptions {
   /** Base body color for deriving eyelid color (optional) */
   baseColor?: string;
+  /** Unique instance ID to prevent clipPath ID collisions when multiple Blobbis are rendered */
+  instanceId?: string;
 }
 
 /**
@@ -404,6 +416,9 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
   // Derive eyelid color from base color (or use default)
   const baseColor = options?.baseColor || DEFAULT_EYELID_COLOR;
   const eyelidColor = darkenColor(baseColor, EYELID_DARKEN_AMOUNT);
+  
+  // Generate unique ID prefix for clipPaths to avoid collisions between multiple Blobbis
+  const instanceId = options?.instanceId || Math.random().toString(36).substring(2, 8);
 
   for (const group of eyeGroups) {
     // Collect all elements for this eye (for removal tracking)
@@ -458,7 +473,7 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
     // Store eye geometry as data attributes for the animation loop
     // data-eye-top/bottom define the clipping bounds for blink animation
     // data-clip-id references the clipPath element
-    const clipId = `blobbi-blink-clip-${group.side}`;
+    const clipId = `blobbi-blink-clip-${instanceId}-${group.side}`;
     const blinkGroup = `<g class="blobbi-blink blobbi-blink-${group.side}" data-cx="${group.blinkCenterX}" data-cy="${group.blinkCenterY}" data-eye-top="${clipTop}" data-eye-bottom="${eyeBottom + clipPadding}" data-clip-height="${clipHeight}" data-clip-id="${clipId}" clip-path="url(#${clipId})">
     ${blinkContent}
   </g>`;
