@@ -120,7 +120,7 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
     // Add eye animation wrappers (only when not sleeping)
     if (!isSleeping) {
       // Pass base color for eyelid generation
-      let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor });
+      let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId: blobbi.id });
       
       // Apply emotion overlays (eyebrows, sad mouth, tears, etc.)
       // Pass 'baby' variant for baby-specific adjustments (e.g., eyebrow positioning)

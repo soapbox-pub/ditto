@@ -126,7 +126,7 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
     // Add eye animation wrappers when awake (eyes are closed when sleeping)
     if (!isSleeping) {
       // Pass base color for eyelid generation
-      let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor });
+      let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId: blobbi.id });
       
       // Apply emotion overlays (eyebrows, sad mouth, tears, etc.)
       if (emotion !== 'neutral') {
