@@ -7,22 +7,26 @@ import { useCurrentUser } from './useCurrentUser';
 import { useLocalStorage } from './useLocalStorage';
 import {
   KIND_BLOBBONAUT_PROFILE,
+  BLOBBONAUT_PROFILE_KINDS,
   BLOBBI_CACHE_KEY,
   getBlobbonautQueryDValues,
   isValidBlobbonautEvent,
+  isLegacyBlobbonautKind,
   parseBlobbonautEvent,
   type BlobbiBootCache,
   type BlobbonautProfile,
 } from '@/lib/blobbi';
 
 /**
- * Hook to fetch and manage the Blobbonaut Profile (Kind 31125) for the logged-in user.
+ * Hook to fetch and manage the Blobbonaut Profile for the logged-in user.
  * 
  * Features:
  * - localStorage boot cache for instant UI on page load
- * - Fetches from relays with legacy d-tag support for migration
+ * - Fetches from relays with support for both current (11125) and legacy (31125) kinds
+ * - Prefers current kind (11125) over legacy kind (31125) when both exist
  * - React Query handles request deduplication via queryKey and staleTime
  * - Provides the parsed profile or null if none exists
+ * - Returns `needsKindMigration` flag if profile is on legacy kind
  */
 export function useBlobbonautProfile() {
   const { nostr } = useNostr();
@@ -80,26 +84,39 @@ export function useBlobbonautProfile() {
       // Query with all possible d-tag values (canonical + legacy)
       const dValues = getBlobbonautQueryDValues(user.pubkey);
       
+      // Query BOTH current (11125) and legacy (31125) kinds for migration support
       const filter = {
-        kinds: [KIND_BLOBBONAUT_PROFILE],
+        kinds: [...BLOBBONAUT_PROFILE_KINDS],
         authors: [user.pubkey],
         '#d': dValues,
       };
       
       const events = await nostr.query([filter], { signal });
       
-      // Filter to valid events and find the newest
-      const validEvents = events
-        .filter(isValidBlobbonautEvent)
-        .sort((a, b) => b.created_at - a.created_at);
+      // Filter to valid events
+      const validEvents = events.filter(isValidBlobbonautEvent);
       
       if (validEvents.length === 0) {
         return null;
       }
       
-      const latestEvent = validEvents[0];
+      // Separate by kind: prefer current kind (11125) over legacy (31125)
+      const currentKindEvents = validEvents.filter(e => e.kind === KIND_BLOBBONAUT_PROFILE);
+      const legacyKindEvents = validEvents.filter(e => isLegacyBlobbonautKind(e));
       
-      return parseBlobbonautEvent(latestEvent) ?? null;
+      // If we have any current kind events, use the newest one
+      if (currentKindEvents.length > 0) {
+        const sorted = currentKindEvents.sort((a, b) => b.created_at - a.created_at);
+        return parseBlobbonautEvent(sorted[0]) ?? null;
+      }
+      
+      // Otherwise fall back to legacy kind (migration needed)
+      if (legacyKindEvents.length > 0) {
+        const sorted = legacyKindEvents.sort((a, b) => b.created_at - a.created_at);
+        return parseBlobbonautEvent(sorted[0]) ?? null;
+      }
+      
+      return null;
     },
     enabled: !!user?.pubkey,
     staleTime: 30_000, // 30 seconds - don't refetch if data is fresh
@@ -212,6 +229,13 @@ export function useBlobbonautProfile() {
     return undefined;
   }, [query.data]);
   
+  // Check if profile needs migration to new kind (11125)
+  const needsKindMigration = useMemo(() => {
+    const profile = query.data;
+    if (!profile) return false;
+    return isLegacyBlobbonautKind(profile.event);
+  }, [query.data]);
+  
   return {
     profile: query.data ?? null,
     /** The d-tag of the companion to display (current_companion or first in has[]) */
@@ -227,5 +251,7 @@ export function useBlobbonautProfile() {
     updateProfileEvent,
     /** Whether we're showing cached data while fetching fresh data */
     isFromCache: !!cachedProfile && query.isFetching,
+    /** True if profile is on legacy kind (31125) and needs migration to 11125 */
+    needsKindMigration,
   };
 }

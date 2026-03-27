@@ -9,7 +9,13 @@ import { validateAndRepairBlobbiTags } from './blobbi-tag-schema';
 export const BLOBBI_ECOSYSTEM_NAMESPACE = 'blobbi:ecosystem:v1';
 
 export const KIND_BLOBBI_STATE = 31124;
-export const KIND_BLOBBONAUT_PROFILE = 31125;
+export const KIND_BLOBBONAUT_PROFILE = 11125;
+
+/** @deprecated Legacy kind for Blobbonaut profiles. Use KIND_BLOBBONAUT_PROFILE (11125) instead. */
+export const KIND_BLOBBONAUT_PROFILE_LEGACY = 31125;
+
+/** All Blobbonaut profile kinds to query (for migration support) */
+export const BLOBBONAUT_PROFILE_KINDS = [KIND_BLOBBONAUT_PROFILE, KIND_BLOBBONAUT_PROFILE_LEGACY] as const;
 
 // ─── Stat Bounds ──────────────────────────────────────────────────────────────
 
@@ -256,7 +262,8 @@ export interface StorageItem {
 }
 
 /**
- * Parsed representation of a Kind 31125 Blobbonaut Profile event.
+ * Parsed representation of a Blobbonaut Profile event (Kind 11125).
+ * Also supports legacy Kind 31125 profiles.
  */
 export interface BlobbonautProfile {
   /** Original event for republishing */
@@ -308,7 +315,7 @@ export function getCanonicalBlobbiD(pubkey: string, petId: string): string {
 }
 
 /**
- * Get the canonical d-tag for a Blobbonaut Profile (Kind 31125).
+ * Get the canonical d-tag for a Blobbonaut Profile (Kind 11125).
  * Format: blobbonaut-{pubkeyPrefix12}
  */
 export function getCanonicalBlobbonautD(pubkey: string): string {
@@ -388,7 +395,7 @@ function parseBooleanTag(tags: string[][], name: string, defaultValue = false): 
 }
 
 /**
- * Parse storage tags from a Kind 31125 Blobbonaut Profile event.
+ * Parse storage tags from a Blobbonaut Profile event (Kind 11125).
  * Storage tags format: ['storage', 'itemId:quantity']
  * 
  * @param tags - Event tags array
@@ -727,11 +734,15 @@ export function isValidBlobbiEvent(event: NostrEvent): boolean {
 }
 
 /**
- * Validate that an event has the required tags for a valid Blobbonaut profile (Kind 31125).
+ * Validate that an event has the required tags for a valid Blobbonaut profile.
+ * Accepts both current kind (11125) and legacy kind (31125) for migration support.
  * Required: d, b (blobbi:ecosystem:v1)
  */
 export function isValidBlobbonautEvent(event: NostrEvent): boolean {
-  if (event.kind !== KIND_BLOBBONAUT_PROFILE) return false;
+  // Accept both current and legacy kinds
+  if (event.kind !== KIND_BLOBBONAUT_PROFILE && event.kind !== KIND_BLOBBONAUT_PROFILE_LEGACY) {
+    return false;
+  }
   
   const d = getTagValue(event.tags, 'd');
   const b = getTagValue(event.tags, 'b');
@@ -740,6 +751,14 @@ export function isValidBlobbonautEvent(event: NostrEvent): boolean {
   if (b !== BLOBBI_ECOSYSTEM_NAMESPACE) return false;
   
   return true;
+}
+
+/**
+ * Check if a Blobbonaut profile event is using the legacy kind (31125).
+ * Used to determine if migration is needed.
+ */
+export function isLegacyBlobbonautKind(event: NostrEvent): boolean {
+  return event.kind === KIND_BLOBBONAUT_PROFILE_LEGACY;
 }
 
 // ─── Event Parsing ────────────────────────────────────────────────────────────
@@ -900,7 +919,8 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
 }
 
 /**
- * Parse a Kind 31125 Blobbonaut Profile event into a structured object.
+ * Parse a Kind 11125 Blobbonaut Profile event into a structured object.
+ * Also supports legacy kind 31125 profiles for migration purposes.
  * Returns undefined if the event is invalid.
  * 
  * Note: pettingLevel is parsed from both 'pettingLevel' and 'petting_level' tags
@@ -934,7 +954,7 @@ export function parseBlobbonautEvent(event: NostrEvent): BlobbonautProfile | und
 // ─── Tag Building Utilities ───────────────────────────────────────────────────
 
 /**
- * Build tags for a new Blobbonaut Profile (Kind 31125).
+ * Build tags for a new Blobbonaut Profile (Kind 11125).
  * Includes pettingLevel: 0 by default.
  */
 export function buildBlobbonautTags(pubkey: string): string[][] {
@@ -1078,7 +1098,7 @@ export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
 ]);
 
 /**
- * Tags managed by the client for Kind 31125 (Blobbonaut Profile).
+ * Tags managed by the client for Kind 11125 (Blobbonaut Profile).
  * These tags are controlled by the application and may be overwritten.
  */
 export const MANAGED_BLOBBONAUT_PROFILE_TAG_NAMES = new Set([
@@ -1224,7 +1244,7 @@ export function mergeBlobbiStateTagsForRepublish(
 }
 
 /**
- * Merge tags for republishing a Kind 31125 Blobbonaut Profile event.
+ * Merge tags for republishing a Kind 11125 Blobbonaut Profile event.
  * Preserves unknown tags, applies updates, and deduplicates repeated tags like 'has'.
  */
 export function mergeBlobbonautTagsForRepublish(
@@ -1285,7 +1305,7 @@ export function deduplicateHasTags(tags: string[][]): string[][] {
 
 /**
  * Update Blobbonaut profile tags with proper deduplication.
- * Use this when updating Kind 31125 events.
+ * Use this when updating Kind 11125 events.
  */
 export function updateBlobbonautTags(
   existingTags: string[][],

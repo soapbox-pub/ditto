@@ -6,23 +6,25 @@
  * exists - not hardcoded.
  * 
  * MODES:
- * 1. Full onboarding (default): Profile creation → Adoption question → Preview
+ * 1. Full onboarding (default): Auto profile creation → Adoption question → Preview
  * 2. Adoption only (adoptionOnly=true): Skip directly to Preview for existing profiles
  * 
  * IMPORTANT: This component should only be rendered when:
- * - User has no profile (shows profile creation)
+ * - User has no profile (auto-creates profile using kind 0 name)
  * - User has profile but no pets (shows adoption)
  * - User wants to adopt another Blobbi (adoptionOnly mode)
+ * 
+ * Profile creation is now automatic - no manual name entry step is needed.
  */
 
 import { useState } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useBlobbiOnboarding } from '../hooks/useBlobbiOnboarding';
-import { BlobbiProfileOnboarding } from './BlobbiProfileOnboarding';
 import { BlobbiAdoptionStep } from './BlobbiAdoptionStep';
 import { BlobbiEggPreviewCard } from './BlobbiEggPreviewCard';
 import { BlobbiAdoptionConfirmDialog } from './BlobbiAdoptionConfirmDialog';
+import { Loader2 } from 'lucide-react';
 
 import type { BlobbonautProfile } from '@/lib/blobbi';
 
@@ -63,7 +65,6 @@ export function BlobbiOnboardingFlow({
   const {
     state,
     actions,
-    suggestedName,
     coins,
   } = useBlobbiOnboarding({
     profile,
@@ -96,15 +97,16 @@ export function BlobbiOnboardingFlow({
     setShowAdoptConfirmDialog(false);
   };
   
-  // ─── Step: Profile Creation ───────────────────────────────────────────────────
-  // Only shown when user has no profile at all
-  if (state.step === 'profile') {
+  // ─── Step: Auto Profile Creation ──────────────────────────────────────────────
+  // Shows a loading state while profile is being auto-created
+  if (state.step === 'creating-profile') {
     return (
-      <BlobbiProfileOnboarding
-        suggestedName={suggestedName}
-        isCreating={state.isProcessing && state.actionInProgress === 'create-profile'}
-        onCreateProfile={actions.createProfile}
-      />
+      <div className="flex flex-col items-center justify-center min-h-[300px] gap-4 p-8">
+        <Loader2 className="size-10 text-primary animate-spin" />
+        <p className="text-muted-foreground text-center">
+          Setting up your profile...
+        </p>
+      </div>
     );
   }
   

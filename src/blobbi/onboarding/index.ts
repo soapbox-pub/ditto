@@ -2,13 +2,12 @@
  * Blobbi Onboarding Module
  * 
  * Provides components and hooks for the Blobbi onboarding flow:
- * 1. Profile creation with name
+ * 1. Auto profile creation (using kind 0 name)
  * 2. Adoption question
  * 3. Egg preview with reroll/adopt
  */
 
 // Components
-export { BlobbiProfileOnboarding } from './components/BlobbiProfileOnboarding';
 export { BlobbiAdoptionStep } from './components/BlobbiAdoptionStep';
 export { BlobbiEggPreviewCard } from './components/BlobbiEggPreviewCard';
 export { BlobbiAdoptionConfirmDialog } from './components/BlobbiAdoptionConfirmDialog';

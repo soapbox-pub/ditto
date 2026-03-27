@@ -8,7 +8,7 @@
  * - Read-only access to mission state (claiming is handled by useClaimMissionReward)
  * 
  * Note: Reward claiming should be done via useClaimMissionReward hook,
- * which persists coins to the kind 31125 Blobbonaut profile.
+ * which persists coins to the kind 11125 Blobbonaut profile.
  */
 
 import { useMemo, useEffect, useState } from 'react';

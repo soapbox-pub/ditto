@@ -378,7 +378,7 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       
       updateCompanionInCache(blobbiEvent);
       
-      // ─── Update Profile Storage (kind 31125) ───
+      // ─── Update Profile Storage (kind 11125) ───
       const newStorage = decrementStorageItem(profile.storage, itemId, quantity);
       const storageValues = createStorageTags(newStorage).map(tag => tag[1]);
       
