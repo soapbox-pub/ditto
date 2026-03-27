@@ -10,9 +10,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
-import { BadgeThumbnail } from '@/components/BadgeThumbnail';
-import { useProfileBadges } from '@/hooks/useProfileBadges';
-import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { useToast } from '@/hooks/useToast';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -74,8 +71,6 @@ interface ProfileRightSidebarProps {
   mediaLoading?: boolean;
   /** Called when a media tile is clicked. If provided, tiles don't navigate. */
   onMediaClick?: (url: string) => void;
-  /** Profile pubkey — when provided, a badge showcase section is rendered. */
-  pubkey?: string;
   /** Override the root element's className (e.g. to show on mobile). */
   className?: string;
 }
@@ -490,10 +485,7 @@ function sidebarJustifiedLayout(items: MediaItem[]): { items: MediaItem[]; heigh
   return rows;
 }
 
-/** Maximum number of badges to display in the sidebar. */
-const SIDEBAR_MAX_BADGES = 12;
-
-export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp, onMediaClick, pubkey, className }: ProfileRightSidebarProps) {
+export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp, onMediaClick, className }: ProfileRightSidebarProps) {
   const { config } = useAppContext();
   const media = useMemo(
     () => extractMedia(mediaEvents ?? [], config.contentWarningPolicy),
@@ -502,12 +494,6 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
   const mediaLoading = mediaLoadingProp ?? false;
 
   const sidebarRows = useMemo(() => sidebarJustifiedLayout(media), [media]);
-
-  // Badge data
-  const { refs: badgeRefs, isLoading: badgesLoading } = useProfileBadges(pubkey);
-  const visibleBadgeRefs = useMemo(() => badgeRefs.slice(0, SIDEBAR_MAX_BADGES), [badgeRefs]);
-  const { badgeMap, isLoading: badgeDefsLoading } = useBadgeDefinitions(visibleBadgeRefs);
-  const showBadges = !!pubkey && (badgesLoading || badgeRefs.length > 0);
 
   return (
     <aside className={cn("w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3", className)}>
@@ -608,54 +594,6 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
           <p className="text-sm text-muted-foreground">No media yet.</p>
         )}
       </section>}
-
-      {/* Badges Section */}
-      {showBadges && (
-        <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
-          <h2 className="text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>Badges</h2>
-          {badgesLoading || badgeDefsLoading ? (
-            <div className="grid grid-cols-4 gap-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex flex-col items-center gap-1.5">
-                  <Skeleton className="size-12 rounded-lg" />
-                  <Skeleton className="h-3 w-10" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-4 gap-3">
-              {visibleBadgeRefs.map((ref) => {
-                const badge = badgeMap.get(ref.aTag);
-                if (!badge) return null;
-                const badgeUrl = `/${nip19.naddrEncode({ kind: 30009, pubkey: ref.pubkey, identifier: ref.identifier })}`;
-                return (
-                  <Link
-                    key={ref.aTag}
-                    to={badgeUrl}
-                    className="flex flex-col items-center gap-1.5 group"
-                    title={badge.description || badge.name || ref.identifier}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="transition-transform group-hover:scale-110">
-                      <BadgeThumbnail badge={badge} size={48} />
-                    </div>
-                    <span className="text-[10px] text-muted-foreground text-center leading-tight line-clamp-2 max-w-[4.5rem] group-hover:text-foreground transition-colors">
-                      {badge.name || ref.identifier}
-                    </span>
-                  </Link>
-                );
-              })}
-              {badgeRefs.length > SIDEBAR_MAX_BADGES && (
-                <div className="flex flex-col items-center justify-center gap-1.5">
-                  <div className="size-12 rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-xs font-medium">
-                    +{badgeRefs.length - SIDEBAR_MAX_BADGES}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-      )}
 
       {/* Profile Fields Section */}
       {fields && fields.length > 0 && (
