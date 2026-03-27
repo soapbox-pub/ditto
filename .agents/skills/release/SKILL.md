@@ -22,7 +22,18 @@ This skill guides you through publishing a new release of the app. It handles ve
 
 Follow these steps in order. Do NOT skip any step.
 
-### Step 1: Pre-flight Checks
+### Step 1: Required Reading
+
+Before writing any release notes, you MUST read these pages to understand the product context, voice, and values:
+
+1. **https://soapbox.pub/** -- Soapbox company overview and product suite
+2. **https://soapbox.pub/ditto** -- Ditto product page with feature descriptions and positioning
+3. **https://about.ditto.pub/** -- Ditto documentation landing page
+4. **https://about.ditto.pub/philosophy** -- Ditto's design philosophy, core symbolism, and manifesto
+
+These pages define what Ditto is, how it's positioned, and the tone of voice to use. Changelog entries should reflect this identity: fun, rebellious, user-focused, emphasizing freedom and self-expression. Avoid dry technical jargon -- write for people who use the app, not developers.
+
+### Step 2: Pre-flight Checks
 
 ```bash
 # Ensure working directory is clean
@@ -39,7 +50,7 @@ npm run test
 - If not on `main`, warn the user and ask whether to proceed.
 - If tests fail, stop and fix the issues before continuing.
 
-### Step 2: Determine What Changed
+### Step 3: Determine What Changed
 
 ```bash
 # Get the current version from package.json
@@ -52,9 +63,9 @@ git log v$(node -p "require('./package.json').version")..HEAD --oneline
 - If there are no commits since the last tag, inform the user there is nothing to release and stop.
 - Review the commit list to understand the scope of changes.
 
-### Step 3: Decide the Version Bump
+### Step 4: Decide the Version Bump
 
-Analyze the commits from Step 2 and determine the appropriate bump level:
+Analyze the commits from Step 3 and determine the appropriate bump level:
 
 | Bump | When to use | Example |
 |------|-------------|---------|
@@ -67,7 +78,7 @@ Analyze the commits from Step 2 and determine the appropriate bump level:
 When bumping minor, reset patch to 0 (e.g., 2.0.3 -> 2.1.0).
 When bumping major, reset minor and patch to 0 (e.g., 2.3.1 -> 3.0.0).
 
-### Step 4: Write the Changelog Entry
+### Step 5: Write the Changelog Entry
 
 Prepend a new section to `CHANGELOG.md` directly below the `# Changelog` heading.
 
@@ -98,11 +109,11 @@ Prepend a new section to `CHANGELOG.md` directly below the `# Changelog` heading
 - Focus on what the user sees/experiences, not internal implementation details
 - Use the current date in YYYY-MM-DD format
 
-### Step 5: Update Version in All Files
+### Step 6: Update Version in All Files
 
 Update the version string in these files:
 
-#### 5a. `package.json`
+#### 6a. `package.json`
 
 Update the `version` field:
 
@@ -110,7 +121,7 @@ Update the `version` field:
 "version": "X.Y.Z"
 ```
 
-#### 5b. `android/app/build.gradle`
+#### 6b. `android/app/build.gradle`
 
 Update `versionName` (line 17). Do NOT change `versionCode` -- that is managed by CI:
 
@@ -118,7 +129,7 @@ Update `versionName` (line 17). Do NOT change `versionCode` -- that is managed b
 versionName "X.Y.Z"
 ```
 
-#### 5c. `ios/App/App.xcodeproj/project.pbxproj`
+#### 6c. `ios/App/App.xcodeproj/project.pbxproj`
 
 Update `MARKETING_VERSION` in all 4 occurrences (2 Debug configs + 2 Release configs):
 
@@ -130,14 +141,14 @@ MARKETING_VERSION = X.Y.Z;
 
 Do NOT change `CURRENT_PROJECT_VERSION` -- it stays at `1` (may be managed separately for App Store submissions in the future).
 
-### Step 6: Commit the Release
+### Step 7: Commit the Release
 
 ```bash
 git add package.json CHANGELOG.md android/app/build.gradle ios/App/App.xcodeproj/project.pbxproj
 git commit -m "release: vX.Y.Z"
 ```
 
-### Step 7: Tag the Release
+### Step 8: Tag the Release
 
 ```bash
 git tag vX.Y.Z
@@ -145,7 +156,7 @@ git tag vX.Y.Z
 
 The tag format is `v` followed by the semver version with no suffix. Examples: `v2.0.0`, `v2.1.0`, `v2.1.1`.
 
-### Step 8: Push
+### Step 9: Push
 
 ```bash
 git push origin main --tags
@@ -156,7 +167,7 @@ This triggers the GitLab CI pipeline which will:
 2. Create a GitLab Release with download links
 3. Publish the APK to Zapstore
 
-### Step 9: Confirm
+### Step 10: Confirm
 
 After pushing, inform the user:
 - The new version number
@@ -194,7 +205,7 @@ If you tagged the wrong version and haven't pushed yet:
 git tag -d vX.Y.Z          # delete the local tag
 git reset --soft HEAD~1     # undo the commit but keep changes staged
 ```
-Then redo steps 3-8 with the correct version.
+Then redo steps 4-9 with the correct version.
 
 ### Already pushed a bad release
 This requires manual intervention. Inform the user and suggest they delete the tag and release from GitLab manually, then re-run the release process.
