@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, PenLine, Settings } from 'lucide-react';
+import { Mail, PenLine, Settings, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { FabButton } from '@/components/FabButton';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -55,8 +56,15 @@ export function LettersPage() {
     ? followedPubkeys
     : undefined;
 
-  const { data: inbox, isLoading: inboxLoading } = useInbox(inboxFilter);
-  const { data: sent, isLoading: sentLoading } = useSentLetters();
+  const inboxQuery = useInbox(inboxFilter);
+  const sentQuery = useSentLetters();
+
+  const inbox = inboxQuery.data;
+  const inboxLoading = inboxQuery.isLoading;
+  const sent = sentQuery.data;
+  const sentLoading = sentQuery.isLoading;
+
+  const activeQuery = tab === 'inbox' ? inboxQuery : sentQuery;
 
   useSeoMeta({ title: 'Letters', description: 'Your private encrypted letters' });
 
@@ -142,17 +150,33 @@ export function LettersPage() {
         )}
 
         {!isLoading && activeLetters && activeLetters.length > 0 && (
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sidebar:grid-cols-3">
-            {activeLetters.map((letter, i) => (
-              <EnvelopeCard
-                key={letter.event.id}
-                letter={letter}
-                mode={tab}
-                index={i}
-                onClick={() => setSelectedLetter(letter)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sidebar:grid-cols-3">
+              {activeLetters.map((letter, i) => (
+                <EnvelopeCard
+                  key={letter.event.id}
+                  letter={letter}
+                  mode={tab}
+                  index={i}
+                  onClick={() => setSelectedLetter(letter)}
+                />
+              ))}
+            </div>
+            {activeQuery.hasNextPage && (
+              <div className="flex justify-center pt-6 pb-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => activeQuery.fetchNextPage()}
+                  disabled={activeQuery.isFetchingNextPage}
+                  className="gap-2"
+                >
+                  {activeQuery.isFetchingNextPage && <Loader2 className="size-4 animate-spin" />}
+                  Load more
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
