@@ -47,6 +47,7 @@ export interface EncryptedSettings {
     mentions?: boolean;
     comments?: boolean;
     badges?: boolean;
+    letters?: boolean;
     onlyFollowing?: boolean;
   };
   /** Last sync timestamp */

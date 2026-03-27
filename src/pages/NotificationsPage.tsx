@@ -2,9 +2,9 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageSquare, Loader2, Award, Check } from 'lucide-react';
+import { Zap, AtSign, MessageSquare, Loader2, Award, Check, Mail } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAppContext } from '@/hooks/useAppContext';
 
@@ -31,6 +31,8 @@ import { useAcceptBadge } from '@/hooks/useAcceptBadge';
 import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
+import { LETTER_KIND, type Letter } from '@/lib/letterTypes';
+import { EnvelopeCard } from '@/components/letter/EnvelopeCard';
 import { Button } from '@/components/ui/button';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import type { BadgeData } from '@/components/BadgeContent';
@@ -201,6 +203,8 @@ function GroupedNotificationView({ group }: { group: GroupedNotificationItem }) 
       return solo
         ? <BadgeAwardNotification item={group.actors[0]} isNew={group.isNew} />
         : <BadgeAwardNotificationGroup group={group} />;
+    case LETTER_KIND:
+      return <LetterNotification item={group.actors[0]} isNew={group.isNew} />;
     default:
       return null;
   }
@@ -594,6 +598,43 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
         />
       </div>
       <NoteCard event={item.event} className="border-0" />
+    </NotificationWrapper>
+  );
+}
+
+// ──────────────────────────────────────
+// Letter Notification (kind 8211, always standalone)
+// ──────────────────────────────────────
+function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const navigate = useNavigate();
+
+  const letter = useMemo<Letter>(() => ({
+    event: item.event,
+    sender: item.event.pubkey,
+    recipient: item.event.tags.find(([name]) => name === 'p')?.[1] ?? '',
+    decrypted: false,
+    timestamp: item.event.created_at,
+  }), [item.event]);
+
+  return (
+    <NotificationWrapper isNew={isNew}>
+      <div className="px-4 pt-3">
+        <NotificationHeader
+          actorPubkey={item.event.pubkey}
+          icon={<Mail className="size-4 text-primary" />}
+          action="sent you a letter"
+        />
+      </div>
+      <div className="px-4 pb-3 pt-1">
+        <div className="max-w-[160px]">
+          <EnvelopeCard
+            letter={letter}
+            mode="inbox"
+            index={0}
+            onClick={() => navigate('/letters')}
+          />
+        </div>
+      </div>
     </NotificationWrapper>
   );
 }
