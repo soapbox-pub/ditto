@@ -14,6 +14,8 @@ import { coreToTokens, type CoreThemeColors, type ThemeConfig } from '@/themes';
 
 interface ThemeContentProps {
   event: NostrEvent;
+  /** When true, shows the full description instead of truncating it (used on detail page). */
+  expanded?: boolean;
 }
 
 /** Extracts HSL color string from a theme token value like "258 70% 55%" */
@@ -26,7 +28,7 @@ function hsl(value: string): string {
  * and kind 16767 (Active Profile Theme) events within NoteCard.
  * Uses the same mini-mockup design as ThemeSelector, scaled up.
  */
-export function ThemeContent({ event }: ThemeContentProps) {
+export function ThemeContent({ event, expanded }: ThemeContentProps) {
   const { user } = useCurrentUser();
   const { theme, customTheme, setTheme, applyCustomTheme } = useTheme();
   const isOwn = user?.pubkey === event.pubkey;
@@ -105,7 +107,7 @@ export function ThemeContent({ event }: ThemeContentProps) {
         className="w-full text-left cursor-pointer transition-opacity hover:opacity-90 active:opacity-75"
         onClick={handleApplyTheme}
       >
-        <ThemeMockup colors={colors} title={title} description={description} backgroundUrl={backgroundUrl} />
+        <ThemeMockup colors={colors} title={title} description={description} backgroundUrl={backgroundUrl} expanded={expanded} />
       </button>
 
       {/* Actions — only Edit for own theme definitions */}
@@ -134,11 +136,13 @@ function ThemeMockup({
   title,
   description,
   backgroundUrl,
+  expanded,
 }: {
   colors: CoreThemeColors;
   title: string;
   description?: string;
   backgroundUrl?: string;
+  expanded?: boolean;
 }) {
   const tokens = useMemo(() => coreToTokens(colors), [colors]);
 
@@ -184,7 +188,7 @@ function ThemeMockup({
           {title}
         </span>
         {description && (
-          <span className="text-xs block truncate mt-0.5" style={{ color: hsl(tokens.mutedForeground) }}>
+          <span className={`text-xs block mt-0.5 ${expanded ? 'whitespace-pre-wrap' : 'truncate'}`} style={{ color: hsl(tokens.mutedForeground) }}>
             {description}
           </span>
         )}
