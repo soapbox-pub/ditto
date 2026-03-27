@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import Hls from 'hls.js';
+import type Hls from 'hls.js';
 import { Play, Pause, Volume1, Volume2, VolumeX, Expand } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
@@ -92,29 +92,27 @@ export function useVideoThumbnail(src: string, poster: string | undefined): stri
       video.muted = true;
       video.playsInline = true;
 
-      const grabFrame = () => {
-        if (cancelled) return;
-        // Need to play briefly so the video has a rendered frame to draw
-        video.play().then(() => {
-          video.pause();
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth || 320;
-            canvas.height = video.videoHeight || 180;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-              const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-              if (dataUrl.length > 1000) setThumbnail(dataUrl);
-            }
-          } catch { /* tainted canvas */ }
-          hls.destroy();
-          video.src = '';
-        }).catch(() => { hls.destroy(); });
-      };
-
-      // Safari — native HLS support
+      // Safari — native HLS support, no need for hls.js
       if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        const grabFrame = () => {
+          if (cancelled) return;
+          video.play().then(() => {
+            video.pause();
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = video.videoWidth || 320;
+              canvas.height = video.videoHeight || 180;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                if (dataUrl.length > 1000) setThumbnail(dataUrl);
+              }
+            } catch { /* tainted canvas */ }
+            video.src = '';
+          }).catch(() => { /* ignore */ });
+        };
+
         video.src = src;
         video.addEventListener('loadeddata', grabFrame, { once: true });
         return () => {
@@ -124,17 +122,43 @@ export function useVideoThumbnail(src: string, poster: string | undefined): stri
         };
       }
 
-      if (!Hls.isSupported()) return;
+      // Non-Safari: dynamically import hls.js
+      let hlsInstance: Hls | null = null;
+      import('hls.js').then(({ default: HlsLib }) => {
+        if (cancelled || !HlsLib.isSupported()) return;
 
-      const hls = new Hls({ startLevel: -1, maxBufferLength: 5 });
-      hls.loadSource(src);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (cancelled) { hls.destroy(); return; }
-        grabFrame();
+        const grabFrame = () => {
+          if (cancelled) return;
+          video.play().then(() => {
+            video.pause();
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = video.videoWidth || 320;
+              canvas.height = video.videoHeight || 180;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                if (dataUrl.length > 1000) setThumbnail(dataUrl);
+              }
+            } catch { /* tainted canvas */ }
+            hlsInstance?.destroy();
+            hlsInstance = null;
+            video.src = '';
+          }).catch(() => { hlsInstance?.destroy(); hlsInstance = null; });
+        };
+
+        const hls = new HlsLib({ startLevel: -1, maxBufferLength: 5 });
+        hlsInstance = hls;
+        hls.loadSource(src);
+        hls.attachMedia(video);
+        hls.on(HlsLib.Events.MANIFEST_PARSED, () => {
+          if (cancelled) { hls.destroy(); return; }
+          grabFrame();
+        });
       });
 
-      return () => { cancelled = true; hls.destroy(); video.src = ''; };
+      return () => { cancelled = true; hlsInstance?.destroy(); hlsInstance = null; video.src = ''; };
     }
 
     // Regular video file
@@ -161,12 +185,17 @@ function useHls(videoRef: React.RefObject<HTMLVideoElement | null>, src: string)
       return;
     }
 
-    if (!Hls.isSupported()) return;
+    // Dynamically import hls.js to keep it out of the main bundle
+    import('hls.js').then(({ default: HlsLib }) => {
+      // Guard against stale closure (component unmounted or src changed)
+      if (videoRef.current !== video) return;
+      if (!HlsLib.isSupported()) return;
 
-    const hls = new Hls({ startLevel: -1, autoStartLoad: true });
-    hlsRef.current = hls;
-    hls.loadSource(src);
-    hls.attachMedia(video);
+      const hls = new HlsLib({ startLevel: -1, autoStartLoad: true });
+      hlsRef.current = hls;
+      hls.loadSource(src);
+      hls.attachMedia(video);
+    });
   }, [videoRef, src, isHls]);
 
   useEffect(() => {
