@@ -1,13 +1,49 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ScrollText } from 'lucide-react';
-import Markdown from 'react-markdown';
-import rehypeSanitize from 'rehype-sanitize';
+import { Bug, CalendarDays, Minus, Package, Plus, RefreshCw, ScrollText, ShieldAlert, Tag } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/PageHeader';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { Skeleton } from '@/components/ui/skeleton';
+import { parseChangelog } from '@/lib/changelog';
+import type { ChangelogCategory } from '@/lib/changelog';
+
+/** Per-category badge color + icon. */
+const CATEGORY_STYLES: Record<ChangelogCategory, { icon: typeof Plus; className: string }> = {
+  Added: {
+    icon: Plus,
+    className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+  },
+  Changed: {
+    icon: RefreshCw,
+    className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+  },
+  Deprecated: {
+    icon: Package,
+    className: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+  },
+  Removed: {
+    icon: Minus,
+    className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+  },
+  Fixed: {
+    icon: Bug,
+    className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+  },
+  Security: {
+    icon: ShieldAlert,
+    className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+  },
+};
+
+/** Format "2026-03-26" as a readable date string. */
+function formatDate(raw: string): string {
+  const date = new Date(raw + 'T00:00:00');
+  if (isNaN(date.getTime())) return raw;
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+}
 
 export function ChangelogPage() {
   const { config } = useAppContext();
@@ -31,30 +67,84 @@ export function ChangelogPage() {
       .catch(() => setError(true));
   }, []);
 
+  const entries = useMemo(() => (content ? parseChangelog(content) : []), [content]);
+
   return (
     <main className="min-h-screen pb-16 sidebar:pb-0">
       <PageHeader title="Changelog" icon={<ScrollText className="size-5" />} backTo="/settings" />
 
-      <div className="px-4 pb-8">
+      <div className="px-4 pb-8 space-y-4">
         {error ? (
           <p className="text-sm text-muted-foreground pt-4">Failed to load changelog.</p>
         ) : content === null ? (
-          <div className="space-y-4 pt-4">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-6 w-36" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-4/5" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/5" />
-          </div>
+          <ChangelogSkeleton />
+        ) : entries.length === 0 ? (
+          <p className="text-sm text-muted-foreground pt-4">No releases yet.</p>
         ) : (
-          <div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-li:marker:text-muted-foreground prose-hr:border-border">
-            <Markdown rehypePlugins={[rehypeSanitize]}>
-              {content.replace(/^# .+\n+/, '')}
-            </Markdown>
-          </div>
+          entries.map((entry) => (
+            <div key={entry.version} className="rounded-2xl border border-border overflow-hidden">
+              {/* Version header */}
+              <div className="flex items-center gap-3 px-4 py-3 bg-secondary/30">
+                <Tag className="size-4 text-primary shrink-0" />
+                <span className="font-semibold text-sm">v{entry.version}</span>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
+                  <CalendarDays className="size-3.5" />
+                  <span>{formatDate(entry.date)}</span>
+                </div>
+              </div>
+
+              {/* Sections */}
+              <div className="divide-y divide-border">
+                {entry.sections.map((section) => {
+                  const style = CATEGORY_STYLES[section.category] ?? CATEGORY_STYLES.Changed;
+                  const Icon = style.icon;
+
+                  return (
+                    <div key={section.category} className="px-4 py-3 space-y-2">
+                      <Badge variant="secondary" className={`gap-1 text-[10px] px-1.5 py-0 ${style.className}`}>
+                        <Icon className="size-3" />
+                        {section.category}
+                      </Badge>
+                      <ul className="space-y-1">
+                        {section.items.map((item, i) => (
+                          <li key={i} className="text-sm text-foreground/90 pl-3 relative before:absolute before:left-0 before:top-[0.6em] before:size-1 before:rounded-full before:bg-muted-foreground/40">
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))
         )}
       </div>
     </main>
+  );
+}
+
+function ChangelogSkeleton() {
+  return (
+    <div className="space-y-4 pt-1">
+      {[1, 2].map((i) => (
+        <div key={i} className="rounded-2xl border border-border overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3 bg-secondary/30">
+            <Skeleton className="size-4 rounded" />
+            <Skeleton className="h-4 w-16" />
+            <div className="ml-auto flex items-center gap-1.5">
+              <Skeleton className="size-3.5 rounded" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          </div>
+          <div className="px-4 py-3 space-y-2">
+            <Skeleton className="h-4 w-16 rounded-full" />
+            <Skeleton className="h-4 w-full ml-3" />
+            <Skeleton className="h-4 w-4/5 ml-3" />
+            <Skeleton className="h-4 w-3/5 ml-3" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
