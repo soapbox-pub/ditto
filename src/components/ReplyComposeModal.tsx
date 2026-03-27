@@ -131,7 +131,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
           )}
 
           {/* Compose area */}
-          <div className="shrink-0">
+          <div className="min-h-0 overflow-y-auto">
             <ComposeBox
               replyTo={isQuote ? undefined : (event ?? undefined)}
               quotedEvent={quotedEvent ?? undefined}
