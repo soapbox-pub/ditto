@@ -3,19 +3,176 @@
  * Tap backdrop to dismiss.
  */
 
-import { useState, useRef, useEffect, useLayoutEffect } from 'react';
-import { Loader2, Lock } from 'lucide-react';
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
+import { Loader2, Lock, Gift, Check } from 'lucide-react';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { useDecryptLetter } from '@/hooks/useLetters';
-import { FONT_OPTIONS, LINE_HEIGHT_RATIO, type Letter } from '@/lib/letterTypes';
+import { FONT_OPTIONS, LINE_HEIGHT_RATIO, COLOR_MOMENT_KIND, THEME_KIND, type Letter } from '@/lib/letterTypes';
 import { ensureLetterFonts } from '@/lib/letterUtils';
 import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { LetterStickers } from './LetterStickers';
+import { useTheme } from '@/hooks/useTheme';
+import { toast } from '@/hooks/useToast';
+import { paletteToTheme, getColors } from '@/components/ColorMomentContent';
+import { parseThemeDefinition } from '@/lib/themeEvent';
+import { coreToTokens, type ThemeConfig } from '@/themes';
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
+
+// ---------------------------------------------------------------------------
+// Attached gift — color moment or theme that can be applied on the spot
+// ---------------------------------------------------------------------------
+
+function hsl(value: string): string {
+  return `hsl(${value})`;
+}
+
+/** Mini mockup showing how the theme looks — background, text, primary. */
+function ThemeSwatch({ bg, text, primary, className }: { bg: string; text: string; primary: string; className?: string }) {
+  return (
+    <div
+      className={`rounded-xl overflow-hidden ${className ?? ''}`}
+      style={{ background: hsl(bg) }}
+    >
+      <div className="flex flex-col gap-1.5 p-3">
+        <div className="h-2 w-3/4 rounded-full" style={{ background: hsl(text), opacity: 0.7 }} />
+        <div className="h-2 w-1/2 rounded-full" style={{ background: hsl(text), opacity: 0.4 }} />
+        <div className="h-6 w-16 rounded-lg mt-1" style={{ background: hsl(primary) }} />
+      </div>
+    </div>
+  );
+}
+
+/** Renders an "attached gift" for a letter with an embedded event. */
+function LetterAttachment({ event }: { event: NostrEvent }) {
+  const { applyCustomTheme, theme, customTheme, setTheme } = useTheme();
+  const [applied, setApplied] = useState(false);
+  const prevRef = useRef<{ mode: typeof theme; config?: ThemeConfig }>();
+
+  const attachment = useMemo(() => {
+    if (event.kind === COLOR_MOMENT_KIND) {
+      const colors = getColors(event.tags);
+      if (colors.length < 2) return null;
+      const core = paletteToTheme(colors);
+      return { type: 'color-moment' as const, label: 'Color Moment', colors, core };
+    }
+    if (event.kind === THEME_KIND) {
+      const parsed = parseThemeDefinition(event);
+      if (!parsed) return null;
+      return {
+        type: 'theme' as const,
+        label: parsed.title ?? 'Ditto Theme',
+        core: parsed.colors,
+        themeConfig: { colors: parsed.colors, font: parsed.font, titleFont: parsed.titleFont, background: parsed.background, title: parsed.title } as ThemeConfig,
+      };
+    }
+    return null;
+  }, [event]);
+
+  const handleApply = useCallback(() => {
+    if (!attachment) return;
+    prevRef.current = { mode: theme, config: customTheme };
+    if (attachment.type === 'color-moment') {
+      applyCustomTheme(attachment.core);
+    } else {
+      applyCustomTheme(attachment.themeConfig!);
+    }
+    setApplied(true);
+    toast({
+      title: 'Theme applied',
+      description: `"${attachment.label}" is now your active theme.`,
+      action: (
+        <button
+          className="text-sm font-medium underline underline-offset-2"
+          onClick={() => {
+            const prev = prevRef.current;
+            if (!prev) return;
+            if (prev.mode === 'custom' && prev.config) applyCustomTheme(prev.config);
+            else setTheme(prev.mode);
+            setApplied(false);
+          }}
+        >
+          Undo
+        </button>
+      ),
+    });
+  }, [attachment, theme, customTheme, applyCustomTheme, setTheme]);
+
+  if (!attachment) return null;
+
+  const tokens = coreToTokens(attachment.core);
+
+  return (
+    <button
+      onClick={handleApply}
+      className="w-full mt-4 group relative"
+    >
+      {/* Ribbon connector */}
+      <div className="flex justify-center -mb-1 relative z-10">
+        <div className="w-8 h-3 rounded-t-lg" style={{ background: hsl(tokens.primary) }} />
+      </div>
+
+      {/* Gift card */}
+      <div
+        className="relative rounded-2xl border-2 overflow-hidden transition-transform active:scale-[0.97]"
+        style={{
+          borderColor: hsl(tokens.border),
+          background: hsl(tokens.card),
+        }}
+      >
+        {/* Horizontal ribbon stripe */}
+        <div
+          className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-6 opacity-20"
+          style={{ background: hsl(tokens.primary) }}
+        />
+
+        <div className="relative flex items-center gap-3 px-4 py-3">
+          <div
+            className="size-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: hsl(tokens.primary) + '1a' }}
+          >
+            {applied
+              ? <Check className="size-5" style={{ color: hsl(tokens.primary) }} />
+              : <Gift className="size-5" style={{ color: hsl(tokens.primary) }} />
+            }
+          </div>
+
+          <div className="flex-1 min-w-0 text-left">
+            <p className="text-sm font-semibold truncate" style={{ color: hsl(tokens.cardForeground) }}>
+              {attachment.label}
+            </p>
+            <p className="text-xs" style={{ color: hsl(tokens.mutedForeground) }}>
+              {applied ? 'Applied to your Ditto' : 'Tap to use as your theme'}
+            </p>
+          </div>
+
+          {/* Mini swatch */}
+          {attachment.type === 'color-moment' && (
+            <div className="flex gap-0.5 shrink-0">
+              {attachment.colors.slice(0, 5).map((c, i) => (
+                <div key={i} className="size-5 rounded-full" style={{ background: c }} />
+              ))}
+            </div>
+          )}
+          {attachment.type === 'theme' && (
+            <ThemeSwatch
+              bg={attachment.core.background}
+              text={attachment.core.text}
+              primary={attachment.core.primary}
+              className="w-20 shrink-0"
+            />
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
 
 interface LetterDetailSheetProps {
   letter: Letter | null;
@@ -143,6 +300,11 @@ export function LetterDetailSheet({ letter, onClose }: LetterDetailSheetProps) {
               <LetterStickers stickers={content.stickers} />
             )}
           </div>
+
+          {/* Attached gift — color moment or theme */}
+          {effectiveStationery?.event && (
+            <LetterAttachment event={effectiveStationery.event} />
+          )}
         </div>
       </DialogContent>
     </Dialog>
