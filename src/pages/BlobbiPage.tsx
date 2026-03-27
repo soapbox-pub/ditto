@@ -78,7 +78,6 @@ import {
   type AudioSource,
   type BlobbiReactionState,
   type StartIncubationMode,
-  useBlobbiCareActivity,
   getStreakTagUpdates,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
@@ -273,38 +272,6 @@ function BlobbiContent() {
       });
     }
   }, [selectedD, companion]);
-  
-  // ─── Care Streak Check-in ───
-  // Register care activity when opening the Blobbi page (counts toward streak)
-  const { registerCareActivity } = useBlobbiCareActivity({
-    companion,
-    updateCompanionEvent,
-    invalidateCompanion: invalidateCollection,
-  });
-  
-  // Track if we've already done the check-in for this session/companion
-  const checkedInRef = useRef<string | null>(null);
-  
-  // Auto-register care activity when page loads with a valid companion
-  useEffect(() => {
-    if (!companion) return;
-    
-    // Only check in once per companion per session
-    const companionKey = `${companion.d}:${companion.careStreakLastDay ?? 'none'}`;
-    if (checkedInRef.current === companionKey) return;
-    
-    // Register the care activity (will only update if needed based on day)
-    registerCareActivity().then(result => {
-      if (result?.wasUpdated) {
-        if (DEBUG_BLOBBI) {
-          console.log('[Blobbi] Page check-in updated streak:', result);
-        }
-      }
-      checkedInRef.current = companionKey;
-    }).catch(err => {
-      console.error('[Blobbi] Page check-in failed:', err);
-    });
-  }, [companion, registerCareActivity]);
   
   // Combine loading/fetching states
   const companionLoading = collectionLoading;
