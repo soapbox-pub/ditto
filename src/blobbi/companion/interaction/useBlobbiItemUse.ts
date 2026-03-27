@@ -55,6 +55,7 @@ import {
 } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { trackMultipleDailyMissionActions } from '@/blobbi/actions/lib/daily-mission-tracker';
 import type { DailyMissionAction } from '@/blobbi/actions/lib/daily-missions';
+import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
 import { HATCH_REQUIRED_INTERACTIONS } from '@/blobbi/actions/hooks/useHatchTasks';
 import { EVOLVE_REQUIRED_INTERACTIONS } from '@/blobbi/actions/hooks/useEvolveTasks';
 
@@ -364,8 +365,12 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
         updatedTags = incrementInteractionTaskTags(companion.allTags, EVOLVE_REQUIRED_INTERACTIONS).updatedTags;
       }
       
+      // Get streak updates (will only update if needed based on day)
+      const streakUpdates = getStreakTagUpdates(companion) ?? {};
+      
       const blobbiTags = updateBlobbiTags(updatedTags, {
         ...statsUpdate,
+        ...streakUpdates,
         last_interaction: nowStr,
         last_decay_at: nowStr,
       });

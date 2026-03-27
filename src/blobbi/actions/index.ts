@@ -172,3 +172,21 @@ export type {
   DailyMissionDefinition,
   DailyMissionsState,
 } from './lib/daily-missions';
+
+// Streak tracking
+export {
+  calculateStreakUpdate,
+  getStreakTagUpdates,
+  needsStreakUpdate,
+  getStreakStatus,
+} from './lib/blobbi-streak';
+export type {
+  StreakUpdateResult,
+  StreakTagUpdates,
+} from './lib/blobbi-streak';
+
+export { useBlobbiCareActivity } from './hooks/useBlobbiCareActivity';
+export type {
+  UseBlobbiCareActivityParams,
+  CareActivityResult,
+} from './hooks/useBlobbiCareActivity';
