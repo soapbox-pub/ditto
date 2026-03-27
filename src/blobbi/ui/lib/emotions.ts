@@ -42,6 +42,8 @@ export interface EmotionConfig {
   tears?: TearConfig;
   /** Body color effect (e.g., anger rising red) */
   bodyEffect?: BodyEffectConfig;
+  /** Sleepy tired-blink animation */
+  sleepyAnimation?: SleepyAnimationConfig;
 }
 
 export interface PupilModification {
@@ -60,6 +62,12 @@ export interface EyebrowConfig {
   color: string;
   /** Optional curve amount (0 = straight, positive = curved upward like a frown brow) */
   curve?: number;
+  /** 
+   * Optional per-eye overrides for asymmetric expressions.
+   * If set, these values override the base config for that specific eye.
+   */
+  leftEyeOverride?: Partial<Omit<EyebrowConfig, 'leftEyeOverride' | 'rightEyeOverride'>>;
+  rightEyeOverride?: Partial<Omit<EyebrowConfig, 'leftEyeOverride' | 'rightEyeOverride'>>;
 }
 
 export interface RoundMouthConfig {
@@ -89,6 +97,13 @@ export interface BodyEffectConfig {
   color: string;
   /** Animation duration in seconds */
   duration: number;
+}
+
+export interface SleepyAnimationConfig {
+  /** Enable the sleepy tired-blink animation */
+  enabled: boolean;
+  /** Total duration of one full cycle (3 blinks + mouth animation) in seconds */
+  cycleDuration: number;
 }
 
 // ─── Emotion Configurations ───────────────────────────────────────────────────
@@ -157,7 +172,10 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
     },
   },
   sleepy: {
-    mouthCurve: 0,
+    sleepyAnimation: {
+      enabled: true,
+      cycleDuration: 8, // 8 seconds for one full cycle (slow, tired feel)
+    },
   },
   curious: {
     roundMouth: {
@@ -166,11 +184,17 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
       filled: true,
     },
     eyebrows: {
-      angle: -10, // Softer angle than sad
+      angle: -8, // Base angle for both eyebrows
       offsetY: -11, // Positioned above eyes
       strokeWidth: 1.3, // Thinner, subtle
       color: '#4b5563', // Lighter gray
-      curve: 0.2, // Subtle curve
+      curve: 0.15, // Subtle curve
+      // Raise the right eyebrow slightly more for a "questioning" look
+      rightEyeOverride: {
+        angle: -14, // More raised angle
+        offsetY: -12.5, // Slightly higher
+        curve: 0.25, // More pronounced curve
+      },
     },
   },
 };
@@ -464,23 +488,31 @@ export function generateEyebrows(eyes: EyePosition[], config: EyebrowConfig, var
   const variantOffsetAdjustment = variant === 'baby' ? -2 : 0;
   
   return eyes.map(eye => {
+    // Apply per-eye overrides if present
+    const eyeOverride = eye.side === 'left' ? config.leftEyeOverride : config.rightEyeOverride;
+    const effectiveAngle = eyeOverride?.angle ?? config.angle;
+    const effectiveOffsetY = eyeOverride?.offsetY ?? config.offsetY;
+    const effectiveCurve = eyeOverride?.curve ?? config.curve;
+    const effectiveStrokeWidth = eyeOverride?.strokeWidth ?? config.strokeWidth;
+    const effectiveColor = eyeOverride?.color ?? config.color;
+    
     const browLength = eye.radius * 2;
-    const browY = eye.cy + config.offsetY + variantOffsetAdjustment;
+    const browY = eye.cy + effectiveOffsetY + variantOffsetAdjustment;
     
     // Angle direction: positive rotates outer edge up (worried look)
     // For left eye, rotate around right end; for right eye, rotate around left end
-    const angle = eye.side === 'left' ? config.angle : -config.angle;
+    const angle = eye.side === 'left' ? effectiveAngle : -effectiveAngle;
     
     const startX = eye.cx - browLength / 2;
     const endX = eye.cx + browLength / 2;
     
     // Generate path - either straight line or curved
     let pathD: string;
-    if (config.curve && config.curve !== 0) {
+    if (effectiveCurve && effectiveCurve !== 0) {
       // Curved eyebrow using quadratic bezier
       // Curve amount determines how much the control point is offset
       // Positive curve = curves upward (like a gentle arch)
-      const curveAmount = config.curve * eye.radius;
+      const curveAmount = effectiveCurve * eye.radius;
       const controlX = eye.cx;
       const controlY = browY - curveAmount;
       pathD = `M ${startX} ${browY} Q ${controlX} ${controlY} ${endX} ${browY}`;
@@ -492,8 +524,8 @@ export function generateEyebrows(eyes: EyePosition[], config: EyebrowConfig, var
     return `<path 
       class="blobbi-eyebrow blobbi-eyebrow-${eye.side}"
       d="${pathD}" 
-      stroke="${config.color}" 
-      stroke-width="${config.strokeWidth}" 
+      stroke="${effectiveColor}" 
+      stroke-width="${effectiveStrokeWidth}" 
       stroke-linecap="round"
       fill="none"
       transform="rotate(${angle} ${eye.cx} ${browY})"
@@ -993,6 +1025,157 @@ function generateAngerRiseEffect(bodyPath: BodyPathInfo, config: BodyEffectConfi
   return { defs, overlay };
 }
 
+// ─── Sleepy Animation Generation ──────────────────────────────────────────────
+
+/**
+ * Generate the sleepy tired-blink animation.
+ * 
+ * Creates a 3-stage tired blink cycle:
+ * 1. Small blink (~25% closed)
+ * 2. Medium blink (~55% closed)  
+ * 3. Heavy blink (~80% closed)
+ * 
+ * The animation loops infinitely with smooth transitions.
+ * 
+ * Returns CSS style block to be inserted into the SVG.
+ */
+function generateSleepyEyeAnimation(config: SleepyAnimationConfig): string {
+  const dur = config.cycleDuration;
+  
+  // Timing breakdown for the 3-stage blink cycle:
+  // Phase 1 (small blink): 0% - 25% of cycle
+  // Phase 2 (medium blink): 25% - 55% of cycle
+  // Phase 3 (heavy blink): 55% - 90% of cycle
+  // Recovery: 90% - 100% of cycle
+  
+  // scaleY values for each blink stage:
+  // 1.0 = fully open
+  // 0.75 = small blink (25% closed)
+  // 0.45 = medium blink (55% closed)
+  // 0.2 = heavy blink (80% closed)
+  
+  return `
+  <style type="text/css">
+    @keyframes sleepy-blink {
+      /* Start: eyes open */
+      0% { transform: scaleY(1); }
+      
+      /* Phase 1: Small blink - close slightly */
+      8% { transform: scaleY(0.75); }
+      15% { transform: scaleY(1); }
+      
+      /* Phase 2: Medium blink - close more */
+      30% { transform: scaleY(1); }
+      38% { transform: scaleY(0.45); }
+      48% { transform: scaleY(1); }
+      
+      /* Phase 3: Heavy blink - almost fully closed */
+      60% { transform: scaleY(1); }
+      70% { transform: scaleY(0.2); }
+      85% { transform: scaleY(1); }
+      
+      /* Hold open before restart */
+      100% { transform: scaleY(1); }
+    }
+    
+    .blobbi-sleepy .blobbi-blink {
+      animation: sleepy-blink ${dur}s ease-in-out infinite;
+      transform-origin: center;
+      transform-box: fill-box;
+    }
+  </style>`;
+}
+
+/**
+ * Generate the sleepy mouth animation.
+ * 
+ * The mouth transitions from smile → flat → smile in sync with the eye blink cycle.
+ * Uses SVG SMIL animation to animate the path's d attribute.
+ * 
+ * @param mouth - Original mouth position
+ * @param config - Sleepy animation config
+ */
+function generateSleepyMouth(mouth: MouthPosition, config: SleepyAnimationConfig): string {
+  const dur = config.cycleDuration;
+  
+  // Original smile path
+  const smilePath = `M ${mouth.startX} ${mouth.startY} Q ${mouth.controlX} ${mouth.controlY} ${mouth.endX} ${mouth.endY}`;
+  
+  // Flat path (straight line at the baseline)
+  const baselineY = (mouth.startY + mouth.endY) / 2;
+  const flatPath = `M ${mouth.startX} ${baselineY} Q ${mouth.controlX} ${baselineY} ${mouth.endX} ${baselineY}`;
+  
+  // Slightly less curved (phase 1)
+  const slightCurveY = baselineY + (mouth.controlY - baselineY) * 0.7;
+  const slightCurvePath = `M ${mouth.startX} ${mouth.startY} Q ${mouth.controlX} ${slightCurveY} ${mouth.endX} ${mouth.endY}`;
+  
+  // Almost flat (phase 2)
+  const almostFlatY = baselineY + (mouth.controlY - baselineY) * 0.3;
+  const almostFlatPath = `M ${mouth.startX} ${baselineY} Q ${mouth.controlX} ${almostFlatY} ${mouth.endX} ${baselineY}`;
+  
+  // Timing synced with eye animation:
+  // 0-15%: smile (during/after small blink)
+  // 15-48%: transitioning to slight curve (during medium blink)
+  // 48-85%: transitioning to flat (during heavy blink)
+  // 85-100%: returning to smile
+  
+  return `<path 
+    class="blobbi-mouth blobbi-mouth-sleepy"
+    d="${smilePath}"
+    ${mouth.strokeAttrs || 'stroke="#1f2937" stroke-width="2.5"'}
+    fill="none" 
+    stroke-linecap="round"
+  >
+    <animate
+      attributeName="d"
+      values="${smilePath};${smilePath};${slightCurvePath};${slightCurvePath};${almostFlatPath};${flatPath};${flatPath};${smilePath};${smilePath}"
+      keyTimes="0;0.15;0.25;0.40;0.55;0.70;0.85;0.95;1"
+      dur="${dur}s"
+      repeatCount="indefinite"
+      calcMode="spline"
+      keySplines="0.4 0 0.6 1; 0.4 0 0.6 1; 0.4 0 0.6 1; 0.4 0 0.6 1; 0.4 0 0.6 1; 0.4 0 0.6 1; 0.4 0 0.6 1; 0.4 0 0.6 1"
+    />
+  </path>`;
+}
+
+/**
+ * Apply sleepy animation to the SVG.
+ * 
+ * This adds a 'blobbi-sleepy' class to the SVG root element and inserts
+ * CSS animation for the tired-blink effect + animated mouth.
+ */
+function applySleepyAnimation(svgText: string, eyes: EyePosition[], mouth: MouthDetectionResult | null, config: SleepyAnimationConfig): string {
+  // Add 'blobbi-sleepy' class to the SVG root element for CSS targeting
+  svgText = svgText.replace(/<svg([^>]*)>/, (match, attrs) => {
+    // Check if class attribute exists
+    if (attrs.includes('class="')) {
+      return match.replace(/class="([^"]*)"/, 'class="$1 blobbi-sleepy"');
+    } else if (attrs.includes("class='")) {
+      return match.replace(/class='([^']*)'/, "class='$1 blobbi-sleepy'");
+    } else {
+      return `<svg${attrs} class="blobbi-sleepy">`;
+    }
+  });
+  
+  // Add the CSS animation for sleepy blinks
+  const sleepyStyle = generateSleepyEyeAnimation(config);
+  
+  // Insert style into defs or after opening svg tag
+  if (svgText.includes('<defs>')) {
+    svgText = svgText.replace('<defs>', '<defs>' + sleepyStyle);
+  } else {
+    svgText = svgText.replace(/(<svg[^>]*>)/, '$1' + sleepyStyle);
+  }
+  
+  // Replace mouth with animated sleepy mouth
+  if (mouth) {
+    const sleepyMouthSvg = generateSleepyMouth(mouth.position, config);
+    svgText = replaceMouthSection(svgText, sleepyMouthSvg);
+  }
+  
+  return svgText;
+}
+
 // ─── Main Emotion Application ─────────────────────────────────────────────────
 
 /**
@@ -1107,6 +1290,11 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: B
         svgText = svgText.slice(0, insertPos) + effect.overlay + svgText.slice(insertPos);
       }
     }
+  }
+  
+  // Generate sleepy animation (tired blink cycle + mouth animation)
+  if (config.sleepyAnimation?.enabled) {
+    svgText = applySleepyAnimation(svgText, eyes, mouth, config.sleepyAnimation);
   }
   
   // Insert overlays before closing </svg> tag
