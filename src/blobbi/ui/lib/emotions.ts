@@ -633,31 +633,66 @@ function generateSadHighlightElements(eye: EyePosition): string {
  * This ensures sad highlights move with eye tracking and blink properly.
  */
 export function applySadEyeHighlights(svgText: string, eyes: EyePosition[]): string {
+  if (import.meta.env.DEV) {
+    console.log('[Sad Eyes] Starting applySadEyeHighlights with', eyes.length, 'eyes');
+    console.log('[Sad Eyes] SVG contains blobbi-eye:', svgText.includes('blobbi-eye'));
+  }
+  
   // Process each eye - find blobbi-eye groups and modify them
   for (const eye of eyes) {
-    // Find the blobbi-eye group for this side
-    const eyeGroupRegex = new RegExp(
-      `(<g\\s+class="blobbi-eye\\s+blobbi-eye-${eye.side}"[^>]*>)([\\s\\S]*?)(</g>)`,
+    // Find the opening tag of the blobbi-eye group for this side
+    // Match pattern: <g ...class="...blobbi-eye-left..."...>
+    const openTagRegex = new RegExp(
+      `<g[^>]*class="[^"]*blobbi-eye-${eye.side}[^"]*"[^>]*>`,
       'i'
     );
     
-    const match = svgText.match(eyeGroupRegex);
-    if (match) {
-      const [fullMatch, openTag, content, closeTag] = match;
+    const openMatch = svgText.match(openTagRegex);
+    
+    if (import.meta.env.DEV) {
+      console.log(`[Sad Eyes] Eye ${eye.side}: open tag match =`, !!openMatch);
+      if (openMatch) {
+        console.log(`[Sad Eyes] Eye ${eye.side}: open tag =`, openMatch[0].substring(0, 80));
+      }
+    }
+    
+    if (openMatch && openMatch.index !== undefined) {
+      const openTagStart = openMatch.index;
+      const openTagEnd = openTagStart + openMatch[0].length;
       
-      // Hide original white highlights (small white circles) by adding opacity="0"
-      // Original highlights are typically: <circle ... fill="white" ... />
-      const modifiedContent = content.replace(
-        /(<circle[^>]*fill="white"[^>]*)(\/?>)/gi,
-        '$1 opacity="0" $2'
-      );
+      // Find the matching closing </g> tag
+      // The blobbi-eye group should not contain nested <g> tags, 
+      // so we can find the first </g> after the content
+      const afterOpenTag = svgText.substring(openTagEnd);
+      const closeTagIndex = afterOpenTag.indexOf('</g>');
       
-      // Add sad highlights at the end of the group content
-      const sadHighlights = generateSadHighlightElements(eye);
-      const newContent = modifiedContent + sadHighlights;
-      
-      // Replace in SVG
-      svgText = svgText.replace(fullMatch, openTag + newContent + closeTag);
+      if (closeTagIndex !== -1) {
+        const content = afterOpenTag.substring(0, closeTagIndex);
+        const absoluteCloseStart = openTagEnd + closeTagIndex;
+        
+        if (import.meta.env.DEV) {
+          console.log(`[Sad Eyes] Eye ${eye.side}: found group content, length =`, content.length);
+        }
+        
+        // Hide original white highlights (small white circles) by adding opacity="0"
+        const modifiedContent = content.replace(
+          /(<circle[^>]*fill="white"[^>]*)(\/?>)/gi,
+          '$1 opacity="0" $2'
+        );
+        
+        // Add sad highlights at the end of the group content
+        const sadHighlights = generateSadHighlightElements(eye);
+        const newContent = modifiedContent + sadHighlights;
+        
+        if (import.meta.env.DEV) {
+          console.log(`[Sad Eyes] Eye ${eye.side}: injecting sad highlights`);
+        }
+        
+        // Reconstruct the SVG with modified content
+        svgText = svgText.substring(0, openTagEnd) + newContent + svgText.substring(absoluteCloseStart);
+      }
+    } else if (import.meta.env.DEV) {
+      console.log(`[Sad Eyes] Eye ${eye.side}: NO MATCH for blobbi-eye-${eye.side}`);
     }
   }
   
@@ -727,12 +762,21 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion): string {
   
   // Generate sad eye effects (watery eyes with repositioned highlights)
   if (config.pupilModification?.wateryEyes && eyes.length > 0) {
+    if (import.meta.env.DEV) {
+      console.log('[Sad Eyes] Applying sad eye effects. Eyes detected:', eyes.length);
+      eyes.forEach(e => console.log(`  - ${e.side} eye at (${e.cx}, ${e.cy}) radius=${e.radius}`));
+    }
+    
     // 1. Apply sad highlights INTO the blobbi-eye groups (for tracking/blinking)
     //    This also hides the original highlights
     svgText = applySadEyeHighlights(svgText, eyes);
     
     // 2. Add blue water fill as overlay (on eye white, doesn't need to track)
-    overlays.push(generateSadEyeWaterFill(eyes));
+    const waterFill = generateSadEyeWaterFill(eyes);
+    if (import.meta.env.DEV) {
+      console.log('[Sad Eyes] Water fill generated, length:', waterFill.length);
+    }
+    overlays.push(waterFill);
   }
   
   // Generate tears
