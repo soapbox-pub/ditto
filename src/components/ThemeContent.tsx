@@ -46,6 +46,7 @@ export function ThemeContent({ event }: ThemeContentProps) {
         identifier: undefined as string | undefined,
         background: active.background,
         font: active.font,
+        titleFont: active.titleFont,
         sourceRef: active.sourceRef,
       };
     }
@@ -68,6 +69,7 @@ export function ThemeContent({ event }: ThemeContentProps) {
       colors: parsed.colors,
       title: parsed.title,
       font: parsed.font,
+      titleFont: parsed.titleFont,
       background: parsed.background,
     };
     applyCustomTheme(themeConfig);

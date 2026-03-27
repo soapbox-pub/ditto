@@ -5,14 +5,16 @@ import {
   FileText,
   GitBranch,
   GitPullRequest,
+  Mail,
   MessageCircle,
+  Rocket,
   MoreHorizontal,
   Package,
-  Palette,
   Play,
   Radio,
   Share2,
   SmilePlus,
+  Sparkles,
   Users,
   Zap,
 } from "lucide-react";
@@ -42,6 +44,7 @@ import { FollowPackContent } from "@/components/FollowPackContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
+import { NsiteCard } from "@/components/NsiteCard";
 import { ImageGallery } from "@/components/ImageGallery";
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
@@ -62,6 +65,7 @@ import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
+import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { VanishCardCompact } from "@/components/VanishEventContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -243,6 +247,7 @@ export const NoteCard = memo(function NoteCard({
   const isProfileBadges = event.kind === 30008;
   const isBadge = isBadgeDefinition || isProfileBadges;
   const isReaction = event.kind === 7;
+  const isRepost = event.kind === 6 || event.kind === 16;
   const isPhoto = event.kind === 20;
   const isNormalVideo = event.kind === 21;
   const isShortVideo = event.kind === 22;
@@ -257,9 +262,11 @@ export const NoteCard = memo(function NoteCard({
   const isPatch = event.kind === 1617;
   const isPullRequest = event.kind === 1618;
   const isCustomNip = event.kind === 30817;
+  const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
+  const isEncryptedDM = event.kind === 4;
   const isVanish = event.kind === 62;
-  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip;
+  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
     !isPoll &&
@@ -277,11 +284,13 @@ export const NoteCard = memo(function NoteCard({
     !isEmojiPack &&
     !isBadge &&
     !isReaction &&
+    !isRepost &&
     !isPhoto &&
     !isVideo &&
     !isAudioKind &&
     !isDevKind &&
     !isZapstoreApp &&
+    !isEncryptedDM &&
     !isVanish;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
@@ -463,8 +472,12 @@ export const NoteCard = memo(function NoteCard({
           <PullRequestCard event={event} />
         ) : isCustomNip ? (
           <CustomNipCard event={event} />
+        ) : isNsite ? (
+          <NsiteCard event={event} />
         ) : isZapstoreApp ? (
           <ZapstoreAppContent event={event} compact />
+        ) : isEncryptedDM ? (
+          <EncryptedMessageContent event={event} compact />
         ) : (
           <TruncatedNoteContent
             event={event}
@@ -581,7 +594,7 @@ export const NoteCard = memo(function NoteCard({
             )}
           </RepostMenu>
 
-      <ReactionButton
+          <ReactionButton
         eventId={event.id}
         eventPubkey={event.pubkey}
         eventKind={event.kind}
@@ -840,6 +853,154 @@ export const NoteCard = memo(function NoteCard({
                   </Link>
                 </ProfileHoverCard>
                 <span className="text-sm text-muted-foreground">reacted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                  {timeAgo(event.created_at)}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  // ── Repost layout (kind 6 / 16) — compact activity-style card ──
+  if (isRepost) {
+    // Threaded repost (used in AncestorThread with connector line)
+    if (threaded || threadedLast) {
+      return (
+        <article
+          className={cn(
+            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+            threaded ? "pb-0" : "pb-3 border-b border-border",
+            className,
+          )}
+          onClick={handleCardClick}
+          onAuxClick={handleAuxClick}
+        >
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {/* Repost icon bubble instead of avatar */}
+              <div className="flex items-center justify-center size-10 rounded-full bg-accent/10 shrink-0">
+                <RepostIcon className="size-5 text-accent" />
+              </div>
+              {threaded && (
+                <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
+              )}
+            </div>
+            <div
+              className={cn(
+                "flex-1 min-w-0 flex items-center min-h-10",
+                threaded && "pb-3",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                {author.isLoading ? (
+                  <Skeleton className="size-6 rounded-full shrink-0" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link
+                      to={profileUrl}
+                      className="shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Avatar shape={avatarShape} className="size-6">
+                        <AvatarImage
+                          src={metadata?.picture}
+                          alt={displayName}
+                        />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                          {displayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                {author.isLoading ? (
+                  <Skeleton className="h-3.5 w-20" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link
+                      to={profileUrl}
+                      className="font-semibold text-sm hover:underline truncate"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {author.data?.event ? (
+                        <EmojifiedText tags={author.data.event.tags}>
+                          {displayName}
+                        </EmojifiedText>
+                      ) : (
+                        displayName
+                      )}
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                <span className="text-sm text-muted-foreground">reposted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                  {timeAgo(event.created_at)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </article>
+      );
+    }
+
+    // Normal repost card (standalone or in feed)
+    return (
+      <article
+        className={cn(
+          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        <div className="flex items-center gap-3">
+          {/* Repost icon */}
+          <div className="flex items-center justify-center size-11 rounded-full bg-accent/10 shrink-0">
+            <RepostIcon className="size-5 text-accent" />
+          </div>
+
+          {/* Author + "reposted" label */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {author.isLoading ? (
+              <>
+                <Skeleton className="size-6 rounded-full shrink-0" />
+                <Skeleton className="h-4 w-24" />
+              </>
+            ) : (
+              <>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link
+                    to={profileUrl}
+                    className="shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Avatar shape={avatarShape} className="size-6">
+                      <AvatarImage src={metadata?.picture} alt={displayName} />
+                      <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                        {displayName[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                </ProfileHoverCard>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link
+                    to={profileUrl}
+                    className="font-semibold text-sm hover:underline truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {author.data?.event ? (
+                      <EmojifiedText tags={author.data.event.tags}>
+                        {displayName}
+                      </EmojifiedText>
+                    ) : (
+                      displayName
+                    )}
+                  </Link>
+                </ProfileHoverCard>
+                <span className="text-sm text-muted-foreground">reposted</span>
                 <span className="text-xs text-muted-foreground ml-auto shrink-0">
                   {timeAgo(event.created_at)}
                 </span>
@@ -1552,7 +1713,7 @@ function FollowPackAuthorLine({ pubkey, createdAt }: { pubkey: string; createdAt
   );
 }
 
-interface EventActionHeaderProps {
+export interface EventActionHeaderProps {
   /** Pubkey of the person performing the action. */
   pubkey: string;
   /** Lucide icon component shown to the left of the author name. */
@@ -1578,6 +1739,11 @@ interface KindHeaderConfig {
 }
 
 const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
+  4: {
+    icon: Mail,
+    action: "sent an",
+    noun: "encrypted message",
+  },
   37516: {
     icon: ChestIcon,
     action: "hid a",
@@ -1597,13 +1763,13 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     nounRoute: "/decks",
   },
   36767: {
-    icon: Palette,
+    icon: Sparkles,
     action: "shared a",
     noun: "theme",
     nounRoute: "/themes",
   },
   16767: {
-    icon: Palette,
+    icon: Sparkles,
     action: "updated their",
     noun: "theme",
     nounRoute: "/themes",
@@ -1662,10 +1828,22 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     noun: "NIP",
     nounRoute: "/development",
   },
+  15128: {
+    icon: Rocket,
+    action: "deployed an",
+    noun: "nsite",
+    nounRoute: "/development",
+  },
+  35128: {
+    icon: Rocket,
+    action: "deployed an",
+    noun: "nsite",
+    nounRoute: "/development",
+  },
 };
 
 /** Generic action header: icon · [author name] [action] [linked noun] */
-function EventActionHeader({
+export function EventActionHeader({
   pubkey,
   icon: Icon,
   iconClassName,
@@ -1691,19 +1869,21 @@ function EventActionHeader({
         {author.isLoading ? (
           <Skeleton className="h-3 w-20 inline-block" />
         ) : (
-          <Link
-            to={url}
-            className="font-medium hover:underline mr-1 truncate"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {author.data?.event ? (
-              <EmojifiedText tags={author.data.event.tags}>
-                {name}
-              </EmojifiedText>
-            ) : (
-              name
-            )}
-          </Link>
+          <ProfileHoverCard pubkey={pubkey} asChild>
+            <Link
+              to={url}
+              className="font-medium hover:underline mr-1 truncate"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {author.data?.event ? (
+                <EmojifiedText tags={author.data.event.tags}>
+                  {name}
+                </EmojifiedText>
+              ) : (
+                name
+              )}
+            </Link>
+          </ProfileHoverCard>
         )}
         <span className={cn("shrink-0", author.isLoading && "ml-1")}>
           {action}

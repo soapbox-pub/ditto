@@ -264,6 +264,44 @@ When designing new event kinds, the `content` field should be used for semantica
 }
 ```
 
+### Implementing New Event Kinds in the UI
+
+When adding support for a new Nostr event kind to the application, the kind must be registered in **multiple locations** across the codebase. Missing any of these will cause the event to render incorrectly in certain views (e.g. showing blank content in quote posts, or "Kind 12345" as a label).
+
+#### Checklist for adding a new event kind
+
+1. **Content card component** (`src/components/`): Create a dedicated `<MyKindCard>` component that renders the event's tags/content appropriately.
+
+2. **Feed rendering** (`src/components/NoteCard.tsx`):
+   - Add a `const isMyKind = event.kind === XXXX;` detection flag
+   - Include it in the appropriate group flag (e.g. `isDevKind`) or add it to the `isTextNote` exclusion list
+   - Add the content dispatch: `isMyKind ? <MyKindCard event={event} /> : ...`
+   - Add an entry to `KIND_HEADER_MAP` for the action header (e.g. "deployed an nsite")
+   - Import the new component and any new icons (e.g. `Globe` from lucide-react)
+
+3. **Detail page** (`src/pages/PostDetailPage.tsx`):
+   - Add the same `isMyKind` detection flag and include it in the group/exclusion flags (mirrors NoteCard)
+   - Add the content dispatch for the detail view
+   - Add an entry in `shellTitleForKind()` for the loading state title
+   - Import the new component
+
+4. **Feed registration** (`src/lib/extraKinds.ts`):
+   - Add the kind number to an existing feed definition's `extraFeedKinds` array, or create a new `ExtraKindDef` entry
+
+5. **Kind label registries** -- these are separate maps that resolve kind numbers to human-readable strings. All must be updated:
+   - `KIND_LABELS` and `KIND_ICONS` in `src/components/CommentContext.tsx` -- used for "Commenting on an nsite" text and inline icons
+   - `WELL_KNOWN_KIND_LABELS` in `src/components/ExternalContentHeader.tsx` -- used in addressable event preview headers
+   - The icon fallback in `AddressableEventPreview` in the same file
+
+6. **Inline embeds / quote posts** -- events can be quoted inline via `nostr:nevent1...` or `nostr:naddr1...` URIs in note content. Both `EmbeddedNote` and `EmbeddedNaddr` render a compact card (author + title/content preview) for all kinds automatically — no per-kind registration needed. The same components are reused by CommentContext hover cards and the reply composer.
+
+7. **Reply composer** (`src/components/ReplyComposeModal.tsx`):
+   - The `EmbeddedPost` component delegates to the shared `EmbeddedNote`/`EmbeddedNaddr` components — no per-kind registration needed
+
+#### Why so many places?
+
+These are genuinely different UI contexts (feed cards, detail pages, inline embeds, reply previews, comment context labels) with different rendering requirements. However, several of them maintain independent kind-to-label maps that could theoretically be unified. When in doubt, search the codebase for an existing kind number like `30617` to find all the registration points.
+
 ### NIP.md
 
 The file `NIP.md` is used by this project to define a custom Nostr protocol document. If the file doesn't exist, it means this project doesn't have any custom kinds associated with it.

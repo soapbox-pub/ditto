@@ -48,23 +48,44 @@ function parseColorTags(tags: string[][]): CoreThemeColors | null {
 
 // ─── Font Tag Helpers ─────────────────────────────────────────────────
 
-/** Build an `f` tag from a ThemeFont. */
-function buildFontTag(font: ThemeFont | undefined): string[][] {
-  if (!font?.family) return [];
-  const tag = ['f', font.family];
-  if (font.url) tag.push(font.url);
-  return [tag];
+/** Build `f` tags from body and title fonts. Body tag is always ordered before title tag. */
+function buildFontTags(font: ThemeFont | undefined, titleFont: ThemeFont | undefined): string[][] {
+  const tags: string[][] = [];
+  if (font?.family) {
+    const tag = ['f', font.family];
+    if (font.url) tag.push(font.url); else tag.push('');
+    tag.push('body');
+    tags.push(tag);
+  }
+  if (titleFont?.family) {
+    const tag = ['f', titleFont.family];
+    if (titleFont.url) tag.push(titleFont.url); else tag.push('');
+    tag.push('title');
+    tags.push(tag);
+  }
+  return tags;
 }
 
-/** Parse the first `f` tag into a ThemeFont. Returns undefined if no f tag. */
-function parseFontTag(tags: string[][]): ThemeFont | undefined {
+/** Parse `f` tags into body and title ThemeFonts. Legacy tags without a role are treated as body. */
+function parseFontTags(tags: string[][]): { font?: ThemeFont; titleFont?: ThemeFont } {
+  let font: ThemeFont | undefined;
+  let titleFont: ThemeFont | undefined;
+
   for (const tag of tags) {
     if (tag[0] !== 'f' || !tag[1]) continue;
-    const font: ThemeFont = { family: tag[1] };
-    if (tag[2]) font.url = tag[2];
-    return font;
+    const role = tag[3]; // 4th element: "body", "title", or absent (legacy)
+    const parsed: ThemeFont = { family: tag[1] };
+    if (tag[2]) parsed.url = tag[2];
+
+    if (role === 'title') {
+      if (!titleFont) titleFont = parsed;
+    } else {
+      // "body" or absent (legacy) — treat as body font
+      if (!font) font = parsed;
+    }
   }
-  return undefined;
+
+  return { font, titleFont };
 }
 
 // ─── Background Tag Helpers ───────────────────────────────────────────
@@ -119,8 +140,10 @@ export interface ThemeDefinition {
   description?: string;
   /** The 3 core theme colors */
   colors: CoreThemeColors;
-  /** Optional custom font */
+  /** Optional custom body font */
   font?: ThemeFont;
+  /** Optional title/header font (profile display name) */
+  titleFont?: ThemeFont;
   /** Optional background */
   background?: ThemeBackground;
   /** The original Nostr event */
@@ -154,10 +177,10 @@ export function parseThemeDefinition(event: NostrEvent): ThemeDefinition | null 
 
   if (!colors) return null;
 
-  const font = parseFontTag(event.tags);
+  const { font, titleFont } = parseFontTags(event.tags);
   const background = parseBackgroundTag(event.tags);
 
-  return { identifier, title, description, colors, font, background, event };
+  return { identifier, title, description, colors, font, titleFont, background, event };
 }
 
 /** Create tags for a kind 36767 theme definition event. */
@@ -170,7 +193,7 @@ export function buildThemeDefinitionTags(
   const tags: string[][] = [
     ['d', identifier],
     ...buildColorTags(themeConfig.colors),
-    ...buildFontTag(themeConfig.font),
+    ...buildFontTags(themeConfig.font, themeConfig.titleFont),
     ...buildBackgroundTag(themeConfig.background),
     ['title', title],
     ['alt', `Custom theme: ${title}`],
@@ -198,8 +221,10 @@ export function titleToSlug(title: string): string {
 export interface ActiveProfileTheme {
   /** The 3 core theme colors */
   colors: CoreThemeColors;
-  /** Optional custom font */
+  /** Optional custom body font */
   font?: ThemeFont;
+  /** Optional title/header font (profile display name) */
+  titleFont?: ThemeFont;
   /** Optional background */
   background?: ThemeBackground;
   /** naddr-style reference to the source theme definition, if any */
@@ -227,11 +252,11 @@ export function parseActiveProfileTheme(event: NostrEvent): ActiveProfileTheme |
 
   if (!colors) return null;
 
-  const font = parseFontTag(event.tags);
+  const { font, titleFont } = parseFontTags(event.tags);
   const background = parseBackgroundTag(event.tags);
   const sourceRef = event.tags.find(([n]) => n === 'a')?.[1];
 
-  return { colors, font, background, sourceRef, event };
+  return { colors, font, titleFont, background, sourceRef, event };
 }
 
 /** Create tags for a kind 16767 active profile theme event. */
@@ -242,7 +267,7 @@ export function buildActiveThemeTags(
 ): string[][] {
   const tags: string[][] = [
     ...buildColorTags(themeConfig.colors),
-    ...buildFontTag(themeConfig.font),
+    ...buildFontTags(themeConfig.font, themeConfig.titleFont),
     ...buildBackgroundTag(themeConfig.background),
     ['alt', 'Active profile theme'],
   ];
