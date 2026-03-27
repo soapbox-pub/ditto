@@ -113,18 +113,6 @@ export interface HatchTasksResult {
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
 /**
- * Extract the 'shape' property from kind 0 metadata content.
- */
-function extractShapeFromMetadata(event: NostrEvent): string | undefined {
-  try {
-    const content = JSON.parse(event.content);
-    return content.shape;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
  * Check if a post is a valid Blobbi hatch post.
  * Must contain the required prefix and all required hashtags including the Blobbi name.
  * 
@@ -167,12 +155,11 @@ export const isValidBlobbiPost = isValidHatchPost;
  * PERSISTENT TASKS (event-based, can be cached):
  * 1. Create Theme (kind 36767) - ≥1 event after start
  * 2. Color Moment (kind 3367) - ≥1 event after start
- * 3. Change Avatar Shape (kind 0) - shape changed between before/after start
- * 4. Create Post (kind 1) - ≥1 valid Blobbi hatch post after start
- * 5. Interactions - 7 total (tracked via companion.tasks cache)
+ * 3. Create Post (kind 1) - ≥1 valid Blobbi hatch post after start
+ * 4. Interactions - 7 total (tracked via companion.tasks cache)
  * 
  * DYNAMIC TASK (stat-based, NEVER cached):
- * 6. Maintain Stats - health >= 70, hygiene >= 70, happiness >= 70
+ * 5. Maintain Stats - health >= 70, hygiene >= 70, happiness >= 70
  * 
  * @param companion - The Blobbi companion (must be incubating)
  * @param interactionCount - Current interaction count from companion tasks cache
@@ -305,28 +292,7 @@ export function useHatchTasks(
     actionLabel: 'Open espy',
   });
   
-  // 3. Change Avatar Shape (PERSISTENT)
-  const shapeBefore = data?.profileBefore ? extractShapeFromMetadata(data.profileBefore) : undefined;
-  const shapeAfter = data?.profileAfter ? extractShapeFromMetadata(data.profileAfter) : undefined;
-  
-  const hasPostStartProfileUpdate = !!data?.profileAfter;
-  const hasNewShapeValue = shapeAfter !== undefined && shapeAfter !== '';
-  const shapeActuallyChanged = shapeAfter !== shapeBefore;
-  const shapeChanged = hasPostStartProfileUpdate && hasNewShapeValue && shapeActuallyChanged;
-  tasks.push({
-    id: 'change_shape',
-    name: 'Change Avatar Shape',
-    description: 'Update your profile avatar shape',
-    current: shapeChanged ? 1 : 0,
-    required: 1,
-    completed: !!shapeChanged,
-    type: 'persistent',
-    action: 'navigate',
-    actionTarget: '/settings/profile',
-    actionLabel: 'Edit Profile',
-  });
-  
-  // 4. Create Post (PERSISTENT)
+  // 3. Create Post (PERSISTENT)
   const blobbiName = companion?.name ?? '';
   const validPosts = data?.postEvents?.filter(e => isValidHatchPost(e, blobbiName)) ?? [];
   const hasValidPost = validPosts.length >= 1;

@@ -9,8 +9,6 @@
 import {
   DEFAULT_EGG_STATS,
   BLOBBI_ECOSYSTEM_NAMESPACE,
-  BLOBBI_TOPIC_TAG,
-  BLOBBI_CLIENT_TAG,
   deriveVisualTraits,
   deriveBlobbiSeedV1,
   generatePetId10,
@@ -129,8 +127,6 @@ export function previewToEventTags(preview: BlobbiEggPreview): string[][] {
   return [
     ['d', preview.d],
     ['b', BLOBBI_ECOSYSTEM_NAMESPACE],
-    ['t', BLOBBI_TOPIC_TAG],
-    ['client', BLOBBI_CLIENT_TAG],
     ['name', preview.name],
     ['stage', preview.stage],
     ['state', preview.state],

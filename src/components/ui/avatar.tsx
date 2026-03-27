@@ -2,7 +2,6 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 import { type AvatarShape, isEmoji, getAvatarMaskUrlAsync, isValidAvatarShape } from "@/lib/avatarShape"
-import { isBlobbiShape } from "@/lib/blobbiShapes"
 
 /**
  * Shared ref so AvatarFallback can check if a sibling AvatarImage
@@ -25,11 +24,10 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
     // Reset per render so stale values don't persist
     hasSrcRef.current = false
 
-    // Check if shape is valid (emoji or Blobbi)
+    // Check if shape is valid (emoji)
     const hasValidShape = !!shape && isValidAvatarShape(shape)
     const isEmojiShape = hasValidShape && isEmoji(shape)
-    const isBlobbi = hasValidShape && isBlobbiShape(shape)
-    const hasCustomShape = isEmojiShape || isBlobbi
+    const hasCustomShape = isEmojiShape
 
     // State for the async-loaded mask URL
     const [maskUrl, setMaskUrl] = React.useState<string>('')

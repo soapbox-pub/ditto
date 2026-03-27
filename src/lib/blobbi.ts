@@ -7,8 +7,6 @@ import { validateAndRepairBlobbiTags } from './blobbi-tag-schema';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const BLOBBI_ECOSYSTEM_NAMESPACE = 'blobbi:ecosystem:v1';
-export const BLOBBI_TOPIC_TAG = 'blobbi';
-export const BLOBBI_CLIENT_TAG = 'blobbi';
 
 export const KIND_BLOBBI_STATE = 31124;
 export const KIND_BLOBBONAUT_PROFILE = 31125;
@@ -708,21 +706,19 @@ export function companionNeedsMigration(companion: BlobbiCompanion): boolean {
 
 /**
  * Validate that an event has the required tags for a valid Blobbi state (Kind 31124).
- * Required: d, b (blobbi:ecosystem:v1), t (blobbi), stage, state, last_interaction
+ * Required: d, b (blobbi:ecosystem:v1), stage, state, last_interaction
  */
 export function isValidBlobbiEvent(event: NostrEvent): boolean {
   if (event.kind !== KIND_BLOBBI_STATE) return false;
   
   const d = getTagValue(event.tags, 'd');
   const b = getTagValue(event.tags, 'b');
-  const t = getTagValue(event.tags, 't');
   const stage = getTagValue(event.tags, 'stage');
   const state = getTagValue(event.tags, 'state');
   const lastInteraction = getTagValue(event.tags, 'last_interaction');
   
   if (!d) return false;
   if (b !== BLOBBI_ECOSYSTEM_NAMESPACE) return false;
-  if (t !== BLOBBI_TOPIC_TAG) return false;
   if (!stage || !['egg', 'baby', 'adult'].includes(stage)) return false;
   if (!state || !['active', 'sleeping', 'hibernating', 'incubating', 'evolving'].includes(state)) return false;
   if (!lastInteraction) return false;
@@ -732,18 +728,16 @@ export function isValidBlobbiEvent(event: NostrEvent): boolean {
 
 /**
  * Validate that an event has the required tags for a valid Blobbonaut profile (Kind 31125).
- * Required: d, b (blobbi:ecosystem:v1), t (blobbi)
+ * Required: d, b (blobbi:ecosystem:v1)
  */
 export function isValidBlobbonautEvent(event: NostrEvent): boolean {
   if (event.kind !== KIND_BLOBBONAUT_PROFILE) return false;
   
   const d = getTagValue(event.tags, 'd');
   const b = getTagValue(event.tags, 'b');
-  const t = getTagValue(event.tags, 't');
   
   if (!d) return false;
   if (b !== BLOBBI_ECOSYSTEM_NAMESPACE) return false;
-  if (t !== BLOBBI_TOPIC_TAG) return false;
   
   return true;
 }
@@ -947,8 +941,6 @@ export function buildBlobbonautTags(pubkey: string): string[][] {
   return [
     ['d', getCanonicalBlobbonautD(pubkey)],
     ['b', BLOBBI_ECOSYSTEM_NAMESPACE],
-    ['t', BLOBBI_TOPIC_TAG],
-    ['client', BLOBBI_CLIENT_TAG],
     ['onboarding_done', 'false'],
     ['pettingLevel', '0'],
   ];
@@ -982,8 +974,6 @@ export function buildEggTags(
   return [
     ['d', d],
     ['b', BLOBBI_ECOSYSTEM_NAMESPACE],
-    ['t', BLOBBI_TOPIC_TAG],
-    ['client', BLOBBI_CLIENT_TAG],
     ['name', name],
     ['stage', 'egg'],
     ['state', 'active'],
@@ -1020,7 +1010,7 @@ export function buildEggTags(
  */
 export const MANAGED_BLOBBI_STATE_TAG_NAMES = new Set([
   // System / metadata tags
-  'd', 'b', 't', 'client',
+  'd', 'b',
   // Core identity tags
   'name', 'seed', 'generation',
   // Lifecycle state tags
@@ -1063,6 +1053,8 @@ export const VISUAL_TRAIT_TAG_NAMES = [
  * Deprecated tags that should be removed when republishing events.
  * These tags were part of earlier designs but are no longer used.
  * 
+ * - t: Topic tag (blobbi) - no longer needed, the app adds the client tag automatically
+ * - client: Client tag - no longer needed, the app adds this automatically via useNostrPublish
  * - shell_integrity: Eggs now use the standard health stat instead
  * - egg_temperature: Eggs now rely on warmth prop fallback; not part of active stat model
  * - incubation_progress: Obsolete task progress field
@@ -1073,6 +1065,8 @@ export const VISUAL_TRAIT_TAG_NAMES = [
  * - interact_6_progress: Legacy interaction tracking; replaced by ["task", "interactions:N"]
  */
 export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
+  't',
+  'client',
   'shell_integrity',
   'egg_temperature',
   'incubation_progress',
@@ -1088,7 +1082,7 @@ export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
  * These tags are controlled by the application and may be overwritten.
  */
 export const MANAGED_BLOBBONAUT_PROFILE_TAG_NAMES = new Set([
-  'd', 'b', 't', 'client', 'name', 'current_companion', 'onboarding_done', 'has', 'storage',
+  'd', 'b', 'name', 'current_companion', 'onboarding_done', 'has', 'storage',
   // Legacy player progress tags (preserved for compatibility)
   'coins', 'petting_level', 'pettingLevel', 'lifetime_blobbis', 'lifetimeBlobbis',
   'starter_blobbi', 'starterBlobbi', 'favorite_blobbi', 'favoriteBlobbi',
@@ -1389,8 +1383,6 @@ export function buildMigrationTags(
   const newTags: string[][] = [
     ['d', canonicalD],
     ['b', BLOBBI_ECOSYSTEM_NAMESPACE],
-    ['t', BLOBBI_TOPIC_TAG],
-    ['client', BLOBBI_CLIENT_TAG],
     ['seed', seed],
   ];
   
