@@ -19,7 +19,7 @@
 /**
  * Available emotion states for Blobbies
  */
-export type BlobbiEmotion = 'neutral' | 'sad' | 'happy' | 'angry' | 'surprised' | 'sleepy' | 'curious';
+export type BlobbiEmotion = 'neutral' | 'sad' | 'happy' | 'angry' | 'surprised' | 'sleepy' | 'curious' | 'dizzy' | 'excited' | 'mischievous';
 
 /**
  * Blobbi variant for variant-specific adjustments
@@ -44,6 +44,12 @@ export interface EmotionConfig {
   bodyEffect?: BodyEffectConfig;
   /** Sleepy tired-blink animation */
   sleepyAnimation?: SleepyAnimationConfig;
+  /** Dizzy spiral eyes effect */
+  dizzyEffect?: DizzyEffectConfig;
+  /** Animated eyebrow bouncing (for excited/mischievous) */
+  animatedEyebrows?: AnimatedEyebrowsConfig;
+  /** Small/smug smile (for mischievous) */
+  smallSmile?: SmallSmileConfig;
 }
 
 export interface PupilModification {
@@ -104,6 +110,27 @@ export interface SleepyAnimationConfig {
   enabled: boolean;
   /** Total duration of one full cycle (3 blinks + mouth animation) in seconds */
   cycleDuration: number;
+}
+
+export interface DizzyEffectConfig {
+  /** Enable spiral eyes effect */
+  enabled: boolean;
+  /** Rotation duration in seconds for one full spiral rotation */
+  rotationDuration: number;
+}
+
+export interface AnimatedEyebrowsConfig {
+  /** Enable animated eyebrow bouncing */
+  enabled: boolean;
+  /** Duration of one bounce cycle in seconds */
+  bounceDuration: number;
+  /** Amount to move eyebrows up during bounce (in pixels) */
+  bounceAmount: number;
+}
+
+export interface SmallSmileConfig {
+  /** Scale factor for the smile (0.5 = half size, 1.0 = normal) */
+  scale: number;
 }
 
 // ─── Emotion Configurations ───────────────────────────────────────────────────
@@ -195,6 +222,59 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
         offsetY: -12.5, // Slightly higher
         curve: 0.25, // More pronounced curve
       },
+    },
+  },
+  dizzy: {
+    // Spiral eyes replace normal eyes entirely
+    dizzyEffect: {
+      enabled: true,
+      rotationDuration: 2, // 2 seconds per rotation
+    },
+    // Round "dazed" mouth
+    roundMouth: {
+      rx: 4,
+      ry: 5,
+      filled: true,
+    },
+  },
+  excited: {
+    // Reuse the same watery eye effect as sad
+    pupilModification: {
+      wateryEyes: true,
+    },
+    // Use the same eyebrow config as sad, but with animation
+    eyebrows: {
+      angle: -15, // Same as sad
+      offsetY: -10, // Same as sad
+      strokeWidth: 1.5, // Same as sad
+      color: '#374151', // Same as sad
+    },
+    // Animated eyebrows bouncing up and down
+    animatedEyebrows: {
+      enabled: true,
+      bounceDuration: 0.5, // Fast, energetic bounce
+      bounceAmount: 3, // Pixels to move up
+    },
+    // Happy smile (use default or slightly enhanced)
+    mouthCurve: 1.2, // Same as happy
+  },
+  mischievous: {
+    // Use the same eyebrow config as angry (V-shape), but with animation
+    eyebrows: {
+      angle: 20, // Same as angry
+      offsetY: -10, // Same as angry
+      strokeWidth: 2.5, // Same as angry
+      color: '#1f2937', // Same as angry
+    },
+    // Animated eyebrows bouncing
+    animatedEyebrows: {
+      enabled: true,
+      bounceDuration: 0.6, // Slightly slower than excited
+      bounceAmount: 2.5, // Slightly less movement
+    },
+    // Small smug smile
+    smallSmile: {
+      scale: 0.7, // 70% of normal smile size
     },
   },
 };
@@ -479,6 +559,16 @@ function hashString(str: string): number {
 /**
  * Generate eyebrow SVG elements
  * 
+ * The eyebrow is wrapped in a <g> group that handles rotation/tilt.
+ * The inner <path> has the class for CSS animation (translateY bounce).
+ * This structure ensures that when CSS applies translateY animation,
+ * it doesn't override the rotation transform - both are preserved.
+ * 
+ * Structure:
+ *   <g transform="rotate(...)">        <!-- handles tilt/inclination -->
+ *     <path class="blobbi-eyebrow" />  <!-- CSS animates translateY on this -->
+ *   </g>
+ * 
  * @param eyes - Eye positions
  * @param config - Eyebrow configuration
  * @param variant - Blobbi variant for variant-specific adjustments
@@ -521,15 +611,17 @@ export function generateEyebrows(eyes: EyePosition[], config: EyebrowConfig, var
       pathD = `M ${startX} ${browY} L ${endX} ${browY}`;
     }
     
-    return `<path 
-      class="blobbi-eyebrow blobbi-eyebrow-${eye.side}"
-      d="${pathD}" 
-      stroke="${effectiveColor}" 
-      stroke-width="${effectiveStrokeWidth}" 
-      stroke-linecap="round"
-      fill="none"
-      transform="rotate(${angle} ${eye.cx} ${browY})"
-    />`;
+    // Wrap in a group for rotation so CSS animation (translateY) doesn't override the tilt
+    return `<g class="blobbi-eyebrow-group blobbi-eyebrow-group-${eye.side}" transform="rotate(${angle} ${eye.cx} ${browY})">
+      <path 
+        class="blobbi-eyebrow blobbi-eyebrow-${eye.side}"
+        d="${pathD}" 
+        stroke="${effectiveColor}" 
+        stroke-width="${effectiveStrokeWidth}" 
+        stroke-linecap="round"
+        fill="none"
+      />
+    </g>`;
   }).join('\n');
 }
 
@@ -1025,6 +1117,194 @@ function generateAngerRiseEffect(bodyPath: BodyPathInfo, config: BodyEffectConfi
   return { defs, overlay };
 }
 
+// ─── Dizzy Effect Generation ──────────────────────────────────────────────────
+
+/**
+ * Generate spiral eyes for the dizzy effect.
+ * These replace the normal eyes with rotating spirals.
+ */
+function generateDizzySpirals(eyes: EyePosition[], config: DizzyEffectConfig): string {
+  const dur = config.rotationDuration;
+  
+  return eyes.map(eye => {
+    // Create a spiral path centered at the eye position
+    // The spiral is made of concentric circles that form a spiral pattern
+    const spiralSize = eye.radius * 1.2;
+    
+    // SVG spiral using path - 2 turns of spiral
+    const spiralPath = createSpiralPath(eye.cx, eye.cy, spiralSize);
+    
+    return `<g class="blobbi-dizzy-spiral blobbi-dizzy-spiral-${eye.side}">
+      <path
+        d="${spiralPath}"
+        stroke="#1f2937"
+        stroke-width="1.5"
+        fill="none"
+        stroke-linecap="round"
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from="360 ${eye.cx} ${eye.cy}"
+          to="0 ${eye.cx} ${eye.cy}"
+          dur="${dur}s"
+          repeatCount="indefinite"
+        />
+      </path>
+    </g>`;
+  }).join('\n');
+}
+
+/**
+ * Create a spiral path centered at (cx, cy) with given radius.
+ */
+function createSpiralPath(cx: number, cy: number, radius: number): string {
+  // Create a simple 2-turn spiral
+  const points: string[] = [];
+  const turns = 2;
+  const steps = 40;
+  
+  for (let i = 0; i <= steps; i++) {
+    const angle = (i / steps) * turns * 2 * Math.PI;
+    const r = (i / steps) * radius;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    
+    if (i === 0) {
+      points.push(`M ${x.toFixed(2)} ${y.toFixed(2)}`);
+    } else {
+      points.push(`L ${x.toFixed(2)} ${y.toFixed(2)}`);
+    }
+  }
+  
+  return points.join(' ');
+}
+
+/**
+ * Generate CSS styles for dizzy effect.
+ * Hides the normal eyes when dizzy spirals are shown.
+ */
+function generateDizzyStyles(): string {
+  return `
+  <style type="text/css">
+    /* Hide normal eyes when dizzy */
+    .blobbi-dizzy .blobbi-blink {
+      opacity: 0;
+    }
+  </style>`;
+}
+
+/**
+ * Apply dizzy effect to the SVG.
+ */
+function applyDizzyEffect(svgText: string, eyes: EyePosition[], config: DizzyEffectConfig): string {
+  // Add 'blobbi-dizzy' class to SVG root
+  svgText = svgText.replace(/<svg([^>]*)>/, (match, attrs) => {
+    if (attrs.includes('class="')) {
+      return match.replace(/class="([^"]*)"/, 'class="$1 blobbi-dizzy"');
+    } else if (attrs.includes("class='")) {
+      return match.replace(/class='([^']*)'/, "class='$1 blobbi-dizzy'");
+    } else {
+      return `<svg${attrs} class="blobbi-dizzy">`;
+    }
+  });
+  
+  // Add dizzy styles
+  const dizzyStyles = generateDizzyStyles();
+  if (svgText.includes('<defs>')) {
+    svgText = svgText.replace('<defs>', '<defs>' + dizzyStyles);
+  } else {
+    svgText = svgText.replace(/(<svg[^>]*>)/, '$1' + dizzyStyles);
+  }
+  
+  // Generate spiral overlays
+  const spirals = generateDizzySpirals(eyes, config);
+  
+  // Insert spirals before closing </svg> tag
+  const dizzyOverlay = `
+  <!-- Dizzy spiral eyes -->
+  <g class="blobbi-dizzy-eyes">
+    ${spirals}
+  </g>`;
+  
+  svgText = svgText.replace('</svg>', dizzyOverlay + '\n</svg>');
+  
+  return svgText;
+}
+
+// ─── Animated Eyebrows Generation ─────────────────────────────────────────────
+
+/**
+ * Generate CSS animation for bouncing eyebrows.
+ * Used by excited and mischievous emotions.
+ */
+function generateAnimatedEyebrowStyles(config: AnimatedEyebrowsConfig): string {
+  const dur = config.bounceDuration;
+  const amount = config.bounceAmount;
+  
+  return `
+  <style type="text/css">
+    @keyframes eyebrow-bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-${amount}px); }
+    }
+    
+    .blobbi-animated-brows .blobbi-eyebrow {
+      animation: eyebrow-bounce ${dur}s ease-in-out infinite;
+    }
+  </style>`;
+}
+
+/**
+ * Apply animated eyebrow effect to the SVG.
+ */
+function applyAnimatedEyebrows(svgText: string, config: AnimatedEyebrowsConfig): string {
+  // Add class to SVG root for CSS targeting
+  svgText = svgText.replace(/<svg([^>]*)>/, (match, attrs) => {
+    if (attrs.includes('class="')) {
+      return match.replace(/class="([^"]*)"/, 'class="$1 blobbi-animated-brows"');
+    } else if (attrs.includes("class='")) {
+      return match.replace(/class='([^']*)'/, "class='$1 blobbi-animated-brows'");
+    } else {
+      return `<svg${attrs} class="blobbi-animated-brows">`;
+    }
+  });
+  
+  // Add animation styles
+  const animStyles = generateAnimatedEyebrowStyles(config);
+  if (svgText.includes('<defs>')) {
+    svgText = svgText.replace('<defs>', '<defs>' + animStyles);
+  } else {
+    svgText = svgText.replace(/(<svg[^>]*>)/, '$1' + animStyles);
+  }
+  
+  return svgText;
+}
+
+// ─── Small Smile Generation ───────────────────────────────────────────────────
+
+/**
+ * Generate a smaller/smug smile by scaling the original mouth.
+ */
+function generateSmallSmile(mouth: MouthPosition, config: SmallSmileConfig): string {
+  const scale = config.scale;
+  const centerX = (mouth.startX + mouth.endX) / 2;
+  const centerY = (mouth.startY + mouth.endY) / 2;
+  
+  // Scale the mouth coordinates around the center
+  const scaledStartX = centerX + (mouth.startX - centerX) * scale;
+  const scaledEndX = centerX + (mouth.endX - centerX) * scale;
+  const scaledControlY = centerY + (mouth.controlY - centerY) * scale;
+  
+  return `<path 
+    class="blobbi-mouth blobbi-mouth-small"
+    d="M ${scaledStartX} ${centerY} Q ${centerX} ${scaledControlY} ${scaledEndX} ${centerY}" 
+    ${mouth.strokeAttrs || 'stroke="#1f2937" stroke-width="2.5"'}
+    fill="none" 
+    stroke-linecap="round"
+  />`;
+}
+
 // ─── Sleepy Animation Generation ──────────────────────────────────────────────
 
 /**
@@ -1390,6 +1670,22 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: B
   // Generate sleepy animation (tired blink cycle + mouth animation)
   if (config.sleepyAnimation?.enabled) {
     svgText = applySleepyAnimation(svgText, eyes, mouth, config.sleepyAnimation);
+  }
+  
+  // Generate dizzy effect (spiral eyes)
+  if (config.dizzyEffect?.enabled && eyes.length > 0) {
+    svgText = applyDizzyEffect(svgText, eyes, config.dizzyEffect);
+  }
+  
+  // Apply animated eyebrows (bouncing animation for excited/mischievous)
+  if (config.animatedEyebrows?.enabled) {
+    svgText = applyAnimatedEyebrows(svgText, config.animatedEyebrows);
+  }
+  
+  // Generate small/smug smile (for mischievous)
+  if (config.smallSmile && mouth) {
+    const smallSmileSvg = generateSmallSmile(mouth.position, config.smallSmile);
+    svgText = replaceMouthSection(svgText, smallSmileSvg);
   }
   
   // Insert overlays before closing </svg> tag
