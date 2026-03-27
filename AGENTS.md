@@ -1246,7 +1246,7 @@ If git is available in your environment (through a `shell` tool, or other git-sp
 
 When your changes are complete and validated, create a git commit with a descriptive message summarizing your changes.
 
-**ALWAYS commit when you are finished making changes.**
+**ALWAYS commit when you are finished making changes. This is non-negotiable -- every completed task must end with a git commit. Never leave uncommitted changes.**
 
 ## CI/CD Pipeline
 
