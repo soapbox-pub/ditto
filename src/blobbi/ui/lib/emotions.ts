@@ -19,7 +19,12 @@
 /**
  * Available emotion states for Blobbies
  */
-export type BlobbiEmotion = 'neutral' | 'sad' | 'happy' | 'angry' | 'surprised' | 'sleepy';
+export type BlobbiEmotion = 'neutral' | 'sad' | 'happy' | 'angry' | 'surprised' | 'sleepy' | 'curious';
+
+/**
+ * Blobbi variant for variant-specific adjustments
+ */
+export type BlobbiVariant = 'baby' | 'adult';
 
 /**
  * Configuration for emotion visual modifications
@@ -29,6 +34,8 @@ export interface EmotionConfig {
   pupilModification?: PupilModification;
   /** Override mouth curve (positive = smile, negative = frown) */
   mouthCurve?: number;
+  /** Replace mouth with a round "O" shape */
+  roundMouth?: RoundMouthConfig;
   /** Add eyebrows with specified angle */
   eyebrows?: EyebrowConfig;
   /** Add tears animation */
@@ -51,6 +58,17 @@ export interface EyebrowConfig {
   strokeWidth: number;
   /** Color */
   color: string;
+  /** Optional curve amount (0 = straight, positive = curved upward like a frown brow) */
+  curve?: number;
+}
+
+export interface RoundMouthConfig {
+  /** Horizontal radius of the mouth */
+  rx: number;
+  /** Vertical radius of the mouth (use same as rx for circle) */
+  ry: number;
+  /** Whether to fill the mouth (true) or just stroke it (false) */
+  filled?: boolean;
 }
 
 export interface TearConfig {
@@ -125,10 +143,35 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
     },
   },
   surprised: {
-    mouthCurve: 0, // O mouth (could be implemented differently)
+    roundMouth: {
+      rx: 5, // Larger round mouth for surprise
+      ry: 6,
+      filled: true,
+    },
+    eyebrows: {
+      angle: -12, // Raised eyebrows (similar direction to sad but less intense)
+      offsetY: -12, // Higher up for "opened up" look
+      strokeWidth: 1.5,
+      color: '#374151',
+      curve: 0.3, // Slight upward curve
+    },
   },
   sleepy: {
     mouthCurve: 0,
+  },
+  curious: {
+    roundMouth: {
+      rx: 3, // Smaller round mouth for curious
+      ry: 3.5,
+      filled: true,
+    },
+    eyebrows: {
+      angle: -10, // Softer angle than sad
+      offsetY: -11, // Positioned above eyes
+      strokeWidth: 1.3, // Thinner, subtle
+      color: '#4b5563', // Lighter gray
+      curve: 0.2, // Subtle curve
+    },
   },
 };
 
@@ -411,11 +454,18 @@ function hashString(str: string): number {
 
 /**
  * Generate eyebrow SVG elements
+ * 
+ * @param eyes - Eye positions
+ * @param config - Eyebrow configuration
+ * @param variant - Blobbi variant for variant-specific adjustments
  */
-export function generateEyebrows(eyes: EyePosition[], config: EyebrowConfig): string {
+export function generateEyebrows(eyes: EyePosition[], config: EyebrowConfig, variant: BlobbiVariant = 'adult'): string {
+  // Baby-specific adjustment: move eyebrows slightly farther from eyes
+  const variantOffsetAdjustment = variant === 'baby' ? -2 : 0;
+  
   return eyes.map(eye => {
     const browLength = eye.radius * 2;
-    const browY = eye.cy + config.offsetY;
+    const browY = eye.cy + config.offsetY + variantOffsetAdjustment;
     
     // Angle direction: positive rotates outer edge up (worried look)
     // For left eye, rotate around right end; for right eye, rotate around left end
@@ -424,15 +474,68 @@ export function generateEyebrows(eyes: EyePosition[], config: EyebrowConfig): st
     const startX = eye.cx - browLength / 2;
     const endX = eye.cx + browLength / 2;
     
+    // Generate path - either straight line or curved
+    let pathD: string;
+    if (config.curve && config.curve !== 0) {
+      // Curved eyebrow using quadratic bezier
+      // Curve amount determines how much the control point is offset
+      // Positive curve = curves upward (like a gentle arch)
+      const curveAmount = config.curve * eye.radius;
+      const controlX = eye.cx;
+      const controlY = browY - curveAmount;
+      pathD = `M ${startX} ${browY} Q ${controlX} ${controlY} ${endX} ${browY}`;
+    } else {
+      // Straight line
+      pathD = `M ${startX} ${browY} L ${endX} ${browY}`;
+    }
+    
     return `<path 
       class="blobbi-eyebrow blobbi-eyebrow-${eye.side}"
-      d="M ${startX} ${browY} L ${endX} ${browY}" 
+      d="${pathD}" 
       stroke="${config.color}" 
       stroke-width="${config.strokeWidth}" 
       stroke-linecap="round"
+      fill="none"
       transform="rotate(${angle} ${eye.cx} ${browY})"
     />`;
   }).join('\n');
+}
+
+/**
+ * Generate round "O" mouth SVG for surprised/curious expressions.
+ * 
+ * The mouth is positioned at the center of where the original mouth was,
+ * using the detected mouth position for accurate placement.
+ */
+export function generateRoundMouth(mouth: MouthPosition, config: RoundMouthConfig): string {
+  // Calculate center of the original mouth
+  const centerX = (mouth.startX + mouth.endX) / 2;
+  // Position slightly lower than the smile baseline for a natural look
+  const centerY = mouth.controlY;
+  
+  if (config.filled) {
+    // Filled ellipse with gradient for depth
+    return `<ellipse 
+      class="blobbi-mouth blobbi-mouth-round"
+      cx="${centerX}" 
+      cy="${centerY}" 
+      rx="${config.rx}" 
+      ry="${config.ry}"
+      fill="#1f2937"
+    />`;
+  } else {
+    // Stroked ellipse (outline only)
+    return `<ellipse 
+      class="blobbi-mouth blobbi-mouth-round"
+      cx="${centerX}" 
+      cy="${centerY}" 
+      rx="${config.rx}" 
+      ry="${config.ry}"
+      fill="none"
+      stroke="#1f2937"
+      stroke-width="2"
+    />`;
+  }
 }
 
 /**
@@ -900,9 +1003,10 @@ function generateAngerRiseEffect(bodyPath: BodyPathInfo, config: BodyEffectConfi
  * 
  * @param svgText - The base SVG content
  * @param emotion - The emotion to apply
+ * @param variant - The Blobbi variant (baby/adult) for variant-specific adjustments
  * @returns Modified SVG with emotion overlays
  */
-export function applyEmotion(svgText: string, emotion: BlobbiEmotion): string {
+export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: BlobbiVariant = 'adult'): string {
   if (emotion === 'neutral') {
     return svgText;
   }
@@ -938,12 +1042,19 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion): string {
   
   // Generate eyebrows
   if (config.eyebrows && eyes.length > 0) {
-    overlays.push(generateEyebrows(eyes, config.eyebrows));
+    overlays.push(generateEyebrows(eyes, config.eyebrows, variant));
   }
   
-  // Handle mouth modification (sad = frown)
-  if (config.mouthCurve !== undefined && config.mouthCurve < 0 && mouth) {
-    // Generate the sad mouth SVG
+  // Handle mouth modification
+  // Priority: roundMouth > mouthCurve (frown)
+  if (config.roundMouth && mouth) {
+    // Generate the round "O" mouth SVG
+    const roundMouthSvg = generateRoundMouth(mouth.position, config.roundMouth);
+    
+    // Replace the original mouth section with the round mouth
+    svgText = replaceMouthSection(svgText, roundMouthSvg);
+  } else if (config.mouthCurve !== undefined && config.mouthCurve < 0 && mouth) {
+    // Generate the sad mouth SVG (frown)
     const sadMouthSvg = generateSadMouth(mouth.position);
     
     // Replace the original mouth section with the sad mouth

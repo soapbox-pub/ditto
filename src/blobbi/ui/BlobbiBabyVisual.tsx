@@ -122,8 +122,9 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
       let animatedSvg = addEyeAnimation(colorizedSvg);
       
       // Apply emotion overlays (eyebrows, sad mouth, tears, etc.)
+      // Pass 'baby' variant for baby-specific adjustments (e.g., eyebrow positioning)
       if (emotion !== 'neutral') {
-        animatedSvg = applyEmotion(animatedSvg, emotion);
+        animatedSvg = applyEmotion(animatedSvg, emotion, 'baby');
       }
       
       return animatedSvg;
