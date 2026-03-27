@@ -114,31 +114,6 @@ export const BLOBBI_TAG_SCHEMA: readonly BlobbiTagSchema[] = [
     format: 'blobbi:ecosystem:v1',
     defaultValue: 'blobbi:ecosystem:v1',
   },
-  {
-    tag: 't',
-    description: 'Topic tag for discoverability',
-    category: 'system',
-    required: true,
-    stages: ['egg', 'baby', 'adult'],
-    persistent: true,
-    source: 'system',
-    regenerable: true,
-    format: 'blobbi',
-    defaultValue: 'blobbi',
-  },
-  {
-    tag: 'client',
-    description: 'Client identifier that created/modified this event',
-    category: 'system',
-    required: false,
-    stages: ['egg', 'baby', 'adult'],
-    persistent: true,
-    source: 'system',
-    regenerable: true,
-    format: 'blobbi',
-    defaultValue: 'blobbi',
-  },
-
   // ═══════════════════════════════════════════════════════════════════════════
   // CORE IDENTITY TAGS
   // ═══════════════════════════════════════════════════════════════════════════
@@ -601,6 +576,18 @@ export interface DeprecatedTagSchema {
  */
 export const DEPRECATED_TAG_SCHEMA: readonly DeprecatedTagSchema[] = [
   {
+    tag: 't',
+    reason: 'Topic tag no longer needed - the app uses the b namespace tag for identification',
+    replacedBy: undefined,
+    deprecatedSince: 'v2.0',
+  },
+  {
+    tag: 'client',
+    reason: 'Client tag no longer needed - useNostrPublish adds this automatically',
+    replacedBy: undefined,
+    deprecatedSince: 'v2.0',
+  },
+  {
     tag: 'shell_integrity',
     reason: 'Eggs now use the standard health stat instead of a separate shell metric',
     replacedBy: 'health',
@@ -748,8 +735,6 @@ export interface TagRepairResult {
  */
 const RECOVERABLE_SYSTEM_TAGS: Record<string, string> = {
   b: 'blobbi:ecosystem:v1',
-  t: 'blobbi',
-  client: 'blobbi',
 };
 
 /**
