@@ -162,24 +162,15 @@ release:
       if [ -z "$RELEASE_NOTES" ]; then
         RELEASE_NOTES="Ditto ${CI_COMMIT_TAG}"
       fi
-      echo "RELEASE_NOTES<<ENDOFNOTES" >> release.env
-      echo "$RELEASE_NOTES" >> release.env
-      echo "ENDOFNOTES" >> release.env
-  artifacts:
-    reports:
-      dotenv: release.env
-  release:
-    tag_name: $CI_COMMIT_TAG
-    name: $CI_COMMIT_TAG
-    description: $RELEASE_NOTES
-    assets:
-      links:
-        - name: "Ditto-${CI_COMMIT_TAG}.apk"
-          url: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${CI_COMMIT_TAG}/Ditto-${CI_COMMIT_TAG}.apk"
-          link_type: package
-        - name: "Ditto-${CI_COMMIT_TAG}.aab"
-          url: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${CI_COMMIT_TAG}/Ditto-${CI_COMMIT_TAG}.aab"
-          link_type: package
+    # Create the release with glab (included in the release-cli image).
+    # Uses a temp file to safely pass multi-line release notes.
+    - echo "$RELEASE_NOTES" > /tmp/release-notes.md
+    - |
+      glab release create "$CI_COMMIT_TAG" \
+        --name "$CI_COMMIT_TAG" \
+        --notes-file /tmp/release-notes.md \
+        "artifacts/Ditto.apk#Ditto-${CI_COMMIT_TAG}.apk" \
+        "artifacts/Ditto.aab#Ditto-${CI_COMMIT_TAG}.aab"
 
 publish-zapstore:
   stage: publish
