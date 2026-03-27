@@ -134,13 +134,13 @@ versionName "X.Y.Z"
 
 #### 6c. `ios/App/App.xcodeproj/project.pbxproj`
 
-Update `MARKETING_VERSION` in all 4 occurrences (2 Debug configs + 2 Release configs):
+Update `MARKETING_VERSION` in all occurrences (Debug + Release configs):
 
 ```
 MARKETING_VERSION = X.Y.Z;
 ```
 
-**Important:** There are exactly 4 lines containing `MARKETING_VERSION` in this file. All 4 must be updated to the same value. Use a replaceAll operation.
+**Important:** All lines containing `MARKETING_VERSION` must be updated to the same value. Use a replaceAll operation.
 
 Do NOT change `CURRENT_PROJECT_VERSION` -- it stays at `1` (may be managed separately for App Store submissions in the future).
 
@@ -207,7 +207,7 @@ After pushing, inform the user:
 | `CHANGELOG.md` | Prepend new section | User-facing changelog |
 | `public/CHANGELOG.md` | Copy from `CHANGELOG.md` | Served at runtime by the app |
 | `android/app/build.gradle` | `versionName` on line 17 | `versionCode` is managed by CI |
-| `ios/App/App.xcodeproj/project.pbxproj` | `MARKETING_VERSION` (4 occurrences) | `CURRENT_PROJECT_VERSION` stays at 1 |
+| `ios/App/App.xcodeproj/project.pbxproj` | `MARKETING_VERSION` (all occurrences) | `CURRENT_PROJECT_VERSION` stays at 1 |
 
 ## CI Pipeline
 
