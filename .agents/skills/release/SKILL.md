@@ -152,14 +152,26 @@ The changelog is served at runtime by the app from the `public/` directory. Afte
 cp CHANGELOG.md public/CHANGELOG.md
 ```
 
-### Step 8: Commit the Release
+### Step 8: Pull Latest Changes
+
+Before committing the release, pull the latest changes from the remote to ensure the release commit sits on top of the latest code. This **must** happen before committing and tagging.
+
+```bash
+git pull origin main
+```
+
+**CRITICAL**: Always use `git pull` (merge), NEVER `git pull --rebase`. Rebasing rewrites commit hashes, which would orphan any tag pointing to the original commit. Since version tags are often protected on the remote and cannot be deleted or updated, a broken tag cannot be easily fixed.
+
+If there are merge conflicts with the pulled changes, resolve them before proceeding.
+
+### Step 9: Commit the Release
 
 ```bash
 git add package.json CHANGELOG.md public/CHANGELOG.md android/app/build.gradle ios/App/App.xcodeproj/project.pbxproj
 git commit -m "release: vX.Y.Z"
 ```
 
-### Step 9: Tag the Release
+### Step 10: Tag the Release
 
 ```bash
 git tag vX.Y.Z
@@ -167,7 +179,7 @@ git tag vX.Y.Z
 
 The tag format is `v` followed by the semver version with no suffix. Examples: `v2.0.0`, `v2.1.0`, `v2.1.1`.
 
-### Step 10: Push
+### Step 11: Push
 
 ```bash
 git push origin main vX.Y.Z
@@ -180,7 +192,7 @@ This triggers the GitLab CI pipeline which will:
 2. Create a GitLab Release with download links
 3. Publish the APK to Zapstore
 
-### Step 11: Confirm
+### Step 12: Confirm
 
 After pushing, inform the user:
 - The new version number
