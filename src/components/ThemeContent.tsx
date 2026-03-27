@@ -2,6 +2,8 @@ import React, { useMemo, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useNostr } from '@nostrify/react';
+import { useQuery } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { ToastAction } from '@/components/ui/toast';
@@ -29,6 +31,7 @@ function hsl(value: string): string {
  * Uses the same mini-mockup design as ThemeSelector, scaled up.
  */
 export function ThemeContent({ event, expanded }: ThemeContentProps) {
+  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { theme, customTheme, setTheme, applyCustomTheme } = useTheme();
   const isOwn = user?.pubkey === event.pubkey;
@@ -41,10 +44,11 @@ export function ThemeContent({ event, expanded }: ThemeContentProps) {
       const active = parseActiveProfileTheme(event);
       if (!active) return null;
       const title = event.tags.find(([n]) => n === 'title')?.[1];
+      const description = event.tags.find(([n]) => n === 'description')?.[1];
       return {
         colors: active.colors,
         title: title ?? 'Profile Theme',
-        description: undefined as string | undefined,
+        description,
         identifier: undefined as string | undefined,
         background: active.background,
         font: active.font,
@@ -54,6 +58,39 @@ export function ThemeContent({ event, expanded }: ThemeContentProps) {
     }
     return null;
   }, [event]);
+
+  // For kind 16767 events without a description tag, look up the source theme definition
+  const sourceRef = (parsed as { sourceRef?: string } | null)?.sourceRef;
+  const needsSourceLookup = event.kind === ACTIVE_THEME_KIND && !parsed?.description && !!sourceRef;
+
+  const sourceCoords = useMemo(() => {
+    if (!needsSourceLookup || !sourceRef) return null;
+    const parts = sourceRef.split(':');
+    if (parts.length < 3) return null;
+    return { kind: parseInt(parts[0], 10), pubkey: parts[1], identifier: parts[2] };
+  }, [needsSourceLookup, sourceRef]);
+
+  const { data: sourceDescription } = useQuery({
+    queryKey: ['themeSourceDescription', sourceRef],
+    queryFn: async () => {
+      if (!sourceCoords) return null;
+      const events = await nostr.query([{
+        kinds: [sourceCoords.kind],
+        authors: [sourceCoords.pubkey],
+        '#d': [sourceCoords.identifier],
+        limit: 1,
+      }], { signal: AbortSignal.timeout(5000) });
+      const source = events[0];
+      if (!source) return null;
+      return source.tags.find(([n]) => n === 'description')?.[1] ?? null;
+    },
+    enabled: !!sourceCoords,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+
+  // Use direct description from event, or fall back to source theme description
+  const resolvedDescription = parsed?.description ?? sourceDescription ?? undefined;
 
   const previousThemeRef = useRef<{ mode: Theme; config?: ThemeConfig }>();
 
@@ -94,7 +131,8 @@ export function ThemeContent({ event, expanded }: ThemeContentProps) {
 
   if (!parsed) return null;
 
-  const { colors, title, description } = parsed;
+  const { colors, title } = parsed;
+  const description = resolvedDescription;
   const backgroundUrl = parsed.background?.url;
 
   const isDefinition = event.kind === THEME_DEFINITION_KIND;

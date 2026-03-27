@@ -264,6 +264,7 @@ export function buildActiveThemeTags(
   themeConfig: ThemeConfig,
   sourceAuthor?: string,
   sourceIdentifier?: string,
+  description?: string,
 ): string[][] {
   const tags: string[][] = [
     ...buildColorTags(themeConfig.colors),
@@ -273,6 +274,9 @@ export function buildActiveThemeTags(
   ];
   if (themeConfig.title) {
     tags.push(['title', themeConfig.title]);
+  }
+  if (description) {
+    tags.push(['description', description]);
   }
   if (sourceAuthor && sourceIdentifier) {
     tags.push(['a', `${THEME_DEFINITION_KIND}:${sourceAuthor}:${sourceIdentifier}`]);
