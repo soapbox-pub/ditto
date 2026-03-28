@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
+import { downloadTextFile } from "@/lib/downloadFile";
 import {
   type ReactNode,
   useCallback,
@@ -267,7 +268,7 @@ function SetupQuestionnaire({
   }, [next]);
 
   // Download + login handler
-  const handleDownloadAndLogin = useCallback(() => {
+  const handleDownloadAndLogin = useCallback(async () => {
     try {
       const decoded = nip19.decode(nsec);
       if (decoded.type !== "nsec") throw new Error("Invalid nsec");
@@ -276,16 +277,7 @@ function SetupQuestionnaire({
       const npub = nip19.npubEncode(pubkey);
       const filename = `nostr-${location.hostname.replaceAll(/\./g, "-")}-${npub.slice(5, 9)}.nsec.txt`;
 
-      const blob = new Blob([nsec], { type: "text/plain; charset=utf-8" });
-      const url = globalThis.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      globalThis.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      await downloadTextFile(filename, nsec);
 
       // Log in with the new key
       login.nsec(nsec);

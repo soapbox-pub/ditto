@@ -46,6 +46,7 @@ import { genUserName } from '@/lib/genUserName';
 
 import { canZap } from '@/lib/canZap';
 import { shareOrCopy } from '@/lib/share';
+import { openUrl } from '@/lib/downloadFile';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { BioContent } from '@/components/BioContent';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
@@ -790,11 +791,7 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const a = document.createElement('a');
-    a.href = imageUrl;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.click();
+    openUrl(imageUrl);
   };
 
   return (

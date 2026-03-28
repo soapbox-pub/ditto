@@ -1665,7 +1665,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             ) : isFileMetadata ? (
               <FileMetadataContent event={event} />
             ) : isTheme ? (
-              <ThemeContent event={event} />
+              <ThemeContent event={event} expanded />
             ) : isVoiceMessage ? (
               <VoiceMessagePlayer event={event} />
             ) : isCommunity ? (

@@ -73,11 +73,13 @@ export function usePublishTheme() {
     sourceAuthor?: string;
     /** d-tag of the source theme definition */
     sourceIdentifier?: string;
+    /** Optional description from the source theme definition */
+    description?: string;
   }) => {
     if (!user) throw new Error('Must be logged in');
 
     const resolved = resolveThemeForPublishing(opts.themeConfig);
-    const tags = buildActiveThemeTags(resolved, opts.sourceAuthor, opts.sourceIdentifier);
+    const tags = buildActiveThemeTags(resolved, opts.sourceAuthor, opts.sourceIdentifier, opts.description);
 
     await publishEvent({
       kind: ACTIVE_THEME_KIND,
