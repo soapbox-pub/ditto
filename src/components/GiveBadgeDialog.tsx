@@ -95,7 +95,7 @@ export function GiveBadgeDialog({ open, onOpenChange, recipientPubkey, recipient
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="border-t border-border" style={{ height: 340 }}>
+        <ScrollArea style={{ height: 340 }}>
           {isLoading ? (
             <div className="p-4 space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -118,7 +118,7 @@ export function GiveBadgeDialog({ open, onOpenChange, recipientPubkey, recipient
                     type="button"
                     onClick={() => handleAward(item)}
                     disabled={isAwarding}
-                    className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-secondary/30 transition-colors disabled:opacity-50"
+                    className="group flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-secondary/30 transition-colors disabled:opacity-50"
                   >
                     <BadgeThumbnail badge={item.badge} size={48} className="shrink-0" />
                     <div className="flex-1 min-w-0">
