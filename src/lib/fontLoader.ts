@@ -108,6 +108,48 @@ export async function loadAndApplyFont(font: ThemeFont | undefined): Promise<voi
   applyFontOverride(font);
 }
 
+// ─── Title Font CSS Override ──────────────────────────────────────────
+
+/** Style element ID for title font CSS custom property. */
+const TITLE_FONT_OVERRIDE_STYLE_ID = 'theme-title-font-overrides';
+
+/**
+ * Apply a CSS custom property `--title-font-family` to the document.
+ * Components that render the profile display name read this variable.
+ *
+ * Pass undefined to clear the override.
+ */
+export function applyTitleFontOverride(font: ThemeFont | undefined): void {
+  let style = document.getElementById(TITLE_FONT_OVERRIDE_STYLE_ID) as HTMLStyleElement | null;
+
+  if (!font) {
+    style?.remove();
+    return;
+  }
+
+  if (!style) {
+    style = document.createElement('style');
+    style.id = TITLE_FONT_OVERRIDE_STYLE_ID;
+    document.head.appendChild(style);
+  }
+
+  const cssFamily = resolveCssFamily(font.family);
+  style.textContent = `:root { --title-font-family: "${cssFamily}", ${DEFAULT_FONT_STACK}; }\n`;
+}
+
+/**
+ * Load a title font and apply the CSS custom property override.
+ */
+export async function loadAndApplyTitleFont(font: ThemeFont | undefined): Promise<void> {
+  if (!font) {
+    applyTitleFontOverride(undefined);
+    return;
+  }
+
+  await loadFont(font.family, font.url);
+  applyTitleFontOverride(font);
+}
+
 /**
  * Resolve font URLs for publishing to Nostr.
  * For bundled fonts, returns the CDN URL. For others, preserves the existing URL.

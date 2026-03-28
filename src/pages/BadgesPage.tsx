@@ -1,61 +1,83 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
-import { useNostr } from '@nostrify/react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { nip19 } from 'nostr-tools';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent } from "@nostrify/nostrify";
+import { useNostr } from "@nostrify/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSeoMeta } from "@unhead/react";
 import {
-  Award, Loader2, ChevronUp, ChevronDown, X, Check, Clock,
-  Pencil, Trash2, Upload, Users, ExternalLink,
-} from 'lucide-react';
-import { useSeoMeta } from '@unhead/react';
-
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Textarea } from '@/components/ui/textarea';
+  Award,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  ExternalLink,
+  Loader2,
+  Pencil,
+  Trash2,
+  Upload,
+  Users,
+  X,
+} from "lucide-react";
+import { nip19 } from "nostr-tools";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { AwardBadgeDialog } from "@/components/AwardBadgeDialog";
+import { LoginArea } from "@/components/auth/LoginArea";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  type BadgeData,
+  parseBadgeDefinition,
+} from "@/components/BadgeContent";
+import { BadgeThumbnail } from "@/components/BadgeThumbnail";
+import { CreateBadgeDialog } from "@/components/CreateBadgeDialog";
+import { FeedEmptyState } from "@/components/FeedEmptyState";
+import { NoteCard } from "@/components/NoteCard";
+import { PageHeader } from "@/components/PageHeader";
+import { PullToRefresh } from "@/components/PullToRefresh";
+import { SubHeaderBar } from "@/components/SubHeaderBar";
+import { TabButton } from "@/components/TabButton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { NoteCard } from '@/components/NoteCard';
-import { PullToRefresh } from '@/components/PullToRefresh';
-import { FeedEmptyState } from '@/components/FeedEmptyState';
-import { SubHeaderBar } from '@/components/SubHeaderBar';
-import { PageHeader } from '@/components/PageHeader';
-import { TabButton } from '@/components/TabButton';
-import { BadgeThumbnail } from '@/components/BadgeThumbnail';
-import { AwardBadgeDialog } from '@/components/AwardBadgeDialog';
-import { CreateBadgeDialog } from '@/components/CreateBadgeDialog';
-import { LoginArea } from '@/components/auth/LoginArea';
-import { parseBadgeDefinition, type BadgeData } from '@/components/BadgeContent';
-
-import { useAppContext } from '@/hooks/useAppContext';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useBadgeFeed } from '@/hooks/useBadgeFeed';
-import { useProfileBadges } from '@/hooks/useProfileBadges';
-import { useBadgeDefinitions, type BadgeDefinition } from '@/hooks/useBadgeDefinitions';
-import { usePendingBadges, type PendingBadge } from '@/hooks/usePendingBadges';
-import { useAcceptBadge } from '@/hooks/useAcceptBadge';
-import { useRemoveBadge } from '@/hooks/useRemoveBadge';
-import { useReorderBadges } from '@/hooks/useReorderBadges';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { useUploadFile } from '@/hooks/useUploadFile';
-import { useAuthor } from '@/hooks/useAuthor';
-import { useToast } from '@/hooks/useToast';
-import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { genUserName } from '@/lib/genUserName';
-import { timeAgo } from '@/lib/timeAgo';
-import { BADGE_DEFINITION_KIND, getBadgeATag } from '@/lib/badgeUtils';
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { useLayoutOptions } from "@/contexts/LayoutContext";
+import { useAcceptBadge } from "@/hooks/useAcceptBadge";
+import { useAppContext } from "@/hooks/useAppContext";
+import { useAuthor } from "@/hooks/useAuthor";
+import {
+  type BadgeDefinition,
+  useBadgeDefinitions,
+} from "@/hooks/useBadgeDefinitions";
+import { useBadgeFeed } from "@/hooks/useBadgeFeed";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useFeedTab } from "@/hooks/useFeedTab";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { useNostrPublish } from "@/hooks/useNostrPublish";
+import { type PendingBadge, usePendingBadges } from "@/hooks/usePendingBadges";
+import { useProfileBadges } from "@/hooks/useProfileBadges";
+import { useRemoveBadge } from "@/hooks/useRemoveBadge";
+import { useReorderBadges } from "@/hooks/useReorderBadges";
+import { useToast } from "@/hooks/useToast";
+import { useUploadFile } from "@/hooks/useUploadFile";
+import { BADGE_DEFINITION_KIND, getBadgeATag } from "@/lib/badgeUtils";
+import { deduplicateEvents } from "@/lib/deduplicateEvents";
+import { genUserName } from "@/lib/genUserName";
+import { timeAgo } from "@/lib/timeAgo";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type BadgesTab = 'mine' | 'follows';
+type BadgesTab = "mine" | "follows";
 
 interface ParsedBadge {
   event: NostrEvent;
@@ -98,7 +120,11 @@ export function BadgesPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   // Fetch pending badges at page level so we can show a counter on the tab
-  const { pendingBadges, count: pendingCount, isLoading: isLoadingPending } = usePendingBadges(user?.pubkey);
+  const {
+    pendingBadges,
+    count: pendingCount,
+    isLoading: isLoadingPending,
+  } = usePendingBadges(user?.pubkey);
 
   useLayoutOptions({
     showFAB: true,
@@ -107,31 +133,34 @@ export function BadgesPage() {
     hasSubHeader: !!user,
   });
 
-  const [activeTab, setActiveTab] = useState<BadgesTab>(() => {
-    try {
-      const stored = sessionStorage.getItem('ditto:feed-tab:badges');
-      if (stored === 'mine' || stored === 'follows') return stored;
-    } catch { /* ignore */ }
-    return 'follows';
-  });
-
-  const handleSetTab = useCallback((tab: BadgesTab) => {
-    setActiveTab(tab);
-    try { sessionStorage.setItem('ditto:feed-tab:badges', tab); } catch { /* ignore */ }
-  }, []);
+  const [activeTab, setActiveTab] = useFeedTab<BadgesTab>("badges", [
+    "mine",
+    "follows",
+  ]);
 
   useSeoMeta({
     title: `Badges | ${config.appName}`,
-    description: 'Discover badges, create new ones, and show them off on your profile',
+    description:
+      "Discover badges, create new ones, and show them off on your profile",
   });
 
   return (
     <main className="pb-16 sidebar:pb-0">
+      <PageHeader title="Badges" icon={<Award className="size-5" />} />
+
       {/* Follows / My Badges tabs */}
       {user && (
         <SubHeaderBar>
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetTab('follows')} />
-          <TabButton label="My Badges" active={activeTab === 'mine'} onClick={() => handleSetTab('mine')}>
+          <TabButton
+            label="Follows"
+            active={activeTab === "follows"}
+            onClick={() => setActiveTab("follows")}
+          />
+          <TabButton
+            label="My Badges"
+            active={activeTab === "mine"}
+            onClick={() => setActiveTab("mine")}
+          >
             <span className="inline-flex items-center gap-1.5">
               My Badges
               {pendingCount > 0 && (
@@ -144,16 +173,31 @@ export function BadgesPage() {
         </SubHeaderBar>
       )}
 
-      <PageHeader title="Badges" icon={<Award className="size-5" />} />
+      {/* Arc overhang spacer (matches Feed.tsx) */}
+      {user && <div style={{ height: 20 }} />}
 
       {/* Tab content */}
-      {activeTab === 'mine' ? (
-        <MyBadgesTab onOpenCreate={() => setCreateDialogOpen(true)} pendingBadges={pendingBadges} pendingCount={pendingCount} isLoadingPending={isLoadingPending} />
+      {activeTab === "mine" ? (
+        <MyBadgesTab
+          onOpenCreate={() => setCreateDialogOpen(true)}
+          pendingBadges={pendingBadges}
+          pendingCount={pendingCount}
+          isLoadingPending={isLoadingPending}
+        />
       ) : (
-        <FollowsFeedTab onRefresh={() => queryClient.invalidateQueries({ queryKey: ['badge-feed', 'follows'] })} />
+        <FollowsFeedTab
+          onRefresh={() =>
+            queryClient.invalidateQueries({
+              queryKey: ["badge-feed", "follows"],
+            })
+          }
+        />
       )}
 
-      <CreateBadgeDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
+      <CreateBadgeDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
     </main>
   );
 }
@@ -169,7 +213,12 @@ interface MyBadgesTabProps {
   isLoadingPending: boolean;
 }
 
-function MyBadgesTab({ onOpenCreate, pendingBadges, pendingCount, isLoadingPending }: MyBadgesTabProps) {
+function MyBadgesTab({
+  onOpenCreate,
+  pendingBadges,
+  pendingCount,
+  isLoadingPending,
+}: MyBadgesTabProps) {
   const { user } = useCurrentUser();
 
   if (!user) {
@@ -189,10 +238,22 @@ function MyBadgesTab({ onOpenCreate, pendingBadges, pendingCount, isLoadingPendi
     );
   }
 
-  return <MyBadgesContent onOpenCreate={onOpenCreate} pendingBadges={pendingBadges} pendingCount={pendingCount} isLoadingPending={isLoadingPending} />;
+  return (
+    <MyBadgesContent
+      onOpenCreate={onOpenCreate}
+      pendingBadges={pendingBadges}
+      pendingCount={pendingCount}
+      isLoadingPending={isLoadingPending}
+    />
+  );
 }
 
-function MyBadgesContent({ onOpenCreate, pendingBadges, pendingCount, isLoadingPending }: MyBadgesTabProps) {
+function MyBadgesContent({
+  onOpenCreate,
+  pendingBadges,
+  pendingCount,
+  isLoadingPending,
+}: MyBadgesTabProps) {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
 
@@ -201,16 +262,30 @@ function MyBadgesContent({ onOpenCreate, pendingBadges, pendingCount, isLoadingP
   const { badgeMap, isLoading: isLoadingDefs } = useBadgeDefinitions(refs);
 
   // Pending badges (data passed down from parent to share with tab counter)
-  const pendingRefs = useMemo(() => pendingBadges.map((p) => ({ pubkey: p.issuerPubkey, identifier: p.identifier })), [pendingBadges]);
-  const { badgeMap: pendingBadgeMap, isLoading: isLoadingPendingDefs } = useBadgeDefinitions(pendingRefs);
+  const pendingRefs = useMemo(
+    () =>
+      pendingBadges.map((p) => ({
+        pubkey: p.issuerPubkey,
+        identifier: p.identifier,
+      })),
+    [pendingBadges],
+  );
+  const { badgeMap: pendingBadgeMap, isLoading: isLoadingPendingDefs } =
+    useBadgeDefinitions(pendingRefs);
 
   // Created badges
   const { data: rawCreatedEvents, isLoading: isLoadingCreated } = useQuery({
-    queryKey: ['my-created-badges', user?.pubkey ?? ''],
+    queryKey: ["my-created-badges", user?.pubkey ?? ""],
     queryFn: async ({ signal }) => {
       if (!user) return [];
       return nostr.query(
-        [{ kinds: [BADGE_DEFINITION_KIND], authors: [user.pubkey], limit: 200 }],
+        [
+          {
+            kinds: [BADGE_DEFINITION_KIND],
+            authors: [user.pubkey],
+            limit: 200,
+          },
+        ],
         { signal },
       );
     },
@@ -249,10 +324,15 @@ function MyBadgesContent({ onOpenCreate, pendingBadges, pendingCount, isLoadingP
           />
           {isLoadingPending || isLoadingPendingDefs ? (
             <div className="space-y-2 mt-2">
-              {Array.from({ length: 2 }).map((_, i) => <PendingBadgeSkeleton key={i} />)}
+              {Array.from({ length: 2 }).map((_, i) => (
+                <PendingBadgeSkeleton key={i} />
+              ))}
             </div>
           ) : (
-            <PendingBadgeList pendingBadges={pendingBadges} badgeMap={pendingBadgeMap} />
+            <PendingBadgeList
+              pendingBadges={pendingBadges}
+              badgeMap={pendingBadgeMap}
+            />
           )}
         </section>
       )}
@@ -266,14 +346,21 @@ function MyBadgesContent({ onOpenCreate, pendingBadges, pendingCount, isLoadingP
         />
         {isLoadingAccepted ? (
           <div className="space-y-2 mt-2">
-            {Array.from({ length: 3 }).map((_, i) => <AcceptedBadgeSkeleton key={i} />)}
+            {Array.from({ length: 3 }).map((_, i) => (
+              <AcceptedBadgeSkeleton key={i} />
+            ))}
           </div>
         ) : localRefs.length === 0 ? (
           <p className="text-sm text-muted-foreground mt-2">
-            No accepted badges yet. When you accept a badge, it will appear here.
+            No accepted badges yet. When you accept a badge, it will appear
+            here.
           </p>
         ) : (
-          <AcceptedBadgeList refs={localRefs} setRefs={setLocalRefs} badgeMap={badgeMap} />
+          <AcceptedBadgeList
+            refs={localRefs}
+            setRefs={setLocalRefs}
+            badgeMap={badgeMap}
+          />
         )}
       </section>
 
@@ -284,7 +371,12 @@ function MyBadgesContent({ onOpenCreate, pendingBadges, pendingCount, isLoadingP
           count={isLoadingCreated ? undefined : createdBadges.length}
           icon={<Pencil className="size-4" />}
           action={
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={onOpenCreate}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={onOpenCreate}
+            >
               <Award className="size-3" />
               New Badge
             </Button>
@@ -292,7 +384,9 @@ function MyBadgesContent({ onOpenCreate, pendingBadges, pendingCount, isLoadingP
         />
         {isLoadingCreated ? (
           <div className="space-y-2 mt-2">
-            {Array.from({ length: 2 }).map((_, i) => <CreatedBadgeSkeleton key={i} />)}
+            {Array.from({ length: 2 }).map((_, i) => (
+              <CreatedBadgeSkeleton key={i} />
+            ))}
           </div>
         ) : createdBadges.length === 0 ? (
           <p className="text-sm text-muted-foreground mt-2">
@@ -308,7 +402,12 @@ function MyBadgesContent({ onOpenCreate, pendingBadges, pendingCount, isLoadingP
 
 // ─── Section Header ────────────────────────────────────────────────────────────
 
-function SectionHeader({ title, count, icon, action }: {
+function SectionHeader({
+  title,
+  count,
+  icon,
+  action,
+}: {
   title: string;
   count?: number;
   icon: React.ReactNode;
@@ -319,7 +418,9 @@ function SectionHeader({ title, count, icon, action }: {
       <span className="text-muted-foreground">{icon}</span>
       <h2 className="text-sm font-semibold">{title}</h2>
       {count !== undefined && (
-        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{count}</Badge>
+        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+          {count}
+        </Badge>
       )}
       {action && <div className="ml-auto">{action}</div>}
     </div>
@@ -328,12 +429,17 @@ function SectionHeader({ title, count, icon, action }: {
 
 // ─── Pending Badge List ────────────────────────────────────────────────────────
 
-function PendingBadgeList({ pendingBadges, badgeMap }: {
+function PendingBadgeList({
+  pendingBadges,
+  badgeMap,
+}: {
   pendingBadges: PendingBadge[];
   badgeMap: Map<string, BadgeDefinition>;
 }) {
   const [dismissedATags, setDismissedATags] = useState<Set<string>>(new Set());
-  const visibleBadges = pendingBadges.filter((p) => !dismissedATags.has(p.aTag));
+  const visibleBadges = pendingBadges.filter(
+    (p) => !dismissedATags.has(p.aTag),
+  );
 
   const handleDismiss = useCallback((aTag: string) => {
     setDismissedATags((prev) => new Set(prev).add(aTag));
@@ -355,7 +461,11 @@ function PendingBadgeList({ pendingBadges, badgeMap }: {
   );
 }
 
-function PendingBadgeRow({ pending, badge, onDismiss }: {
+function PendingBadgeRow({
+  pending,
+  badge,
+  onDismiss,
+}: {
   pending: PendingBadge;
   badge: BadgeDefinition | undefined;
   onDismiss: () => void;
@@ -367,8 +477,9 @@ function PendingBadgeRow({ pending, badge, onDismiss }: {
     acceptBadge(
       { aTag: pending.aTag, awardEventId: pending.awardEvent.id },
       {
-        onSuccess: () => toast({ title: 'Badge accepted!' }),
-        onError: () => toast({ title: 'Failed to accept badge', variant: 'destructive' }),
+        onSuccess: () => toast({ title: "Badge accepted!" }),
+        onError: () =>
+          toast({ title: "Failed to accept badge", variant: "destructive" }),
       },
     );
   };
@@ -382,20 +493,40 @@ function PendingBadgeRow({ pending, badge, onDismiss }: {
       )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium truncate">{badge?.name ?? pending.identifier}</span>
+          <span className="text-sm font-medium truncate">
+            {badge?.name ?? pending.identifier}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <IssuerName pubkey={pending.issuerPubkey} />
           <span className="text-muted-foreground text-xs">·</span>
-          <span className="text-xs text-muted-foreground">{timeAgo(pending.awardedAt)}</span>
+          <span className="text-xs text-muted-foreground">
+            {timeAgo(pending.awardedAt)}
+          </span>
         </div>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
-        <Button size="sm" variant="default" className="h-8 gap-1.5" onClick={handleAccept} disabled={isAccepting}>
-          {isAccepting ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+        <Button
+          size="sm"
+          variant="default"
+          className="h-8 gap-1.5"
+          onClick={handleAccept}
+          disabled={isAccepting}
+        >
+          {isAccepting ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Check className="size-3.5" />
+          )}
           Accept
         </Button>
-        <Button size="sm" variant="ghost" className="h-8 text-muted-foreground" onClick={onDismiss} disabled={isAccepting}>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-8 text-muted-foreground"
+          onClick={onDismiss}
+          disabled={isAccepting}
+        >
           Dismiss
         </Button>
       </div>
@@ -429,7 +560,11 @@ interface AcceptedRef {
   identifier: string;
 }
 
-function AcceptedBadgeList({ refs, setRefs, badgeMap }: {
+function AcceptedBadgeList({
+  refs,
+  setRefs,
+  badgeMap,
+}: {
   refs: AcceptedRef[];
   setRefs: React.Dispatch<React.SetStateAction<AcceptedRef[]>>;
   badgeMap: Map<string, BadgeDefinition>;
@@ -438,32 +573,56 @@ function AcceptedBadgeList({ refs, setRefs, badgeMap }: {
   const { mutate: reorderBadges, isPending: isReordering } = useReorderBadges();
   const { mutate: removeBadge } = useRemoveBadge();
 
-  const moveUp = useCallback((index: number) => {
-    if (index <= 0) return;
-    const next = [...refs];
-    [next[index - 1], next[index]] = [next[index], next[index - 1]];
-    setRefs(next);
-    reorderBadges(next.map((r) => ({ aTag: r.aTag, eTag: r.eTag })), {
-      onError: () => toast({ title: 'Failed to reorder badges', variant: 'destructive' }),
-    });
-  }, [refs, setRefs, reorderBadges, toast]);
+  const moveUp = useCallback(
+    (index: number) => {
+      if (index <= 0) return;
+      const next = [...refs];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      setRefs(next);
+      reorderBadges(
+        next.map((r) => ({ aTag: r.aTag, eTag: r.eTag })),
+        {
+          onError: () =>
+            toast({
+              title: "Failed to reorder badges",
+              variant: "destructive",
+            }),
+        },
+      );
+    },
+    [refs, setRefs, reorderBadges, toast],
+  );
 
-  const moveDown = useCallback((index: number) => {
-    if (index >= refs.length - 1) return;
-    const next = [...refs];
-    [next[index], next[index + 1]] = [next[index + 1], next[index]];
-    setRefs(next);
-    reorderBadges(next.map((r) => ({ aTag: r.aTag, eTag: r.eTag })), {
-      onError: () => toast({ title: 'Failed to reorder badges', variant: 'destructive' }),
-    });
-  }, [refs, setRefs, reorderBadges, toast]);
+  const moveDown = useCallback(
+    (index: number) => {
+      if (index >= refs.length - 1) return;
+      const next = [...refs];
+      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+      setRefs(next);
+      reorderBadges(
+        next.map((r) => ({ aTag: r.aTag, eTag: r.eTag })),
+        {
+          onError: () =>
+            toast({
+              title: "Failed to reorder badges",
+              variant: "destructive",
+            }),
+        },
+      );
+    },
+    [refs, setRefs, reorderBadges, toast],
+  );
 
-  const handleRemove = useCallback((aTag: string) => {
-    setRefs((prev) => prev.filter((r) => r.aTag !== aTag));
-    removeBadge(aTag, {
-      onError: () => toast({ title: 'Failed to remove badge', variant: 'destructive' }),
-    });
-  }, [setRefs, removeBadge, toast]);
+  const handleRemove = useCallback(
+    (aTag: string) => {
+      setRefs((prev) => prev.filter((r) => r.aTag !== aTag));
+      removeBadge(aTag, {
+        onError: () =>
+          toast({ title: "Failed to remove badge", variant: "destructive" }),
+      });
+    },
+    [setRefs, removeBadge, toast],
+  );
 
   return (
     <div className="space-y-1.5 relative mt-2">
@@ -488,7 +647,15 @@ function AcceptedBadgeList({ refs, setRefs, badgeMap }: {
   );
 }
 
-function AcceptedBadgeRow({ ref_, index, total, badge, onMoveUp, onMoveDown, onRemove }: {
+function AcceptedBadgeRow({
+  ref_,
+  index,
+  total,
+  badge,
+  onMoveUp,
+  onMoveDown,
+  onRemove,
+}: {
   ref_: AcceptedRef;
   index: number;
   total: number;
@@ -499,21 +666,39 @@ function AcceptedBadgeRow({ ref_, index, total, badge, onMoveUp, onMoveDown, onR
 }) {
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-accent/30 transition-colors group">
-      <span className="text-xs font-mono text-muted-foreground w-5 text-center shrink-0">{index + 1}</span>
+      <span className="text-xs font-mono text-muted-foreground w-5 text-center shrink-0">
+        {index + 1}
+      </span>
       {badge ? (
         <BadgeThumbnail badge={badge} size={40} className="shrink-0" />
       ) : (
         <Skeleton className="size-10 rounded-lg shrink-0" />
       )}
       <div className="flex-1 min-w-0">
-        <span className="text-sm font-medium truncate block">{badge?.name ?? ref_.identifier}</span>
+        <span className="text-sm font-medium truncate block">
+          {badge?.name ?? ref_.identifier}
+        </span>
         <IssuerName pubkey={ref_.pubkey} />
       </div>
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        <Button variant="ghost" size="icon" className="size-7" onClick={onMoveUp} disabled={index === 0} aria-label="Move up">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          onClick={onMoveUp}
+          disabled={index === 0}
+          aria-label="Move up"
+        >
           <ChevronUp className="size-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="size-7" onClick={onMoveDown} disabled={index === total - 1} aria-label="Move down">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          onClick={onMoveDown}
+          disabled={index === total - 1}
+          aria-label="Move down"
+        >
           <ChevronDown className="size-4" />
         </Button>
       </div>
@@ -552,13 +737,23 @@ function CreatedBadgeList({ badges }: { badges: ParsedBadge[] }) {
     return (
       <div className="mt-2 max-w-lg">
         <div className="flex items-center gap-3 mb-3">
-          <Button variant="ghost" size="sm" className="gap-1 -ml-2" onClick={() => setEditingBadge(null)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 -ml-2"
+            onClick={() => setEditingBadge(null)}
+          >
             <X className="size-4" />
             Cancel
           </Button>
-          <h3 className="text-xs font-semibold text-muted-foreground">Editing: {editingBadge.badge.name}</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground">
+            Editing: {editingBadge.badge.name}
+          </h3>
         </div>
-        <EditBadgeForm badge={editingBadge} onClose={() => setEditingBadge(null)} />
+        <EditBadgeForm
+          badge={editingBadge}
+          onClose={() => setEditingBadge(null)}
+        />
       </div>
     );
   }
@@ -566,13 +761,20 @@ function CreatedBadgeList({ badges }: { badges: ParsedBadge[] }) {
   return (
     <div className="space-y-2 mt-2">
       {badges.map((badge) => (
-        <CreatedBadgeRow key={badge.aTag} badge={badge} onEdit={setEditingBadge} />
+        <CreatedBadgeRow
+          key={badge.aTag}
+          badge={badge}
+          onEdit={setEditingBadge}
+        />
       ))}
     </div>
   );
 }
 
-function CreatedBadgeRow({ badge, onEdit }: {
+function CreatedBadgeRow({
+  badge,
+  onEdit,
+}: {
   badge: ParsedBadge;
   onEdit: (badge: ParsedBadge) => void;
 }) {
@@ -585,19 +787,25 @@ function CreatedBadgeRow({ badge, onEdit }: {
     mutationFn: async () => {
       await publishEvent({
         kind: 5,
-        content: '',
+        content: "",
         tags: [
-          ['a', `${BADGE_DEFINITION_KIND}:${badge.event.pubkey}:${badge.badge.identifier}`],
-          ['k', BADGE_DEFINITION_KIND.toString()],
+          [
+            "a",
+            `${BADGE_DEFINITION_KIND}:${badge.event.pubkey}:${badge.badge.identifier}`,
+          ],
+          ["k", BADGE_DEFINITION_KIND.toString()],
         ],
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+      } as Omit<NostrEvent, "id" | "pubkey" | "sig">);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-created-badges'] });
-      toast({ title: 'Deletion requested', description: 'The badge has been requested for deletion.' });
+      queryClient.invalidateQueries({ queryKey: ["my-created-badges"] });
+      toast({
+        title: "Deletion requested",
+        description: "The badge has been requested for deletion.",
+      });
     },
     onError: () => {
-      toast({ title: 'Failed to delete', variant: 'destructive' });
+      toast({ title: "Failed to delete", variant: "destructive" });
     },
   });
 
@@ -615,33 +823,64 @@ function CreatedBadgeRow({ badge, onEdit }: {
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm truncate">{badge.badge.name}</p>
             {badge.badge.description && (
-              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{badge.badge.description}</p>
+              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                {badge.badge.description}
+              </p>
             )}
-            <p className="text-[10px] text-muted-foreground/60 font-mono mt-1">{badge.badge.identifier}</p>
+            <p className="text-[10px] text-muted-foreground/60 font-mono mt-1">
+              {badge.badge.identifier}
+            </p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="View" asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="View"
+              asChild
+            >
               <Link to={`/${naddr}`}>
                 <ExternalLink className="size-3.5" />
               </Link>
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Award" onClick={() => setAwardOpen(true)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="Award"
+              onClick={() => setAwardOpen(true)}
+            >
               <Users className="size-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" onClick={() => onEdit(badge)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="Edit"
+              onClick={() => onEdit(badge)}
+            >
               <Pencil className="size-3.5" />
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  title="Delete"
+                >
                   <Trash2 className="size-3.5" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete "{badge.badge.name}"?</AlertDialogTitle>
+                  <AlertDialogTitle>
+                    Delete "{badge.badge.name}"?
+                  </AlertDialogTitle>
                   <AlertDialogDescription>
-                    This publishes a deletion request (NIP-09). Relays should remove the badge definition, but existing awards already issued will remain.
+                    This publishes a deletion request (NIP-09). Relays should
+                    remove the badge definition, but existing awards already
+                    issued will remain.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -651,7 +890,9 @@ function CreatedBadgeRow({ badge, onEdit }: {
                     disabled={deleteMutation.isPending}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    {deleteMutation.isPending ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
+                    {deleteMutation.isPending ? (
+                      <Loader2 className="size-4 animate-spin mr-1.5" />
+                    ) : null}
                     Delete
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -692,7 +933,13 @@ function CreatedBadgeSkeleton() {
 
 // ─── Edit Badge Form (inline) ──────────────────────────────────────────────────
 
-function EditBadgeForm({ badge, onClose }: { badge: ParsedBadge; onClose: () => void }) {
+function EditBadgeForm({
+  badge,
+  onClose,
+}: {
+  badge: ParsedBadge;
+  onClose: () => void;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -700,56 +947,74 @@ function EditBadgeForm({ badge, onClose }: { badge: ParsedBadge; onClose: () => 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(badge.badge.name);
-  const [description, setDescription] = useState(badge.badge.description ?? '');
-  const [imageUrl, setImageUrl] = useState(badge.badge.image ?? '');
-  const [imagePreview, setImagePreview] = useState(badge.badge.image ?? '');
+  const [description, setDescription] = useState(badge.badge.description ?? "");
+  const [imageUrl, setImageUrl] = useState(badge.badge.image ?? "");
+  const [imagePreview, setImagePreview] = useState(badge.badge.image ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
   const identifier = badge.badge.identifier;
 
-  const handleFileSelect = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      toast({ title: 'Invalid file', description: 'Please select an image file.', variant: 'destructive' });
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (e) => setImagePreview(e.target?.result as string);
-    reader.readAsDataURL(file);
-    try {
-      const [[, url]] = await uploadFile(file);
-      setImageUrl(url);
-    } catch {
-      toast({ title: 'Upload failed', variant: 'destructive' });
-    }
-  }, [uploadFile, toast]);
+  const handleFileSelect = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Invalid file",
+          description: "Please select an image file.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+      try {
+        const [[, url]] = await uploadFile(file);
+        setImageUrl(url);
+      } catch {
+        toast({ title: "Upload failed", variant: "destructive" });
+      }
+    },
+    [uploadFile, toast],
+  );
 
   const handleSave = useCallback(async () => {
     if (!name.trim()) return;
     setIsSaving(true);
     try {
       const newTags: string[][] = [];
-      newTags.push(['d', identifier]);
-      newTags.push(['name', name.trim()]);
-      if (description.trim()) newTags.push(['description', description.trim()]);
-      if (imageUrl) newTags.push(['image', imageUrl]);
+      newTags.push(["d", identifier]);
+      newTags.push(["name", name.trim()]);
+      if (description.trim()) newTags.push(["description", description.trim()]);
+      if (imageUrl) newTags.push(["image", imageUrl]);
       for (const tag of badge.event.tags) {
-        if (['d', 'name', 'description', 'image', 'thumb'].includes(tag[0])) continue;
+        if (["d", "name", "description", "image", "thumb"].includes(tag[0]))
+          continue;
         newTags.push(tag);
       }
       await publishEvent({
         kind: BADGE_DEFINITION_KIND,
-        content: '',
+        content: "",
         tags: newTags,
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
-      queryClient.invalidateQueries({ queryKey: ['my-created-badges'] });
-      toast({ title: 'Badge updated!' });
+      } as Omit<NostrEvent, "id" | "pubkey" | "sig">);
+      queryClient.invalidateQueries({ queryKey: ["my-created-badges"] });
+      toast({ title: "Badge updated!" });
       onClose();
     } catch {
-      toast({ title: 'Failed to update badge', variant: 'destructive' });
+      toast({ title: "Failed to update badge", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
-  }, [name, description, imageUrl, identifier, badge.event.tags, publishEvent, queryClient, toast, onClose]);
+  }, [
+    name,
+    description,
+    imageUrl,
+    identifier,
+    badge.event.tags,
+    publishEvent,
+    queryClient,
+    toast,
+    onClose,
+  ]);
 
   return (
     <div className="space-y-4">
@@ -760,7 +1025,11 @@ function EditBadgeForm({ badge, onClose }: { badge: ParsedBadge; onClose: () => 
           onClick={() => fileInputRef.current?.click()}
         >
           {imagePreview ? (
-            <img src={imagePreview} alt="" className="w-full h-full object-cover" />
+            <img
+              src={imagePreview}
+              alt=""
+              className="w-full h-full object-cover"
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-secondary/20">
               <Upload className="size-5 text-muted-foreground" />
@@ -780,23 +1049,40 @@ function EditBadgeForm({ badge, onClose }: { badge: ParsedBadge; onClose: () => 
           type="file"
           accept="image/*"
           className="hidden"
-          onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+          onChange={(e) =>
+            e.target.files?.[0] && handleFileSelect(e.target.files[0])
+          }
         />
       </div>
       <div>
-        <Label htmlFor="edit-name" className="text-sm font-medium mb-1.5 block">Name</Label>
-        <Input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} />
+        <Label htmlFor="edit-name" className="text-sm font-medium mb-1.5 block">
+          Name
+        </Label>
+        <Input
+          id="edit-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
       </div>
       <div>
         <Label className="text-sm font-medium mb-1.5 block">Identifier</Label>
         <Input value={identifier} disabled className="text-muted-foreground" />
       </div>
       <div>
-        <Label htmlFor="edit-desc" className="text-sm font-medium mb-1.5 block">Description</Label>
-        <Textarea id="edit-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+        <Label htmlFor="edit-desc" className="text-sm font-medium mb-1.5 block">
+          Description
+        </Label>
+        <Textarea
+          id="edit-desc"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+        />
       </div>
       <div className="flex gap-2 justify-end pt-2">
-        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
         <Button onClick={handleSave} disabled={isSaving || !name.trim()}>
           {isSaving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
           Save Changes
@@ -811,7 +1097,8 @@ function EditBadgeForm({ badge, onClose }: { badge: ParsedBadge; onClose: () => 
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
-  const feedQuery = useBadgeFeed('follows');
+  const { user } = useCurrentUser();
+  const feedQuery = useBadgeFeed("follows");
 
   const {
     data: rawData,
@@ -822,32 +1109,14 @@ function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
     isFetchingNextPage,
   } = feedQuery;
 
-  // Auto-fetch page 2
-  useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) {
-      fetchNextPage();
-    }
-  }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
+  const { scrollRef } = useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    pageCount: rawData?.pages?.length,
+  });
 
-  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
-
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  const feedEvents = useMemo(() => {
-    if (!rawData?.pages) return [];
-    const seen = new Set<string>();
-    return (rawData.pages as NostrEvent[][])
-      .flat()
-      .filter((event) => {
-        if (seen.has(event.id)) return false;
-        seen.add(event.id);
-        return true;
-      });
-  }, [rawData?.pages]);
+  const feedEvents = deduplicateEvents(rawData?.pages as NostrEvent[][]);
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
@@ -855,7 +1124,9 @@ function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
     <PullToRefresh onRefresh={onRefresh}>
       {showSkeleton ? (
         <div className="divide-y divide-border">
-          {Array.from({ length: 5 }).map((_, i) => <NoteCardSkeleton key={i} />)}
+          {Array.from({ length: 5 }).map((_, i) => (
+            <NoteCardSkeleton key={i} />
+          ))}
         </div>
       ) : feedEvents.length > 0 ? (
         <div>
@@ -873,7 +1144,7 @@ function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
           )}
         </div>
       ) : (
-        <FeedEmptyState message="No badge activity from people you follow yet." />
+        <FeedEmptyState message={user ? "No badge activity from people you follow yet." : "No badge activity found yet."} />
       )}
     </PullToRefresh>
   );
@@ -887,8 +1158,6 @@ function IssuerName({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const name = author.data?.metadata?.name ?? genUserName(pubkey);
   return (
-    <span className="text-xs text-muted-foreground truncate">
-      by {name}
-    </span>
+    <span className="text-xs text-muted-foreground truncate">by {name}</span>
   );
 }

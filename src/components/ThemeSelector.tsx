@@ -10,7 +10,7 @@ import type { ThemeDefinition } from '@/lib/themeEvent';
 import { themePresets, coreToTokens, resolveTheme, resolveThemeConfig, type CoreThemeColors, type ThemeTokens, type ThemeConfig, type ThemesConfig, type ThemeFont, type ThemeBackground } from '@/themes';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
-import { FontPicker } from '@/components/FontPicker';
+import { FontSection } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -193,6 +193,7 @@ export function ThemeGrid({
     label: preset.label,
     colors: preset.colors,
     font: preset.font,
+    titleFont: preset.titleFont,
     background: preset.background,
   }));
 
@@ -211,15 +212,15 @@ export function ThemeGrid({
     onSelect?.();
   }, [setTheme, onSelect, onEditingThemeChange]);
 
-  const handleSelectPreset = useCallback((preset: { colors: CoreThemeColors; font?: ThemeConfig['font']; background?: ThemeConfig['background'] }) => {
+  const handleSelectPreset = useCallback((preset: { colors: CoreThemeColors; font?: ThemeConfig['font']; titleFont?: ThemeConfig['titleFont']; background?: ThemeConfig['background'] }) => {
     onEditingThemeChange?.(null);
-    applyCustomTheme({ colors: preset.colors, font: preset.font, background: preset.background });
+    applyCustomTheme({ colors: preset.colors, font: preset.font, titleFont: preset.titleFont, background: preset.background });
     onSelect?.();
   }, [applyCustomTheme, onSelect, onEditingThemeChange]);
 
   const handleSelectUserTheme = useCallback((def: ThemeDefinition) => {
     onEditingThemeChange?.(def);
-    applyCustomTheme({ colors: def.colors, font: def.font, background: def.background, title: def.title });
+    applyCustomTheme({ colors: def.colors, font: def.font, titleFont: def.titleFont, background: def.background, title: def.title });
     onSelect?.();
   }, [applyCustomTheme, onSelect, onEditingThemeChange]);
 
@@ -505,6 +506,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
   const [snapshot, setSnapshot] = useState<{
     colors: CoreThemeColors;
     font: ThemeFont | undefined;
+    titleFont: ThemeFont | undefined;
     background: ThemeBackground | undefined;
   } | null>(null);
 
@@ -514,6 +516,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
       setSnapshot({
         colors: getEffectiveColors(theme, customTheme, themes),
         font: customTheme?.font,
+        titleFont: customTheme?.titleFont,
         background: customTheme?.background,
       });
     } else {
@@ -526,13 +529,14 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
   const hasChanges = snapshot !== null && (
     JSON.stringify(effectiveColors) !== JSON.stringify(snapshot.colors) ||
     JSON.stringify(customTheme?.font) !== JSON.stringify(snapshot.font) ||
+    JSON.stringify(customTheme?.titleFont) !== JSON.stringify(snapshot.titleFont) ||
     JSON.stringify(customTheme?.background) !== JSON.stringify(snapshot.background)
   );
 
   /** Reset all theme values to the snapshot */
   const handleReset = useCallback(() => {
     if (!snapshot) return;
-    applyCustomTheme({ ...customTheme, colors: snapshot.colors, font: snapshot.font, background: snapshot.background });
+    applyCustomTheme({ ...customTheme, colors: snapshot.colors, font: snapshot.font, titleFont: snapshot.titleFont, background: snapshot.background });
   }, [snapshot, customTheme, applyCustomTheme]);
 
   /** Handle a color change from the inline editor */
@@ -564,6 +568,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
         ...editingTheme,
         colors: effectiveColors,
         font: customTheme?.font,
+        titleFont: customTheme?.titleFont,
         background: customTheme?.background,
       });
       toast({ title: `"${editingTheme.title}" updated`, description: 'Your theme has been saved and republished.' });
@@ -593,6 +598,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
         description: publishDescription.trim() || undefined,
         colors: effectiveColors,
         font: customTheme?.font,
+        titleFont: customTheme?.titleFont,
         background: customTheme?.background,
         event: {} as ThemeDefinition['event'],
       });
@@ -632,6 +638,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
     label: preset.label,
     colors: preset.colors,
     font: preset.font,
+    titleFont: preset.titleFont,
     background: preset.background,
   }));
 
@@ -649,14 +656,14 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
     setTheme(id);
   }, [setTheme]);
 
-  const handleSelectPreset = useCallback((preset: { colors: CoreThemeColors; font?: ThemeConfig['font']; background?: ThemeConfig['background'] }) => {
+  const handleSelectPreset = useCallback((preset: { colors: CoreThemeColors; font?: ThemeConfig['font']; titleFont?: ThemeConfig['titleFont']; background?: ThemeConfig['background'] }) => {
     setEditingTheme(null);
-    applyCustomTheme({ colors: preset.colors, font: preset.font, background: preset.background });
+    applyCustomTheme({ colors: preset.colors, font: preset.font, titleFont: preset.titleFont, background: preset.background });
   }, [applyCustomTheme]);
 
   const handleSelectUserTheme = useCallback((def: ThemeDefinition) => {
     setEditingTheme(def);
-    applyCustomTheme({ colors: def.colors, font: def.font, background: def.background, title: def.title });
+    applyCustomTheme({ colors: def.colors, font: def.font, titleFont: def.titleFont, background: def.background, title: def.title });
   }, [applyCustomTheme]);
 
   type SectionItem = {
@@ -838,7 +845,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
             onScroll={updateBuilderScroll}
           >
           <DialogHeader className="text-center">
-            <DialogTitle className="text-center">{editingTheme ? 'Edit Theme' : 'New Theme'}</DialogTitle>
+            <DialogTitle className="text-center" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{editingTheme ? 'Edit Theme' : 'New Theme'}</DialogTitle>
             <DialogDescription className="text-center">
               {editingTheme
                 ? `Editing "${editingTheme.title}"`
@@ -859,8 +866,27 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               ))}
             </div>
 
-            {/* Font */}
-            <FontPicker />
+            {/* Fonts (body + title) */}
+            <FontSection
+              bodyFont={theme === 'custom' ? customTheme?.font : undefined}
+              onBodyFontChange={(font) => {
+                const currentColors = customTheme?.colors ?? {
+                  background: '228 20% 10%',
+                  text: '210 40% 98%',
+                  primary: '258 70% 60%',
+                };
+                applyCustomTheme({ ...customTheme, colors: currentColors, font });
+              }}
+              titleFont={theme === 'custom' ? customTheme?.titleFont : undefined}
+              onTitleFontChange={(titleFont) => {
+                const currentColors = customTheme?.colors ?? {
+                  background: '228 20% 10%',
+                  text: '210 40% 98%',
+                  primary: '258 70% 60%',
+                };
+                applyCustomTheme({ ...customTheme, colors: currentColors, titleFont });
+              }}
+            />
 
             {/* Background */}
             <BackgroundPicker />

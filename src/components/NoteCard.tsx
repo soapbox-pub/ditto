@@ -19,9 +19,10 @@ import {
   Zap,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArticleContent } from "@/components/ArticleContent";
+/** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
+const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
 import {
   MusicPlaylistContent,
   MusicTrackContent,
@@ -37,7 +38,7 @@ import {
 import { CommentContext } from "@/components/CommentContext";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
 import { EmojifiedText, ReactionEmoji } from "@/components/CustomEmoji";
-import { CustomNipCard } from "@/components/CustomNipCard";
+const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { EmojiPackContent } from "@/components/EmojiPackContent";
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { FollowPackContent } from "@/components/FollowPackContent";
@@ -59,7 +60,7 @@ import { PatchCard } from "@/components/PatchCard";
 import { PollContent } from "@/components/PollContent";
 import { ProfileBadgesContent } from "@/components/ProfileBadgesContent";
 import { ProfileHoverCard } from "@/components/ProfileHoverCard";
-import { PullRequestCard } from "@/components/PullRequestCard";
+const PullRequestCard = lazy(() => import("@/components/PullRequestCard").then(m => ({ default: m.PullRequestCard })));
 import { ReactionButton } from "@/components/ReactionButton";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { ReplyContext } from "@/components/ReplyContext";
@@ -247,6 +248,7 @@ export const NoteCard = memo(function NoteCard({
   const isProfileBadges = event.kind === 30008;
   const isBadge = isBadgeDefinition || isProfileBadges;
   const isReaction = event.kind === 7;
+  const isRepost = event.kind === 6 || event.kind === 16;
   const isPhoto = event.kind === 20;
   const isNormalVideo = event.kind === 21;
   const isShortVideo = event.kind === 22;
@@ -283,6 +285,7 @@ export const NoteCard = memo(function NoteCard({
     !isEmojiPack &&
     !isBadge &&
     !isReaction &&
+    !isRepost &&
     !isPhoto &&
     !isVideo &&
     !isAudioKind &&
@@ -435,7 +438,9 @@ export const NoteCard = memo(function NoteCard({
         ) : isFollowPack ? (
           <FollowPackContent event={event} />
         ) : isArticle ? (
-          <ArticleContent event={event} preview className="mt-2" />
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            <ArticleContent event={event} preview className="mt-2" />
+          </Suspense>
         ) : isMagicDeck ? (
           <MagicDeckContent event={event} />
         ) : isStream ? (
@@ -467,9 +472,13 @@ export const NoteCard = memo(function NoteCard({
         ) : isPatch ? (
           <PatchCard event={event} />
         ) : isPullRequest ? (
-          <PullRequestCard event={event} />
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            <PullRequestCard event={event} />
+          </Suspense>
         ) : isCustomNip ? (
-          <CustomNipCard event={event} />
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            <CustomNipCard event={event} />
+          </Suspense>
         ) : isNsite ? (
           <NsiteCard event={event} />
         ) : isZapstoreApp ? (
@@ -592,7 +601,7 @@ export const NoteCard = memo(function NoteCard({
             )}
           </RepostMenu>
 
-      <ReactionButton
+          <ReactionButton
         eventId={event.id}
         eventPubkey={event.pubkey}
         eventKind={event.kind}
@@ -851,6 +860,154 @@ export const NoteCard = memo(function NoteCard({
                   </Link>
                 </ProfileHoverCard>
                 <span className="text-sm text-muted-foreground">reacted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                  {timeAgo(event.created_at)}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  // ── Repost layout (kind 6 / 16) — compact activity-style card ──
+  if (isRepost) {
+    // Threaded repost (used in AncestorThread with connector line)
+    if (threaded || threadedLast) {
+      return (
+        <article
+          className={cn(
+            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+            threaded ? "pb-0" : "pb-3 border-b border-border",
+            className,
+          )}
+          onClick={handleCardClick}
+          onAuxClick={handleAuxClick}
+        >
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {/* Repost icon bubble instead of avatar */}
+              <div className="flex items-center justify-center size-10 rounded-full bg-accent/10 shrink-0">
+                <RepostIcon className="size-5 text-accent" />
+              </div>
+              {threaded && (
+                <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
+              )}
+            </div>
+            <div
+              className={cn(
+                "flex-1 min-w-0 flex items-center min-h-10",
+                threaded && "pb-3",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                {author.isLoading ? (
+                  <Skeleton className="size-6 rounded-full shrink-0" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link
+                      to={profileUrl}
+                      className="shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Avatar shape={avatarShape} className="size-6">
+                        <AvatarImage
+                          src={metadata?.picture}
+                          alt={displayName}
+                        />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                          {displayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                {author.isLoading ? (
+                  <Skeleton className="h-3.5 w-20" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link
+                      to={profileUrl}
+                      className="font-semibold text-sm hover:underline truncate"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {author.data?.event ? (
+                        <EmojifiedText tags={author.data.event.tags}>
+                          {displayName}
+                        </EmojifiedText>
+                      ) : (
+                        displayName
+                      )}
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                <span className="text-sm text-muted-foreground">reposted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                  {timeAgo(event.created_at)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </article>
+      );
+    }
+
+    // Normal repost card (standalone or in feed)
+    return (
+      <article
+        className={cn(
+          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        <div className="flex items-center gap-3">
+          {/* Repost icon */}
+          <div className="flex items-center justify-center size-11 rounded-full bg-accent/10 shrink-0">
+            <RepostIcon className="size-5 text-accent" />
+          </div>
+
+          {/* Author + "reposted" label */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {author.isLoading ? (
+              <>
+                <Skeleton className="size-6 rounded-full shrink-0" />
+                <Skeleton className="h-4 w-24" />
+              </>
+            ) : (
+              <>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link
+                    to={profileUrl}
+                    className="shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Avatar shape={avatarShape} className="size-6">
+                      <AvatarImage src={metadata?.picture} alt={displayName} />
+                      <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                        {displayName[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                </ProfileHoverCard>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link
+                    to={profileUrl}
+                    className="font-semibold text-sm hover:underline truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {author.data?.event ? (
+                      <EmojifiedText tags={author.data.event.tags}>
+                        {displayName}
+                      </EmojifiedText>
+                    ) : (
+                      displayName
+                    )}
+                  </Link>
+                </ProfileHoverCard>
+                <span className="text-sm text-muted-foreground">reposted</span>
                 <span className="text-xs text-muted-foreground ml-auto shrink-0">
                   {timeAgo(event.created_at)}
                 </span>

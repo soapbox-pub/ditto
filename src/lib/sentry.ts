@@ -1,12 +1,24 @@
-import type * as SentryTypes from '@sentry/react';
+import type { Event as SentryEvent } from '@sentry/core';
 
-let sentryInstance: typeof SentryTypes | null = null;
+/** Subset of the Sentry API surface we actually use. */
+interface SentryLike {
+  init: typeof import('@sentry/react').init;
+  getClient: typeof import('@sentry/react').getClient;
+  browserTracingIntegration: typeof import('@sentry/react').browserTracingIntegration;
+  captureException: typeof import('@sentry/react').captureException;
+  captureMessage: typeof import('@sentry/react').captureMessage;
+  setUser: typeof import('@sentry/react').setUser;
+}
+
+let sentryInstance: SentryLike | null = null;
 let isInitialized = false;
 let isEnabled = false;
 
 /**
  * Dynamically imports and initializes Sentry.
  * Uses code splitting so the SDK is only downloaded when needed.
+ * Only imports the functions we use so tree-shaking can drop
+ * unused modules (replay, feedback, replay-canvas ~300 KB).
  * @param dsn - Sentry DSN
  */
 export async function initializeSentry(dsn: string): Promise<void> {
@@ -28,16 +40,28 @@ export async function initializeSentry(dsn: string): Promise<void> {
   }
 
   try {
-    // Dynamic import to avoid loading Sentry unless needed
-    const Sentry = await import('@sentry/react');
-    sentryInstance = Sentry;
+    // Named imports let the bundler tree-shake unused Sentry modules
+    // (replay, feedback, replay-canvas) that are re-exported from @sentry/browser.
+    const {
+      init,
+      getClient,
+      browserTracingIntegration,
+      captureException,
+      captureMessage,
+      setUser,
+    } = await import('@sentry/react');
+
+    sentryInstance = { init, getClient, browserTracingIntegration, captureException, captureMessage, setUser };
 
     // Initialize Sentry
-    Sentry.init({
+    init({
       dsn,
       integrations: [
-        Sentry.browserTracingIntegration(),
+        browserTracingIntegration(),
       ],
+      // Disable default integrations that pull in large optional dependencies.
+      // Replay and feedback are re-exported by @sentry/browser but we don't use them.
+      defaultIntegrations: undefined,
       // Performance Monitoring
       tracesSampleRate: 0.1, // Capture 10% of transactions for performance monitoring
       // Environment
@@ -69,7 +93,7 @@ export async function initializeSentry(dsn: string): Promise<void> {
         }
 
         /** Censors sensitive values from Sentry events before sending */
-        function censorSensitiveValues<T extends SentryTypes.Event>(event: T): T | null {
+        function censorSensitiveValues<T extends SentryEvent>(event: T): T | null {
           return censorSensitiveData(event) as T;
         }
 
@@ -119,7 +143,7 @@ export function isSentryInitialized(): boolean {
  * Gets the Sentry instance (if initialized and enabled).
  * Returns null if Sentry was never loaded or is disabled.
  */
-export function getSentryInstance(): typeof SentryTypes | null {
+export function getSentryInstance(): SentryLike | null {
   if (!isEnabled) return null;
   return sentryInstance;
 }

@@ -11,6 +11,7 @@ import { useLoginActions } from '@/hooks/useLoginActions';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
+import { downloadTextFile } from '@/lib/downloadFile';
 import { ProfileCard } from '@/components/ProfileCard';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import type { NostrMetadata } from '@nostrify/nostrify';
@@ -44,12 +45,8 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
     setStep('download');
   };
 
-  const downloadKey = () => {
+  const downloadKey = async () => {
     try {
-      // Create a blob with the key text
-      const blob = new Blob([nsec], { type: 'text/plain; charset=utf-8' });
-      const url = globalThis.URL.createObjectURL(blob);
-
       const decoded = nip19.decode(nsec);
       if (decoded.type !== 'nsec') {
         throw new Error('Invalid nsec key');
@@ -59,17 +56,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
       const npub = nip19.npubEncode(pubkey);
       const filename = `nostr-${location.hostname.replaceAll(/\./g, '-')}-${npub.slice(5, 9)}.nsec.txt`;
 
-      // Create a temporary link element and trigger download
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-
-      // Clean up immediately
-      globalThis.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      await downloadTextFile(filename, nsec);
 
       // Continue to profile step
       login.nsec(nsec);

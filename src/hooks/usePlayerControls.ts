@@ -31,7 +31,7 @@ export function usePlayerControls({
   isPlaying,
 }: UsePlayerControlsOptions): UsePlayerControlsReturn {
   const [showControls, setShowControls] = useState(true);
-  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const scheduleHide = useCallback(() => {
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useSeoMeta } from '@unhead/react';
-import { Bell, BellOff, AlertTriangle, Heart, Repeat2, Zap, AtSign, MessageSquare, Users, Award } from 'lucide-react';
+import { Bell, BellOff, AlertTriangle, Heart, Repeat2, Zap, AtSign, MessageSquare, Users, Award, Mail } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { Switch } from '@/components/ui/switch';
@@ -11,7 +11,7 @@ import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { toast } from '@/hooks/useToast';
 
-type NotificationPrefKey = 'reactions' | 'reposts' | 'zaps' | 'mentions' | 'comments' | 'badges';
+type NotificationPrefKey = 'reactions' | 'reposts' | 'zaps' | 'mentions' | 'comments' | 'badges' | 'letters';
 
 interface NotificationTypeRow {
   key: NotificationPrefKey;
@@ -63,6 +63,13 @@ const NOTIFICATION_TYPES: NotificationTypeRow[] = [
     kinds: [8],
     description: 'When someone awards you a badge',
     icon: <Award className="size-5" />,
+  },
+  {
+    key: 'letters',
+    label: 'Letters',
+    kinds: [8211],
+    description: 'When someone sends you a letter',
+    icon: <Mail className="size-5" />,
   },
 ];
 
@@ -134,6 +141,7 @@ export function NotificationSettings() {
     enabled: pushHookEnabled,
     enable: enablePush,
     disable: disablePush,
+    syncPreferences: syncPushPreferences,
   } = usePushNotifications();
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
@@ -179,7 +187,7 @@ export function NotificationSettings() {
       // requestPermission + pushManager.subscribe from a user gesture).
       if (user) {
         try {
-          await enablePush(user.pubkey);
+          await enablePush(user.pubkey, prefs);
         } catch (err) {
           console.error('[push] Registration failed:', err);
           toast({ title: 'Failed to enable notifications', description: 'Please try again.' });
@@ -209,6 +217,13 @@ export function NotificationSettings() {
     updateSettings.mutateAsync({ notificationPreferences: next }).catch(() => {
       setPrefs((p) => ({ ...p, [key]: !enabled })); // roll back on failure
     });
+    // Sync the active/inactive state with the nostr-push server so disabled
+    // types stop generating push notifications.
+    if (pushEnabled && !isNative && user) {
+      syncPushPreferences(next, user.pubkey).catch((err) => {
+        console.error('[push] Failed to sync preferences:', err);
+      });
+    }
   };
 
   const handleToggleOnlyFollowing = (enabled: boolean) => {
@@ -217,6 +232,12 @@ export function NotificationSettings() {
     updateSettings.mutateAsync({ notificationPreferences: next }).catch(() => {
       setPrefs((p) => ({ ...p, onlyFollowing: !enabled })); // roll back on failure
     });
+    // Sync the authors filter with nostr-push so $contacts is applied/removed
+    if (pushEnabled && !isNative && user) {
+      syncPushPreferences(next, user.pubkey).catch((err) => {
+        console.error('[push] Failed to sync onlyFollowing preference:', err);
+      });
+    }
   };
 
   if (!user) {

@@ -1,27 +1,28 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useInView } from 'react-intersection-observer';
-import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Sparkles, Pencil } from 'lucide-react';
-import { useSeoMeta } from '@unhead/react';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent } from "@nostrify/nostrify";
+import { useQueryClient } from "@tanstack/react-query";
+import { useSeoMeta } from "@unhead/react";
+import { Loader2, Pencil, Sparkles } from "lucide-react";
+import { useCallback, useState } from "react";
+import { FeedEmptyState } from "@/components/FeedEmptyState";
+import { NoteCard } from "@/components/NoteCard";
+import { PageHeader } from "@/components/PageHeader";
+import { PullToRefresh } from "@/components/PullToRefresh";
+import { SubHeaderBar } from "@/components/SubHeaderBar";
+import { TabButton } from "@/components/TabButton";
+import { ThemeSelector } from "@/components/ThemeSelector";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { useLayoutOptions } from "@/contexts/LayoutContext";
+import { useAppContext } from "@/hooks/useAppContext";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useFeedTab } from "@/hooks/useFeedTab";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { useTheme } from "@/hooks/useTheme";
+import { useThemeFeed } from "@/hooks/useThemeFeed";
+import { deduplicateEvents } from "@/lib/deduplicateEvents";
 
-import { NoteCard } from '@/components/NoteCard';
-import { PageHeader } from '@/components/PageHeader';
-import { PullToRefresh } from '@/components/PullToRefresh';
-import { FeedEmptyState } from '@/components/FeedEmptyState';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { ThemeSelector } from '@/components/ThemeSelector';
-import { SubHeaderBar } from '@/components/SubHeaderBar';
-import { TabButton } from '@/components/TabButton';
-import { useThemeFeed } from '@/hooks/useThemeFeed';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useTheme } from '@/hooks/useTheme';
-import { useAppContext } from '@/hooks/useAppContext';
-import { useLayoutOptions } from '@/contexts/LayoutContext';
-
-type ThemesTab = 'my-themes' | 'follows' | 'global';
+type ThemesTab = "my-themes" | "follows" | "global";
 
 export function ThemesPage() {
   const { config } = useAppContext();
@@ -29,14 +30,18 @@ export function ThemesPage() {
   const { autoShareTheme, setAutoShareTheme } = useTheme();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<ThemesTab>('my-themes');
+  const [activeTab, setActiveTab] = useFeedTab<ThemesTab>("themes", [
+    "my-themes",
+    "follows",
+    "global",
+  ]);
 
   // Builder dialog state
   const [builderOpen, setBuilderOpen] = useState(false);
 
   useSeoMeta({
     title: `Themes | ${config.appName}`,
-    description: 'Browse, create, and share custom UI themes',
+    description: "Browse, create, and share custom UI themes",
   });
 
   // FAB opens builder in "new" mode (only on My Themes tab)
@@ -45,14 +50,14 @@ export function ThemesPage() {
   }, []);
 
   useLayoutOptions({
-    showFAB: activeTab === 'my-themes',
+    showFAB: activeTab === "my-themes",
     onFabClick: handleFabClick,
     fabIcon: <Pencil strokeWidth={3} size={16} />,
     hasSubHeader: true,
   });
 
   // Feed queries for follows/global tabs
-  const feedTab = activeTab === 'follows' ? 'follows' : 'global';
+  const feedTab = activeTab === "follows" ? "follows" : "global";
   const feedQuery = useThemeFeed(feedTab);
 
   const {
@@ -64,57 +69,49 @@ export function ThemesPage() {
     isFetchingNextPage,
   } = feedQuery;
 
-  // Auto-fetch page 2 as soon as page 1 arrives for smoother scrolling
-  useEffect(() => {
-    if (activeTab !== 'my-themes' && hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) {
-      fetchNextPage();
-    }
-  }, [activeTab, hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
-
-  // Intersection observer for infinite scroll
-  const { ref: scrollRef, inView } = useInView({
-    threshold: 0,
-    rootMargin: '400px',
+  const { scrollRef } = useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    pageCount: rawData?.pages?.length,
+    enabled: activeTab !== "my-themes",
   });
 
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  // Flatten and deduplicate feed events
-  const feedEvents = useMemo(() => {
-    if (!rawData?.pages) return [];
-    const seen = new Set<string>();
-    return (rawData.pages as NostrEvent[][])
-      .flat()
-      .filter((event) => {
-        if (seen.has(event.id)) return false;
-        seen.add(event.id);
-        return true;
-      });
-  }, [rawData?.pages]);
+  const feedEvents = deduplicateEvents(rawData?.pages as NostrEvent[][]);
 
   const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['theme-feed', feedTab] });
+    await queryClient.invalidateQueries({ queryKey: ["theme-feed", feedTab] });
   }, [queryClient, feedTab]);
 
-  const showSkeleton = activeTab !== 'my-themes' && (isPending || (isLoading && !rawData));
+  const showSkeleton =
+    activeTab !== "my-themes" && (isPending || (isLoading && !rawData));
 
   return (
     <main className="pb-16 sidebar:pb-0">
-      {/* Tabs */}
-      <SubHeaderBar>
-        <TabButton label="My Themes" active={activeTab === 'my-themes'} onClick={() => setActiveTab('my-themes')} />
-        <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} disabled={!user} />
-        <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
-      </SubHeaderBar>
-
       <PageHeader title="Themes" icon={<Sparkles className="size-5" />} />
 
+      {/* Tabs */}
+      <SubHeaderBar>
+        <TabButton
+          label="My Themes"
+          active={activeTab === "my-themes"}
+          onClick={() => setActiveTab("my-themes")}
+        />
+        <TabButton
+          label="Follows"
+          active={activeTab === "follows"}
+          onClick={() => setActiveTab("follows")}
+          disabled={!user}
+        />
+        <TabButton
+          label="Global"
+          active={activeTab === "global"}
+          onClick={() => setActiveTab("global")}
+        />
+      </SubHeaderBar>
+
       {/* Tab content */}
-      {activeTab === 'my-themes' ? (
+      {activeTab === "my-themes" ? (
         <div className="p-4 space-y-6">
           <ThemeSelector
             builderOpen={builderOpen}
@@ -125,10 +122,16 @@ export function ThemesPage() {
           {user && (
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-center justify-between gap-4">
-                <Label htmlFor="auto-share-theme" className="flex flex-col gap-1 cursor-pointer">
-                  <span className="text-sm font-medium">Sync app theme with your profile theme</span>
+                <Label
+                  htmlFor="auto-share-theme"
+                  className="flex flex-col gap-1 cursor-pointer"
+                >
+                  <span className="text-sm font-medium">
+                    Sync app theme with your profile theme
+                  </span>
                   <span className="text-xs text-muted-foreground font-normal">
-                    Turn this off if you want to display a different theme on your profile than you use in the rest of the app.
+                    Turn this off if you want to display a different theme on
+                    your profile than you use in the rest of the app.
                   </span>
                 </Label>
                 <Switch
@@ -166,11 +169,15 @@ export function ThemesPage() {
           ) : (
             <FeedEmptyState
               message={
-                activeTab === 'follows'
-                  ? 'No themes from people you follow yet.'
-                  : 'No themes found. Be the first to share yours!'
+                activeTab === "follows"
+                  ? "No themes from people you follow yet."
+                  : "No themes found. Be the first to share yours!"
               }
-              onSwitchToGlobal={activeTab === 'follows' ? () => setActiveTab('global') : undefined}
+              onSwitchToGlobal={
+                activeTab === "follows"
+                  ? () => setActiveTab("global")
+                  : undefined
+              }
             />
           )}
         </PullToRefresh>

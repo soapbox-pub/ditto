@@ -147,7 +147,7 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
 			if (shadowRoot) {
 				const style = document.createElement("style");
 				style.textContent =
-					".sticky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background-color: var(--em-color-background) !important; } input { font-size: 16px !important; }";
+					".sticky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background-color: var(--em-color-background) !important; } input { font-size: 16px !important; } #nav button { color: rgba(var(--em-rgb-color), .85) !important; } #nav button[aria-selected] { color: rgb(var(--em-rgb-accent)) !important; }";
 				shadowRoot.appendChild(style);
 			}
 		});
