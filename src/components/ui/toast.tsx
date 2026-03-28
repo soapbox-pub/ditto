@@ -14,7 +14,7 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      "fixed top-0 z-[300] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px] safe-area-top",
+      "fixed top-0 z-[300] flex max-h-screen w-full flex-col-reverse p-4 pt-[max(1rem,env(safe-area-inset-top))] md:bottom-0 md:right-0 md:top-auto md:flex-col md:pt-4 md:max-w-[420px]",
       className
     )}
     {...props}
@@ -23,7 +23,16 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-y-0 data-[swipe=end]:translate-y-[var(--radix-toast-swipe-end-y)] data-[swipe=move]:translate-y-[var(--radix-toast-swipe-move-y)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-top-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
+  // Uses max-md / md to cleanly separate mobile and desktop with no leaking or reset classes.
+  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=move]:transition-none " +
+  // Entry & exit animations (shared)
+  "data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 " +
+  // Mobile (< md): top-positioned, swipe up (Y-axis) — mirrors the original X-axis pattern
+  "max-md:data-[swipe=cancel]:translate-y-0 max-md:data-[swipe=end]:translate-y-[var(--radix-toast-swipe-end-y)] max-md:data-[swipe=move]:translate-y-[var(--radix-toast-swipe-move-y)] " +
+  "max-md:data-[state=open]:slide-in-from-top-full max-md:data-[state=closed]:slide-out-to-top-full " +
+  // Desktop (md+): bottom-right, swipe right (X-axis) — identical to original code
+  "md:data-[swipe=cancel]:translate-x-0 md:data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] md:data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] " +
+  "md:data-[state=open]:slide-in-from-bottom-full md:data-[state=closed]:slide-out-to-right-full",
   {
     variants: {
       variant: {
