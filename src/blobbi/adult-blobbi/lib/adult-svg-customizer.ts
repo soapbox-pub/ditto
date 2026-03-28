@@ -558,12 +558,19 @@ const FORM_CUSTOMIZERS: Partial<Record<AdultForm, FormCustomizer>> = {
  * 
  * Each form has specific gradients that need to be replaced
  * to apply the Blobbi's custom colors while preserving 3D shading.
+ * 
+ * @param svgText - The SVG content to customize
+ * @param form - The adult form type
+ * @param customization - Color customization options
+ * @param isSleeping - Whether the Blobbi is sleeping (affects eye rendering)
+ * @param instanceId - Optional unique ID to prevent gradient ID collisions when multiple Blobbis are rendered
  */
 export function customizeAdultSvg(
   svgText: string,
   form: AdultForm,
   customization: AdultSvgCustomization,
-  isSleeping: boolean = false
+  isSleeping: boolean = false,
+  instanceId?: string
 ): string {
   let modifiedSvg = svgText;
 
@@ -572,6 +579,10 @@ export function customizeAdultSvg(
 
   // Skip color customization if no colors provided
   if (!customization.baseColor && !customization.secondaryColor && !customization.eyeColor) {
+    // Still uniquify IDs if instanceId provided (even without color changes)
+    if (instanceId) {
+      modifiedSvg = uniquifySvgIds(modifiedSvg, instanceId);
+    }
     return modifiedSvg;
   }
 
@@ -591,6 +602,11 @@ export function customizeAdultSvg(
     modifiedSvg = applyPupilGradient(modifiedSvg, form, customization.eyeColor);
   }
 
+  // Make all IDs unique to prevent collisions when multiple Blobbis are rendered
+  if (instanceId) {
+    modifiedSvg = uniquifySvgIds(modifiedSvg, instanceId);
+  }
+
   return modifiedSvg;
 }
 
@@ -606,6 +622,60 @@ function ensureSvgFillsContainer(svgText: string): string {
     /<svg([^>]*)>/,
     '<svg$1 width="100%" height="100%">'
   );
+}
+
+/**
+ * Make all SVG definition IDs unique by prefixing with an instance ID.
+ * This prevents gradient ID collisions when multiple Blobbis are rendered on the same page.
+ * 
+ * Updates both:
+ * - Definition IDs: id="gradientName" → id="prefix_gradientName"
+ * - References: url(#gradientName) → url(#prefix_gradientName)
+ */
+function uniquifySvgIds(svgText: string, instanceId: string): string {
+  // Generate a short prefix from the instance ID (first 8 chars)
+  const prefix = instanceId.slice(0, 8);
+  
+  // Find all IDs defined in the SVG (in defs, gradients, clipPaths, etc.)
+  const idPattern = /\bid=["']([^"']+)["']/g;
+  const ids = new Set<string>();
+  let match;
+  
+  while ((match = idPattern.exec(svgText)) !== null) {
+    ids.add(match[1]);
+  }
+  
+  // Replace each ID and its references
+  let modified = svgText;
+  for (const id of ids) {
+    const prefixedId = `${prefix}_${id}`;
+    
+    // Replace the ID definition
+    modified = modified.replace(
+      new RegExp(`\\bid=["']${id}["']`, 'g'),
+      `id="${prefixedId}"`
+    );
+    
+    // Replace url() references
+    modified = modified.replace(
+      new RegExp(`url\\(#${id}\\)`, 'g'),
+      `url(#${prefixedId})`
+    );
+    
+    // Replace xlink:href references (older SVG format)
+    modified = modified.replace(
+      new RegExp(`xlink:href=["']#${id}["']`, 'g'),
+      `xlink:href="#${prefixedId}"`
+    );
+    
+    // Replace href references (newer SVG format)
+    modified = modified.replace(
+      new RegExp(`\\bhref=["']#${id}["']`, 'g'),
+      `href="#${prefixedId}"`
+    );
+  }
+  
+  return modified;
 }
 
 /**
@@ -670,6 +740,9 @@ function applyPupilGradient(
 
 /**
  * Convenience function to customize adult SVG from a Blobbi instance.
+ * 
+ * Uses the Blobbi's ID to uniquify SVG IDs, preventing gradient collisions
+ * when multiple Blobbis are rendered on the same page.
  */
 export function customizeAdultSvgFromBlobbi(
   svgText: string,
@@ -683,5 +756,6 @@ export function customizeAdultSvgFromBlobbi(
     eyeColor: blobbi.eyeColor,
   };
 
-  return customizeAdultSvg(svgText, form, customization, isSleeping);
+  // Pass blobbi.id to uniquify gradient IDs and prevent collisions
+  return customizeAdultSvg(svgText, form, customization, isSleeping, blobbi.id);
 }
