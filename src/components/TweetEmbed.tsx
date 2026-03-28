@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { useTheme } from '@/hooks/useTheme';
+import { getBackgroundThemeMode } from '@/lib/colorUtils';
 import { cn } from '@/lib/utils';
 
 interface TweetEmbedProps {
@@ -17,13 +18,15 @@ interface TweetEmbedProps {
  * to auto-size the iframe to fit the tweet content.
  */
 export function TweetEmbed({ tweetId, className }: TweetEmbedProps) {
-  const { theme } = useTheme();
+  useTheme(); // subscribe to theme changes so resolvedTheme stays fresh
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const resolvedTheme = getBackgroundThemeMode();
 
   const params = new URLSearchParams({
     id: tweetId,
     dnt: 'true',
-    theme: theme === 'dark' ? 'dark' : 'light',
+    theme: resolvedTheme,
   });
 
   useEffect(() => {

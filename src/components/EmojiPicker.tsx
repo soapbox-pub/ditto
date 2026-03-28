@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { CustomEmoji } from "@/hooks/useCustomEmojis";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useTheme } from "@/hooks/useTheme";
+import { getBackgroundThemeMode } from "@/lib/colorUtils";
 
 /** A native Unicode emoji selection. */
 export interface NativeEmojiSelection {
@@ -48,32 +49,12 @@ interface EmojiMartEmoji {
  * them in a dedicated tab alongside the standard Unicode categories.
  */
 export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
-	const { theme } = useTheme();
+	useTheme(); // subscribe to theme changes so resolvedTheme stays fresh
 	const isMobile = useIsMobile();
 	const containerRef = useRef<HTMLDivElement>(null);
 	const pickerRef = useRef<InstanceType<typeof Picker> | null>(null);
 
-	// Resolve to 'dark' or 'light' for emoji-mart.
-	// Custom themes set class="custom" on <html> (not .dark), so we can't
-	// rely on the dark class. Instead, check the actual computed background
-	// luminance to determine if the current theme is visually dark.
-	// `theme` is intentionally in the dependency array to trigger recomputation
-	// when the theme changes, even though we read from CSS vars instead.
-	const resolvedTheme = useMemo(() => {
-		if (typeof document === "undefined") return "light";
-		const bg = getComputedStyle(document.documentElement)
-			.getPropertyValue("--background")
-			.trim();
-		if (!bg) return "light";
-		// HSL format from Tailwind CSS vars: "H S% L%" — check lightness
-		const parts = bg.split(/\s+/);
-		const lightness = parseFloat(parts[parts.length - 1]);
-		if (!isNaN(lightness)) {
-			return lightness < 50 ? "dark" : "light";
-		}
-		return "light";
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [theme]) as "dark" | "light";
+	const resolvedTheme = getBackgroundThemeMode();
 	const onSelectRef = useRef(onSelect);
 
 	// Keep callback ref up to date without re-creating the picker.
