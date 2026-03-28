@@ -103,8 +103,11 @@ function ensureSvgFillsContainer(svgText: string): string {
  * - References: url(#gradientName) → url(#prefix_gradientName)
  */
 function uniquifySvgIds(svgText: string, instanceId: string): string {
-  // Generate a short prefix from the instance ID (first 8 chars)
-  const prefix = instanceId.slice(0, 8);
+  // Generate a unique prefix from the full instance ID
+  // Sanitize to only allow valid SVG ID characters (letters, numbers, underscore, hyphen)
+  // Note: instanceId format is "blobbi-{pubkeyPrefix12}-{petId10}" so we need the full ID
+  // to distinguish between Blobbis owned by the same user
+  const prefix = `b_${instanceId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
   
   // Find all IDs defined in the SVG (in defs, gradients, clipPaths, etc.)
   const idPattern = /\bid=["']([^"']+)["']/g;
