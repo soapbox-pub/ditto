@@ -54,6 +54,7 @@ const TEMPLATE_ID_TO_PREF_KEY: Record<string, keyof NonNullable<EncryptedSetting
   zaps: 'zaps',
   mentions: 'mentions',
   comments: 'comments',
+  badges: 'badges',
   letters: 'letters',
 };
 
