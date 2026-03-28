@@ -8,19 +8,20 @@
  * Audio files live in: `public/blobbi/audio/`
  * 
  * In Vite, files in `public/` are served at root paths, so:
- * - `public/blobbi/audio/foo.mp3` → accessible at `/blobbi/audio/foo.mp3`
+ * - `public/blobbi/audio/foo.m4a` → accessible at `/blobbi/audio/foo.m4a`
  * 
  * ## Adding New Tracks
  * 
- * 1. Place the MP3 file in `public/blobbi/audio/`
- * 2. Add a new entry to `BLOBBI_BUILTIN_TRACKS` below
- * 3. Set `path` to `/blobbi/audio/<filename>.mp3`
- * 4. Get the duration: `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 <file>`
+ * 1. Convert the audio file to M4A (AAC-LC):
+ *    `ffmpeg -i input.m4a -c:a aac -b:a 64k -ar 48000 output.m4a`
+ * 2. Place the M4A file in `public/blobbi/audio/`
+ * 3. Add a new entry to `BLOBBI_BUILTIN_TRACKS` below
+ * 4. Set `path` to `/blobbi/audio/<filename>.m4a`
+ * 5. Get the duration: `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 <file>`
  * 
  * ## Supported Formats
  * 
- * MP3 is recommended for maximum browser compatibility.
- * WAV, OGG, and M4A may work but are browser-dependent.
+ * M4A (AAC-LC) is required for iOS/Safari compatibility and small file size.
  */
 
 export interface BuiltInTrack {
@@ -51,7 +52,7 @@ export const BLOBBI_BUILTIN_TRACKS: BuiltInTrack[] = [
     id: 'nap_in_the_meadow',
     title: 'Nap in the Meadow',
     artist: 'Chilltape FM',
-    path: '/blobbi/audio/chilltapefm-nap-in-the-meadow.mp3',
+    path: '/blobbi/audio/chilltapefm-nap-in-the-meadow.m4a',
     durationSeconds: 240, // 4:00
     tags: ['relaxing', 'nature'],
   },
@@ -59,7 +60,7 @@ export const BLOBBI_BUILTIN_TRACKS: BuiltInTrack[] = [
     id: 'happy_kids',
     title: 'Happy Kids',
     artist: 'Dmitrii Kolesnikov',
-    path: '/blobbi/audio/happy-kids.mp3',
+    path: '/blobbi/audio/happy-kids.m4a',
     durationSeconds: 129, // 2:09
     tags: ['upbeat', 'fun'],
   },
@@ -67,7 +68,7 @@ export const BLOBBI_BUILTIN_TRACKS: BuiltInTrack[] = [
     id: 'soft_piano',
     title: 'Soft Piano',
     artist: 'Dmitrii Kolesnikov',
-    path: '/blobbi/audio/soft-piano.mp3',
+    path: '/blobbi/audio/soft-piano.m4a',
     durationSeconds: 124, // 2:04
     tags: ['calming', 'sleep'],
   },
@@ -75,7 +76,7 @@ export const BLOBBI_BUILTIN_TRACKS: BuiltInTrack[] = [
     id: 'epic_sacred_light',
     title: 'Epic Sacred Light',
     artist: 'Ura Megis',
-    path: '/blobbi/audio/epic-sacred-light.mp3',
+    path: '/blobbi/audio/epic-sacred-light.m4a',
     durationSeconds: 223, // 3:43
     tags: ['energetic', 'adventure'],
   },
@@ -83,7 +84,7 @@ export const BLOBBI_BUILTIN_TRACKS: BuiltInTrack[] = [
     id: 'split_memmories',
     title: 'Split Memmories',
     artist: 'ido berg',
-    path: '/blobbi/audio/split-memmories.mp3',
+    path: '/blobbi/audio/split-memmories.m4a',
     durationSeconds: 153, // 2:33
     tags: ['ambient', 'relaxing'],
   },
@@ -91,7 +92,7 @@ export const BLOBBI_BUILTIN_TRACKS: BuiltInTrack[] = [
     id: 'minhas_mensagens',
     title: 'Minhas Mensagens',
     artist: 'PReis',
-    path: '/blobbi/audio/minhas-mensagens-preis.mp3',
+    path: '/blobbi/audio/minhas-mensagens-preis.m4a',
     durationSeconds: 248, // 4:08
     tags: ['ambient', 'relaxing'],
   },
