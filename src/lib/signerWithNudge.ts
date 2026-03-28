@@ -387,7 +387,7 @@ export function signerWithNudge(
             return value;
           }),
       decrypt: (pubkey: string, ciphertext: string) =>
-        run(() => crypto.decrypt(pubkey, ciphertext), undefined, 'decrypt'),
+        crypto.decrypt(pubkey, ciphertext),
     };
   }
 
