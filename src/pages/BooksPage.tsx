@@ -243,7 +243,7 @@ function BookSearchBar() {
   );
 
   return (
-    <div ref={containerRef} className="relative px-4 pb-3">
+    <div ref={containerRef} className="relative px-4 pt-5 pb-3">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
         <Input

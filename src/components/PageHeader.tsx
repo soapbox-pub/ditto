@@ -31,7 +31,7 @@ export function PageHeader({ title, icon, titleContent, backTo = '/', onBack, al
   const backButtonClass = cn('p-2 -ml-2 rounded-full hover:bg-secondary transition-colors', !alwaysShowBack && 'sidebar:hidden');
 
   return (
-    <div className={cn('flex items-center gap-4 px-4 mt-4 mb-1', className)}>
+    <div className={cn('flex items-center gap-4 px-4 py-4 bg-background/85', className)}>
       {onBack ? (
         <button onClick={onBack} className={backButtonClass} aria-label="Go back">
           <ArrowLeft className="size-5" />
