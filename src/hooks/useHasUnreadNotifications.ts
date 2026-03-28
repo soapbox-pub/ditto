@@ -5,6 +5,7 @@ import { Capacitor } from '@capacitor/core';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
+import { useFollowList } from './useFollowActions';
 import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
 
 /**
@@ -28,25 +29,45 @@ export function useHasUnreadNotifications(): boolean {
     ? (settings.notificationsCursor ?? 0)
     : null;
 
+  const { data: followData } = useFollowList();
+
+  const prefs = settings?.notificationPreferences;
+
   // Derive enabled kinds from preferences so disabled types don't trigger the dot
   const enabledKinds = useMemo(
-    () => getEnabledNotificationKinds(settings?.notificationPreferences),
-    [settings?.notificationPreferences],
+    () => getEnabledNotificationKinds(prefs),
+    [prefs],
   );
   const kindsKey = [...enabledKinds].sort().join(',');
 
+  // Authors filter: when onlyFollowing is set, restrict to followed pubkeys
+  const followedPubkeys = useMemo(
+    () => followData?.pubkeys ?? [],
+    [followData?.pubkeys],
+  );
+  const onlyFollowing = prefs?.onlyFollowing === true;
+  const authorsFilter = onlyFollowing && followedPubkeys.length > 0
+    ? followedPubkeys
+    : undefined;
+  const authorsKey = authorsFilter ? authorsFilter.slice().sort().join(',') : 'all';
+
   const { data: hasUnread = false } = useQuery<boolean>({
-    queryKey: ['notifications-unread', user?.pubkey ?? '', kindsKey],
+    queryKey: ['notifications-unread', user?.pubkey ?? '', kindsKey, authorsKey],
     queryFn: async ({ signal }) => {
       if (!user || notificationsCursor === null) return false;
 
+      const filter: Record<string, unknown> = {
+        kinds: enabledKinds,
+        '#p': [user.pubkey],
+        since: notificationsCursor + 1,
+        limit: 1,
+      };
+      if (authorsFilter) {
+        filter.authors = authorsFilter;
+      }
+
       const events = await nostr.query(
-        [{
-          kinds: enabledKinds,
-          '#p': [user.pubkey],
-          since: notificationsCursor + 1,
-          limit: 1,
-        }],
+        [filter as { kinds: number[]; '#p': string[]; since: number; limit: number; authors?: string[] }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
