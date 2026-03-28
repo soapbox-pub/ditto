@@ -360,4 +360,200 @@
   }
 }
 
+/* ── NIP-62 Request to Vanish ───────────────────────────────────────────────── */
+
+/* Animated caution stripes — red/dark diagonal bands that scroll */
+.vanish-stripes {
+  background: repeating-linear-gradient(
+    -45deg,
+    hsl(0 72% 51% / 0.7),
+    hsl(0 72% 51% / 0.7) 10px,
+    hsl(0 72% 51% / 0.25) 10px,
+    hsl(0 72% 51% / 0.25) 20px
+  );
+  background-size: 28.28px 28.28px;
+  animation: vanish-stripe-scroll 1.5s linear infinite;
+}
+
+:is(.dark) .vanish-stripes {
+  background: repeating-linear-gradient(
+    -45deg,
+    hsl(0 72% 51% / 0.6),
+    hsl(0 72% 51% / 0.6) 10px,
+    hsl(0 72% 51% / 0.15) 10px,
+    hsl(0 72% 51% / 0.15) 20px
+  );
+  background-size: 28.28px 28.28px;
+  animation: vanish-stripe-scroll 1.5s linear infinite;
+}
+
+@keyframes vanish-stripe-scroll {
+  from { background-position: 0 0; }
+  to { background-position: 28.28px 0; }
+}
+
+/* Glitch text effect on the /// symbol */
+.vanish-glitch-text {
+  position: relative;
+  animation: vanish-glitch 3s ease-in-out infinite;
+}
+
+@keyframes vanish-glitch {
+  0%, 90%, 100% { opacity: 1; transform: translate(0); }
+  92% { opacity: 0.8; transform: translate(-2px, 1px); }
+  94% { opacity: 0.6; transform: translate(2px, -1px); }
+  96% { opacity: 0.9; transform: translate(-1px, -1px); }
+  98% { opacity: 1; transform: translate(1px, 0); }
+}
+
+/* Ring pulse animation for the icon */
+.vanish-ring-pulse {
+  animation: vanish-ring 3s ease-out infinite;
+}
+
+.vanish-ring-pulse-delayed {
+  animation: vanish-ring 3s ease-out 1.5s infinite;
+}
+
+@keyframes vanish-ring {
+  0% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.15); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+/* Slow blink for the status dot */
+.vanish-blink {
+  animation: vanish-blink-kf 2s ease-in-out infinite;
+}
+
+@keyframes vanish-blink-kf {
+  0%, 40%, 100% { opacity: 1; }
+  50%, 90% { opacity: 0.2; }
+}
+
+/* Reduced motion: disable all vanish animations */
+@media (prefers-reduced-motion: reduce) {
+  .vanish-stripes {
+    animation: none;
+  }
+  .vanish-glitch-text {
+    animation: none;
+  }
+  .vanish-ring-pulse,
+  .vanish-ring-pulse-delayed {
+    animation: none;
+    opacity: 0;
+  }
+  .vanish-blink {
+    animation: none;
+  }
+}
+
+/* ==========================================
+   Blobbi Reaction Animations
+   Shared animations for all Blobbi stages (egg, baby, adult)
+   ========================================== */
+
+@keyframes blobbi-gentle-sway {
+  0%, 100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes blobbi-bounce {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-3px) rotate(1.5deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-3px) rotate(-1.5deg);
+  }
+}
+
+.animate-blobbi-sway {
+  /* Baby/adult sway is livelier than egg (1.2s vs 1.8s) */
+  animation: blobbi-gentle-sway 1.2s ease-in-out infinite;
+}
+
+.animate-blobbi-bounce {
+  /* Baby/adult sing bounce - smoother and cuter than before (0.5s) */
+  animation: blobbi-bounce 0.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-blobbi-sway,
+  .animate-blobbi-bounce {
+    animation: none !important;
+  }
+}
+
+/* ─── Floating Music Notes ───────────────────────────────────────────────────── */
+
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.8);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1);
+  }
+  85% {
+    opacity: 0.8;
+    transform: translateY(-60px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-80px) scale(0.6);
+  }
+}
+
+.animate-float-up {
+  animation: float-up 3s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-up {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
+
+/* ─── Blobbi Eye Animation ───────────────────────────────────────────────────── */
+
+/**
+ * Eye animation for Blobbi characters.
+ *
+ * Features:
+ * - Mouse tracking: eyes follow cursor instantly
+ * - Natural blinking: random intervals (2-5s), fast close, slow open
+ *
+ * NO CSS transitions - all animation is controlled by JavaScript RAF loop.
+ * Using transitions causes delayed visual updates.
+ *
+ * Transform combines: translate(x y) scale(1 blinkY)
+ * - translate: mouse tracking position
+ * - scale: vertical squash for blink effect (1 = open, 0.1 = closed)
+ */
+.blobbi-eye {
+  /* SVG transform properties - scale from center of each eye element */
+  transform-box: fill-box;
+  transform-origin: center center;
+  /* NO transition - instant updates only */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blobbi-eye {
+    /* Disable all eye animations for users who prefer reduced motion */
+    transform: none !important;
+  }
+}
 

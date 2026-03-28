@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Star gradients -->
+    <radialGradient id="starriBody" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#4c1d95;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#3730a3;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#1e1b4b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f172a;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="starriInner" cx="0.4" cy="0.3">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="starriEye" cx="0.3" cy="0.3">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e0e7ff;stop-opacity:1" />
+    </radialGradient>
+    <linearGradient id="starriSmile" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fbbf24;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="starriDust1" cx="0.5" cy="0.5">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="starriDust2" cx="0.5" cy="0.5">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e0e7ff;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="starriDust3" cx="0.5" cy="0.5">
+      <stop offset="0%" style="stop-color:#c084fc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </radialGradient>
+    <linearGradient id="starriConstellation" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c084fc;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Main star body - larger 5-pointed star shape -->
+  <path d="M 100 25 L 115 75 L 165 75 L 125 110 L 140 160 L 100 130 L 60 160 L 75 110 L 35 75 L 85 75 Z" 
+        fill="url(#starriBody)" />
+  <path d="M 100 35 L 112 70 L 150 70 L 120 95 L 132 135 L 100 115 L 68 135 L 80 95 L 50 70 L 88 70 Z" 
+        fill="url(#starriInner)" opacity="0.8" />
+  
+  <!-- Twinkling eyes -->
+  <circle cx="88" cy="95" r="10" fill="url(#starriEye)" />
+  <circle cx="112" cy="95" r="10" fill="url(#starriEye)" />
+  
+  <!-- Sleeping eyes -->
+  <path d="M 78 95 Q 88 98 98 95" stroke="#1e1b4b" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M 102 95 Q 112 98 122 95" stroke="#1e1b4b" stroke-width="3" fill="none" stroke-linecap="round" />
+  
+  <!-- Peaceful mouth -->
+  <circle cx="100" cy="115" r="2" fill="#f59e0b" />
+  
+  <!-- Floating stardust with gentle animation -->
+  <g>
+    <animateTransform attributeName="transform" type="translate" values="0,0; 1,2; 0,0" dur="4s" repeatCount="indefinite" />
+    <circle cx="55" cy="60" r="2" fill="url(#starriDust1)" opacity="0.6" />
+    <circle cx="145" cy="65" r="1.5" fill="url(#starriDust2)" opacity="0.5" />
+    <circle cx="60" cy="140" r="2.5" fill="url(#starriDust3)" opacity="0.4" />
+    <circle cx="140" cy="135" r="2" fill="url(#starriDust1)" opacity="0.4" />
+    <circle cx="40" cy="100" r="1.5" fill="url(#starriDust2)" opacity="0.5" />
+    <circle cx="160" cy="105" r="2" fill="url(#starriDust3)" opacity="0.6" />
+  </g>
+  
+  <!-- Constellation lines -->
+  <path d="M 55 60 L 70 45 L 130 50 L 145 65" stroke="url(#starriConstellation)" stroke-width="1.5" opacity="0.3" />
+  <path d="M 40 100 L 60 140 L 140 135 L 160 105" stroke="url(#starriConstellation)" stroke-width="1.5" opacity="0.3" />
+
+  <!-- "Zzz" sleeping -->
+  <text x="150" y="60" font-size="10" fill="#666" opacity="0.8">Z</text>
+  <text x="157" y="55" font-size="8" fill="#666" opacity="0.6">z</text>
+  <text x="162" y="51" font-size="6" fill="#666" opacity="0.4">z</text>
+</svg>

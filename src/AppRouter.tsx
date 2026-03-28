@@ -5,6 +5,8 @@ import { DeepLinkHandler } from "@/components/DeepLinkHandler";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
+import { BlobbiCompanionLayer } from "@/blobbi/companion";
+import { BlobbiActionsProvider } from "@/blobbi/companion/interaction";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { MainLayout } from "./components/MainLayout";
 import { ScrollToTop } from "./components/ScrollToTop";
@@ -13,6 +15,7 @@ import { useProfileUrl } from "./hooks/useProfileUrl";
 import { getExtraKindDef } from "./lib/extraKinds";
 import { AdvancedSettingsPage } from "./pages/AdvancedSettingsPage";
 import { AIChatPage } from "./pages/AIChatPage";
+import { BlobbiPage } from "./pages/BlobbiPage";
 import { BadgesPage } from "./pages/BadgesPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { BooksPage } from "./pages/BooksPage";
@@ -98,6 +101,9 @@ export function AppRouter() {
         <AudioNavigationGuard />
         <DeepLinkHandler />
         <ScrollToTop />
+        <BlobbiActionsProvider>
+          <BlobbiCompanionLayer />
+        </BlobbiActionsProvider>
         <Routes>
           {/* All routes share the persistent MainLayout (sidebar + nav) */}
           <Route element={<MainLayout />}>
@@ -207,6 +213,7 @@ export function AppRouter() {
             <Route path="/themes" element={<ThemesPage />} />
             <Route path="/bookmarks" element={<BookmarksPage />} />
             <Route path="/ai-chat" element={<AIChatPage />} />
+            <Route path="/blobbi" element={<BlobbiPage />} />
             <Route path="/world" element={<WorldPage />} />
             <Route path="/badges" element={<BadgesPage />} />
             <Route path="/books" element={<BooksPage />} />
