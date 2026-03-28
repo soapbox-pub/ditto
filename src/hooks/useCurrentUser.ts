@@ -1,5 +1,5 @@
-import { type NLoginType, NUser, useNostrLogin } from '@nostrify/react/login';
 import { useNostr } from '@nostrify/react';
+import { type NLoginType, NUser, useNostrLogin } from '@nostrify/react/login';
 import { NRelay1 } from '@nostrify/nostrify';
 import { useCallback, useMemo } from 'react';
 
@@ -48,7 +48,7 @@ export function useCurrentUser() {
         const user = loginToUser(login);
         users.push(user);
       } catch (error) {
-        console.warn('Skipped invalid login', login.id, error);
+        console.warn("Skipped invalid login", login.id, error);
       }
     }
 

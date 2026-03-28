@@ -8,9 +8,11 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { sidebarItemIcon, itemLabel, itemPath, isSidebarDivider } from '@/lib/sidebarItems';
+import { sidebarItemIcon, itemLabel, itemPath, isSidebarDivider, isNostrUri, isExternalUri } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 import { useCallback } from 'react';
+import { NostrEventSidebarItem } from '@/components/NostrEventSidebarItem';
+import { ExternalContentSidebarItem } from '@/components/ExternalContentSidebarItem';
 
 // ── Sortable item ─────────────────────────────────────────────────────────────
 
@@ -69,7 +71,7 @@ export function SidebarNavItem({
             <span className="absolute -top-1 right-0 size-2.5 bg-primary rounded-full" />
           )}
         </span>
-        <span className="truncate">{label}</span>
+        <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{label}</span>
       </Link>
 
       {editing && (
@@ -176,6 +178,32 @@ export function SidebarNavList({
                 sortableId={sortableId}
                 editing={editing}
                 onRemove={() => onRemove(id, i)}
+              />
+            );
+          }
+          if (isNostrUri(id)) {
+            return (
+              <NostrEventSidebarItem
+                key={id}
+                id={id}
+                active={isActive(id)}
+                editing={editing}
+                onRemove={(removeId) => onRemove(removeId, i)}
+                onClick={getOnClick?.(id)}
+                linkClassName={linkClassName}
+              />
+            );
+          }
+          if (isExternalUri(id)) {
+            return (
+              <ExternalContentSidebarItem
+                key={id}
+                id={id}
+                active={isActive(id)}
+                editing={editing}
+                onRemove={(removeId) => onRemove(removeId, i)}
+                onClick={getOnClick?.(id)}
+                linkClassName={linkClassName}
               />
             );
           }

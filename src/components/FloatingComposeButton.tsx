@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Plus, Construction } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,8 +7,13 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { FabButton } from '@/components/FabButton';
+
+// Lazy-load the compose modal (pulls in emoji-mart ~620K)
+const ReplyComposeModal = lazy(() => import('@/components/ReplyComposeModal').then(m => ({ default: m.ReplyComposeModal })));
+
+
 
 interface FloatingComposeButtonProps {
   /** The Nostr event kind this FAB creates. kind=1 opens compose; others show "Coming soon". */
@@ -22,12 +27,14 @@ interface FloatingComposeButtonProps {
 }
 
 export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: FloatingComposeButtonProps) {
-  const { user } = useCurrentUser();
+  const { user, isLoading } = useCurrentUser();
   const navigate = useNavigate();
   const [composeOpen, setComposeOpen] = useState(false);
   const [comingSoonOpen, setComingSoonOpen] = useState(false);
 
-  if (!user) {
+  // Hide until user metadata is resolved so the shape mask is immediately
+  // correct — avoids a brief flash of the default circle fallback.
+  if (!user || isLoading) {
     return null;
   }
 
@@ -45,16 +52,16 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
 
   return (
     <>
-      <Button
+      <FabButton
         onClick={handleClick}
-        className="size-14 rounded-full shadow-lg bg-accent hover:bg-accent/90 text-accent-foreground transition-transform hover:scale-105 active:scale-95"
-      >
-        {icon ?? <Plus strokeWidth={4} />}
-      </Button>
+        icon={icon ?? <Plus strokeWidth={4} size={16} />}
+      />
 
-      {/* Kind 1: Compose modal */}
-      {kind === 1 && (
-        <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
+      {/* Kind 1: Compose modal (lazy-loaded) */}
+      {kind === 1 && composeOpen && (
+        <Suspense fallback={null}>
+          <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
+        </Suspense>
       )}
 
       {/* Other kinds: Coming soon dialog */}

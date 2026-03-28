@@ -69,6 +69,8 @@ function formatDate(iso: string): string {
 
 interface ExternalPostCardProps {
   post: ExternalPostData;
+  /** When true, hides image and external link thumbnails. */
+  hideImage?: boolean;
   className?: string;
 }
 
@@ -78,7 +80,7 @@ interface ExternalPostCardProps {
  * Clicking the card body navigates to `/i/{postUrl}`.
  * Clicking the avatar or display name navigates to `/i/{profileUrl}`.
  */
-export function ExternalPostCard({ post, className }: ExternalPostCardProps) {
+export function ExternalPostCard({ post, hideImage, className }: ExternalPostCardProps) {
   const navigate = useNavigate();
 
   return (
@@ -103,7 +105,7 @@ export function ExternalPostCard({ post, className }: ExternalPostCardProps) {
       }}
     >
       {/* Images */}
-      {post.images && post.images.length > 0 && (
+      {!hideImage && post.images && post.images.length > 0 && (
         <div className={cn(
           'w-full overflow-hidden',
           post.images.length > 1 ? 'grid grid-cols-2 gap-px' : '',
@@ -127,7 +129,7 @@ export function ExternalPostCard({ post, className }: ExternalPostCardProps) {
       )}
 
       {/* External link card (if no images) */}
-      {!post.images && post.external?.thumb && (
+      {!hideImage && !post.images && post.external?.thumb && (
         <div className="w-full overflow-hidden">
           <img
             src={post.external.thumb}

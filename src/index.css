@@ -7,6 +7,9 @@
     --radius: 0.75rem;
     --success: 142 72% 29%;
     --success-foreground: 138 60% 94%;
+    /* Mobile chrome dimensions — referenced by layout utility classes below */
+    --top-bar-height: 2.5rem;   /* MobileTopBar h-10 = 40px */
+    --bottom-nav-height: 2.75rem; /* MobileBottomNav h-11 = 44px */
   }
 
   .dark {
@@ -49,19 +52,19 @@
   
   /* FAB bottom offset: clears bottom nav + safe area inset on mobile */
   .bottom-fab {
-    bottom: calc(1.5rem + 3.5rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(1.5rem + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Position above mobile bottom nav (h-14 = 3.5rem) + safe area */
+  /* Position above mobile bottom nav + safe area + arc overhang (28px) */
   .bottom-mobile-nav {
-    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--bottom-nav-height) + 28px + env(safe-area-inset-bottom, 0px));
   }
 
   /* Bottom overscroll padding for the center column:
      clears the mobile bottom nav + safe area + generous extra space
      so content can be scrolled well past the bottom bar */
   .pb-overscroll {
-    padding-bottom: calc(10vh + 3.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(10vh + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
   @media (min-width: 900px) {
@@ -70,32 +73,44 @@
     }
   }
 
-  /* Mobile top bar height (48px) + safe area inset for sticky elements */
+  /* Mobile top bar height + safe area inset for sticky elements */
   .top-mobile-bar {
-    top: calc(3rem + env(safe-area-inset-top, 0px));
+    top: calc(var(--top-bar-height) + env(safe-area-inset-top, 0px));
   }
 
-  /* AI chat height on mobile: full viewport minus top bar, bottom nav (3.5rem), and safe-area insets */
+  /* Slide the sub-header bar out of view together with the mobile top bar.
+     Must clear its own height (100%) + top bar + safe area + arc overhang (20px). */
+  @media (max-width: 899px) {
+    .nav-hidden-slide {
+      transform: translateY(calc(-100% - var(--top-bar-height) - 20px - env(safe-area-inset-top, 0px)));
+    }
+  }
+
+  /* Negative margin to pull content area up behind the mobile top bar (only when it's visible) */
+  @media (max-width: 899px) {
+    .-mt-mobile-bar {
+      margin-top: calc(-1 * var(--top-bar-height) - env(safe-area-inset-top, 0px));
+      padding-top: calc(var(--top-bar-height) + env(safe-area-inset-top, 0px));
+    }
+  }
+
+  /* AI chat height on mobile: full viewport minus top bar, extends behind bottom nav.
+     Padding-bottom keeps input above the nav. */
   .ai-chat-height {
-    height: calc(100dvh - 3rem - 3.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - var(--top-bar-height) - env(safe-area-inset-top, 0px));
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
   /* Live stream page height on mobile: full viewport minus top bar, bottom nav, and safe-area insets */
   .livestream-height {
-    height: calc(100dvh - 3rem - 3.5rem - env(safe-area-inset-bottom, 0px));
-    max-height: calc(100dvh - 3rem - 3.5rem - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
   }
 
-  /* Vine feed slide height: full viewport minus top bar, tab bar, bottom nav, and safe-area insets */
+  /* Vine feed slide height: full viewport on mobile (top bar + bottom nav are
+     both hidden for an immersive experience). Tab bar floats over video. */
   .vine-slide-height {
-    height: calc(100dvh - env(safe-area-inset-top, 0px) - 3rem - 2.5rem - 3.5rem - env(safe-area-inset-bottom, 0px));
-    transition: height 300ms ease-in-out;
-  }
-
-  /* Expanded vine height when bottom nav is hidden */
-  .vine-slide-height-expanded {
-    height: calc(100dvh - env(safe-area-inset-top, 0px) - 3rem - 2.5rem);
-    transition: height 300ms ease-in-out;
+    height: 100dvh;
   }
 }
 
@@ -176,4 +191,294 @@
   to   { opacity: 0.6; }
 }
 
+/* ── NIP-62 Request to Vanish ───────────────────────────────────────────────── */
+
+/* Animated caution stripes — red/dark diagonal bands that scroll */
+.vanish-stripes {
+  background: repeating-linear-gradient(
+    -45deg,
+    hsl(0 72% 51% / 0.7),
+    hsl(0 72% 51% / 0.7) 10px,
+    hsl(0 72% 51% / 0.25) 10px,
+    hsl(0 72% 51% / 0.25) 20px
+  );
+  background-size: 28.28px 28.28px;
+  animation: vanish-stripe-scroll 1.5s linear infinite;
+}
+
+:is(.dark) .vanish-stripes {
+  background: repeating-linear-gradient(
+    -45deg,
+    hsl(0 72% 51% / 0.6),
+    hsl(0 72% 51% / 0.6) 10px,
+    hsl(0 72% 51% / 0.15) 10px,
+    hsl(0 72% 51% / 0.15) 20px
+  );
+  background-size: 28.28px 28.28px;
+  animation: vanish-stripe-scroll 1.5s linear infinite;
+}
+
+@keyframes vanish-stripe-scroll {
+  from { background-position: 0 0; }
+  to { background-position: 28.28px 0; }
+}
+
+/* Glitch text effect on the /// symbol */
+.vanish-glitch-text {
+  position: relative;
+  animation: vanish-glitch 3s ease-in-out infinite;
+}
+
+@keyframes vanish-glitch {
+  0%, 90%, 100% { opacity: 1; transform: translate(0); }
+  92% { opacity: 0.8; transform: translate(-2px, 1px); }
+  94% { opacity: 0.6; transform: translate(2px, -1px); }
+  96% { opacity: 0.9; transform: translate(-1px, -1px); }
+  98% { opacity: 1; transform: translate(1px, 0); }
+}
+
+/* Ring pulse animation for the icon */
+.vanish-ring-pulse {
+  animation: vanish-ring 3s ease-out infinite;
+}
+
+.vanish-ring-pulse-delayed {
+  animation: vanish-ring 3s ease-out 1.5s infinite;
+}
+
+@keyframes vanish-ring {
+  0% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.15); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+/* Slow blink for the status dot */
+.vanish-blink {
+  animation: vanish-blink-kf 2s ease-in-out infinite;
+}
+
+@keyframes vanish-blink-kf {
+  0%, 40%, 100% { opacity: 1; }
+  50%, 90% { opacity: 0.2; }
+}
+
+/* ── Wii Mail envelope grid ─────────────────────────────────────────────────── */
+
+/* Staggered entrance: envelopes pop in one by one */
+@keyframes envelope-entrance {
+  0%   { opacity: 0; transform: scale(0.6) translateY(20px) rotate(-4deg); }
+  60%  { opacity: 1; transform: scale(1.05) translateY(-2px) rotate(1deg); }
+  80%  { transform: scale(0.97) translateY(1px) rotate(-0.5deg); }
+  100% { opacity: 1; transform: scale(1) translateY(0) rotate(0deg); }
+}
+
+.envelope-card {
+  animation: envelope-entrance 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--entrance-delay, 0ms);
+  transform-origin: center bottom;
+  cursor: pointer;
+}
+
+/* Hover wobble — playful Wii-style oscillation */
+@keyframes envelope-wobble {
+  0%   { transform: rotate(0deg); }
+  15%  { transform: rotate(-5deg); }
+  30%  { transform: rotate(4deg); }
+  45%  { transform: rotate(-3deg); }
+  60%  { transform: rotate(2deg); }
+  75%  { transform: rotate(-1deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.envelope-body {
+  transition: transform 0.15s ease;
+}
+
+.envelope-card:hover .envelope-body,
+.envelope-card:focus-visible .envelope-body {
+  animation: envelope-wobble 0.5s ease-in-out;
+}
+
+.envelope-card:active .envelope-body {
+  transform: scale(0.92);
+  animation: none;
+}
+
+/* Envelope skeleton shimmer */
+@keyframes envelope-skeleton-shimmer {
+  0%   { opacity: 0.4; }
+  50%  { opacity: 0.7; }
+  100% { opacity: 0.4; }
+}
+
+.envelope-skeleton {
+  animation: envelope-skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+/* Reduced motion: disable envelope animations */
+@media (prefers-reduced-motion: reduce) {
+  .envelope-card {
+    animation: none;
+    opacity: 1;
+  }
+  .envelope-card:hover .envelope-body,
+  .envelope-card:focus-visible .envelope-body {
+    animation: none;
+  }
+}
+
+/* Drawn SVG stickers — ensure inline SVGs fill their container */
+[data-sticker] svg,
+.sticker-svg-wrap svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Letter send animation keyframes */
+@keyframes letter-send-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes letter-send-avatar-in {
+  0%   { transform: scale(0);    opacity: 0; }
+  50%  { transform: scale(1.15); opacity: 1; }
+  70%  { transform: scale(0.92); }
+  85%  { transform: scale(1.04); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+@keyframes letter-send-burst {
+  0%   { transform: translate(0, 0) rotate(0deg) scale(0); opacity: 0; }
+  15%  { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  60%  { opacity: 0.8; transform: translate(var(--burst-tx), var(--burst-ty)) rotate(var(--burst-rot)) scale(1); }
+  100% { opacity: 0;   transform: translate(var(--burst-tx), var(--burst-ty)) rotate(var(--burst-rot)) scale(0.4); }
+}
+
+/* Reduced motion: disable all vanish animations */
+@media (prefers-reduced-motion: reduce) {
+  .vanish-stripes {
+    animation: none;
+  }
+  .vanish-glitch-text {
+    animation: none;
+  }
+  .vanish-ring-pulse,
+  .vanish-ring-pulse-delayed {
+    animation: none;
+    opacity: 0;
+  }
+  .vanish-blink {
+    animation: none;
+  }
+}
+
+/* ==========================================
+   Blobbi Reaction Animations
+   Shared animations for all Blobbi stages (egg, baby, adult)
+   ========================================== */
+
+@keyframes blobbi-gentle-sway {
+  0%, 100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes blobbi-bounce {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-3px) rotate(1.5deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-3px) rotate(-1.5deg);
+  }
+}
+
+.animate-blobbi-sway {
+  /* Baby/adult sway is livelier than egg (1.2s vs 1.8s) */
+  animation: blobbi-gentle-sway 1.2s ease-in-out infinite;
+}
+
+.animate-blobbi-bounce {
+  /* Baby/adult sing bounce - smoother and cuter than before (0.5s) */
+  animation: blobbi-bounce 0.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-blobbi-sway,
+  .animate-blobbi-bounce {
+    animation: none !important;
+  }
+}
+
+/* ─── Floating Music Notes ───────────────────────────────────────────────────── */
+
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.8);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1);
+  }
+  85% {
+    opacity: 0.8;
+    transform: translateY(-60px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-80px) scale(0.6);
+  }
+}
+
+.animate-float-up {
+  animation: float-up 3s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-up {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
+
+/* ─── Blobbi Eye Animation ───────────────────────────────────────────────────── */
+
+/**
+ * Eye animation for Blobbi characters.
+ *
+ * Features:
+ * - Mouse tracking: eyes follow cursor instantly
+ * - Natural blinking: random intervals (2-5s), fast close, slow open
+ *
+ * NO CSS transitions - all animation is controlled by JavaScript RAF loop.
+ * Using transitions causes delayed visual updates.
+ *
+ * Transform combines: translate(x y) scale(1 blinkY)
+ * - translate: mouse tracking position
+ * - scale: vertical squash for blink effect (1 = open, 0.1 = closed)
+ */
+.blobbi-eye {
+  /* SVG transform properties - scale from center of each eye element */
+  transform-box: fill-box;
+  transform-origin: center center;
+  /* NO transition - instant updates only */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blobbi-eye {
+    /* Disable all eye animations for users who prefer reduced motion */
+    transform: none !important;
+  }
+}
 

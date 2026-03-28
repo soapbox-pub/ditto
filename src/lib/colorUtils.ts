@@ -108,6 +108,29 @@ export function isDarkTheme(backgroundHsl: string): boolean {
   return getLuminance(r, g, b) < 0.2;
 }
 
+/** Resolve the live --background CSS variable to `"dark"` or `"light"`. */
+export function getBackgroundThemeMode(): 'dark' | 'light' {
+  if (typeof document === 'undefined') return 'light';
+  const bg = getComputedStyle(document.documentElement)
+    .getPropertyValue('--background')
+    .trim();
+  if (!bg) return 'light';
+  return isDarkTheme(bg) ? 'dark' : 'light';
+}
+
+/** Resolve the live --background CSS variable to a hex color, or `null`. */
+export function getBackgroundHex(): string | null {
+  if (typeof document === 'undefined') return null;
+  const bg = getComputedStyle(document.documentElement)
+    .getPropertyValue('--background')
+    .trim();
+  if (!bg) return null;
+  const { h, s, l } = parseHsl(bg);
+  if ([h, s, l].some(isNaN)) return null;
+  const [r, g, b] = hslToRgb(h, s, l);
+  return rgbToHex(r, g, b);
+}
+
 // ─── Adjust HSL helpers ───────────────────────────────────────────────
 
 /** Lighten an HSL string by a given amount (0-100). */
@@ -205,4 +228,89 @@ export function tokensToCoreColors(tokens: ThemeTokens): CoreThemeColors {
     text: tokens.foreground,
     primary: tokens.primary,
   };
+}
+
+// ─── Hex color manipulation ───────────────────────────────────────────
+
+/** Darken a hex color by a factor (0 = no change, 1 = black). */
+export function darkenHex(hex: string, amount: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  const dark = (c: number) => Math.max(0, Math.round(c * (1 - amount)));
+  return rgbToHex(dark(r), dark(g), dark(b));
+}
+
+/** Lighten a hex color by a factor (0 = no change, 1 = white). */
+export function lightenHex(hex: string, amount: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  const light = (c: number) => Math.min(255, Math.round(c + (255 - c) * amount));
+  return rgbToHex(light(r), light(g), light(b));
+}
+
+/** Blend two hex colors by a factor (0 = hex1, 1 = hex2). */
+export function blendHex(hex1: string, hex2: string, amount: number): string {
+  const [r1, g1, b1] = hexToRgb(hex1);
+  const [r2, g2, b2] = hexToRgb(hex2);
+  return rgbToHex(
+    Math.round(r1 + (r2 - r1) * amount),
+    Math.round(g1 + (g2 - g1) * amount),
+    Math.round(b1 + (b2 - b1) * amount),
+  );
+}
+
+// ─── Letter stationery color utilities ────────────────────────────────
+
+/** WCAG 2.1 relative luminance of a hex color (0 = black, 1 = white). */
+export function hexLuminance(hex: string): number {
+  if (!hex) return 0.5;
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const toLinear = (c: number) =>
+    c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+/**
+ * Derive a readable text color for a given palette of hex colors.
+ * avgLum > 0.5 → dark text; avgLum ≤ 0.5 → light text
+ */
+export function paletteTextColor(colors: string[]): string {
+  if (colors.length === 0) return 'rgba(0,0,0,0.75)';
+  const avg = colors.reduce((sum, c) => sum + hexLuminance(c), 0) / colors.length;
+  return avg > 0.5 ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.90)';
+}
+
+/** Derive a readable text color for a single background hex color. */
+export function backgroundTextColor(bgHex: string): string {
+  return hexLuminance(bgHex) > 0.5
+    ? 'rgba(0,0,0,0.75)'
+    : 'rgba(255,255,255,0.90)';
+}
+
+/** Faint text color for secondary elements (palette version). */
+export function paletteTextColorFaint(colors: string[]): string {
+  if (colors.length === 0) return 'rgba(0,0,0,0.30)';
+  const avg = colors.reduce((sum, c) => sum + hexLuminance(c), 0) / colors.length;
+  return avg > 0.5 ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.35)';
+}
+
+/** Faint text color for secondary elements (single background version). */
+export function backgroundTextColorFaint(bgHex: string): string {
+  return hexLuminance(bgHex) > 0.5
+    ? 'rgba(0,0,0,0.30)'
+    : 'rgba(255,255,255,0.35)';
+}
+
+/** Ruled-line color for letter stationery (palette version). */
+export function paletteLineColor(colors: string[]): string {
+  if (colors.length === 0) return 'rgba(0,0,0,0.08)';
+  const avg = colors.reduce((sum, c) => sum + hexLuminance(c), 0) / colors.length;
+  return avg > 0.5 ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.15)';
+}
+
+/** Ruled-line color for letter stationery (single background version). */
+export function backgroundLineColor(bgHex: string): string {
+  return hexLuminance(bgHex) > 0.5
+    ? 'rgba(0,0,0,0.08)'
+    : 'rgba(255,255,255,0.15)';
 }

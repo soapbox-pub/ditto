@@ -7,6 +7,7 @@ export interface Nip85EventStats {
   repostCount: number;
   reactionCount: number;
   zapCount: number;
+  zapAmount: number;
 }
 
 export interface Nip85UserStats {
@@ -51,6 +52,7 @@ export function useNip85EventStats(eventId: string | undefined) {
           repostCount: getTagValue('repost_cnt'),
           reactionCount: getTagValue('reaction_cnt'),
           zapCount: getTagValue('zap_cnt'),
+          zapAmount: getTagValue('zap_amount'),
         };
       } catch {
         return null;
@@ -157,6 +159,7 @@ export function useNip85AddrStats(addr: string | undefined) {
           repostCount: getTagValue('repost_cnt'),
           reactionCount: getTagValue('reaction_cnt'),
           zapCount: getTagValue('zap_cnt'),
+          zapAmount: getTagValue('zap_amount'),
         };
       } catch {
         return null;

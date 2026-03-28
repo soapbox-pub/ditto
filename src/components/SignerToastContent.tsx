@@ -58,7 +58,7 @@ export function PhaseToastContent({
 // Internal components
 // ---------------------------------------------------------------------------
 
-function AndroidApproveRow({ onCancel, onApprove }: { onCancel: () => void; onApprove?: () => void }) {
+function AndroidApproveRow({ onCancel }: { onCancel: () => void }) {
   const [waiting, setWaiting] = useState(false);
 
   return (
@@ -74,7 +74,6 @@ function AndroidApproveRow({ onCancel, onApprove }: { onCancel: () => void; onAp
           className="text-sm font-semibold border border-current rounded px-3 py-1.5 no-underline inline-flex items-center gap-1.5 min-h-[44px]"
           onClick={() => {
             setWaiting(true);
-            onApprove?.();
           }}
         >
           Approve in signer

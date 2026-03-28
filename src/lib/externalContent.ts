@@ -39,10 +39,42 @@ export function formatIsbn(isbn: string): string {
   return isbn;
 }
 
+/**
+ * Try to extract a human-readable title from the last meaningful segment of a
+ * URL path.  Returns `null` when the slug looks like an opaque ID rather than
+ * a readable name (e.g. YouTube video IDs, hex hashes, etc.).
+ */
+function slugTitle(url: string): string | null {
+  try {
+    const { pathname } = new URL(url);
+    // Walk segments from right to left and pick the first "readable" one
+    const segments = pathname.split('/').filter(Boolean);
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const seg = decodeURIComponent(segments[i]);
+      // Skip very short segments or ones that look like opaque IDs
+      if (seg.length < 4) continue;
+      if (/^[A-Za-z0-9_-]{6,14}$/.test(seg) && !/[- ]/.test(seg)) continue; // likely an ID
+      // Must contain at least one separator (hyphen or underscore) to look like a slug
+      if (!/[-_]/.test(seg)) continue;
+      return seg
+        .replace(/[-_]+/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+        .trim();
+    }
+  } catch {
+    // invalid URL
+  }
+  return null;
+}
+
 /** Get a short label for the content type. */
 export function headerLabel(content: ExternalContent): string {
   switch (content.type) {
     case 'url': {
+      // Prefer a human-readable slug from the URL path
+      const slug = slugTitle(content.value);
+      if (slug) return slug;
+      // Fall back to known embed site name, then hostname
       const label = embedLabel(content.value);
       if (label) return label;
       try {

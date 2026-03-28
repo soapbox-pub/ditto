@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Radio, Users, Clock } from 'lucide-react';
+import { Radio, Users, Clock } from 'lucide-react';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { KindInfoButton } from '@/components/KindInfoButton';
+import { PageHeader } from '@/components/PageHeader';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamKind } from '@/hooks/useStreamKind';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -70,17 +71,9 @@ export function StreamsFeedPage() {
 
   return (
       <main className="">
-        {/* Header */}
-        <div className="flex items-center gap-4 px-4 pt-4 pb-5">
-          <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-            <ArrowLeft className="size-5" />
-          </Link>
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <Radio className="size-5" />
-            <h1 className="text-xl font-bold">Streams</h1>
-          </div>
+        <PageHeader title="Streams" icon={<Radio className="size-5" />}>
           <KindInfoButton kindDef={streamsDef} icon={sidebarItemIcon('streams', 'size-5')} />
-        </div>
+        </PageHeader>
 
         {/* Feed */}
         {isLoading && events.length === 0 ? (

@@ -1,4 +1,5 @@
 import {
+  Archive,
   Award,
   BarChart3,
   Bell,
@@ -14,7 +15,7 @@ import {
   Earth,
   Film,
   HelpCircle,
-  Mail,
+
   MessageSquare,
   MessageSquareMore,
   Mic,
@@ -22,6 +23,7 @@ import {
   Palette,
   PartyPopper,
   Podcast,
+  Egg,
   Repeat2,
   Scroll,
   Search,
@@ -35,6 +37,9 @@ import {
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
 import { PlanetIcon } from "@/components/icons/PlanetIcon";
+import { WikipediaIcon } from "@/components/icons/WikipediaIcon";
+import { BlueskyIcon } from "@/components/icons/BlueskyIcon";
+import { MailboxIcon } from "@/components/icons/MailboxIcon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -46,6 +51,29 @@ export const SIDEBAR_DIVIDER_ID = "divider";
 /** Returns true if the given sidebar order ID is a divider sentinel. */
 export function isSidebarDivider(id: string): boolean {
   return id === SIDEBAR_DIVIDER_ID;
+}
+
+/** Returns true if the given sidebar order ID is a `nostr:` URI. */
+export function isNostrUri(id: string): boolean {
+  return id.startsWith("nostr:");
+}
+
+/** Extracts the NIP-19 bech32 identifier from a `nostr:` URI. Returns the raw string if not a nostr: URI. */
+export function nostrUriToNip19(uri: string): string {
+  return uri.startsWith("nostr:") ? uri.slice(6) : uri;
+}
+
+/**
+ * Returns true if the given sidebar order ID is an external content identifier
+ * (i-tag value): an https:// URL or a prefixed identifier like `iso3166:US`.
+ */
+export function isExternalUri(id: string): boolean {
+  return (
+    id.startsWith("https://") ||
+    id.startsWith("http://") ||
+    id.startsWith("iso3166:") ||
+    id.startsWith("isbn:")
+  );
 }
 
 /** A sidebar-capable item with everything needed for display and navigation. */
@@ -81,13 +109,6 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     icon: Bell,
     requiresAuth: true,
   },
-  {
-    id: "messages",
-    label: "Messages",
-    path: "/messages",
-    icon: Mail,
-    requiresAuth: true,
-  },
   { id: "search", label: "Search", path: "/search", icon: Search },
   { id: "trends", label: "Trends", path: "/trends", icon: TrendingUp },
   {
@@ -113,12 +134,20 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   },
   { id: "settings", label: "Settings", path: "/settings", icon: Settings },
   {
+    id: "letters",
+    label: "Letters",
+    path: "/letters",
+    icon: MailboxIcon,
+    requiresAuth: true,
+  },
+  {
     id: "ai-chat",
     label: "AI Chat",
     path: "/ai-chat",
     icon: Bot,
     requiresAuth: true,
   },
+  { id: 'blobbi', label: 'Blobbi', path: '/blobbi', icon: Egg, requiresAuth: true },
   { id: "help", label: "Help", path: "/help", icon: HelpCircle },
   // Content types
   { id: "events", label: "Events", path: "/events", icon: CalendarDays },
@@ -141,6 +170,9 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "development", label: "Development", path: "/development", icon: Code },
   { id: "badges", label: "Badges", path: "/badges", icon: Award },
   { id: "world", label: "World", path: "/world", icon: Earth },
+  { id: "archive", label: "Archive", path: "/archive", icon: Archive },
+  { id: "wikipedia", label: "Wikipedia", path: "/wikipedia", icon: WikipediaIcon },
+  { id: "bluesky", label: "Bluesky", path: "/bluesky", icon: BlueskyIcon },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */
@@ -198,6 +230,40 @@ export function itemPath(
   return SIDEBAR_ITEM_MAP.get(id)?.path ?? `/${id}`;
 }
 
+/**
+ * Search sidebar items by label. Matches when the query is a prefix of the
+ * full label or of any word within the label (e.g. "arch" matches "Archive"
+ * and "Internet Archive" but not "Search"). Whole-label prefix matches are
+ * sorted before word-boundary matches. Auth-requiring items are excluded
+ * when the user is not logged in.
+ */
+export function searchSidebarItems(
+  query: string,
+  isLoggedIn: boolean,
+): SidebarItemDef[] {
+  const q = query.trim().toLowerCase();
+  if (q.length === 0) return [];
+
+  const prefixMatches: SidebarItemDef[] = [];
+  const wordMatches: SidebarItemDef[] = [];
+
+  for (const item of SIDEBAR_ITEMS) {
+    if (item.requiresAuth && !isLoggedIn) continue;
+    const label = item.label.toLowerCase();
+    if (label.startsWith(q)) {
+      prefixMatches.push(item);
+    } else {
+      // Check if query matches the start of any word in the label
+      const words = label.split(/\s+/);
+      if (words.some((word) => word.startsWith(q))) {
+        wordMatches.push(item);
+      }
+    }
+  }
+
+  return [...prefixMatches, ...wordMatches];
+}
+
 /** Check if a sidebar item is active given the current location. */
 export function isItemActive(
   id: string,
@@ -206,6 +272,17 @@ export function isItemActive(
   profilePath?: string,
   homePage?: string,
 ): boolean {
+  // Nostr URI items: active when pathname matches /<nip19>
+  if (isNostrUri(id)) {
+    const nip19Id = nostrUriToNip19(id);
+    return pathname === `/${nip19Id}`;
+  }
+
+  // External content items: active when pathname matches /i/<encoded-value>
+  if (isExternalUri(id)) {
+    return pathname === `/i/${encodeURIComponent(id)}` || pathname === `/i/${id}`;
+  }
+
   if (id === "profile") return !!profilePath && pathname === profilePath;
   if (id === "settings") return pathname.startsWith("/settings");
 

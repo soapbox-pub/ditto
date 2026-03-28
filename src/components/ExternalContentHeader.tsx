@@ -1,32 +1,428 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Droplets, ExternalLink, FileText, Globe, MapPin, Package, Play, User, Users, Wind } from 'lucide-react';
+import { BookOpen, Droplets, ExternalLink, FileText, Globe, MapPin, MessageCircle, Package, Play, Repeat2, Share2, User, Users, Wind } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
+import { ExternalReactionButton } from '@/components/ExternalReactionButton';
 import { LinkEmbed } from '@/components/LinkEmbed';
-import { extractYouTubeId } from '@/lib/linkEmbed';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
+import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
+import { BlueskyIcon } from '@/components/icons/BlueskyIcon';
+import { extractYouTubeId, extractWikipediaTitle, extractBlueskyPost } from '@/lib/linkEmbed';
+import { parseExternalUri, formatIsbn } from '@/lib/externalContent';
+import { shareOrCopy } from '@/lib/share';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
+import { useBlueskyPost } from '@/hooks/useBlueskyPost';
 import { useBookInfo } from '@/hooks/useBookInfo';
 import { useAddrEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useWeather } from '@/hooks/useWeather';
+import { useToast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo, getWikipediaTitle } from '@/lib/countries';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
-import { parseExternalUri, formatIsbn } from '@/lib/externalContent';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
+import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Full-size content headers (used on /i/ page)
 // ---------------------------------------------------------------------------
 
 export function UrlContentHeader({ url }: { url: string }) {
-  return <LinkEmbed url={url} showDiscuss={false} />;
+  const wikiTitle = useMemo(() => extractWikipediaTitle(url), [url]);
+  const blueskyPost = useMemo(() => extractBlueskyPost(url), [url]);
+
+  if (wikiTitle) {
+    return <WikipediaArticleHeader title={wikiTitle} url={url} />;
+  }
+
+  if (blueskyPost) {
+    return <BlueskyPostHeader author={blueskyPost.author} rkey={blueskyPost.rkey} url={url} />;
+  }
+
+  return <LinkEmbed url={url} showActions={false} />;
+}
+
+// ---------------------------------------------------------------------------
+// Bluesky post header (full feed-style, like a thread top post)
+// ---------------------------------------------------------------------------
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+function blueskyTimeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = now - then;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d`;
+  const months = Math.floor(days / 30);
+  return `${months}mo`;
+}
+
+function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string; url: string }) {
+  const { data: post, isLoading, isError } = useBlueskyPost(author, rkey);
+  const { toast } = useToast();
+
+  const profileUrl = `/i/${encodeURIComponent(`https://bsky.app/profile/${post?.handle ?? author}`)}`;
+  const externalContent = useMemo(() => parseExternalUri(url), [url]);
+
+  const [shareOpen, setShareOpen] = useState(false);
+  const [commentOpen, setCommentOpen] = useState(false);
+
+  const handleComment = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCommentOpen(true);
+  }, []);
+
+  const handleRepost = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShareOpen(true);
+  }, []);
+
+  const handleShare = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const fullUrl = `${window.location.origin}/i/${encodeURIComponent(url)}`;
+    const result = await shareOrCopy(fullUrl);
+    if (result === 'copied') {
+      toast({ title: 'Link copied' });
+    }
+  }, [url, toast]);
+
+  if (isLoading) {
+    return (
+      <div className="py-3">
+        <div className="flex gap-3">
+          <Skeleton className="size-11 rounded-full shrink-0" />
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-3.5 w-20" />
+            </div>
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-4/5" />
+            <div className="flex gap-6 pt-1">
+              <Skeleton className="h-4 w-10" />
+              <Skeleton className="h-4 w-10" />
+              <Skeleton className="h-4 w-10" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !post) {
+    return <LinkEmbed url={url} showActions={false} />;
+  }
+
+  return (
+    <>
+      <article className="py-1">
+        <div className="flex gap-3">
+          {/* Avatar */}
+          <Link to={profileUrl} className="shrink-0">
+            {post.avatar ? (
+              <img
+                src={post.avatar}
+                alt=""
+                className="size-11 rounded-full object-cover"
+                loading="lazy"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            ) : (
+              <div className="size-11 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
+                {(post.displayName ?? post.handle).charAt(0).toUpperCase()}
+              </div>
+            )}
+          </Link>
+
+          {/* Body */}
+          <div className="flex-1 min-w-0">
+            {/* Author info */}
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Link to={profileUrl} className="font-semibold text-[15px] truncate leading-tight hover:underline">
+                {post.displayName ?? post.handle}
+              </Link>
+              <Link to={profileUrl} className="text-muted-foreground text-sm truncate leading-tight hover:underline">
+                @{post.handle}
+              </Link>
+              <span className="text-muted-foreground text-sm shrink-0">&middot;</span>
+              <span className="text-muted-foreground text-sm shrink-0">
+                {blueskyTimeAgo(post.createdAt)}
+              </span>
+            </div>
+
+            {/* Post text */}
+            {post.text && (
+              <p className="mt-1 text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+                {post.text}
+              </p>
+            )}
+
+            {/* Image embeds */}
+            {post.images && post.images.length > 0 && (
+              <div
+                className={cn(
+                  'mt-3 rounded-xl overflow-hidden border border-border',
+                  post.images.length === 1 && 'grid grid-cols-1',
+                  post.images.length === 2 && 'grid grid-cols-2 gap-0.5',
+                  post.images.length === 3 && 'grid grid-cols-2 gap-0.5',
+                  post.images.length >= 4 && 'grid grid-cols-2 gap-0.5',
+                )}
+              >
+                {post.images.slice(0, 4).map((img, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      'relative overflow-hidden bg-secondary',
+                      post.images!.length === 1 ? 'aspect-video' : 'aspect-square',
+                      post.images!.length === 3 && i === 0 && 'row-span-2 aspect-auto',
+                    )}
+                  >
+                    <img
+                      src={img.thumb}
+                      alt={img.alt || ''}
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* External link embed */}
+            {post.external && post.external.thumb && (
+              <div className="mt-3 rounded-xl border border-border overflow-hidden bg-secondary/30">
+                <div className="aspect-[2/1] overflow-hidden bg-secondary">
+                  <img
+                    src={post.external.thumb}
+                    alt=""
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                </div>
+                {post.external.title && (
+                  <div className="px-3 py-2.5">
+                    <p className="text-sm font-semibold leading-tight line-clamp-2">{post.external.title}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-5 mt-3 -ml-2">
+              <button
+                type="button"
+                onClick={handleComment}
+                className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-sky-500 hover:bg-sky-500/10 transition-colors"
+                title="Comment"
+              >
+                <MessageCircle className="size-[18px]" />
+                {post.replyCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.replyCount)}</span>}
+              </button>
+              <button
+                type="button"
+                onClick={handleRepost}
+                className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
+                title="Share to feed"
+              >
+                <Repeat2 className="size-[18px]" />
+                {post.repostCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.repostCount)}</span>}
+              </button>
+              <ExternalReactionButton content={externalContent} iconSize="size-[18px]" count={post.likeCount} />
+              <button
+                type="button"
+                onClick={handleShare}
+                className="inline-flex items-center p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                title="Share link"
+              >
+                <Share2 className="size-[18px]" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Bluesky source link */}
+        <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <BlueskyIcon className="size-3.5 text-sky-500" />
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground transition-colors hover:underline"
+          >
+            View on Bluesky
+          </a>
+          <ExternalLink className="size-3" />
+        </div>
+      </article>
+
+      {/* Comment compose modal */}
+      {commentOpen && (
+        <ReplyComposeModal
+          open={commentOpen}
+          onOpenChange={setCommentOpen}
+          event={new URL(url)}
+        />
+      )}
+
+      {/* Share compose modal */}
+      {shareOpen && (
+        <ReplyComposeModal
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          initialContent={url}
+          title="Share to feed"
+        />
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Wikipedia article header (rich display for Wikipedia URLs)
+// ---------------------------------------------------------------------------
+
+const WIKI_ARTICLE_MAX_HEIGHT = 160; // px — extract taller than this gets truncated
+
+function WikipediaArticleHeader({ title, url }: { title: string; url: string }) {
+  const { data: wiki, isLoading } = useWikipediaSummary(title);
+
+  const contentRef = useRef<HTMLParagraphElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const measure = useCallback(() => {
+    const el = contentRef.current;
+    if (el) setOverflows(el.scrollHeight > WIKI_ARTICLE_MAX_HEIGHT);
+  }, []);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-border overflow-hidden">
+        <Skeleton className="w-full aspect-[16/9]" />
+        <div className="p-5 space-y-3">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-7 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <div className="space-y-2 pt-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback to generic link preview if Wikipedia API returned nothing
+  if (!wiki) {
+    return <LinkEmbed url={url} showActions={false} />;
+  }
+
+  const heroImage = wiki.originalImage?.source ?? wiki.thumbnail?.source;
+
+  return (
+    <div className="rounded-2xl border border-border overflow-hidden">
+      {/* Hero image */}
+      {heroImage && (
+        <div className="relative w-full overflow-hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/10">
+          <img
+            src={heroImage}
+            alt={wiki.title}
+            className="w-full max-h-[320px] object-cover"
+            loading="eager"
+            onError={(e) => {
+              (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
+            }}
+          />
+        </div>
+      )}
+
+      {/* Article content */}
+      <div className="p-5 sm:p-6">
+        {/* Wikipedia badge */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
+          <WikipediaIcon className="size-3.5 shrink-0" />
+          <span>Wikipedia</span>
+        </div>
+
+        {/* Title */}
+        <h2 className="text-2xl sm:text-3xl font-bold leading-snug mb-1">
+          {wiki.title}
+        </h2>
+
+        {/* Description */}
+        {wiki.description && (
+          <p className="text-sm text-muted-foreground capitalize mb-4">
+            {wiki.description}
+          </p>
+        )}
+
+        {/* Extract with expand/collapse */}
+        {wiki.extract && (
+          <div className="space-y-2">
+            <div className="relative">
+              <p
+                ref={contentRef}
+                style={!expanded && overflows ? { maxHeight: WIKI_ARTICLE_MAX_HEIGHT, overflow: 'hidden' } : undefined}
+                className="text-sm leading-relaxed text-muted-foreground"
+              >
+                {wiki.extract}
+              </p>
+              {!expanded && overflows && (
+                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+              )}
+            </div>
+            {overflows && (
+              <button
+                className="text-sm text-primary hover:underline"
+                onClick={() => setExpanded((v) => !v)}
+              >
+                {expanded ? 'Show less' : 'Read more'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer with Wikipedia link */}
+      <div className="border-t border-border px-5 py-2.5">
+        <a
+          href={wiki.articleUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <WikipediaIcon className="size-3.5" />
+          <span>Read on Wikipedia</span>
+          <ExternalLink className="size-3" />
+        </a>
+      </div>
+    </div>
+  );
 }
 
 export function BookContentHeader({ isbn }: { isbn: string }) {
@@ -688,6 +1084,8 @@ function hasVideo(tags: string[][]): boolean {
 const WELL_KNOWN_KIND_LABELS: Record<number, string> = {
   32267: 'App',
   30063: 'Release',
+  15128: 'Nsite',
+  35128: 'Nsite',
 };
 
 export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
@@ -711,6 +1109,7 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
     if (kindDef?.id) return CONTENT_KIND_ICONS[kindDef.id] ?? FileText;
     // Fallback icons for well-known kinds not in EXTRA_KINDS
     if (addr.kind === 32267 || addr.kind === 30063) return Package;
+    if (addr.kind === 15128 || addr.kind === 35128) return Globe;
     return FileText;
   }, [kindDef, addr.kind]);
 

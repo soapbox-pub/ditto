@@ -56,7 +56,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
   const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
-  const { data: stats } = useEventStats(event.id);
+  const { data: stats } = useEventStats(event.id, event);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 

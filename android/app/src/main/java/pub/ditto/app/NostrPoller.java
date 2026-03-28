@@ -265,6 +265,7 @@ public class NostrPoller {
                 }
                 return "commented on your post";
             }
+            case 8211: return "sent you a letter";
             default: return "mentioned you";
         }
     }
