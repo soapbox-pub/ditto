@@ -156,6 +156,7 @@ import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
 import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
+import type { Nip85EventStats } from "@/hooks/useNip85Stats";
 import { extractISBNFromEvent } from "@/lib/bookstr";
 import { canZap } from "@/lib/canZap";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
@@ -1105,6 +1106,41 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       });
     }
   }, [isKind1, isComment, replies, event.id, commentsData, muteItems]);
+
+  // Seed the NIP-85 stats cache with client-side reply counts for each comment
+  // in the thread. NIP-85 may not have stats for kind 1111 events, so this
+  // ensures sub-comment counts are visible without extra relay queries.
+  const { config } = useAppContext();
+  const statsPubkey = config.nip85StatsPubkey;
+
+  useEffect(() => {
+    if (!replies || replies.length === 0 || !statsPubkey) return;
+
+    // Count direct replies for each event in the thread
+    const replyCounts = new Map<string, number>();
+    for (const r of replies) {
+      const parentId = isKind1
+        ? getParentEventId(r) ?? event.id
+        : r.tags.find(([n]) => n === 'e')?.[1];
+      if (parentId) {
+        replyCounts.set(parentId, (replyCounts.get(parentId) ?? 0) + 1);
+      }
+    }
+
+    // Seed events whose NIP-85 stats cache is empty or shows 0 comments
+    for (const [eventId, count] of replyCounts) {
+      const existing = queryClient.getQueryData<Nip85EventStats | null>(['nip85-event-stats', eventId, statsPubkey]);
+      if (!existing || existing.commentCount === 0) {
+        queryClient.setQueryData<Nip85EventStats | null>(['nip85-event-stats', eventId, statsPubkey], (prev) => ({
+          commentCount: Math.max(prev?.commentCount ?? 0, count),
+          repostCount: prev?.repostCount ?? 0,
+          reactionCount: prev?.reactionCount ?? 0,
+          zapCount: prev?.zapCount ?? 0,
+          zapAmount: prev?.zapAmount ?? 0,
+        }));
+      }
+    }
+  }, [replies, isKind1, event.id, queryClient, statsPubkey]);
 
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
