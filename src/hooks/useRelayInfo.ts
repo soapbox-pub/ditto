@@ -39,8 +39,8 @@ function relayToHttpUrl(relayUrl: string): string | null {
   }
 }
 
-export function useRelayInfo(relayUrl: string) {
-  const httpUrl = relayToHttpUrl(relayUrl);
+export function useRelayInfo(relayUrl: string | undefined) {
+  const httpUrl = relayUrl ? relayToHttpUrl(relayUrl) : null;
 
   return useQuery<RelayInfoDocument>({
     queryKey: ['relay-info', relayUrl],
