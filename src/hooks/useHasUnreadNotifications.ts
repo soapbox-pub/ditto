@@ -56,18 +56,16 @@ export function useHasUnreadNotifications(): boolean {
     queryFn: async ({ signal }) => {
       if (!user || notificationsCursor === null) return false;
 
-      const filter: Record<string, unknown> = {
+      const filter: { kinds: number[]; '#p': string[]; since: number; limit: number; authors?: string[] } = {
         kinds: enabledKinds,
         '#p': [user.pubkey],
         since: notificationsCursor + 1,
         limit: 1,
+        ...(authorsFilter ? { authors: authorsFilter } : {}),
       };
-      if (authorsFilter) {
-        filter.authors = authorsFilter;
-      }
 
       const events = await nostr.query(
-        [filter as { kinds: number[]; '#p': string[]; since: number; limit: number; authors?: string[] }],
+        [filter],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
