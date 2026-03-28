@@ -1,5 +1,32 @@
 # Changelog
 
+## [2.2.0] - 2026-03-28
+
+### Added
+- Blobbi virtual pets -- adopt an egg, hatch it, evolve it into one of 16 adult forms, and care for it with feeding, cleaning, medicine, music, and singing
+- Blobbi companion that follows you around the app, tracks your cursor, blinks, expresses emotions, and reacts to what you're doing
+- Blobbi shop and inventory system with items that affect your pet's stats
+- Daily missions with reroll, care streaks, and stage-based rewards
+- Immersive full-screen vines experience on both mobile and desktop with floating controls
+- NIP-11 relay information panel on the network settings page
+- Link preview cards now display inside quoted posts instead of raw URLs
+- Nsec paste guard warns you before accidentally pasting private keys outside the login field
+- Remote signer UX improvements for Amber and NIP-46 users on Android
+- Badge awards now trigger push notifications
+- Badges display in profile bio section with a "Give badge" option in the profile menu
+
+### Changed
+- Notification "Mentions" tab now shows only pure mentions, filtering out replies
+- Notification preferences ("only from people I follow") now properly apply to push notifications, native Android notifications, and the unread dot
+- Upgraded from React 18 to React 19
+- Reduced initial bundle size by ~50% with improved code splitting and lazy loading
+
+### Fixed
+- Zapping Primal users no longer produces an error
+- Hashtag feeds now match case-insensitively for parity with search results
+- Mobile top bar arc no longer lingers on pages without tabs
+- Give Badge dialog and profile menu action handlers
+
 ## [2.1.1] - 2026-03-27
 
 ### Added
