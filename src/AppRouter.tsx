@@ -1,12 +1,10 @@
-import { lazy, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
-import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
-import { BlobbiCompanionLayer } from "@/blobbi/companion";
-import { BlobbiActionsProvider } from "@/blobbi/companion/interaction";
+import { BlobbiActionsProvider } from "@/blobbi/companion/interaction/BlobbiActionsProvider";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { MainLayout } from "./components/MainLayout";
 import { ScrollToTop } from "./components/ScrollToTop";
@@ -15,9 +13,17 @@ import { useProfileUrl } from "./hooks/useProfileUrl";
 import { getExtraKindDef } from "./lib/extraKinds";
 
 // Critical-path pages: eagerly loaded (landing + fallback)
-import { HomePage } from "./pages/HomePage";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+
+// Lazy-loaded companion layer (~450K code-split)
+const BlobbiCompanionLayer = lazy(() => import("@/blobbi/companion").then(m => ({ default: m.BlobbiCompanionLayer })));
+
+// Lazy-loaded compose modal (pulls in emoji-mart ~620K)
+const ReplyComposeModal = lazy(() => import("@/components/ReplyComposeModal").then(m => ({ default: m.ReplyComposeModal })));
+
+// HomePage eagerly imported all page components; now lazy-loaded
+const HomePage = lazy(() => import("./pages/HomePage").then(m => ({ default: m.HomePage })));
 
 // All other pages: code-split via React.lazy
 const AdvancedSettingsPage = lazy(() => import("./pages/AdvancedSettingsPage").then(m => ({ default: m.AdvancedSettingsPage })));
@@ -84,7 +90,11 @@ function PollsFeedPage() {
         icon={sidebarItemIcon("polls", "size-5")}
         onFabClick={() => setComposeOpen(true)}
       />
-      <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} initialMode="poll" />
+      {composeOpen && (
+        <Suspense fallback={null}>
+          <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} initialMode="poll" />
+        </Suspense>
+      )}
     </>
   );
 }
@@ -106,7 +116,9 @@ export function AppRouter() {
         <DeepLinkHandler />
         <ScrollToTop />
         <BlobbiActionsProvider>
-          <BlobbiCompanionLayer />
+          <Suspense fallback={null}>
+            <BlobbiCompanionLayer />
+          </Suspense>
         </BlobbiActionsProvider>
         <Routes>
           {/* All routes share the persistent MainLayout (sidebar + nav) */}

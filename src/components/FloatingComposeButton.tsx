@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Plus, Construction } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,9 +7,11 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { FabButton } from '@/components/FabButton';
+
+// Lazy-load the compose modal (pulls in emoji-mart ~620K)
+const ReplyComposeModal = lazy(() => import('@/components/ReplyComposeModal').then(m => ({ default: m.ReplyComposeModal })));
 
 
 
@@ -55,9 +57,11 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
         icon={icon ?? <Plus strokeWidth={4} size={16} />}
       />
 
-      {/* Kind 1: Compose modal */}
-      {kind === 1 && (
-        <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
+      {/* Kind 1: Compose modal (lazy-loaded) */}
+      {kind === 1 && composeOpen && (
+        <Suspense fallback={null}>
+          <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
+        </Suspense>
       )}
 
       {/* Other kinds: Coming soon dialog */}
