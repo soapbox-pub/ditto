@@ -53,43 +53,54 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
         pinned
           ? 'max-sidebar:transition-[top,padding-top] max-sidebar:duration-300 max-sidebar:ease-in-out'
           : 'max-sidebar:transition-transform max-sidebar:duration-300 max-sidebar:ease-in-out',
-        navHidden && (pinned ? 'max-sidebar:safe-area-inset-top' : 'nav-hidden-slide'),
+        navHidden && (pinned ? 'max-sidebar:!top-0 max-sidebar:safe-area-top' : 'nav-hidden-slide'),
         className,
       )}>
-        <ArcBackground variant={noArc ? 'rect' : 'down'} />
-        {/* Per-tab arc hover highlight: full-width arc, clipped to the hovered tab's x-slice */}
-        {hover && !noArc && (
-          <svg
-            aria-hidden
-            className="absolute top-0 left-0 w-full pointer-events-none"
-            style={{
-              height: `calc(100% + ${ARC_OVERHANG_PX}px)`,
-              clipPath: `inset(0 calc(100% - ${hover.left + hover.width}px) 0 ${hover.left}px)`,
-            }}
-            viewBox="0 0 100 64"
-            preserveAspectRatio="none"
-          >
-            <path d="M0,0 L100,0 L100,44 Q50,64 0,44 Z" className="fill-secondary/40" />
-          </svg>
+        {/* Safe-area fill — visible only when pinned and nav is hidden, covers the
+            padding zone above the tabs with the same translucent bg as the MobileTopBar. */}
+        {pinned && navHidden && (
+          <div
+            className="absolute top-0 left-0 right-0 bg-background/85 sidebar:hidden"
+            style={{ height: 'env(safe-area-inset-top, 0px)' }}
+          />
         )}
-        {/* Active tab indicator: the arc's bottom edge as a stroke, clipped to the active tab's x-slice */}
-        {active && !noArc && (
-          <svg
-            aria-hidden
-            className="absolute top-0 left-0 w-full pointer-events-none"
-            style={{
-              height: `calc(100% + ${ARC_OVERHANG_PX}px)`,
-              clipPath: `inset(0 calc(100% - ${active.left + active.width}px) 0 ${active.left}px)`,
-            }}
-            viewBox="0 0 100 64"
-            preserveAspectRatio="none"
-          >
-            <path d="M100,44 Q50,64 0,44" fill="none" className="stroke-primary" strokeWidth="3" />
-          </svg>
-        )}
-        {/* Tab content sits above the SVG background */}
-        <div className={cn('relative flex overflow-x-auto scrollbar-none', innerClassName)}>
-          {children}
+        {/* Inner wrapper so ArcBackground covers only the tab area, not the safe-area padding above */}
+        <div className="relative">
+          <ArcBackground variant={noArc ? 'rect' : 'down'} />
+          {/* Per-tab arc hover highlight: full-width arc, clipped to the hovered tab's x-slice */}
+          {hover && !noArc && (
+            <svg
+              aria-hidden
+              className="absolute top-0 left-0 w-full pointer-events-none"
+              style={{
+                height: `calc(100% + ${ARC_OVERHANG_PX}px)`,
+                clipPath: `inset(0 calc(100% - ${hover.left + hover.width}px) 0 ${hover.left}px)`,
+              }}
+              viewBox="0 0 100 64"
+              preserveAspectRatio="none"
+            >
+              <path d="M0,0 L100,0 L100,44 Q50,64 0,44 Z" className="fill-secondary/40" />
+            </svg>
+          )}
+          {/* Active tab indicator: the arc's bottom edge as a stroke, clipped to the active tab's x-slice */}
+          {active && !noArc && (
+            <svg
+              aria-hidden
+              className="absolute top-0 left-0 w-full pointer-events-none"
+              style={{
+                height: `calc(100% + ${ARC_OVERHANG_PX}px)`,
+                clipPath: `inset(0 calc(100% - ${active.left + active.width}px) 0 ${active.left}px)`,
+              }}
+              viewBox="0 0 100 64"
+              preserveAspectRatio="none"
+            >
+              <path d="M100,44 Q50,64 0,44" fill="none" className="stroke-primary" strokeWidth="3" />
+            </svg>
+          )}
+          {/* Tab content sits above the SVG background */}
+          <div className={cn('relative flex overflow-x-auto scrollbar-none', innerClassName)}>
+            {children}
+          </div>
         </div>
       </div>
     </SubHeaderBarContext.Provider>
