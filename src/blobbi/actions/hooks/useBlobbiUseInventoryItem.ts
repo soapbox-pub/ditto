@@ -32,6 +32,7 @@ import {
 import { trackMultipleDailyMissionActions } from '../lib/daily-mission-tracker';
 import type { DailyMissionAction } from '../lib/daily-missions';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
+import { calculateInventoryActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
 import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';
 import { EVOLVE_REQUIRED_INTERACTIONS } from './useEvolveTasks';
 
@@ -53,6 +54,8 @@ export interface UseItemResult {
   action: InventoryAction;
   quantity: number;
   statsChanged: Record<string, number>;
+  xpGained: number;
+  newXP: number;
 }
 
 /**
@@ -288,9 +291,15 @@ export function useBlobbiUseInventoryItem({
       // Get streak updates (will only update if needed based on day)
       const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
       
+      // ─── Apply XP Gain ───
+      const xpGained = calculateInventoryActionXP(action, quantity);
+      const currentXP = canonical.companion.experience ?? 0;
+      const newXP = applyXPGain(currentXP, xpGained);
+      
       const blobbiTags = updateBlobbiTags(updatedTags, {
         ...statsUpdate,
         ...streakUpdates,
+        experience: newXP.toString(),
         last_interaction: nowStr,
         last_decay_at: nowStr,
       });
@@ -331,14 +340,17 @@ export function useBlobbiUseInventoryItem({
         action,
         quantity,
         statsChanged,
+        xpGained,
+        newXP,
       };
     },
-    onSuccess: ({ itemName, action, quantity }) => {
+    onSuccess: ({ itemName, action, quantity, xpGained }) => {
       const actionMeta = ACTION_METADATA[action];
       const quantityText = quantity > 1 ? ` (x${quantity})` : '';
+      const xpText = formatXPGain(xpGained);
       toast({
         title: `${actionMeta.label} successful!`,
-        description: `Used ${itemName}${quantityText} on your Blobbi.`,
+        description: `Used ${itemName}${quantityText} on your Blobbi. ${xpText}`,
       });
 
       // Track daily mission progress
