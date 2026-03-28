@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useInView } from "react-intersection-observer";
 import { Link } from "react-router-dom";
 import { AwardBadgeDialog } from "@/components/AwardBadgeDialog";
 import { LoginArea } from "@/components/auth/LoginArea";
@@ -62,6 +61,8 @@ import {
 } from "@/hooks/useBadgeDefinitions";
 import { useBadgeFeed } from "@/hooks/useBadgeFeed";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useFeedTab } from "@/hooks/useFeedTab";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useNostrPublish } from "@/hooks/useNostrPublish";
 import { type PendingBadge, usePendingBadges } from "@/hooks/usePendingBadges";
 import { useProfileBadges } from "@/hooks/useProfileBadges";
@@ -70,6 +71,7 @@ import { useReorderBadges } from "@/hooks/useReorderBadges";
 import { useToast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { BADGE_DEFINITION_KIND, getBadgeATag } from "@/lib/badgeUtils";
+import { deduplicateEvents } from "@/lib/deduplicateEvents";
 import { genUserName } from "@/lib/genUserName";
 import { timeAgo } from "@/lib/timeAgo";
 
@@ -131,24 +133,10 @@ export function BadgesPage() {
     hasSubHeader: !!user,
   });
 
-  const [activeTab, setActiveTab] = useState<BadgesTab>(() => {
-    try {
-      const stored = sessionStorage.getItem("ditto:feed-tab:badges");
-      if (stored === "mine" || stored === "follows") return stored;
-    } catch {
-      /* ignore */
-    }
-    return "follows";
-  });
-
-  const handleSetTab = useCallback((tab: BadgesTab) => {
-    setActiveTab(tab);
-    try {
-      sessionStorage.setItem("ditto:feed-tab:badges", tab);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const [activeTab, setActiveTab] = useFeedTab<BadgesTab>("badges", [
+    "mine",
+    "follows",
+  ]);
 
   useSeoMeta({
     title: `Badges | ${config.appName}`,
@@ -166,12 +154,12 @@ export function BadgesPage() {
           <TabButton
             label="Follows"
             active={activeTab === "follows"}
-            onClick={() => handleSetTab("follows")}
+            onClick={() => setActiveTab("follows")}
           />
           <TabButton
             label="My Badges"
             active={activeTab === "mine"}
-            onClick={() => handleSetTab("mine")}
+            onClick={() => setActiveTab("mine")}
           >
             <span className="inline-flex items-center gap-1.5">
               My Badges
@@ -1118,33 +1106,14 @@ function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
     isFetchingNextPage,
   } = feedQuery;
 
-  // Auto-fetch page 2
-  useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) {
-      fetchNextPage();
-    }
-  }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
-
-  const { ref: scrollRef, inView } = useInView({
-    threshold: 0,
-    rootMargin: "400px",
+  const { scrollRef } = useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    pageCount: rawData?.pages?.length,
   });
 
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  const feedEvents = useMemo(() => {
-    if (!rawData?.pages) return [];
-    const seen = new Set<string>();
-    return (rawData.pages as NostrEvent[][]).flat().filter((event) => {
-      if (seen.has(event.id)) return false;
-      seen.add(event.id);
-      return true;
-    });
-  }, [rawData?.pages]);
+  const feedEvents = deduplicateEvents(rawData?.pages as NostrEvent[][]);
 
   const showSkeleton = isPending || (isLoading && !rawData);
 

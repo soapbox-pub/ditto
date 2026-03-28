@@ -2,8 +2,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSeoMeta } from "@unhead/react";
 import { CalendarDays, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useMemo } from "react";
-import { useInView } from "react-intersection-observer";
+import { useCallback, useMemo } from "react";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import { NoteCard } from "@/components/NoteCard";
@@ -17,6 +16,7 @@ import { useAppContext } from "@/hooks/useAppContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFeed } from "@/hooks/useFeed";
 import { useFeedTab } from "@/hooks/useFeedTab";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useMuteList } from "@/hooks/useMuteList";
 import { getExtraKindDef } from "@/lib/extraKinds";
 import { isEventMuted } from "@/lib/muteHelpers";
@@ -64,21 +64,12 @@ export function EventsFeedPage() {
     isFetchingNextPage,
   } = feedQuery;
 
-  // Auto-fetch page 2 for smoother scrolling
-  useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) {
-      fetchNextPage();
-    }
-  }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
-
-  const { ref: scrollRef, inView } = useInView({
-    threshold: 0,
-    rootMargin: "400px",
+  const { scrollRef } = useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    pageCount: rawData?.pages?.length,
   });
-
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) fetchNextPage();
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Flatten, deduplicate, filter muted, then sort: future events first
   const feedItems = useMemo(() => {

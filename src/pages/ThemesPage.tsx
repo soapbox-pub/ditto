@@ -2,8 +2,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSeoMeta } from "@unhead/react";
 import { Loader2, Pencil, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useInView } from "react-intersection-observer";
+import { useCallback, useState } from "react";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/PageHeader";
@@ -17,8 +16,11 @@ import { Switch } from "@/components/ui/switch";
 import { useLayoutOptions } from "@/contexts/LayoutContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useFeedTab } from "@/hooks/useFeedTab";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useTheme } from "@/hooks/useTheme";
 import { useThemeFeed } from "@/hooks/useThemeFeed";
+import { deduplicateEvents } from "@/lib/deduplicateEvents";
 
 type ThemesTab = "my-themes" | "follows" | "global";
 
@@ -28,7 +30,11 @@ export function ThemesPage() {
   const { autoShareTheme, setAutoShareTheme } = useTheme();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<ThemesTab>("my-themes");
+  const [activeTab, setActiveTab] = useFeedTab<ThemesTab>("themes", [
+    "my-themes",
+    "follows",
+    "global",
+  ]);
 
   // Builder dialog state
   const [builderOpen, setBuilderOpen] = useState(false);
@@ -63,46 +69,15 @@ export function ThemesPage() {
     isFetchingNextPage,
   } = feedQuery;
 
-  // Auto-fetch page 2 as soon as page 1 arrives for smoother scrolling
-  useEffect(() => {
-    if (
-      activeTab !== "my-themes" &&
-      hasNextPage &&
-      !isFetchingNextPage &&
-      rawData?.pages?.length === 1
-    ) {
-      fetchNextPage();
-    }
-  }, [
-    activeTab,
+  const { scrollRef } = useInfiniteScroll({
     hasNextPage,
     isFetchingNextPage,
-    rawData?.pages?.length,
     fetchNextPage,
-  ]);
-
-  // Intersection observer for infinite scroll
-  const { ref: scrollRef, inView } = useInView({
-    threshold: 0,
-    rootMargin: "400px",
+    pageCount: rawData?.pages?.length,
+    enabled: activeTab !== "my-themes",
   });
 
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  // Flatten and deduplicate feed events
-  const feedEvents = useMemo(() => {
-    if (!rawData?.pages) return [];
-    const seen = new Set<string>();
-    return (rawData.pages as NostrEvent[][]).flat().filter((event) => {
-      if (seen.has(event.id)) return false;
-      seen.add(event.id);
-      return true;
-    });
-  }, [rawData?.pages]);
+  const feedEvents = deduplicateEvents(rawData?.pages as NostrEvent[][]);
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["theme-feed", feedTab] });
