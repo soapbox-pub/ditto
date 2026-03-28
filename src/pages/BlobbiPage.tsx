@@ -82,7 +82,7 @@ import {
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
-import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion } from '@/blobbi/dev';
+import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -829,6 +829,15 @@ function BlobbiDashboard({
 }: BlobbiDashboardProps) {
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
+  
+  // Derive available stages from all companions (for daily mission filtering)
+  const availableStages = useMemo(() => {
+    const stages = new Set<'egg' | 'baby' | 'adult'>();
+    for (const c of companions) {
+      stages.add(c.stage);
+    }
+    return Array.from(stages);
+  }, [companions]);
   
   // Check if this Blobbi is currently the active floating companion
   // If so, we hide the visual here to avoid duplication (one floating, one in-page)
@@ -1599,6 +1608,7 @@ function BlobbiDashboard({
         isStoppingIncubation={isStoppingIncubation}
         onStopEvolution={handleStopEvolution}
         isStoppingEvolution={isStoppingEvolution}
+        availableStages={availableStages}
       />
       
       {/* Shop Modal */}
@@ -1921,7 +1931,7 @@ function BlobbiDashboardFloatingControls({
         
         {/* DEV ONLY: Instant stage transition button */}
         {/* Bypasses incubation/evolution tasks for quick testing */}
-        {import.meta.env.DEV && stage !== 'adult' && onDevInstantTransition && (
+        {isLocalhostDev() && stage !== 'adult' && onDevInstantTransition && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -1950,7 +1960,7 @@ function BlobbiDashboardFloatingControls({
         
         {/* DEV ONLY: State editor button */}
         {/* Opens a modal to directly edit Blobbi state */}
-        {import.meta.env.DEV && onDevOpenEditor && (
+        {isLocalhostDev() && onDevOpenEditor && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -1972,7 +1982,7 @@ function BlobbiDashboardFloatingControls({
         
         {/* DEV ONLY: Emotion tester button */}
         {/* Opens a panel to test different emotions on Blobbi */}
-        {import.meta.env.DEV && onDevOpenEmotionPanel && (
+        {isLocalhostDev() && onDevOpenEmotionPanel && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

@@ -24,6 +24,9 @@ import {
   getTodayDateString,
   needsDailyReset,
   createDailyMissionsState,
+  isBonusMissionAvailable,
+  isBonusMissionClaimed,
+  BONUS_MISSION_DEFINITION,
 } from '../lib/daily-missions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -31,6 +34,9 @@ import {
 export interface ClaimMissionRequest {
   missionId: string;
 }
+
+/** Special ID for claiming the bonus mission */
+export const BONUS_MISSION_ID = 'bonus_daily_complete';
 
 export interface ClaimMissionResult {
   missionId: string;
@@ -99,7 +105,58 @@ export function useClaimMissionReward(
         missionsState = createDailyMissionsState(getTodayDateString(), user.pubkey, previousCoins);
       }
 
-      // Find the mission
+      // Handle bonus mission claim
+      if (missionId === BONUS_MISSION_ID) {
+        // Check if bonus is available
+        if (!isBonusMissionAvailable(missionsState!)) {
+          throw new Error('Bonus mission not available yet');
+        }
+
+        // Check if already claimed
+        if (isBonusMissionClaimed(missionsState!)) {
+          throw new Error('Bonus reward already claimed');
+        }
+
+        const coinsToAdd = BONUS_MISSION_DEFINITION.reward;
+        const newTotalCoins = currentProfile.coins + coinsToAdd;
+
+        // Build updated tags with new coin balance
+        const updatedTags = updateBlobbonautTags(currentProfile.allTags, {
+          coins: newTotalCoins.toString(),
+        });
+
+        // Publish updated profile event
+        const event = await publishEvent({
+          kind: KIND_BLOBBONAUT_PROFILE,
+          content: '',
+          tags: updatedTags,
+        });
+
+        // Update the query cache
+        updateProfileEvent(event);
+
+        // Update localStorage to mark bonus as claimed
+        const updatedState: DailyMissionsState = {
+          ...missionsState!,
+          bonusClaimed: true,
+          totalCoinsEarned: missionsState!.totalCoinsEarned + coinsToAdd,
+        };
+
+        writeMissionsState(updatedState);
+
+        // Dispatch event for React components to re-render
+        window.dispatchEvent(new CustomEvent('daily-missions-updated', { 
+          detail: { missionId, claimed: true, isBonus: true } 
+        }));
+
+        return {
+          missionId,
+          coinsEarned: coinsToAdd,
+          newTotalCoins,
+        };
+      }
+
+      // Handle regular mission claim
       const mission = missionsState!.missions.find(m => m.id === missionId);
       if (!mission) {
         throw new Error('Mission not found');
@@ -171,7 +228,7 @@ export function useClaimMissionReward(
     },
     onError: (error: Error) => {
       // Don't show error for already claimed (user might have double-clicked)
-      if (error.message === 'Reward already claimed') {
+      if (error.message === 'Reward already claimed' || error.message === 'Bonus reward already claimed') {
         return;
       }
 

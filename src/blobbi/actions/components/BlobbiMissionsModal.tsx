@@ -35,6 +35,7 @@ import { TasksPanel } from './TasksPanel';
 import { DailyMissionsPanel } from './DailyMissionsPanel';
 import { useDailyMissions } from '../hooks/useDailyMissions';
 import { useClaimMissionReward } from '../hooks/useClaimMissionReward';
+import { useRerollMission } from '../hooks/useRerollMission';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,8 @@ interface BlobbiMissionsModalProps {
   onStopEvolution: () => Promise<void>;
   /** Whether stop evolution is in progress */
   isStoppingEvolution: boolean;
+  /** Available Blobbi stages across all user's companions (for mission filtering) */
+  availableStages?: ('egg' | 'baby' | 'adult')[];
 }
 
 // ─── Daily Missions Section ───────────────────────────────────────────────────
@@ -76,25 +79,38 @@ interface BlobbiMissionsModalProps {
 interface DailyMissionsSectionProps {
   profile: BlobbonautProfile | null;
   updateProfileEvent: (event: NostrEvent) => void;
+  /** Available Blobbi stages the user has */
+  availableStages?: ('egg' | 'baby' | 'adult')[];
   disabled?: boolean;
   defaultOpen?: boolean;
 }
 
-function DailyMissionsSection({ profile, updateProfileEvent, disabled, defaultOpen = true }: DailyMissionsSectionProps) {
+function DailyMissionsSection({ profile, updateProfileEvent, availableStages, disabled, defaultOpen = true }: DailyMissionsSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const {
     missions,
     todayClaimedReward,
     totalPotentialReward,
-  } = useDailyMissions();
+    bonusAvailable,
+    bonusClaimed,
+    bonusReward,
+    noMissionsAvailable,
+    rerollsRemaining,
+  } = useDailyMissions({ availableStages });
 
   const { mutate: claimReward, isPending: isClaiming } = useClaimMissionReward(
     profile,
     updateProfileEvent
   );
 
+  const { mutate: rerollMission, isPending: isRerolling } = useRerollMission();
+
   const handleClaimReward = (missionId: string) => {
     claimReward({ missionId });
+  };
+
+  const handleRerollMission = (missionId: string) => {
+    rerollMission({ missionId, availableStages });
   };
 
   return (
@@ -126,8 +142,15 @@ function DailyMissionsSection({ profile, updateProfileEvent, disabled, defaultOp
         <DailyMissionsPanel
           missions={missions}
           onClaimReward={handleClaimReward}
+          onRerollMission={handleRerollMission}
           todayCoins={todayClaimedReward}
-          disabled={disabled || isClaiming}
+          disabled={disabled || isClaiming || isRerolling}
+          bonusAvailable={bonusAvailable}
+          bonusClaimed={bonusClaimed}
+          bonusReward={bonusReward}
+          noMissionsAvailable={noMissionsAvailable}
+          rerollsRemaining={rerollsRemaining}
+          isRerolling={isRerolling}
         />
       </CollapsibleContent>
     </Collapsible>
@@ -343,6 +366,7 @@ export function BlobbiMissionsModal({
   isStoppingIncubation,
   onStopEvolution,
   isStoppingEvolution,
+  availableStages,
 }: BlobbiMissionsModalProps) {
   const isIncubating = companion.state === 'incubating';
   const isEvolvingState = companion.state === 'evolving';
@@ -381,6 +405,7 @@ export function BlobbiMissionsModal({
           <DailyMissionsSection 
             profile={profile}
             updateProfileEvent={updateProfileEvent}
+            availableStages={availableStages}
             disabled={isProcessBusy}
             defaultOpen={true}
           />
