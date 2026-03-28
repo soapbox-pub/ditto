@@ -172,6 +172,10 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const [giveBadgeOpen, setGiveBadgeOpen] = useState(false);
 
   const close = () => onOpenChange(false);
+  const openAfterClose = (setter: (v: boolean) => void) => {
+    close();
+    setTimeout(() => setter(true), 150);
+  };
 
   const handleCopyPubkey = () => {
     navigator.clipboard.writeText(npubEncoded);
@@ -200,15 +204,8 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     close();
   };
 
-  const handleReport = () => {
-    close();
-    setTimeout(() => setReportOpen(true), 150);
-  };
-
-  const handleAddToList = () => {
-    close();
-    setTimeout(() => setAddToListOpen(true), 150);
-  };
+  const handleReport = () => openAfterClose(setReportOpen);
+  const handleAddToList = () => openAfterClose(setAddToListOpen);
 
   const handleToggleSidebar = () => {
     if (isInSidebar) {
@@ -221,15 +218,8 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     close();
   };
 
-  const handleRecovery = () => {
-    close();
-    setTimeout(() => setRecoveryOpen(true), 150);
-  };
-
-  const handleGiveBadge = () => {
-    close();
-    setTimeout(() => setGiveBadgeOpen(true), 150);
-  };
+  const handleRecovery = () => openAfterClose(setRecoveryOpen);
+  const handleGiveBadge = () => openAfterClose(setGiveBadgeOpen);
 
   return (
   <>
@@ -1596,7 +1586,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       }
     }
     return events;
-   }, [mediaData?.pages]);
+  }, [mediaData?.pages]);
 
   // Profile badges for bio section
   const { refs: badgeRefs } = useProfileBadges(pubkey);
