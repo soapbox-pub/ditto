@@ -11,8 +11,7 @@
     "icons": "bash scripts/generate-icons.sh"
   },
   "engines": {
-    "npm": "10.9.4",
-    "node": "22.x"
+    "node": ">=22"
   },
   "dependencies": {
     "@capacitor/app": "^8.0.0",
