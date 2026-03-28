@@ -51,9 +51,9 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
       <div className={cn(
         'relative sticky top-mobile-bar sidebar:top-0 sidebar:py-2 z-10',
         pinned
-          ? 'max-sidebar:transition-[top] max-sidebar:duration-300 max-sidebar:ease-in-out'
+          ? 'max-sidebar:transition-[top,padding-top] max-sidebar:duration-300 max-sidebar:ease-in-out'
           : 'max-sidebar:transition-transform max-sidebar:duration-300 max-sidebar:ease-in-out',
-        navHidden && (pinned ? 'max-sidebar:!top-0' : 'nav-hidden-slide'),
+        navHidden && (pinned ? 'max-sidebar:!top-0 max-sidebar:safe-area-top' : 'nav-hidden-slide'),
         className,
       )}>
         <ArcBackground variant={noArc ? 'rect' : 'down'} />

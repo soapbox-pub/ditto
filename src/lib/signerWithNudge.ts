@@ -11,6 +11,10 @@ import { NudgeToastContent, PhaseToastContent } from '@/components/SignerToastCo
 /** Show the nudge toast after this delay if a signer op is still pending. */
 const NUDGE_DELAY_MS = 4_000;
 
+/** Longer delay for decrypt operations — auto-approve is common and nudging
+ *  too early sends the user to the signer with nothing to approve. */
+const NUDGE_DELAY_DECRYPT_MS = 10_000;
+
 /** Hard timeout — reject the op entirely after this long with no response. */
 const HARD_TIMEOUT_MS = 45_000;
 
@@ -221,6 +225,7 @@ async function runWithNudge<T>(op: () => Promise<T>, opts: RunOpts): Promise<Run
 
     // --- Nudge timer ---
     let dismissNudge: (() => void) | undefined;
+    const delay = opType === 'decrypt' ? NUDGE_DELAY_DECRYPT_MS : NUDGE_DELAY_MS;
     const nudgeTimer = setTimeout(() => {
       nudgeFired = true;
       const handle = showNudgeToast({
@@ -228,7 +233,7 @@ async function runWithNudge<T>(op: () => Promise<T>, opts: RunOpts): Promise<Run
         onCancel: () => cancelSignal.resolve(CANCEL),
       });
       dismissNudge = handle.dismiss;
-    }, NUDGE_DELAY_MS);
+    }, delay);
 
     // --- Hard timeout ---
     const hardTimer = setTimeout(() => timeoutSignal.resolve(TIMEOUT), HARD_TIMEOUT_MS);

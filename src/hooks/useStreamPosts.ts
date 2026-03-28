@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useFeedSettings } from './useFeedSettings';
 import { useMuteList } from './useMuteList';
 import { useContentFilters } from './useContentFilters';
@@ -140,6 +140,33 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { shouldFilterEvent } = useContentFilters();
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Buffer for streamed events — held separately until user scrolls back up
+  const streamBufferRef = useRef<NostrEvent[]>([]);
+  const [streamBufferCount, setStreamBufferCount] = useState(0);
+  // Track whether initial batch has loaded
+  const initialLoadDoneRef = useRef(false);
+  // Track whether user has scrolled away from the top
+  const isScrolledRef = useRef(false);
+
+  // Monitor scroll position — only buffer when user is scrolled down
+  useEffect(() => {
+    const threshold = 200; // px from top
+    function onScroll() {
+      isScrolledRef.current = window.scrollY > threshold;
+      // Auto-flush when user scrolls back to the top
+      if (!isScrolledRef.current && streamBufferRef.current.length > 0) {
+        setAllEvents((prev) => {
+          const merged = [...prev, ...streamBufferRef.current];
+          merged.sort((a, b) => b.created_at - a.created_at);
+          return merged;
+        });
+        streamBufferRef.current = [];
+        setStreamBufferCount(0);
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   // Resolve authorPubkeys: accept hex or npub-encoded entries
   const resolvedAuthorPubkeys = useMemo(() => {
@@ -180,25 +207,48 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
     setAllEvents([]);
     setIsLoading(true);
+    initialLoadDoneRef.current = false;
+    streamBufferRef.current = [];
+    setStreamBufferCount(0);
 
     const eventMap = new Map<string, NostrEvent>();
+    // Track IDs already in the initial batch to avoid dupes in the buffer
+    const knownIds = new Set<string>();
 
-    function addEvent(event: NostrEvent) {
+    function addEvent(event: NostrEvent, isStreamed: boolean) {
       if (!alive) return;
       const now = Math.floor(Date.now() / 1000);
       if (event.created_at > now) return;
 
-      // Addressable events (30000-39999) dedupe by pubkey+kind+d
+      // Dedupe key
+      let dedupeKey: string;
       if (event.kind >= 30000 && event.kind < 40000) {
         const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
-        const key = `${event.pubkey}:${event.kind}:${dTag}`;
-        const existing = eventMap.get(key);
-        if (existing && existing.created_at >= event.created_at) return;
-        eventMap.set(key, event);
+        dedupeKey = `${event.pubkey}:${event.kind}:${dTag}`;
       } else {
-        if (eventMap.has(event.id)) return;
-        eventMap.set(event.id, event);
+        dedupeKey = event.id;
       }
+
+      // Buffer streamed events only when user is scrolled down to avoid scroll jumps.
+      // If at the top, merge immediately (natural top-insertion behavior).
+      if (isStreamed && initialLoadDoneRef.current && isScrolledRef.current) {
+        if (knownIds.has(dedupeKey)) return;
+        knownIds.add(dedupeKey);
+        streamBufferRef.current = [...streamBufferRef.current, event];
+        setStreamBufferCount(streamBufferRef.current.length);
+        return;
+      }
+
+      // Addressable events (30000-39999) dedupe by pubkey+kind+d
+      if (event.kind >= 30000 && event.kind < 40000) {
+        const existing = eventMap.get(dedupeKey);
+        if (existing && existing.created_at >= event.created_at) return;
+        eventMap.set(dedupeKey, event);
+      } else {
+        if (eventMap.has(dedupeKey)) return;
+        eventMap.set(dedupeKey, event);
+      }
+      knownIds.add(dedupeKey);
 
       setAllEvents(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
     }
@@ -281,12 +331,15 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
           { signal: ac.signal },
         );
         for (const event of events) {
-          addEvent(event);
+          addEvent(event, false);
         }
       } catch {
         // abort expected
       }
-      if (alive) setIsLoading(false);
+      if (alive) {
+        initialLoadDoneRef.current = true;
+        setIsLoading(false);
+      }
     })();
 
     // 2. Stream new events WITHOUT search (relays don't support streaming search)
@@ -309,7 +362,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
           if (!alive) break;
           
           if (msg[0] === 'EVENT') {
-            addEvent(msg[2]);
+            addEvent(msg[2], true);
           } else if (msg[0] === 'CLOSED') {
             break;
           }
@@ -326,6 +379,18 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols is stabilized via protocolsKey; kindsOverride is stabilized via kindsOverrideKey; authorPubkeys is stabilized via authorPubkeysKey
   }, [nostr, query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey, authorPubkeysKey, options.sort]);
 
+  // Flush buffered streamed events into the main list (called by UI when user wants to see new posts)
+  const flushStreamBuffer = useCallback(() => {
+    if (streamBufferRef.current.length === 0) return;
+    setAllEvents((prev) => {
+      const merged = [...prev, ...streamBufferRef.current];
+      merged.sort((a, b) => b.created_at - a.created_at);
+      return merged;
+    });
+    streamBufferRef.current = [];
+    setStreamBufferCount(0);
+  }, []);
+
   // Apply client-side filters (including mute filtering and content filters) without restarting the stream
   const posts = useMemo(() => {
     const authorSet = resolvedAuthorPubkeys ? new Set(resolvedAuthorPubkeys) : undefined;
@@ -339,5 +404,5 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
   }, [allEvents, options.includeReplies, options.mediaType, protocolsKey, query, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey]);
 
-  return { posts, isLoading };
+  return { posts, isLoading, newPostCount: streamBufferCount, flushStreamBuffer };
 }

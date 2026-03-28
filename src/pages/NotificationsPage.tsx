@@ -39,6 +39,7 @@ import { Button } from '@/components/ui/button';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import type { BadgeData } from '@/components/BadgeContent';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 
 type NotificationTab = 'all' | 'mentions';
 
@@ -207,7 +208,7 @@ export function NotificationsPage() {
   ];
 
   return (
-    <main className="">
+    <main className="flex-1 min-w-0">
       {/* Tab bar */}
       <SubHeaderBar>
         {tabs.map(({ key, label }) => (
@@ -220,6 +221,7 @@ export function NotificationsPage() {
           />
         ))}
       </SubHeaderBar>
+      <div style={{ height: ARC_OVERHANG_PX }} />
 
       {/* Content */}
       <PullToRefresh onRefresh={handleRefresh}>

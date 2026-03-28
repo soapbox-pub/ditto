@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Images, Play } from 'lucide-react';
+import { Images, Play, ShieldAlert } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,9 +15,11 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Lightbox, LOADING_SENTINEL } from '@/components/ImageGallery';
 import { PhotoBottomBar } from '@/components/PhotoBottomBar';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useAppContext } from '@/hooks/useAppContext';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { getContentWarning } from '@/lib/contentWarning';
 
 // ── Media type detection ──────────────────────────────────────────────────────
 
@@ -139,6 +141,8 @@ export interface MediaItem {
   allDims: (string | undefined)[];
   event: NostrEvent;
   hasMultiple: boolean;
+  /** NIP-36 content warning reason, or empty string if flagged with no reason, or undefined if clean. */
+  contentWarning?: string;
 }
 
 function parseImeta(tags: string[][]): { url: string; blurhash?: string; dim?: string; alt?: string; mime?: string }[] {
@@ -161,6 +165,7 @@ function extractMediaUrls(content: string): string[] {
 
 export function eventToMediaItem(event: NostrEvent): MediaItem | null {
   const imeta = parseImeta(event.tags);
+  const cw = getContentWarning(event);
   if (imeta.length > 0) {
     const first = imeta[0];
     const firstType = detectType(first.url, first.mime, event.kind);
@@ -176,6 +181,7 @@ export function eventToMediaItem(event: NostrEvent): MediaItem | null {
       allDims: imeta.map((e) => e.dim),
       event,
       hasMultiple: imeta.length > 1,
+      contentWarning: cw,
     };
   }
   if (event.kind === 1) {
@@ -190,6 +196,7 @@ export function eventToMediaItem(event: NostrEvent): MediaItem | null {
         allDims: urls.map(() => undefined),
         event,
         hasMultiple: urls.length > 1,
+        contentWarning: cw,
       };
     }
   }
@@ -237,12 +244,17 @@ function AudioThumb({ pubkey }: { pubkey: string }) {
 
 function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void }) {
   const [loaded, setLoaded] = useState(false);
+  const { config } = useAppContext();
+  const hasCW = item.contentWarning !== undefined;
+  const policy = config.contentWarningPolicy;
+  const [cwRevealed, setCwRevealed] = useState(false);
+  const showBlur = hasCW && policy !== 'show' && !cwRevealed;
 
   return (
     <button
       className="relative overflow-hidden rounded-lg bg-muted group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full h-full"
-      onClick={onClick}
-      aria-label="View media"
+      onClick={showBlur ? (e) => { e.stopPropagation(); setCwRevealed(true); } : onClick}
+      aria-label={showBlur ? 'Reveal sensitive content' : 'View media'}
     >
       {item.blurhash && (
         <Blurhash
@@ -252,7 +264,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
           resolutionX={32}
           resolutionY={32}
           punch={1}
-          className={cn('absolute inset-0 transition-opacity duration-300', loaded ? 'opacity-0' : 'opacity-100')}
+          className={cn('absolute inset-0 transition-opacity duration-300', loaded && !showBlur ? 'opacity-0' : 'opacity-100')}
           style={{ width: '100%', height: '100%' }}
         />
       )}
@@ -260,7 +272,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
         <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
       )}
 
-      {item.type === 'video' && (
+      {item.type === 'video' && !showBlur && (
         <video
           src={item.url}
           className={cn('absolute inset-0 w-full h-full object-cover transition-opacity duration-300 group-hover:scale-[1.04]', loaded ? 'opacity-100' : 'opacity-0')}
@@ -272,7 +284,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
           onLoadedData={() => setLoaded(true)}
         />
       )}
-      {item.type === 'image' && (
+      {item.type === 'image' && !showBlur && (
         <img
           src={item.url}
           alt={item.alt ?? ''}
@@ -281,12 +293,22 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
           onLoad={() => setLoaded(true)}
         />
       )}
-      {item.type === 'audio' && (
+      {item.type === 'audio' && !showBlur && (
         <AudioThumb pubkey={item.event.pubkey} />
       )}
 
+      {/* Content warning overlay — matches sidebar presentation */}
+      {showBlur && (
+        <>
+          <div className="absolute inset-0 bg-muted/60 blur-lg" />
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <ShieldAlert className="size-5 text-muted-foreground" />
+          </div>
+        </>
+      )}
+
       {/* Play badge for video */}
-      {item.type === 'video' && (
+      {item.type === 'video' && !showBlur && (
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
           <div className="bg-black/50 rounded-full p-2">
             <Play className="size-5 text-white fill-white" />
@@ -294,12 +316,14 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
         </div>
       )}
 
-      {item.hasMultiple && item.type === 'image' && (
+      {item.hasMultiple && item.type === 'image' && !showBlur && (
         <div className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded p-0.5">
           <Images className="size-3.5" />
         </div>
       )}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors duration-200" />
+      {!showBlur && (
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors duration-200" />
+      )}
     </button>
   );
 }
@@ -376,10 +400,15 @@ interface MediaCollageProps {
 
 export function MediaCollage({ events, className, initialOpenUrl, onInitialOpenConsumed, onNearEnd, hasNextPage }: MediaCollageProps) {
   const isMobile = useIsMobile();
+  const { config } = useAppContext();
 
   const items = useMemo(
-    () => events.map(eventToMediaItem).filter((x): x is MediaItem => x !== null),
-    [events],
+    () => events
+      .map(eventToMediaItem)
+      .filter((x): x is MediaItem => x !== null)
+      // Filter out content-warned items when policy is 'hide'
+      .filter((x) => !(x.contentWarning !== undefined && config.contentWarningPolicy === 'hide')),
+    [events, config.contentWarningPolicy],
   );
 
   const flat = useMemo<FlatEntry[]>(

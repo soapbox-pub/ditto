@@ -47,9 +47,11 @@ import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { cn, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
-import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
+import { PageHeader } from '@/components/PageHeader';
 import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
 
@@ -93,6 +95,7 @@ export function SearchPage() {
   });
 
   useLayoutOptions({ hasSubHeader: true });
+  const navHidden = useNavHidden();
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -397,7 +400,7 @@ export function SearchPage() {
       ? authorPubkeys
       : undefined;
 
-  const { posts, isLoading: postsLoading } = useStreamPosts(debouncedSearchQuery, {
+  const { posts, isLoading: postsLoading, newPostCount } = useStreamPosts(debouncedSearchQuery, {
     includeReplies,
     mediaType,
     language,
@@ -410,10 +413,12 @@ export function SearchPage() {
 
   return (
     <main className="flex-1 min-w-0">
+      <PageHeader title="Search" icon={<SearchIcon className="size-5" />} />
       <SubHeaderBar>
         <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
         <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
       </SubHeaderBar>
+      <div style={{ height: ARC_OVERHANG_PX }} />
 
       {/* Search input bar — always rendered right after tabs, like ComposeBox on Feed */}
       <div className="px-4 py-3">
@@ -738,6 +743,27 @@ export function SearchPage() {
       {/* ─── Posts Tab ─── */}
       {activeTab === 'posts' && (
         <>
+          {/* New posts pill — sticks below the SubHeaderBar arc, tracks nav show/hide */}
+          {newPostCount > 0 && (
+            <div
+              className={cn(
+                'sticky z-10 flex justify-center pointer-events-none',
+                'max-sidebar:transition-transform max-sidebar:duration-300 max-sidebar:ease-in-out',
+                navHidden && 'nav-hidden-slide',
+              )}
+              style={{
+                top: 'calc(var(--top-bar-height) + env(safe-area-inset-top, 0px) + 4rem)',
+                marginBottom: '-3rem',
+              }}
+            >
+              <button
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="pointer-events-auto px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors animate-in fade-in slide-in-from-top-2 duration-300"
+              >
+                {newPostCount} new post{newPostCount !== 1 ? 's' : ''}
+              </button>
+            </div>
+          )}
           {/* Post results — stream */}
           {postsLoading && posts.length === 0 ? (
             <div className="divide-y divide-border">
