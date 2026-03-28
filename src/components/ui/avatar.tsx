@@ -1,7 +1,7 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { type AvatarShape, isEmoji, getEmojiMaskUrl } from "@/lib/avatarShape"
+import { type AvatarShape, isEmoji, getAvatarMaskUrlAsync, isValidAvatarShape } from "@/lib/avatarShape"
 
 /**
  * Shared ref so AvatarFallback can check if a sibling AvatarImage
@@ -24,28 +24,50 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
     // Reset per render so stale values don't persist
     hasSrcRef.current = false
 
-    const isEmojiShape = !!shape && isEmoji(shape)
+    // Check if shape is valid (emoji)
+    const hasValidShape = !!shape && isValidAvatarShape(shape)
+    const isEmojiShape = hasValidShape && isEmoji(shape)
+    const hasCustomShape = isEmojiShape
 
-    // Build inline style: mask-image for emoji shapes
+    // State for the async-loaded mask URL
+    const [maskUrl, setMaskUrl] = React.useState<string>('')
+
+    // Load mask URL asynchronously when shape changes
+    React.useEffect(() => {
+      if (!hasCustomShape || !shape) {
+        setMaskUrl('')
+        return
+      }
+
+      let cancelled = false
+
+      getAvatarMaskUrlAsync(shape).then((url) => {
+        if (!cancelled) {
+          setMaskUrl(url)
+        }
+      })
+
+      return () => {
+        cancelled = true
+      }
+    }, [hasCustomShape, shape])
+
     const mergedStyle = React.useMemo<React.CSSProperties>(() => {
-      if (isEmojiShape) {
-        const maskUrl = getEmojiMaskUrl(shape)
-        if (maskUrl) {
-          return {
-            ...style,
-            WebkitMaskImage: `url(${maskUrl})`,
-            maskImage: `url(${maskUrl})`,
-            WebkitMaskSize: 'contain',
-            maskSize: 'contain' as string,
-            WebkitMaskRepeat: 'no-repeat',
-            maskRepeat: 'no-repeat' as string,
-            WebkitMaskPosition: 'center',
-            maskPosition: 'center' as string,
-          }
+      if (maskUrl) {
+        return {
+          ...style,
+          WebkitMaskImage: `url(${maskUrl})`,
+          maskImage: `url(${maskUrl})`,
+          WebkitMaskSize: 'contain',
+          maskSize: 'contain' as string,
+          WebkitMaskRepeat: 'no-repeat',
+          maskRepeat: 'no-repeat' as string,
+          WebkitMaskPosition: 'center',
+          maskPosition: 'center' as string,
         }
       }
       return style ?? {}
-    }, [isEmojiShape, shape, style])
+    }, [maskUrl, style])
 
     return (
       <AvatarHasSrcContext.Provider value={hasSrcRef}>
@@ -54,7 +76,7 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
             ref={ref}
             className={cn(
               "relative flex h-10 w-10 shrink-0 overflow-hidden bg-muted",
-              !isEmojiShape && "rounded-full",
+              !hasCustomShape && "rounded-full",
               className
             )}
             style={mergedStyle}
@@ -125,7 +147,7 @@ const AvatarFallback = React.forwardRef<
   const hasSrcRef = React.useContext(AvatarHasSrcContext)
   const shape = React.useContext(AvatarShapeContext)
 
-  const isEmojiShape = !!shape && isEmoji(shape)
+  const hasCustomShape = !!shape && isValidAvatarShape(shape)
 
   // AvatarImage renders before AvatarFallback (DOM order), so hasSrcRef
   // is already set by the time we read it here in the same render frame.
@@ -136,7 +158,7 @@ const AvatarFallback = React.forwardRef<
       ref={ref}
       className={cn(
         "flex h-full w-full items-center justify-center",
-        !isEmojiShape && "rounded-full",
+        !hasCustomShape && "rounded-full",
         className
       )}
       {...props}

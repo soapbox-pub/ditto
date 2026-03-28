@@ -1,62 +1,69 @@
-import { useState } from "react";
+import { lazy, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
+import { BlobbiCompanionLayer } from "@/blobbi/companion";
+import { BlobbiActionsProvider } from "@/blobbi/companion/interaction";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { MainLayout } from "./components/MainLayout";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 import { useProfileUrl } from "./hooks/useProfileUrl";
 import { getExtraKindDef } from "./lib/extraKinds";
-import { AdvancedSettingsPage } from "./pages/AdvancedSettingsPage";
-import { AIChatPage } from "./pages/AIChatPage";
-import { BadgesPage } from "./pages/BadgesPage";
-import { BookmarksPage } from "./pages/BookmarksPage";
-import { BooksPage } from "./pages/BooksPage";
-import { ContentPage } from "./pages/ContentPage";
-import { ContentSettingsPage } from "./pages/ContentSettingsPage";
-import { DomainFeedPage } from "./pages/DomainFeedPage";
-import { EventsFeedPage } from "./pages/EventsFeedPage";
-import { ExternalContentPage } from "./pages/ExternalContentPage";
-import { GeotagPage } from "./pages/GeotagPage";
-import { HashtagPage } from "./pages/HashtagPage";
-import { HelpPage } from "./pages/HelpPage";
+
+// Critical-path pages: eagerly loaded (landing + fallback)
 import { HomePage } from "./pages/HomePage";
 import Index from "./pages/Index";
-import { KindFeedPage } from "./pages/KindFeedPage";
-import { MagicSettingsPage } from "./pages/MagicSettingsPage";
-import { MusicFeedPage } from "./pages/MusicFeedPage";
-import { NetworkSettingsPage } from "./pages/NetworkSettingsPage";
-import { NIP19Page } from "./pages/NIP19Page";
 import NotFound from "./pages/NotFound";
-import { NotificationSettings } from "./pages/NotificationSettings";
-import { NotificationsPage } from "./pages/NotificationsPage";
-import { PhotosFeedPage } from "./pages/PhotosFeedPage";
-import { PodcastsFeedPage } from "./pages/PodcastsFeedPage";
-import { CSAEPolicyPage } from "./pages/CSAEPolicyPage";
-import { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage";
-import { ProfileSettings } from "./pages/ProfileSettings";
-import { RelayPage } from "./pages/RelayPage";
-import { SearchPage } from "./pages/SearchPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { ThemesPage } from "./pages/ThemesPage";
-import { TreasuresPage } from "./pages/TreasuresPage";
-import { TrendsPage } from "./pages/TrendsPage";
-import { UserListsPage } from "./pages/UserListsPage";
-import { VideosFeedPage } from "./pages/VideosFeedPage";
-import { VinesFeedPage } from "./pages/VinesFeedPage";
-import { WalletSettingsPage } from "./pages/WalletSettingsPage";
-import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
-import { WorldPage } from "./pages/WorldPage";
-import { ArchivePage } from "./pages/ArchivePage";
-import { BlueskyPage } from "./pages/BlueskyPage";
-import { ChangelogPage } from "./pages/ChangelogPage";
-import { WikipediaPage } from "./pages/WikipediaPage";
-import { LettersPage } from "./pages/LettersPage";
-import { LetterPreferencesPage } from "./pages/LetterPreferencesPage";
+
+// All other pages: code-split via React.lazy
+const AdvancedSettingsPage = lazy(() => import("./pages/AdvancedSettingsPage").then(m => ({ default: m.AdvancedSettingsPage })));
+const AIChatPage = lazy(() => import("./pages/AIChatPage").then(m => ({ default: m.AIChatPage })));
+const ArchivePage = lazy(() => import("./pages/ArchivePage").then(m => ({ default: m.ArchivePage })));
+const BadgesPage = lazy(() => import("./pages/BadgesPage").then(m => ({ default: m.BadgesPage })));
+const BlobbiPage = lazy(() => import("./pages/BlobbiPage").then(m => ({ default: m.BlobbiPage })));
+const BlueskyPage = lazy(() => import("./pages/BlueskyPage").then(m => ({ default: m.BlueskyPage })));
+const BookmarksPage = lazy(() => import("./pages/BookmarksPage").then(m => ({ default: m.BookmarksPage })));
+const BooksPage = lazy(() => import("./pages/BooksPage").then(m => ({ default: m.BooksPage })));
+const ChangelogPage = lazy(() => import("./pages/ChangelogPage").then(m => ({ default: m.ChangelogPage })));
+const ContentPage = lazy(() => import("./pages/ContentPage").then(m => ({ default: m.ContentPage })));
+const ContentSettingsPage = lazy(() => import("./pages/ContentSettingsPage").then(m => ({ default: m.ContentSettingsPage })));
+const CSAEPolicyPage = lazy(() => import("./pages/CSAEPolicyPage").then(m => ({ default: m.CSAEPolicyPage })));
+const DomainFeedPage = lazy(() => import("./pages/DomainFeedPage").then(m => ({ default: m.DomainFeedPage })));
+const EventsFeedPage = lazy(() => import("./pages/EventsFeedPage").then(m => ({ default: m.EventsFeedPage })));
+const ExternalContentPage = lazy(() => import("./pages/ExternalContentPage").then(m => ({ default: m.ExternalContentPage })));
+const GeotagPage = lazy(() => import("./pages/GeotagPage").then(m => ({ default: m.GeotagPage })));
+const HashtagPage = lazy(() => import("./pages/HashtagPage").then(m => ({ default: m.HashtagPage })));
+const HelpPage = lazy(() => import("./pages/HelpPage").then(m => ({ default: m.HelpPage })));
+const KindFeedPage = lazy(() => import("./pages/KindFeedPage").then(m => ({ default: m.KindFeedPage })));
+const LetterPreferencesPage = lazy(() => import("./pages/LetterPreferencesPage").then(m => ({ default: m.LetterPreferencesPage })));
+const LettersPage = lazy(() => import("./pages/LettersPage").then(m => ({ default: m.LettersPage })));
+const MagicSettingsPage = lazy(() => import("./pages/MagicSettingsPage").then(m => ({ default: m.MagicSettingsPage })));
+const MusicFeedPage = lazy(() => import("./pages/MusicFeedPage").then(m => ({ default: m.MusicFeedPage })));
+const NetworkSettingsPage = lazy(() => import("./pages/NetworkSettingsPage").then(m => ({ default: m.NetworkSettingsPage })));
+const NIP19Page = lazy(() => import("./pages/NIP19Page").then(m => ({ default: m.NIP19Page })));
+const NotificationSettings = lazy(() => import("./pages/NotificationSettings").then(m => ({ default: m.NotificationSettings })));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
+const PhotosFeedPage = lazy(() => import("./pages/PhotosFeedPage").then(m => ({ default: m.PhotosFeedPage })));
+const PodcastsFeedPage = lazy(() => import("./pages/PodcastsFeedPage").then(m => ({ default: m.PodcastsFeedPage })));
+const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage").then(m => ({ default: m.PrivacyPolicyPage })));
+const ProfileSettings = lazy(() => import("./pages/ProfileSettings").then(m => ({ default: m.ProfileSettings })));
+const RelayPage = lazy(() => import("./pages/RelayPage").then(m => ({ default: m.RelayPage })));
+const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
+const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const ThemesPage = lazy(() => import("./pages/ThemesPage").then(m => ({ default: m.ThemesPage })));
+const TreasuresPage = lazy(() => import("./pages/TreasuresPage").then(m => ({ default: m.TreasuresPage })));
+const TrendsPage = lazy(() => import("./pages/TrendsPage").then(m => ({ default: m.TrendsPage })));
+const UserListsPage = lazy(() => import("./pages/UserListsPage").then(m => ({ default: m.UserListsPage })));
+const VideosFeedPage = lazy(() => import("./pages/VideosFeedPage").then(m => ({ default: m.VideosFeedPage })));
+const VinesFeedPage = lazy(() => import("./pages/VinesFeedPage").then(m => ({ default: m.VinesFeedPage })));
+const WalletSettingsPage = lazy(() => import("./pages/WalletSettingsPage").then(m => ({ default: m.WalletSettingsPage })));
+const WebxdcFeedPage = lazy(() => import("./pages/WebxdcFeedPage").then(m => ({ default: m.WebxdcFeedPage })));
+const WikipediaPage = lazy(() => import("./pages/WikipediaPage").then(m => ({ default: m.WikipediaPage })));
+const WorldPage = lazy(() => import("./pages/WorldPage").then(m => ({ default: m.WorldPage })));
 
 const pollsDef = getExtraKindDef("polls")!;
 const colorsDef = getExtraKindDef("colors")!;
@@ -98,6 +105,9 @@ export function AppRouter() {
         <AudioNavigationGuard />
         <DeepLinkHandler />
         <ScrollToTop />
+        <BlobbiActionsProvider>
+          <BlobbiCompanionLayer />
+        </BlobbiActionsProvider>
         <Routes>
           {/* All routes share the persistent MainLayout (sidebar + nav) */}
           <Route element={<MainLayout />}>
@@ -207,6 +217,7 @@ export function AppRouter() {
             <Route path="/themes" element={<ThemesPage />} />
             <Route path="/bookmarks" element={<BookmarksPage />} />
             <Route path="/ai-chat" element={<AIChatPage />} />
+            <Route path="/blobbi" element={<BlobbiPage />} />
             <Route path="/world" element={<WorldPage />} />
             <Route path="/badges" element={<BadgesPage />} />
             <Route path="/books" element={<BooksPage />} />
