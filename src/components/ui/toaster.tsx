@@ -25,7 +25,7 @@ export function Toaster() {
   }, [])
 
   return (
-    <ToastProvider swipeDirection={isMdScreen ? "right" : "up"}>
+    <ToastProvider swipeDirection={isMdScreen ? "right" : "up"} swipeThreshold={30}>
       {toasts.map(function ({ id, title, description, action, ...props }) {
         return (
           <Toast key={id} {...props}>

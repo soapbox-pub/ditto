@@ -53,7 +53,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
         pinned
           ? 'max-sidebar:transition-[top,padding-top] max-sidebar:duration-300 max-sidebar:ease-in-out'
           : 'max-sidebar:transition-transform max-sidebar:duration-300 max-sidebar:ease-in-out',
-        navHidden && (pinned ? 'max-sidebar:!top-0 max-sidebar:safe-area-top' : 'nav-hidden-slide'),
+        navHidden && (pinned ? 'max-sidebar:safe-area-inset-top' : 'nav-hidden-slide'),
         className,
       )}>
         <ArcBackground variant={noArc ? 'rect' : 'down'} />

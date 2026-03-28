@@ -743,13 +743,13 @@ export function SearchPage() {
       {/* ─── Posts Tab ─── */}
       {activeTab === 'posts' && (
         <>
-          {/* New posts pill — sticks below the SubHeaderBar arc, tracks nav show/hide */}
+          {/* New posts pill — sticks below the SubHeaderBar arc, hides with nav */}
           {newPostCount > 0 && (
             <div
               className={cn(
                 'sticky z-10 flex justify-center pointer-events-none',
-                'max-sidebar:transition-transform max-sidebar:duration-300 max-sidebar:ease-in-out',
-                navHidden && 'nav-hidden-slide',
+                'max-sidebar:transition-opacity max-sidebar:duration-300 max-sidebar:ease-in-out',
+                navHidden && 'max-sidebar:opacity-0 max-sidebar:pointer-events-none',
               )}
               style={{
                 top: 'calc(var(--top-bar-height) + env(safe-area-inset-top, 0px) + 4rem)',
