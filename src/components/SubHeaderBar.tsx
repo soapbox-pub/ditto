@@ -49,7 +49,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
   return (
     <SubHeaderBarContext.Provider value={{ onHover: setHover, onActive: setActive }}>
       <div className={cn(
-        'relative sticky top-mobile-bar sidebar:top-0 sidebar:py-2 z-10',
+        'relative sticky top-mobile-bar sidebar:top-0 z-10',
         pinned
           ? 'max-sidebar:transition-[top,padding-top] max-sidebar:duration-300 max-sidebar:ease-in-out'
           : 'max-sidebar:transition-transform max-sidebar:duration-300 max-sidebar:ease-in-out',
@@ -64,8 +64,9 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
             style={{ height: 'env(safe-area-inset-top, 0px)' }}
           />
         )}
-        {/* Inner wrapper so ArcBackground covers only the tab area, not the safe-area padding above */}
-        <div className="relative">
+        {/* Inner wrapper so ArcBackground covers only the tab area, not the safe-area padding above.
+            sidebar:pt-2 adds desktop top padding inside the arc rather than outside it. */}
+        <div className="relative sidebar:pt-2">
           <ArcBackground variant={noArc ? 'rect' : 'down'} />
           {/* Per-tab arc hover highlight: full-width arc, clipped to the hovered tab's x-slice */}
           {hover && !noArc && (

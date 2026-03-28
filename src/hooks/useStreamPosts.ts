@@ -147,6 +147,29 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const initialLoadDoneRef = useRef(false);
   // Track whether user has scrolled away from the top
   const isScrolledRef = useRef(false);
+  // IDs of events that were just flushed from the buffer (for highlight animation)
+  const [flushedIds, setFlushedIds] = useState<Set<string>>(new Set());
+  const flushedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  /** Merge buffered events into the main list and mark them as flushed. */
+  const doFlush = useCallback(() => {
+    if (streamBufferRef.current.length === 0) return;
+    const ids = new Set(streamBufferRef.current.map((e) => e.id));
+    setAllEvents((prev) => {
+      const merged = [...prev, ...streamBufferRef.current];
+      merged.sort((a, b) => b.created_at - a.created_at);
+      return merged;
+    });
+    streamBufferRef.current = [];
+    setStreamBufferCount(0);
+    // Show highlight briefly then clear
+    setFlushedIds(ids);
+    clearTimeout(flushedTimerRef.current);
+    flushedTimerRef.current = setTimeout(() => setFlushedIds(new Set()), 1500);
+  }, []);
+
+  // Clean up timer on unmount
+  useEffect(() => () => clearTimeout(flushedTimerRef.current), []);
 
   // Monitor scroll position — only buffer when user is scrolled down
   useEffect(() => {
@@ -155,18 +178,12 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       isScrolledRef.current = window.scrollY > threshold;
       // Auto-flush when user scrolls back to the top
       if (!isScrolledRef.current && streamBufferRef.current.length > 0) {
-        setAllEvents((prev) => {
-          const merged = [...prev, ...streamBufferRef.current];
-          merged.sort((a, b) => b.created_at - a.created_at);
-          return merged;
-        });
-        streamBufferRef.current = [];
-        setStreamBufferCount(0);
+        doFlush();
       }
     }
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [doFlush]);
 
   // Resolve authorPubkeys: accept hex or npub-encoded entries
   const resolvedAuthorPubkeys = useMemo(() => {
@@ -380,16 +397,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   }, [nostr, query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey, authorPubkeysKey, options.sort]);
 
   // Flush buffered streamed events into the main list (called by UI when user wants to see new posts)
-  const flushStreamBuffer = useCallback(() => {
-    if (streamBufferRef.current.length === 0) return;
-    setAllEvents((prev) => {
-      const merged = [...prev, ...streamBufferRef.current];
-      merged.sort((a, b) => b.created_at - a.created_at);
-      return merged;
-    });
-    streamBufferRef.current = [];
-    setStreamBufferCount(0);
-  }, []);
+  const flushStreamBuffer = doFlush;
 
   // Apply client-side filters (including mute filtering and content filters) without restarting the stream
   const posts = useMemo(() => {
@@ -404,5 +412,5 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
   }, [allEvents, options.includeReplies, options.mediaType, protocolsKey, query, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey]);
 
-  return { posts, isLoading, newPostCount: streamBufferCount, flushStreamBuffer };
+  return { posts, isLoading, newPostCount: streamBufferCount, flushStreamBuffer, flushedIds };
 }

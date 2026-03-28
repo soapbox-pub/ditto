@@ -78,6 +78,18 @@
     top: calc(var(--top-bar-height) + env(safe-area-inset-top, 0px));
   }
 
+  /* New-posts pill: just below the SubHeaderBar on both mobile and desktop */
+  .new-posts-pill {
+    top: calc(var(--top-bar-height) + env(safe-area-inset-top, 0px) + 3.5rem);
+  }
+  @media (min-width: 900px) {
+    .new-posts-pill {
+      top: 4rem;
+    }
+  }
+
+
+
   /* Slide the sub-header bar out of view together with the mobile top bar.
      Must clear its own height (100%) + top bar + safe area + arc overhang (20px). */
   @media (max-width: 899px) {

@@ -400,7 +400,7 @@ export function SearchPage() {
       ? authorPubkeys
       : undefined;
 
-  const { posts, isLoading: postsLoading, newPostCount, flushStreamBuffer } = useStreamPosts(debouncedSearchQuery, {
+  const { posts, isLoading: postsLoading, newPostCount, flushStreamBuffer, flushedIds } = useStreamPosts(debouncedSearchQuery, {
     includeReplies,
     mediaType,
     language,
@@ -743,18 +743,17 @@ export function SearchPage() {
       {/* ─── Posts Tab ─── */}
       {activeTab === 'posts' && (
         <>
-          {/* New posts pill — sticks below the SubHeaderBar arc, hides with nav */}
+          {/* New posts pill — sticks below the SubHeaderBar arc, hides with nav.
+              Mobile: top = MobileTopBar (2.5rem) + safe-area + SubHeaderBar (~2.5rem).
+              Desktop: top = SubHeaderBar only (~2.5rem), no MobileTopBar. */}
           {newPostCount > 0 && (
             <div
               className={cn(
-                'sticky z-10 flex justify-center pointer-events-none',
+                'sticky new-posts-pill z-10 flex justify-center pointer-events-none',
                 'max-sidebar:transition-opacity max-sidebar:duration-300 max-sidebar:ease-in-out',
                 navHidden && 'max-sidebar:opacity-0 max-sidebar:pointer-events-none',
               )}
-              style={{
-                top: 'calc(var(--top-bar-height) + env(safe-area-inset-top, 0px) + 4rem)',
-                marginBottom: '-3rem',
-              }}
+              style={{ marginBottom: '-3rem' }}
             >
               <button
                 onClick={() => {
@@ -777,14 +776,15 @@ export function SearchPage() {
           ) : posts.length > 0 ? (
             <div>
               {posts.map((event) => {
+                const isNew = flushedIds.has(event.id);
                 if (isRepostKind(event.kind)) {
                   const embedded = parseRepostContent(event);
                   if (embedded) {
-                    return <NoteCard key={event.id} event={embedded} repostedBy={event.pubkey} />;
+                    return <NoteCard key={event.id} event={embedded} repostedBy={event.pubkey} highlight={isNew} />;
                   }
                   return null;
                 }
-                return <NoteCard key={event.id} event={event} />;
+                return <NoteCard key={event.id} event={event} highlight={isNew} />;
               })}
             </div>
           ) : debouncedSearchQuery.trim() ? (

@@ -109,6 +109,8 @@ interface NoteCardProps {
   threaded?: boolean;
   /** Like threaded but without the connector line — used for the last item in a thread (e.g. sub-reply hint). */
   threadedLast?: boolean;
+  /** If true, briefly highlight this card (e.g. newly loaded post). */
+  highlight?: boolean;
 }
 
 /** Gets a tag value by name. */
@@ -171,6 +173,7 @@ export const NoteCard = memo(function NoteCard({
   compact,
   threaded,
   threadedLast,
+  highlight,
 }: NoteCardProps) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
@@ -1073,6 +1076,7 @@ export const NoteCard = memo(function NoteCard({
     <article
       className={cn(
         "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+        highlight && "animate-highlight-fade",
         className,
       )}
       onClick={handleCardClick}
