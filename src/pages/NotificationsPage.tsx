@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageSquare, Loader2, Award, Check, Mail } from 'lucide-react';
+import { Zap, AtSign, MessageSquare, MessageCircle, Loader2, Award, Check, Mail } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link, useNavigate } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -21,6 +21,8 @@ import { useNotifications, type GroupedNotificationItem, type NotificationItem }
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
+import { nip19 } from 'nostr-tools';
+import { isReplyEvent } from '@/lib/nostrEvents';
 import { getAvatarShape, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { formatNumber } from '@/lib/formatNumber';
@@ -96,6 +98,32 @@ function getNotificationKindNoun(kind: number | undefined): string {
   return NOTIFICATION_KIND_NOUNS[kind] ?? 'post';
 }
 
+/**
+ * Returns true if the event content contains a literal `nostr:npub1…` or
+ * `nostr:nprofile1…` URI that resolves to the given pubkey.
+ */
+function contentMentionsPubkey(event: NostrEvent, pubkey: string): boolean {
+  const { content } = event;
+  // Quick bail — most events won't contain a nostr: URI at all
+  if (!content.includes('nostr:')) return false;
+
+  const npub = nip19.npubEncode(pubkey);
+  if (content.includes(`nostr:${npub}`)) return true;
+
+  // Also check nprofile URIs which encode the same pubkey with relay hints
+  const nprofileMatches = content.matchAll(/nostr:(nprofile1[a-z0-9]+)/g);
+  for (const m of nprofileMatches) {
+    try {
+      const decoded = nip19.decode(m[1]);
+      if (decoded.type === 'nprofile' && decoded.data.pubkey === pubkey) return true;
+    } catch {
+      // invalid nprofile — skip
+    }
+  }
+
+  return false;
+}
+
 export function NotificationsPage() {
   const { config } = useAppContext();
 
@@ -164,7 +192,11 @@ export function NotificationsPage() {
       );
     }
     if (activeTab === 'mentions') {
-      filtered = filtered.filter((group) => group.kind === 1 || group.kind === 1111);
+      filtered = filtered.filter((group) => {
+        if (group.kind !== 1 && group.kind !== 1111) return false;
+        // Only show events whose content literally @-mentions the user
+        return user ? contentMentionsPubkey(group.actors[0].event, user.pubkey) : false;
+      });
     }
     return filtered;
   }, [groupedItems, activeTab, muteItems]);
@@ -618,16 +650,21 @@ function ZapNotificationGroup({ group }: { group: GroupedNotificationItem }) {
 }
 
 // ──────────────────────────────────────
-// Mention Notification (always standalone)
+// Kind 1 Notification (reply or mention, always standalone)
 // ──────────────────────────────────────
 function MentionNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const isReply = isReplyEvent(item.event);
+
   return (
     <NotificationWrapper isNew={isNew}>
       <div className="px-4 pt-3">
         <NotificationHeader
           actorPubkey={item.event.pubkey}
-          icon={<AtSign className="size-4 text-primary" />}
-          action="mentioned you"
+          icon={isReply
+            ? <MessageCircle className="size-4 text-primary" />
+            : <AtSign className="size-4 text-primary" />
+          }
+          action={isReply ? 'replied to your note' : 'mentioned you'}
         />
       </div>
       <NoteCard event={item.event} className="border-0" />

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
@@ -8,7 +8,7 @@ import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useFollowList } from './useFollowActions';
 import { LETTER_KIND } from '@/lib/letterTypes';
-import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
+import { ALL_NOTIFICATION_KINDS, getEnabledNotificationKinds } from '@/lib/notificationKinds';
 
 const PAGE_SIZE = 20;
 
@@ -273,11 +273,19 @@ export function useNotifications(): NotificationData {
         const refId = (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244 && ev.kind !== LETTER_KIND) ? getReferencedEventId(ev) : undefined;
         const referencedEvent = refId ? referencedMap.get(refId) : undefined;
 
-        // For reactions (7), reposts (6, 16), and zaps (9735), only notify if
-        // the referenced post was authored by the current user.
-        if (ev.kind === 7 || ev.kind === 6 || ev.kind === 16 || ev.kind === 9735) {
-          if (!referencedEvent || referencedEvent.pubkey !== user.pubkey) return [];
+        // For reactions (7) and reposts (6, 16), only exclude if we know for
+        // certain the referenced post belongs to someone else.  When the
+        // referenced event couldn't be fetched (timeout / missing from relay),
+        // keep the notification — it's better to show a notification with
+        // missing context than to silently drop it.
+        if (ev.kind === 7 || ev.kind === 6 || ev.kind === 16) {
+          if (referencedEvent && referencedEvent.pubkey !== user.pubkey) return [];
         }
+
+        // Zaps (9735) don't need the author-ownership check at all: the query
+        // already filters by `#p: [user.pubkey]`, which means the zap receipt
+        // explicitly names the current user as the recipient.
+        // Profile-level zaps (no `e` tag) are also valid notifications.
 
         return [{ event: ev, referencedEvent }];
       });
@@ -302,6 +310,43 @@ export function useNotifications(): NotificationData {
     isFetchingNextPage,
     fetchNextPage,
   } = infiniteQuery;
+
+  // Real-time subscription: open a persistent REQ with `since: now` so new
+  // notifications are detected immediately instead of waiting for the next poll.
+  // When any new event arrives, invalidate the query cache to trigger a refetch.
+  useEffect(() => {
+    if (!user || Capacitor.isNativePlatform()) return;
+
+    const ac = new AbortController();
+    const since = Math.floor(Date.now() / 1000);
+
+    (async () => {
+      try {
+        for await (const msg of nostr.req(
+          [{
+            kinds: [...ALL_NOTIFICATION_KINDS],
+            '#p': [user.pubkey],
+            since,
+          }],
+          { signal: ac.signal },
+        )) {
+          if (msg[0] === 'EVENT') {
+            const ev = msg[2];
+            // Ignore own events
+            if (ev.pubkey === user.pubkey) continue;
+            // New notification arrived — invalidate both the full list and the
+            // unread indicator so the UI updates immediately.
+            queryClient.invalidateQueries({ queryKey: ['notifications', user.pubkey] });
+            queryClient.invalidateQueries({ queryKey: ['notifications-unread', user.pubkey] });
+          }
+        }
+      } catch {
+        // AbortError on cleanup — expected
+      }
+    })();
+
+    return () => ac.abort();
+  }, [nostr, user, queryClient]);
 
   // Flatten and deduplicate across pages
   const items = useMemo(() => {

@@ -16,6 +16,10 @@ import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
  * Respects the user's per-type notification preferences so that disabled
  * types (e.g. reactions) don't trigger the unread dot.
  *
+ * Real-time updates are handled by the subscription in `useNotifications`,
+ * which invalidates the `notifications-unread` query key when new events
+ * arrive. This hook only needs polling as a fallback.
+ *
  * Use this in navigation components (sidebar, mobile bottom nav) for the dot indicator.
  * Use `useNotifications` on the actual notifications page where the full list is needed.
  */
