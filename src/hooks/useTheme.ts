@@ -20,8 +20,8 @@ export function useTheme() {
   const { updateSettings } = useEncryptedSettings();
   const { setActiveTheme } = usePublishTheme();
   const { user } = useCurrentUser();
-  const debounceTimer = useRef<NodeJS.Timeout>();
-  const autoPublishTimer = useRef<NodeJS.Timeout>();
+  const debounceTimer = useRef<NodeJS.Timeout | undefined>(undefined);
+  const autoPublishTimer = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const syncToEncrypted = useCallback((patch: { theme?: Theme; customTheme?: ThemeConfig }) => {
     if (!user) return;

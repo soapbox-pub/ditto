@@ -66,19 +66,23 @@ function familyFromFilename(filename: string): string {
 }
 
 /**
- * Font picker component for selecting a single custom font.
+ * Bare font picker combobox — no section header, no preview text.
  *
  * Supports two modes:
- * - **Uncontrolled** (default): reads/writes via `useTheme().applyCustomTheme()`
+ * - **Uncontrolled** (default): reads/writes the body font via `useTheme().applyCustomTheme()`
  * - **Controlled**: pass `value` and `onChange` props to manage state externally
  *
  * Also supports uploading a custom font file via Blossom.
  */
-export function FontPicker({ value, onChange }: {
+export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', placeholderFont }: {
   /** Controlled value — overrides useTheme() when provided. */
   value?: ThemeFont | undefined;
   /** Controlled onChange — called instead of applyCustomTheme() when provided. */
   onChange?: (font: ThemeFont | undefined) => void;
+  /** Text shown when no font is selected. Defaults to "Default (Inter)". */
+  placeholder?: string;
+  /** Font to render the placeholder text in (when no value is selected). */
+  placeholderFont?: ThemeFont | undefined;
 } = {}) {
   const { theme, customTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
@@ -169,23 +173,23 @@ export function FontPicker({ value, onChange }: {
   };
 
   return (
-    <div className="space-y-2">
-      <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-        <Type className="size-3.5" />
-        Font
-      </span>
-
-      <Popover open={open} onOpenChange={setOpen}>
+    <>
+      <Popover open={open} onOpenChange={setOpen} modal>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             role="combobox"
             aria-expanded={open}
             className="w-full justify-between font-normal h-9 text-sm"
-            style={currentFont ? { fontFamily: `"${resolveCssFamily(currentFont.family)}", sans-serif` } : undefined}
+            style={currentFont
+              ? { fontFamily: `"${resolveCssFamily(currentFont.family)}", sans-serif` }
+              : placeholderFont
+                ? { fontFamily: `"${resolveCssFamily(placeholderFont.family)}", sans-serif` }
+                : undefined
+            }
           >
             <span className="truncate">
-              {currentFont?.family ?? 'Default (Inter)'}
+              {currentFont?.family ?? placeholder}
               {isCustomUpload && (
                 <span className="ml-1.5 text-muted-foreground text-xs">(uploaded)</span>
               )}
@@ -285,15 +289,44 @@ export function FontPicker({ value, onChange }: {
         className="hidden"
         onChange={handleFileUpload}
       />
+    </>
+  );
+}
 
-      {currentFont && (
-        <p
-          className="text-sm text-muted-foreground"
-          style={{ fontFamily: `"${resolveCssFamily(currentFont.family)}", sans-serif` }}
-        >
-          The quick brown fox jumps over the lazy dog.
-        </p>
-      )}
+/**
+ * Unified font section with body + title pickers and a live preview.
+ *
+ * Shows a single "Fonts" header, two labeled rows (Body / Title),
+ * and a combined preview showing both fonts in context.
+ */
+export function FontSection({ bodyFont, onBodyFontChange, titleFont, onTitleFontChange }: {
+  bodyFont?: ThemeFont | undefined;
+  onBodyFontChange?: (font: ThemeFont | undefined) => void;
+  titleFont?: ThemeFont | undefined;
+  onTitleFontChange?: (font: ThemeFont | undefined) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+        <Type className="size-3.5" />
+        Fonts
+      </span>
+
+      {/* Two-row picker layout */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground w-10 shrink-0">Title</span>
+          <div className="flex-1">
+            <FontPicker value={titleFont} onChange={onTitleFontChange} placeholder={bodyFont?.family ?? 'Default (Inter)'} placeholderFont={bodyFont} />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground w-10 shrink-0">Body</span>
+          <div className="flex-1">
+            <FontPicker value={bodyFont} onChange={onBodyFontChange} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

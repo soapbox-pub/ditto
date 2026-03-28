@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
+import { useNavHidden } from '@/contexts/LayoutContext';
 
 interface HoverSlice {
   left: number;
@@ -15,6 +16,8 @@ interface SubHeaderBarProps {
   innerClassName?: string;
   /** Replace the decorative arc with a plain rectangle. */
   noArc?: boolean;
+  /** Keep the bar visible when the mobile top bar hides (slides to top-0 instead of off-screen). */
+  pinned?: boolean;
 }
 
 interface SubHeaderBarContextValue {
@@ -38,13 +41,21 @@ export function useSubHeaderBarHover() {
  * Used by all tab bars (Feed, Search, Notifications, etc.) and the MobileTopBar
  * fallback arc.
  */
-export function SubHeaderBar({ children, className, innerClassName, noArc }: SubHeaderBarProps) {
+export function SubHeaderBar({ children, className, innerClassName, noArc, pinned }: SubHeaderBarProps) {
   const [hover, setHover] = useState<HoverSlice | null>(null);
   const [active, setActive] = useState<HoverSlice | null>(null);
+  const navHidden = useNavHidden();
 
   return (
     <SubHeaderBarContext.Provider value={{ onHover: setHover, onActive: setActive }}>
-      <div className={cn('relative sticky top-mobile-bar sidebar:top-0 sidebar:py-2 z-10', className)}>
+      <div className={cn(
+        'relative sticky top-mobile-bar sidebar:top-0 sidebar:py-2 z-10',
+        pinned
+          ? 'max-sidebar:transition-[top] max-sidebar:duration-300 max-sidebar:ease-in-out'
+          : 'max-sidebar:transition-transform max-sidebar:duration-300 max-sidebar:ease-in-out',
+        navHidden && (pinned ? 'max-sidebar:!top-0' : 'nav-hidden-slide'),
+        className,
+      )}>
         <ArcBackground variant={noArc ? 'rect' : 'down'} />
         {/* Per-tab arc hover highlight: full-width arc, clipped to the hovered tab's x-slice */}
         {hover && !noArc && (

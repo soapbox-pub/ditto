@@ -1,4 +1,4 @@
-import { Suspense, useState, useMemo } from 'react';
+import { Suspense, useState, useMemo, useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { RightSidebar } from '@/components/RightSidebar';
@@ -8,7 +8,7 @@ import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LayoutStore, LayoutStoreContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
+import { DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { cn } from '@/lib/utils';
@@ -65,18 +65,20 @@ function PageSkeleton() {
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
-  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, scrollContainer, hasSubHeader } = useLayoutSnapshot();
+  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, scrollContainer, hasSubHeader, hideTopBar, hideBottomNav } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const { config } = useAppContext();
   const { hidden: navHidden } = useScrollDirection(scrollContainer);
 
   return (
-    <>
+    <DrawerContext.Provider value={openDrawer}>
+    <NavHiddenContext.Provider value={navHidden}>
       {/* Magic Mouse fire particle overlay */}
       {config.magicMouse && <CursorFireEffect />}
 
-      {/* Mobile top bar - only on small screens */}
-      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} hasSubHeader={hasSubHeader} />
+      {/* Mobile top bar - only on small screens, hidden when page requests immersive mode */}
+      {!hideTopBar && <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} hasSubHeader={hasSubHeader} />}
 
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
@@ -96,7 +98,7 @@ function MainLayoutInner() {
               being hidden. This depends on MobileTopBar having a transparent /
               semi-transparent background — a solid top bar would obscure the
               content underneath. Only active below the sidebar breakpoint. */}
-          <div className={cn("relative flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85 -mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
+          <div className={cn("relative flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85", !hideTopBar && "-mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
             <Outlet />
 
             {/* Desktop FAB — sticky within the feed column so it stays
@@ -118,7 +120,7 @@ function MainLayoutInner() {
       </div>
 
       {/* Mobile bottom nav - only on small screens, slides out on scroll */}
-      <MobileBottomNav />
+      {!hideBottomNav && <MobileBottomNav />}
 
       {/* Mobile FAB — fixed to viewport, hidden on desktop where the
           in-column sticky FAB (above) takes over. Mirrors bottom nav
@@ -133,7 +135,8 @@ function MainLayoutInner() {
           </div>
         </div>
       )}
-    </>
+    </NavHiddenContext.Provider>
+    </DrawerContext.Provider>
   );
 }
 

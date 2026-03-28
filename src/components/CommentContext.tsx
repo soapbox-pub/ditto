@@ -11,6 +11,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { ChestIcon } from '@/components/icons/ChestIcon';
+import { RepostIcon } from '@/components/icons/RepostIcon';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { LinkPreview } from '@/components/LinkPreview';
@@ -126,6 +127,8 @@ const KIND_LABELS: Record<number, string> = {
 const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: string }>>> = {
   1: MessageSquare,
   4: Mail,
+  6: RepostIcon,
+  16: RepostIcon,
   20: Camera,
   21: Film,
   22: Film,

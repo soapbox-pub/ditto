@@ -150,7 +150,7 @@ export function NostrEventSidebarItem({
             <EventSidebarIcon kind={decoded.kind ?? 1} />
           )}
         </span>
-        <span className="truncate">
+        <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
           {isProfile ? (
             <ProfileSidebarLabel pubkey={decoded.pubkey} />
           ) : (

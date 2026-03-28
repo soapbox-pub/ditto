@@ -54,6 +54,8 @@ export interface ThemeConfig {
   colors: CoreThemeColors;
   /** Optional custom font (applies globally to all text) */
   font?: ThemeFont;
+  /** Optional title/header font (applies to profile display name) */
+  titleFont?: ThemeFont;
   /** Optional background media */
   background?: ThemeBackground;
 }
@@ -125,6 +127,8 @@ export interface ThemePreset {
   colors: CoreThemeColors;
   /** Optional custom font for this preset. */
   font?: ThemeFont;
+  /** Optional title/header font for this preset. */
+  titleFont?: ThemeFont;
   /** Optional background for this preset. */
   background?: ThemeBackground;
 }

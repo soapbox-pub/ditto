@@ -1,7 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
 import { useState, useEffect, useRef } from 'react';
 import { ChevronRight, Settings } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -170,6 +170,11 @@ export function SettingsPage() {
         <span className="text-primary/30 text-[10px] tracking-[0.4em] select-none">◆</span>
         <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/20 to-primary/30" />
       </div>
+
+      {/* Version footer */}
+      <Link to="/changelog" className="block text-center text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors select-none pt-1 pb-2">
+        v{import.meta.env.VERSION}{import.meta.env.COMMIT_TAG ? '' : '+'} ({new Date(import.meta.env.BUILD_DATE).toLocaleDateString()})
+      </Link>
 
       {/* Magic sigil — appears after 2 min inactivity, only when magic is locked */}
       {!config.magicMouse && sigilVisible && (<div className="flex justify-center pt-16 pb-12">

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
+import { openUrl } from '@/lib/downloadFile';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { VideoPlayer } from '@/components/VideoPlayer';
@@ -475,9 +476,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation(); e.preventDefault();
-    const a = document.createElement('a');
-    a.href = currentUrl; a.target = '_blank'; a.rel = 'noopener noreferrer';
-    a.click();
+    openUrl(currentUrl);
   };
 
   // Only render the current image and its immediate neighbours
