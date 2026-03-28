@@ -20,11 +20,11 @@ function PageSkeleton() {
       {/* Main column skeleton */}
       <main className="flex-1 min-w-0 min-h-screen">
         {/* Header skeleton */}
-        <div className="flex items-center gap-4 px-4 pt-4 pb-5">
+        <div className="flex items-center gap-4 px-4 pt-4 pb-5 bg-background/85">
           <Skeleton className="h-6 w-32" />
         </div>
         {/* Content skeletons */}
-        <div className="space-y-4 px-4">
+        <div className="space-y-4 px-4 bg-background/85 min-h-dvh">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="space-y-3 py-4 border-b border-border">
               <div className="flex items-center gap-3">
