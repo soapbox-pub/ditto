@@ -1,10 +1,11 @@
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useFollowList } from './useFollowActions';
 import { BADGE_DEFINITION_KIND, BADGE_PROFILE_KIND } from '@/lib/badgeUtils';
+import { TEAM_SOAPBOX_PACK } from '@/lib/helpContent';
 
 const PAGE_SIZE = 20;
 
@@ -15,21 +16,46 @@ export function useBadgeFeed(tab: 'follows' = 'follows') {
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
 
-  // For follows tab, wait until follow list is loaded
-  const followsReady = tab !== 'follows' || (!!user && followList !== undefined);
+  // When logged out, fetch the Team Soapbox follow pack to use as the authors filter.
+  const { data: packPubkeys } = useQuery({
+    queryKey: ['team-soapbox-pack-pubkeys'],
+    queryFn: async ({ signal }) => {
+      const events = await nostr.query(
+        [{
+          kinds: [TEAM_SOAPBOX_PACK.kind],
+          authors: [TEAM_SOAPBOX_PACK.pubkey],
+          '#d': [TEAM_SOAPBOX_PACK.identifier],
+          limit: 1,
+        }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) },
+      );
+      if (events.length === 0) return [];
+      return events[0].tags.filter(([n]) => n === 'p').map(([, pk]) => pk);
+    },
+    enabled: !user,
+    staleTime: 10 * 60_000,
+  });
 
-  // Stable key segment for the follow list — only changes when the list content changes
-  const followKey = followList ? [...followList].sort().join(',') : '';
+  // When logged in, wait for the follow list. When logged out, wait for the pack pubkeys.
+  const followsReady = tab !== 'follows' || (user ? followList !== undefined : packPubkeys !== undefined);
+
+  // Stable key segment — only changes when the list content changes
+  const authorsList = user ? followList : packPubkeys;
+  const authorsKey = authorsList ? [...authorsList].sort().join(',') : '';
 
   return useInfiniteQuery({
-    queryKey: ['badge-feed', tab, user?.pubkey ?? '', followKey],
+    queryKey: ['badge-feed', tab, user?.pubkey ?? '', authorsKey],
     queryFn: async ({ pageParam, signal }) => {
       const baseUntil = pageParam as number | undefined;
 
-      // For follows tab, build the authors list
+      // Build the authors list from follows (logged in) or pack members (logged out)
       let authors: string[] | undefined;
-      if (tab === 'follows' && user && followList) {
-        authors = followList.length > 0 ? [...followList, user.pubkey] : [user.pubkey];
+      if (tab === 'follows') {
+        if (user && followList) {
+          authors = followList.length > 0 ? [...followList, user.pubkey] : [user.pubkey];
+        } else if (!user && packPubkeys && packPubkeys.length > 0) {
+          authors = packPubkeys;
+        }
       }
 
       const shared = {

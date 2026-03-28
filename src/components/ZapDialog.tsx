@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, forwardRef } from 'react';
-import { Zap, Copy, Check, ExternalLink, Sparkle, Sparkles, Star, Rocket, X } from 'lucide-react';
+import { Zap, Copy, Check, ExternalLink, Sparkle, Sparkles, Star, Rocket, X, Smile } from 'lucide-react';
 import { HelpTip } from '@/components/HelpTip';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,12 +14,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { EmojiPicker } from '@/components/EmojiPicker';
+import { EmojiShortcodeAutocomplete } from '@/components/EmojiShortcodeAutocomplete';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useToast } from '@/hooks/useToast';
 import { useZaps } from '@/hooks/useZaps';
 import { useWallet } from '@/hooks/useWallet';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useCustomEmojis } from '@/hooks/useCustomEmojis';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useInsertText } from '@/hooks/useInsertText';
 import type { Event } from 'nostr-tools';
 import QRCode from 'qrcode';
 import type { WebLNProvider } from "@webbtc/webln-types";
@@ -52,6 +58,10 @@ interface ZapContentProps {
   setAmount: (amount: number | string) => void;
   setComment: (comment: string) => void;
   inputRef: React.RefObject<HTMLInputElement>;
+  commentTextareaRef: React.RefObject<HTMLTextAreaElement>;
+  insertEmoji: (emoji: string) => void;
+  insertAtCursor: (params: { start: number; end: number; replacement: string }) => void;
+  customEmojis: Array<{ shortcode: string; url: string }>;
   zap: (amount: number, comment: string) => void;
 }
 
@@ -70,6 +80,10 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
   setAmount,
   setComment,
   inputRef,
+  commentTextareaRef,
+  insertEmoji,
+  insertAtCursor,
+  customEmojis,
   zap,
 }, ref) => (
   <div ref={ref}>
@@ -197,14 +211,47 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
             onChange={(e) => setAmount(e.target.value)}
             className="w-full"
           />
-          <Textarea
-            id="custom-comment"
-            placeholder="Add a comment (optional)"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            className="w-full resize-none"
-            rows={2}
-          />
+          <div className="relative">
+            <Textarea
+              ref={commentTextareaRef}
+              id="custom-comment"
+              placeholder="Add a comment (optional)"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              className="w-full resize-none"
+              rows={2}
+            />
+            <EmojiShortcodeAutocomplete
+              textareaRef={commentTextareaRef}
+              content={comment}
+              onInsertEmoji={insertAtCursor}
+            />
+          </div>
+          <div className="flex items-center">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="p-1.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <Smile className="size-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                sideOffset={8}
+                className="w-auto p-0 border-border"
+              >
+                <EmojiPicker
+                  customEmojis={customEmojis}
+                  onSelect={(selection) => {
+                    const text = selection.type === 'native' ? selection.emoji : `:${selection.shortcode}:`;
+                    insertEmoji(text);
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
         <div className="px-4 pb-4">
           <Button onClick={handleZap} className="w-full" disabled={isZapping} size="default">
@@ -237,6 +284,11 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const [copied, setCopied] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const commentTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const { feedSettings } = useFeedSettings();
+  const { emojis: allCustomEmojis } = useCustomEmojis();
+  const customEmojis = feedSettings.showCustomEmojis !== false ? allCustomEmojis : [];
+  const { insertAtCursor, insertEmoji } = useInsertText(commentTextareaRef, comment, setComment);
 
   useEffect(() => {
     if (target) {
@@ -333,6 +385,10 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
     setAmount,
     setComment,
     inputRef,
+    commentTextareaRef,
+    insertEmoji,
+    insertAtCursor,
+    customEmojis,
     zap,
   };
 

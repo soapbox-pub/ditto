@@ -38,6 +38,7 @@ import { extractWebxdcMeta } from '@/lib/webxdcMeta';
 import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
 import { parseImetaMap } from '@/lib/imeta';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useInsertText } from '@/hooks/useInsertText';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { formatTime } from '@/lib/formatTime';
 import { DITTO_RELAY } from '@/lib/appRelays';
@@ -215,6 +216,7 @@ export function ComposeBox({
   /** Maps .xdc URLs to extracted metadata (name + icon URL). */
   const [webxdcMetas, setWebxdcMetas] = useState<Map<string, { name?: string; iconUrl?: string }>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { insertAtCursor, insertEmoji: insertEmojiAtCursor } = useInsertText(textareaRef, content, setContent);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Voice recording
@@ -464,49 +466,13 @@ export function ComposeBox({
   }, [user, content, customEmojis, uploadedFileGroups, webxdcUuids, webxdcMetas]);
 
   const insertEmoji = useCallback((emoji: string) => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newContent = content.slice(0, start) + emoji + content.slice(end);
-      setContent(newContent);
-      // Restore cursor position after the inserted emoji
-      requestAnimationFrame(() => {
-        textarea.focus();
-        const pos = start + emoji.length;
-        textarea.setSelectionRange(pos, pos);
-      });
-    } else {
-      setContent((prev) => prev + emoji);
-    }
+    insertEmojiAtCursor(emoji);
     expand();
-  }, [content, expand]);
+  }, [insertEmojiAtCursor, expand]);
 
-  const handleInsertMention = useCallback(({ start, end, replacement }: { start: number; end: number; replacement: string }) => {
-    const newContent = content.slice(0, start) + replacement + content.slice(end);
-    setContent(newContent);
-    requestAnimationFrame(() => {
-      const textarea = textareaRef.current;
-      if (textarea) {
-        textarea.focus();
-        const pos = start + replacement.length;
-        textarea.setSelectionRange(pos, pos);
-      }
-    });
-  }, [content]);
+  const handleInsertMention = insertAtCursor;
 
-  const handleInsertShortcodeEmoji = useCallback(({ start, end, replacement }: { start: number; end: number; replacement: string }) => {
-    const newContent = content.slice(0, start) + replacement + content.slice(end);
-    setContent(newContent);
-    requestAnimationFrame(() => {
-      const textarea = textareaRef.current;
-      if (textarea) {
-        textarea.focus();
-        const pos = start + replacement.length;
-        textarea.setSelectionRange(pos, pos);
-      }
-    });
-  }, [content]);
+  const handleInsertShortcodeEmoji = insertAtCursor;
 
   const handleFileUpload = useCallback(async (file: File) => {
     try {

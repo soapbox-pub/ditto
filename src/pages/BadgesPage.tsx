@@ -811,6 +811,7 @@ function EditBadgeForm({ badge, onClose }: { badge: ParsedBadge; onClose: () => 
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
+  const { user } = useCurrentUser();
   const feedQuery = useBadgeFeed('follows');
 
   const {
@@ -873,7 +874,7 @@ function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
           )}
         </div>
       ) : (
-        <FeedEmptyState message="No badge activity from people you follow yet." />
+        <FeedEmptyState message={user ? "No badge activity from people you follow yet." : "No badge activity found yet."} />
       )}
     </PullToRefresh>
   );
