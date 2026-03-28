@@ -54,7 +54,7 @@ export interface FeedSettings {
   showPolls: boolean;
   /** Show Treasures link in sidebar */
   showTreasures: boolean;
-  /** Show Geocache listings (kind 37516) in Treasures */
+  /** Show Treasure listings (kind 37516) in Treasures */
   showTreasureGeocaches: boolean;
   /** Show Found logs (kind 7516) in Treasures */
   showTreasureFoundLogs: boolean;
@@ -66,7 +66,7 @@ export interface FeedSettings {
   feedIncludeVines: boolean;
   /** Include Polls in the follows/global feed */
   feedIncludePolls: boolean;
-  /** Include Treasure geocaches in the follows/global feed */
+  /** Include Treasure listings in the follows/global feed */
   feedIncludeTreasureGeocaches: boolean;
   /** Include Treasure found logs in the follows/global feed */
   feedIncludeTreasureFoundLogs: boolean;
