@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react"
 
-import tailwindConfig from "../../tailwind.config"
-
-const MOBILE_BREAKPOINT = parseFloat(tailwindConfig.theme.screens.md);
+/** Matches the `md` breakpoint in tailwind.config.ts (768px). Hardcoded to avoid pulling the entire Tailwind config + plugins into the client bundle. */
+const MOBILE_BREAKPOINT = 768;
 
 export function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);

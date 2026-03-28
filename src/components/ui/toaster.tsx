@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 
 import { useToast } from "@/hooks/useToast"
-import tailwindConfig from "../../../tailwind.config"
 import {
   Toast,
   ToastClose,
@@ -11,7 +10,8 @@ import {
   ToastViewport,
 } from "@/components/ui/toast"
 
-const MD_BREAKPOINT = parseFloat(tailwindConfig.theme.screens.md);
+/** Matches the `md` breakpoint in tailwind.config.ts (768px). Hardcoded to avoid pulling the entire Tailwind config + plugins into the client bundle. */
+const MD_BREAKPOINT = 768;
 
 export function Toaster() {
   const { toasts } = useToast()

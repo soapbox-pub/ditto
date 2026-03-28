@@ -19,9 +19,10 @@ import {
   Zap,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArticleContent } from "@/components/ArticleContent";
+/** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
+const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
 import {
   MusicPlaylistContent,
   MusicTrackContent,
@@ -37,7 +38,7 @@ import {
 import { CommentContext } from "@/components/CommentContext";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
 import { EmojifiedText, ReactionEmoji } from "@/components/CustomEmoji";
-import { CustomNipCard } from "@/components/CustomNipCard";
+const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { EmojiPackContent } from "@/components/EmojiPackContent";
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { FollowPackContent } from "@/components/FollowPackContent";
@@ -59,7 +60,7 @@ import { PatchCard } from "@/components/PatchCard";
 import { PollContent } from "@/components/PollContent";
 import { ProfileBadgesContent } from "@/components/ProfileBadgesContent";
 import { ProfileHoverCard } from "@/components/ProfileHoverCard";
-import { PullRequestCard } from "@/components/PullRequestCard";
+const PullRequestCard = lazy(() => import("@/components/PullRequestCard").then(m => ({ default: m.PullRequestCard })));
 import { ReactionButton } from "@/components/ReactionButton";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { ReplyContext } from "@/components/ReplyContext";
@@ -437,7 +438,9 @@ export const NoteCard = memo(function NoteCard({
         ) : isFollowPack ? (
           <FollowPackContent event={event} />
         ) : isArticle ? (
-          <ArticleContent event={event} preview className="mt-2" />
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            <ArticleContent event={event} preview className="mt-2" />
+          </Suspense>
         ) : isMagicDeck ? (
           <MagicDeckContent event={event} />
         ) : isStream ? (
@@ -469,9 +472,13 @@ export const NoteCard = memo(function NoteCard({
         ) : isPatch ? (
           <PatchCard event={event} />
         ) : isPullRequest ? (
-          <PullRequestCard event={event} />
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            <PullRequestCard event={event} />
+          </Suspense>
         ) : isCustomNip ? (
-          <CustomNipCard event={event} />
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            <CustomNipCard event={event} />
+          </Suspense>
         ) : isNsite ? (
           <NsiteCard event={event} />
         ) : isZapstoreApp ? (

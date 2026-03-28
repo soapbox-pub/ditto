@@ -155,6 +155,16 @@ export default defineConfig(() => {
   },
   build: {
     target: 'esnext',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Consolidate lucide icons into a single chunk instead of 60+ micro-chunks.
+          if (id.includes('node_modules/lucide-react')) {
+            return 'lucide-icons';
+          }
+        },
+      },
+    },
   },
   optimizeDeps: {
     exclude: ['@capacitor/filesystem', '@capacitor/share'],
