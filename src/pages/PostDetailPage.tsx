@@ -128,6 +128,8 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 15128 || kind === 35128) return "Nsite";
   if (kind === VANISH_KIND) return "Request to Vanish";
   if (kind === 4) return "Encrypted Message";
+  if (kind === 6 || kind === 16) return "Repost";
+  if (kind === 7) return "Reaction";
   return "Post Details";
 }
 
@@ -869,6 +871,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isTheme = event.kind === 36767 || event.kind === 16767;
   const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
   const isReaction = event.kind === 7;
+  const isRepost = event.kind === 6 || event.kind === 16;
   const isVideo = event.kind === 21 || event.kind === 22;
   const isCommunity = event.kind === 34550;
   const isGitRepo = event.kind === 30617;
@@ -894,6 +897,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isTheme &&
     !isVoiceMessage &&
     !isReaction &&
+    !isRepost &&
     !isVideo &&
     !isCommunity &&
     !isDevKind &&
@@ -1107,8 +1111,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     useState<InteractionTab>("reposts");
 
   const parentEventId = useMemo(
-    () => (isTextNote || isReaction ? getParentEventId(event) : undefined),
-    [event, isTextNote, isReaction],
+    () => (isTextNote || isReaction || isRepost ? getParentEventId(event) : undefined),
+    [event, isTextNote, isReaction, isRepost],
   );
 
   // For kind 1111 comments on external content, extract the I tag for the parent preview
@@ -1229,10 +1233,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     setInteractionsOpen(true);
   };
 
+  const interactionQuoteCount = interactions?.quotes.length ?? 0;
+  const quoteCount = interactionQuoteCount || (stats?.quotes ?? 0);
   const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
   const hasStats = !!(
     stats?.reposts ||
-    stats?.quotes ||
+    quoteCount ||
     stats?.reactions ||
     stats?.zapCount
   );
@@ -1255,7 +1261,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <div ref={ancestorRef}>
           <AncestorThread
             eventId={parentEventId}
-            collapseAfter={isReaction ? 0 : undefined}
+            collapseAfter={isReaction || isRepost ? 0 : undefined}
           />
         </div>
       )}
@@ -1310,6 +1316,124 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     </Link>
                   </ProfileHoverCard>
                   <span className="text-sm text-muted-foreground">reacted</span>
+                  <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                    {formatFullDate(event.created_at)}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-between py-1 mt-2 border-t border-b border-border -mx-4 px-4">
+            <button
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="Reply"
+              onClick={() => setReplyOpen(true)}
+            >
+              <MessageCircle className="size-5" />
+              {stats?.replies ? (
+                <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
+              ) : null}
+            </button>
+
+            <RepostMenu event={event}>
+              {(isReposted: boolean) => (
+                <button
+                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
+                  title={isReposted ? "Undo repost" : "Repost"}
+                >
+                  <RepostIcon className="size-5" />
+                  {repostTotal ? (
+                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
+                  ) : null}
+                </button>
+              )}
+            </RepostMenu>
+
+            <ReactionButton
+              eventId={event.id}
+              eventPubkey={event.pubkey}
+              eventKind={event.kind}
+              reactionCount={stats?.reactions}
+            />
+
+            <button
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
+              title="Share"
+              onClick={handleShare}
+            >
+              <Share2 className="size-5" />
+            </button>
+
+            <button
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="More"
+              onClick={() => setMoreMenuOpen(true)}
+            >
+              <MoreHorizontal className="size-5" />
+            </button>
+          </div>
+
+          <NoteMoreMenu
+            event={event}
+            open={moreMenuOpen}
+            onOpenChange={setMoreMenuOpen}
+          />
+          <ReplyComposeModal
+            event={event}
+            open={replyOpen}
+            onOpenChange={setReplyOpen}
+          />
+        </article>
+      )}
+
+      {/* Repost event (kind 6 / 16) — compact activity-style card */}
+      {isRepost && (
+        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+          <div className="flex items-center gap-3">
+            {/* Repost icon bubble — size-10 matches the threaded ancestor avatar column */}
+            <div className="flex items-center justify-center size-10 rounded-full bg-accent/10 shrink-0">
+              <RepostIcon className="size-5 text-accent" />
+            </div>
+
+            {/* Author + "reposted" label + timestamp — single line */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              {author.isLoading ? (
+                <>
+                  <Skeleton className="size-6 rounded-full shrink-0" />
+                  <Skeleton className="h-4 w-28" />
+                </>
+              ) : (
+                <>
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="shrink-0">
+                      <Avatar shape={avatarShape} className="size-6">
+                        <AvatarImage
+                          src={metadata?.picture}
+                          alt={displayName}
+                        />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                          {displayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link
+                      to={profileUrl}
+                      className="font-bold text-sm hover:underline truncate"
+                    >
+                      {author.data?.event ? (
+                        <EmojifiedText tags={author.data.event.tags}>
+                          {displayName}
+                        </EmojifiedText>
+                      ) : (
+                        displayName
+                      )}
+                    </Link>
+                  </ProfileHoverCard>
+                  <span className="text-sm text-muted-foreground">reposted</span>
                   <span className="text-xs text-muted-foreground ml-auto shrink-0">
                     {formatFullDate(event.created_at)}
                   </span>
@@ -1463,7 +1587,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       )}
 
       {/* Main post — expanded Ditto-style view */}
-      {!isReaction && !isVanish && (
+      {!isReaction && !isRepost && !isVanish && (
         <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
           {/* Author row */}
           <div className="flex items-center gap-3">
@@ -1541,7 +1665,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             ) : isFileMetadata ? (
               <FileMetadataContent event={event} />
             ) : isTheme ? (
-              <ThemeContent event={event} />
+              <ThemeContent event={event} expanded />
             ) : isVoiceMessage ? (
               <VoiceMessagePlayer event={event} />
             ) : isCommunity ? (
@@ -1641,15 +1765,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   Repost{stats.reposts !== 1 ? "s" : ""}
                 </button>
               ) : null}
-              {stats?.quotes ? (
+              {quoteCount ? (
                 <button
                   onClick={() => openInteractions("quotes")}
                   className="hover:underline transition-colors"
                 >
                   <span className="font-bold text-foreground">
-                    {formatNumber(stats.quotes)}
+                    {formatNumber(quoteCount)}
                   </span>{" "}
-                  Quote{stats.quotes !== 1 ? "s" : ""}
+                  Quote{quoteCount !== 1 ? "s" : ""}
                 </button>
               ) : null}
               {stats?.reactions ? (
@@ -1734,7 +1858,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             </div>
           )}
 
-          {/* Action buttons — Ditto style: distributed across full width */}
+           {/* Action buttons — Ditto style: distributed across full width */}
           <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
             {/* Reply */}
             <button

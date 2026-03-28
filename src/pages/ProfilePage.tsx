@@ -46,6 +46,7 @@ import { genUserName } from '@/lib/genUserName';
 
 import { canZap } from '@/lib/canZap';
 import { shareOrCopy } from '@/lib/share';
+import { openUrl } from '@/lib/downloadFile';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { BioContent } from '@/components/BioContent';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
@@ -81,10 +82,11 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS as DndCSS } from '@dnd-kit/utilities';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
-import { loadAndApplyFont } from '@/lib/fontLoader';
+import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
+import { resolveCssFamily } from '@/lib/fonts';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
-import { FontPicker } from '@/components/FontPicker';
+import { FontSection } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { formatNumber } from '@/lib/formatNumber';
@@ -788,11 +790,7 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const a = document.createElement('a');
-    a.href = imageUrl;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.click();
+    openUrl(imageUrl);
   };
 
   return (
@@ -1327,6 +1325,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     primary: '258 70% 60%',
   });
   const [localProfileFont, setLocalProfileFont] = useState<ThemeFont | undefined>();
+  const [localProfileTitleFont, setLocalProfileTitleFont] = useState<ThemeFont | undefined>();
   const [localProfileBg, setLocalProfileBg] = useState<ThemeBackground | undefined>();
 
   // Initialize local state from profile theme when dialog opens
@@ -1334,6 +1333,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     if (editProfileThemeOpen && profileTheme) {
       setLocalProfileColors(profileTheme.colors);
       setLocalProfileFont(profileTheme.font);
+      setLocalProfileTitleFont(profileTheme.titleFont);
       setLocalProfileBg(profileTheme.background);
     }
   }, [editProfileThemeOpen, profileTheme]);
@@ -1347,6 +1347,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const ownThemeRef = useRef({ ownTheme, ownCustomTheme, configuredThemes });
   ownThemeRef.current = { ownTheme, ownCustomTheme, configuredThemes };
   const profileThemeFont = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.font : undefined;
+  const profileThemeTitleFont = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.titleFont : undefined;
   const profileThemeBackground = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.background : undefined;
 
   // Whether we need to override the custom theme on this profile.
@@ -1367,11 +1368,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     `${hslStringToHex(c.primary)}${hslStringToHex(c.text)}${hslStringToHex(c.background)}`;
   const fontFamily = (f?: { family: string }) => f?.family ?? '';
   const ownCustomThemeSnapshot = ownCustomTheme
-    ? colorsToHex(ownCustomTheme.colors) + fontFamily(ownCustomTheme.font) + JSON.stringify(ownCustomTheme.background ?? '')
+    ? colorsToHex(ownCustomTheme.colors) + fontFamily(ownCustomTheme.font) + fontFamily(ownCustomTheme.titleFont) + JSON.stringify(ownCustomTheme.background ?? '')
     : null;
   const profileThemeDiffers = profileHasTheme && ownCustomThemeSnapshot && profileTheme && ownCustomTheme
     ? (colorsToHex(profileTheme.colors) !== colorsToHex(ownCustomTheme.colors)
       || fontFamily(profileTheme.font) !== fontFamily(ownCustomTheme.font)
+      || fontFamily(profileTheme.titleFont) !== fontFamily(ownCustomTheme.titleFont)
       || JSON.stringify(profileTheme.background ?? '') !== JSON.stringify(ownCustomTheme.background ?? ''))
     : false;
 
@@ -1397,6 +1399,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     () => profileThemeColors ? (profileThemeFont ?? { family: 'Inter' }) : undefined,
     [profileThemeColors, profileThemeFont],
   );
+  // Title font falls back to the body font when not explicitly set,
+  // so the display name inherits the theme's body font rather than the default.
+  const effectiveProfileTitleFont = useMemo(
+    () => profileThemeColors ? (profileThemeTitleFont ?? effectiveProfileFont) : undefined,
+    [profileThemeColors, profileThemeTitleFont, effectiveProfileFont],
+  );
   const effectiveProfileBackground = profileThemeColors ? profileThemeBackground : undefined;
 
   useLayoutEffect(() => {
@@ -1415,6 +1423,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
     // Apply profile font (if any)
     loadAndApplyFont(effectiveProfileFont);
+
+    // Apply profile title font (if any)
+    loadAndApplyTitleFont(effectiveProfileTitleFont);
 
     // Apply profile background image (if any)
     const bgStyleId = 'theme-background';
@@ -1461,6 +1472,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       // Restore own font or clear override
       loadAndApplyFont(ownActiveConfig?.font);
 
+      // Restore own title font or clear override
+      loadAndApplyTitleFont(ownActiveConfig?.titleFont);
+
       // Restore own background or remove override
       const bgEl = document.getElementById(bgStyleId) as HTMLStyleElement | null;
       const ownBgUrl = ownActiveConfig?.background?.url;
@@ -1485,7 +1499,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         bgEl?.remove();
       }
     };
-  }, [effectiveProfileColors, effectiveProfileFont, effectiveProfileBackground]);
+  }, [effectiveProfileColors, effectiveProfileFont, effectiveProfileTitleFont, effectiveProfileBackground]);
 
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 
@@ -1984,7 +1998,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
                   {/* NIP-38 thought bubble — floats beside the avatar over the banner */}
                   {feedSettings.showUserStatuses !== false && profileStatus.status && (
-                    <div className="absolute -top-2 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
+                    <div className="absolute top-3 md:top-4 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
                       <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg">
                         <p className="text-xs md:text-sm text-foreground italic truncate pr-1">
                           {profileStatus.url ? (
@@ -1995,9 +2009,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                             profileStatus.status
                           )}
                         </p>
-                        {/* Speech bubble triangle tail — slightly angled toward avatar */}
-                        <div className="absolute -bottom-[6px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-t-[6px] border-t-border" />
-                        <div className="absolute -bottom-[5px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-t-[6px] border-t-background" />
+                        {/* Speech bubble triangle tail — bottom-left corner, points diagonally down-left toward avatar */}
+                        <div className="absolute -bottom-[7px] left-1 size-0 border-t-[8px] border-t-border border-r-[8px] border-r-transparent" />
+                        <div className="absolute -bottom-[5.5px] left-1 size-0 border-t-[7px] border-t-background border-r-[7px] border-r-transparent" />
                       </div>
                     </div>
                   )}
@@ -2060,7 +2074,10 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </div>
               </div>
 
-              <h2 className="text-xl font-bold truncate">
+              <h2
+                className="text-xl font-bold truncate"
+                style={effectiveProfileTitleFont ? { fontFamily: 'var(--title-font-family)' } : undefined}
+              >
                 {metadataEvent ? (
                   <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
                 ) : displayName}
@@ -2681,7 +2698,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             <PortalContainerProvider value={editThemePortalContainer}>
             <div className="overflow-y-auto max-h-[85vh] p-6 space-y-4">
             <DialogHeader>
-              <DialogTitle>Edit Profile Theme</DialogTitle>
+              <DialogTitle style={localProfileTitleFont?.family ? { fontFamily: `"${resolveCssFamily(localProfileTitleFont.family)}", inherit` } : undefined}>Edit Profile Theme</DialogTitle>
               <DialogDescription>
                 Customize the theme visitors see on your profile
               </DialogDescription>
@@ -2705,10 +2722,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 ))}
               </div>
 
-              {/* Font */}
-              <FontPicker
-                value={localProfileFont}
-                onChange={setLocalProfileFont}
+              {/* Fonts (body + title) */}
+              <FontSection
+                bodyFont={localProfileFont}
+                onBodyFontChange={setLocalProfileFont}
+                titleFont={localProfileTitleFont}
+                onTitleFontChange={setLocalProfileTitleFont}
               />
 
               {/* Background */}
@@ -2727,6 +2746,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       themeConfig: {
                         colors: localProfileColors,
                         font: localProfileFont,
+                        titleFont: localProfileTitleFont,
                         background: localProfileBg,
                       },
                     });

@@ -1,0 +1,95 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">  
+  <!-- Main leaf body -->
+  <path d="M 100 40 Q 70 60 60 90 Q 55 120 70 140 Q 85 155 100 160 Q 115 155 130 140 Q 145 120 140 90 Q 130 60 100 40" 
+        fill="url(#breezyBody)" />
+  
+  <!-- Leaf veins -->
+  <path d="M 100 45 L 100 155" stroke="url(#breezyVein)" stroke-width="3" opacity="0.6" />
+  <path d="M 100 70 L 80 85" stroke="url(#breezyVein)" stroke-width="2" opacity="0.5" />
+  <path d="M 100 70 L 120 85" stroke="url(#breezyVein)" stroke-width="2" opacity="0.5" />
+  <path d="M 100 100 L 75 115" stroke="url(#breezyVein)" stroke-width="2" opacity="0.5" />
+  <path d="M 100 100 L 125 115" stroke="url(#breezyVein)" stroke-width="2" opacity="0.5" />
+  <path d="M 100 130 L 85 140" stroke="url(#breezyVein)" stroke-width="2" opacity="0.5" />
+  <path d="M 100 130 L 115 140" stroke="url(#breezyVein)" stroke-width="2" opacity="0.5" />
+  
+  <!-- Inner leaf highlight -->
+  <path d="M 100 50 Q 75 65 68 85 Q 65 105 75 120 Q 85 130 100 135 Q 115 130 125 120 Q 135 105 132 85 Q 125 65 100 50" 
+        fill="url(#breezyInner)" opacity="0.6" />
+
+  <!-- Olhos dormindo -->
+  <path d="M 75 90 Q 85 93 95 90" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M 105 90 Q 115 93 125 90" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+
+  <!-- Boca tranquila -->
+  <circle cx="100" cy="110" r="2" fill="#1f2937" />
+
+  <!-- Little arms -->
+  <path d="M 65 100 Q 55 95 50 105 Q 55 115 65 110" fill="url(#breezyArm)" />
+  <path d="M 135 100 Q 145 95 150 105 Q 145 115 135 110" fill="url(#breezyArm)" />
+
+  <!-- Little legs -->
+  <ellipse cx="90" cy="155" rx="10" ry="8" fill="url(#breezyLeg)" />
+  <ellipse cx="110" cy="155" rx="10" ry="8" fill="url(#breezyLeg)" />
+
+  <!-- Floating leaves -->
+  <g transform="translate(100 100)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="8s" repeatCount="indefinite" />
+      <path d="M -50 -30 Q -55 -25 -50 -20 Q -45 -25 -50 -30" fill="url(#breezyFloating)" opacity="0.6" />
+    </g>
+  </g>
+  <g transform="translate(100 100)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0" to="-360" dur="9s" repeatCount="indefinite" />
+      <path d="M 50 -25 Q 45 -20 50 -15 Q 55 -20 50 -25" fill="url(#breezyFloating)" opacity="0.5" />
+    </g>
+  </g>
+  <g transform="translate(100 100)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="7s" repeatCount="indefinite" />
+      <path d="M -55 30 Q -60 35 -55 40 Q -50 35 -55 30" fill="url(#breezyFloating)" opacity="0.5" />
+    </g>
+  </g>
+  <g transform="translate(100 100)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0" to="-360" dur="10s" repeatCount="indefinite" />
+      <path d="M 55 25 Q 50 30 55 35 Q 60 30 55 25" fill="url(#breezyFloating)" opacity="0.4" />
+    </g>
+  </g>
+
+  <!-- "Zzz" dormindo -->
+  <text x="150" y="60" font-size="10" fill="#666" opacity="0.8">Z</text>
+  <text x="157" y="55" font-size="8" fill="#666" opacity="0.6">z</text>
+  <text x="162" y="51" font-size="6" fill="#666" opacity="0.4">z</text>
+
+  <!-- Gradientes -->
+  <defs>
+    <radialGradient id="breezyBody" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#86efac" />
+      <stop offset="30%" stop-color="#4ade80" />
+      <stop offset="70%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#16a34a" />
+    </radialGradient>
+    <radialGradient id="breezyInner" cx="0.4" cy="0.3">
+      <stop offset="0%" stop-color="#bbf7d0" />
+      <stop offset="100%" stop-color="#86efac" />
+    </radialGradient>
+    <linearGradient id="breezyVein" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#15803d" />
+      <stop offset="50%" stop-color="#16a34a" />
+      <stop offset="100%" stop-color="#15803d" />
+    </linearGradient>
+    <radialGradient id="breezyArm" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#4ade80" />
+      <stop offset="100%" stop-color="#16a34a" />
+    </radialGradient>
+    <radialGradient id="breezyLeg" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#15803d" />
+    </radialGradient>
+    <radialGradient id="breezyFloating" cx="0.5" cy="0.5">
+      <stop offset="0%" stop-color="#86efac" />
+      <stop offset="100%" stop-color="#22c55e" />
+    </radialGradient>
+  </defs>
+</svg>

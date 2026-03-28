@@ -12,6 +12,7 @@ This project is a Nostr client application built with React 18.x, TailwindCSS 3.
 - **React Router**: For client-side routing with BrowserRouter and ScrollToTop functionality
 - **TanStack Query**: For data fetching, caching, and state management
 - **TypeScript**: For type-safe JavaScript development
+- **Capacitor**: Native iOS and Android shell wrapping the web app
 
 ## Project Structure
 
@@ -1246,7 +1247,68 @@ If git is available in your environment (through a `shell` tool, or other git-sp
 
 When your changes are complete and validated, create a git commit with a descriptive message summarizing your changes.
 
-**ALWAYS commit when you are finished making changes.**
+**ALWAYS commit when you are finished making changes. This is non-negotiable -- every completed task must end with a git commit. Never leave uncommitted changes.**
+
+## Capacitor Compatibility
+
+The app runs inside Capacitor's WKWebView on iOS and WebView on Android. Several common web APIs **do not work** in this environment. Always account for native platforms when writing code that interacts with browser-specific features.
+
+### What Doesn't Work in WKWebView (iOS)
+
+- **`<a download>` file downloads** -- Programmatically creating an anchor element with `a.download` and clicking it silently fails. WKWebView ignores the `download` attribute entirely.
+- **`<a target="_blank">` new tabs** -- Programmatic clicks on anchors with `target="_blank"` are blocked. There are no tabs in a native app.
+- **`window.open()`** -- May be blocked or behave unexpectedly without user gesture context.
+
+### File Downloads and URL Opening
+
+The project provides two utility functions in `src/lib/downloadFile.ts` that handle the web/native split automatically:
+
+#### `downloadTextFile(filename, content)`
+
+Saves a text file to the user's device. On web it uses the `<a download>` pattern. On native it writes to the Capacitor cache directory via `@capacitor/filesystem` and presents the native share sheet via `@capacitor/share`.
+
+```typescript
+import { downloadTextFile } from '@/lib/downloadFile';
+
+await downloadTextFile('backup.txt', fileContents);
+```
+
+#### `openUrl(url)`
+
+Opens a URL in a new browser tab on web, or presents the native share sheet on Capacitor.
+
+```typescript
+import { openUrl } from '@/lib/downloadFile';
+
+await openUrl('https://example.com/image.jpg');
+```
+
+**CRITICAL**: Never use `document.createElement('a')` with `.click()` for downloads or opening URLs. Always use the utilities above. They handle the Capacitor/web split and will work correctly on all platforms.
+
+### Detecting Native Platforms
+
+Use `Capacitor.isNativePlatform()` from `@capacitor/core` when you need platform-specific behavior:
+
+```typescript
+import { Capacitor } from '@capacitor/core';
+
+if (Capacitor.isNativePlatform()) {
+  // iOS or Android
+} else {
+  // Web browser
+}
+```
+
+### Installed Capacitor Plugins
+
+- `@capacitor/app` -- App lifecycle events (deep links, back button)
+- `@capacitor/core` -- Core runtime and platform detection
+- `@capacitor/filesystem` -- Read/write files on the native filesystem
+- `@capacitor/local-notifications` -- Schedule local push notifications
+- `@capacitor/share` -- Native share sheet
+- `@capacitor/status-bar` -- Control the native status bar style
+
+After adding or removing plugins, run `npx cap sync` to update the native projects.
 
 ## CI/CD Pipeline
 
