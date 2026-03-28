@@ -93,9 +93,6 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   // before pushManager.subscribe() — browsers require that call to be
   // synchronously reachable from the user gesture.
   const vapidKeyRef = useRef<string | null>(null);
-  /** Tracks the current onlyFollowing preference so enable() and
-   *  syncPreferences() can read it without re-creating the callback. */
-  const onlyFollowingRef = useRef(false);
 
   // ─── Register SW + restore state on mount ─────────────────────────────────
 
@@ -196,7 +193,6 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     const baseId = getOrCreateSubscriptionId();
     const serialized = serializePushSubscription(sub);
     const onlyFollowing = prefs?.onlyFollowing === true;
-    onlyFollowingRef.current = onlyFollowing;
 
     await Promise.all(NOTIFICATION_TEMPLATES.map((tmpl) => {
       const filter: { kinds: number[]; '#p': string[]; authors?: string[] } = {
@@ -268,7 +264,6 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     if (!client || !baseId) return;
 
     const onlyFollowing = prefs.onlyFollowing === true;
-    onlyFollowingRef.current = onlyFollowing;
 
     await Promise.allSettled(
       NOTIFICATION_TEMPLATES.map((tmpl) => {
