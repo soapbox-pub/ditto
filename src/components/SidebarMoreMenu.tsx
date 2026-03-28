@@ -92,7 +92,7 @@ export function SidebarMoreMenu({
   if (editing) {
     return (
       <div className="flex flex-col gap-0.5">
-        <button onClick={onAddDivider} className={`flex items-center gap-4 px-3 py-3 rounded-full transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85 ${sizeClass}`}>
+        <button onClick={onAddDivider} className={`flex items-center gap-4 px-3 py-3 rounded-full transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary/40 bg-background/85 ${sizeClass}`}>
           <SeparatorHorizontal className="size-6" />
           <span>Add divider</span>
         </button>
@@ -137,7 +137,7 @@ export function SidebarMoreMenu({
         ) : (
           <button
             onClick={() => setLinkInput(true)}
-            className={`flex items-center gap-4 px-3 py-3 rounded-full transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85 ${sizeClass}`}
+            className={`flex items-center gap-4 px-3 py-3 rounded-full transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary/40 bg-background/85 ${sizeClass}`}
           >
             <LinkIcon className="size-6" />
             <span>Add link</span>
@@ -169,7 +169,7 @@ export function SidebarMoreMenu({
               key={item.id}
               to={itemPath(item.id, undefined, homePage)}
               onClick={() => { setExpanded(false); onNavigate?.(); }}
-              className={`flex items-center gap-4 px-3 py-3 rounded-full font-normal text-foreground transition-colors hover:bg-secondary/60 bg-background/85 ${sizeClass}`}
+              className={`flex items-center gap-4 px-3 py-3 rounded-full font-normal text-foreground transition-colors hover:bg-secondary/40 bg-background/85 ${sizeClass}`}
             >
               {sidebarItemIcon(item.id)}
               <span className="truncate">{item.label}</span>
@@ -181,7 +181,7 @@ export function SidebarMoreMenu({
           )}
           <button
             onClick={() => { setExpanded(false); onStartEditing(); }}
-            className={`flex items-center gap-4 px-3 py-3 rounded-full transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85 ${sizeClass}`}
+            className={`flex items-center gap-4 px-3 py-3 rounded-full transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary/40 bg-background/85 ${sizeClass}`}
           >
             <Pencil className="size-6" />
             <span>Edit sidebar</span>
