@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { BarsStaggeredIcon } from "@/components/icons/BarsStaggeredIcon";
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { RepostIcon } from "@/components/icons/RepostIcon";
@@ -26,7 +27,7 @@ import { TabButton } from "@/components/TabButton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ZapDialog } from "@/components/ZapDialog";
-import { useLayoutOptions } from "@/contexts/LayoutContext";
+import { useLayoutOptions, useOpenDrawer } from "@/contexts/LayoutContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useAuthor } from "@/hooks/useAuthor";
 import { useBlossomFallback } from "@/hooks/useBlossomFallback";
@@ -37,7 +38,6 @@ import { useFollowList } from "@/hooks/useFollowActions";
 import { useNostrPublish } from "@/hooks/useNostrPublish";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useRepostStatus } from "@/hooks/useRepostStatus";
-import { useScrollDirection } from "@/hooks/useScrollDirection";
 import { useStreamKind } from "@/hooks/useStreamKind";
 import { type EventStats, useEventStats } from "@/hooks/useTrending";
 import { useUserReaction } from "@/hooks/useUserReaction";
@@ -752,15 +752,15 @@ export function VinesFeedPage() {
 		showFAB: false,
 		scrollContainer,
 		noOverscroll: true,
-		hasSubHeader: true,
+		hasSubHeader: false,
 		noArcs: true,
+		hideTopBar: true,
+		hideBottomNav: true,
 	});
 
-	// Track scroll direction to expand vines when bottom nav hides
-	const { hidden: bottomNavHidden } = useScrollDirection(scrollContainer);
-	const vineHeightClass = bottomNavHidden
-		? "vine-slide-height-expanded"
-		: "vine-slide-height";
+	// On mobile the top bar and bottom nav are both hidden, so vines fill the
+	// full viewport. On desktop the sidebar breakpoint class overrides the height.
+	const vineHeightClass = "vine-slide-height";
 
 	// Lock body scroll when mobile comments are open
 	useEffect(() => {
@@ -826,7 +826,11 @@ export function VinesFeedPage() {
 	}, [activeIndex, vines.length]);
 
 	const vinesHeader = (
-		<PageHeader title="Vines" icon={<Clapperboard className="size-5" />}>
+		<PageHeader
+			title="Vines"
+			icon={<Clapperboard className="size-5" />}
+			className="hidden sidebar:flex"
+		>
 			{vineKindDef && (
 				<KindInfoButton
 					kindDef={vineKindDef}
@@ -843,10 +847,18 @@ export function VinesFeedPage() {
 		return (
 			<div className="flex-1 min-w-0 flex flex-col">
 				{vinesHeader}
-				<VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
+				{/* Desktop tab bar */}
+				<div className="hidden sidebar:block">
+					<VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
+				</div>
 				{/* Vine card skeleton */}
 				<div className="flex-1 relative bg-neutral-900 overflow-hidden">
 					<Skeleton className="absolute inset-0 rounded-none bg-neutral-800" />
+					{/* Floating tab bar skeleton (mobile) */}
+					<div className="absolute top-0 inset-x-0 z-20 flex justify-center gap-6 pt-3 pb-2 safe-area-top sidebar:hidden">
+						<Skeleton className="h-5 w-16 bg-white/20 rounded" />
+						<Skeleton className="h-5 w-16 bg-white/20 rounded" />
+					</div>
 					{/* Bottom info strip */}
 					<div className="absolute bottom-6 left-4 right-20 space-y-2">
 						<Skeleton className="h-4 w-28 bg-white/20" />
@@ -889,24 +901,37 @@ export function VinesFeedPage() {
 
 	return (
 		<div className="flex-1 min-w-0 relative flex flex-col">
-			{/* ── Section header ─────────────────────────────────────────── */}
+			{/* ── Section header (desktop only) ──────────────────────────── */}
 			{vinesHeader}
-			{/* ── Tab bar ────────────────────────────────────────────────── */}
-			<VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
+			{/* ── Desktop tab bar ────────────────────────────────────────── */}
+			<div className="hidden sidebar:block">
+				<VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
+			</div>
 
-			{/* ── Scroll container ────────────────────────────────────────── */}
-			<div
-				ref={containerCallbackRef}
-				className={cn(
-					vineHeightClass,
-					"sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory overflow-y-scroll",
-				)}
-				style={{
-					scrollbarWidth: "none",
-					msOverflowStyle: "none",
-					overscrollBehavior: "none",
-				}}
-			>
+			{/* ── Scroll + floating overlay wrapper ───────────────────────── */}
+			<div className="relative flex-1 min-h-0">
+				{/* ── Floating tab bar (mobile) — overlays on top of video ── */}
+				<VinesFloatingTabBar
+					tab={tab}
+					onTabChange={setTab}
+					hasUser={!!user}
+					infoOpen={infoOpen}
+					onInfoOpenChange={setInfoOpen}
+				/>
+
+				{/* ── Scroll container ──────────────────────────────────────── */}
+				<div
+					ref={containerCallbackRef}
+					className={cn(
+						vineHeightClass,
+						"sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory overflow-y-scroll",
+					)}
+					style={{
+						scrollbarWidth: "none",
+						msOverflowStyle: "none",
+						overscrollBehavior: "none",
+					}}
+				>
 				{vines.map((event, i) => (
 					<div
 						key={event.id}
@@ -924,6 +949,7 @@ export function VinesFeedPage() {
 						/>
 					</div>
 				))}
+				</div>
 			</div>
 
 			{/* ── Comments sheet ───────────────────────────────────────────── */}
@@ -936,7 +962,7 @@ export function VinesFeedPage() {
 	);
 }
 
-// ─── VinesTabBar ─────────────────────────────────────────────────────────────
+// ─── VinesTabBar (desktop) ────────────────────────────────────────────────────
 
 interface VinesTabBarProps {
 	tab: FeedTab;
@@ -962,5 +988,85 @@ function VinesTabBar({ tab, onTabChange, hasUser }: VinesTabBarProps) {
 				className="sidebar:py-5 sidebar:font-semibold"
 			/>
 		</SubHeaderBar>
+	);
+}
+
+// ─── VinesFloatingTabBar (mobile — overlays on video like TikTok) ────────────
+
+interface VinesFloatingTabBarProps {
+	tab: FeedTab;
+	onTabChange: (tab: FeedTab) => void;
+	hasUser: boolean;
+	infoOpen: boolean;
+	onInfoOpenChange: (open: boolean) => void;
+}
+
+function VinesFloatingTabBar({
+	tab,
+	onTabChange,
+	hasUser,
+	infoOpen,
+	onInfoOpenChange,
+}: VinesFloatingTabBarProps) {
+	const openDrawer = useOpenDrawer();
+
+	return (
+		<div className="absolute top-0 inset-x-0 z-20 sidebar:hidden safe-area-top">
+			<div className="flex items-center justify-center gap-1 py-2 px-3">
+				{/* Menu button — opens the mobile drawer */}
+				<button
+					className="size-9 shrink-0 rounded-full flex items-center justify-center text-white/80 hover:text-white drop-shadow-md transition-colors"
+					onClick={openDrawer}
+					aria-label="Open menu"
+				>
+					<BarsStaggeredIcon className="size-5" />
+				</button>
+
+				<div className="flex items-center justify-center gap-6 flex-1">
+					{hasUser && (
+						<button
+							className={cn(
+								"text-sm font-semibold transition-colors drop-shadow-md",
+								tab === "follows"
+									? "text-white"
+									: "text-white/50 hover:text-white/70",
+							)}
+							onClick={() => onTabChange("follows")}
+						>
+							Follows
+							{tab === "follows" && (
+								<div className="h-0.5 bg-white rounded-full mt-0.5 mx-auto w-full" />
+							)}
+						</button>
+					)}
+					<button
+						className={cn(
+							"text-sm font-semibold transition-colors drop-shadow-md",
+							tab === "global"
+								? "text-white"
+								: "text-white/50 hover:text-white/70",
+						)}
+						onClick={() => onTabChange("global")}
+					>
+						Global
+						{tab === "global" && (
+							<div className="h-0.5 bg-white rounded-full mt-0.5 mx-auto w-full" />
+						)}
+					</button>
+				</div>
+
+				{/* Info button */}
+				<div className="size-9 shrink-0 flex items-center justify-end [&_button]:text-white/70 [&_button:hover]:text-white drop-shadow-md">
+					{vineKindDef && (
+						<KindInfoButton
+							kindDef={vineKindDef}
+							icon={<Clapperboard className="size-5" />}
+							open={infoOpen}
+							onOpenChange={onInfoOpenChange}
+						/>
+					)}
+				</div>
+			</div>
+		</div>
 	);
 }

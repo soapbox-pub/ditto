@@ -100,16 +100,10 @@
     max-height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
   }
 
-  /* Vine feed slide height: full viewport minus top bar, tab bar, bottom nav, and safe-area insets */
+  /* Vine feed slide height: full viewport on mobile (top bar + bottom nav are
+     both hidden for an immersive experience). Tab bar floats over video. */
   .vine-slide-height {
-    height: calc(100dvh - env(safe-area-inset-top, 0px) - var(--top-bar-height) - var(--top-bar-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
-    transition: height 300ms ease-in-out;
-  }
-
-  /* Expanded vine height when bottom nav is hidden */
-  .vine-slide-height-expanded {
-    height: calc(100dvh - env(safe-area-inset-top, 0px) - var(--top-bar-height) - var(--top-bar-height));
-    transition: height 300ms ease-in-out;
+    height: 100dvh;
   }
 }
 
