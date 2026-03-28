@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradients for 3D effect -->
+    <radialGradient id="cattiBody3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#fed7aa;stop-opacity:1" />
+      <stop offset="40%" style="stop-color:#f97316;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c2410c;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="cattiEar3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#f97316;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c2410c;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="cattiEarInner" cx="0.4" cy="0.3">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="cattiEyeWhite3D" cx="0.3" cy="0.3">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f3f4f6;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="cattiPupil3D" cx="0.3" cy="0.3">
+      <stop offset="0%" style="stop-color:#374151;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1f2937;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="cattiNose3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#f472b6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#be185d;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="cattiNoseHighlight" cx="0.4" cy="0.3">
+      <stop offset="0%" style="stop-color:#fce7f3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f472b6;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="cattiTail3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#fed7aa;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#f97316;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c2410c;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="cattiTailHighlight" cx="0.4" cy="0.3">
+      <stop offset="0%" style="stop-color:#fef3c7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fed7aa;stop-opacity:1" />
+    </radialGradient>
+    <linearGradient id="cattiMouth3D" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" style="stop-color:#374151;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#1f2937;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#374151;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Oval upright body -->
+  <ellipse cx="100" cy="120" rx="45" ry="60" fill="url(#cattiBody3D)" />
+  
+  <!-- Triangle ears -->
+  <path d="M 68 72 L 58 48 L 82 62 Z" fill="url(#cattiEar3D)" />
+  <path d="M 132 72 L 142 48 L 118 62 Z" fill="url(#cattiEar3D)" />
+  <path d="M 70 62 L 64 52 L 76 58 Z" fill="url(#cattiEarInner)" />
+  <path d="M 130 62 L 136 52 L 124 58 Z" fill="url(#cattiEarInner)" />
+  
+  <!-- Sleeping eyes -->
+  <path d="M 73 100 Q 85 103 97 100" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M 103 100 Q 115 103 127 100" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+  
+  <!-- Enhanced cat nose -->
+  <path d="M 94 115 L 100 122 L 106 115 Z" fill="url(#cattiNose3D)" />
+  <path d="M 96 116 L 100 120 L 104 116 Z" fill="url(#cattiNoseHighlight)" />
+  
+  <!-- Peaceful mouth -->
+  <circle cx="100" cy="125" r="2" fill="#1f2937" />
+  
+  <!-- Enhanced curved tail -->
+  <path d="M 145 140 Q 165 115 158 95 Q 148 75 165 65" stroke="url(#cattiTail3D)" stroke-width="22" fill="none" stroke-linecap="round" />
+  <path d="M 145 140 Q 163 117 156 97 Q 148 79 163 69" stroke="url(#cattiTailHighlight)" stroke-width="16" fill="none" stroke-linecap="round" />
+  
+  <!-- Enhanced whiskers -->
+  <path d="M 48 108 Q 58 110 72 108" stroke="#1e293b" stroke-width="1.8" fill="none" stroke-linecap="round" />
+  <path d="M 48 118 Q 58 120 72 118" stroke="#1e293b" stroke-width="1.8" fill="none" stroke-linecap="round" />
+  <path d="M 128 108 Q 138 110 152 108" stroke="#1e293b" stroke-width="1.8" fill="none" stroke-linecap="round" />
+  <path d="M 128 118 Q 138 120 152 118" stroke="#1e293b" stroke-width="1.8" fill="none" stroke-linecap="round" />
+  
+  <!-- Soft fur texture details -->
+  <ellipse cx="75" cy="135" rx="3" ry="2" fill="rgba(255,255,255,0.2)" />
+  <ellipse cx="125" cy="130" rx="2.5" ry="2" fill="rgba(255,255,255,0.2)" />
+  <ellipse cx="90" cy="150" rx="2" ry="1.5" fill="rgba(255,255,255,0.15)" />
+
+  <!-- "Zzz" sleeping -->
+  <text x="150" y="60" font-size="10" fill="#666" opacity="0.8">Z</text>
+  <text x="157" y="55" font-size="8" fill="#666" opacity="0.6">z</text>
+  <text x="162" y="51" font-size="6" fill="#666" opacity="0.4">z</text>
+</svg>
