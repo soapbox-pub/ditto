@@ -21,7 +21,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
 import { PROTOCOL_MODE } from "@/lib/dmConstants";
-import { EmotionDevProvider } from "@/blobbi/dev";
+import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
 
 const dmConfig: DMConfig = {
