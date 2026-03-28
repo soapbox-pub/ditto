@@ -93,40 +93,80 @@ export const MAX_DAILY_REROLLS = 3;
 export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
   // ─── Common Missions (High Weight) ────────────────────────────────────────
   {
+    id: 'interact_3',
+    title: 'Quick Care',
+    description: 'Interact with your Blobbi 3 times',
+    action: 'interact',
+    requiredCount: 3,
+    reward: 15,
+    weight: 10,
+    requiredStages: ['baby', 'adult'],
+  },
+  {
     id: 'interact_6',
-    title: 'Interact with your Blobbi',
-    description: 'Interact with your Blobbi 6 times (feed, clean, play, etc.)',
+    title: 'Attentive Caretaker',
+    description: 'Interact with your Blobbi 6 times',
     action: 'interact',
     requiredCount: 6,
     reward: 30,
+    weight: 8,
+    requiredStages: ['baby', 'adult'],
+  },
+  {
+    id: 'feed_1',
+    title: 'Snack Time',
+    description: 'Feed your Blobbi once',
+    action: 'feed',
+    requiredCount: 1,
+    reward: 10,
     weight: 10,
     requiredStages: ['baby', 'adult'],
   },
   {
     id: 'feed_2',
-    title: 'Feed your Blobbi',
+    title: 'Hungry Blobbi',
     description: 'Feed your Blobbi 2 times',
     action: 'feed',
     requiredCount: 2,
     reward: 20,
-    weight: 10,
+    weight: 8,
+    requiredStages: ['baby', 'adult'],
+  },
+  {
+    id: 'feed_3',
+    title: 'Feast Day',
+    description: 'Feed your Blobbi 3 times',
+    action: 'feed',
+    requiredCount: 3,
+    reward: 30,
+    weight: 5,
     requiredStages: ['baby', 'adult'],
   },
   {
     id: 'clean_1',
-    title: 'Clean your Blobbi',
-    description: 'Clean your Blobbi 1 time',
+    title: 'Quick Cleanup',
+    description: 'Clean your Blobbi once',
     action: 'clean',
     requiredCount: 1,
-    reward: 20,
+    reward: 15,
     weight: 10,
+    requiredStages: ['baby', 'adult'],
+  },
+  {
+    id: 'clean_2',
+    title: 'Squeaky Clean',
+    description: 'Clean your Blobbi 2 times',
+    action: 'clean',
+    requiredCount: 2,
+    reward: 25,
+    weight: 6,
     requiredStages: ['baby', 'adult'],
   },
 
   // ─── Medium Frequency Missions ────────────────────────────────────────────
   {
     id: 'sing_1',
-    title: 'Sing to your Blobbi',
+    title: 'Sing Along',
     description: 'Sing a song to your Blobbi',
     action: 'sing',
     requiredCount: 1,
@@ -135,9 +175,19 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     requiredStages: ['baby', 'adult'],
   },
   {
+    id: 'sing_2',
+    title: 'Karaoke Session',
+    description: 'Sing 2 songs to your Blobbi',
+    action: 'sing',
+    requiredCount: 2,
+    reward: 40,
+    weight: 3,
+    requiredStages: ['baby', 'adult'],
+  },
+  {
     id: 'play_music_1',
-    title: 'Play music for your Blobbi',
-    description: 'Play a song for your Blobbi to enjoy',
+    title: 'DJ Time',
+    description: 'Play a song for your Blobbi',
     action: 'play_music',
     requiredCount: 1,
     reward: 25,
@@ -145,8 +195,18 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     requiredStages: ['baby', 'adult'],
   },
   {
+    id: 'play_music_2',
+    title: 'Music Marathon',
+    description: 'Play 2 songs for your Blobbi',
+    action: 'play_music',
+    requiredCount: 2,
+    reward: 40,
+    weight: 3,
+    requiredStages: ['baby', 'adult'],
+  },
+  {
     id: 'sleep_1',
-    title: 'Let your Blobbi sleep',
+    title: 'Nap Time',
     description: 'Put your Blobbi to sleep',
     action: 'sleep',
     requiredCount: 1,
@@ -158,12 +218,22 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
   // ─── Rare Missions ────────────────────────────────────────────────────────
   {
     id: 'take_photo_1',
-    title: 'Take a photo',
+    title: 'Snapshot',
     description: 'Take a polaroid photo of your Blobbi',
     action: 'take_photo',
     requiredCount: 1,
     reward: 35,
-    weight: 1,
+    weight: 4,
+    requiredStages: ['baby', 'adult'],
+  },
+  {
+    id: 'take_photo_2',
+    title: 'Photo Album',
+    description: 'Take 2 photos of your Blobbi',
+    action: 'take_photo',
+    requiredCount: 2,
+    reward: 50,
+    weight: 2,
     requiredStages: ['baby', 'adult'],
   },
 ];
@@ -460,10 +530,15 @@ export function claimBonusMissionReward(
 // ─── Mission Reroll ───────────────────────────────────────────────────────────
 
 /**
- * Get the number of rerolls remaining for today
+ * Get the number of rerolls remaining for today.
+ * Returns MAX_DAILY_REROLLS if not set (for backward compatibility with old state).
  */
 export function getRerollsRemaining(state: DailyMissionsState): number {
-  return state.rerollsRemaining ?? MAX_DAILY_REROLLS;
+  // If rerollsRemaining is not set (old state), default to max
+  if (state.rerollsRemaining === undefined || state.rerollsRemaining === null) {
+    return MAX_DAILY_REROLLS;
+  }
+  return state.rerollsRemaining;
 }
 
 /**
@@ -496,23 +571,27 @@ export function selectReplacementMission(
   missionToReplace: DailyMission,
   availableStages?: BlobbiStage[]
 ): DailyMissionDefinition | null {
-  const stagesToCheck = availableStages ?? ['baby', 'adult'];
+  // Default to baby/adult if no stages provided (most common case)
+  const stagesToCheck = availableStages && availableStages.length > 0 
+    ? availableStages 
+    : ['baby', 'adult'] as BlobbiStage[];
   
-  // Get IDs of missions that cannot be selected
+  // Get IDs of missions that cannot be selected (current active missions)
   const excludedIds = new Set<string>();
   
-  // Exclude all current missions
+  // Exclude all current missions EXCEPT the one being replaced
   for (const m of currentMissions) {
-    excludedIds.add(m.id);
+    if (m.id !== missionToReplace.id) {
+      excludedIds.add(m.id);
+    }
   }
-  
-  // Also exclude the mission being replaced (it's already in currentMissions, but be explicit)
-  excludedIds.add(missionToReplace.id);
   
   // Filter pool to eligible missions
   const eligibleMissions = DAILY_MISSION_POOL.filter((m) => {
-    // Must not be excluded
+    // Must not be an already-active mission (except the one being replaced)
     if (excludedIds.has(m.id)) return false;
+    // Must not be the same mission being replaced
+    if (m.id === missionToReplace.id) return false;
     // Must be available for user's stages
     if (!isMissionAvailableForStages(m, stagesToCheck)) return false;
     return true;

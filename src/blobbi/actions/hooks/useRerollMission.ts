@@ -47,7 +47,16 @@ const STORAGE_KEY = 'blobbi:daily-missions';
 function readMissionsState(): DailyMissionsState | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
+    if (!stored) return null;
+    
+    const state = JSON.parse(stored) as DailyMissionsState;
+    
+    // Migration: ensure rerollsRemaining is set for old state
+    if (state.rerollsRemaining === undefined) {
+      state.rerollsRemaining = 3; // MAX_DAILY_REROLLS
+    }
+    
+    return state;
   } catch {
     return null;
   }
@@ -106,7 +115,7 @@ export function useRerollMission() {
       const result = rerollMission(missionsState!, missionId, availableStages);
       
       if (!result) {
-        throw new Error('No replacement missions available');
+        throw new Error('No replacement missions available. All alternative missions may already be in your daily list.');
       }
 
       // Persist the updated state
