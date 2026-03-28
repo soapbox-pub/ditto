@@ -90,7 +90,6 @@ import { FontSection } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { formatNumber } from '@/lib/formatNumber';
-import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { cn } from '@/lib/utils';
@@ -2302,9 +2301,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             </div>
           )}
         </SubHeaderBar>
-
-        {/* Spacer for the arc overhang so content doesn't overlap the arc */}
-        <div style={{ height: ARC_OVERHANG_PX }} />
 
         {/* Add/edit single tab modal */}
         {pubkey && (

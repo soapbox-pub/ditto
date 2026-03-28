@@ -75,16 +75,14 @@ function MainLayoutInner() {
       {/* Magic Mouse fire particle overlay */}
       {config.magicMouse && <CursorFireEffect />}
 
-      {/* Mobile top bar - only on small screens, slides away on scroll */}
-      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} hasSubHeader={hasSubHeader} hidden={navHidden} />
+      {/* Mobile top bar - only on small screens */}
+      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} hasSubHeader={hasSubHeader} />
 
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
 
-      {/* Main layout - three column on desktop.
-          data-nav-hidden drives CSS transitions for sticky sub-headers that
-          need to slide up when the mobile top bar hides on scroll. */}
-      <div className={cn("flex justify-center mx-auto max-w-[1200px]", wrapperClassName)} data-nav-hidden={navHidden || undefined}>
+      {/* Main layout - three column on desktop */}
+      <div className={cn("flex justify-center mx-auto max-w-[1200px]", wrapperClassName)}>
         {/* Desktop left sidebar - hidden below sidebar breakpoint */}
         <div className="hidden sidebar:block">
           <LeftSidebar />
@@ -92,9 +90,13 @@ function MainLayoutInner() {
 
         {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
         <Suspense fallback={<PageSkeleton />}>
-          {/* pt-mobile-bar adds top padding to clear the fixed mobile top bar.
-              Only active below the sidebar breakpoint where the top bar is visible. */}
-          <div className={cn("relative flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85 pt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
+          {/* -mt-mobile-bar pulls content up behind the mobile top bar so the
+              transparent SVG header arc and page content overlap seamlessly.
+              The corresponding padding-top (set in CSS) prevents content from
+              being hidden. This depends on MobileTopBar having a transparent /
+              semi-transparent background — a solid top bar would obscure the
+              content underneath. Only active below the sidebar breakpoint. */}
+          <div className={cn("relative flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85 -mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
             <Outlet />
 
             {/* Desktop FAB — sticky within the feed column so it stays

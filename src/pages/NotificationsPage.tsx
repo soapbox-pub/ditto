@@ -36,7 +36,6 @@ import { EnvelopeCard } from '@/components/letter/EnvelopeCard';
 import { Button } from '@/components/ui/button';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import type { BadgeData } from '@/components/BadgeContent';
-import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 type NotificationTab = 'all' | 'mentions';
@@ -189,9 +188,6 @@ export function NotificationsPage() {
           />
         ))}
       </SubHeaderBar>
-
-      {/* Spacer for the arc overhang so content doesn't overlap the arc */}
-      <div style={{ height: ARC_OVERHANG_PX }} />
 
       {/* Content */}
       <PullToRefresh onRefresh={handleRefresh}>
