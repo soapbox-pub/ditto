@@ -92,7 +92,7 @@ export function ThemeContent({ event, expanded }: ThemeContentProps) {
   // Use direct description from event, or fall back to source theme description
   const resolvedDescription = parsed?.description ?? sourceDescription ?? undefined;
 
-  const previousThemeRef = useRef<{ mode: Theme; config?: ThemeConfig }>();
+  const previousThemeRef = useRef<{ mode: Theme; config?: ThemeConfig } | undefined>(undefined);
 
   /** Apply the theme directly when clicked. */
   const handleApplyTheme = useCallback((e: React.MouseEvent) => {

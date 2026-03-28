@@ -33,7 +33,7 @@ import {
 function LetterAttachment({ event }: { event: NostrEvent }) {
   const { applyCustomTheme, theme, customTheme, setTheme } = useTheme();
   const [applied, setApplied] = useState(false);
-  const prevRef = useRef<{ mode: typeof theme; config?: ThemeConfig }>();
+  const prevRef = useRef<{ mode: typeof theme; config?: ThemeConfig } | undefined>(undefined);
 
   const attachment = useMemo(() => {
     if (event.kind === COLOR_MOMENT_KIND) {

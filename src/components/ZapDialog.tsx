@@ -57,8 +57,8 @@ interface ZapContentProps {
   openInWallet: () => void;
   setAmount: (amount: number | string) => void;
   setComment: (comment: string) => void;
-  inputRef: React.RefObject<HTMLInputElement>;
-  commentTextareaRef: React.RefObject<HTMLTextAreaElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  commentTextareaRef: React.RefObject<HTMLTextAreaElement | null>;
   insertEmoji: (emoji: string) => void;
   insertAtCursor: (params: { start: number; end: number; replacement: string }) => void;
   customEmojis: Array<{ shortcode: string; url: string }>;
