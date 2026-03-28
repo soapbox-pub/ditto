@@ -21,6 +21,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
 import { PROTOCOL_MODE } from "@/lib/dmConstants";
+import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
 
 const dmConfig: DMConfig = {
@@ -102,19 +103,19 @@ const hardcodedConfig: AppConfig = {
     showPodcasts: true,
     feedIncludePodcastEpisodes: true,
     feedIncludePodcastTrailers: true,
-    showDevelopment: false,
-    feedIncludeDevelopment: false,
+    showDevelopment: true,
+    feedIncludeDevelopment: true,
     showBadges: true,
     showBadgeDefinitions: true,
     showProfileBadges: true,
     feedIncludeBadgeDefinitions: true,
     feedIncludeProfileBadges: true,
+    feedIncludeVanish: true,
     followsFeedShowReplies: true,
   },
   sidebarOrder: [
     "feed",
     "notifications",
-    "messages",
     "search",
     "bookmarks",
     "profile",
@@ -132,8 +133,8 @@ const hardcodedConfig: AppConfig = {
     updatedAt: 0,
   },
   useAppBlossomServers: true,
-  faviconUrl: "https://fetch.ditto.pub/favicon/{hostname}",
-  linkPreviewUrl: "https://fetch.ditto.pub/link/{url}",
+  faviconUrl: "https://ditto.pub/api/favicon/{hostname}",
+  linkPreviewUrl: "https://ditto.pub/api/link-preview/{url}",
   corsProxy: "https://proxy.shakespeare.diy/?url={href}",
   contentWarningPolicy: "blur",
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || "",
@@ -141,6 +142,7 @@ const hardcodedConfig: AppConfig = {
   plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || "",
   plausibleEndpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT || "",
   savedFeeds: [],
+  imageQuality: 'compressed',
 };
 
 /**
@@ -179,12 +181,14 @@ export function App() {
                   <NativeNotifications />
                     <NWCProvider>
                     <DMProvider config={dmConfig}>
-                      <TooltipProvider>
-                        <Toaster />
-                        <InitialSyncGate>
-                          <AppRouter />
-                        </InitialSyncGate>
-                      </TooltipProvider>
+                      <EmotionDevProvider>
+                        <TooltipProvider>
+                          <Toaster />
+                          <InitialSyncGate>
+                            <AppRouter />
+                          </InitialSyncGate>
+                        </TooltipProvider>
+                      </EmotionDevProvider>
                     </DMProvider>
                   </NWCProvider>
                 </NostrProvider>

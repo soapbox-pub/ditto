@@ -1,19 +1,10 @@
-import { openDB, type IDBPDatabase } from 'idb';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-// ============================================================================
-// IndexedDB Schema
-// ============================================================================
+import { openDatabase, STORE } from '@/lib/db';
 
-// Use domain-based naming to avoid conflicts between apps on same domain
-const getDBName = () => {
-  // Use hostname for unique DB per app (e.g., 'nostr-dm-store-localhost', 'nostr-dm-store-myapp.com')
-  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'default';
-  return `nostr-dm-store-${hostname}`;
-};
-const DB_NAME = getDBName();
-const DB_VERSION = 1;
-const STORE_NAME = 'messages';
+// ============================================================================
+// DM Message IndexedDB Store
+// ============================================================================
 
 interface StoredParticipant {
   messages: NostrEvent[];
@@ -35,20 +26,6 @@ export interface MessageStore {
 // ============================================================================
 
 /**
- * Open the IndexedDB database
- */
-async function openDatabase(): Promise<IDBPDatabase> {
-  return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      // Create the messages store if it doesn't exist
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    },
-  });
-}
-
-/**
  * Write messages to IndexedDB for a specific user
  * Messages are stored in their original encrypted form (kind 4 or kind 13)
  */
@@ -61,9 +38,9 @@ export async function writeMessagesToDB(
     
       // Store messages in their original encrypted form (no NIP-44 wrapper needed)
       // Each message content is already encrypted by the sender
-      await db.put(STORE_NAME, messageStore, userPubkey);
+      await db.put(STORE.MESSAGES, messageStore, userPubkey);
   } catch (error) {
-    console.error('[MessageStore] ❌ Error writing to IndexedDB:', error);
+    console.error('[MessageStore] Error writing to IndexedDB:', error);
     throw error;
   }
 }
@@ -77,7 +54,7 @@ export async function readMessagesFromDB(
 ): Promise<MessageStore | undefined> {
   try {
     const db = await openDatabase();
-    const data = await db.get(STORE_NAME, userPubkey);
+    const data = await db.get(STORE.MESSAGES, userPubkey);
     
     if (!data) {
       return undefined;
@@ -96,7 +73,7 @@ export async function readMessagesFromDB(
 export async function deleteMessagesFromDB(userPubkey: string): Promise<void> {
   try {
     const db = await openDatabase();
-    await db.delete(STORE_NAME, userPubkey);
+    await db.delete(STORE.MESSAGES, userPubkey);
   } catch (error) {
     console.error('[MessageStore] Error deleting from IndexedDB:', error);
     throw error;
@@ -109,7 +86,7 @@ export async function deleteMessagesFromDB(userPubkey: string): Promise<void> {
 export async function clearAllMessages(): Promise<void> {
   try {
     const db = await openDatabase();
-    await db.clear(STORE_NAME);
+    await db.clear(STORE.MESSAGES);
   } catch (error) {
     console.error('[MessageStore] Error clearing IndexedDB:', error);
     throw error;

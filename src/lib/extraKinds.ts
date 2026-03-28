@@ -1,4 +1,8 @@
 import type { FeedSettings } from '@/contexts/AppContext';
+import type { ComponentType } from 'react';
+import { Globe, GitPullRequestArrow, MessageSquareMore, CircleAlert } from 'lucide-react';
+import { RepostIcon } from '@/components/icons/RepostIcon';
+import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
 /** A sub-kind that lives under a parent ExtraKindDef. */
 export interface SubKindDef {
@@ -346,6 +350,17 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     blurb: 'Curated lists of people to follow. Browse or create your own.',
     sites: [{ url: 'https://following.space', name: 'following.space' }, { url: 'https://following.party', name: 'following.party' }],
   },
+  {
+    kind: 62,
+    id: 'vanish',
+    feedKey: 'feedIncludeVanish',
+    label: 'Requests to Vanish',
+    description: 'NIP-62 account erasure announcements',
+    addressable: false,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'When someone permanently leaves Nostr, their Request to Vanish event signals the end of their identity on the network.',
+  },
   // Whimsy
   {
     kind: 3367,
@@ -390,11 +405,11 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'badges',
     showKey: 'showBadges',
     label: 'Badges',
-    description: 'Achievement badges and awards (NIP-58)',
+    description: 'Badges and awards (NIP-58)',
     route: 'badges',
     addressable: true,
     section: 'whimsy',
-    blurb: 'Discover achievement badges created on Nostr. Badge issuers award them for recognition, participation, or appreciation.',
+    blurb: 'Discover badges created on Nostr. Badge issuers award them for recognition, participation, or appreciation.',
     subKinds: [
       {
         kind: 30009,
@@ -450,13 +465,13 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'development',
     showKey: 'showDevelopment',
     feedKey: 'feedIncludeDevelopment',
-    extraFeedKinds: [1617, 1618, 30817],
+    extraFeedKinds: [1617, 1618, 30817, 15128, 35128, 32267],
     label: 'Development',
-    description: 'Git repos, patches, PRs, and custom NIPs',
+    description: 'Git repos, patches, PRs, nsites, apps, and custom NIPs',
     route: 'development',
     addressable: true,
     section: 'development',
-    blurb: 'Nostr-native git repositories, patches, pull requests, custom NIPs, and published applications.',
+    blurb: 'Nostr-native git repositories, patches, pull requests, nsite deployments, custom NIPs, and published applications.',
     sites: [{ url: 'https://gitworkshop.dev', name: 'Gitworkshop' }, { url: 'https://nostrhub.io', name: 'NostrHub' }],
   },
 ];
@@ -498,6 +513,93 @@ export function getPageKinds(def: ExtraKindDef, feedSettings: FeedSettings): num
   return def.subKinds
     .filter((sub) => feedSettings[sub.showKey])
     .map((sub) => sub.kind);
+}
+
+/**
+ * Specific labels for kinds that don't have their own top-level ExtraKindDef.
+ * These are kinds buried in `extraFeedKinds` arrays or otherwise needing
+ * a label more specific than their parent category.
+ */
+const KIND_SPECIFIC_LABELS: Record<number, string> = {
+  6: 'repost',
+  7: 'reaction',
+  16: 'repost',
+  1617: 'patch',
+  1618: 'patch comment',
+  15128: 'nsite',
+  35128: 'nsite',
+  30817: 'repository issue',
+  32267: 'app',
+  30063: 'release',
+};
+
+/**
+ * Specific icons for kinds that need a different icon than their parent category.
+ */
+const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: string }>>> = {
+  6: RepostIcon,
+  16: RepostIcon,
+  1617: GitPullRequestArrow,
+  1618: MessageSquareMore,
+  15128: Globe,
+  35128: Globe,
+  30817: CircleAlert,
+};
+
+/**
+ * Get a human-readable label for a specific kind number.
+ * Resolution order: subKind label → KIND_SPECIFIC_LABELS → direct def label.
+ * Returns undefined if the kind is completely unknown.
+ */
+export function getKindLabel(kind: number): string | undefined {
+  // Check subKinds first (they carry their own label)
+  for (const def of EXTRA_KINDS) {
+    const sub = def.subKinds?.find((s) => s.kind === kind);
+    if (sub) return sub.label.toLowerCase();
+  }
+  // Check specific overrides (extraFeedKinds items, etc.)
+  if (KIND_SPECIFIC_LABELS[kind]) return KIND_SPECIFIC_LABELS[kind];
+  // Check top-level def
+  const def = EXTRA_KINDS.find((d) => d.kind === kind);
+  if (def) return def.label.toLowerCase();
+  return undefined;
+}
+
+/** Map from kind number to ExtraKindDef id, for quick icon lookup. */
+const KIND_TO_ID = new Map<number, string>();
+for (const def of EXTRA_KINDS) {
+  KIND_TO_ID.set(def.kind, def.id);
+  if (def.subKinds) {
+    for (const sub of def.subKinds) {
+      if (!KIND_TO_ID.has(sub.kind)) {
+        KIND_TO_ID.set(sub.kind, def.id);
+      }
+    }
+  }
+  if (def.extraFeedKinds) {
+    for (const k of def.extraFeedKinds) {
+      if (!KIND_TO_ID.has(k)) {
+        KIND_TO_ID.set(k, def.id);
+      }
+    }
+  }
+}
+
+/** Get the sidebar/content-type ID for a given kind number, if any. */
+export function getKindId(kind: number): string | undefined {
+  return KIND_TO_ID.get(kind);
+}
+
+/**
+ * Get the icon component for a given kind number.
+ * Checks KIND_SPECIFIC_ICONS first, then falls back to the parent def's icon via CONTENT_KIND_ICONS.
+ * Returns undefined if no icon mapping exists (caller provides fallback).
+ */
+export function getKindIcon(kind: number): ComponentType<{ className?: string }> | undefined {
+  if (KIND_SPECIFIC_ICONS[kind]) return KIND_SPECIFIC_ICONS[kind];
+  const id = KIND_TO_ID.get(kind);
+  if (!id) return undefined;
+  return CONTENT_KIND_ICONS[id];
 }
 
 /** Return all extra kind numbers (regardless of settings). */

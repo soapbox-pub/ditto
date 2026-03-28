@@ -2,6 +2,8 @@ import React, { useMemo, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useNostr } from '@nostrify/react';
+import { useQuery } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { ToastAction } from '@/components/ui/toast';
@@ -14,6 +16,8 @@ import { coreToTokens, type CoreThemeColors, type ThemeConfig } from '@/themes';
 
 interface ThemeContentProps {
   event: NostrEvent;
+  /** When true, shows the full description instead of truncating it (used on detail page). */
+  expanded?: boolean;
 }
 
 /** Extracts HSL color string from a theme token value like "258 70% 55%" */
@@ -26,7 +30,8 @@ function hsl(value: string): string {
  * and kind 16767 (Active Profile Theme) events within NoteCard.
  * Uses the same mini-mockup design as ThemeSelector, scaled up.
  */
-export function ThemeContent({ event }: ThemeContentProps) {
+export function ThemeContent({ event, expanded }: ThemeContentProps) {
+  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { theme, customTheme, setTheme, applyCustomTheme } = useTheme();
   const isOwn = user?.pubkey === event.pubkey;
@@ -39,20 +44,55 @@ export function ThemeContent({ event }: ThemeContentProps) {
       const active = parseActiveProfileTheme(event);
       if (!active) return null;
       const title = event.tags.find(([n]) => n === 'title')?.[1];
+      const description = event.tags.find(([n]) => n === 'description')?.[1];
       return {
         colors: active.colors,
         title: title ?? 'Profile Theme',
-        description: undefined as string | undefined,
+        description,
         identifier: undefined as string | undefined,
         background: active.background,
         font: active.font,
+        titleFont: active.titleFont,
         sourceRef: active.sourceRef,
       };
     }
     return null;
   }, [event]);
 
-  const previousThemeRef = useRef<{ mode: Theme; config?: ThemeConfig }>();
+  // For kind 16767 events without a description tag, look up the source theme definition
+  const sourceRef = (parsed as { sourceRef?: string } | null)?.sourceRef;
+  const needsSourceLookup = event.kind === ACTIVE_THEME_KIND && !parsed?.description && !!sourceRef;
+
+  const sourceCoords = useMemo(() => {
+    if (!needsSourceLookup || !sourceRef) return null;
+    const parts = sourceRef.split(':');
+    if (parts.length < 3) return null;
+    return { kind: parseInt(parts[0], 10), pubkey: parts[1], identifier: parts[2] };
+  }, [needsSourceLookup, sourceRef]);
+
+  const { data: sourceDescription } = useQuery({
+    queryKey: ['themeSourceDescription', sourceRef],
+    queryFn: async () => {
+      if (!sourceCoords) return null;
+      const events = await nostr.query([{
+        kinds: [sourceCoords.kind],
+        authors: [sourceCoords.pubkey],
+        '#d': [sourceCoords.identifier],
+        limit: 1,
+      }], { signal: AbortSignal.timeout(5000) });
+      const source = events[0];
+      if (!source) return null;
+      return source.tags.find(([n]) => n === 'description')?.[1] ?? null;
+    },
+    enabled: !!sourceCoords,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+
+  // Use direct description from event, or fall back to source theme description
+  const resolvedDescription = parsed?.description ?? sourceDescription ?? undefined;
+
+  const previousThemeRef = useRef<{ mode: Theme; config?: ThemeConfig } | undefined>(undefined);
 
   /** Apply the theme directly when clicked. */
   const handleApplyTheme = useCallback((e: React.MouseEvent) => {
@@ -68,6 +108,7 @@ export function ThemeContent({ event }: ThemeContentProps) {
       colors: parsed.colors,
       title: parsed.title,
       font: parsed.font,
+      titleFont: parsed.titleFont,
       background: parsed.background,
     };
     applyCustomTheme(themeConfig);
@@ -90,7 +131,8 @@ export function ThemeContent({ event }: ThemeContentProps) {
 
   if (!parsed) return null;
 
-  const { colors, title, description } = parsed;
+  const { colors, title } = parsed;
+  const description = resolvedDescription;
   const backgroundUrl = parsed.background?.url;
 
   const isDefinition = event.kind === THEME_DEFINITION_KIND;
@@ -103,7 +145,7 @@ export function ThemeContent({ event }: ThemeContentProps) {
         className="w-full text-left cursor-pointer transition-opacity hover:opacity-90 active:opacity-75"
         onClick={handleApplyTheme}
       >
-        <ThemeMockup colors={colors} title={title} description={description} backgroundUrl={backgroundUrl} />
+        <ThemeMockup colors={colors} title={title} description={description} backgroundUrl={backgroundUrl} expanded={expanded} />
       </button>
 
       {/* Actions — only Edit for own theme definitions */}
@@ -132,11 +174,13 @@ function ThemeMockup({
   title,
   description,
   backgroundUrl,
+  expanded,
 }: {
   colors: CoreThemeColors;
   title: string;
   description?: string;
   backgroundUrl?: string;
+  expanded?: boolean;
 }) {
   const tokens = useMemo(() => coreToTokens(colors), [colors]);
 
@@ -155,14 +199,9 @@ function ThemeMockup({
             className="absolute inset-0 w-full h-full object-cover opacity-40"
           />
         )}
-        {/* Simulated header bar: 2.5 * 4 = 10 -> h-10 */}
-        <div
-          className="h-10 w-full relative"
-          style={{ backgroundColor: hsl(tokens.card) }}
-        />
-        {/* Content preview area: p-1.5 * 4 = p-6, space-y-1 * 4 = space-y-4 */}
-        <div className="p-6 space-y-4 relative">
-          {/* Simulated text lines: h-1 * 4 = h-4 */}
+        {/* Content preview area */}
+        <div className="p-6 pt-10 space-y-4 relative">
+          {/* Simulated text lines */}
           <div
             className="h-4 w-3/4 rounded-full"
             style={{ backgroundColor: hsl(tokens.foreground), opacity: 0.6 }}
@@ -171,7 +210,7 @@ function ThemeMockup({
             className="h-4 w-1/2 rounded-full"
             style={{ backgroundColor: hsl(tokens.mutedForeground), opacity: 0.4 }}
           />
-          {/* Simulated button: h-2 * 4 = h-8, w-8 * 4 = w-32 */}
+          {/* Simulated button */}
           <div className="pt-2">
             <div
               className="h-8 w-32 rounded"
@@ -179,11 +218,6 @@ function ThemeMockup({
             />
           </div>
         </div>
-        {/* Simulated sidebar strip: w-4 * 4 = w-16 */}
-        <div
-          className="absolute right-0 top-0 bottom-0 w-16"
-          style={{ backgroundColor: hsl(tokens.secondary) }}
-        />
       </div>
 
       {/* Title + description bar */}
@@ -192,7 +226,7 @@ function ThemeMockup({
           {title}
         </span>
         {description && (
-          <span className="text-xs block truncate mt-0.5" style={{ color: hsl(tokens.mutedForeground) }}>
+          <span className={`text-xs block mt-0.5 ${expanded ? 'whitespace-pre-wrap' : 'truncate'}`} style={{ color: hsl(tokens.mutedForeground) }}>
             {description}
           </span>
         )}

@@ -6,6 +6,8 @@ interface BlueskyEmbedProps {
   author: string;
   /** Record key (rkey) of the post. */
   rkey: string;
+  /** When true, hides image and external link thumbnails. */
+  hideImage?: boolean;
   className?: string;
 }
 
@@ -28,7 +30,7 @@ function BlueskyLogo({ className }: { className?: string }) {
  * Renders a Bluesky post as a native quote-post card, fetching data from
  * the public Bluesky API.
  */
-export function BlueskyEmbed({ author, rkey, className }: BlueskyEmbedProps) {
+export function BlueskyEmbed({ author, rkey, hideImage, className }: BlueskyEmbedProps) {
   const { data: post, isLoading, isError } = useBlueskyPost(author, rkey);
 
   if (isLoading) {
@@ -42,6 +44,7 @@ export function BlueskyEmbed({ author, rkey, className }: BlueskyEmbedProps) {
   return (
     <ExternalPostCard
       post={{ ...post, brandIcon: <BlueskyLogo className="size-3.5" /> }}
+      hideImage={hideImage}
       className={className}
     />
   );

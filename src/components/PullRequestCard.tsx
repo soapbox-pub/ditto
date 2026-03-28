@@ -6,6 +6,7 @@ import {
 	GitPullRequest,
 	Wand2,
 } from "lucide-react";
+import { useState } from "react";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +27,9 @@ export function PullRequestCard({
 	const branchName = event.tags.find(([n]) => n === "branch-name")?.[1];
 	const repoTag = event.tags.find(([n]) => n === "a")?.[1];
 	const repoName = repoTag?.split(":")[2] ?? "";
-	const cloneUrls = event.tags.filter(([n]) => n === "clone").map(([, v]) => v);
+	const cloneUrls = event.tags
+		.filter(([n]) => n === "clone")
+		.map(([, v]) => v);
 	const hasShakespeare = event.tags.some(
 		([n, v]) => n === "t" && v === "shakespeare",
 	);
@@ -41,8 +44,12 @@ export function PullRequestCard({
 		subject || event.content.split("\n")[0]?.trim() || "Pull Request";
 	const hasDescription = event.content.trim().length > 0;
 
+	const [copied, setCopied] = useState(false);
+
 	const handleCopy = (url: string) => {
 		navigator.clipboard.writeText(url);
+		setCopied(true);
+		setTimeout(() => setCopied(false), 2000);
 	};
 
 	const shakespeareUrl = cloneUrls[0]
@@ -50,57 +57,152 @@ export function PullRequestCard({
 		: "https://shakespeare.diy";
 
 	return (
-		<div className="space-y-3 mt-1">
-			{/* Title + branch info */}
-			<div className="flex items-start gap-2">
-				<GitPullRequest className="size-5 text-green-500 shrink-0 mt-0.5" />
-				<div className="min-w-0 flex-1">
-					<span className="font-semibold text-base leading-tight line-clamp-2">
-						{title}
-					</span>
-					<div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-						{repoName && <span>{repoName}</span>}
-						{repoName && branchName && (
-							<span className="text-muted-foreground/50">/</span>
-						)}
-						{branchName && (
-							<Badge
-								variant="secondary"
-								className="text-xs font-mono px-2 py-0"
+		<div className="mt-2 space-y-3">
+			{/* Card container */}
+			<div className="rounded-2xl border border-border overflow-hidden">
+				<div className="px-3.5 py-3 space-y-2">
+					{/* Title + branch info */}
+					<div className="flex items-start gap-2.5">
+						<GitPullRequest className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+						<div className="min-w-0 flex-1">
+							<span className="font-semibold text-sm leading-snug line-clamp-2">
+								{title}
+							</span>
+							<div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+								{repoName && (
+									<span className="font-mono">{repoName}</span>
+								)}
+								{repoName && branchName && (
+									<span className="text-muted-foreground/40">
+										/
+									</span>
+								)}
+								{branchName && (
+									<Badge
+										variant="secondary"
+										className="text-[10px] font-mono px-1.5 py-0 border-0"
+									>
+										{branchName}
+									</Badge>
+								)}
+							</div>
+						</div>
+					</div>
+
+					{/* Labels */}
+					{labels.length > 0 && (
+						<div className="flex flex-wrap gap-1">
+							{labels
+								.slice(0, preview ? 6 : labels.length)
+								.map((label) => (
+									<span
+										key={label}
+										className="text-[11px] text-muted-foreground"
+									>
+										#{label}
+									</span>
+								))}
+							{preview && labels.length > 6 && (
+								<span className="text-[11px] text-muted-foreground/50">
+									+{labels.length - 6} more
+								</span>
+							)}
+						</div>
+					)}
+
+					{/* Clone URL */}
+					{cloneUrls[0] && (
+						<div className="group/clone flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
+							<code className="flex-1 text-[11px] font-mono text-muted-foreground truncate select-all">
+								{cloneUrls[0]}
+							</code>
+							<Button
+								variant="ghost"
+								size="sm"
+								className="h-5 w-5 p-0 shrink-0 opacity-50 group-hover/clone:opacity-100 transition-opacity"
+								onClick={(e) => {
+									e.stopPropagation();
+									handleCopy(cloneUrls[0]);
+								}}
 							>
-								{branchName}
-							</Badge>
+								<Copy className="size-3" />
+								<span className="sr-only">
+									{copied ? "Copied" : "Copy"}
+								</span>
+							</Button>
+						</div>
+					)}
+
+					{/* Action buttons */}
+					<div className="flex flex-wrap gap-2">
+						{hasShakespeare && (
+							<button
+								type="button"
+								className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+								onClick={(e) => {
+									e.stopPropagation();
+									window.open(
+										shakespeareUrl,
+										"_blank",
+										"noopener,noreferrer",
+									);
+								}}
+							>
+								<Wand2 className="size-3" />
+								Edit with Shakespeare
+							</button>
+						)}
+						{!hasShakespeare && cloneUrls[0] && (
+							<button
+								type="button"
+								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
+								onClick={(e) => {
+									e.stopPropagation();
+									handleCopy(cloneUrls[0]);
+								}}
+							>
+								<Copy className="size-3" />
+								{copied ? "Copied!" : "Copy Clone URL"}
+							</button>
 						)}
 					</div>
 				</div>
 			</div>
 
-			{/* Branch & commit metadata — detail view only */}
+			{/* Detail sections -- outside card, only in detail view */}
+
+			{/* Branch & commit metadata */}
 			{!preview && (commitTip || mergeBase || branchName) && (
-				<div className="space-y-2">
+				<div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
 					{branchName && (
-						<div className="flex items-center gap-2 text-sm">
-							<GitBranch className="size-4 text-muted-foreground shrink-0" />
-							<span className="text-muted-foreground">Branch</span>
-							<code className="bg-muted px-2 py-0.5 rounded text-xs font-mono">
+						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
+							<GitBranch className="size-3.5 text-muted-foreground shrink-0" />
+							<span className="text-muted-foreground text-xs">
+								Branch
+							</span>
+							<code className="ml-auto text-xs font-mono text-muted-foreground">
 								{branchName}
 							</code>
 						</div>
 					)}
 					{commitTip && (
-						<div className="flex items-center gap-2 text-sm">
-							<GitCommit className="size-4 text-muted-foreground shrink-0" />
-							<span className="text-muted-foreground">Tip</span>
-							<code className="bg-muted px-2 py-0.5 rounded text-xs font-mono">
+						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
+							<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
+							<span className="text-muted-foreground text-xs">
+								Tip
+							</span>
+							<code className="ml-auto text-xs font-mono text-muted-foreground">
 								{commitTip.slice(0, 12)}
 							</code>
 						</div>
 					)}
 					{mergeBase && (
-						<div className="flex items-center gap-2 text-sm">
-							<GitCommit className="size-4 text-muted-foreground shrink-0" />
-							<span className="text-muted-foreground">Base</span>
-							<code className="bg-muted px-2 py-0.5 rounded text-xs font-mono">
+						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
+							<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
+							<span className="text-muted-foreground text-xs">
+								Base
+							</span>
+							<code className="ml-auto text-xs font-mono text-muted-foreground">
 								{mergeBase.slice(0, 12)}
 							</code>
 						</div>
@@ -108,94 +210,16 @@ export function PullRequestCard({
 				</div>
 			)}
 
-			{/* PR description — detail view only, rendered as markdown */}
+			{/* PR description */}
 			{!preview && hasDescription && (
-				<div className="space-y-1.5">
-					<h4 className="text-sm font-medium text-muted-foreground">
-						Description
-					</h4>
-					<div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary prose-img:rounded-lg">
-						<Markdown rehypePlugins={[rehypeSanitize]}>
-							{event.content}
-						</Markdown>
-					</div>
+			<div className="rounded-2xl border border-border overflow-hidden px-4 py-4 sidebar:px-5 sidebar:py-5">
+				<div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">
+					<Markdown rehypePlugins={[rehypeSanitize]}>
+						{event.content}
+					</Markdown>
 				</div>
-			)}
-
-			{/* Labels section */}
-			{labels.length > 0 && (
-				<div className="space-y-1.5">
-					<h4 className="text-sm font-medium text-muted-foreground">Labels</h4>
-					<div className="flex flex-wrap gap-1.5">
-						{labels.slice(0, preview ? 6 : labels.length).map((label) => (
-							<Badge key={label} variant="secondary" className="text-xs">
-								{label}
-							</Badge>
-						))}
-						{preview && labels.length > 6 && (
-							<Badge
-								variant="outline"
-								className="text-xs text-muted-foreground"
-							>
-								+{labels.length - 6} more
-							</Badge>
-						)}
-					</div>
-				</div>
-			)}
-
-			{/* Clone URL section */}
-			{cloneUrls[0] && (
-				<div className="space-y-1.5">
-					<h4 className="text-sm font-medium text-muted-foreground">Clone</h4>
-					<div className="flex items-center gap-2">
-						<code className="flex-1 bg-muted px-2.5 py-1.5 rounded-md text-xs font-mono truncate">
-							{cloneUrls[0]}
-						</code>
-						<Button
-							variant="ghost"
-							size="sm"
-							className="h-7 w-7 p-0 shrink-0"
-							onClick={(e) => {
-								e.stopPropagation();
-								handleCopy(cloneUrls[0]);
-							}}
-						>
-							<Copy className="size-3.5" />
-						</Button>
-					</div>
-				</div>
-			)}
-
-			{/* Action buttons */}
-			<div className="flex flex-wrap gap-2 pt-1">
-				{hasShakespeare && (
-					<button
-						type="button"
-						className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-						onClick={(e) => {
-							e.stopPropagation();
-							window.open(shakespeareUrl, "_blank", "noopener,noreferrer");
-						}}
-					>
-						<Wand2 className="size-4" />
-						Edit with Shakespeare
-					</button>
-				)}
-				{!hasShakespeare && cloneUrls[0] && (
-					<button
-						type="button"
-						className="flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium hover:bg-secondary/60 transition-colors"
-						onClick={(e) => {
-							e.stopPropagation();
-							handleCopy(cloneUrls[0]);
-						}}
-					>
-						<Copy className="size-4" />
-						Copy Clone URL
-					</button>
-				)}
 			</div>
+			)}
 		</div>
 	);
 }

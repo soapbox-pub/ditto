@@ -52,4 +52,16 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
     title: '{{author_name}} Commented!',
     body: '{{content}}',
   },
+  {
+    id: 'badges',
+    kinds: [8],
+    title: '{{author_name}} awarded you a badge!',
+    body: 'You received a new badge.',
+  },
+  {
+    id: 'letters',
+    kinds: [8211],
+    title: '{{author_name}} sent you a letter!',
+    body: 'You have a new letter waiting for you.',
+  },
 ];

@@ -66,6 +66,17 @@ export interface RegisterSubscriptionParams {
   push_subscription: WebPushSubscription;
 }
 
+export interface UpdateSubscriptionParams {
+  subscription_id: string;
+  domain: string;
+  updates: {
+    is_active?: boolean;
+    filter?: RegisterSubscriptionParams['filter'];
+    notification?: RegisterSubscriptionParams['notification'];
+    push_subscription?: WebPushSubscription;
+  };
+}
+
 export interface DeleteSubscriptionParams {
   subscription_id: string;
   domain: string;
@@ -131,6 +142,11 @@ export class NostrPushClient {
   /** Register (or replace) a push subscription. */
   async registerSubscription(params: RegisterSubscriptionParams): Promise<void> {
     await this.send('register_subscription', params);
+  }
+
+  /** Update an existing push subscription (e.g. activate/deactivate). */
+  async updateSubscription(params: UpdateSubscriptionParams): Promise<void> {
+    await this.send('update_subscription', params);
   }
 
   /** Delete a push subscription by its ID. */

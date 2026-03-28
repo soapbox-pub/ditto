@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { lazy, Suspense, useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarChart3, Plus, ChevronLeft } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -14,7 +14,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { EmojiPicker } from '@/components/EmojiPicker';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { GifPicker } from '@/components/GifPicker';
@@ -31,15 +30,20 @@ import { usePostComment } from '@/hooks/usePostComment';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
+import { useAppContext } from '@/hooks/useAppContext';
 import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
-import { extractWebxdcMeta } from '@/lib/webxdcMeta';
 import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
+
+/** Lazy-loaded EmojiPicker — keeps emoji-mart + its data out of the main bundle. */
+const LazyEmojiPicker = lazy(() => import('@/components/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
 import { parseImetaMap } from '@/lib/imeta';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useInsertText } from '@/hooks/useInsertText';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { formatTime } from '@/lib/formatTime';
 import { DITTO_RELAY } from '@/lib/appRelays';
+import { resizeImage } from '@/lib/resizeImage';
 
 const MAX_CHARS = 5000;
 
@@ -183,6 +187,8 @@ export function ComposeBox({
   const customEmojis = useMemo(() => customEmojisEnabled ? allCustomEmojis : [], [customEmojisEnabled, allCustomEmojis]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { config } = useAppContext();
+  const imageQuality = config.imageQuality;
 
   const [content, setContent] = useState(initialContent);
   const [expanded, setExpanded] = useState(false);
@@ -211,6 +217,7 @@ export function ComposeBox({
   /** Maps .xdc URLs to extracted metadata (name + icon URL). */
   const [webxdcMetas, setWebxdcMetas] = useState<Map<string, { name?: string; iconUrl?: string }>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { insertAtCursor, insertEmoji: insertEmojiAtCursor } = useInsertText(textareaRef, content, setContent);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Voice recording
@@ -460,49 +467,13 @@ export function ComposeBox({
   }, [user, content, customEmojis, uploadedFileGroups, webxdcUuids, webxdcMetas]);
 
   const insertEmoji = useCallback((emoji: string) => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newContent = content.slice(0, start) + emoji + content.slice(end);
-      setContent(newContent);
-      // Restore cursor position after the inserted emoji
-      requestAnimationFrame(() => {
-        textarea.focus();
-        const pos = start + emoji.length;
-        textarea.setSelectionRange(pos, pos);
-      });
-    } else {
-      setContent((prev) => prev + emoji);
-    }
+    insertEmojiAtCursor(emoji);
     expand();
-  }, [content, expand]);
+  }, [insertEmojiAtCursor, expand]);
 
-  const handleInsertMention = useCallback(({ start, end, replacement }: { start: number; end: number; replacement: string }) => {
-    const newContent = content.slice(0, start) + replacement + content.slice(end);
-    setContent(newContent);
-    requestAnimationFrame(() => {
-      const textarea = textareaRef.current;
-      if (textarea) {
-        textarea.focus();
-        const pos = start + replacement.length;
-        textarea.setSelectionRange(pos, pos);
-      }
-    });
-  }, [content]);
+  const handleInsertMention = insertAtCursor;
 
-  const handleInsertShortcodeEmoji = useCallback(({ start, end, replacement }: { start: number; end: number; replacement: string }) => {
-    const newContent = content.slice(0, start) + replacement + content.slice(end);
-    setContent(newContent);
-    requestAnimationFrame(() => {
-      const textarea = textareaRef.current;
-      if (textarea) {
-        textarea.focus();
-        const pos = start + replacement.length;
-        textarea.setSelectionRange(pos, pos);
-      }
-    });
-  }, [content]);
+  const handleInsertShortcodeEmoji = insertAtCursor;
 
   const handleFileUpload = useCallback(async (file: File) => {
     try {
@@ -510,9 +481,21 @@ export function ComposeBox({
       // Blossom servers may reject uploads with an empty Content-Type, so we re-wrap the file
       // with the correct MIME type before uploading.
       const isXdc = file.name.endsWith('.xdc');
-      const uploadableFile = isXdc && !file.type
-        ? new File([file], file.name, { type: 'application/x-webxdc' })
-        : file;
+      const isImage = file.type.startsWith('image/');
+
+      let uploadableFile: File;
+      let resizedDim: string | undefined;
+
+      if (isXdc && !file.type) {
+        uploadableFile = new File([file], file.name, { type: 'application/x-webxdc' });
+      } else if (isImage && imageQuality === 'compressed') {
+        // Resize & optimize images before uploading for better performance.
+        const resized = await resizeImage(file);
+        uploadableFile = resized.file;
+        resizedDim = resized.dimensions;
+      } else {
+        uploadableFile = file;
+      }
 
       const tags = await uploadFile(uploadableFile);
       let [[, url]] = tags;
@@ -526,10 +509,11 @@ export function ComposeBox({
         if (urlTag) urlTag[1] = url;
       }
 
-      // Compute dim + blurhash from the original file and inject into NIP-94 tags
-      if (!isXdc) {
-        const { dim, blurhash } = await getImageMeta(uploadableFile);
-        if (dim) tags.push(['dim', dim]);
+      // Compute dim + blurhash and inject into NIP-94 tags
+      if (!isXdc && isImage) {
+        // Use dimensions from resizeImage; compute blurhash from the resized file
+        if (resizedDim) tags.push(['dim', resizedDim]);
+        const { blurhash } = await getImageMeta(uploadableFile);
         if (blurhash) tags.push(['blurhash', blurhash]);
       }
 
@@ -545,6 +529,7 @@ export function ComposeBox({
 
         // Extract name and icon from the .xdc archive
         try {
+          const { extractWebxdcMeta } = await import('@/lib/webxdcMeta');
           const meta = await extractWebxdcMeta(file);
           const metaEntry: { name?: string; iconUrl?: string } = { name: meta.name };
 
@@ -569,7 +554,7 @@ export function ComposeBox({
     } catch {
       toast({ title: 'Upload failed', description: 'Could not upload file.', variant: 'destructive' });
     }
-  }, [uploadFile, expand, toast]);
+  }, [uploadFile, expand, toast, imageQuality]);
 
   const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
@@ -1013,7 +998,7 @@ export function ComposeBox({
   if (!user && compact) return null;
 
   return (
-    <div className={cn("px-4 py-3", !forceExpanded && "border-b border-border")}>
+    <div className={cn("px-4 py-3 bg-background/50")}>
       {/* Preview toggle at top when not controlled and has previewable content */}
       {hasPreviewableContent && controlledPreviewMode === undefined && (
         <div className="flex items-center justify-end mb-3">
@@ -1442,17 +1427,19 @@ export function ComposeBox({
                        )}
                      </div>
                      {/* Picker content */}
-                     {pickerTab === 'emoji' ? (
-                       <EmojiPicker
-                         customEmojis={customEmojis}
-                         onSelect={(selection) => {
-                           if (selection.type === 'native') {
-                             insertEmoji(selection.emoji);
-                           } else {
-                             insertEmoji(`:${selection.shortcode}:`);
-                           }
-                         }}
-                       />
+                      {pickerTab === 'emoji' ? (
+                        <Suspense fallback={<div className="w-[316px] h-[435px] flex items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
+                          <LazyEmojiPicker
+                            customEmojis={customEmojis}
+                            onSelect={(selection) => {
+                              if (selection.type === 'native') {
+                                insertEmoji(selection.emoji);
+                              } else {
+                                insertEmoji(`:${selection.shortcode}:`);
+                              }
+                            }}
+                          />
+                        </Suspense>
                      ) : pickerTab === 'stickers' ? (
                        <div className="w-[316px] h-[435px]">
                          {customEmojis.length === 0 ? (
@@ -1539,6 +1526,7 @@ export function ComposeBox({
                     </div>
                   </PopoverContent>
                 </Popover>
+
               </div>
 
               {/* Spacer */}

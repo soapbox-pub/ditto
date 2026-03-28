@@ -2,8 +2,9 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Bot, Send, Sparkles, Trash2, Palette, Type } from 'lucide-react';
+import { Bot, Send, Trash2, Palette, Type } from 'lucide-react';
 
+import { PageHeader } from '@/components/PageHeader';
 import { useShakespeare, type ChatMessage, type Model } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -413,15 +414,10 @@ export function AIChatPage() {
   }
 
   return (
-    <main className="flex flex-col ai-chat-height sidebar:h-dvh">
+    <main className="flex flex-col ai-chat-height sidebar:h-dvh bg-secondary/50">
       {/* Header */}
-      <div className="shrink-0 border-b border-border bg-background/80 backdrop-blur-md px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Sparkles className="size-4 text-primary" />
-          </div>
-          <h1 className="font-semibold text-lg">AI Chat</h1>
-        </div>
+      <div className="shrink-0 px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
+        <PageHeader title="AI Chat" icon={<Bot className="size-5" />} className="px-0 mt-0 mb-0" />
 
         <div className="flex items-center gap-2">
           {/* Model selector */}
@@ -490,7 +486,7 @@ export function AIChatPage() {
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="shrink-0 border-t border-border bg-background p-4">
+      <div className="shrink-0 p-4">
         <div className="max-w-2xl mx-auto flex items-end gap-2">
           <Textarea
             ref={textareaRef}
@@ -551,12 +547,7 @@ function EmptyState() {
 
   return (
     <div className="flex flex-col items-center justify-center py-20 gap-8 text-center select-none animate-in fade-in duration-500">
-      <div className="relative">
-        <div className="absolute -inset-6 rounded-full bg-primary/[0.06] blur-2xl" />
-        <div className="relative size-24 rounded-2xl bg-gradient-to-b from-primary/15 to-primary/5 border border-primary/10 flex items-center justify-center shadow-sm">
-          <pre className="text-2xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
-        </div>
-      </div>
+      <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
       <div className="space-y-2">
         <h2 className="text-base font-semibold tracking-tight text-foreground">Dork AI</h2>
         <p className="text-sm text-muted-foreground">{greeting}</p>
@@ -584,7 +575,7 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
           {isUser ? (
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
           ) : (
-            <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
+            <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
               <Markdown rehypePlugins={[rehypeSanitize]}>
                 {message.content}
               </Markdown>

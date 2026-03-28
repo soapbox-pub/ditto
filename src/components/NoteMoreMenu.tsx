@@ -14,6 +14,7 @@ import {
   Trash2,
   StickyNote,
   ListPlus,
+  PanelLeft,
   Copy,
   Check,
 } from 'lucide-react';
@@ -48,6 +49,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useDeleteEvent } from '@/hooks/useDeleteEvent';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { toast } from '@/hooks/useToast';
@@ -241,9 +243,12 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', event.pubkey);
   const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
+  const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const nip19Id = encodeEventNip19(event);
+  const nostrUri = `nostr:${nip19Id}`;
+  const isInSidebar = orderedItems.includes(nostrUri);
 
   const close = () => onOpenChange(false);
 
@@ -261,6 +266,17 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
 
   const handleBookmark = () => {
     toggleBookmark.mutate(event.id);
+    close();
+  };
+
+  const handleToggleSidebar = () => {
+    if (isInSidebar) {
+      removeFromSidebar(nostrUri);
+      toast({ title: 'Removed from sidebar' });
+    } else {
+      addToSidebar(nostrUri);
+      toast({ title: 'Added to sidebar' });
+    }
     close();
   };
 
@@ -383,6 +399,11 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
               onClick={() => { onAddToList(); }}
             />
           )}
+          <MenuItem
+            icon={isInSidebar ? <Trash2 className="size-5" /> : <PanelLeft className="size-5" />}
+            label={isInSidebar ? 'Remove from sidebar' : 'Add to sidebar'}
+            onClick={handleToggleSidebar}
+          />
         </div>
 
         <Separator />

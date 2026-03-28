@@ -12,6 +12,7 @@ This project is a Nostr client application built with React 18.x, TailwindCSS 3.
 - **React Router**: For client-side routing with BrowserRouter and ScrollToTop functionality
 - **TanStack Query**: For data fetching, caching, and state management
 - **TypeScript**: For type-safe JavaScript development
+- **Capacitor**: Native iOS and Android shell wrapping the web app
 
 ## Project Structure
 
@@ -263,6 +264,44 @@ When designing new event kinds, the `content` field should be used for semantica
   "tags": [["d", "product-123"]]
 }
 ```
+
+### Implementing New Event Kinds in the UI
+
+When adding support for a new Nostr event kind to the application, the kind must be registered in **multiple locations** across the codebase. Missing any of these will cause the event to render incorrectly in certain views (e.g. showing blank content in quote posts, or "Kind 12345" as a label).
+
+#### Checklist for adding a new event kind
+
+1. **Content card component** (`src/components/`): Create a dedicated `<MyKindCard>` component that renders the event's tags/content appropriately.
+
+2. **Feed rendering** (`src/components/NoteCard.tsx`):
+   - Add a `const isMyKind = event.kind === XXXX;` detection flag
+   - Include it in the appropriate group flag (e.g. `isDevKind`) or add it to the `isTextNote` exclusion list
+   - Add the content dispatch: `isMyKind ? <MyKindCard event={event} /> : ...`
+   - Add an entry to `KIND_HEADER_MAP` for the action header (e.g. "deployed an nsite")
+   - Import the new component and any new icons (e.g. `Globe` from lucide-react)
+
+3. **Detail page** (`src/pages/PostDetailPage.tsx`):
+   - Add the same `isMyKind` detection flag and include it in the group/exclusion flags (mirrors NoteCard)
+   - Add the content dispatch for the detail view
+   - Add an entry in `shellTitleForKind()` for the loading state title
+   - Import the new component
+
+4. **Feed registration** (`src/lib/extraKinds.ts`):
+   - Add the kind number to an existing feed definition's `extraFeedKinds` array, or create a new `ExtraKindDef` entry
+
+5. **Kind label registries** -- these are separate maps that resolve kind numbers to human-readable strings. All must be updated:
+   - `KIND_LABELS` and `KIND_ICONS` in `src/components/CommentContext.tsx` -- used for "Commenting on an nsite" text and inline icons
+   - `WELL_KNOWN_KIND_LABELS` in `src/components/ExternalContentHeader.tsx` -- used in addressable event preview headers
+   - The icon fallback in `AddressableEventPreview` in the same file
+
+6. **Inline embeds / quote posts** -- events can be quoted inline via `nostr:nevent1...` or `nostr:naddr1...` URIs in note content. Both `EmbeddedNote` and `EmbeddedNaddr` render a compact card (author + title/content preview) for all kinds automatically — no per-kind registration needed. The same components are reused by CommentContext hover cards and the reply composer.
+
+7. **Reply composer** (`src/components/ReplyComposeModal.tsx`):
+   - The `EmbeddedPost` component delegates to the shared `EmbeddedNote`/`EmbeddedNaddr` components — no per-kind registration needed
+
+#### Why so many places?
+
+These are genuinely different UI contexts (feed cards, detail pages, inline embeds, reply previews, comment context labels) with different rendering requirements. However, several of them maintain independent kind-to-label maps that could theoretically be unified. When in doubt, search the codebase for an existing kind number like `30617` to find all the registration points.
 
 ### NIP.md
 
@@ -1208,7 +1247,68 @@ If git is available in your environment (through a `shell` tool, or other git-sp
 
 When your changes are complete and validated, create a git commit with a descriptive message summarizing your changes.
 
-**ALWAYS commit when you are finished making changes.**
+**ALWAYS commit when you are finished making changes. This is non-negotiable -- every completed task must end with a git commit. Never leave uncommitted changes.**
+
+## Capacitor Compatibility
+
+The app runs inside Capacitor's WKWebView on iOS and WebView on Android. Several common web APIs **do not work** in this environment. Always account for native platforms when writing code that interacts with browser-specific features.
+
+### What Doesn't Work in WKWebView (iOS)
+
+- **`<a download>` file downloads** -- Programmatically creating an anchor element with `a.download` and clicking it silently fails. WKWebView ignores the `download` attribute entirely.
+- **`<a target="_blank">` new tabs** -- Programmatic clicks on anchors with `target="_blank"` are blocked. There are no tabs in a native app.
+- **`window.open()`** -- May be blocked or behave unexpectedly without user gesture context.
+
+### File Downloads and URL Opening
+
+The project provides two utility functions in `src/lib/downloadFile.ts` that handle the web/native split automatically:
+
+#### `downloadTextFile(filename, content)`
+
+Saves a text file to the user's device. On web it uses the `<a download>` pattern. On native it writes to the Capacitor cache directory via `@capacitor/filesystem` and presents the native share sheet via `@capacitor/share`.
+
+```typescript
+import { downloadTextFile } from '@/lib/downloadFile';
+
+await downloadTextFile('backup.txt', fileContents);
+```
+
+#### `openUrl(url)`
+
+Opens a URL in a new browser tab on web, or presents the native share sheet on Capacitor.
+
+```typescript
+import { openUrl } from '@/lib/downloadFile';
+
+await openUrl('https://example.com/image.jpg');
+```
+
+**CRITICAL**: Never use `document.createElement('a')` with `.click()` for downloads or opening URLs. Always use the utilities above. They handle the Capacitor/web split and will work correctly on all platforms.
+
+### Detecting Native Platforms
+
+Use `Capacitor.isNativePlatform()` from `@capacitor/core` when you need platform-specific behavior:
+
+```typescript
+import { Capacitor } from '@capacitor/core';
+
+if (Capacitor.isNativePlatform()) {
+  // iOS or Android
+} else {
+  // Web browser
+}
+```
+
+### Installed Capacitor Plugins
+
+- `@capacitor/app` -- App lifecycle events (deep links, back button)
+- `@capacitor/core` -- Core runtime and platform detection
+- `@capacitor/filesystem` -- Read/write files on the native filesystem
+- `@capacitor/local-notifications` -- Schedule local push notifications
+- `@capacitor/share` -- Native share sheet
+- `@capacitor/status-bar` -- Control the native status bar style
+
+After adding or removing plugins, run `npx cap sync` to update the native projects.
 
 ## CI/CD Pipeline
 

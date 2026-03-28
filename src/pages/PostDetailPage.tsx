@@ -17,12 +17,14 @@ import {
   Zap,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArticleContent } from "@/components/ArticleContent";
+/** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
+const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
 import { AudioVisualizer } from "@/components/AudioVisualizer";
 import { BadgeDetailContent } from "@/components/BadgeDetailContent";
 import { CalendarEventDetailPage } from "@/components/CalendarEventDetailPage";
+import { ComposeBox } from "@/components/ComposeBox";
 import {
   ColorMomentContent,
   ColorMomentEyeButton,
@@ -32,7 +34,7 @@ import {
   ReactionEmoji,
   RenderResolvedEmoji,
 } from "@/components/CustomEmoji";
-import { CustomNipCard } from "@/components/CustomNipCard";
+const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { FollowPackContent } from "@/components/FollowPackContent";
 import { FollowPackDetailContent } from "@/components/FollowPackDetailContent";
@@ -49,11 +51,12 @@ import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { MusicDetailContent } from "@/components/MusicDetailContent";
 import { NoteCard } from "@/components/NoteCard";
 import { NoteContent } from "@/components/NoteContent";
+import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
 import { PatchCard } from "@/components/PatchCard";
 import { PodcastDetailContent } from "@/components/PodcastDetailContent";
 import { PollContent } from "@/components/PollContent";
-import { PullRequestCard } from "@/components/PullRequestCard";
+const PullRequestCard = lazy(() => import("@/components/PullRequestCard").then(m => ({ default: m.PullRequestCard })));
 import { ReactionButton } from "@/components/ReactionButton";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { RepostMenu } from "@/components/RepostMenu";
@@ -69,6 +72,8 @@ import {
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
+import { VanishEventContent } from "@/components/VanishEventContent";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { WebxdcEmbed } from "@/components/WebxdcEmbed";
@@ -96,8 +101,14 @@ const CALENDAR_EVENT_KINDS = new Set([31922, 31923]);
 /** NIP-58 Badge Definition. */
 const BADGE_DEFINITION_KIND = 30009;
 
+/** NIP-58 Profile Badges. */
+const BADGE_PROFILE_KIND = 30008;
+
 /** Kind 31985 = Bookstr book reviews. */
 const BOOK_REVIEW_KIND = 31985;
+
+/** NIP-62 Request to Vanish. */
+const VANISH_KIND = 62;
 
 /** Map a kind number to a human-readable shell title for the loading state. */
 function shellTitleForKind(kind?: number): string {
@@ -112,8 +123,14 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 1618) return "Pull Request";
   if (kind === 30817) return "Custom NIP";
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
+  if (kind === BADGE_PROFILE_KIND) return "Badge Collection";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
   if (kind === 32267) return "App Details";
+  if (kind === 15128 || kind === 35128) return "Nsite";
+  if (kind === VANISH_KIND) return "Request to Vanish";
+  if (kind === 4) return "Encrypted Message";
+  if (kind === 6 || kind === 16) return "Repost";
+  if (kind === 7) return "Reaction";
   return "Post Details";
 }
 
@@ -338,12 +355,69 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
     );
   }
 
+  // NIP-58 profile badges get a NoteCard view (same as the feed) + comments
+  if (resolvedEvent.kind === BADGE_PROFILE_KIND) {
+    return (
+      <PostDetailShell title="Badge Collection">
+        <MutedContentGuard event={resolvedEvent}>
+          <ProfileBadgesDetailView event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
+    );
+  }
+
   return (
     <PostDetailShell title={loadingTitle}>
       <MutedContentGuard event={resolvedEvent}>
         <PostDetailContent event={resolvedEvent} />
       </MutedContentGuard>
     </PostDetailShell>
+  );
+}
+
+/** NoteCard + NIP-22 comments section for kind 30008 profile badges detail page. */
+function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
+  const { muteItems } = useMuteList();
+  const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
+
+  const orderedReplies = useMemo(() => {
+    const topLevel = commentsData?.topLevelComments ?? [];
+    const filtered = muteItems.length > 0
+      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
+      : topLevel;
+    return [...filtered]
+      .sort((a, b) => a.created_at - b.created_at)
+      .map((reply) => {
+        const directReplies = commentsData?.getDirectReplies(reply.id) ?? [];
+        return {
+          reply,
+          firstSubReply: directReplies[0] as NostrEvent | undefined,
+        };
+      });
+  }, [commentsData, muteItems]);
+
+  return (
+    <div>
+      <NoteCard event={event} />
+      <div className="border-t border-border">
+        <ComposeBox compact replyTo={event} />
+      </div>
+      <div className="pb-16 sidebar:pb-0">
+        {commentsLoading ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <ReplyCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : orderedReplies.length > 0 ? (
+          <ThreadedReplyList replies={orderedReplies} />
+        ) : (
+          <div className="py-12 text-center text-muted-foreground text-sm">
+            No replies yet. Be the first to reply!
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -479,12 +553,13 @@ function EventNotFound({
 
   const handleRetry = useCallback(
     async (targetUrl: string) => {
-      const url = targetUrl.trim();
+      let url = targetUrl.trim();
       if (!url) return;
 
+      // Auto-prepend wss:// if no protocol is specified
       if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-        setRetryError("Relay URL must start with wss:// or ws://");
-        return;
+        url = `wss://${url}`;
+        setRelayUrl(url);
       }
 
       setIsRetrying(true);
@@ -797,14 +872,18 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isTheme = event.kind === 36767 || event.kind === 16767;
   const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
   const isReaction = event.kind === 7;
+  const isRepost = event.kind === 6 || event.kind === 16;
   const isVideo = event.kind === 21 || event.kind === 22;
   const isCommunity = event.kind === 34550;
   const isGitRepo = event.kind === 30617;
   const isPatch = event.kind === 1617;
   const isPullRequest = event.kind === 1618;
   const isCustomNip = event.kind === 30817;
+  const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
-  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip;
+  const isEncryptedDM = event.kind === 4;
+  const isVanish = event.kind === VANISH_KIND;
+  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
     !isPoll &&
@@ -819,10 +898,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isTheme &&
     !isVoiceMessage &&
     !isReaction &&
+    !isRepost &&
     !isVideo &&
     !isCommunity &&
     !isDevKind &&
-    !isZapstoreApp;
+    !isZapstoreApp &&
+    !isEncryptedDM &&
+    !isVanish;
 
   const videos = useMemo(
     () => (isTextNote ? extractVideoUrls(event.content) : []),
@@ -852,7 +934,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     );
   }, [imetaMap, isTextNote]);
 
-  const { data: stats } = useEventStats(event.id);
+  const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
 
   // Derive top 3 reaction emojis from actual interaction events (NIP-85 doesn't provide these)
@@ -1061,8 +1143,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     useState<InteractionTab>("reposts");
 
   const parentEventId = useMemo(
-    () => (isTextNote || isReaction ? getParentEventId(event) : undefined),
-    [event, isTextNote, isReaction],
+    () => (isTextNote || isReaction || isRepost ? getParentEventId(event) : undefined),
+    [event, isTextNote, isReaction, isRepost],
   );
 
   // For kind 1111 comments on external content, extract the I tag for the parent preview
@@ -1183,10 +1265,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     setInteractionsOpen(true);
   };
 
+  const interactionQuoteCount = interactions?.quotes.length ?? 0;
+  const quoteCount = interactionQuoteCount || (stats?.quotes ?? 0);
   const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
   const hasStats = !!(
     stats?.reposts ||
-    stats?.quotes ||
+    quoteCount ||
     stats?.reactions ||
     stats?.zapCount
   );
@@ -1209,7 +1293,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <div ref={ancestorRef}>
           <AncestorThread
             eventId={parentEventId}
-            collapseAfter={isReaction ? 0 : undefined}
+            collapseAfter={isReaction || isRepost ? 0 : undefined}
           />
         </div>
       )}
@@ -1336,8 +1420,206 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         </article>
       )}
 
+      {/* Repost event (kind 6 / 16) — compact activity-style card */}
+      {isRepost && (
+        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+          <div className="flex items-center gap-3">
+            {/* Repost icon bubble — size-10 matches the threaded ancestor avatar column */}
+            <div className="flex items-center justify-center size-10 rounded-full bg-accent/10 shrink-0">
+              <RepostIcon className="size-5 text-accent" />
+            </div>
+
+            {/* Author + "reposted" label + timestamp — single line */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              {author.isLoading ? (
+                <>
+                  <Skeleton className="size-6 rounded-full shrink-0" />
+                  <Skeleton className="h-4 w-28" />
+                </>
+              ) : (
+                <>
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="shrink-0">
+                      <Avatar shape={avatarShape} className="size-6">
+                        <AvatarImage
+                          src={metadata?.picture}
+                          alt={displayName}
+                        />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                          {displayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link
+                      to={profileUrl}
+                      className="font-bold text-sm hover:underline truncate"
+                    >
+                      {author.data?.event ? (
+                        <EmojifiedText tags={author.data.event.tags}>
+                          {displayName}
+                        </EmojifiedText>
+                      ) : (
+                        displayName
+                      )}
+                    </Link>
+                  </ProfileHoverCard>
+                  <span className="text-sm text-muted-foreground">reposted</span>
+                  <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                    {formatFullDate(event.created_at)}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-between py-1 mt-2 border-t border-b border-border -mx-4 px-4">
+            <button
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="Reply"
+              onClick={() => setReplyOpen(true)}
+            >
+              <MessageCircle className="size-5" />
+              {stats?.replies ? (
+                <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
+              ) : null}
+            </button>
+
+            <RepostMenu event={event}>
+              {(isReposted: boolean) => (
+                <button
+                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
+                  title={isReposted ? "Undo repost" : "Repost"}
+                >
+                  <RepostIcon className="size-5" />
+                  {repostTotal ? (
+                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
+                  ) : null}
+                </button>
+              )}
+            </RepostMenu>
+
+            <ReactionButton
+              eventId={event.id}
+              eventPubkey={event.pubkey}
+              eventKind={event.kind}
+              reactionCount={stats?.reactions}
+            />
+
+            <button
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
+              title="Share"
+              onClick={handleShare}
+            >
+              <Share2 className="size-5" />
+            </button>
+
+            <button
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="More"
+              onClick={() => setMoreMenuOpen(true)}
+            >
+              <MoreHorizontal className="size-5" />
+            </button>
+          </div>
+
+          <NoteMoreMenu
+            event={event}
+            open={moreMenuOpen}
+            onOpenChange={setMoreMenuOpen}
+          />
+          <ReplyComposeModal
+            event={event}
+            open={replyOpen}
+            onOpenChange={setReplyOpen}
+          />
+        </article>
+      )}
+
+      {/* Kind 62 — Request to Vanish: dramatic full-width display, no author row */}
+      {isVanish && (
+        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+          <VanishEventContent event={event} />
+
+          {/* Date row */}
+          <div className="py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground flex items-center gap-1.5">
+            <span>{formatFullDate(event.created_at)}</span>
+          </div>
+
+          {/* Action buttons — same as standard post detail */}
+          <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
+            <button
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="Reply"
+              onClick={() => setReplyOpen(true)}
+            >
+              <MessageCircle className="size-5" />
+              {stats?.replies ? (
+                <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
+              ) : null}
+            </button>
+
+            <RepostMenu event={event}>
+              {(isReposted: boolean) => (
+                <button
+                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
+                  title={isReposted ? "Undo repost" : "Reposts"}
+                >
+                  <RepostIcon className="size-5" />
+                  {repostTotal ? (
+                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
+                  ) : null}
+                </button>
+              )}
+            </RepostMenu>
+
+            <ReactionButton
+              eventId={event.id}
+              eventPubkey={event.pubkey}
+              eventKind={event.kind}
+              reactionCount={stats?.reactions}
+            />
+
+            <button
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
+              title="Share"
+              onClick={handleShare}
+            >
+              <Share2 className="size-5" />
+            </button>
+
+            <button
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="More"
+              onClick={() => setMoreMenuOpen(true)}
+            >
+              <MoreHorizontal className="size-5" />
+            </button>
+          </div>
+
+          <NoteMoreMenu
+            event={event}
+            open={moreMenuOpen}
+            onOpenChange={setMoreMenuOpen}
+          />
+          <ReplyComposeModal
+            event={event}
+            open={replyOpen}
+            onOpenChange={setReplyOpen}
+          />
+          <InteractionsModal
+            eventId={event.id}
+            open={interactionsOpen}
+            onOpenChange={setInteractionsOpen}
+            initialTab={interactionsTab}
+          />
+        </article>
+      )}
+
       {/* Main post — expanded Ditto-style view */}
-      {!isReaction && (
+      {!isReaction && !isRepost && !isVanish && (
         <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
           {/* Author row */}
           <div className="flex items-center gap-3">
@@ -1409,13 +1691,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             {isVideo ? (
               <VideoDetailContent event={event} />
             ) : isArticle ? (
-              <ArticleContent event={event} className="mt-3" />
+              <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
+                <ArticleContent event={event} className="mt-3" />
+              </Suspense>
             ) : isMagicDeck ? (
               <MagicDeckContent event={event} />
             ) : isFileMetadata ? (
               <FileMetadataContent event={event} />
             ) : isTheme ? (
-              <ThemeContent event={event} />
+              <ThemeContent event={event} expanded />
             ) : isVoiceMessage ? (
               <VoiceMessagePlayer event={event} />
             ) : isCommunity ? (
@@ -1429,15 +1713,25 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <PatchCard event={event} preview={false} />
               </div>
             ) : isPullRequest ? (
-              <div className="mt-3">
-                <PullRequestCard event={event} preview={false} />
-              </div>
+              <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
+                <div className="mt-3">
+                  <PullRequestCard event={event} preview={false} />
+                </div>
+              </Suspense>
             ) : isCustomNip ? (
+              <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
+                <div className="mt-3">
+                  <CustomNipCard event={event} preview={false} />
+                </div>
+              </Suspense>
+            ) : isNsite ? (
               <div className="mt-3">
-                <CustomNipCard event={event} preview={false} />
+                <NsiteCard event={event} />
               </div>
             ) : isZapstoreApp ? (
               <ZapstoreAppContent event={event} />
+            ) : isEncryptedDM ? (
+              <EncryptedMessageContent event={event} />
             ) : isVine ||
               isPoll ||
               isGeocache ||
@@ -1509,15 +1803,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   Repost{stats.reposts !== 1 ? "s" : ""}
                 </button>
               ) : null}
-              {stats?.quotes ? (
+              {quoteCount ? (
                 <button
                   onClick={() => openInteractions("quotes")}
                   className="hover:underline transition-colors"
                 >
                   <span className="font-bold text-foreground">
-                    {formatNumber(stats.quotes)}
+                    {formatNumber(quoteCount)}
                   </span>{" "}
-                  Quote{stats.quotes !== 1 ? "s" : ""}
+                  Quote{quoteCount !== 1 ? "s" : ""}
                 </button>
               ) : null}
               {stats?.reactions ? (
@@ -1602,7 +1896,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             </div>
           )}
 
-          {/* Action buttons — Ditto style: distributed across full width */}
+           {/* Action buttons — Ditto style: distributed across full width */}
           <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
             {/* Reply */}
             <button

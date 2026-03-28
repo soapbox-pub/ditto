@@ -7,6 +7,7 @@ import { parseAuthorEvent } from './useAuthor';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { getPaginationCursor, parseRepostContent, isRepostKind, type FeedItem } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
+import { setProfileCached } from '@/lib/profileCache';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
@@ -125,7 +126,10 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         // for NIP-05 verification, so downstream useAuthor() calls are instant.
         for (const meta of metadataEvents) {
           if (!queryClient.getQueryData(['author', meta.pubkey])) {
-            queryClient.setQueryData(['author', meta.pubkey], parseAuthorEvent(meta));
+            const parsed = parseAuthorEvent(meta);
+            queryClient.setQueryData(['author', meta.pubkey], parsed);
+            // Persist to IndexedDB with pre-parsed metadata (fire-and-forget)
+            void setProfileCached(meta, parsed.metadata);
           }
         }
 
@@ -345,8 +349,10 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
     },
     initialPageParam: undefined as number | undefined,
     enabled: followsReady,
-    staleTime: 30 * 1000,
-    refetchInterval: 60 * 1000,
+    staleTime: 60 * 1000,
+    // No refetchInterval — automatic background refetches cause the entire
+    // feed to re-sort and jump.  Users can pull-to-refresh for fresh content.
+    refetchOnWindowFocus: false,
     gcTime: 30 * 60 * 1000, // 30 min — don't GC feed data while the app is open
     placeholderData: (prev) => prev, // keep showing previous data during refetches
   });

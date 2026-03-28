@@ -205,6 +205,39 @@ export function DMProvider({ children, config }: DMProviderProps) {
   const nip17SubscriptionRef = useRef<{ close: () => void } | null>(null);
   const debouncedWriteRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Reset all DM state when the user account changes. Without this, switching
+  // accounts leaves the previous user's decrypted conversations visible and
+  // prevents new subscriptions from starting (hasInitialLoadCompleted stays true).
+  const prevDMPubkey = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const pubkey = userPubkey;
+    if (prevDMPubkey.current !== undefined && pubkey !== prevDMPubkey.current) {
+      // Close existing subscriptions
+      if (nip4SubscriptionRef.current) {
+        nip4SubscriptionRef.current.close();
+        nip4SubscriptionRef.current = null;
+      }
+      if (nip17SubscriptionRef.current) {
+        nip17SubscriptionRef.current.close();
+        nip17SubscriptionRef.current = null;
+      }
+      if (debouncedWriteRef.current) {
+        clearTimeout(debouncedWriteRef.current);
+        debouncedWriteRef.current = null;
+      }
+
+      // Reset all state so the main loading effect re-triggers for the new user
+      setMessages(new Map());
+      setLastSync({ nip4: null, nip17: null });
+      setIsLoading(false);
+      setLoadingPhase(LOADING_PHASES.IDLE);
+      setSubscriptions({ isNIP4Connected: false, isNIP17Connected: false });
+      setHasInitialLoadCompleted(false);
+      setScanProgress({ nip4: null, nip17: null });
+    }
+    prevDMPubkey.current = pubkey;
+  }, [userPubkey]);
+
   // ============================================================================
   // Internal Message Sending Mutations
   // ============================================================================

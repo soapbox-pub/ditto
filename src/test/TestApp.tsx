@@ -86,6 +86,7 @@ export function TestApp({ children }: TestAppProps) {
       showProfileBadges: true,
       feedIncludeBadgeDefinitions: false,
       feedIncludeProfileBadges: false,
+      feedIncludeVanish: true,
       followsFeedShowReplies: true,
     },
     sidebarOrder: [],
@@ -96,8 +97,8 @@ export function TestApp({ children }: TestAppProps) {
       updatedAt: 0,
     },
     useAppBlossomServers: true,
-    faviconUrl: "https://fetch.ditto.pub/favicon/{hostname}",
-    linkPreviewUrl: "https://fetch.ditto.pub/link/{url}",
+    faviconUrl: "https://ditto.pub/api/favicon/{hostname}",
+    linkPreviewUrl: "https://ditto.pub/api/link-preview/{url}",
     corsProxy: "https://proxy.shakespeare.diy/?url={href}",
     magicMouse: false,
     contentWarningPolicy: "blur",
@@ -106,6 +107,7 @@ export function TestApp({ children }: TestAppProps) {
     plausibleDomain: "",
     plausibleEndpoint: "",
     savedFeeds: [],
+    imageQuality: 'compressed',
   };
 
   return (
