@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import react from "@vitejs/plugin-react";
+import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig, type Plugin } from "vite";
 
 import { DittoConfigSchema } from "./src/lib/schemas";
@@ -127,6 +128,11 @@ export default defineConfig(() => {
   },
   plugins: [
     react(),
+    visualizer({
+      filename: "dist/bundle.html",
+      template: "treemap",
+      gzipSize: true,
+    }),
     ...(publicDir ? [mergePublicDir(publicDir)] : []),
   ],
   define: {
