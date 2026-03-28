@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, Copy, Check, Users, Gift, Loader2, MessageCircle, Newspaper, MoreHorizontal } from 'lucide-react';
+import { Award, Copy, Check, Users, Gift, Loader2, MessageCircle, Newspaper, MoreHorizontal, Zap } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
@@ -36,7 +36,9 @@ import { parseBadgeDefinition } from '@/components/BadgeContent';
 import { useCardTilt } from '@/hooks/useCardTilt';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { AwardBadgeDialog } from '@/components/AwardBadgeDialog';
+import { ZapDialog } from '@/components/ZapDialog';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
+import { canZap } from '@/lib/canZap';
 
 type DetailTab = 'awarded' | 'feed' | 'comments';
 
@@ -73,6 +75,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   // Stats for action bar
   const { data: stats } = useEventStats(event.id, event);
   const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
+  const canZapAuthor = user && canZap(metadata);
 
   const awardsQuery = useQuery({
     queryKey: ['badge-awards', badgeATag],
@@ -280,6 +283,22 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
             <span className="text-sm tabular-nums">{formatNumber(commentCount)}</span>
           )}
         </button>
+
+        {canZapAuthor && (
+          <ZapDialog target={event}>
+            <button
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+              title="Zap"
+            >
+              <Zap className="size-5" />
+              {stats?.zapAmount ? (
+                <span className="text-sm tabular-nums">
+                  {formatNumber(stats.zapAmount)}
+                </span>
+              ) : null}
+            </button>
+          </ZapDialog>
+        )}
       </div>
 
       {/* Tabs */}

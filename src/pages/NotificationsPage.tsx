@@ -2,9 +2,9 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageSquare, Loader2, Award, Check } from 'lucide-react';
+import { Zap, AtSign, MessageSquare, Loader2, Award, Check, Mail } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAppContext } from '@/hooks/useAppContext';
 
@@ -31,11 +31,71 @@ import { useAcceptBadge } from '@/hooks/useAcceptBadge';
 import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
+import { LETTER_KIND, type Letter } from '@/lib/letterTypes';
+import { EnvelopeCard } from '@/components/letter/EnvelopeCard';
 import { Button } from '@/components/ui/button';
+import { BadgeThumbnail } from '@/components/BadgeThumbnail';
+import type { BadgeData } from '@/components/BadgeContent';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 type NotificationTab = 'all' | 'mentions';
+
+/**
+ * Maps event kind numbers to bare noun labels for notification action text.
+ * e.g. "reacted to your **badge**", "reposted your **theme**".
+ * Falls back to "post" for unknown kinds.
+ */
+const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
+  1: 'post',
+  4: 'encrypted message',
+  6: 'repost',
+  7: 'reaction',
+  16: 'repost',
+  20: 'photo',
+  21: 'video',
+  22: 'video',
+  62: 'request to vanish',
+  1063: 'file',
+  1068: 'poll',
+  1111: 'comment',
+  1222: 'voice message',
+  1617: 'patch',
+  1618: 'pull request',
+  3367: 'color moment',
+  7516: 'found log',
+  15128: 'nsite',
+  16767: 'theme',
+  30008: 'profile badges',
+  30009: 'badge',
+  30023: 'article',
+  30030: 'emoji pack',
+  30054: 'podcast episode',
+  30055: 'podcast trailer',
+  30063: 'release',
+  30311: 'stream',
+  30315: 'status',
+  30617: 'repository',
+  30817: 'custom NIP',
+  31922: 'calendar event',
+  31923: 'calendar event',
+  32267: 'app',
+  34139: 'playlist',
+  34236: 'vine',
+  34550: 'community',
+  35128: 'nsite',
+  36767: 'theme',
+  36787: 'track',
+  37381: 'Magic deck',
+  37516: 'treasure',
+  39089: 'follow pack',
+};
+
+/** Get a bare noun label for a kind number, defaulting to "post". */
+function getNotificationKindNoun(kind: number | undefined): string {
+  if (kind === undefined) return 'post';
+  return NOTIFICATION_KIND_NOUNS[kind] ?? 'post';
+}
 
 export function NotificationsPage() {
   const { config } = useAppContext();
@@ -199,6 +259,8 @@ function GroupedNotificationView({ group }: { group: GroupedNotificationItem }) 
       return solo
         ? <BadgeAwardNotification item={group.actors[0]} isNew={group.isNew} />
         : <BadgeAwardNotificationGroup group={group} />;
+    case LETTER_KIND:
+      return <LetterNotification item={group.actors[0]} isNew={group.isNew} />;
     default:
       return null;
   }
@@ -363,6 +425,7 @@ function ActorLink({ pubkey, name }: { pubkey: string; name: string }) {
 // Like Notification (single actor)
 // ──────────────────────────────────────
 function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const noun = getNotificationKindNoun(item.referencedEvent?.kind);
   return (
     <NotificationWrapper isNew={isNew}>
       <div className="px-4 pt-3">
@@ -373,7 +436,7 @@ function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: bool
               <ReactionEmoji content={item.event.content.trim()} tags={item.event.tags} className="inline-block h-4 w-4" />
             </span>
           }
-          action="reacted to your post"
+          action={`reacted to your ${noun}`}
         />
       </div>
       <ReferencedNoteCard item={item} />
@@ -385,13 +448,14 @@ function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: bool
 // Repost Notification (single actor)
 // ──────────────────────────────────────
 function RepostNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const noun = getNotificationKindNoun(item.referencedEvent?.kind);
   return (
     <NotificationWrapper isNew={isNew}>
       <div className="px-4 pt-3">
         <NotificationHeader
           actorPubkey={item.event.pubkey}
           icon={<RepostIcon className="size-4 text-accent" />}
-          action="reposted your note"
+          action={`reposted your ${noun}`}
         />
       </div>
       <ReferencedNoteCard item={item} />
@@ -460,6 +524,7 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
 function LikeNotificationGroup({ group }: { group: GroupedNotificationItem }) {
   // Use the first actor's reaction emoji as the icon
   const firstEvent = group.actors[0].event;
+  const noun = getNotificationKindNoun(group.referencedEvent?.kind);
   return (
     <NotificationWrapper isNew={group.isNew}>
       <GroupHeader
@@ -469,7 +534,7 @@ function LikeNotificationGroup({ group }: { group: GroupedNotificationItem }) {
             <ReactionEmoji content={firstEvent.content.trim()} tags={firstEvent.tags} className="inline-block h-4 w-4" />
           </span>
         }
-        action="reacted to your post"
+        action={`reacted to your ${noun}`}
       />
       <ReferencedNoteCard item={group.actors[0]} />
     </NotificationWrapper>
@@ -480,12 +545,13 @@ function LikeNotificationGroup({ group }: { group: GroupedNotificationItem }) {
 // Repost Notification (grouped)
 // ──────────────────────────────────────
 function RepostNotificationGroup({ group }: { group: GroupedNotificationItem }) {
+  const noun = getNotificationKindNoun(group.referencedEvent?.kind);
   return (
     <NotificationWrapper isNew={group.isNew}>
       <GroupHeader
         actors={group.actors}
         icon={<RepostIcon className="size-4 text-accent" />}
-        action="reposted your note"
+        action={`reposted your ${noun}`}
       />
       <ReferencedNoteCard item={group.actors[0]} />
     </NotificationWrapper>
@@ -580,7 +646,9 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
   // If the parent kind tag is "1111", this is a reply to a comment; otherwise it's a
   // top-level comment on a piece of content the user authored.
   const parentKind = item.event.tags.find(([name]) => name === 'k')?.[1];
-  const action = parentKind === '1111' ? 'replied to your comment' : 'commented on your post';
+  const parentKindNum = parentKind ? parseInt(parentKind, 10) : undefined;
+  const noun = getNotificationKindNoun(isNaN(parentKindNum as number) ? undefined : parentKindNum);
+  const action = parentKind === '1111' ? 'replied to your comment' : `commented on your ${noun}`;
 
   return (
     <NotificationWrapper isNew={isNew}>
@@ -592,6 +660,43 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
         />
       </div>
       <NoteCard event={item.event} className="border-0" />
+    </NotificationWrapper>
+  );
+}
+
+// ──────────────────────────────────────
+// Letter Notification (kind 8211, always standalone)
+// ──────────────────────────────────────
+function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const navigate = useNavigate();
+
+  const letter = useMemo<Letter>(() => ({
+    event: item.event,
+    sender: item.event.pubkey,
+    recipient: item.event.tags.find(([name]) => name === 'p')?.[1] ?? '',
+    decrypted: false,
+    timestamp: item.event.created_at,
+  }), [item.event]);
+
+  return (
+    <NotificationWrapper isNew={isNew}>
+      <div className="px-4 pt-3">
+        <NotificationHeader
+          actorPubkey={item.event.pubkey}
+          icon={<Mail className="size-4 text-primary" />}
+          action="sent you a letter"
+        />
+      </div>
+      <div className="px-4 pb-3 pt-1">
+        <div className="max-w-[160px]">
+          <EnvelopeCard
+            letter={letter}
+            mode="inbox"
+            index={0}
+            onClick={() => navigate('/letters')}
+          />
+        </div>
+      </div>
     </NotificationWrapper>
   );
 }
@@ -616,15 +721,19 @@ function unslugify(slug: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Hook: resolve the display name for a single badge award event. */
-function useBadgeAwardName(awardEvent: NostrEvent): string | undefined {
+/** Hook: resolve the display name and badge data for a single badge award event. */
+function useBadgeAward(awardEvent: NostrEvent): { name: string | undefined; badge: BadgeData | undefined } {
   const parsed = useMemo(() => parseBadgeATag(awardEvent), [awardEvent]);
   const refs = useMemo(() => (parsed ? [parsed] : []), [parsed]);
   const { badgeMap } = useBadgeDefinitions(refs);
 
-  if (!parsed) return undefined;
+  if (!parsed) return { name: undefined, badge: undefined };
   const aTag = `${BADGE_DEFINITION_KIND}:${parsed.pubkey}:${parsed.identifier}`;
-  return badgeMap.get(aTag)?.name || unslugify(parsed.identifier);
+  const definition = badgeMap.get(aTag);
+  return {
+    name: definition?.name || unslugify(parsed.identifier),
+    badge: definition ?? undefined,
+  };
 }
 
 // ──────────────────────────────────────
@@ -675,7 +784,7 @@ function AcceptBadgeButton({ awardEvent }: { awardEvent: NostrEvent }) {
 // Badge Award Notification (single actor)
 // ──────────────────────────────────────
 function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
-  const badgeName = useBadgeAwardName(item.event);
+  const { name: badgeName, badge } = useBadgeAward(item.event);
 
   return (
     <NotificationWrapper isNew={isNew}>
@@ -692,6 +801,17 @@ function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew
             <AcceptBadgeButton awardEvent={item.event} />
           </div>
         </div>
+        {badge && (
+          <div className="mt-2 flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-2">
+            <BadgeThumbnail badge={badge} size={48} className="shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{badge.name}</p>
+              {badge.description && (
+                <p className="text-xs text-muted-foreground line-clamp-2">{badge.description}</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </NotificationWrapper>
   );
@@ -723,17 +843,27 @@ function BadgeAwardNotificationGroup({ group }: { group: GroupedNotificationItem
         {group.actors.map((actor) => {
           const parsed = parseBadgeATag(actor.event);
           const aTag = parsed ? `${BADGE_DEFINITION_KIND}:${parsed.pubkey}:${parsed.identifier}` : undefined;
-          const badgeName = aTag ? badgeMap.get(aTag)?.name : undefined;
-          const displayName = badgeName || (parsed ? unslugify(parsed.identifier) : undefined);
+          const badge = aTag ? badgeMap.get(aTag) : undefined;
+          const displayName = badge?.name || (parsed ? unslugify(parsed.identifier) : undefined);
 
           return (
-            <div key={actor.event.id} className="flex items-center justify-between gap-2">
-              {displayName && (
-                <span className="text-xs text-muted-foreground truncate">
-                  {displayName}
-                </span>
+            <div key={actor.event.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-2">
+              {badge ? (
+                <BadgeThumbnail badge={badge} size={36} className="shrink-0" />
+              ) : (
+                <div className="shrink-0 size-9 rounded-lg border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
+                  <Award className="size-4 text-primary/30" />
+                </div>
               )}
-              <div className="shrink-0 ml-auto">
+              <div className="flex-1 min-w-0">
+                {displayName && (
+                  <p className="text-sm font-medium truncate">{displayName}</p>
+                )}
+                {badge?.description && (
+                  <p className="text-xs text-muted-foreground line-clamp-1">{badge.description}</p>
+                )}
+              </div>
+              <div className="shrink-0">
                 <AcceptBadgeButton awardEvent={actor.event} />
               </div>
             </div>

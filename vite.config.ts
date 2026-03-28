@@ -150,6 +150,9 @@ export default defineConfig(() => {
   build: {
     target: 'esnext',
   },
+  optimizeDeps: {
+    exclude: ['@capacitor/filesystem', '@capacitor/share'],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
