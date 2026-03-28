@@ -155,7 +155,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "videos", label: "Videos", path: "/videos", icon: Film },
   { id: "articles", label: "Articles", path: "/articles", icon: BookOpen },
   { id: "books", label: "Books", path: "/books", icon: BookMarked },
-  { id: "vines", label: "Vines", path: "/vines", icon: Clapperboard },
+  { id: "vines", label: "Divines", path: "/vines", icon: Clapperboard },
   { id: "music", label: "Music", path: "/music", icon: Music },
   { id: "podcasts", label: "Podcasts", path: "/podcasts", icon: Podcast },
 

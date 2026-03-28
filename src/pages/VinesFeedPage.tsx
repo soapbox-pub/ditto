@@ -735,7 +735,7 @@ export function VinesFeedPage() {
 	}, []);
 
 	useSeoMeta({
-		title: `Vines | ${config.appName}`,
+		title: `Divines | ${config.appName}`,
 		description: "Short-form videos on Nostr",
 	});
 
@@ -893,8 +893,8 @@ export function VinesFeedPage() {
 							<FeedEmptyState
 								message={
 									tab === "follows"
-										? "None of the people you follow have posted vines yet."
-										: "No vines found. Check your relay connections or come back soon."
+									? "None of the people you follow have posted divines yet."
+									: "No divines found. Check your relay connections or come back soon."
 								}
 								onSwitchToGlobal={
 									tab === "follows" ? () => setTab("global") : undefined
