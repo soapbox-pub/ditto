@@ -1,30 +1,30 @@
-import { useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
-import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CalendarDays, Loader2 } from 'lucide-react';
-import { FeedEmptyState } from '@/components/FeedEmptyState';
-import { useSeoMeta } from '@unhead/react';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent } from "@nostrify/nostrify";
+import { useQueryClient } from "@tanstack/react-query";
+import { useSeoMeta } from "@unhead/react";
+import { CalendarDays, Loader2 } from "lucide-react";
+import { useCallback, useMemo } from "react";
+import { FeedEmptyState } from "@/components/FeedEmptyState";
+import { KindInfoButton } from "@/components/KindInfoButton";
+import { NoteCard } from "@/components/NoteCard";
+import { PageHeader } from "@/components/PageHeader";
+import { PullToRefresh } from "@/components/PullToRefresh";
+import { SubHeaderBar } from "@/components/SubHeaderBar";
+import { TabButton } from "@/components/TabButton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useLayoutOptions } from "@/contexts/LayoutContext";
+import { useAppContext } from "@/hooks/useAppContext";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useFeed } from "@/hooks/useFeed";
+import { useFeedTab } from "@/hooks/useFeedTab";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { useMuteList } from "@/hooks/useMuteList";
+import { getExtraKindDef } from "@/lib/extraKinds";
+import { isEventMuted } from "@/lib/muteHelpers";
+import { sidebarItemIcon } from "@/lib/sidebarItems";
 
-import { Skeleton } from '@/components/ui/skeleton';
-import { PullToRefresh } from '@/components/PullToRefresh';
-import { KindInfoButton } from '@/components/KindInfoButton';
-import { NoteCard } from '@/components/NoteCard';
-import { TabButton } from '@/components/TabButton';
-import { useFeed } from '@/hooks/useFeed';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useFeedTab } from '@/hooks/useFeedTab';
-import { useAppContext } from '@/hooks/useAppContext';
-import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { useMuteList } from '@/hooks/useMuteList';
-import { isEventMuted } from '@/lib/muteHelpers';
-import { getExtraKindDef } from '@/lib/extraKinds';
-import { sidebarItemIcon } from '@/lib/sidebarItems';
+type FeedTab = "follows" | "global";
 
-type FeedTab = 'follows' | 'global';
-
-const eventsDef = getExtraKindDef('events')!;
+const eventsDef = getExtraKindDef("events")!;
 
 /** Extract the first value of a tag by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -39,14 +39,17 @@ export function EventsFeedPage() {
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useFeedTab<FeedTab>('events', ['follows', 'global']);
+  const [activeTab, setActiveTab] = useFeedTab<FeedTab>("events", [
+    "follows",
+    "global",
+  ]);
 
   useSeoMeta({ title: `Events | ${config.appName}` });
-  useLayoutOptions({ showFAB: true, fabKind: 31923 });
+  useLayoutOptions({ showFAB: true, fabKind: 31923, hasSubHeader: !!user });
 
   // Calendar events feed
   const feedQuery = useFeed(activeTab, { kinds: [31922, 31923] });
-  const queryKey = useMemo(() => ['feed', activeTab], [activeTab]);
+  const queryKey = useMemo(() => ["feed", activeTab], [activeTab]);
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey });
@@ -61,18 +64,12 @@ export function EventsFeedPage() {
     isFetchingNextPage,
   } = feedQuery;
 
-  // Auto-fetch page 2 for smoother scrolling
-  useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) {
-      fetchNextPage();
-    }
-  }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
-
-  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
-
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) fetchNextPage();
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const { scrollRef } = useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    pageCount: rawData?.pages?.length,
+  });
 
   // Flatten, deduplicate, filter muted, then sort: future events first
   const feedItems = useMemo(() => {
@@ -80,18 +77,21 @@ export function EventsFeedPage() {
     const seen = new Set<string>();
     const now = Math.floor(Date.now() / 1000);
 
-    const items = (rawData.pages as { items: { event: NostrEvent; repostedBy?: string }[] }[])
+    const items = (
+      rawData.pages as { items: { event: NostrEvent; repostedBy?: string }[] }[]
+    )
       .flatMap((page) => page.items)
       .filter((item) => {
         if (seen.has(item.event.id)) return false;
         seen.add(item.event.id);
-        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        if (muteItems.length > 0 && isEventMuted(item.event, muteItems))
+          return false;
         return true;
       });
 
     return items.sort((a, b) => {
-      const aStart = parseInt(getTag(a.event.tags, 'start') ?? '0', 10);
-      const bStart = parseInt(getTag(b.event.tags, 'start') ?? '0', 10);
+      const aStart = parseInt(getTag(a.event.tags, "start") ?? "0", 10);
+      const bStart = parseInt(getTag(b.event.tags, "start") ?? "0", 10);
       const aFuture = aStart >= now;
       const bFuture = bStart >= now;
       if (aFuture && !bFuture) return -1;
@@ -105,24 +105,27 @@ export function EventsFeedPage() {
 
   return (
     <main className="max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <CalendarDays className="size-5" />
-          <h1 className="text-xl font-bold">Events</h1>
-        </div>
-        <KindInfoButton kindDef={eventsDef} icon={sidebarItemIcon('events', 'size-5')} />
-      </div>
+      <PageHeader title="Events" icon={<CalendarDays className="size-5" />}>
+        <KindInfoButton
+          kindDef={eventsDef}
+          icon={sidebarItemIcon("events", "size-5")}
+        />
+      </PageHeader>
 
       {/* Follows / Global tabs */}
       {user && (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
-          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
-        </div>
+        <SubHeaderBar>
+          <TabButton
+            label="Follows"
+            active={activeTab === "follows"}
+            onClick={() => setActiveTab("follows")}
+          />
+          <TabButton
+            label="Global"
+            active={activeTab === "global"}
+            onClick={() => setActiveTab("global")}
+          />
+        </SubHeaderBar>
       )}
 
       <PullToRefresh onRefresh={handleRefresh}>
@@ -151,11 +154,13 @@ export function EventsFeedPage() {
         ) : (
           <FeedEmptyState
             message={
-              activeTab === 'follows'
-                ? 'No events from people you follow yet.'
-                : 'No calendar events found. Check your relay connections or try again later.'
+              activeTab === "follows"
+                ? "No events from people you follow yet."
+                : "No calendar events found. Check your relay connections or try again later."
             }
-            onSwitchToGlobal={activeTab === 'follows' ? () => setActiveTab('global') : undefined}
+            onSwitchToGlobal={
+              activeTab === "follows" ? () => setActiveTab("global") : undefined
+            }
           />
         )}
       </PullToRefresh>

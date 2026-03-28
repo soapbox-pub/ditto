@@ -22,10 +22,12 @@ import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { isRepostKind } from '@/lib/feedUtils';
+import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
-import { DITTO_RELAY } from '@/lib/appRelays';
+import { DITTO_RELAYS } from '@/lib/appRelays';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
@@ -41,6 +43,8 @@ const LANDING_KINDS = [
   37516, // Treasures (Geocaches)
   7516,  // Treasures (Found Logs)
   30030, // Emoji Packs
+  30009, // Badge Definitions
+  30008, // Profile Badges
 ];
 
 /** Webxdc needs a MIME-type tag filter, so it gets its own filter object. */
@@ -201,6 +205,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         .filter((event) => {
           if (seen.has(event.id)) return false;
           seen.add(event.id);
+          if (shouldHideFeedEvent(event)) return false;
           if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
           return true;
         })
@@ -213,6 +218,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
         if (!key || seen.has(key)) return false;
         seen.add(key);
+        if (shouldHideFeedEvent(item.event)) return false;
         if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
         return true;
       });
@@ -227,13 +233,21 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
   return (
     <main className="flex-1 min-w-0">
+      {/* CTA (logged out, main feed only) */}
+      {!user && !kinds && (
+        <LandingHero
+          onLoginClick={() => setLoginDialogOpen(true)}
+          onSignupClick={startSignup}
+        />
+      )}
+
       {!hideCompose && <ComposeBox compact />}
 
       {header}
 
-      {/* Tabs (logged in) or CTA (logged out, main feed only) */}
-      {user ? (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 overflow-x-auto scrollbar-none">
+      {/* Tabs (logged in) */}
+      {user && (
+        <SubHeaderBar>
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {!isKindSpecificPage && showDittoFeed && (
             <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
@@ -273,15 +287,11 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               </span>
             </TabButton>
           ))}
-        </div>
-      ) : !kinds && (
-        <LandingHero
-          onLoginClick={() => setLoginDialogOpen(true)}
-          onSignupClick={startSignup}
-        />
+        </SubHeaderBar>
       )}
 
       {/* Feed content — saved feed tab gets its own stream */}
+      {user && <div style={{ height: ARC_OVERHANG_PX }} />}
       {activeHashtag ? (
         <HashtagFeedContent tag={activeHashtag} />
       ) : activeGeotag ? (
@@ -415,7 +425,7 @@ function HashtagFeedContent({ tag }: { tag: string }) {
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
     queryKey: ['hashtag-feed', tag, kindsKey],
     queryFn: async ({ signal }) => {
-      const ditto = nostr.relay(DITTO_RELAY);
+      const ditto = nostr.group(DITTO_RELAYS);
       return ditto.query(
         [{ kinds, '#t': [tag.toLowerCase()], limit: 40 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
@@ -465,7 +475,7 @@ function GeotagFeedContent({ tag }: { tag: string }) {
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
     queryKey: ['geotag-feed', tag, kindsKey],
     queryFn: async ({ signal }) => {
-      const ditto = nostr.relay(DITTO_RELAY);
+      const ditto = nostr.group(DITTO_RELAYS);
       const filter = { kinds, limit: 40 } as Record<string, unknown>;
       filter['#g'] = [tag];
       return ditto.query([filter as Parameters<typeof ditto.query>[0][number]], {

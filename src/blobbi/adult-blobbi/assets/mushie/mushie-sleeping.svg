@@ -1,0 +1,74 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Mushroom stem -->
+  <ellipse cx="100" cy="140" rx="25" ry="40" fill="url(#mushieStem)" />
+  <ellipse cx="100" cy="135" rx="20" ry="35" fill="url(#mushieStemHighlight)" opacity="0.6" />
+  
+  <!-- Mushroom cap -->
+  <path d="M 50 110 Q 50 70 100 60 Q 150 70 150 110 Z" fill="url(#mushieCap)" />
+  <path d="M 55 108 Q 55 75 100 65 Q 145 75 145 108 Z" fill="url(#mushieCapHighlight)" opacity="0.7" />
+  
+  <!-- Cap spots -->
+  <circle cx="80" cy="85" r="8" fill="white" opacity="0.8" />
+  <circle cx="120" cy="80" r="10" fill="white" opacity="0.8" />
+  <circle cx="100" cy="95" r="6" fill="white" opacity="0.7" />
+  <circle cx="130" cy="100" r="5" fill="white" opacity="0.6" />
+  <circle cx="70" cy="100" r="5" fill="white" opacity="0.6" />
+  
+  <!-- Sleeping eyes on stem -->
+  <path d="M 80 130 Q 88 133 96 130" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M 104 130 Q 112 133 120 130" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+  
+  <!-- Peaceful mouth -->
+  <circle cx="100" cy="145" r="2" fill="#1f2937" />
+  
+  <!-- Little arms -->
+  <ellipse cx="70" cy="140" rx="8" ry="12" fill="url(#mushieArm)" transform="rotate(-20 70 140)" />
+  <ellipse cx="130" cy="140" rx="8" ry="12" fill="url(#mushieArm)" transform="rotate(20 130 140)" />
+  
+  <!-- Floating spores with gentle animation -->
+  <g>
+    <animateTransform attributeName="transform" type="translate" values="0,0; 1,2; 0,0" dur="5s" repeatCount="indefinite" />
+    <circle cx="55" cy="120" r="2" fill="url(#mushieSpore)" opacity="0.5" />
+    <circle cx="145" cy="115" r="1.5" fill="url(#mushieSpore)" opacity="0.4" />
+    <circle cx="50" cy="90" r="1" fill="url(#mushieSpore)" opacity="0.4" />
+    <circle cx="150" cy="95" r="2" fill="url(#mushieSpore)" opacity="0.3" />
+    <circle cx="65" cy="70" r="1.5" fill="url(#mushieSpore)" opacity="0.4" />
+    <circle cx="135" cy="65" r="1" fill="url(#mushieSpore)" opacity="0.5" />
+  </g>
+
+  <!-- "Zzz" sleeping -->
+  <text x="150" y="60" font-size="10" fill="#666" opacity="0.8">Z</text>
+  <text x="157" y="55" font-size="8" fill="#666" opacity="0.6">z</text>
+  <text x="162" y="51" font-size="6" fill="#666" opacity="0.4">z</text>
+  
+  <defs>
+    <radialGradient id="mushieStem" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#fef3c7" />
+      <stop offset="30%" stop-color="#fde68a" />
+      <stop offset="70%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </radialGradient>
+    <radialGradient id="mushieStemHighlight" cx="0.4" cy="0.3">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="rgba(255,255,255,0.3)" />
+    </radialGradient>
+    <radialGradient id="mushieCap" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#f87171" />
+      <stop offset="30%" stop-color="#ef4444" />
+      <stop offset="70%" stop-color="#dc2626" />
+      <stop offset="100%" stop-color="#b91c1c" />
+    </radialGradient>
+    <radialGradient id="mushieCapHighlight" cx="0.4" cy="0.3">
+      <stop offset="0%" stop-color="#fca5a5" />
+      <stop offset="100%" stop-color="#f87171" />
+    </radialGradient>
+    <radialGradient id="mushieArm" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#fde68a" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </radialGradient>
+    <radialGradient id="mushieSpore" cx="0.5" cy="0.5">
+      <stop offset="0%" stop-color="#c084fc" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </radialGradient>
+  </defs>
+</svg>

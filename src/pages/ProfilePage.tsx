@@ -2,10 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useParams, Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -46,6 +46,7 @@ import { genUserName } from '@/lib/genUserName';
 
 import { canZap } from '@/lib/canZap';
 import { shareOrCopy } from '@/lib/share';
+import { openUrl } from '@/lib/downloadFile';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { BioContent } from '@/components/BioContent';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
@@ -61,11 +62,17 @@ import { usePublishTheme } from '@/hooks/usePublishTheme';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStatus } from '@/hooks/useUserStatus';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useNip85UserStats } from '@/hooks/useNip85Stats';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
+import { ProfileRecoveryDialog } from '@/components/ProfileRecoveryDialog';
+import { GiveBadgeDialog } from '@/components/GiveBadgeDialog';
+import { BadgeThumbnail } from '@/components/BadgeThumbnail';
+import { useProfileBadges } from '@/hooks/useProfileBadges';
+import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
@@ -79,19 +86,23 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS as DndCSS } from '@dnd-kit/utilities';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
-import { loadAndApplyFont } from '@/lib/fontLoader';
+import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
+import { resolveCssFamily } from '@/lib/fonts';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
-import { FontPicker } from '@/components/FontPicker';
+import { FontSection } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { formatNumber } from '@/lib/formatNumber';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
-import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
+import { isWeatherFieldLabel } from '@/lib/weatherStation';
+import { WeatherStationCard } from '@/components/WeatherStationCard';
 
 const STREAK_WINDOW_HOURS = 24;
 const STREAK_DISPLAY_LIMIT = 99;
@@ -148,13 +159,23 @@ interface ProfileMoreMenuProps {
 
 function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile }: ProfileMoreMenuProps) {
   const { toast } = useToast();
+  const { user } = useCurrentUser();
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
+  const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
+  const sidebarId = `nostr:${npubEncoded}`;
+  const isInSidebar = orderedItems.includes(sidebarId);
   const [reportOpen, setReportOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [giveBadgeOpen, setGiveBadgeOpen] = useState(false);
 
   const close = () => onOpenChange(false);
+  const openAfterClose = (setter: (v: boolean) => void) => {
+    close();
+    setTimeout(() => setter(true), 150);
+  };
 
   const handleCopyPubkey = () => {
     navigator.clipboard.writeText(npubEncoded);
@@ -183,15 +204,22 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     close();
   };
 
-  const handleReport = () => {
+  const handleReport = () => openAfterClose(setReportOpen);
+  const handleAddToList = () => openAfterClose(setAddToListOpen);
+
+  const handleToggleSidebar = () => {
+    if (isInSidebar) {
+      removeFromSidebar(sidebarId);
+      toast({ title: 'Removed from sidebar' });
+    } else {
+      addToSidebar(sidebarId);
+      toast({ title: 'Added to sidebar' });
+    }
     close();
-    setTimeout(() => setReportOpen(true), 150);
   };
 
-  const handleAddToList = () => {
-    close();
-    setTimeout(() => setAddToListOpen(true), 150);
-  };
+  const handleRecovery = () => openAfterClose(setRecoveryOpen);
+  const handleGiveBadge = () => openAfterClose(setGiveBadgeOpen);
 
   return (
   <>
@@ -215,13 +243,39 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             label="Add to list"
             onClick={handleAddToList}
           />
+          <MenuRow
+            icon={isInSidebar ? <Trash2 className="size-5" /> : <PanelLeft className="size-5" />}
+            label={isInSidebar ? 'Remove from sidebar' : 'Add to sidebar'}
+            onClick={handleToggleSidebar}
+          />
         </div>
+
+        {isOwnProfile && (
+          <>
+            <Separator />
+
+            <div className="py-1">
+              <MenuRow
+                icon={<RotateCcw className="size-5" />}
+                label="Profile recovery"
+                onClick={handleRecovery}
+              />
+            </div>
+          </>
+        )}
 
         {!isOwnProfile && (
           <>
             <Separator />
 
             <div className="py-1">
+              {user && (
+                <MenuRow
+                  icon={<Award className="size-5" />}
+                  label="Give badge"
+                  onClick={handleGiveBadge}
+                />
+              )}
               <MenuRow
                 icon={<VolumeX className="size-5" />}
                 label={userMuted ? `Unmute @${displayName}` : `Mute @${displayName}`}
@@ -259,6 +313,22 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
       open={addToListOpen}
       onOpenChange={setAddToListOpen}
     />
+
+    {isOwnProfile && (
+      <ProfileRecoveryDialog
+        open={recoveryOpen}
+        onOpenChange={setRecoveryOpen}
+      />
+    )}
+
+    {!isOwnProfile && (
+      <GiveBadgeDialog
+        open={giveBadgeOpen}
+        onOpenChange={setGiveBadgeOpen}
+        recipientPubkey={pubkey}
+        recipientName={displayName}
+      />
+    )}
   </>
   );
 }
@@ -577,6 +647,10 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
     );
   }
 
+  if (isWeatherFieldLabel(field.label)) {
+    return <WeatherFieldInline value={field.value} />;
+  }
+
   // Nostr URI: render embedded event
   const nostrEmbed = parseNostrUri(field.value);
   if (nostrEmbed) {
@@ -671,6 +745,10 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
   );
 }
 
+function WeatherFieldInline({ value }: { value: string }) {
+  return <WeatherStationCard value={value} compact />;
+}
+
 // ----- Pinned Label -----
 
 function PinnedLabel({ isOwn, onUnpin }: { isOwn: boolean; onUnpin: () => void }) {
@@ -729,11 +807,7 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const a = document.createElement('a');
-    a.href = imageUrl;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.click();
+    openUrl(imageUrl);
   };
 
   return (
@@ -800,6 +874,7 @@ export function ProfilePage() {
   const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [followingModalOpen, setFollowingModalOpen] = useState(false);
+  const [followersModalOpen, setFollowersModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Determine if the URL param is a NIP-05 identifier (contains @ or is a domain-like string)
@@ -859,7 +934,140 @@ export function ProfilePage() {
   const [tabEditMode, setTabEditMode] = useState(false);
 
   // All tabs as a flat ordered list for the drag UI — core tabs have isCore=true and can't be removed
-  type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
+// ----- Followers List Modal (paginated via kind:3 #p queries) -----
+
+const FOLLOWERS_PAGE_SIZE = 20;
+
+interface FollowersPage {
+  pubkeys: string[];
+  oldestTimestamp: number | undefined;
+}
+
+interface FollowersListModalProps {
+  pubkey: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  displayName: string;
+}
+
+function FollowersListModal({ pubkey, open, onOpenChange, displayName }: FollowersListModalProps) {
+  const { nostr } = useNostr();
+
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = useInfiniteQuery<FollowersPage, Error>({
+    queryKey: ['followers-list', pubkey],
+    queryFn: async ({ pageParam, signal }) => {
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
+
+      const filter: import('@nostrify/nostrify').NostrFilter = {
+        kinds: [3],
+        '#p': [pubkey],
+        limit: FOLLOWERS_PAGE_SIZE,
+        ...(pageParam ? { until: pageParam as number } : {}),
+      };
+
+      const events = await nostr.query([filter], { signal: querySignal });
+
+      // Deduplicate by author (kind 3 is replaceable — keep latest per author)
+      const seen = new Set<string>();
+      const unique: NostrEvent[] = [];
+      const sorted = [...events].sort((a, b) => b.created_at - a.created_at);
+      for (const ev of sorted) {
+        if (!seen.has(ev.pubkey)) {
+          seen.add(ev.pubkey);
+          unique.push(ev);
+        }
+      }
+
+      const oldestTimestamp = sorted.length > 0
+        ? sorted[sorted.length - 1].created_at
+        : undefined;
+
+      return {
+        pubkeys: unique.map((ev) => ev.pubkey),
+        oldestTimestamp,
+      };
+    },
+    getNextPageParam: (lastPage) => {
+      if (lastPage.pubkeys.length === 0 || lastPage.oldestTimestamp === undefined) {
+        return undefined;
+      }
+      return lastPage.oldestTimestamp - 1;
+    },
+    initialPageParam: undefined as number | undefined,
+    enabled: open && !!pubkey,
+    staleTime: 60 * 1000,
+  });
+
+  // Deduplicate across pages
+  const allFollowers = useMemo(() => {
+    if (!data) return [];
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const page of data.pages) {
+      for (const pk of page.pubkeys) {
+        if (!seen.has(pk)) {
+          seen.add(pk);
+          result.push(pk);
+        }
+      }
+    }
+    return result;
+  }, [data]);
+
+  const { ref: loadMoreRef, inView } = useInView({ threshold: 0 });
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <DialogTitle className="text-base font-bold">{displayName}'s followers</DialogTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full size-8"
+            onClick={() => onOpenChange(false)}
+          >
+            <X className="size-4" />
+          </Button>
+        </div>
+        <ScrollArea className="max-h-[60vh]">
+          {isLoading ? (
+            <div className="py-12 flex justify-center">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : allFollowers.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground text-sm">
+              No followers found.
+            </div>
+          ) : (
+            <>
+              {allFollowers.map((pk) => <FollowingUserRow key={pk} pubkey={pk} />)}
+              {hasNextPage && (
+                <div ref={loadMoreRef} className="py-4 flex justify-center">
+                  {isFetchingNextPage && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
+                </div>
+              )}
+            </>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
   const DEFAULT_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
   const [localTabs, setLocalTabs] = useState<EditableTab[]>([]);
@@ -994,7 +1202,11 @@ export function ProfilePage() {
     fetchNextPage: fetchNextFeedPage,
     hasNextPage: hasNextFeedPage,
     isFetchingNextPage: isFetchingNextFeedPage,
-  } = useProfileFeed(pubkey, hasTabs);
+  } = useProfileFeed(
+    pubkey,
+    (['posts', 'replies', 'media', 'likes', 'wall', 'badges'].includes(activeTab) ? activeTab : 'posts') as CoreProfileTab,
+    hasTabs,
+  );
 
   // Kind 0 — resolved from the author cache (seeded by the feed query above).
   const author = useAuthor(pubkey);
@@ -1085,6 +1297,10 @@ export function ProfilePage() {
     return { pubkeys, count: pubkeys.length };
   }, [supplementary?.following]);
 
+  // NIP-85 user stats (followers count)
+  const { data: userStats } = useNip85UserStats(pubkey);
+  const followersCount = userStats?.followers ?? 0;
+
   const isOwnProfile = user?.pubkey === pubkey;
 
   // Does the profile owner follow the current user?
@@ -1126,6 +1342,7 @@ export function ProfilePage() {
     primary: '258 70% 60%',
   });
   const [localProfileFont, setLocalProfileFont] = useState<ThemeFont | undefined>();
+  const [localProfileTitleFont, setLocalProfileTitleFont] = useState<ThemeFont | undefined>();
   const [localProfileBg, setLocalProfileBg] = useState<ThemeBackground | undefined>();
 
   // Initialize local state from profile theme when dialog opens
@@ -1133,6 +1350,7 @@ export function ProfilePage() {
     if (editProfileThemeOpen && profileTheme) {
       setLocalProfileColors(profileTheme.colors);
       setLocalProfileFont(profileTheme.font);
+      setLocalProfileTitleFont(profileTheme.titleFont);
       setLocalProfileBg(profileTheme.background);
     }
   }, [editProfileThemeOpen, profileTheme]);
@@ -1146,6 +1364,7 @@ export function ProfilePage() {
   const ownThemeRef = useRef({ ownTheme, ownCustomTheme, configuredThemes });
   ownThemeRef.current = { ownTheme, ownCustomTheme, configuredThemes };
   const profileThemeFont = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.font : undefined;
+  const profileThemeTitleFont = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.titleFont : undefined;
   const profileThemeBackground = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.background : undefined;
 
   // Whether we need to override the custom theme on this profile.
@@ -1166,11 +1385,12 @@ export function ProfilePage() {
     `${hslStringToHex(c.primary)}${hslStringToHex(c.text)}${hslStringToHex(c.background)}`;
   const fontFamily = (f?: { family: string }) => f?.family ?? '';
   const ownCustomThemeSnapshot = ownCustomTheme
-    ? colorsToHex(ownCustomTheme.colors) + fontFamily(ownCustomTheme.font) + JSON.stringify(ownCustomTheme.background ?? '')
+    ? colorsToHex(ownCustomTheme.colors) + fontFamily(ownCustomTheme.font) + fontFamily(ownCustomTheme.titleFont) + JSON.stringify(ownCustomTheme.background ?? '')
     : null;
   const profileThemeDiffers = profileHasTheme && ownCustomThemeSnapshot && profileTheme && ownCustomTheme
     ? (colorsToHex(profileTheme.colors) !== colorsToHex(ownCustomTheme.colors)
       || fontFamily(profileTheme.font) !== fontFamily(ownCustomTheme.font)
+      || fontFamily(profileTheme.titleFont) !== fontFamily(ownCustomTheme.titleFont)
       || JSON.stringify(profileTheme.background ?? '') !== JSON.stringify(ownCustomTheme.background ?? ''))
     : false;
 
@@ -1196,6 +1416,12 @@ export function ProfilePage() {
     () => profileThemeColors ? (profileThemeFont ?? { family: 'Inter' }) : undefined,
     [profileThemeColors, profileThemeFont],
   );
+  // Title font falls back to the body font when not explicitly set,
+  // so the display name inherits the theme's body font rather than the default.
+  const effectiveProfileTitleFont = useMemo(
+    () => profileThemeColors ? (profileThemeTitleFont ?? effectiveProfileFont) : undefined,
+    [profileThemeColors, profileThemeTitleFont, effectiveProfileFont],
+  );
   const effectiveProfileBackground = profileThemeColors ? profileThemeBackground : undefined;
 
   useLayoutEffect(() => {
@@ -1214,6 +1440,9 @@ export function ProfilePage() {
 
     // Apply profile font (if any)
     loadAndApplyFont(effectiveProfileFont);
+
+    // Apply profile title font (if any)
+    loadAndApplyTitleFont(effectiveProfileTitleFont);
 
     // Apply profile background image (if any)
     const bgStyleId = 'theme-background';
@@ -1260,6 +1489,9 @@ export function ProfilePage() {
       // Restore own font or clear override
       loadAndApplyFont(ownActiveConfig?.font);
 
+      // Restore own title font or clear override
+      loadAndApplyTitleFont(ownActiveConfig?.titleFont);
+
       // Restore own background or remove override
       const bgEl = document.getElementById(bgStyleId) as HTMLStyleElement | null;
       const ownBgUrl = ownActiveConfig?.background?.url;
@@ -1284,7 +1516,7 @@ export function ProfilePage() {
         bgEl?.remove();
       }
     };
-  }, [effectiveProfileColors, effectiveProfileFont, effectiveProfileBackground]);
+  }, [effectiveProfileColors, effectiveProfileFont, effectiveProfileTitleFont, effectiveProfileBackground]);
 
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 
@@ -1355,6 +1587,11 @@ export function ProfilePage() {
     }
     return events;
   }, [mediaData?.pages]);
+
+  // Profile badges for bio section
+  const { refs: badgeRefs } = useProfileBadges(pubkey);
+  const firstBadgeRefs = useMemo(() => badgeRefs.slice(0, 5), [badgeRefs]);
+  const { badgeMap } = useBadgeDefinitions(firstBadgeRefs);
 
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {
@@ -1476,6 +1713,18 @@ export function ProfilePage() {
   const hasMore = activeTab === 'wall' ? hasNextWallPage : activeTab === 'likes' ? hasNextLikesPage : activeTab === 'media' ? hasNextMediaPage : hasNextFeedPage;
   const isFetchingMore = activeTab === 'wall' ? isFetchingNextWallPage : activeTab === 'likes' ? isFetchingNextLikesPage : activeTab === 'media' ? isFetchingNextMediaPage : isFetchingNextFeedPage;
 
+  // Auto-fetch next page when client-side filtering (e.g. removing replies
+  // from the "posts" tab) leaves fewer visible items than the page size.
+  // This prevents the user from seeing a near-empty page with a large gap.
+  const MIN_VISIBLE_ITEMS = 5;
+  useEffect(() => {
+    if (currentLoading || isFetchingMore) return;
+    if (activeTab === 'wall' || activeTab === 'likes' || activeTab === 'media') return;
+    if (currentItems.length < MIN_VISIBLE_ITEMS && hasNextFeedPage && !isFetchingNextFeedPage) {
+      fetchNextFeedPage();
+    }
+  }, [currentItems.length, currentLoading, isFetchingMore, activeTab, hasNextFeedPage, isFetchingNextFeedPage, fetchNextFeedPage]);
+
   const handleRefresh = useCallback(async () => {
     if (!pubkey) return;
     await queryClient.invalidateQueries({
@@ -1507,6 +1756,7 @@ export function ProfilePage() {
     rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} onMediaClick={handleSidebarMediaClick} />,
     showFAB: !(activeTab === 'wall' && !profileFollowsMe),
     onFabClick: activeTab === 'wall' ? openWallCompose : undefined,
+    hasSubHeader: true,
   } : {});
 
   if (!pubkey) {
@@ -1770,7 +2020,7 @@ export function ProfilePage() {
 
                   {/* NIP-38 thought bubble — floats beside the avatar over the banner */}
                   {feedSettings.showUserStatuses !== false && profileStatus.status && (
-                    <div className="absolute -top-2 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
+                    <div className="absolute top-3 md:top-4 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
                       <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg">
                         <p className="text-xs md:text-sm text-foreground italic truncate pr-1">
                           {profileStatus.url ? (
@@ -1781,9 +2031,9 @@ export function ProfilePage() {
                             profileStatus.status
                           )}
                         </p>
-                        {/* Speech bubble triangle tail — slightly angled toward avatar */}
-                        <div className="absolute -bottom-[6px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-t-[6px] border-t-border" />
-                        <div className="absolute -bottom-[5px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-t-[6px] border-t-background" />
+                        {/* Speech bubble triangle tail — bottom-left corner, points diagonally down-left toward avatar */}
+                        <div className="absolute -bottom-[7px] left-1 size-0 border-t-[8px] border-t-border border-r-[8px] border-r-transparent" />
+                        <div className="absolute -bottom-[5.5px] left-1 size-0 border-t-[7px] border-t-background border-r-[7px] border-r-transparent" />
                       </div>
                     </div>
                   )}
@@ -1846,7 +2096,10 @@ export function ProfilePage() {
                 </div>
               </div>
 
-              <h2 className="text-xl font-bold truncate">
+              <h2
+                className="text-xl font-bold truncate"
+                style={effectiveProfileTitleFont ? { fontFamily: 'var(--title-font-family)' } : undefined}
+              >
                 {metadataEvent ? (
                   <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
                 ) : displayName}
@@ -1874,15 +2127,24 @@ export function ProfilePage() {
                 </div>
               )}
 
-              {/* Following count + Streak indicator */}
-              <div className="flex items-center gap-4 mt-2">
+               {/* Followers / Following count + Streak indicator */}
+               <div className="flex items-center gap-4 mt-2">
+                {followersCount > 0 && (
+                  <button
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                    onClick={() => setFollowersModalOpen(true)}
+                    title={`${followersCount} followers`}
+                  >
+                    <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(followersCount)}</span>
+                    <span className="text-sm text-muted-foreground">followers</span>
+                  </button>
+                )}
                 {profileFollowing && profileFollowing.count > 0 && (
                   <button
                     className="flex items-center gap-1 hover:opacity-80 transition-opacity"
                     onClick={() => setFollowingModalOpen(true)}
                     title={`${profileFollowing.count} following`}
                   >
-                    <Users className="size-4 text-primary" />
                     <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(profileFollowing.count)}</span>
                     <span className="text-sm text-muted-foreground">following</span>
                   </button>
@@ -1906,6 +2168,27 @@ export function ProfilePage() {
                 </p>
               )}
 
+              {/* Badge preview */}
+              {badgeRefs.length > 0 && (
+                <div className="flex items-center gap-1.5 mt-2">
+                  {firstBadgeRefs.map((ref) => {
+                    const badge = badgeMap.get(ref.aTag);
+                    if (!badge) return null;
+                    return (
+                      <Link
+                        key={ref.aTag}
+                        to={`/${nip19.naddrEncode({ kind: 30009, pubkey: ref.pubkey, identifier: ref.identifier })}`}
+                      >
+                        <BadgeThumbnail badge={badge} size={32} className="transition-transform hover:scale-110" />
+                      </Link>
+                    );
+                  })}
+                  {badgeRefs.length > 5 && (
+                    <span className="text-[10px] text-muted-foreground font-medium">+{badgeRefs.length - 5}</span>
+                  )}
+                </div>
+              )}
+
               {/* Profile fields shown inline on mobile (sidebar is hidden below xl) */}
               {fields.length > 0 && (
                 <div className="mt-4 space-y-3 xl:hidden">
@@ -1921,7 +2204,7 @@ export function ProfilePage() {
         </div>
 
         {/* Tabs */}
-        <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border backdrop-blur-md z-10 overflow-x-auto scrollbar-none')}>
+        <SubHeaderBar pinned>
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
             <div className="flex gap-1 px-2 py-2">
@@ -2060,7 +2343,7 @@ export function ProfilePage() {
               </button>
             </div>
           )}
-        </div>
+        </SubHeaderBar>
 
         {/* Add/edit single tab modal */}
         {pubkey && (
@@ -2298,6 +2581,16 @@ export function ProfilePage() {
           />
         )}
 
+        {/* Followers List Modal */}
+        {pubkey && followersCount > 0 && (
+          <FollowersListModal
+            pubkey={pubkey}
+            open={followersModalOpen}
+            onOpenChange={setFollowersModalOpen}
+            displayName={displayName}
+          />
+        )}
+
         {/* Image lightbox for avatar/banner */}
         {lightboxImage && (
           <ProfileImageLightbox
@@ -2448,7 +2741,7 @@ export function ProfilePage() {
             <PortalContainerProvider value={editThemePortalContainer}>
             <div className="overflow-y-auto max-h-[85vh] p-6 space-y-4">
             <DialogHeader>
-              <DialogTitle>Edit Profile Theme</DialogTitle>
+              <DialogTitle style={localProfileTitleFont?.family ? { fontFamily: `"${resolveCssFamily(localProfileTitleFont.family)}", inherit` } : undefined}>Edit Profile Theme</DialogTitle>
               <DialogDescription>
                 Customize the theme visitors see on your profile
               </DialogDescription>
@@ -2472,10 +2765,12 @@ export function ProfilePage() {
                 ))}
               </div>
 
-              {/* Font */}
-              <FontPicker
-                value={localProfileFont}
-                onChange={setLocalProfileFont}
+              {/* Fonts (body + title) */}
+              <FontSection
+                bodyFont={localProfileFont}
+                onBodyFontChange={setLocalProfileFont}
+                titleFont={localProfileTitleFont}
+                onTitleFontChange={setLocalProfileTitleFont}
               />
 
               {/* Background */}
@@ -2494,6 +2789,7 @@ export function ProfilePage() {
                       themeConfig: {
                         colors: localProfileColors,
                         font: localProfileFont,
+                        titleFont: localProfileTitleFont,
                         background: localProfileBg,
                       },
                     });

@@ -142,7 +142,8 @@ function isReplaceableFilter(filter: NostrFilter): boolean {
     keys.every((k) => k === 'kinds' || k === 'authors' || k === 'limit') &&
     filter.kinds?.length === 1 &&
     REPLACEABLE_KINDS.has(filter.kinds[0]) &&
-    filter.authors?.length === 1
+    filter.authors?.length === 1 &&
+    filter.limit !== undefined
   );
 }
 

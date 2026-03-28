@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Bell, Search, User } from 'lucide-react';
-import { PlanetIcon } from '@/components/icons/PlanetIcon';
+import { Bell, Home, Search, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
@@ -9,16 +8,30 @@ import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutSnapshot } from '@/contexts/LayoutContext';
+import { getSidebarItem } from '@/lib/sidebarItems';
+import { ArcBackground, ARC_UP_OVERHANG_PX } from '@/components/ArcBackground';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
+
+/** Transform style applied when the bottom nav is hidden (scrolled away). */
+const hiddenStyle: React.CSSProperties = {
+  transform: `translateY(calc(100% + ${ARC_UP_OVERHANG_PX}px))`,
+};
 
 export function MobileBottomNav() {
   const location = useLocation();
   const { user, metadata } = useCurrentUser();
   const hasUnread = useHasUnreadNotifications();
-  const { scrollContainer } = useLayoutSnapshot();
+  const { scrollContainer, noArcs } = useLayoutSnapshot();
   const { hidden } = useScrollDirection(scrollContainer);
   const profileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
+
+  const { config } = useAppContext();
+  const homeItem = getSidebarItem(config.homePage);
+  const HomeIcon = homeItem?.icon ?? Home;
+  const homeLabel = homeItem?.label ?? 'Home';
+  const homePath = homeItem?.path;
 
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -39,24 +52,27 @@ export function MobileBottomNav() {
 
       <nav
         className={cn(
-          'fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom',
+          'fixed bottom-0 left-0 right-0 z-40 sidebar:hidden will-change-transform',
           'transition-transform duration-300 ease-in-out',
-          isHidden && 'translate-y-full',
         )}
+        style={isHidden ? hiddenStyle : undefined}
       >
-        <div className="h-14 flex items-center">
+        {/* Arc + items wrapper */}
+        <div className="relative">
+          <ArcBackground variant={noArcs ? 'rect' : 'up'} />
+          <div className="h-11 flex items-center relative">
 
-          {/* Feed */}
+          {/* Home */}
           <Link
-            to="/feed"
+            to="/"
             onClick={() => setSearchOpen(false)}
             className={cn(
               'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-              (location.pathname === '/feed' || location.pathname === '/') ? 'text-primary' : 'text-muted-foreground',
+              (location.pathname === '/' || location.pathname === homePath) ? 'text-primary' : 'text-muted-foreground',
             )}
           >
-            <PlanetIcon className="size-5" />
-            <span className="text-[10px] font-medium">Feed</span>
+            <HomeIcon className="size-5" />
+            <span className="text-[10px] font-medium">{homeLabel}</span>
           </Link>
 
           {/* Search */}
@@ -112,16 +128,17 @@ export function MobileBottomNav() {
           ) : (
             <Link
               to="/profile"
-              className={cn(
-                'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors text-muted-foreground',
-              )}
+              className="flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors text-muted-foreground"
             >
               <User className="size-5" />
               <span className="text-[10px] font-medium">Profile</span>
             </Link>
           )}
 
+          </div>
         </div>
+        {/* Safe area spacer — fully opaque so any subpixel gap is invisible */}
+        <div className="safe-area-bottom bg-background" />
       </nav>
     </>
   );

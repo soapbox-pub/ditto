@@ -7,14 +7,13 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useFollowList } from './useFollowActions';
+import { LETTER_KIND } from '@/lib/letterTypes';
+import { ALL_NOTIFICATION_KINDS, getEnabledNotificationKinds } from '@/lib/notificationKinds';
 
 const PAGE_SIZE = 20;
 
-/** All kinds that can appear as notifications. */
-const ALL_NOTIFICATION_KINDS = [1, 6, 16, 7, 9735, 1111, 1222, 1244] as const;
-
 export interface NotificationItem {
-  /** The notification event (kind 1, 6, 16, 7, 9735, 1111, 1222, or 1244). */
+  /** The notification event (kind 1, 6, 16, 7, 8, 9735, 1111, 1222, 1244, or 8211). */
   event: NostrEvent;
   /** The referenced event (the post that was liked/reposted/zapped), if available. */
   referencedEvent?: NostrEvent;
@@ -106,7 +105,7 @@ function groupKey(item: NotificationItem): string {
     return `${bucket}:${refId}`;
   }
 
-  // Mentions (kind 1) and comments (kind 1111) are always standalone
+  // Mentions (kind 1), comments (kind 1111), and letters (8211) are always standalone
   return event.id;
 }
 
@@ -158,26 +157,6 @@ function buildGroups(
   }
 
   return groupOrder.map((k) => groupMap.get(k)!);
-}
-
-/**
- * Derives the set of Nostr kinds to request based on per-type preferences.
- * Kinds default to enabled when the preference is absent.
- */
-function getEnabledNotificationKinds(
-  prefs: NonNullable<ReturnType<typeof useEncryptedSettings>['settings']>['notificationPreferences'],
-): number[] {
-  const p = prefs ?? {};
-  const kinds: number[] = [];
-
-  if (p.reactions !== false)  kinds.push(7);
-  if (p.reposts !== false)    kinds.push(6, 16);
-  if (p.zaps !== false)       kinds.push(9735);
-  if (p.mentions !== false)   kinds.push(1);
-  if (p.comments !== false)   kinds.push(1111, 1222, 1244);
-
-  // Always fall back to all kinds so the query never sends an empty kinds array
-  return kinds.length > 0 ? kinds : [...ALL_NOTIFICATION_KINDS];
 }
 
 /**
@@ -247,9 +226,9 @@ export function useNotifications(): NotificationData {
       // Collect referenced event IDs for batch fetching
       const referencedIds: string[] = [];
       for (const ev of filtered) {
-        // kind 1 (mention) and voice messages (1222/1244) ARE the notification content;
+        // kind 1 (mention), voice messages (1222/1244), and letters (8211) ARE the notification content;
         // kind 1111 (comment) IS the content but we also fetch its parent for context.
-        if (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244) {
+        if (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244 && ev.kind !== LETTER_KIND) {
           const refId = getReferencedEventId(ev);
           if (refId) referencedIds.push(refId);
         }
@@ -291,7 +270,7 @@ export function useNotifications(): NotificationData {
       // Build notification items, filtering out reactions/reposts on posts the
       // user didn't author (i.e. they were only tagged in them).
       const items: NotificationItem[] = filtered.flatMap((ev) => {
-        const refId = (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244) ? getReferencedEventId(ev) : undefined;
+        const refId = (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244 && ev.kind !== LETTER_KIND) ? getReferencedEventId(ev) : undefined;
         const referencedEvent = refId ? referencedMap.get(refId) : undefined;
 
         // For reactions (7) and reposts (6, 16), only exclude if we know for

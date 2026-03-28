@@ -20,6 +20,8 @@ import { getContentWarning } from '@/lib/contentWarning';
 import { MiniAudioPlayer, isAudioUrl, isImageUrl, isVideoUrl } from '@/components/MiniAudioPlayer';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { parseDimToAspectRatio } from '@/components/MediaCollage';
+import { isWeatherFieldLabel } from '@/lib/weatherStation';
+import { WeatherStationCard } from '@/components/WeatherStationCard';
 
 /** Simple email regex for display purposes. */
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -345,6 +347,10 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
     );
   }
 
+  if (isWeatherFieldLabel(field.label)) {
+    return <WeatherFieldRow value={field.value} />;
+  }
+
   // Nostr URI: render embedded event
   const nostrEmbed = parseNostrUri(field.value);
   if (nostrEmbed) {
@@ -446,6 +452,10 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
   );
 }
 
+function WeatherFieldRow({ value }: { value: string }) {
+  return <WeatherStationCard value={value} />;
+}
+
 /** Compute justified rows for the sidebar collage. */
 function sidebarJustifiedLayout(items: MediaItem[]): { items: MediaItem[]; heightFraction: number }[] {
   if (items.length === 0) return [];
@@ -489,7 +499,7 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
     <aside className={cn("w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3", className)}>
       {/* Media Section — only shown when mediaEvents prop is provided */}
       {mediaEvents !== undefined && <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
-        <h2 className="text-xl font-bold mb-3">Media</h2>
+        <h2 className="text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>Media</h2>
         {mediaLoading ? (
           <div className="flex flex-col gap-0.5">
             {[
@@ -588,7 +598,7 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
       {/* Profile Fields Section */}
       {fields && fields.length > 0 && (
         <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
-          <h2 className="text-xl font-bold mb-3">Profile fields</h2>
+          <h2 className="text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>Profile fields</h2>
           <div className="space-y-4">
             {fields.map((field, i) => (
               <ProfileFieldRow key={i} field={field} />

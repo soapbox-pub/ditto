@@ -1,36 +1,40 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
-import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, BookMarked, Loader2, Search, X } from 'lucide-react';
-import { useSeoMeta } from '@unhead/react';
+import { useQueryClient } from "@tanstack/react-query";
+import { useSeoMeta } from "@unhead/react";
+import { BookMarked, Loader2, Search, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { BookFeedItem, BookFeedItemSkeleton } from "@/components/BookFeedItem";
+import { FeedEmptyState } from "@/components/FeedEmptyState";
+import { KindInfoButton } from "@/components/KindInfoButton";
+import { PageHeader } from "@/components/PageHeader";
+import { PullToRefresh } from "@/components/PullToRefresh";
+import { SubHeaderBar } from "@/components/SubHeaderBar";
+import { TabButton } from "@/components/TabButton";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useLayoutOptions } from "@/contexts/LayoutContext";
+import { useAppContext } from "@/hooks/useAppContext";
+import { useBookFeed } from "@/hooks/useBookFeed";
+import { type BookSearchResult, useBookSearch } from "@/hooks/useBookSearch";
+import { usePrefetchBookSummaries } from "@/hooks/useBookSummary";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useFeedTab } from "@/hooks/useFeedTab";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { deduplicateEvents } from "@/lib/deduplicateEvents";
+import type { ExtraKindDef } from "@/lib/extraKinds";
 
-import { TabButton } from '@/components/TabButton';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
-import { PullToRefresh } from '@/components/PullToRefresh';
-import { FeedEmptyState } from '@/components/FeedEmptyState';
-import { KindInfoButton } from '@/components/KindInfoButton';
-import { BookFeedItem, BookFeedItemSkeleton } from '@/components/BookFeedItem';
-import { useBookFeed } from '@/hooks/useBookFeed';
-import { useBookSearch, type BookSearchResult } from '@/hooks/useBookSearch';
-import { usePrefetchBookSummaries } from '@/hooks/useBookSummary';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useFeedTab } from '@/hooks/useFeedTab';
-import { useAppContext } from '@/hooks/useAppContext';
-import type { ExtraKindDef } from '@/lib/extraKinds';
-
-type FeedTab = 'follows' | 'global';
+type FeedTab = "follows" | "global";
 
 const booksDef: ExtraKindDef = {
   kind: 31985,
-  id: 'books',
-  label: 'Books',
-  description: 'Book reviews and discussions',
+  id: "books",
+  label: "Books",
+  description: "Book reviews and discussions",
   addressable: true,
-  section: 'social',
-  blurb: 'Discover book reviews, ratings, and discussions from the Nostr community. Track your reading and share your thoughts using the Bookstr protocol.',
-  sites: [{ url: 'https://bookstr.xyz/', name: 'Bookstr' }],
+  section: "social",
+  blurb:
+    "Discover book reviews, ratings, and discussions from the Nostr community. Track your reading and share your thoughts using the Bookstr protocol.",
+  sites: [{ url: "https://bookstr.xyz/", name: "Bookstr" }],
 };
 
 export function BooksPage() {
@@ -38,12 +42,18 @@ export function BooksPage() {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useFeedTab<FeedTab>('books', ['follows', 'global']);
+  const [activeTab, setActiveTab] = useFeedTab<FeedTab>("books", [
+    "follows",
+    "global",
+  ]);
 
   useSeoMeta({
     title: `Books | ${config.appName}`,
-    description: 'Book reviews, ratings, and discussions from the Nostr community',
+    description:
+      "Book reviews, ratings, and discussions from the Nostr community",
   });
+
+  useLayoutOptions({ hasSubHeader: !!user });
 
   const feedQuery = useBookFeed(activeTab);
 
@@ -56,35 +66,18 @@ export function BooksPage() {
     isFetchingNextPage,
   } = feedQuery;
 
-  // Auto-fetch page 2 for smoother scrolling
-  useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) {
-      fetchNextPage();
-    }
-  }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
-
-  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
-
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) fetchNextPage();
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const { scrollRef } = useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    pageCount: rawData?.pages?.length,
+  });
 
   const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['book-feed', activeTab] });
+    await queryClient.invalidateQueries({ queryKey: ["book-feed", activeTab] });
   }, [queryClient, activeTab]);
 
-  // Flatten and deduplicate across pages
-  const events = useMemo(() => {
-    if (!rawData?.pages) return [];
-    const seen = new Set<string>();
-    return rawData.pages
-      .flat()
-      .filter((event) => {
-        if (seen.has(event.id)) return false;
-        seen.add(event.id);
-        return true;
-      });
-  }, [rawData?.pages]);
+  const events = deduplicateEvents(rawData?.pages);
 
   // Batch-prefetch book metadata for all visible ISBNs (4 concurrent requests)
   usePrefetchBookSummaries(events);
@@ -93,28 +86,31 @@ export function BooksPage() {
 
   return (
     <main className="pb-16 sidebar:pb-0">
-      {/* Page header */}
-      <div className="flex items-center gap-4 px-4 mt-4 mb-1">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <BookMarked className="size-5" />
-          <h1 className="text-xl font-bold">Books</h1>
-        </div>
-        <KindInfoButton kindDef={booksDef} icon={<BookMarked className="size-10" />} />
-      </div>
-
-      {/* Book search bar */}
-      <BookSearchBar />
+      <PageHeader title="Books" icon={<BookMarked className="size-5" />}>
+        <KindInfoButton
+          kindDef={booksDef}
+          icon={<BookMarked className="size-10" />}
+        />
+      </PageHeader>
 
       {/* Follows / Global tabs */}
       {user && (
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
-          <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
-        </div>
+        <SubHeaderBar>
+          <TabButton
+            label="Follows"
+            active={activeTab === "follows"}
+            onClick={() => setActiveTab("follows")}
+          />
+          <TabButton
+            label="Global"
+            active={activeTab === "global"}
+            onClick={() => setActiveTab("global")}
+          />
+        </SubHeaderBar>
       )}
+
+      {/* Book search bar */}
+      <BookSearchBar />
 
       <PullToRefresh onRefresh={handleRefresh}>
         {showSkeleton ? (
@@ -142,11 +138,13 @@ export function BooksPage() {
         ) : (
           <FeedEmptyState
             message={
-              activeTab === 'follows'
-                ? 'No book posts from people you follow yet.'
-                : 'No book posts or reviews found. Book-related posts tagged with #bookstr or referencing ISBNs will appear here.'
+              activeTab === "follows"
+                ? "No book posts from people you follow yet."
+                : "No book posts or reviews found. Book-related posts tagged with #bookstr or referencing ISBNs will appear here."
             }
-            onSwitchToGlobal={activeTab === 'follows' ? () => setActiveTab('global') : undefined}
+            onSwitchToGlobal={
+              activeTab === "follows" ? () => setActiveTab("global") : undefined
+            }
           />
         )}
       </PullToRefresh>
@@ -163,10 +161,10 @@ function BookSearchBar() {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const { data: results, isFetching } = useBookSearch(debouncedQuery);
 
@@ -188,7 +186,12 @@ function BookSearchBar() {
   useEffect(() => {
     if (debouncedQuery.length >= 2 && results && results.length > 0) {
       setDropdownOpen(true);
-    } else if (debouncedQuery.length >= 2 && results && results.length === 0 && !isFetching) {
+    } else if (
+      debouncedQuery.length >= 2 &&
+      results &&
+      results.length === 0 &&
+      !isFetching
+    ) {
       setDropdownOpen(true); // show "no results"
     }
   }, [debouncedQuery, results, isFetching]);
@@ -196,42 +199,51 @@ function BookSearchBar() {
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setDropdownOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelect = useCallback((isbn: string) => {
-    setQuery('');
-    setDebouncedQuery('');
-    setDropdownOpen(false);
-    inputRef.current?.blur();
-    navigate(`/i/isbn:${isbn}`);
-  }, [navigate]);
+  const handleSelect = useCallback(
+    (isbn: string) => {
+      setQuery("");
+      setDebouncedQuery("");
+      setDropdownOpen(false);
+      inputRef.current?.blur();
+      navigate(`/i/isbn:${isbn}`);
+    },
+    [navigate],
+  );
 
   const handleClear = useCallback(() => {
-    setQuery('');
-    setDebouncedQuery('');
+    setQuery("");
+    setDebouncedQuery("");
     setDropdownOpen(false);
     inputRef.current?.focus();
   }, []);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      setDropdownOpen(false);
-      inputRef.current?.blur();
-    }
-    if (e.key === 'Enter' && results && results.length > 0) {
-      e.preventDefault();
-      handleSelect(results[0].isbn);
-    }
-  }, [results, handleSelect]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setDropdownOpen(false);
+        inputRef.current?.blur();
+      }
+      if (e.key === "Enter" && results && results.length > 0) {
+        e.preventDefault();
+        handleSelect(results[0].isbn);
+      }
+    },
+    [results, handleSelect],
+  );
 
   return (
-    <div ref={containerRef} className="relative px-4 pb-3">
+    <div ref={containerRef} className="relative px-4 pt-5 pb-3">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
         <Input
@@ -293,7 +305,13 @@ function BookSearchBar() {
   );
 }
 
-function BookSearchResultItem({ book, onSelect }: { book: BookSearchResult; onSelect: (isbn: string) => void }) {
+function BookSearchResultItem({
+  book,
+  onSelect,
+}: {
+  book: BookSearchResult;
+  onSelect: (isbn: string) => void;
+}) {
   return (
     <button
       type="button"
@@ -306,7 +324,9 @@ function BookSearchResultItem({ book, onSelect }: { book: BookSearchResult; onSe
           alt=""
           className="w-8 h-11 rounded object-cover shrink-0"
           loading="lazy"
-          onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+          onError={(e) => {
+            (e.currentTarget as HTMLElement).style.display = "none";
+          }}
         />
       ) : (
         <div className="w-8 h-11 rounded bg-secondary flex items-center justify-center shrink-0">
@@ -316,10 +336,14 @@ function BookSearchResultItem({ book, onSelect }: { book: BookSearchResult; onSe
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{book.title}</p>
         {book.authors.length > 0 && (
-          <p className="text-xs text-muted-foreground truncate">{book.authors.join(', ')}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {book.authors.join(", ")}
+          </p>
         )}
         {book.firstPublishYear && (
-          <p className="text-xs text-muted-foreground/60">{book.firstPublishYear}</p>
+          <p className="text-xs text-muted-foreground/60">
+            {book.firstPublishYear}
+          </p>
         )}
       </div>
     </button>

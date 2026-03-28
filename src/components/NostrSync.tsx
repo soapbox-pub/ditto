@@ -1,6 +1,6 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { useNostr } from "@nostrify/react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -25,6 +25,7 @@ export function NostrSync() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
+  const queryClient = useQueryClient();
   const {
     settings: encryptedSettings,
     isLoading: settingsLoading,
@@ -55,9 +56,55 @@ export function NostrSync() {
       lastSyncedTimestamp.current = 0;
       profileThemeSynced.current = false;
       accountSwitched.current = true;
+
+      // Clear user-specific query caches on account switch.
+      // Remove queries whose keys lack a user pubkey discriminator — these store
+      // the previous user's data (reactions, reposts) under keys that would be
+      // incorrectly served to the new user.
+      const removeKeys = [
+        'user-reaction',
+        'user-repost',
+        'external-user-reaction',
+        'external-user-repost',
+        'feed',
+        'vines-follows',
+        'theme-feed',
+        'book-feed',
+      ];
+      for (const key of removeKeys) {
+        queryClient.removeQueries({ queryKey: [key] });
+      }
+
+      // Invalidate queries that are keyed by user pubkey (they naturally namespace
+      // per user, but should be refetched promptly for the new account).
+      const invalidateKeys = [
+        'encryptedSettings',
+        'parsedSettings',
+        'notifications',
+        'notifications-unread',
+        'interests',
+        'muteList',
+        'muteItems',
+        'user-lists',
+        'bookmarks',
+        'bookmarked-events',
+        'custom-emojis',
+        'emoji-list',
+        'own-follow-packs',
+        'follow-list',
+        'relayList',
+        'blossomServerList',
+        'pinned-notes',
+        'my-rsvp',
+        'user-book-review',
+      ];
+      for (const key of invalidateKeys) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['nostr', 'logins'] });
     }
     prevPubkey.current = pubkey;
-  }, [user?.pubkey]);
+  }, [user?.pubkey, queryClient]);
 
   // Fetch the user's NIP-65 relay list (kind 10002).
   // useInitialSync seeds ['relayList', pubkey] into the cache on first login,
@@ -437,6 +484,7 @@ export function NostrSync() {
         const remoteTheme: ThemeConfig = {
           colors: parsed.colors,
           ...(parsed.font && { font: parsed.font }),
+          ...(parsed.titleFont && { titleFont: parsed.titleFont }),
           ...(parsed.background && { background: parsed.background }),
         };
 

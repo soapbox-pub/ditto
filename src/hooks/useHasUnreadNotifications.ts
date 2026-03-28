@@ -1,10 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
+import { useFollowList } from './useFollowActions';
+import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
 
 /** All kinds that can appear as notifications. */
 const NOTIFICATION_KINDS = [1, 6, 16, 7, 9735, 1111, 1222, 1244] as const;
@@ -13,6 +15,9 @@ const NOTIFICATION_KINDS = [1, 6, 16, 7, 9735, 1111, 1222, 1244] as const;
  * Lightweight hook that checks whether the user has any unread notifications.
  * Fetches at most 1 event (using `since` to filter at the relay level),
  * making it much cheaper than loading the full notification list.
+ *
+ * Respects the user's per-type notification preferences so that disabled
+ * types (e.g. reactions) don't trigger the unread dot.
  *
  * Also opens a real-time subscription so the unread dot appears immediately
  * when a new notification arrives, instead of waiting for the next poll.
@@ -31,18 +36,43 @@ export function useHasUnreadNotifications(): boolean {
     ? (settings.notificationsCursor ?? 0)
     : null;
 
+  const { data: followData } = useFollowList();
+
+  const prefs = settings?.notificationPreferences;
+
+  // Derive enabled kinds from preferences so disabled types don't trigger the dot
+  const enabledKinds = useMemo(
+    () => getEnabledNotificationKinds(prefs),
+    [prefs],
+  );
+  const kindsKey = [...enabledKinds].sort().join(',');
+
+  // Authors filter: when onlyFollowing is set, restrict to followed pubkeys
+  const followedPubkeys = useMemo(
+    () => followData?.pubkeys ?? [],
+    [followData?.pubkeys],
+  );
+  const onlyFollowing = prefs?.onlyFollowing === true;
+  const authorsFilter = onlyFollowing && followedPubkeys.length > 0
+    ? followedPubkeys
+    : undefined;
+  const authorsKey = authorsFilter ? authorsFilter.slice().sort().join(',') : 'all';
+
   const { data: hasUnread = false } = useQuery<boolean>({
-    queryKey: ['notifications-unread', user?.pubkey ?? ''],
+    queryKey: ['notifications-unread', user?.pubkey ?? '', kindsKey, authorsKey],
     queryFn: async ({ signal }) => {
       if (!user || notificationsCursor === null) return false;
 
+      const filter: { kinds: number[]; '#p': string[]; since: number; limit: number; authors?: string[] } = {
+        kinds: enabledKinds,
+        '#p': [user.pubkey],
+        since: notificationsCursor + 1,
+        limit: 1,
+        ...(authorsFilter ? { authors: authorsFilter } : {}),
+      };
+
       const events = await nostr.query(
-        [{
-          kinds: [...NOTIFICATION_KINDS],
-          '#p': [user.pubkey],
-          since: notificationsCursor + 1,
-          limit: 1,
-        }],
+        [filter],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 

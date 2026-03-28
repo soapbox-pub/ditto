@@ -17,6 +17,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 
 import { NostrPushClient, serializePushSubscription, urlBase64ToUint8Array } from '@/lib/nostrPush';
 import { NOTIFICATION_TEMPLATES } from '@/lib/notificationTemplates';
+import type { EncryptedSettings } from '@/hooks/useEncryptedSettings';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,17 @@ function getOrCreateSubscriptionId(): string {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
+/** Maps notification template IDs to preference keys. */
+const TEMPLATE_ID_TO_PREF_KEY: Record<string, keyof NonNullable<EncryptedSettings['notificationPreferences']>> = {
+  reactions: 'reactions',
+  reposts: 'reposts',
+  zaps: 'zaps',
+  mentions: 'mentions',
+  comments: 'comments',
+  badges: 'badges',
+  letters: 'letters',
+};
+
 export interface UsePushNotificationsReturn {
   /** Current browser permission state. */
   permission: NotificationPermission;
@@ -54,9 +66,14 @@ export interface UsePushNotificationsReturn {
   /** Whether the browser and environment support Web Push. */
   supported: boolean;
   /** Subscribe and register with nostr-push. Caller must request permission first. */
-  enable: (userPubkey: string) => Promise<void>;
+  enable: (userPubkey: string, prefs?: NonNullable<EncryptedSettings['notificationPreferences']>) => Promise<void>;
   /** Unsubscribe from Web Push and delete server registrations. */
   disable: () => Promise<void>;
+  /**
+   * Sync per-type subscription active states and filter settings with nostr-push.
+   * Call this when notification type preferences or onlyFollowing changes.
+   */
+  syncPreferences: (prefs: NonNullable<EncryptedSettings['notificationPreferences']>, userPubkey: string) => Promise<void>;
 }
 
 export function usePushNotifications(): UsePushNotificationsReturn {
@@ -133,7 +150,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
   // ─── enable() ─────────────────────────────────────────────────────────────
 
-  const enable = useCallback(async (userPubkey: string) => {
+  const enable = useCallback(async (userPubkey: string, prefs?: NonNullable<EncryptedSettings['notificationPreferences']>) => {
     if (!supported) return;
 
     // Caller must have already obtained permission (from a user gesture).
@@ -177,15 +194,20 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     // Register one subscription per notification type with nostr-push.
     const baseId = getOrCreateSubscriptionId();
     const serialized = serializePushSubscription(sub);
+    const onlyFollowing = prefs?.onlyFollowing === true;
 
-    await Promise.all(NOTIFICATION_TEMPLATES.map((tmpl) =>
-      client.registerSubscription({
+    await Promise.all(NOTIFICATION_TEMPLATES.map((tmpl) => {
+      const filter: { kinds: number[]; '#p': string[]; authors?: string[] } = {
+        kinds: tmpl.kinds,
+        '#p': [userPubkey],
+      };
+      if (onlyFollowing) {
+        filter.authors = ['$contacts'];
+      }
+      return client.registerSubscription({
         subscription_id: `${baseId}-${tmpl.id}`,
         domain: DOMAIN,
-        filter: {
-          kinds: tmpl.kinds,
-          '#p': [userPubkey],
-        },
+        filter,
         notification: {
           title: tmpl.title,
           body: tmpl.body,
@@ -193,8 +215,14 @@ export function usePushNotifications(): UsePushNotificationsReturn {
           badge: '/icon-192.png',
         },
         push_subscription: serialized,
-      }),
-    ));
+      });
+    }));
+
+    // If any per-type preferences are already set, sync them immediately
+    // so newly registered subscriptions respect existing disabled types.
+    if (prefs) {
+      await syncPreferences(prefs, userPubkey);
+    }
 
     setEnabled(true);
   }, [supported]);
@@ -227,5 +255,43 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     setEnabled(false);
   }, []);
 
-  return { permission, enabled, supported, enable, disable };
+  // ─── syncPreferences() ─────────────────────────────────────────────────────
+
+  const syncPreferences = useCallback(async (
+    prefs: NonNullable<EncryptedSettings['notificationPreferences']>,
+    userPubkey: string,
+  ) => {
+    const client = clientRef.current;
+    const baseId = localStorage.getItem(SUBSCRIPTION_ID_KEY);
+    if (!client || !baseId) return;
+
+    const onlyFollowing = prefs.onlyFollowing === true;
+
+    await Promise.allSettled(
+      NOTIFICATION_TEMPLATES.map((tmpl) => {
+        const prefKey = TEMPLATE_ID_TO_PREF_KEY[tmpl.id];
+        // Default to active when the preference is absent
+        const isActive = prefKey ? prefs[prefKey] !== false : true;
+
+        // Build the full filter — includes #p and optionally $contacts
+        const filter: { kinds: number[]; '#p': string[]; authors?: string[] } = {
+          kinds: tmpl.kinds,
+          '#p': [userPubkey],
+        };
+        if (onlyFollowing) {
+          filter.authors = ['$contacts'];
+        }
+
+        return client.updateSubscription({
+          subscription_id: `${baseId}-${tmpl.id}`,
+          domain: DOMAIN,
+          updates: { is_active: isActive, filter },
+        }).catch((err) => {
+          console.error(`[push] Failed to update ${tmpl.id} (is_active=${isActive}):`, err);
+        });
+      }),
+    );
+  }, []);
+
+  return { permission, enabled, supported, enable, disable, syncPreferences };
 }

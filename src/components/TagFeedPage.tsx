@@ -1,20 +1,20 @@
 import { useMemo, type ReactNode } from 'react';
-import { ArrowLeft, Plus, Check, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Plus, Check, Loader2 } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DITTO_RELAY } from '@/lib/appRelays';
+import { DITTO_RELAYS } from '@/lib/appRelays';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useInterests } from '@/hooks/useInterests';
 import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
+import { buildTagFilterValues } from '@/lib/tagFilterValues';
+import { PageHeader } from '@/components/PageHeader';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 interface TagFeedPageProps {
@@ -74,19 +74,21 @@ export function TagFeedPage({
 
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
   const kindsKey = [...kinds].sort().join(',');
+  const tagFilterValues = useMemo(() => buildTagFilterValues(tag, filterKey), [tag, filterKey]);
+  const tagFilterValuesKey = tagFilterValues.join('|');
 
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['tag-feed', filterKey, tag, kindsKey],
+    queryKey: ['tag-feed', filterKey, tagFilterValuesKey, kindsKey],
     queryFn: async ({ signal }) => {
-      const ditto = nostr.relay(DITTO_RELAY);
+      const ditto = nostr.group(DITTO_RELAYS);
       const tagFilter: NostrFilter = { kinds, limit: 40, ...(search ? { search } : {}) };
       // NostrFilter uses `#${letter}` index signature — assign after construction to satisfy TS
-      (tagFilter as Record<string, unknown>)[filterKey] = [tag];
+      (tagFilter as Record<string, unknown>)[filterKey] = tagFilterValues;
       return ditto.query([tagFilter], {
         signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
       });
     },
-    enabled: !!tag,
+    enabled: tagFilterValues.length > 0,
   });
 
   const filteredEvents = useMemo(() => {
@@ -96,12 +98,10 @@ export function TagFeedPage({
 
   return (
     <main className="">
-      <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-4 px-4 pt-4 pb-5 bg-background/80 backdrop-blur-md z-10')}>
-        <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        {icon && <span className="text-muted-foreground shrink-0">{icon}</span>}
-        <h1 className="text-xl font-bold flex-1 truncate min-w-0">{title}</h1>
+      <PageHeader
+        title={title}
+        icon={icon ? <span className="text-muted-foreground shrink-0">{icon}</span> : undefined}
+      >
         {followable && user && tag && (
           <Button
             size="sm"
@@ -119,7 +119,7 @@ export function TagFeedPage({
             )}
           </Button>
         )}
-      </div>
+      </PageHeader>
 
       {isLoading ? (
         <FeedSkeleton />

@@ -1,0 +1,95 @@
+// Auto-generated: inlined SVG content for baby Blobbi assets.
+// Source: src/blobbi/baby-blobbi/assets/
+
+export const BABY_BASE_SVG = `<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Body gradient -->
+    <radialGradient id="blobbiBodyGradient" cx="0.3" cy="0.25">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="60%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6d28d9;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- Eye gradient -->
+    <radialGradient id="blobbiEyeGradient" cx="0.3" cy="0.3">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f1f5f9;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- Pupil gradient -->
+    <radialGradient id="blobbiPupilGradient" cx="0.3" cy="0.3">
+      <stop offset="0%" style="stop-color:#374151;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e293b;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- Mouth gradient -->
+    <linearGradient id="blobbiMouthGradient" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" style="stop-color:#374151;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#374151;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+    
+  <!-- Main body - cute water droplet shape -->
+  <path d="M 50 15 Q 50 10 50 15 Q 72 25 75 55 Q 75 80 50 88 Q 25 80 25 55 Q 28 25 50 15"
+        fill="url(#blobbiBodyGradient)" />
+  
+  <!-- Soft inner glow -->
+  <ellipse cx="50" cy="45" rx="15" ry="20" fill="white" opacity="0.2" />
+  
+  <!-- Eyes (white/base eye shapes) -->
+  <ellipse cx="38" cy="45" rx="8" ry="10" fill="url(#blobbiEyeGradient)" />
+  <ellipse cx="62" cy="45" rx="8" ry="10" fill="url(#blobbiEyeGradient)" />
+  
+  <!-- Pupils (pupil + highlights) -->
+  <circle cx="38" cy="46" r="6" fill="url(#blobbiPupilGradient)" />
+  <circle cx="62" cy="46" r="6" fill="url(#blobbiPupilGradient)" />
+  <circle cx="40" cy="44" r="2" fill="white" />
+  <circle cx="64" cy="44" r="2" fill="white" />
+  
+  <!-- Mouth -->
+  <path d="M 42 62 Q 50 68 58 62" stroke="url(#blobbiMouthGradient)" stroke-width="2.5" fill="none" stroke-linecap="round" />
+  
+  <!-- Soft blush for cuteness -->
+  <ellipse cx="22" cy="55" rx="6" ry="4" fill="rgba(255,182,193,0.5)" />
+  <ellipse cx="78" cy="55" rx="6" ry="4" fill="rgba(255,182,193,0.5)" />
+</svg>`;
+
+export const BABY_SLEEPING_SVG = `<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Body gradient -->
+    <radialGradient id="blobbiBodyGradient" cx="0.3" cy="0.25">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="60%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6d28d9;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- Mouth gradient -->
+    <linearGradient id="blobbiMouthGradient" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" style="stop-color:#374151;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#374151;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Main body -->
+  <path d="M 50 15 Q 50 10 50 15 Q 72 25 75 55 Q 75 80 50 88 Q 25 80 25 55 Q 28 25 50 15"
+        fill="url(#blobbiBodyGradient)" />
+  
+  <!-- Soft inner glow -->
+  <ellipse cx="50" cy="45" rx="15" ry="20" fill="white" opacity="0.2" />
+  
+  <!-- Sleeping eyes -->
+  <path d="M 30 45 Q 40 48 45 45" stroke="url(#blobbiMouthGradient)" stroke-width="2.5" fill="none" stroke-linecap="round" />
+  <path d="M 55 45 Q 65 48 70 45" stroke="url(#blobbiMouthGradient)" stroke-width="2.5" fill="none" stroke-linecap="round" />
+  
+  <!-- Peaceful mouth -->
+  <circle cx="50" cy="65" r="1.5" fill="url(#blobbiMouthGradient)" />
+  
+  <!-- Z's for sleeping -->
+  <text x="75" y="25" font-size="10" fill="#666" opacity="0.8">Z</text>
+  <text x="80" y="20" font-size="8" fill="#666" opacity="0.6">z</text>
+  <text x="83" y="16" font-size="6" fill="#666" opacity="0.4">z</text>
+</svg>`;

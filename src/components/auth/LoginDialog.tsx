@@ -66,7 +66,11 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   const generateConnectSession = useCallback(() => {
     const relayUrls = login.getRelayUrls();
     const params = generateNostrConnectParams(relayUrls);
-    const uri = generateNostrConnectURI(params, config.appName);
+    const isMobileDevice = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const uri = generateNostrConnectURI(params, {
+      name: config.appName,
+      callback: isMobileDevice ? `${window.location.origin}/remoteloginsuccess` : undefined,
+    });
     setNostrConnectParams(params);
     setNostrConnectUri(uri);
     setConnectError(null);

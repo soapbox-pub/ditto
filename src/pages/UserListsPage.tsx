@@ -4,11 +4,11 @@
  * Settings sub-page for managing NIP-51 Follow Sets (kind 30000).
  */
 import { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import {
-  ArrowLeft, Plus, Trash2, Users, Pencil,
+  Info, Plus, Trash2, Scroll, Users, Pencil,
   Check, X,
 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -22,7 +22,11 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+import {
+  Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger,
+} from '@/components/ui/dialog';
 import { IntroImage } from '@/components/IntroImage';
+import { PageHeader } from '@/components/PageHeader';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserLists } from '@/hooks/useUserLists';
@@ -209,19 +213,26 @@ export function UserListsPage() {
   return (
     <main>
       {/* Header */}
-      <div className="px-4 pt-4 pb-3">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-            <ArrowLeft className="size-5" />
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold">Lists</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Organize people into lists. Lists are stored on Nostr so they follow you across clients.
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHeader title="Lists" icon={<Scroll className="size-5" />}>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="icon" className="size-8 rounded-full text-muted-foreground hover:text-foreground">
+              <Info className="size-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-xs p-6">
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="text-primary [&>svg]:size-10">
+                <Scroll className="size-10" />
+              </div>
+              <DialogTitle className="text-lg">Lists</DialogTitle>
+              <DialogDescription className="text-sm leading-relaxed">
+                Organize people into lists. Lists are stored on Nostr so they follow you across clients.
+              </DialogDescription>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </PageHeader>
 
       <div className="p-4">
         {/* Intro block */}

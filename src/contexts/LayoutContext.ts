@@ -34,6 +34,30 @@ export interface LayoutOptions {
    * full-width page layouts (e.g. messaging).
    */
   noMaxWidth?: boolean;
+  /**
+   * If true, indicates the page renders its own sub-header with a decorative
+   * arc (e.g. tab bars). The mobile top bar will skip its own arc to avoid
+   * doubling up.
+   */
+  hasSubHeader?: boolean;
+  /**
+   * If true, all decorative arcs are replaced with plain rectangles on the
+   * mobile top bar, bottom nav, and sub-header. Use for immersive pages
+   * (e.g. vines) where curved chrome interferes with full-bleed content.
+   */
+  noArcs?: boolean;
+  /**
+   * If true, hides the mobile top bar entirely for a fully immersive
+   * experience. The page is responsible for its own navigation chrome.
+   * Use for full-screen media pages like vines/reels.
+   */
+  hideTopBar?: boolean;
+  /**
+   * If true, hides the mobile bottom nav entirely. The page is responsible
+   * for providing its own navigation affordances (e.g. embedded back button).
+   * Use for full-screen media pages like vines/reels.
+   */
+  hideBottomNav?: boolean;
 }
 
 type Listener = () => void;
@@ -72,6 +96,22 @@ export class LayoutStore {
 
 export const LayoutStoreContext = createContext<LayoutStore | null>(null);
 
+/** Context for exposing the scroll-direction hidden state to child components (MobileTopBar, SubHeaderBar). */
+export const NavHiddenContext = createContext<boolean>(false);
+
+/** Hook to read whether the top nav should be hidden due to scroll direction. */
+export function useNavHidden(): boolean {
+  return useContext(NavHiddenContext);
+}
+
+/** Context for opening the mobile navigation drawer from any page. */
+export const DrawerContext = createContext<() => void>(() => {});
+
+/** Hook to get a function that opens the mobile drawer. */
+export function useOpenDrawer(): () => void {
+  return useContext(DrawerContext);
+}
+
 function useLayoutStore(): LayoutStore {
   const store = useContext(LayoutStoreContext);
   if (!store) throw new Error('useLayoutOptions must be used within LayoutStoreContext');
@@ -102,7 +142,11 @@ export function useLayoutOptions(options: LayoutOptions): void {
     prev.current.rightSidebar !== options.rightSidebar ||
     prev.current.scrollContainer !== options.scrollContainer ||
     prev.current.noOverscroll !== options.noOverscroll ||
-    prev.current.noMaxWidth !== options.noMaxWidth;
+    prev.current.noMaxWidth !== options.noMaxWidth ||
+    prev.current.hasSubHeader !== options.hasSubHeader ||
+    prev.current.noArcs !== options.noArcs ||
+    prev.current.hideTopBar !== options.hideTopBar ||
+    prev.current.hideBottomNav !== options.hideBottomNav;
 
   if (changed) {
     prev.current = options;
