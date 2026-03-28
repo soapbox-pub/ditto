@@ -305,7 +305,7 @@ export function useEventStats(eventId: string | undefined, event?: NostrEvent) {
       reposts: source.data.repostCount,
       quotes: 0,
       reactions: source.data.reactionCount,
-      zapAmount: 0,
+      zapAmount: source.data.zapAmount,
       zapCount: source.data.zapCount,
       reactionEmojis: [],
     };
