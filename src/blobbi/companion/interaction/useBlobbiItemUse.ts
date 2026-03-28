@@ -27,7 +27,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
 import type { NostrEvent } from '@nostrify/nostrify';
-import type { BlobbiCompanion, BlobbonautProfile, BlobbiStats } from '@/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile, BlobbiStats } from '@/blobbi/core/lib/blobbi';
 import {
   KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
@@ -36,8 +36,8 @@ import {
   createStorageTags,
   parseBlobbiEvent,
   isValidBlobbiEvent,
-} from '@/lib/blobbi';
-import { applyBlobbiDecay } from '@/lib/blobbi-decay';
+} from '@/blobbi/core/lib/blobbi';
+import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,

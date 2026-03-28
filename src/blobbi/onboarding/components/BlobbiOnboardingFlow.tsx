@@ -26,7 +26,7 @@ import { BlobbiEggPreviewCard } from './BlobbiEggPreviewCard';
 import { BlobbiAdoptionConfirmDialog } from './BlobbiAdoptionConfirmDialog';
 import { Loader2 } from 'lucide-react';
 
-import type { BlobbonautProfile } from '@/lib/blobbi';
+import type { BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
 
 interface BlobbiOnboardingFlowProps {
   /** Current profile (null if doesn't exist) */

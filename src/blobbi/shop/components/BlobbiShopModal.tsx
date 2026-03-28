@@ -14,7 +14,7 @@ import { BlobbiShopItemRow } from './BlobbiShopItemRow';
 import { BlobbiPurchaseDialog } from './BlobbiPurchaseDialog';
 
 import type { ShopItem, ShopItemCategory } from '../types/shop.types';
-import type { BlobbonautProfile } from '@/lib/blobbi';
+import type { BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
 import { getShopItemsByType } from '../lib/blobbi-shop-items';
 import { useBlobbiPurchaseItem } from '../hooks/useBlobbiPurchaseItem';
 import { cn, formatCompactNumber } from '@/lib/utils';

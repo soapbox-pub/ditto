@@ -16,8 +16,8 @@ import { BlobbiBabyVisual } from './BlobbiBabyVisual';
 import { BlobbiAdultVisual } from './BlobbiAdultVisual';
 import { FloatingMusicNotes } from './FloatingMusicNotes';
 import { cn } from '@/lib/utils';
-import type { BlobbiCompanion } from '@/lib/blobbi';
-import type { Blobbi } from '@/types/blobbi';
+import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+import type { Blobbi } from '@/blobbi/core/types/blobbi';
 import type { BlobbiLookMode } from './lib/useBlobbiEyes';
 import type { BlobbiEmotion } from './lib/emotions';
 

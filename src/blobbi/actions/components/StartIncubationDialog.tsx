@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-import type { BlobbiCompanion } from '@/lib/blobbi';
+import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import type { StartIncubationMode } from '../hooks/useBlobbiIncubation';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

@@ -112,7 +112,7 @@ export {
 } from './lib/blobbi-activity-state';
 
 // Re-export stat bounds from canonical source
-export { STAT_MIN, STAT_MAX } from '@/lib/blobbi';
+export { STAT_MIN, STAT_MAX } from '@/blobbi/core/lib/blobbi';
 
 // Utilities
 export {

@@ -3,13 +3,13 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { useCurrentUser } from './useCurrentUser';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   KIND_BLOBBI_STATE,
   isValidBlobbiEvent,
   parseBlobbiEvent,
   type BlobbiCompanion,
-} from '@/lib/blobbi';
+} from '../lib/blobbi';
 
 /** Maximum number of d-tags per query chunk to avoid relay issues */
 const CHUNK_SIZE = 20;

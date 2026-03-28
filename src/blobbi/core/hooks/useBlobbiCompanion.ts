@@ -3,8 +3,8 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { useCurrentUser } from './useCurrentUser';
-import { useLocalStorage } from './useLocalStorage';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import {
   KIND_BLOBBI_STATE,
   BLOBBI_CACHE_KEY,
@@ -14,7 +14,7 @@ import {
   isCanonicalBlobbiD,
   type BlobbiBootCache,
   type BlobbiCompanion,
-} from '@/lib/blobbi';
+} from '../lib/blobbi';
 
 interface UseBlobbiCompanionOptions {
   /** The d-tag value of the companion to fetch (from current_companion or has[] in profile) */

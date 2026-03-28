@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { useCurrentUser } from './useCurrentUser';
-import { useNostrPublish } from './useNostrPublish';
-import { toast } from './useToast';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { toast } from '@/hooks/useToast';
 
 import {
   KIND_BLOBBI_STATE,
@@ -18,7 +18,7 @@ import {
   type BlobbiCompanion,
   type BlobbonautProfile,
   type StorageItem,
-} from '@/lib/blobbi';
+} from '../lib/blobbi';
 
 /**
  * Result of a successful migration.

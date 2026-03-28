@@ -13,8 +13,8 @@ import { addEyeAnimation } from './lib/eye-animation';
 import { applyEmotion, type BlobbiEmotion } from './lib/emotions';
 import { useBlobbiEyes, type BlobbiLookMode } from './lib/useBlobbiEyes';
 import { cn } from '@/lib/utils';
-import type { Blobbi } from '@/types/blobbi';
-import { isBlobbiSleeping } from '@/types/blobbi';
+import type { Blobbi } from '@/blobbi/core/types/blobbi';
+import { isBlobbiSleeping } from '@/blobbi/core/types/blobbi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

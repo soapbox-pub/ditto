@@ -14,8 +14,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiCompanion, BlobbiStage } from '@/lib/blobbi';
-import { KIND_BLOBBI_STATE, updateBlobbiTags, getLocalDayString } from '@/lib/blobbi';
+import type { BlobbiCompanion, BlobbiStage } from '@/blobbi/core/lib/blobbi';
+import { KIND_BLOBBI_STATE, updateBlobbiTags, getLocalDayString } from '@/blobbi/core/lib/blobbi';
 import type { BlobbiDevUpdates } from './BlobbiDevEditor';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

@@ -8,14 +8,14 @@ import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Ta
 // Note: AlertTriangle kept for stat warning indicators
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useProjectedBlobbiState } from '@/hooks/useProjectedBlobbiState';
+import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
-import { useBlobbisCollection } from '@/hooks/useBlobbisCollection';
+import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { useBlobbiMigration } from '@/hooks/useBlobbiMigration';
+import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
 import { toast } from '@/hooks/useToast';
 
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -37,9 +37,9 @@ import {
   updateBlobbonautTags,
   type BlobbiCompanion,
   type BlobbonautProfile,
-} from '@/lib/blobbi';
+} from '@/blobbi/core/lib/blobbi';
 
-import { applyBlobbiDecay } from '@/lib/blobbi-decay';
+import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 
 import { BlobbiShopModal } from '@/blobbi/shop/components/BlobbiShopModal';
 import { BlobbiInventoryModal } from '@/blobbi/shop/components/BlobbiInventoryModal';
@@ -785,7 +785,7 @@ interface BlobbiDashboardProps {
     allTags: string[][];
     wasMigrated: boolean;
     profileAllTags: string[][];
-    profileStorage: import('@/lib/blobbi').StorageItem[];
+    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
   // DEV ONLY: State editor props
   showDevEditor: boolean;

@@ -14,11 +14,11 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbonautProfile } from '@/lib/blobbi';
+import type { BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
 import {
   KIND_BLOBBONAUT_PROFILE,
   updateBlobbonautTags,
-} from '@/lib/blobbi';
+} from '@/blobbi/core/lib/blobbi';
 import {
   type DailyMissionsState,
   getTodayDateString,

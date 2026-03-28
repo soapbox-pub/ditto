@@ -27,7 +27,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
 import { trackDailyMissionProgress } from '@/blobbi/actions';
-import type { BlobbiCompanion } from '@/lib/blobbi';
+import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

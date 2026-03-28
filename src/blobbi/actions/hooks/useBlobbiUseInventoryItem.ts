@@ -6,15 +6,15 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiCompanion, BlobbonautProfile, BlobbiStats } from '@/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile, BlobbiStats } from '@/blobbi/core/lib/blobbi';
 import {
   KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
   updateBlobbiTags,
   updateBlobbonautTags,
   createStorageTags,
-} from '@/lib/blobbi';
-import { applyBlobbiDecay } from '@/lib/blobbi-decay';
+} from '@/blobbi/core/lib/blobbi';
+import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,
@@ -70,7 +70,7 @@ export interface UseBlobbiUseInventoryItemParams {
     /** Latest profile tags after migration (use instead of profile.allTags) */
     profileAllTags: string[][];
     /** Latest profile storage after migration (use instead of profile.storage) */
-    profileStorage: import('@/lib/blobbi').StorageItem[];
+    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;

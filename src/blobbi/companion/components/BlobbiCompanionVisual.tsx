@@ -12,7 +12,7 @@ import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
 import { useEffectiveEmotion } from '@/blobbi/dev/EmotionDevContext';
 import { cn } from '@/lib/utils';
 import type { CompanionData, EyeOffset, CompanionDirection } from '../types/companion.types';
-import type { Blobbi } from '@/types/blobbi';
+import type { Blobbi } from '@/blobbi/core/types/blobbi';
 
 interface BlobbiCompanionVisualProps {
   /** Companion data */

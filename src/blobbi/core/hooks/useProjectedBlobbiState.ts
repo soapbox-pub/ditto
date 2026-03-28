@@ -12,8 +12,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 
-import type { BlobbiCompanion, BlobbiStats } from '@/lib/blobbi';
-import { applyBlobbiDecay, getVisibleStatsWithValues, type DecayResult } from '@/lib/blobbi-decay';
+import type { BlobbiCompanion, BlobbiStats } from '../lib/blobbi';
+import { applyBlobbiDecay, getVisibleStatsWithValues, type DecayResult } from '@/blobbi/core/lib/blobbi-decay';
 
 /** UI refresh interval in milliseconds (60 seconds) */
 const UI_REFRESH_INTERVAL_MS = 60_000;
