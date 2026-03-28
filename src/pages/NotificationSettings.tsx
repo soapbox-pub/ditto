@@ -141,6 +141,7 @@ export function NotificationSettings() {
     enabled: pushHookEnabled,
     enable: enablePush,
     disable: disablePush,
+    syncPreferences: syncPushPreferences,
   } = usePushNotifications();
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
@@ -186,7 +187,7 @@ export function NotificationSettings() {
       // requestPermission + pushManager.subscribe from a user gesture).
       if (user) {
         try {
-          await enablePush(user.pubkey);
+          await enablePush(user.pubkey, prefs);
         } catch (err) {
           console.error('[push] Registration failed:', err);
           toast({ title: 'Failed to enable notifications', description: 'Please try again.' });
@@ -216,6 +217,13 @@ export function NotificationSettings() {
     updateSettings.mutateAsync({ notificationPreferences: next }).catch(() => {
       setPrefs((p) => ({ ...p, [key]: !enabled })); // roll back on failure
     });
+    // Sync the active/inactive state with the nostr-push server so disabled
+    // types stop generating push notifications.
+    if (pushEnabled && !isNative && user) {
+      syncPushPreferences(next, user.pubkey).catch((err) => {
+        console.error('[push] Failed to sync preferences:', err);
+      });
+    }
   };
 
   const handleToggleOnlyFollowing = (enabled: boolean) => {
@@ -224,6 +232,12 @@ export function NotificationSettings() {
     updateSettings.mutateAsync({ notificationPreferences: next }).catch(() => {
       setPrefs((p) => ({ ...p, onlyFollowing: !enabled })); // roll back on failure
     });
+    // Sync the authors filter with nostr-push so $contacts is applied/removed
+    if (pushEnabled && !isNative && user) {
+      syncPushPreferences(next, user.pubkey).catch((err) => {
+        console.error('[push] Failed to sync onlyFollowing preference:', err);
+      });
+    }
   };
 
   if (!user) {
