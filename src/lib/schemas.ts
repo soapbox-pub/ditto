@@ -86,6 +86,7 @@ export const ThemeConfigSchema = z.object({
   title: z.string().optional(),
   colors: CoreThemeColorsSchema,
   font: ThemeFontSchema.optional(),
+  titleFont: ThemeFontSchema.optional(),
   background: ThemeBackgroundSchema.optional(),
 });
 
@@ -309,6 +310,7 @@ export const EncryptedSettingsSchema = z.looseObject({
     mentions: z.boolean().optional(),
     comments: z.boolean().optional(),
     badges: z.boolean().optional(),
+    letters: z.boolean().optional(),
     onlyFollowing: z.boolean().optional(),
   }).optional(),
   lastSync: z.number().optional(),

@@ -6,7 +6,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Generating Android app icons...${NC}\n"
+echo -e "${GREEN}Generating app icons...${NC}\n"
 
 # Check for inkscape (preferred) or rsvg-convert as fallback
 if command -v inkscape &> /dev/null; then
@@ -138,12 +138,33 @@ cat > "$BACKGROUND_COLOR_FILE" << 'EOF'
 </resources>
 EOF
 
+# ── iOS App Icon (1024x1024, white logo on purple background) ──
+
+echo "Generating iOS app icon..."
+
+IOS_ICON_DIR="ios/App/App/Assets.xcassets/AppIcon.appiconset"
+
+if [ -d "$IOS_ICON_DIR" ]; then
+    IOS_ICON="$IOS_ICON_DIR/AppIcon-512@2x.png"
+    # Logo at ~60% of canvas, centered on purple background (matches legacy Android style)
+    $MAGICK -size "1024x1024" "xc:${BG_COLOR}" \
+        \( "$LOGO_WHITE" -resize "614x614" \) \
+        -gravity center -compose over -composite \
+        "$IOS_ICON"
+    echo -e "  ${GREEN}✓${NC} $IOS_ICON"
+else
+    echo -e "  ${YELLOW}Skipped: $IOS_ICON_DIR not found${NC}"
+fi
+
 # Cleanup temp files
 rm -rf "$TMPDIR"
 
-echo -e "\n${GREEN}Android icons generated successfully!${NC}"
+echo -e "\n${GREEN}App icons generated successfully!${NC}"
 echo -e "Icon: white Ditto logo on ${GREEN}${BG_COLOR}${NC} (Ditto purple)"
 echo -e "Generated:"
-echo -e "  - ic_launcher_foreground.png (adaptive, all densities)"
-echo -e "  - ic_launcher.png (legacy square, all densities)"
-echo -e "  - ic_launcher_round.png (legacy round, all densities)"
+echo -e "  Android:"
+echo -e "    - ic_launcher_foreground.png (adaptive, all densities)"
+echo -e "    - ic_launcher.png (legacy square, all densities)"
+echo -e "    - ic_launcher_round.png (legacy round, all densities)"
+echo -e "  iOS:"
+echo -e "    - AppIcon-512@2x.png (1024x1024)"

@@ -1,0 +1,104 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sombra -->
+  <ellipse cx="105" cy="185" rx="50" ry="8" fill="rgba(0,0,0,0.2)" />
+
+  <!-- Bolinha 1 - sentido horário (mais lento) -->
+  <g transform="rotate(0 100 110)">
+    <circle cx="50" cy="80" r="4" fill="url(#rockyPebble)" opacity="0.5" />
+    <animateTransform attributeName="transform"
+                      type="rotate"
+                      from="0 100 110"
+                      to="360 100 110"
+                      dur="10s"
+                      repeatCount="indefinite" />
+  </g>
+
+  <!-- Bolinha 2 - sentido anti-horário (mais lento) -->
+  <g transform="rotate(0 100 110)">
+    <circle cx="150" cy="85" r="3" fill="url(#rockyPebble)" opacity="0.4" />
+    <animateTransform attributeName="transform"
+                      type="rotate"
+                      from="0 100 110"
+                      to="-360 100 110"
+                      dur="12s"
+                      repeatCount="indefinite" />
+  </g>
+
+  <!-- Bolinha 3 - sentido horário (mais lento) -->
+  <g transform="rotate(0 100 110)">
+    <circle cx="45" cy="140" r="2.5" fill="url(#rockyPebble)" opacity="0.4" />
+    <animateTransform attributeName="transform"
+                      type="rotate"
+                      from="0 100 110"
+                      to="360 100 110"
+                      dur="16s"
+                      repeatCount="indefinite" />
+  </g>
+
+  <!-- Bolinha 4 - sentido anti-horário (mais lento) -->
+  <g transform="rotate(0 100 110)">
+    <circle cx="155" cy="135" r="3.5" fill="url(#rockyPebble)" opacity="0.3" />
+    <animateTransform attributeName="transform"
+                      type="rotate"
+                      from="0 100 110"
+                      to="-360 100 110"
+                      dur="8s"
+                      repeatCount="indefinite" />
+  </g>
+
+  <!-- Corpo do Rocky -->
+  <path d="M 100 50 L 130 70 L 140 110 L 130 150 L 100 165 L 70 150 L 60 110 L 70 70 Z" 
+        fill="url(#rockyBody)" />
+  <path d="M 100 55 L 125 72 L 135 108 L 125 145 L 100 158 L 75 145 L 65 108 L 75 72 Z" 
+        fill="url(#rockyInner)" opacity="0.8" />
+
+  <!-- Textura -->
+  <path d="M 75 80 L 125 85" stroke="#57534e" stroke-width="2" opacity="0.5" />
+  <path d="M 70 110 L 130 115" stroke="#57534e" stroke-width="2" opacity="0.5" />
+  <path d="M 80 140 L 120 135" stroke="#57534e" stroke-width="2" opacity="0.5" />
+
+  <!-- Sleeping eyes -->
+  <path d="M 73 95 Q 85 98 97 95" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M 103 95 Q 115 98 127 95" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+
+  <!-- Peaceful mouth -->
+  <circle cx="100" cy="115" r="2" fill="#1f2937" />
+
+  <!-- Braços -->
+  <ellipse cx="55" cy="110" rx="12" ry="8" fill="url(#rockyArm)" transform="rotate(-15 55 110)" />
+  <ellipse cx="145" cy="110" rx="12" ry="8" fill="url(#rockyArm)" transform="rotate(15 145 110)" />
+
+  <!-- Pernas -->
+  <ellipse cx="85" cy="160" rx="15" ry="10" fill="url(#rockyLeg)" />
+  <ellipse cx="115" cy="160" rx="15" ry="10" fill="url(#rockyLeg)" />
+
+  <!-- "Zzz" sleeping -->
+  <text x="150" y="60" font-size="10" fill="#666" opacity="0.8">Z</text>
+  <text x="157" y="55" font-size="8" fill="#666" opacity="0.6">z</text>
+  <text x="162" y="51" font-size="6" fill="#666" opacity="0.4">z</text>
+
+  <defs>
+    <radialGradient id="rockyBody" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#a8a29e" />
+      <stop offset="30%" stop-color="#78716c" />
+      <stop offset="70%" stop-color="#57534e" />
+      <stop offset="100%" stop-color="#44403c" />
+    </radialGradient>
+    <radialGradient id="rockyInner" cx="0.4" cy="0.3">
+      <stop offset="0%" stop-color="#d6d3d1" />
+      <stop offset="100%" stop-color="#a8a29e" />
+    </radialGradient>
+    <radialGradient id="rockyArm" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#78716c" />
+      <stop offset="100%" stop-color="#44403c" />
+    </radialGradient>
+    <radialGradient id="rockyLeg" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#57534e" />
+      <stop offset="100%" stop-color="#292524" />
+    </radialGradient>
+    <radialGradient id="rockyPebble" cx="0.5" cy="0.5">
+      <stop offset="0%" stop-color="#a8a29e" />
+      <stop offset="100%" stop-color="#57534e" />
+    </radialGradient>
+  </defs>
+</svg>
