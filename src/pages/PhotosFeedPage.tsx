@@ -9,7 +9,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { useSeoMeta } from "@unhead/react";
 import { Camera } from "lucide-react";
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo, useCallback, useState } from "react";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import {
@@ -33,6 +33,8 @@ import type { FeedItem } from "@/lib/feedUtils";
 import { isEventMuted } from "@/lib/muteHelpers";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 
+const PhotoComposeModal = lazy(() => import('@/components/PhotoComposeModal').then(m => ({ default: m.PhotoComposeModal })));
+
 const PHOTO_KIND = 20;
 const photosDef = getExtraKindDef("photos")!;
 
@@ -44,17 +46,22 @@ export function PhotosFeedPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
+  const [composeOpen, setComposeOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useFeedTab<FeedTab>("photos", [
     "follows",
     "global",
   ]);
 
+  const handleFabClick = useCallback(() => {
+    setComposeOpen(true);
+  }, []);
+
   useSeoMeta({
     title: `Photos | ${config.appName}`,
     description: "Photo posts on Nostr",
   });
-  useLayoutOptions({ showFAB: false, hasSubHeader: true });
+  useLayoutOptions({ showFAB: true, onFabClick: handleFabClick, fabIcon: <Camera className="size-4" strokeWidth={2.5} />, hasSubHeader: true });
 
   // ── Follows feed (chronological) ──
   const followsQuery = useFeed("follows", { kinds: [PHOTO_KIND] });
@@ -103,56 +110,64 @@ export function PhotosFeedPage() {
   const showSkeleton = isPending || (isLoading && !rawData);
 
   return (
-    <main className="">
-      <PageHeader title="Photos" icon={<Camera className="size-5" />}>
-        <KindInfoButton
-          kindDef={photosDef}
-          icon={sidebarItemIcon("photos", "size-5")}
-        />
-      </PageHeader>
-
-      {/* Tabs */}
-      <SubHeaderBar>
-        <TabButton
-          label="Follows"
-          active={activeTab === "follows"}
-          onClick={() => setActiveTab("follows")}
-          disabled={!user}
-        />
-        <TabButton
-          label="Global"
-          active={activeTab === "global"}
-          onClick={() => setActiveTab("global")}
-        />
-      </SubHeaderBar>
-
-      {/* Grid */}
-      {showSkeleton ? (
-        <MediaCollageSkeleton count={15} />
-      ) : photoEvents.length === 0 ? (
-        <FeedEmptyState
-          message={
-            activeTab === "follows"
-              ? "No photos yet. Follow some photographers to see their photos here."
-              : "No photos found. Check your relay connections or come back soon."
-          }
-          onSwitchToGlobal={
-            activeTab === "follows" ? () => setActiveTab("global") : undefined
-          }
-        />
-      ) : (
-        <>
-          <MediaCollage
-            events={photoEvents}
-            hasNextPage={hasNextPage}
-            isFetchingNextPage={isFetchingNextPage}
-            onNearEnd={() => {
-              if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-            }}
+    <>
+      <main className="">
+        <PageHeader title="Photos" icon={<Camera className="size-5" />}>
+          <KindInfoButton
+            kindDef={photosDef}
+            icon={sidebarItemIcon("photos", "size-5")}
           />
-          <div ref={scrollRef} className="h-px" />
-        </>
+        </PageHeader>
+
+        {/* Tabs */}
+        <SubHeaderBar>
+          <TabButton
+            label="Follows"
+            active={activeTab === "follows"}
+            onClick={() => setActiveTab("follows")}
+            disabled={!user}
+          />
+          <TabButton
+            label="Global"
+            active={activeTab === "global"}
+            onClick={() => setActiveTab("global")}
+          />
+        </SubHeaderBar>
+
+        {/* Grid */}
+        {showSkeleton ? (
+          <MediaCollageSkeleton count={15} />
+        ) : photoEvents.length === 0 ? (
+          <FeedEmptyState
+            message={
+              activeTab === "follows"
+                ? "No photos yet. Follow some photographers to see their photos here."
+                : "No photos found. Check your relay connections or come back soon."
+            }
+            onSwitchToGlobal={
+              activeTab === "follows" ? () => setActiveTab("global") : undefined
+            }
+          />
+        ) : (
+          <>
+            <MediaCollage
+              events={photoEvents}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              onNearEnd={() => {
+                if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+              }}
+            />
+            <div ref={scrollRef} className="h-px" />
+          </>
+        )}
+      </main>
+
+      {composeOpen && (
+        <Suspense fallback={null}>
+          <PhotoComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
+        </Suspense>
       )}
-    </main>
+    </>
   );
 }
