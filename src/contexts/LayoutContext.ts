@@ -84,6 +84,14 @@ export class LayoutStore {
 
 export const LayoutStoreContext = createContext<LayoutStore | null>(null);
 
+/** Context for exposing the scroll-direction hidden state to child components (MobileTopBar, SubHeaderBar). */
+export const NavHiddenContext = createContext<boolean>(false);
+
+/** Hook to read whether the top nav should be hidden due to scroll direction. */
+export function useNavHidden(): boolean {
+  return useContext(NavHiddenContext);
+}
+
 function useLayoutStore(): LayoutStore {
   const store = useContext(LayoutStoreContext);
   if (!store) throw new Error('useLayoutOptions must be used within LayoutStoreContext');
