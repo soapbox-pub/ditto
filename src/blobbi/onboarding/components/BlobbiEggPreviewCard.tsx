@@ -103,8 +103,8 @@ export function BlobbiEggPreviewCard({
             className="text-center font-medium"
             maxLength={32}
           />
-          {!isValidName && preview.name.length > 0 && (
-            <p className="text-xs text-destructive">Name cannot be empty</p>
+          {!isValidName && (
+            <p className="text-xs text-destructive">Please enter a name for your Blobbi</p>
           )}
         </div>
         

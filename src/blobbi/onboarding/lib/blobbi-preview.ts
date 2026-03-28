@@ -93,6 +93,9 @@ export function generateEggPreview(
  * Update the name in an existing preview.
  * Returns a new preview object with the updated name.
  * All other data (petId, d, seed, visualTraits) remains unchanged.
+ * 
+ * Note: This allows empty names during editing. Validation should be done
+ * at the UI level (disable adopt button) or on submit, not here.
  */
 export function updatePreviewName(
   preview: BlobbiEggPreview,
@@ -100,7 +103,7 @@ export function updatePreviewName(
 ): BlobbiEggPreview {
   return {
     ...preview,
-    name: name.trim() || 'Egg', // Fallback to 'Egg' if empty
+    name, // Allow empty during editing - validate on submit
   };
 }
 
