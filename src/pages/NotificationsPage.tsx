@@ -21,6 +21,7 @@ import { useNotifications, type GroupedNotificationItem, type NotificationItem }
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
+import { nip19 } from 'nostr-tools';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { getAvatarShape, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -97,6 +98,32 @@ function getNotificationKindNoun(kind: number | undefined): string {
   return NOTIFICATION_KIND_NOUNS[kind] ?? 'post';
 }
 
+/**
+ * Returns true if the event content contains a literal `nostr:npub1…` or
+ * `nostr:nprofile1…` URI that resolves to the given pubkey.
+ */
+function contentMentionsPubkey(event: NostrEvent, pubkey: string): boolean {
+  const { content } = event;
+  // Quick bail — most events won't contain a nostr: URI at all
+  if (!content.includes('nostr:')) return false;
+
+  const npub = nip19.npubEncode(pubkey);
+  if (content.includes(`nostr:${npub}`)) return true;
+
+  // Also check nprofile URIs which encode the same pubkey with relay hints
+  const nprofileMatches = content.matchAll(/nostr:(nprofile1[a-z0-9]+)/g);
+  for (const m of nprofileMatches) {
+    try {
+      const decoded = nip19.decode(m[1]);
+      if (decoded.type === 'nprofile' && decoded.data.pubkey === pubkey) return true;
+    } catch {
+      // invalid nprofile — skip
+    }
+  }
+
+  return false;
+}
+
 export function NotificationsPage() {
   const { config } = useAppContext();
 
@@ -166,13 +193,9 @@ export function NotificationsPage() {
     }
     if (activeTab === 'mentions') {
       filtered = filtered.filter((group) => {
-        // Kind 1111 comments always count as mentions
-        if (group.kind === 1111) return true;
-        // Kind 1: only include pure mentions, not replies
-        if (group.kind === 1) {
-          return !isReplyEvent(group.actors[0].event);
-        }
-        return false;
+        if (group.kind !== 1 && group.kind !== 1111) return false;
+        // Only show events whose content literally @-mentions the user
+        return user ? contentMentionsPubkey(group.actors[0].event, user.pubkey) : false;
       });
     }
     return filtered;
