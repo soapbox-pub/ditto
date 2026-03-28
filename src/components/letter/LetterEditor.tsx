@@ -177,6 +177,7 @@ export function LetterEditor({
 
   const drawer = (
     <div
+      className="bg-background/90 backdrop-blur-sm"
       style={{
         overflow: 'hidden',
         maxHeight: drawerOpen ? (overlay === 'draw' ? '600px' : '400px') : '0',

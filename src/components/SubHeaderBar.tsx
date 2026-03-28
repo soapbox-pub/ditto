@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
+import { useNavHidden } from '@/contexts/LayoutContext';
 
 interface HoverSlice {
   left: number;
@@ -41,10 +42,11 @@ export function useSubHeaderBarHover() {
 export function SubHeaderBar({ children, className, innerClassName, noArc }: SubHeaderBarProps) {
   const [hover, setHover] = useState<HoverSlice | null>(null);
   const [active, setActive] = useState<HoverSlice | null>(null);
+  const navHidden = useNavHidden();
 
   return (
     <SubHeaderBarContext.Provider value={{ onHover: setHover, onActive: setActive }}>
-      <div className={cn('relative sticky top-mobile-bar sidebar:top-0 sidebar:py-2 z-10', className)}>
+      <div className={cn('relative sticky top-mobile-bar sidebar:top-0 sidebar:py-2 z-10 max-sidebar:transition-transform max-sidebar:duration-300 max-sidebar:ease-in-out', navHidden && 'nav-hidden-slide', className)}>
         <ArcBackground variant={noArc ? 'rect' : 'down'} />
         {/* Per-tab arc hover highlight: full-width arc, clipped to the hovered tab's x-slice */}
         {hover && !noArc && (

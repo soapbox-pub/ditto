@@ -69,6 +69,10 @@ import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
 import { ProfileRecoveryDialog } from '@/components/ProfileRecoveryDialog';
+import { GiveBadgeDialog } from '@/components/GiveBadgeDialog';
+import { BadgeThumbnail } from '@/components/BadgeThumbnail';
+import { useProfileBadges } from '@/hooks/useProfileBadges';
+import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
@@ -155,6 +159,7 @@ interface ProfileMoreMenuProps {
 
 function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile }: ProfileMoreMenuProps) {
   const { toast } = useToast();
+  const { user } = useCurrentUser();
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
@@ -164,8 +169,13 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const [reportOpen, setReportOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [giveBadgeOpen, setGiveBadgeOpen] = useState(false);
 
   const close = () => onOpenChange(false);
+  const openAfterClose = (setter: (v: boolean) => void) => {
+    close();
+    setTimeout(() => setter(true), 150);
+  };
 
   const handleCopyPubkey = () => {
     navigator.clipboard.writeText(npubEncoded);
@@ -194,15 +204,8 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     close();
   };
 
-  const handleReport = () => {
-    close();
-    setTimeout(() => setReportOpen(true), 150);
-  };
-
-  const handleAddToList = () => {
-    close();
-    setTimeout(() => setAddToListOpen(true), 150);
-  };
+  const handleReport = () => openAfterClose(setReportOpen);
+  const handleAddToList = () => openAfterClose(setAddToListOpen);
 
   const handleToggleSidebar = () => {
     if (isInSidebar) {
@@ -215,10 +218,8 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     close();
   };
 
-  const handleRecovery = () => {
-    close();
-    setTimeout(() => setRecoveryOpen(true), 150);
-  };
+  const handleRecovery = () => openAfterClose(setRecoveryOpen);
+  const handleGiveBadge = () => openAfterClose(setGiveBadgeOpen);
 
   return (
   <>
@@ -268,6 +269,13 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             <Separator />
 
             <div className="py-1">
+              {user && (
+                <MenuRow
+                  icon={<Award className="size-5" />}
+                  label="Give badge"
+                  onClick={handleGiveBadge}
+                />
+              )}
               <MenuRow
                 icon={<VolumeX className="size-5" />}
                 label={userMuted ? `Unmute @${displayName}` : `Mute @${displayName}`}
@@ -310,6 +318,15 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
       <ProfileRecoveryDialog
         open={recoveryOpen}
         onOpenChange={setRecoveryOpen}
+      />
+    )}
+
+    {!isOwnProfile && (
+      <GiveBadgeDialog
+        open={giveBadgeOpen}
+        onOpenChange={setGiveBadgeOpen}
+        recipientPubkey={pubkey}
+        recipientName={displayName}
       />
     )}
   </>
@@ -1571,6 +1588,11 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     return events;
   }, [mediaData?.pages]);
 
+  // Profile badges for bio section
+  const { refs: badgeRefs } = useProfileBadges(pubkey);
+  const firstBadgeRefs = useMemo(() => badgeRefs.slice(0, 5), [badgeRefs]);
+  const { badgeMap } = useBadgeDefinitions(firstBadgeRefs);
+
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {
     if (!likesData?.pages) return [];
@@ -2144,6 +2166,27 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 <p className="mt-3 text-sm whitespace-pre-wrap break-words overflow-hidden">
                   <BioContent tags={metadataEvent?.tags}>{metadata.about}</BioContent>
                 </p>
+              )}
+
+              {/* Badge preview */}
+              {badgeRefs.length > 0 && (
+                <div className="flex items-center gap-1.5 mt-2">
+                  {firstBadgeRefs.map((ref) => {
+                    const badge = badgeMap.get(ref.aTag);
+                    if (!badge) return null;
+                    return (
+                      <Link
+                        key={ref.aTag}
+                        to={`/${nip19.naddrEncode({ kind: 30009, pubkey: ref.pubkey, identifier: ref.identifier })}`}
+                      >
+                        <BadgeThumbnail badge={badge} size={32} className="transition-transform hover:scale-110" />
+                      </Link>
+                    );
+                  })}
+                  {badgeRefs.length > 5 && (
+                    <span className="text-[10px] text-muted-foreground font-medium">+{badgeRefs.length - 5}</span>
+                  )}
+                </div>
               )}
 
               {/* Profile fields shown inline on mobile (sidebar is hidden below xl) */}
