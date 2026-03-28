@@ -752,11 +752,6 @@ export function VinesFeedPage() {
 		setActiveIndex(0);
 	}, [tab]);
 
-	// Show bottom nav briefly while the new vine loads / autoplays
-	useEffect(() => {
-		setActiveVinePlaying(false);
-	}, [activeIndex]);
-
 	const activeVine = vines[activeIndex];
 
 	useLayoutOptions({
