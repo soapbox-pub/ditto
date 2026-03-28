@@ -189,7 +189,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'vines',
     showKey: 'showVines',
     feedKey: 'feedIncludeVines',
-    label: 'Vines',
+    label: 'Divines',
     description: 'Short-form videos',
     route: 'vines',
     addressable: true,
