@@ -18,7 +18,8 @@ export type DailyMissionAction =
   | 'sing'          // Sing direct action
   | 'play_music'    // Play music direct action
   | 'sleep'         // Put Blobbi to sleep
-  | 'take_photo';   // Take a photo of Blobbi
+  | 'take_photo'    // Take a photo of Blobbi
+  | 'medicine';     // Give medicine to Blobbi
 
 /**
  * Blobbi stage type for filtering missions
@@ -91,7 +92,12 @@ export const MAX_DAILY_REROLLS = 3;
  * - Rare weight (1): Rare missions (take photo)
  */
 export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
-  // ─── Common Missions (High Weight) ────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BABY/ADULT ONLY MISSIONS
+  // These actions are NOT available for eggs
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ─── Interact Missions (Baby/Adult only) ───────────────────────────────────
   {
     id: 'interact_3',
     title: 'Quick Care',
@@ -112,6 +118,8 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     weight: 8,
     requiredStages: ['baby', 'adult'],
   },
+
+  // ─── Feed Missions (Baby/Adult only) ───────────────────────────────────────
   {
     id: 'feed_1',
     title: 'Snack Time',
@@ -142,68 +150,8 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     weight: 5,
     requiredStages: ['baby', 'adult'],
   },
-  {
-    id: 'clean_1',
-    title: 'Quick Cleanup',
-    description: 'Clean your Blobbi once',
-    action: 'clean',
-    requiredCount: 1,
-    reward: 15,
-    weight: 10,
-    requiredStages: ['baby', 'adult'],
-  },
-  {
-    id: 'clean_2',
-    title: 'Squeaky Clean',
-    description: 'Clean your Blobbi 2 times',
-    action: 'clean',
-    requiredCount: 2,
-    reward: 25,
-    weight: 6,
-    requiredStages: ['baby', 'adult'],
-  },
 
-  // ─── Medium Frequency Missions ────────────────────────────────────────────
-  {
-    id: 'sing_1',
-    title: 'Sing Along',
-    description: 'Sing a song to your Blobbi',
-    action: 'sing',
-    requiredCount: 1,
-    reward: 25,
-    weight: 6,
-    requiredStages: ['baby', 'adult'],
-  },
-  {
-    id: 'sing_2',
-    title: 'Karaoke Session',
-    description: 'Sing 2 songs to your Blobbi',
-    action: 'sing',
-    requiredCount: 2,
-    reward: 40,
-    weight: 3,
-    requiredStages: ['baby', 'adult'],
-  },
-  {
-    id: 'play_music_1',
-    title: 'DJ Time',
-    description: 'Play a song for your Blobbi',
-    action: 'play_music',
-    requiredCount: 1,
-    reward: 25,
-    weight: 6,
-    requiredStages: ['baby', 'adult'],
-  },
-  {
-    id: 'play_music_2',
-    title: 'Music Marathon',
-    description: 'Play 2 songs for your Blobbi',
-    action: 'play_music',
-    requiredCount: 2,
-    reward: 40,
-    weight: 3,
-    requiredStages: ['baby', 'adult'],
-  },
+  // ─── Sleep Missions (Baby/Adult only) ──────────────────────────────────────
   {
     id: 'sleep_1',
     title: 'Nap Time',
@@ -215,7 +163,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     requiredStages: ['baby', 'adult'],
   },
 
-  // ─── Rare Missions ────────────────────────────────────────────────────────
+  // ─── Photo Missions (Baby/Adult only) ──────────────────────────────────────
   {
     id: 'take_photo_1',
     title: 'Snapshot',
@@ -235,6 +183,99 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     reward: 50,
     weight: 2,
     requiredStages: ['baby', 'adult'],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EGG + BABY + ADULT MISSIONS
+  // These actions are available for ALL stages including eggs
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ─── Clean Missions (All stages) ───────────────────────────────────────────
+  {
+    id: 'clean_1',
+    title: 'Quick Cleanup',
+    description: 'Clean your Blobbi once',
+    action: 'clean',
+    requiredCount: 1,
+    reward: 15,
+    weight: 10,
+    requiredStages: ['egg', 'baby', 'adult'],
+  },
+  {
+    id: 'clean_2',
+    title: 'Squeaky Clean',
+    description: 'Clean your Blobbi 2 times',
+    action: 'clean',
+    requiredCount: 2,
+    reward: 25,
+    weight: 6,
+    requiredStages: ['egg', 'baby', 'adult'],
+  },
+
+  // ─── Sing Missions (All stages) ────────────────────────────────────────────
+  {
+    id: 'sing_1',
+    title: 'Sing Along',
+    description: 'Sing a song to your Blobbi',
+    action: 'sing',
+    requiredCount: 1,
+    reward: 25,
+    weight: 6,
+    requiredStages: ['egg', 'baby', 'adult'],
+  },
+  {
+    id: 'sing_2',
+    title: 'Karaoke Session',
+    description: 'Sing 2 songs to your Blobbi',
+    action: 'sing',
+    requiredCount: 2,
+    reward: 40,
+    weight: 3,
+    requiredStages: ['egg', 'baby', 'adult'],
+  },
+
+  // ─── Play Music Missions (All stages) ──────────────────────────────────────
+  {
+    id: 'play_music_1',
+    title: 'DJ Time',
+    description: 'Play a song for your Blobbi',
+    action: 'play_music',
+    requiredCount: 1,
+    reward: 25,
+    weight: 6,
+    requiredStages: ['egg', 'baby', 'adult'],
+  },
+  {
+    id: 'play_music_2',
+    title: 'Music Marathon',
+    description: 'Play 2 songs for your Blobbi',
+    action: 'play_music',
+    requiredCount: 2,
+    reward: 40,
+    weight: 3,
+    requiredStages: ['egg', 'baby', 'adult'],
+  },
+
+  // ─── Medicine Missions (All stages) ────────────────────────────────────────
+  {
+    id: 'medicine_1',
+    title: 'Health Check',
+    description: 'Give medicine to your Blobbi',
+    action: 'medicine',
+    requiredCount: 1,
+    reward: 30,
+    weight: 5,
+    requiredStages: ['egg', 'baby', 'adult'],
+  },
+  {
+    id: 'medicine_2',
+    title: 'Doctor Visit',
+    description: 'Give medicine to your Blobbi 2 times',
+    action: 'medicine',
+    requiredCount: 2,
+    reward: 50,
+    weight: 3,
+    requiredStages: ['egg', 'baby', 'adult'],
   },
 ];
 
