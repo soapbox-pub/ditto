@@ -1,8 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useSeoMeta } from "@unhead/react";
 import { BookMarked, Loader2, Search, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useInView } from "react-intersection-observer";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BookFeedItem, BookFeedItemSkeleton } from "@/components/BookFeedItem";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
@@ -20,6 +19,8 @@ import { type BookSearchResult, useBookSearch } from "@/hooks/useBookSearch";
 import { usePrefetchBookSummaries } from "@/hooks/useBookSummary";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFeedTab } from "@/hooks/useFeedTab";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { deduplicateEvents } from "@/lib/deduplicateEvents";
 import type { ExtraKindDef } from "@/lib/extraKinds";
 
 type FeedTab = "follows" | "global";
@@ -65,36 +66,18 @@ export function BooksPage() {
     isFetchingNextPage,
   } = feedQuery;
 
-  // Auto-fetch page 2 for smoother scrolling
-  useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) {
-      fetchNextPage();
-    }
-  }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
-
-  const { ref: scrollRef, inView } = useInView({
-    threshold: 0,
-    rootMargin: "400px",
+  const { scrollRef } = useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    pageCount: rawData?.pages?.length,
   });
-
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) fetchNextPage();
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["book-feed", activeTab] });
   }, [queryClient, activeTab]);
 
-  // Flatten and deduplicate across pages
-  const events = useMemo(() => {
-    if (!rawData?.pages) return [];
-    const seen = new Set<string>();
-    return rawData.pages.flat().filter((event) => {
-      if (seen.has(event.id)) return false;
-      seen.add(event.id);
-      return true;
-    });
-  }, [rawData?.pages]);
+  const events = deduplicateEvents(rawData?.pages);
 
   // Batch-prefetch book metadata for all visible ISBNs (4 concurrent requests)
   usePrefetchBookSummaries(events);

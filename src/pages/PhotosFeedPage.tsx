@@ -9,8 +9,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { useSeoMeta } from "@unhead/react";
 import { Camera } from "lucide-react";
-import { useEffect, useMemo } from "react";
-import { useInView } from "react-intersection-observer";
+import { useMemo } from "react";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import {
@@ -26,6 +25,7 @@ import { useAppContext } from "@/hooks/useAppContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFeed } from "@/hooks/useFeed";
 import { useFeedTab } from "@/hooks/useFeedTab";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useMuteList } from "@/hooks/useMuteList";
 import { useInfiniteHotFeed } from "@/hooks/useTrending";
 import { getExtraKindDef } from "@/lib/extraKinds";
@@ -72,20 +72,12 @@ export function PhotosFeedPage() {
     isFetchingNextPage,
   } = activeQuery;
 
-  // Auto-fetch page 2
-  useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1)
-      fetchNextPage();
-  }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
-
-  // Infinite scroll
-  const { ref: scrollRef, inView } = useInView({
-    threshold: 0,
-    rootMargin: "400px",
+  const { scrollRef } = useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    pageCount: rawData?.pages?.length,
   });
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) fetchNextPage();
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Flatten — follows returns { items: FeedItem[] }, global returns NostrEvent[]
   const photoEvents = useMemo(() => {
