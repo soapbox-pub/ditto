@@ -25,7 +25,7 @@ export function MobileTopBar({ onAvatarClick, hasSubHeader }: MobileTopBarProps)
   return (
     <header
       className="sticky top-0 z-20 sidebar:hidden safe-area-top bg-background/85 transition-transform duration-300 ease-in-out"
-      style={navHidden ? { transform: 'translateY(calc(-100% - env(safe-area-inset-top, 0px)))' } : undefined}
+      style={navHidden ? { transform: 'translateY(calc(-100% - 20px - env(safe-area-inset-top, 0px)))' } : undefined}
     >
       {/* Relative wrapper so ArcBackground only covers the content area, not the safe-area padding above it. */}
       <div className="relative">
