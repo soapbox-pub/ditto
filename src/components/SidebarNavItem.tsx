@@ -46,7 +46,7 @@ export function SidebarNavItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={cn('flex items-center rounded-full transition-colors relative bg-background/85', isDragging && 'z-10 opacity-80 shadow-lg')}
+      className={cn('flex items-center rounded-full transition-colors relative bg-background/85 hover:bg-secondary/40', isDragging && 'z-10 opacity-80 shadow-lg')}
     >
       {editing && (
         <button
@@ -62,7 +62,7 @@ export function SidebarNavItem({
         to={path}
         onClick={onClick}
         className={cn(
-          'flex items-center gap-4 py-3 rounded-full transition-colors hover:bg-secondary/60 flex-1 min-w-0',
+          'flex items-center gap-4 py-3 rounded-full transition-colors flex-1 min-w-0',
           editing ? 'px-2' : 'px-3',
           active ? 'font-bold text-primary' : 'font-normal text-foreground',
           linkClassName ?? 'text-lg',
@@ -153,7 +153,7 @@ function MoreSeparatorItem({ sortableId, editing, linkClassName }: { sortableId:
     <div
       ref={setNodeRef}
       style={style}
-      className={cn('flex items-center rounded-full transition-colors relative bg-background/85', isDragging && 'z-10 opacity-80 shadow-lg')}
+      className={cn('flex items-center rounded-full transition-colors relative bg-background/85 hover:bg-secondary/40', isDragging && 'z-10 opacity-80 shadow-lg')}
     >
       {editing && (
         <button
