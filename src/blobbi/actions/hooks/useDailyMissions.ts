@@ -115,6 +115,17 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
       setState(newState);
       return newState;
     }
+    
+    // Migration: ensure rerollsRemaining is set for old state
+    if (state && state.rerollsRemaining === undefined) {
+      const migratedState = {
+        ...state,
+        rerollsRemaining: MAX_DAILY_REROLLS,
+      };
+      setState(migratedState);
+      return migratedState;
+    }
+    
     return state!;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, pubkey, stagesKey]);
