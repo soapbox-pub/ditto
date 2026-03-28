@@ -108,6 +108,29 @@ export function isDarkTheme(backgroundHsl: string): boolean {
   return getLuminance(r, g, b) < 0.2;
 }
 
+/** Resolve the live --background CSS variable to `"dark"` or `"light"`. */
+export function getBackgroundThemeMode(): 'dark' | 'light' {
+  if (typeof document === 'undefined') return 'light';
+  const bg = getComputedStyle(document.documentElement)
+    .getPropertyValue('--background')
+    .trim();
+  if (!bg) return 'light';
+  return isDarkTheme(bg) ? 'dark' : 'light';
+}
+
+/** Resolve the live --background CSS variable to a hex color, or `null`. */
+export function getBackgroundHex(): string | null {
+  if (typeof document === 'undefined') return null;
+  const bg = getComputedStyle(document.documentElement)
+    .getPropertyValue('--background')
+    .trim();
+  if (!bg) return null;
+  const { h, s, l } = parseHsl(bg);
+  if ([h, s, l].some(isNaN)) return null;
+  const [r, g, b] = hslToRgb(h, s, l);
+  return rgbToHex(r, g, b);
+}
+
 // ─── Adjust HSL helpers ───────────────────────────────────────────────
 
 /** Lighten an HSL string by a given amount (0-100). */
