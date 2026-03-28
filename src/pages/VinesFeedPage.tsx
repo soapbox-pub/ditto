@@ -319,6 +319,8 @@ export interface VineCardProps {
 	/** True for the card immediately before or after the active one — used to preload video. */
 	isNearActive: boolean;
 	onCommentClick: () => void;
+	/** Called when the active card's playing state changes. */
+	onPlayingChange?: (playing: boolean) => void;
 }
 
 export function VineCard({
@@ -326,6 +328,7 @@ export function VineCard({
 	isActive,
 	isNearActive,
 	onCommentClick,
+	onPlayingChange,
 }: VineCardProps) {
 	const { user } = useCurrentUser();
 	const author = useAuthor(event.pubkey);
@@ -418,16 +421,18 @@ export function VineCard({
 						muted={isMuted}
 						preload={isActive ? "auto" : isNearActive ? "metadata" : "none"}
 						onCanPlay={() => setIsVideoReady(true)}
-						onPlay={() => {
-							setIsPlaying(true);
-							setHasStarted(true);
-							setIsAttemptingPlay(false);
-							setIsBuffering(false);
-						}}
-						onPause={() => {
-							setIsPlaying(false);
-							setIsAttemptingPlay(false);
-						}}
+					onPlay={() => {
+						setIsPlaying(true);
+						setHasStarted(true);
+						setIsAttemptingPlay(false);
+						setIsBuffering(false);
+						onPlayingChange?.(true);
+					}}
+					onPause={() => {
+						setIsPlaying(false);
+						setIsAttemptingPlay(false);
+						onPlayingChange?.(false);
+					}}
 						onWaiting={() => {
 							if (hasStarted) setIsBuffering(true);
 						}}
@@ -715,6 +720,7 @@ export function VinesFeedPage() {
 	const { events, isLoading } = useVinesFeed(tab);
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [commentsOpen, setCommentsOpen] = useState(false);
+	const [activeVinePlaying, setActiveVinePlaying] = useState(false);
 	const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(
 		null,
 	);
@@ -746,6 +752,11 @@ export function VinesFeedPage() {
 		setActiveIndex(0);
 	}, [tab]);
 
+	// Show bottom nav briefly while the new vine loads / autoplays
+	useEffect(() => {
+		setActiveVinePlaying(false);
+	}, [activeIndex]);
+
 	const activeVine = vines[activeIndex];
 
 	useLayoutOptions({
@@ -753,9 +764,8 @@ export function VinesFeedPage() {
 		scrollContainer,
 		noOverscroll: true,
 		hasSubHeader: false,
-		noArcs: true,
 		hideTopBar: true,
-		hideBottomNav: true,
+		hideBottomNav: activeVinePlaying,
 	});
 
 	// On mobile the top bar and bottom nav are both hidden, so vines fill the
@@ -845,32 +855,48 @@ export function VinesFeedPage() {
 	// ── Loading state ────────────────────────────────────────────────────────
 	if (isLoading) {
 		return (
-			<div className="flex-1 min-w-0 flex flex-col">
+			<div className="flex-1 min-w-0 relative flex flex-col">
 				{vinesHeader}
-				{/* Desktop tab bar */}
 				<div className="hidden sidebar:block">
 					<VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
 				</div>
-				{/* Vine card skeleton */}
-				<div className="flex-1 relative bg-neutral-900 overflow-hidden">
-					<Skeleton className="absolute inset-0 rounded-none bg-neutral-800" />
-					{/* Floating tab bar skeleton (mobile) */}
-					<div className="absolute top-0 inset-x-0 z-20 flex justify-center gap-6 pt-3 pb-2 safe-area-top sidebar:hidden">
-						<Skeleton className="h-5 w-16 bg-white/20 rounded" />
-						<Skeleton className="h-5 w-16 bg-white/20 rounded" />
-					</div>
-					{/* Bottom info strip */}
-					<div className="absolute bottom-6 left-4 right-20 space-y-2">
-						<Skeleton className="h-4 w-28 bg-white/20" />
-						<Skeleton className="h-3 w-48 bg-white/10" />
-						<Skeleton className="h-3 w-20 bg-white/10" />
-					</div>
-					{/* Right action buttons */}
-					<div className="absolute right-3 bottom-24 flex flex-col items-center gap-5">
-						<Skeleton className="size-11 rounded-full bg-white/20" />
-						<Skeleton className="size-11 rounded-full bg-white/20" />
-						<Skeleton className="size-11 rounded-full bg-white/20" />
-						<Skeleton className="size-11 rounded-full bg-white/20" />
+				{/* Immersive skeleton — matches the full-viewport vine layout */}
+				<div className="relative flex-1 min-h-0">
+					<div className={cn(vineHeightClass, "sidebar:h-[calc(100vh-3rem)] relative bg-neutral-900 overflow-hidden")}>
+						{/* Floating tab bar (mobile) */}
+						<div className="absolute top-0 inset-x-0 z-20 sidebar:hidden safe-area-top">
+							<div className="flex items-center justify-center gap-1 py-2 px-3">
+								<Skeleton className="size-9 rounded-full bg-white/10" />
+								<div className="flex items-center justify-center gap-6 flex-1">
+									<Skeleton className="h-5 w-16 bg-white/20 rounded" />
+									<Skeleton className="h-5 w-16 bg-white/20 rounded" />
+								</div>
+								<div className="size-9" />
+							</div>
+						</div>
+						{/* Top gradient */}
+						<div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
+						{/* Bottom gradient */}
+						<div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
+						{/* Bottom info strip */}
+						<div className="absolute bottom-6 left-4 right-20 space-y-2.5">
+							<Skeleton className="h-4 w-28 bg-white/20 rounded" />
+							<Skeleton className="h-3.5 w-48 bg-white/15 rounded" />
+							<div className="flex gap-1.5">
+								<Skeleton className="h-3 w-20 bg-white/10 rounded" />
+								<Skeleton className="h-3 w-14 bg-white/10 rounded" />
+							</div>
+						</div>
+						{/* Right action buttons */}
+						<div className="absolute right-3 bottom-24 flex flex-col items-center gap-5">
+							<Skeleton className="size-11 rounded-full bg-white/15" />
+							<Skeleton className="size-11 rounded-full bg-white/15" />
+							<Skeleton className="size-11 rounded-full bg-white/15" />
+							<Skeleton className="size-11 rounded-full bg-white/15" />
+							<Skeleton className="size-11 rounded-full bg-white/15" />
+						</div>
+						{/* Mute button */}
+						<Skeleton className="absolute bottom-4 right-4 size-9 rounded-full bg-white/10" />
 					</div>
 				</div>
 			</div>
@@ -946,6 +972,7 @@ export function VinesFeedPage() {
 							isActive={i === activeIndex}
 							isNearActive={Math.abs(i - activeIndex) <= 1}
 							onCommentClick={handleCommentClick}
+							onPlayingChange={i === activeIndex ? setActiveVinePlaying : undefined}
 						/>
 					</div>
 				))}
