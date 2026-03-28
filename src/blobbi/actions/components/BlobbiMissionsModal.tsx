@@ -35,6 +35,7 @@ import { TasksPanel } from './TasksPanel';
 import { DailyMissionsPanel } from './DailyMissionsPanel';
 import { useDailyMissions } from '../hooks/useDailyMissions';
 import { useClaimMissionReward } from '../hooks/useClaimMissionReward';
+import { useRerollMission } from '../hooks/useRerollMission';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -94,6 +95,7 @@ function DailyMissionsSection({ profile, updateProfileEvent, availableStages, di
     bonusClaimed,
     bonusReward,
     noMissionsAvailable,
+    rerollsRemaining,
   } = useDailyMissions({ availableStages });
 
   const { mutate: claimReward, isPending: isClaiming } = useClaimMissionReward(
@@ -101,8 +103,14 @@ function DailyMissionsSection({ profile, updateProfileEvent, availableStages, di
     updateProfileEvent
   );
 
+  const { mutate: rerollMission, isPending: isRerolling } = useRerollMission();
+
   const handleClaimReward = (missionId: string) => {
     claimReward({ missionId });
+  };
+
+  const handleRerollMission = (missionId: string) => {
+    rerollMission({ missionId, availableStages });
   };
 
   return (
@@ -134,12 +142,15 @@ function DailyMissionsSection({ profile, updateProfileEvent, availableStages, di
         <DailyMissionsPanel
           missions={missions}
           onClaimReward={handleClaimReward}
+          onRerollMission={handleRerollMission}
           todayCoins={todayClaimedReward}
-          disabled={disabled || isClaiming}
+          disabled={disabled || isClaiming || isRerolling}
           bonusAvailable={bonusAvailable}
           bonusClaimed={bonusClaimed}
           bonusReward={bonusReward}
           noMissionsAvailable={noMissionsAvailable}
+          rerollsRemaining={rerollsRemaining}
+          isRerolling={isRerolling}
         />
       </CollapsibleContent>
     </Collapsible>

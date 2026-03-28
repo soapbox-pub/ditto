@@ -31,6 +31,8 @@ import {
   isBonusMissionAvailable,
   isBonusMissionClaimed,
   BONUS_MISSION_DEFINITION,
+  getRerollsRemaining,
+  MAX_DAILY_REROLLS,
 } from '../lib/daily-missions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -61,6 +63,10 @@ export interface UseDailyMissionsResult {
   bonusReward: number;
   /** Whether user has no eligible missions (e.g., only eggs) */
   noMissionsAvailable: boolean;
+  /** Number of rerolls remaining for today */
+  rerollsRemaining: number;
+  /** Maximum rerolls allowed per day */
+  maxRerolls: number;
   /** Force refresh missions (for testing or manual reset) */
   forceReset: () => void;
 }
@@ -128,6 +134,8 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
   const bonusClaimed = isBonusMissionClaimed(currentState);
   const bonusReward = BONUS_MISSION_DEFINITION.reward;
   const noMissionsAvailable = missions.length === 0;
+  const rerollsRemaining = getRerollsRemaining(currentState);
+  const maxRerolls = MAX_DAILY_REROLLS;
   
   // Total potential includes bonus if regular missions exist
   const basePotentialReward = getTotalPotentialReward(currentState);
@@ -152,6 +160,8 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
     bonusClaimed,
     bonusReward,
     noMissionsAvailable,
+    rerollsRemaining,
+    maxRerolls,
     forceReset,
   };
 }
