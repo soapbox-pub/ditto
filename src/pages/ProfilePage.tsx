@@ -96,6 +96,7 @@ import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { formatNumber } from '@/lib/formatNumber';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -1763,7 +1764,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     // If we're resolving a NIP-05, show loading state
     if (isNip05Param && nip05Loading) {
       return (
-        <main className="">
+        <main className="flex-1 min-w-0">
           <div className="h-36 md:h-48 bg-secondary animate-pulse" />
           <div className="px-4 pb-4">
             <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
@@ -1778,7 +1779,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     // If NIP-05 resolved to null (not found), show error
     if (isNip05Param && !nip05Loading) {
       return (
-        <main className="">
+        <main className="flex-1 min-w-0">
           <div className="p-8 text-center text-muted-foreground">
             <p>User not found: {npub}</p>
             <p className="text-xs mt-2">Could not resolve this NIP-05 identifier.</p>
@@ -1787,7 +1788,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       );
     }
     return (
-      <main className="">
+      <main className="flex-1 min-w-0">
         <div className="p-8 text-center text-muted-foreground">
           <p>Please log in to view your profile.</p>
         </div>
@@ -1796,7 +1797,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   }
 
   return (
-    <main>
+    <main className="flex-1 min-w-0">
       <PullToRefresh onRefresh={handleRefresh}>
         {/* Banner */}
           <div className="h-36 md:h-48 bg-secondary relative">
@@ -2344,6 +2345,8 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             </div>
           )}
         </SubHeaderBar>
+
+        <div style={{ height: ARC_OVERHANG_PX }} />
 
         {/* Add/edit single tab modal */}
         {pubkey && (
