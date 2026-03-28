@@ -71,7 +71,14 @@ export interface DailyMissionsState {
   totalCoinsEarned: number;
   /** Whether the bonus mission has been claimed today */
   bonusClaimed?: boolean;
+  /** Number of rerolls remaining for today (resets daily, max 3) */
+  rerollsRemaining?: number;
 }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/** Maximum number of mission rerolls allowed per day */
+export const MAX_DAILY_REROLLS = 3;
 
 // ─── Mission Pool ─────────────────────────────────────────────────────────────
 
@@ -294,6 +301,7 @@ export function createDailyMissionsState(
     date: dateString,
     missions: definitions.map(createMissionFromDefinition),
     totalCoinsEarned: previousTotalCoins,
+    rerollsRemaining: MAX_DAILY_REROLLS,
   };
 }
 
@@ -446,5 +454,134 @@ export function claimBonusMissionReward(
       totalCoinsEarned: state.totalCoinsEarned + BONUS_MISSION_DEFINITION.reward,
     },
     coinsEarned: BONUS_MISSION_DEFINITION.reward,
+  };
+}
+
+// ─── Mission Reroll ───────────────────────────────────────────────────────────
+
+/**
+ * Get the number of rerolls remaining for today
+ */
+export function getRerollsRemaining(state: DailyMissionsState): number {
+  return state.rerollsRemaining ?? MAX_DAILY_REROLLS;
+}
+
+/**
+ * Check if the user can reroll a mission
+ */
+export function canRerollMission(state: DailyMissionsState, missionId: string): boolean {
+  const rerollsRemaining = getRerollsRemaining(state);
+  if (rerollsRemaining <= 0) return false;
+  
+  // Find the mission
+  const mission = state.missions.find((m) => m.id === missionId);
+  if (!mission) return false;
+  
+  // Cannot reroll completed or claimed missions
+  if (mission.completed || mission.claimed) return false;
+  
+  return true;
+}
+
+/**
+ * Select a replacement mission that:
+ * - Is not already in the current mission list
+ * - Is not the mission being replaced (avoid immediately giving back the same)
+ * - Respects the user's available stages
+ * 
+ * Uses weighted random selection from eligible missions.
+ */
+export function selectReplacementMission(
+  currentMissions: DailyMission[],
+  missionToReplace: DailyMission,
+  availableStages?: BlobbiStage[]
+): DailyMissionDefinition | null {
+  const stagesToCheck = availableStages ?? ['baby', 'adult'];
+  
+  // Get IDs of missions that cannot be selected
+  const excludedIds = new Set<string>();
+  
+  // Exclude all current missions
+  for (const m of currentMissions) {
+    excludedIds.add(m.id);
+  }
+  
+  // Also exclude the mission being replaced (it's already in currentMissions, but be explicit)
+  excludedIds.add(missionToReplace.id);
+  
+  // Filter pool to eligible missions
+  const eligibleMissions = DAILY_MISSION_POOL.filter((m) => {
+    // Must not be excluded
+    if (excludedIds.has(m.id)) return false;
+    // Must be available for user's stages
+    if (!isMissionAvailableForStages(m, stagesToCheck)) return false;
+    return true;
+  });
+  
+  // If no eligible missions, return null
+  if (eligibleMissions.length === 0) {
+    return null;
+  }
+  
+  // Use Math.random() for non-deterministic selection (rerolls should feel random)
+  const totalWeight = eligibleMissions.reduce((sum, m) => sum + m.weight, 0);
+  let pick = Math.random() * totalWeight;
+  
+  for (const mission of eligibleMissions) {
+    pick -= mission.weight;
+    if (pick <= 0) {
+      return mission;
+    }
+  }
+  
+  // Fallback to first eligible (shouldn't happen)
+  return eligibleMissions[0];
+}
+
+/**
+ * Reroll a mission, replacing it with a new one from the pool.
+ * Returns the updated state and the new mission, or null if reroll failed.
+ */
+export function rerollMission(
+  state: DailyMissionsState,
+  missionId: string,
+  availableStages?: BlobbiStage[]
+): { state: DailyMissionsState; newMission: DailyMission } | null {
+  // Check if reroll is allowed
+  if (!canRerollMission(state, missionId)) {
+    return null;
+  }
+  
+  // Find the mission index
+  const missionIndex = state.missions.findIndex((m) => m.id === missionId);
+  if (missionIndex === -1) {
+    return null;
+  }
+  
+  const oldMission = state.missions[missionIndex];
+  
+  // Select a replacement
+  const replacement = selectReplacementMission(state.missions, oldMission, availableStages);
+  if (!replacement) {
+    return null;
+  }
+  
+  // Create the new mission instance
+  const newMission = createMissionFromDefinition(replacement);
+  
+  // Update the missions array
+  const updatedMissions = [...state.missions];
+  updatedMissions[missionIndex] = newMission;
+  
+  // Decrement rerolls remaining
+  const newRerollsRemaining = getRerollsRemaining(state) - 1;
+  
+  return {
+    state: {
+      ...state,
+      missions: updatedMissions,
+      rerollsRemaining: newRerollsRemaining,
+    },
+    newMission,
   };
 }
