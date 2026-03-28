@@ -1,20 +1,23 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Globe, Mail, Shield, Zap, Server, Hash } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Globe, Info, Mail, Shield, Zap, Server, Hash } from 'lucide-react';
+import { useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { NoteCard } from '@/components/NoteCard';
+import { PageHeader } from '@/components/PageHeader';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useMuteList } from '@/hooks/useMuteList';
-import { useRelayInfo } from '@/hooks/useRelayInfo';
+import { useRelayInfo, type RelayInfoDocument } from '@/hooks/useRelayInfo';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { PageHeader } from '@/components/PageHeader';
 import type { NostrEvent } from '@nostrify/nostrify';
 import NotFound from './NotFound';
 
@@ -39,10 +42,10 @@ function useRelayFeed(relayUrl: string | undefined, kinds: number[]) {
 
 export function RelayPage() {
   const { config } = useAppContext();
-  const navigate = useNavigate();
   const { '*': rawParam } = useParams();
   const { feedSettings } = useFeedSettings();
   const { muteItems } = useMuteList();
+  const [infoOpen, setInfoOpen] = useState(false);
 
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
 
@@ -67,7 +70,7 @@ export function RelayPage() {
     }
   }, [relayUrl]);
 
-  const { data: info, isLoading: infoLoading, isError: infoError } = useRelayInfo(relayUrl ?? '');
+  const { data: info, isLoading: infoLoading, isError: infoError } = useRelayInfo(relayUrl);
   const { data: events, isLoading: eventsLoading } = useRelayFeed(relayUrl, kinds);
 
   const filteredEvents = useMemo(() => {
@@ -84,70 +87,109 @@ export function RelayPage() {
     description: info?.description ?? `Events from ${hostname}`,
   });
 
+  useLayoutOptions({ hasSubHeader: true });
+
   if (!rawParam) {
     return <NotFound />;
   }
 
   return (
     <main>
-      {/* Header */}
-      <PageHeader
-        onBack={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
-        titleContent={
-          <div className="flex items-center gap-2.5 min-w-0">
-            {info?.icon ? (
-              <img
-                src={info.icon}
-                alt=""
-                className="size-8 rounded-full object-cover ring-1 ring-border"
-              />
-            ) : (
-              <div className="size-8 rounded-full bg-muted flex items-center justify-center ring-1 ring-border">
-                <Server className="size-4 text-muted-foreground" />
+      <PageHeader title={hostname} icon={<Server className="size-5" />}>
+        <button
+          onClick={() => setInfoOpen((o) => !o)}
+          className={`p-2 rounded-full transition-colors ${infoOpen ? 'text-foreground bg-secondary' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'}`}
+          aria-label="Toggle relay info"
+        >
+          <Info className="size-4" />
+        </button>
+      </PageHeader>
+
+      <div className="sticky top-mobile-bar sidebar:top-0 z-10">
+        <RelayInfoPanel info={info} infoLoading={infoLoading} infoError={infoError} open={infoOpen} />
+        <SubHeaderBar className="relative">{null}</SubHeaderBar>
+      </div>
+
+      <div style={{ height: ARC_OVERHANG_PX }} />
+
+      {/* Feed section */}
+      <div>
+        {eventsLoading ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="px-4 py-3">
+                <div className="flex gap-3">
+                  <Skeleton className="size-11 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredEvents && filteredEvents.length > 0 ? (
+          filteredEvents.map((event) => <NoteCard key={event.id} event={event} />)
+        ) : (
+          <div className="py-16 text-center text-muted-foreground">
+            No events found on this relay.
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
+
+/** Inline expandable panel that displays NIP-11 relay information. */
+function RelayInfoPanel({ info, infoLoading, infoError, open }: {
+  info: RelayInfoDocument | undefined;
+  infoLoading: boolean;
+  infoError: boolean;
+  open: boolean;
+}) {
+  return (
+    <div
+      style={{
+        overflow: 'hidden',
+        maxHeight: open ? '800px' : '0',
+        transition: 'max-height 0.3s ease-in-out',
+      }}
+      aria-hidden={!open}
+    >
+      <div>
+        {infoLoading ? (
+          <div className="p-4 space-y-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-6 w-16 rounded-full" />
+              <Skeleton className="h-6 w-16 rounded-full" />
+              <Skeleton className="h-6 w-16 rounded-full" />
+            </div>
+          </div>
+        ) : info ? (
+          <div className="p-4 space-y-4">
+            {/* Banner */}
+            {info.banner && (
+              <div className="w-full h-40 overflow-hidden rounded-lg">
+                <img src={info.banner} alt="" className="w-full h-full object-cover" />
               </div>
             )}
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold truncate leading-tight">
-                {info?.name ?? hostname}
-              </h1>
-              <p className="text-xs text-muted-foreground leading-tight truncate">
-                {hostname}
-              </p>
-            </div>
-          </div>
-        }
-      />
 
-      {/* NIP-11 Info Section */}
-      {infoLoading ? (
-        <div className="p-4 space-y-4 border-b border-border">
-          {/* Banner skeleton */}
-          <Skeleton className="w-full h-32 rounded-lg" />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-1/2" />
-          </div>
-          <div className="flex gap-2">
-            <Skeleton className="h-6 w-16 rounded-full" />
-            <Skeleton className="h-6 w-16 rounded-full" />
-            <Skeleton className="h-6 w-16 rounded-full" />
-          </div>
-        </div>
-      ) : info ? (
-        <div className="border-b border-border">
-          {/* Banner */}
-          {info.banner && (
-            <div className="w-full h-40 overflow-hidden">
-              <img
-                src={info.banner}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
+            {/* Icon + name (when different from hostname) */}
+            {info.icon && (
+              <div className="flex items-center gap-2.5">
+                <img src={info.icon} alt="" className="size-8 rounded-full object-cover ring-1 ring-border" />
+                {info.name && (
+                  <span className="text-sm font-medium">{info.name}</span>
+                )}
+              </div>
+            )}
 
-          <div className="p-4 space-y-4">
             {/* Description */}
             {info.description && (
               <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
@@ -235,41 +277,15 @@ export function RelayPage() {
               </div>
             )}
           </div>
-        </div>
-      ) : infoError ? (
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Globe className="size-4" />
-            <span>Could not load relay information.</span>
+        ) : infoError ? (
+          <div className="p-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Globe className="size-4" />
+              <span>Could not load relay information.</span>
+            </div>
           </div>
-        </div>
-      ) : null}
-
-      {/* Feed section */}
-      <div>
-        {eventsLoading ? (
-          <div className="divide-y divide-border">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="px-4 py-3">
-                <div className="flex gap-3">
-                  <Skeleton className="size-11 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredEvents && filteredEvents.length > 0 ? (
-          filteredEvents.map((event) => <NoteCard key={event.id} event={event} />)
-        ) : (
-          <div className="py-16 text-center text-muted-foreground">
-            No events found on this relay.
-          </div>
-        )}
+        ) : null}
       </div>
-    </main>
+    </div>
   );
 }
