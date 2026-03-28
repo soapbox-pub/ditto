@@ -6,36 +6,20 @@
 
 import { Blobbi } from '@/types/blobbi';
 import { BabyVariant, BabySvgResolverOptions } from '../types/baby.types';
-
-// Baby stage SVG imports (Vite will handle these)
-const BABY_BASE_SVG = import.meta.glob('/src/blobbi/baby-blobbi/assets/blobbi-baby-base.svg', { 
-  query: '?raw', 
-  import: 'default', 
-  eager: true 
-});
-
-const BABY_SLEEPING_SVG = import.meta.glob('/src/blobbi/baby-blobbi/assets/blobbi-baby-sleeping.svg', { 
-  query: '?raw', 
-  import: 'default', 
-  eager: true 
-});
+import { BABY_BASE_SVG, BABY_SLEEPING_SVG } from './baby-svg-data';
 
 /**
  * Get baby base SVG content
  */
 export function getBabyBaseSvg(): string {
-  const svgKey = Object.keys(BABY_BASE_SVG)[0];
-  const svgContent = BABY_BASE_SVG[svgKey];
-  return typeof svgContent === 'string' ? svgContent : getFallbackBabySvg();
+  return BABY_BASE_SVG;
 }
 
 /**
  * Get baby sleeping SVG content
  */
 export function getBabySleepingSvg(): string {
-  const svgKey = Object.keys(BABY_SLEEPING_SVG)[0];
-  const svgContent = BABY_SLEEPING_SVG[svgKey];
-  return typeof svgContent === 'string' ? svgContent : getFallbackBabySvg();
+  return BABY_SLEEPING_SVG;
 }
 
 /**
@@ -63,7 +47,7 @@ export function resolveBabySvg(blobbi: Blobbi, options: BabySvgResolverOptions =
  * Preload baby SVGs for quick switching
  */
 export function preloadBabySvgs(): void {
-  // Both SVGs are already loaded eagerly via import.meta.glob
+  // Both SVGs are inlined constants — this function exists for API consistency
   // This function exists for API consistency
   getBabyBaseSvg();
   getBabySleepingSvg();

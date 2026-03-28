@@ -13,35 +13,7 @@ import {
   resolveAdultForm,
   getDefaultAdultForm,
 } from '../types/adult.types';
-
-// ─── SVG Asset Loading ────────────────────────────────────────────────────────
-
-/**
- * Eagerly load all adult SVG assets using Vite's import.meta.glob
- * 
- * Pattern matches: /src/blobbi/adult-blobbi/assets/{form}/{form}-{variant}.svg
- */
-const ADULT_SVGS = import.meta.glob<string>(
-  '/src/blobbi/adult-blobbi/assets/**/*.svg',
-  { query: '?raw', import: 'default', eager: true }
-);
-
-// ─── Internal Helpers ─────────────────────────────────────────────────────────
-
-/**
- * Build the expected path for an adult SVG
- */
-function buildSvgPath(form: AdultForm, variant: 'base' | 'sleeping'): string {
-  return `/src/blobbi/adult-blobbi/assets/${form}/${form}-${variant}.svg`;
-}
-
-/**
- * Get SVG content from loaded assets
- */
-function getSvgFromAssets(path: string): string | undefined {
-  const content = ADULT_SVGS[path];
-  return typeof content === 'string' ? content : undefined;
-}
+import { ADULT_SVG_MAP } from './adult-svg-data';
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -49,16 +21,14 @@ function getSvgFromAssets(path: string): string | undefined {
  * Get adult base SVG content for a specific form
  */
 export function getAdultBaseSvg(form: AdultForm): string {
-  const path = buildSvgPath(form, 'base');
-  return getSvgFromAssets(path) ?? getFallbackAdultSvg(form);
+  return ADULT_SVG_MAP[form]?.base ?? getFallbackAdultSvg(form);
 }
 
 /**
  * Get adult sleeping SVG content for a specific form
  */
 export function getAdultSleepingSvg(form: AdultForm): string {
-  const path = buildSvgPath(form, 'sleeping');
-  return getSvgFromAssets(path) ?? getFallbackAdultSvg(form);
+  return ADULT_SVG_MAP[form]?.sleeping ?? getFallbackAdultSvg(form);
 }
 
 /**
@@ -118,7 +88,7 @@ export function getAvailableAdultForms(): readonly AdultForm[] {
  * Preload all adult SVGs for quick switching
  */
 export function preloadAdultSvgs(): void {
-  // All SVGs are already loaded eagerly via import.meta.glob
+  // All SVGs are inlined constants — this function exists for API consistency
   // This function exists for API consistency
   for (const form of ADULT_FORMS) {
     getAdultBaseSvg(form);
