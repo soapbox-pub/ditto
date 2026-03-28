@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { Earth, Search } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
 import { Input } from '@/components/ui/input';
 import { useAppContext } from '@/hooks/useAppContext';
 import { COUNTRIES } from '@/lib/countries';
@@ -31,12 +32,7 @@ export function WorldPage() {
   return (
     <main className="">
       {/* Header */}
-      <div className="px-4 py-3.5 sidebar:py-5">
-        <div className="flex items-center gap-2">
-          <Earth className="size-5" />
-          <h1 className="font-bold text-xl">World</h1>
-        </div>
-      </div>
+      <PageHeader title="World" icon={<Earth className="size-5" />} backTo="/" />
 
       {/* Search */}
       <div className="px-4 pb-4">

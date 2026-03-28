@@ -1,10 +1,12 @@
 import process from "node:process";
 import { execSync } from "node:child_process";
+import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv, type Plugin } from "vite";
+import { visualizer } from "rollup-plugin-visualizer";
+import { defineConfig, type Plugin } from "vite";
 
 import { DittoConfigSchema } from "./src/lib/schemas";
 
@@ -92,96 +94,33 @@ function mergePublicDir(externalDir: string): Plugin {
   };
 }
 
-/**
- * All static routes in the application (no dynamic params).
- * Used to generate a sitemap.xml at build time.
- */
-const staticRoutes = [
-  '/',
-  '/feed',
-  '/notifications',
-  '/search',
-  '/trends',
-  '/settings',
-  '/settings/profile',
-  '/settings/feed',
-  '/settings/content',
-  '/settings/wallet',
-  '/settings/notifications',
-  '/settings/advanced',
-  '/settings/magic',
-  '/settings/network',
-  '/lists',
-  '/events',
-  '/photos',
-  '/videos',
-  '/vines',
-  '/music',
-  '/podcasts',
-  '/polls',
-  '/treasures',
-  '/colors',
-  '/packs',
-  '/webxdc',
-  '/articles',
-  '/decks',
-  '/emojis',
-  '/development',
-  '/themes',
-  '/bookmarks',
-  '/ai-chat',
-  '/world',
-  '/badges',
-  '/books',
-  '/help',
-];
-
-/**
- * Vite plugin that generates a sitemap.xml in the build output.
- * Set the PUBLIC_URL env var (e.g. "https://ditto.pub") to enable.
- * Skipped when PUBLIC_URL is not set.
- */
-function generateSitemap(origin: string): Plugin {
-  return {
-    name: 'ditto:sitemap',
-    writeBundle(options) {
-      const outDir = options.dir ?? path.resolve('dist');
-
-      const urls = staticRoutes
-        .map((route) => `  <url>\n    <loc>${new URL(route, origin).href}</loc>\n  </url>`)
-        .join('\n');
-
-      const xml = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-        urls,
-        '</urlset>',
-        '',
-      ].join('\n');
-
-      fs.writeFileSync(path.join(outDir, 'sitemap.xml'), xml);
-    },
-  };
-}
-
 const dittoConfig = loadDittoConfig();
 const publicDir = process.env.PUBLIC_DIR;
+const require = createRequire(import.meta.url);
+const pkg = require("./package.json") as { version: string };
 
-/** Git-based version string for Sentry releases. */
-function getVersion(): string {
+/** Short commit SHA — prefer CI env var, fall back to git. */
+function getCommitSha(): string {
+  if (process.env.CI_COMMIT_SHORT_SHA) return process.env.CI_COMMIT_SHORT_SHA;
   try {
-    return execSync("git describe --tags --always --dirty", { encoding: "utf-8" }).trim();
+    return execSync("git rev-parse --short HEAD", { encoding: "utf-8" }).trim();
   } catch {
-    return "unknown";
+    return "";
   }
 }
 
+/** Git tag for the current commit — prefer CI env var, fall back to git. Empty string if untagged. */
+function getCommitTag(): string {
+  if (process.env.CI_COMMIT_TAG) return process.env.CI_COMMIT_TAG;
+  try {
+    return execSync("git describe --exact-match --tags HEAD 2>/dev/null", { encoding: "utf-8" }).trim();
+  } catch {
+    return "";
+  }
+}
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
-  const publicUrl = env.PUBLIC_URL;
-
+export default defineConfig(() => {
   return {
   server: {
     host: "::",
@@ -189,12 +128,19 @@ export default defineConfig(({ mode }) => {
   },
   plugins: [
     react(),
+    visualizer({
+      filename: "dist/bundle.html",
+      template: "treemap",
+      gzipSize: true,
+    }),
     ...(publicDir ? [mergePublicDir(publicDir)] : []),
-    ...(publicUrl ? [generateSitemap(publicUrl)] : []),
   ],
   define: {
     __DITTO_CONFIG__: JSON.stringify(dittoConfig ?? null),
-    'import.meta.env.VERSION': JSON.stringify(getVersion()),
+    'import.meta.env.VERSION': JSON.stringify(pkg.version),
+    'import.meta.env.BUILD_DATE': JSON.stringify(new Date().toISOString()),
+    'import.meta.env.COMMIT_SHA': JSON.stringify(getCommitSha()),
+    'import.meta.env.COMMIT_TAG': JSON.stringify(getCommitTag()),
   },
   test: {
     globals: true,
@@ -209,6 +155,19 @@ export default defineConfig(({ mode }) => {
   },
   build: {
     target: 'esnext',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Consolidate lucide icons into a single chunk instead of 60+ micro-chunks.
+          if (id.includes('node_modules/lucide-react')) {
+            return 'lucide-icons';
+          }
+        },
+      },
+    },
+  },
+  optimizeDeps: {
+    exclude: ['@capacitor/filesystem', '@capacitor/share'],
   },
   resolve: {
     alias: {

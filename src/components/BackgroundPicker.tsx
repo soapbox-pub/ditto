@@ -6,6 +6,7 @@ import { useUploadFile } from '@/hooks/useUploadFile';
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { resizeImage } from '@/lib/resizeImage';
 import type { ThemeBackground } from '@/themes';
 
 /**
@@ -42,16 +43,16 @@ export function BackgroundPicker({ value, onChange }: {
     }
 
     try {
-      const tags = await uploadFile(file);
-      const url = tags[0][1];
+      // Resize & convert to JPEG before uploading for better performance.
+      const { file: optimized, dimensions } = await resizeImage(file);
 
-      // Read dimensions from the image
-      const dimensions = await getImageDimensions(file);
+      const tags = await uploadFile(optimized);
+      const url = tags[0][1];
 
       const bg: ThemeBackground = {
         url,
         mode: 'cover',
-        mimeType: file.type,
+        mimeType: optimized.type,
         dimensions,
       };
 
@@ -170,18 +171,4 @@ export function BackgroundPicker({ value, onChange }: {
   );
 }
 
-/** Read image dimensions from a File. */
-function getImageDimensions(file: File): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      resolve(`${img.naturalWidth}x${img.naturalHeight}`);
-      URL.revokeObjectURL(img.src);
-    };
-    img.onerror = () => {
-      resolve(undefined);
-      URL.revokeObjectURL(img.src);
-    };
-    img.src = URL.createObjectURL(file);
-  });
-}
+

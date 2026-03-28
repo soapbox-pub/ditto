@@ -198,8 +198,20 @@ interface RunResult<T> {
 async function runWithNudge<T>(op: () => Promise<T>, opts: RunOpts): Promise<RunResult<T>> {
   const { kind, opType, isBunkerConnected } = opts;
 
+  // Tagged outcome type used to distinguish op results from control signals.
+  type Outcome =
+    | { tag: 'value'; value: T }
+    | { tag: 'error'; error: unknown }
+    | { tag: 'signal'; signal: Signal };
+
   let nudgeFired = false;
   let afterForegroundResume = false;
+
+  // Previous op promises that are still in-flight. On Android foreground
+  // resume we issue a fresh `op()` but keep racing previous ones so a late
+  // response from an earlier attempt is still accepted (avoids duplicate
+  // signer prompts).
+  const pendingOps: Promise<Outcome>[] = [];
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     // Signal channels — each resolves with a sentinel when its condition fires.
@@ -237,17 +249,12 @@ async function runWithNudge<T>(op: () => Promise<T>, opts: RunOpts): Promise<Run
       dismissNudge?.();
     }
 
-    // Race the real operation against the signal channels.
-    // Tag results so we can distinguish op outcomes from signals.
-    type Outcome =
-      | { tag: 'value'; value: T }
-      | { tag: 'error'; error: unknown }
-      | { tag: 'signal'; signal: Signal };
-
-    const opOutcome: Promise<Outcome> = op().then(
+    // Start a new op and add it to the pending set.
+    const newOp: Promise<Outcome> = op().then(
       (value): Outcome => ({ tag: 'value', value }),
       (error): Outcome => ({ tag: 'error', error }),
     );
+    pendingOps.push(newOp);
 
     const signalOutcome: Promise<Outcome> = Promise.race([
       cancelSignal.promise,
@@ -255,7 +262,9 @@ async function runWithNudge<T>(op: () => Promise<T>, opts: RunOpts): Promise<Run
       resumeSignal.promise,
     ]).then((signal): Outcome => ({ tag: 'signal', signal }));
 
-    const outcome = await Promise.race([opOutcome, signalOutcome]);
+    // Race all pending ops (current + any still in-flight from prior
+    // attempts) against the signal channels.
+    const outcome = await Promise.race([...pendingOps, signalOutcome]);
     cleanup();
 
     // --- Handle outcome ---

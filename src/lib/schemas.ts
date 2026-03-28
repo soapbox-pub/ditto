@@ -86,6 +86,7 @@ export const ThemeConfigSchema = z.object({
   title: z.string().optional(),
   colors: CoreThemeColorsSchema,
   font: ThemeFontSchema.optional(),
+  titleFont: ThemeFontSchema.optional(),
   background: ThemeBackgroundSchema.optional(),
 });
 
@@ -245,6 +246,7 @@ export const AppConfigSchema = z.object({
       return result.success ? [result.data] : [];
     })
   ).optional().default([]),
+  imageQuality: z.enum(['compressed', 'original']),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────
@@ -307,6 +309,8 @@ export const EncryptedSettingsSchema = z.looseObject({
     zaps: z.boolean().optional(),
     mentions: z.boolean().optional(),
     comments: z.boolean().optional(),
+    badges: z.boolean().optional(),
+    letters: z.boolean().optional(),
     onlyFollowing: z.boolean().optional(),
   }).optional(),
   lastSync: z.number().optional(),

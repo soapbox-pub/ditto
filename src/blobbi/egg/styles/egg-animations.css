@@ -1,0 +1,278 @@
+/**
+ * Blobbi Egg Animations
+ * Self-contained CSS for egg visual system
+ */
+
+/* ==========================================
+   Egg-specific animations
+   ========================================== */
+
+@keyframes egg-gentle-sway {
+  0%,
+  100% {
+    transform: rotate(-1deg);
+  }
+  50% {
+    transform: rotate(1deg);
+  }
+}
+
+@keyframes egg-warmth-pulse {
+  0%,
+  100% {
+    filter: brightness(1) drop-shadow(0 0 10px rgba(251, 191, 36, 0.3));
+  }
+  50% {
+    filter: brightness(1.05) drop-shadow(0 0 20px rgba(251, 191, 36, 0.5));
+  }
+}
+
+@keyframes egg-crack-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-2px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+/* Bouncy animation for singing - more energetic than sway but still cute */
+@keyframes egg-bounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-2px) rotate(1deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-2px) rotate(-1deg);
+  }
+}
+
+.animate-egg-sway {
+  /* Egg sway is gentler than baby/adult (1.8s vs 1.2s) but still musical */
+  animation: egg-gentle-sway 1.8s ease-in-out infinite;
+}
+
+.animate-egg-bounce {
+  /* Egg sing bounce - gentler than baby/adult (0.6s vs 0.5s) */
+  animation: egg-bounce 0.6s ease-in-out infinite;
+}
+
+.animate-egg-warmth {
+  animation: egg-warmth-pulse 2s ease-in-out infinite;
+}
+
+.animate-egg-crack {
+  animation: egg-crack-shake 0.5s ease-in-out infinite;
+}
+
+/* ==========================================
+   Special Mark Animations
+   ========================================== */
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    filter: brightness(1) drop-shadow(0 0 2px #00ffe0);
+  }
+  50% {
+    filter: brightness(1.3) drop-shadow(0 0 8px #00ffe0) drop-shadow(0 0 12px #00ffe0);
+  }
+}
+
+@keyframes rune-glow {
+  0%,
+  100% {
+    filter: brightness(1) drop-shadow(0 0 1px rgba(130, 85, 30, 0.7));
+  }
+  50% {
+    filter: brightness(1.2) drop-shadow(0 0 4px rgba(130, 85, 30, 0.9))
+      drop-shadow(0 0 8px rgba(130, 85, 30, 0.6));
+  }
+}
+
+@keyframes sigil-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes mystical-float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-2px) rotate(1deg);
+  }
+  66% {
+    transform: translateY(1px) rotate(-1deg);
+  }
+}
+
+@keyframes crack-energy {
+  0% {
+    stroke-dasharray: 0 100;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 50 50;
+    stroke-dashoffset: -25;
+  }
+  100% {
+    stroke-dasharray: 100 0;
+    stroke-dashoffset: -50;
+  }
+}
+
+/* Animation classes */
+.animate-shimmer {
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-rune-glow {
+  animation: rune-glow 2.5s ease-in-out infinite;
+}
+
+.animate-sigil-pulse {
+  animation: sigil-pulse 3s ease-in-out infinite;
+}
+
+.animate-mystical-float {
+  animation: mystical-float 4s ease-in-out infinite;
+}
+
+.animate-crack-energy {
+  animation: crack-energy 2s linear infinite;
+}
+
+/* ==========================================
+   Special mark container styles
+   ========================================== */
+
+.special-mark-container {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+/* Ensure special marks are subtle and well-positioned */
+.special-mark-container svg {
+  opacity: 0.8;
+  filter: brightness(0.9);
+}
+
+/* Performance optimizations for special marks */
+.special-mark-container svg {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* ==========================================
+   Responsive adjustments
+   ========================================== */
+
+@media (max-width: 640px) {
+  .special-mark-container {
+    /* Reduce animation intensity on mobile for better performance */
+    animation-duration: 1.5s !important;
+  }
+}
+
+/* ==========================================
+   Accessibility: Reduced motion support
+   ========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .special-mark-container,
+  .animate-shimmer,
+  .animate-glow-pulse,
+  .animate-rune-glow,
+  .animate-sigil-pulse,
+  .animate-mystical-float,
+  .animate-crack-energy,
+  .animate-egg-sway,
+  .animate-egg-bounce,
+  .animate-egg-warmth,
+  .animate-egg-crack {
+    animation: none !important;
+  }
+}
+
+/* ==========================================
+   High contrast mode support
+   ========================================== */
+
+@media (prefers-contrast: high) {
+  .special-mark-container svg path,
+  .special-mark-container svg circle,
+  .special-mark-container svg ellipse {
+    stroke-width: 3px !important;
+    opacity: 0.9 !important;
+  }
+}
+
+/* ==========================================
+   Dark mode adjustments
+   ========================================== */
+
+@media (prefers-color-scheme: dark) {
+  .special-mark-container svg {
+    filter: brightness(1.2) contrast(1.1);
+  }
+}
+
+/* ==========================================
+   Print styles
+   ========================================== */
+
+@media print {
+  .special-mark-container {
+    animation: none !important;
+    filter: none !important;
+  }
+
+  .special-mark-container svg {
+    filter: grayscale(1) contrast(1.5) !important;
+  }
+}

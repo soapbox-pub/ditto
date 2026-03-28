@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { BarChart3, CheckCircle2, Clock } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { NoteContent } from '@/components/NoteContent';
@@ -64,6 +64,7 @@ function tallyVotes(
 export function PollContent({ event }: { event: NostrEvent }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
   const { mutate: publishEvent } = useNostrPublish();
 
   const options = useMemo(() => getOptions(event.tags), [event.tags]);
@@ -118,6 +119,10 @@ export function PollContent({ event }: { event: NostrEvent }) {
         ['e', event.id],
         ['response', selectedOption],
       ],
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['poll-votes', event.id] });
+      },
     });
   };
 

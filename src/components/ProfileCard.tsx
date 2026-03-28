@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { type AvatarShape, isValidAvatarShape, isEmoji, getEmojiMaskUrl, emojiAvatarBorderStyle } from '@/lib/avatarShape';
+import { type AvatarShape, isValidAvatarShape, isEmoji, getAvatarMaskUrlAsync, shapedAvatarBorderStyle } from '@/lib/avatarShape';
 import { CheckCircle2, Pencil, Plus, Trash2, ChevronDown, ImagePlus, SmilePlus, X as XIcon } from 'lucide-react';
 import { genUserName } from '@/lib/genUserName';
 import { BioContent } from '@/components/BioContent';
@@ -14,6 +14,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { EmojiPicker, type EmojiSelection } from '@/components/EmojiPicker';
+import { useProfileBadges } from '@/hooks/useProfileBadges';
+import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
+import { BadgeShowcaseGrid } from '@/components/BadgeShowcaseGrid';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 /** Shared classes for all editable fields — static muted bg when idle, border on hover/focus */
 const editableBase = [
@@ -116,6 +120,11 @@ export function ProfileCard({
   const [fieldsOpen, setFieldsOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
+  const { user } = useCurrentUser();
+  const isOwnProfile = !!pubkey && !!user && pubkey === user.pubkey;
+  const { refs: badgeRefs, isLoading: badgesLoading } = useProfileBadges(pubkey);
+  const { badgeMap, isLoading: defsLoading } = useBadgeDefinitions(badgeRefs);
+
   const displayName = metadata.display_name || metadata.name || genUserName(pubkey);
   const initial = displayName[0]?.toUpperCase() ?? '?';
   const patch = (key: keyof NostrMetadata) => (v: string) => onChange?.({ [key]: v });
@@ -124,15 +133,36 @@ export function ProfileCard({
   const rawShape = metadata.shape;
   const shape: AvatarShape | undefined = isValidAvatarShape(rawShape) ? rawShape : undefined;
   const isEmojiShape = !!shape && isEmoji(shape);
+  const hasCustomShape = isEmojiShape;
 
-  // Memoized mask style for the hover overlay on emoji-shaped avatars
+  // State for async-loaded mask URL for the hover overlay
+  const [overlayMaskUrl, setOverlayMaskUrl] = useState<string>('');
+
+  // Load mask URL asynchronously when shape changes
+  useEffect(() => {
+    if (!hasCustomShape || !shape) {
+      setOverlayMaskUrl('');
+      return;
+    }
+
+    let cancelled = false;
+    getAvatarMaskUrlAsync(shape).then((url) => {
+      if (!cancelled) {
+        setOverlayMaskUrl(url);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasCustomShape, shape]);
+
+  // Memoized mask style for the hover overlay on shaped avatars
   const overlayMaskStyle = useMemo<React.CSSProperties | undefined>(() => {
-    if (!isEmojiShape) return undefined;
-    const maskUrl = getEmojiMaskUrl(shape);
-    if (!maskUrl) return undefined;
+    if (!overlayMaskUrl) return undefined;
     return {
-      WebkitMaskImage: `url(${maskUrl})`,
-      maskImage: `url(${maskUrl})`,
+      WebkitMaskImage: `url(${overlayMaskUrl})`,
+      maskImage: `url(${overlayMaskUrl})`,
       WebkitMaskSize: 'contain',
       maskSize: 'contain' as string,
       WebkitMaskRepeat: 'no-repeat',
@@ -140,7 +170,7 @@ export function ProfileCard({
       WebkitMaskPosition: 'center',
       maskPosition: 'center' as string,
     };
-  }, [isEmojiShape, shape]);
+  }, [overlayMaskUrl]);
 
   const nip05 = metadata.nip05;
   const nip05Domain = nip05 ? getNip05Domain(nip05) : undefined;
@@ -193,8 +223,8 @@ export function ProfileCard({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button type="button" className="relative shrink-0 cursor-pointer group outline-none">
-                    <div style={isEmojiShape ? emojiAvatarBorderStyle : undefined}>
-                      <Avatar shape={shape} className={cn("shadow-sm", isEmojiShape ? "size-[88px]" : "size-24 border-4 border-background")}>
+                    <div style={hasCustomShape ? shapedAvatarBorderStyle : undefined}>
+                      <Avatar shape={shape} className={cn("shadow-sm", hasCustomShape ? "size-[88px]" : "size-24 border-4 border-background")}>
                         <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
                         <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
                           {metadata.picture ? initial : <Plus className="size-8 text-muted-foreground" strokeWidth={4} />}
@@ -204,7 +234,7 @@ export function ProfileCard({
                     <div
                       className={cn(
                         'absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors flex items-center justify-center',
-                        !isEmojiShape && 'rounded-full',
+                        !hasCustomShape && 'rounded-full',
                       )}
                       style={overlayMaskStyle}
                     >
@@ -234,8 +264,8 @@ export function ProfileCard({
               </DropdownMenu>
 
               <Dialog open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
-                <DialogContent className="max-w-fit p-0 gap-0 overflow-hidden">
-                  <DialogHeader className="px-6 pt-5 pb-3">
+                <DialogContent className="w-fit max-w-[calc(100vw-2rem)] p-0 gap-0 overflow-hidden">
+                  <DialogHeader className="px-4 pt-4 pb-2">
                     <DialogTitle className="text-base">Set avatar shape</DialogTitle>
                     <DialogDescription>Pick an emoji to mask your avatar</DialogDescription>
                   </DialogHeader>
@@ -245,8 +275,8 @@ export function ProfileCard({
                       setEmojiPickerOpen(false);
                     }
                   }} />
-                  {isEmojiShape && (
-                    <div className="px-4 pb-4 pt-2">
+                  {hasCustomShape && (
+                    <div className="px-4 pb-4 pt-2 border-t">
                       <Button
                         type="button"
                         variant="outline"
@@ -263,8 +293,8 @@ export function ProfileCard({
               </Dialog>
             </>
           ) : (
-            <div className="relative shrink-0" style={isEmojiShape ? emojiAvatarBorderStyle : undefined}>
-              <Avatar shape={shape} className={cn("shadow-sm", isEmojiShape ? "size-[88px]" : "size-24 border-4 border-background")}>
+            <div className="relative shrink-0" style={hasCustomShape ? shapedAvatarBorderStyle : undefined}>
+              <Avatar shape={shape} className={cn("shadow-sm", hasCustomShape ? "size-[88px]" : "size-24 border-4 border-background")}>
                 <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
                 <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
                   {initial}
@@ -385,6 +415,25 @@ export function ProfileCard({
           </Collapsible>
         )}
       </div>
+
+      {/* Badge showcase */}
+      {(badgeRefs.length > 0 || badgesLoading) && (
+        <div className="px-4 pb-3">
+          <BadgeShowcaseGrid
+            items={badgeRefs.map((ref) => ({
+              aTag: ref.aTag,
+              pubkey: ref.pubkey,
+              identifier: ref.identifier,
+              badge: badgeMap.get(ref.aTag),
+            }))}
+            maxVisible={8}
+            thumbnailSize={44}
+            showEditButton={isOwnProfile}
+            isLoading={badgesLoading || defsLoading}
+            gridCols="grid-cols-4 sm:grid-cols-5"
+          />
+        </div>
+      )}
     </div>
   );
 }

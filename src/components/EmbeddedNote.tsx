@@ -6,8 +6,9 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
-import { NoteCard } from '@/components/NoteCard';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { VanishCardCompact } from '@/components/VanishEventContent';
+import { EncryptedMessageCompact } from '@/components/EncryptedMessageContent';
 import { useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -15,10 +16,12 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
+import { LinkPreview } from '@/components/LinkPreview';
 import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
+import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
 
-/** Kinds that render as a full NoteCard instead of the generic embed card. */
-const NOTECARD_KINDS = new Set([30000, 39089]);
+/** NIP-62 Request to Vanish. */
+const VANISH_KIND = 62;
 
 /** Bech32 charset used by NIP-19 identifiers. */
 const B32 = '023456789acdefghjklmnpqrstuvwxyz';
@@ -91,13 +94,14 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
     return <EmbeddedNoteTombstone eventId={eventId} relays={relays} authorHint={authorHint} className={className} />;
   }
 
-  // For follow packs / lists, render the same rich NoteCard used in feeds
-  if (NOTECARD_KINDS.has(event.kind)) {
-    return (
-      <div className={className} onClick={(e) => e.stopPropagation()}>
-        <NoteCard event={event} compact className="rounded-2xl border border-border !border-b overflow-hidden" />
-      </div>
-    );
+  // NIP-62 vanish events get their own dramatic inline card
+  if (event.kind === VANISH_KIND) {
+    return <EmbeddedVanishCardWrapper event={event} className={className} />;
+  }
+
+  // Kind 4 encrypted DMs get a compact card instead of rendering ciphertext
+  if (event.kind === 4) {
+    return <EncryptedMessageCompact event={event} className={className} />;
   }
 
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} />;
@@ -109,7 +113,7 @@ function EmbeddedNoteCard({
   className,
   disableHoverCards,
 }: {
-  event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][] };
+  event: { id: string; kind: number; pubkey: string; content: string; created_at: number; tags: string[][] };
   className?: string;
   disableHoverCards?: boolean;
 }) {
@@ -126,24 +130,45 @@ function EmbeddedNoteCard({
     [event.id, event.pubkey],
   );
 
-  // Truncate long content, stripping media URLs and nested nostr event references
+  // Extract the first non-media URL for a link preview card
+  const firstLinkUrl = useMemo(() => {
+    const allUrls = event.content.match(/https?:\/\/[^\s]+/g) || [];
+    return allUrls.find((u) => !IMETA_MEDIA_URL_REGEX.test(u)) ?? null;
+  }, [event.content]);
+
+  // Truncate long content, stripping media URLs, the previewed link, and nested nostr event references
   const truncatedContent = useMemo(() => {
-    const cleaned = event.content
+    let text = event.content
       // Strip media URLs (same extensions as NoteContent's MEDIA_URL_REGEX)
       .replace(new RegExp(IMETA_MEDIA_URL_REGEX.source, 'gi'), '')
       // Strip embedded event references (nevent / note) so they don't nest
-      .replace(/nostr:(nevent1|note1)[023456789acdefghjklmnpqrstuvwxyz]+/g, '')
+      .replace(/nostr:(nevent1|note1)[023456789acdefghjklmnpqrstuvwxyz]+/g, '');
+    // Strip the URL that will be shown as a link preview card
+    if (firstLinkUrl) {
+      text = text.replace(firstLinkUrl, '');
+    }
+    const cleaned = text
       // Collapse leftover whitespace
       .replace(/\n{3,}/g, '\n\n')
       .trim();
     if (cleaned.length <= MAX_CONTENT_LENGTH) return cleaned;
     return cleaned.slice(0, MAX_CONTENT_LENGTH).trimEnd() + '…';
-  }, [event.content]);
+  }, [event.content, firstLinkUrl]);
 
-  // Extract first image for a small thumbnail
-  const firstImage = useMemo(() => {
-    return event.content.match(IMAGE_URL_REGEX)?.[0] ?? null;
-  }, [event.content]);
+  // For non-text kinds with empty content, extract title/description from tags
+  const tagMeta = useMemo(() => {
+    if (truncatedContent) return undefined;
+    const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
+    const title = getTag('title') || getTag('name') || getTag('d');
+    const description = getTag('summary') || getTag('description');
+
+    // Build a kind label line for context (e.g. "nsite")
+    const kindLabel = getKindLabel(event.kind);
+    const KindIcon = getKindIcon(event.kind);
+
+    if (!title && !description && !kindLabel) return undefined;
+    return { title, description, kindLabel, KindIcon };
+  }, [truncatedContent, event.tags, event.kind]);
 
   // Detect stripped attachments to show indicator chips
   const attachments = useMemo(() => {
@@ -152,9 +177,11 @@ function EmbeddedNoteCard({
     const auds = extractAudioUrls(event.content).length;
     const apps = (event.content.match(/https?:\/\/[^\s]+\.xdc(\?[^\s]*)?/gi) || []).length;
     const allUrls = event.content.match(/https?:\/\/[^\s]+/g) || [];
-    const links = allUrls.filter((u) => !IMETA_MEDIA_URL_REGEX.test(u)).length;
+    const nonMediaLinks = allUrls.filter((u) => !IMETA_MEDIA_URL_REGEX.test(u)).length;
+    // Subtract 1 if we're showing a link preview card for the first URL
+    const links = firstLinkUrl ? nonMediaLinks - 1 : nonMediaLinks;
     return { imgs, vids, auds, apps, links };
-  }, [event.content]);
+  }, [event.content, firstLinkUrl]);
 
   // NIP-36 content-warning check
   const cwTag = event.tags.find(([name]) => name === 'content-warning');
@@ -186,21 +213,6 @@ function EmbeddedNoteCard({
         }
       }}
     >
-      {/* Optional image thumbnail — skip when content-warning is blurred */}
-      {firstImage && !(hasCW && config.contentWarningPolicy === 'blur') && (
-        <div className="w-full overflow-hidden">
-          <img
-            src={firstImage}
-            alt=""
-            className="w-full h-[160px] object-cover"
-            loading="lazy"
-            onError={(e) => {
-              (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
-            }}
-          />
-        </div>
-      )}
-
       {/* Note content */}
       <div className="px-3 py-2 space-y-1">
         {/* Author row */}
@@ -246,22 +258,44 @@ function EmbeddedNoteCard({
           </span>
         </div>
 
-        {/* Content warning notice or text preview */}
+        {/* Content warning notice or text preview or tag-based metadata */}
         {hasCW && config.contentWarningPolicy === 'blur' ? (
           <p className="text-xs text-muted-foreground italic">
             Content warning{cwTag?.[1] ? <>{' '}&ldquo;{cwTag[1]}&rdquo;</> : ''}
           </p>
         ) : truncatedContent ? (
           <EmbedContentPreview text={truncatedContent} disableHoverCards={disableHoverCards} />
+        ) : tagMeta ? (
+          <>
+            {tagMeta.title && (
+              <p className="text-sm font-semibold leading-snug line-clamp-2">{tagMeta.title}</p>
+            )}
+            {tagMeta.description && (
+              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{tagMeta.description}</p>
+            )}
+            {tagMeta.kindLabel && (
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                {tagMeta.KindIcon && <tagMeta.KindIcon className="size-3 shrink-0" />}
+                {tagMeta.kindLabel}
+              </p>
+            )}
+          </>
         ) : null}
 
+        {/* Link preview card for the first non-media URL */}
+        {!hasCW && firstLinkUrl && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <LinkPreview url={firstLinkUrl} className="mt-1.5" />
+          </div>
+        )}
+
         {/* Attachment indicators for stripped media/links */}
-        {!hasCW && (attachments.imgs > (firstImage ? 1 : 0) || attachments.vids > 0 || attachments.auds > 0 || attachments.apps > 0 || attachments.links > 0) && (
+        {!hasCW && (attachments.imgs > 0 || attachments.vids > 0 || attachments.auds > 0 || attachments.apps > 0 || attachments.links > 0) && (
           <div className="flex items-center gap-2 flex-wrap">
-            {attachments.imgs > (firstImage ? 1 : 0) && (
+            {attachments.imgs > 0 && (
               <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                 <Image className="size-3" />
-                {attachments.imgs > 1 ? `${attachments.imgs} images` : '1 image'}
+                {attachments.imgs > 1 ? `${attachments.imgs} images` : 'Image'}
               </span>
             )}
             {attachments.vids > 0 && (
@@ -345,6 +379,46 @@ function MaybeProfileHoverCard({ pubkey, disabled, children }: { pubkey: string;
     <ProfileHoverCard pubkey={pubkey} asChild>
       {children}
     </ProfileHoverCard>
+  );
+}
+
+/** Clickable wrapper around VanishCardCompact for embedded/quoted vanish events. */
+function EmbeddedVanishCardWrapper({
+  event,
+  className,
+}: {
+  event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][] };
+  className?: string;
+}) {
+  const navigate = useNavigate();
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  return (
+    <div
+      className={cn('group cursor-pointer', className)}
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/${neventId}`);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/${neventId}`);
+        }
+      }}
+    >
+      <VanishCardCompact
+        event={event}
+        timestamp={timeAgo(event.created_at)}
+        className="rounded-2xl group-hover:border-red-500/50 transition-colors"
+      />
+    </div>
   );
 }
 

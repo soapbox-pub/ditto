@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
@@ -7,14 +7,13 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useFollowList } from './useFollowActions';
+import { LETTER_KIND } from '@/lib/letterTypes';
+import { ALL_NOTIFICATION_KINDS, getEnabledNotificationKinds } from '@/lib/notificationKinds';
 
 const PAGE_SIZE = 20;
 
-/** All kinds that can appear as notifications. */
-const ALL_NOTIFICATION_KINDS = [1, 6, 16, 7, 9735, 1111, 1222, 1244] as const;
-
 export interface NotificationItem {
-  /** The notification event (kind 1, 6, 16, 7, 9735, 1111, 1222, or 1244). */
+  /** The notification event (kind 1, 6, 16, 7, 8, 9735, 1111, 1222, 1244, or 8211). */
   event: NostrEvent;
   /** The referenced event (the post that was liked/reposted/zapped), if available. */
   referencedEvent?: NostrEvent;
@@ -106,7 +105,7 @@ function groupKey(item: NotificationItem): string {
     return `${bucket}:${refId}`;
   }
 
-  // Mentions (kind 1) and comments (kind 1111) are always standalone
+  // Mentions (kind 1), comments (kind 1111), and letters (8211) are always standalone
   return event.id;
 }
 
@@ -158,26 +157,6 @@ function buildGroups(
   }
 
   return groupOrder.map((k) => groupMap.get(k)!);
-}
-
-/**
- * Derives the set of Nostr kinds to request based on per-type preferences.
- * Kinds default to enabled when the preference is absent.
- */
-function getEnabledNotificationKinds(
-  prefs: NonNullable<ReturnType<typeof useEncryptedSettings>['settings']>['notificationPreferences'],
-): number[] {
-  const p = prefs ?? {};
-  const kinds: number[] = [];
-
-  if (p.reactions !== false)  kinds.push(7);
-  if (p.reposts !== false)    kinds.push(6, 16);
-  if (p.zaps !== false)       kinds.push(9735);
-  if (p.mentions !== false)   kinds.push(1);
-  if (p.comments !== false)   kinds.push(1111, 1222, 1244);
-
-  // Always fall back to all kinds so the query never sends an empty kinds array
-  return kinds.length > 0 ? kinds : [...ALL_NOTIFICATION_KINDS];
 }
 
 /**
@@ -247,9 +226,9 @@ export function useNotifications(): NotificationData {
       // Collect referenced event IDs for batch fetching
       const referencedIds: string[] = [];
       for (const ev of filtered) {
-        // kind 1 (mention) and voice messages (1222/1244) ARE the notification content;
+        // kind 1 (mention), voice messages (1222/1244), and letters (8211) ARE the notification content;
         // kind 1111 (comment) IS the content but we also fetch its parent for context.
-        if (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244) {
+        if (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244 && ev.kind !== LETTER_KIND) {
           const refId = getReferencedEventId(ev);
           if (refId) referencedIds.push(refId);
         }
@@ -291,14 +270,22 @@ export function useNotifications(): NotificationData {
       // Build notification items, filtering out reactions/reposts on posts the
       // user didn't author (i.e. they were only tagged in them).
       const items: NotificationItem[] = filtered.flatMap((ev) => {
-        const refId = (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244) ? getReferencedEventId(ev) : undefined;
+        const refId = (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244 && ev.kind !== LETTER_KIND) ? getReferencedEventId(ev) : undefined;
         const referencedEvent = refId ? referencedMap.get(refId) : undefined;
 
-        // For reactions (7), reposts (6, 16), and zaps (9735), only notify if
-        // the referenced post was authored by the current user.
-        if (ev.kind === 7 || ev.kind === 6 || ev.kind === 16 || ev.kind === 9735) {
-          if (!referencedEvent || referencedEvent.pubkey !== user.pubkey) return [];
+        // For reactions (7) and reposts (6, 16), only exclude if we know for
+        // certain the referenced post belongs to someone else.  When the
+        // referenced event couldn't be fetched (timeout / missing from relay),
+        // keep the notification — it's better to show a notification with
+        // missing context than to silently drop it.
+        if (ev.kind === 7 || ev.kind === 6 || ev.kind === 16) {
+          if (referencedEvent && referencedEvent.pubkey !== user.pubkey) return [];
         }
+
+        // Zaps (9735) don't need the author-ownership check at all: the query
+        // already filters by `#p: [user.pubkey]`, which means the zap receipt
+        // explicitly names the current user as the recipient.
+        // Profile-level zaps (no `e` tag) are also valid notifications.
 
         return [{ event: ev, referencedEvent }];
       });
@@ -323,6 +310,43 @@ export function useNotifications(): NotificationData {
     isFetchingNextPage,
     fetchNextPage,
   } = infiniteQuery;
+
+  // Real-time subscription: open a persistent REQ with `since: now` so new
+  // notifications are detected immediately instead of waiting for the next poll.
+  // When any new event arrives, invalidate the query cache to trigger a refetch.
+  useEffect(() => {
+    if (!user || Capacitor.isNativePlatform()) return;
+
+    const ac = new AbortController();
+    const since = Math.floor(Date.now() / 1000);
+
+    (async () => {
+      try {
+        for await (const msg of nostr.req(
+          [{
+            kinds: [...ALL_NOTIFICATION_KINDS],
+            '#p': [user.pubkey],
+            since,
+          }],
+          { signal: ac.signal },
+        )) {
+          if (msg[0] === 'EVENT') {
+            const ev = msg[2];
+            // Ignore own events
+            if (ev.pubkey === user.pubkey) continue;
+            // New notification arrived — invalidate both the full list and the
+            // unread indicator so the UI updates immediately.
+            queryClient.invalidateQueries({ queryKey: ['notifications', user.pubkey] });
+            queryClient.invalidateQueries({ queryKey: ['notifications-unread', user.pubkey] });
+          }
+        }
+      } catch {
+        // AbortError on cleanup — expected
+      }
+    })();
+
+    return () => ac.abort();
+  }, [nostr, user, queryClient]);
 
   // Flatten and deduplicate across pages
   const items = useMemo(() => {
