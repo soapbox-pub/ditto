@@ -830,6 +830,15 @@ function BlobbiDashboard({
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
   
+  // Derive available stages from all companions (for daily mission filtering)
+  const availableStages = useMemo(() => {
+    const stages = new Set<'egg' | 'baby' | 'adult'>();
+    for (const c of companions) {
+      stages.add(c.stage);
+    }
+    return Array.from(stages);
+  }, [companions]);
+  
   // Check if this Blobbi is currently the active floating companion
   // If so, we hide the visual here to avoid duplication (one floating, one in-page)
   const { companion: activeCompanion } = useBlobbiCompanionData();
@@ -1599,6 +1608,7 @@ function BlobbiDashboard({
         isStoppingIncubation={isStoppingIncubation}
         onStopEvolution={handleStopEvolution}
         isStoppingEvolution={isStoppingEvolution}
+        availableStages={availableStages}
       />
       
       {/* Shop Modal */}

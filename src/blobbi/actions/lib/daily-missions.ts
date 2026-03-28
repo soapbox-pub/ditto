@@ -21,6 +21,11 @@ export type DailyMissionAction =
   | 'take_photo';   // Take a photo of Blobbi
 
 /**
+ * Blobbi stage type for filtering missions
+ */
+export type BlobbiStage = 'egg' | 'baby' | 'adult';
+
+/**
  * Definition of a daily mission in the pool
  */
 export interface DailyMissionDefinition {
@@ -38,6 +43,8 @@ export interface DailyMissionDefinition {
   reward: number;
   /** Selection weight (higher = more likely to be selected) */
   weight: number;
+  /** Required stages to show this mission (if empty/undefined, requires baby or adult) */
+  requiredStages?: BlobbiStage[];
 }
 
 /**
@@ -62,6 +69,8 @@ export interface DailyMissionsState {
   missions: DailyMission[];
   /** Total coins earned from daily missions (lifetime) */
   totalCoinsEarned: number;
+  /** Whether the bonus mission has been claimed today */
+  bonusClaimed?: boolean;
 }
 
 // ─── Mission Pool ─────────────────────────────────────────────────────────────
@@ -84,6 +93,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     requiredCount: 6,
     reward: 30,
     weight: 10,
+    requiredStages: ['baby', 'adult'],
   },
   {
     id: 'feed_2',
@@ -93,6 +103,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     requiredCount: 2,
     reward: 20,
     weight: 10,
+    requiredStages: ['baby', 'adult'],
   },
   {
     id: 'clean_1',
@@ -102,6 +113,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     requiredCount: 1,
     reward: 20,
     weight: 10,
+    requiredStages: ['baby', 'adult'],
   },
 
   // ─── Medium Frequency Missions ────────────────────────────────────────────
@@ -113,6 +125,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     requiredCount: 1,
     reward: 25,
     weight: 6,
+    requiredStages: ['baby', 'adult'],
   },
   {
     id: 'play_music_1',
@@ -122,6 +135,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     requiredCount: 1,
     reward: 25,
     weight: 6,
+    requiredStages: ['baby', 'adult'],
   },
   {
     id: 'sleep_1',
@@ -131,6 +145,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     requiredCount: 1,
     reward: 20,
     weight: 6,
+    requiredStages: ['baby', 'adult'],
   },
 
   // ─── Rare Missions ────────────────────────────────────────────────────────
@@ -142,6 +157,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     requiredCount: 1,
     reward: 35,
     weight: 1,
+    requiredStages: ['baby', 'adult'],
   },
 ];
 
@@ -183,19 +199,48 @@ function seededRandom(seed: number): () => number {
 }
 
 /**
+ * Check if a mission is available for the given stages.
+ * Missions with no requiredStages default to requiring baby or adult.
+ */
+function isMissionAvailableForStages(
+  mission: DailyMissionDefinition,
+  availableStages: BlobbiStage[]
+): boolean {
+  const requiredStages = mission.requiredStages ?? ['baby', 'adult'];
+  return requiredStages.some((stage) => availableStages.includes(stage));
+}
+
+/**
  * Select N missions from the pool using weighted random selection.
  * Uses a seeded random generator for deterministic daily selection.
+ * 
+ * @param count - Number of missions to select
+ * @param dateString - Date string for seeding (YYYY-MM-DD)
+ * @param pubkey - Optional user pubkey for seeding
+ * @param availableStages - Stages the user has available (filters eligible missions)
  */
 export function selectDailyMissions(
   count: number,
   dateString: string,
-  pubkey?: string
+  pubkey?: string,
+  availableStages?: BlobbiStage[]
 ): DailyMissionDefinition[] {
   const seed = generateDailySeed(dateString, pubkey);
   const random = seededRandom(seed);
   
-  // Create a copy of the pool with weights
-  const available = [...DAILY_MISSION_POOL];
+  // Filter pool by available stages (default to baby/adult if not specified)
+  const stagesToCheck = availableStages ?? ['baby', 'adult'];
+  const eligibleMissions = DAILY_MISSION_POOL.filter((m) =>
+    isMissionAvailableForStages(m, stagesToCheck)
+  );
+  
+  // If no missions are available for the user's stages, return empty
+  if (eligibleMissions.length === 0) {
+    return [];
+  }
+  
+  // Create a copy of the eligible pool
+  const available = [...eligibleMissions];
   const selected: DailyMissionDefinition[] = [];
   
   while (selected.length < count && available.length > 0) {
@@ -241,9 +286,10 @@ export function createMissionFromDefinition(def: DailyMissionDefinition): DailyM
 export function createDailyMissionsState(
   dateString: string,
   pubkey?: string,
-  previousTotalCoins: number = 0
+  previousTotalCoins: number = 0,
+  availableStages?: BlobbiStage[]
 ): DailyMissionsState {
-  const definitions = selectDailyMissions(3, dateString, pubkey);
+  const definitions = selectDailyMissions(3, dateString, pubkey, availableStages);
   return {
     date: dateString,
     missions: definitions.map(createMissionFromDefinition),
@@ -349,4 +395,56 @@ export function areAllMissionsCompleted(state: DailyMissionsState): boolean {
  */
 export function areAllMissionsClaimed(state: DailyMissionsState): boolean {
   return state.missions.every((m) => m.claimed);
+}
+
+// ─── Bonus Mission ────────────────────────────────────────────────────────────
+
+/**
+ * The bonus mission that becomes available after completing all regular missions.
+ * This is a special mission that rewards extra coins for daily completion.
+ */
+export const BONUS_MISSION_DEFINITION: DailyMissionDefinition = {
+  id: 'bonus_daily_complete',
+  title: 'Daily Champion',
+  description: 'Complete all daily missions to claim this bonus reward',
+  action: 'interact', // Not actually used - bonus is auto-completed
+  requiredCount: 1,
+  reward: 50,
+  weight: 0, // Not part of random selection
+};
+
+/**
+ * Check if the bonus mission is available (all regular missions completed)
+ */
+export function isBonusMissionAvailable(state: DailyMissionsState): boolean {
+  // Bonus is available if there are regular missions and all are completed
+  return state.missions.length > 0 && areAllMissionsCompleted(state);
+}
+
+/**
+ * Check if the bonus mission has been claimed today
+ */
+export function isBonusMissionClaimed(state: DailyMissionsState): boolean {
+  return state.bonusClaimed ?? false;
+}
+
+/**
+ * Claim the bonus mission reward
+ */
+export function claimBonusMissionReward(
+  state: DailyMissionsState
+): { state: DailyMissionsState; coinsEarned: number } {
+  // Can only claim if bonus is available and not yet claimed
+  if (!isBonusMissionAvailable(state) || isBonusMissionClaimed(state)) {
+    return { state, coinsEarned: 0 };
+  }
+  
+  return {
+    state: {
+      ...state,
+      bonusClaimed: true,
+      totalCoinsEarned: state.totalCoinsEarned + BONUS_MISSION_DEFINITION.reward,
+    },
+    coinsEarned: BONUS_MISSION_DEFINITION.reward,
+  };
 }
