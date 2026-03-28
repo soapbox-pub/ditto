@@ -94,7 +94,7 @@ import { FontSection } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { formatNumber } from '@/lib/formatNumber';
-import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { SubHeaderBar, useSubHeaderBarHover } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { cn } from '@/lib/utils';
@@ -447,9 +447,24 @@ function SortableTabChip({
   onRemove: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.label });
+  const chipRef = useRef<HTMLDivElement>(null);
+  const { onActive } = useSubHeaderBarHover();
+
+  // Report active slice to SubHeaderBar so the arc indicator renders instead of a flat bar
+  useLayoutEffect(() => {
+    if (!active) return;
+    const el = chipRef.current;
+    if (!el) return;
+    onActive({ left: el.offsetLeft, width: el.offsetWidth });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, transform]);
+
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => {
+        setNodeRef(node);
+        (chipRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      }}
       style={{ transform: DndCSS.Transform.toString(transform), transition }}
       className={cn(
         'shrink-0 relative flex items-stretch group/chip px-1 text-sm font-medium select-none whitespace-nowrap',
@@ -475,11 +490,6 @@ function SortableTabChip({
       >
         {tab.label}
       </button>
-
-      {/* Active indicator bar */}
-      {active && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-      )}
 
       {/* × — only rendered when active */}
       {active && (
