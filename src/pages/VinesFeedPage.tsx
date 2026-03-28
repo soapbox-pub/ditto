@@ -3,6 +3,7 @@ import { useNostr } from "@nostrify/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSeoMeta } from "@unhead/react";
 import {
+	ArrowLeft,
 	Clapperboard,
 	Heart,
 	MessageCircle,
@@ -13,17 +14,14 @@ import {
 	Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { BarsStaggeredIcon } from "@/components/icons/BarsStaggeredIcon";
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { RepostIcon } from "@/components/icons/RepostIcon";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
-import { PageHeader } from "@/components/PageHeader";
 import { ProfileHoverCard } from "@/components/ProfileHoverCard";
-import { SubHeaderBar } from "@/components/SubHeaderBar";
-import { TabButton } from "@/components/TabButton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ZapDialog } from "@/components/ZapDialog";
@@ -830,36 +828,15 @@ export function VinesFeedPage() {
 		return () => window.removeEventListener("keydown", handleKey);
 	}, [activeIndex, vines.length]);
 
-	const vinesHeader = (
-		<PageHeader
-			title="Vines"
-			icon={<Clapperboard className="size-5" />}
-			className="hidden sidebar:flex"
-		>
-			{vineKindDef && (
-				<KindInfoButton
-					kindDef={vineKindDef}
-					icon={<Clapperboard className="size-5" />}
-					open={infoOpen}
-					onOpenChange={setInfoOpen}
-				/>
-			)}
-		</PageHeader>
-	);
-
 	// ── Loading state ────────────────────────────────────────────────────────
 	if (isLoading) {
 		return (
 			<div className="flex-1 min-w-0 relative flex flex-col">
-				{vinesHeader}
-				<div className="hidden sidebar:block">
-					<VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
-				</div>
 				{/* Immersive skeleton — matches the full-viewport vine layout */}
 				<div className="relative flex-1 min-h-0">
-					<div className={cn(vineHeightClass, "sidebar:h-[calc(100vh-3rem)] relative bg-neutral-900 overflow-hidden")}>
-						{/* Floating tab bar (mobile) */}
-						<div className="absolute top-0 inset-x-0 z-20 sidebar:hidden safe-area-top">
+					<div className={cn(vineHeightClass, "sidebar:h-dvh relative bg-neutral-900 overflow-hidden")}>
+						{/* Floating tab bar skeleton */}
+						<div className="absolute top-0 inset-x-0 z-20 safe-area-top">
 							<div className="flex items-center justify-center gap-1 py-2 px-3">
 								<Skeleton className="size-9 rounded-full bg-white/10" />
 								<div className="flex items-center justify-center gap-6 flex-1">
@@ -901,20 +878,30 @@ export function VinesFeedPage() {
 	// ── Empty state ──────────────────────────────────────────────────────────
 	if (!isLoading && vines.length === 0) {
 		return (
-			<div className="flex-1 min-w-0 flex flex-col">
-				{vinesHeader}
-				<VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
-				<div className="flex-1 flex items-center justify-center">
-					<FeedEmptyState
-						message={
-							tab === "follows"
-								? "None of the people you follow have posted vines yet."
-								: "No vines found. Check your relay connections or come back soon."
-						}
-						onSwitchToGlobal={
-							tab === "follows" ? () => setTab("global") : undefined
-						}
-					/>
+			<div className="flex-1 min-w-0 relative flex flex-col">
+				<div className="relative flex-1 min-h-0">
+					<div className={cn(vineHeightClass, "sidebar:h-dvh relative bg-neutral-900 overflow-hidden")}>
+						{/* Floating tab bar over empty state */}
+						<VinesFloatingTabBar
+							tab={tab}
+							onTabChange={setTab}
+							hasUser={!!user}
+							infoOpen={infoOpen}
+							onInfoOpenChange={setInfoOpen}
+						/>
+						<div className="flex-1 flex items-center justify-center h-full">
+							<FeedEmptyState
+								message={
+									tab === "follows"
+										? "None of the people you follow have posted vines yet."
+										: "No vines found. Check your relay connections or come back soon."
+								}
+								onSwitchToGlobal={
+									tab === "follows" ? () => setTab("global") : undefined
+								}
+							/>
+						</div>
+					</div>
 				</div>
 			</div>
 		);
@@ -922,16 +909,9 @@ export function VinesFeedPage() {
 
 	return (
 		<div className="flex-1 min-w-0 relative flex flex-col">
-			{/* ── Section header (desktop only) ──────────────────────────── */}
-			{vinesHeader}
-			{/* ── Desktop tab bar ────────────────────────────────────────── */}
-			<div className="hidden sidebar:block">
-				<VinesTabBar tab={tab} onTabChange={setTab} hasUser={!!user} />
-			</div>
-
 			{/* ── Scroll + floating overlay wrapper ───────────────────────── */}
 			<div className="relative flex-1 min-h-0">
-				{/* ── Floating tab bar (mobile) — overlays on top of video ── */}
+				{/* ── Floating tab bar — overlays on top of video ──────────── */}
 				<VinesFloatingTabBar
 					tab={tab}
 					onTabChange={setTab}
@@ -945,7 +925,7 @@ export function VinesFeedPage() {
 					ref={containerCallbackRef}
 					className={cn(
 						vineHeightClass,
-						"sidebar:h-[calc(100vh-3rem)] snap-y snap-mandatory overflow-y-scroll",
+						"sidebar:h-dvh snap-y snap-mandatory overflow-y-scroll",
 					)}
 					style={{
 						scrollbarWidth: "none",
@@ -959,7 +939,7 @@ export function VinesFeedPage() {
 						className={cn(
 							"w-full snap-start snap-always flex-shrink-0",
 							vineHeightClass,
-							"sidebar:h-[calc(100vh-3rem)]",
+							"sidebar:h-dvh",
 						)}
 					>
 						<VineCard
@@ -984,36 +964,7 @@ export function VinesFeedPage() {
 	);
 }
 
-// ─── VinesTabBar (desktop) ────────────────────────────────────────────────────
-
-interface VinesTabBarProps {
-	tab: FeedTab;
-	onTabChange: (tab: FeedTab) => void;
-	hasUser: boolean;
-}
-
-function VinesTabBar({ tab, onTabChange, hasUser }: VinesTabBarProps) {
-	return (
-		<SubHeaderBar className="shrink-0" noArc>
-			{hasUser && (
-				<TabButton
-					label="Follows"
-					active={tab === "follows"}
-					onClick={() => onTabChange("follows")}
-					className="sidebar:py-5 sidebar:font-semibold"
-				/>
-			)}
-			<TabButton
-				label="Global"
-				active={tab === "global"}
-				onClick={() => onTabChange("global")}
-				className="sidebar:py-5 sidebar:font-semibold"
-			/>
-		</SubHeaderBar>
-	);
-}
-
-// ─── VinesFloatingTabBar (mobile — overlays on video like TikTok) ────────────
+// ─── VinesFloatingTabBar (overlays on video like TikTok) ─────────────────────
 
 interface VinesFloatingTabBarProps {
 	tab: FeedTab;
@@ -1031,17 +982,25 @@ function VinesFloatingTabBar({
 	onInfoOpenChange,
 }: VinesFloatingTabBarProps) {
 	const openDrawer = useOpenDrawer();
+	const navigate = useNavigate();
 
 	return (
-		<div className="absolute top-0 inset-x-0 z-20 sidebar:hidden safe-area-top">
+		<div className="absolute top-0 inset-x-0 z-20 safe-area-top">
 			<div className="flex items-center justify-center gap-1 py-2 px-3">
-				{/* Menu button — opens the mobile drawer */}
+				{/* Menu button on mobile, back button on desktop */}
 				<button
-					className="size-9 shrink-0 rounded-full flex items-center justify-center text-white/80 hover:text-white drop-shadow-md transition-colors"
+					className="size-9 shrink-0 rounded-full flex items-center justify-center text-white/80 hover:text-white drop-shadow-md transition-colors sidebar:hidden"
 					onClick={openDrawer}
 					aria-label="Open menu"
 				>
 					<BarsStaggeredIcon className="size-5" />
+				</button>
+				<button
+					className="size-9 shrink-0 rounded-full flex items-center justify-center text-white/80 hover:text-white drop-shadow-md transition-colors hidden sidebar:flex"
+					onClick={() => navigate("/")}
+					aria-label="Go back"
+				>
+					<ArrowLeft className="size-5" />
 				</button>
 
 				<div className="flex items-center justify-center gap-6 flex-1">
