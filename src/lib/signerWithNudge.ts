@@ -93,6 +93,15 @@ const RESUME = Symbol('resume');
 type Signal = typeof CANCEL | typeof TIMEOUT | typeof RESUME;
 
 // ---------------------------------------------------------------------------
+// Toast deduplication — prevent a storm of identical nudge toasts
+// ---------------------------------------------------------------------------
+
+/** Timestamp of the last nudge toast shown. Used to throttle. */
+let lastNudgeShownAt = 0;
+/** Minimum gap between nudge toasts (ms). Prevents rapid-fire replacements. */
+const NUDGE_THROTTLE_MS = 8_000;
+
+// ---------------------------------------------------------------------------
 // Toast helpers
 // ---------------------------------------------------------------------------
 
@@ -114,6 +123,14 @@ function showNudgeToast(opts: {
   const android = isAndroid();
   const relayOk = isBunkerConnected ? isBunkerConnected() : true;
   const subject = labelForOp(kind, opType);
+
+  // Throttle: if a nudge was shown recently, return a no-op dismiss handle
+  // to avoid a storm of rapidly replacing toasts on unstable connections.
+  const now = Date.now();
+  if (now - lastNudgeShownAt < NUDGE_THROTTLE_MS) {
+    return { dismiss: () => {} };
+  }
+  lastNudgeShownAt = now;
 
   let title: string;
   let descriptionText: string;
@@ -144,7 +161,9 @@ function showNudgeToast(opts: {
     onCancel: () => { dismissRef.fn?.(); onCancel(); },
   });
 
-  const { dismiss } = toast({ title, description, duration: Infinity });
+  // Use a long but finite duration so Radix swipe-to-dismiss works on mobile.
+  // The toast is dismissed programmatically on operation completion anyway.
+  const { dismiss } = toast({ title, description, duration: 120_000 });
   dismissRef.fn = dismiss;
 
   return { dismiss };
