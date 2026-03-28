@@ -173,6 +173,9 @@ export function BadgesPage() {
         </SubHeaderBar>
       )}
 
+      {/* Arc overhang spacer (matches Feed.tsx) */}
+      {user && <div style={{ height: 20 }} />}
+
       {/* Tab content */}
       {activeTab === "mine" ? (
         <MyBadgesTab
