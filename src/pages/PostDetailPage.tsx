@@ -17,9 +17,10 @@ import {
   Zap,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArticleContent } from "@/components/ArticleContent";
+/** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
+const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
 import { AudioVisualizer } from "@/components/AudioVisualizer";
 import { BadgeDetailContent } from "@/components/BadgeDetailContent";
 import { CalendarEventDetailPage } from "@/components/CalendarEventDetailPage";
@@ -33,7 +34,7 @@ import {
   ReactionEmoji,
   RenderResolvedEmoji,
 } from "@/components/CustomEmoji";
-import { CustomNipCard } from "@/components/CustomNipCard";
+const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { FollowPackContent } from "@/components/FollowPackContent";
 import { FollowPackDetailContent } from "@/components/FollowPackDetailContent";
@@ -55,7 +56,7 @@ import { NoteMoreMenu } from "@/components/NoteMoreMenu";
 import { PatchCard } from "@/components/PatchCard";
 import { PodcastDetailContent } from "@/components/PodcastDetailContent";
 import { PollContent } from "@/components/PollContent";
-import { PullRequestCard } from "@/components/PullRequestCard";
+const PullRequestCard = lazy(() => import("@/components/PullRequestCard").then(m => ({ default: m.PullRequestCard })));
 import { ReactionButton } from "@/components/ReactionButton";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { RepostMenu } from "@/components/RepostMenu";
@@ -1659,7 +1660,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             {isVideo ? (
               <VideoDetailContent event={event} />
             ) : isArticle ? (
-              <ArticleContent event={event} className="mt-3" />
+              <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
+                <ArticleContent event={event} className="mt-3" />
+              </Suspense>
             ) : isMagicDeck ? (
               <MagicDeckContent event={event} />
             ) : isFileMetadata ? (
@@ -1679,13 +1682,17 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <PatchCard event={event} preview={false} />
               </div>
             ) : isPullRequest ? (
-              <div className="mt-3">
-                <PullRequestCard event={event} preview={false} />
-              </div>
+              <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
+                <div className="mt-3">
+                  <PullRequestCard event={event} preview={false} />
+                </div>
+              </Suspense>
             ) : isCustomNip ? (
-              <div className="mt-3">
-                <CustomNipCard event={event} preview={false} />
-              </div>
+              <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
+                <div className="mt-3">
+                  <CustomNipCard event={event} preview={false} />
+                </div>
+              </Suspense>
             ) : isNsite ? (
               <div className="mt-3">
                 <NsiteCard event={event} />

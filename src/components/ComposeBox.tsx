@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { lazy, Suspense, useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarChart3, Plus, ChevronLeft } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -14,7 +14,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { EmojiPicker } from '@/components/EmojiPicker';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { GifPicker } from '@/components/GifPicker';
@@ -34,8 +33,10 @@ import { useToast } from '@/hooks/useToast';
 import { useAppContext } from '@/hooks/useAppContext';
 import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
-import { extractWebxdcMeta } from '@/lib/webxdcMeta';
 import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
+
+/** Lazy-loaded EmojiPicker — keeps emoji-mart + its data out of the main bundle. */
+const LazyEmojiPicker = lazy(() => import('@/components/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
 import { parseImetaMap } from '@/lib/imeta';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useInsertText } from '@/hooks/useInsertText';
@@ -528,6 +529,7 @@ export function ComposeBox({
 
         // Extract name and icon from the .xdc archive
         try {
+          const { extractWebxdcMeta } = await import('@/lib/webxdcMeta');
           const meta = await extractWebxdcMeta(file);
           const metaEntry: { name?: string; iconUrl?: string } = { name: meta.name };
 
@@ -1425,17 +1427,19 @@ export function ComposeBox({
                        )}
                      </div>
                      {/* Picker content */}
-                     {pickerTab === 'emoji' ? (
-                       <EmojiPicker
-                         customEmojis={customEmojis}
-                         onSelect={(selection) => {
-                           if (selection.type === 'native') {
-                             insertEmoji(selection.emoji);
-                           } else {
-                             insertEmoji(`:${selection.shortcode}:`);
-                           }
-                         }}
-                       />
+                      {pickerTab === 'emoji' ? (
+                        <Suspense fallback={<div className="w-[316px] h-[435px] flex items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
+                          <LazyEmojiPicker
+                            customEmojis={customEmojis}
+                            onSelect={(selection) => {
+                              if (selection.type === 'native') {
+                                insertEmoji(selection.emoji);
+                              } else {
+                                insertEmoji(`:${selection.shortcode}:`);
+                              }
+                            }}
+                          />
+                        </Suspense>
                      ) : pickerTab === 'stickers' ? (
                        <div className="w-[316px] h-[435px]">
                          {customEmojis.length === 0 ? (
