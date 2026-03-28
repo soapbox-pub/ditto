@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradients for 3D effect -->
+    <radialGradient id="owliBody3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#d6d3d1;stop-opacity:1" />
+      <stop offset="40%" style="stop-color:#a8a29e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#78716c;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="owliEar3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#a8a29e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#57534e;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="owliEarInner" cx="0.4" cy="0.3">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="owliEyeWhite3D" cx="0.3" cy="0.3">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#f5f5f4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e7e5e4;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="owliPupil3D" cx="0.3" cy="0.3">
+      <stop offset="0%" style="stop-color:#374151;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e293b;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="owliBeak3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="owliBeakHighlight" cx="0.4" cy="0.3">
+      <stop offset="0%" style="stop-color:#fef3c7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fbbf24;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="owliWing3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:#a8a29e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#57534e;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="owliWingHighlight" cx="0.4" cy="0.3">
+      <stop offset="0%" style="stop-color:#d6d3d1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a8a29e;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Round body -->
+  <circle cx="100" cy="110" r="60" fill="url(#owliBody3D)" />
+  
+  <!-- Triangle ears -->
+  <path d="M 60 70 L 70 48 L 82 70 Z" fill="url(#owliEar3D)" />
+  <path d="M 118 70 L 130 48 L 140 70 Z" fill="url(#owliEar3D)" />
+  <path d="M 65 65 L 70 52 L 77 65 Z" fill="url(#owliEarInner)" />
+  <path d="M 123 65 L 130 52 L 135 65 Z" fill="url(#owliEarInner)" />
+  
+  <!-- Large expressive eyes -->
+  <circle cx="80" cy="100" r="22" fill="url(#owliEyeWhite3D)" />
+  <circle cx="120" cy="100" r="22" fill="url(#owliEyeWhite3D)" />
+  
+  <!-- Sleeping eyes -->
+  <path d="M 58 100 Q 80 103 102 100" stroke="#1e293b" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M 98 100 Q 120 103 142 100" stroke="#1e293b" stroke-width="3" fill="none" stroke-linecap="round" />
+  
+  <!-- Enhanced beak -->
+  <path d="M 100 112 L 94 122 L 100 128 L 106 122 Z" fill="url(#owliBeak3D)" />
+  <path d="M 100 114 L 96 120 L 100 124 L 104 120 Z" fill="url(#owliBeakHighlight)" />
+  
+  <!-- Wing details -->
+  <ellipse cx="48" cy="110" rx="16" ry="32" fill="url(#owliWing3D)" transform="rotate(-20 48 110)" />
+  <ellipse cx="152" cy="110" rx="16" ry="32" fill="url(#owliWing3D)" transform="rotate(20 152 110)" />
+  <ellipse cx="50" cy="108" rx="12" ry="25" fill="url(#owliWingHighlight)" transform="rotate(-20 50 108)" />
+  <ellipse cx="150" cy="108" rx="12" ry="25" fill="url(#owliWingHighlight)" transform="rotate(20 150 108)" />
+  
+  <!-- Soft feather texture details -->
+  <circle cx="70" cy="130" r="3" fill="rgba(255,255,255,0.2)" />
+  <circle cx="130" cy="125" r="2.5" fill="rgba(255,255,255,0.2)" />
+  <circle cx="85" cy="140" r="2" fill="rgba(255,255,255,0.15)" />
+  <circle cx="115" cy="135" r="2.5" fill="rgba(255,255,255,0.15)" />
+
+  <!-- "Zzz" sleeping -->
+  <text x="150" y="60" font-size="10" fill="#666" opacity="0.8">Z</text>
+  <text x="157" y="55" font-size="8" fill="#666" opacity="0.6">z</text>
+  <text x="162" y="51" font-size="6" fill="#666" opacity="0.4">z</text>
+</svg>

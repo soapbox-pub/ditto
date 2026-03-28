@@ -23,6 +23,7 @@ import {
   Palette,
   PartyPopper,
   Podcast,
+  Egg,
   Repeat2,
   Scroll,
   Search,
@@ -146,6 +147,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     icon: Bot,
     requiresAuth: true,
   },
+  { id: 'blobbi', label: 'Blobbi', path: '/blobbi', icon: Egg, requiresAuth: true },
   { id: "help", label: "Help", path: "/help", icon: HelpCircle },
   // Content types
   { id: "events", label: "Events", path: "/events", icon: CalendarDays },

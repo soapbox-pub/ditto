@@ -21,6 +21,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
 import { PROTOCOL_MODE } from "@/lib/dmConstants";
+import { EmotionDevProvider } from "@/blobbi/dev";
 import AppRouter from "./AppRouter";
 
 const dmConfig: DMConfig = {
@@ -180,12 +181,14 @@ export function App() {
                   <NativeNotifications />
                     <NWCProvider>
                     <DMProvider config={dmConfig}>
-                      <TooltipProvider>
-                        <Toaster />
-                        <InitialSyncGate>
-                          <AppRouter />
-                        </InitialSyncGate>
-                      </TooltipProvider>
+                      <EmotionDevProvider>
+                        <TooltipProvider>
+                          <Toaster />
+                          <InitialSyncGate>
+                            <AppRouter />
+                          </InitialSyncGate>
+                        </TooltipProvider>
+                      </EmotionDevProvider>
                     </DMProvider>
                   </NWCProvider>
                 </NostrProvider>
