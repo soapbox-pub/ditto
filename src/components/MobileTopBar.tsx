@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { DittoLogo } from '@/components/DittoLogo';
 import { BarsStaggeredIcon } from '@/components/icons/BarsStaggeredIcon';
 import { ArcBackground } from '@/components/ArcBackground';
+import { useNavHidden } from '@/contexts/LayoutContext';
 
 interface MobileTopBarProps {
   onAvatarClick: () => void;
@@ -12,6 +13,7 @@ interface MobileTopBarProps {
 
 export function MobileTopBar({ onAvatarClick, hasSubHeader }: MobileTopBarProps) {
   const location = useLocation();
+  const navHidden = useNavHidden();
 
   const handleLogoClick = useCallback((e: React.MouseEvent) => {
     if (location.pathname === '/') {
@@ -21,7 +23,10 @@ export function MobileTopBar({ onAvatarClick, hasSubHeader }: MobileTopBarProps)
   }, [location.pathname]);
 
   return (
-    <header className="sticky top-0 z-20 sidebar:hidden safe-area-top">
+    <header
+      className="sticky top-0 z-20 sidebar:hidden safe-area-top transition-transform duration-300 ease-in-out"
+      style={navHidden ? { transform: 'translateY(calc(-100% - env(safe-area-inset-top, 0px)))' } : undefined}
+    >
       <ArcBackground variant={hasSubHeader ? 'rect' : 'down'} />
       <div className="relative flex items-center px-3 h-10">
         {/* Left: hamburger menu icon */}

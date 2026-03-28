@@ -71,6 +71,14 @@
     top: calc(var(--top-bar-height) + env(safe-area-inset-top, 0px));
   }
 
+  /* Slide the sub-header bar out of view together with the mobile top bar.
+     Must clear its own height (100%) + top bar + safe area + arc overhang (20px). */
+  @media (max-width: 899px) {
+    .nav-hidden-slide {
+      transform: translateY(calc(-100% - var(--top-bar-height) - 20px - env(safe-area-inset-top, 0px)));
+    }
+  }
+
   /* Negative margin to pull content area up behind the mobile top bar (only when it's visible) */
   @media (max-width: 899px) {
     .-mt-mobile-bar {

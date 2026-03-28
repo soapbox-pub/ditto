@@ -8,7 +8,7 @@ import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LayoutStore, LayoutStoreContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
+import { LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { cn } from '@/lib/utils';
@@ -71,7 +71,7 @@ function MainLayoutInner() {
   const { hidden: navHidden } = useScrollDirection(scrollContainer);
 
   return (
-    <>
+    <NavHiddenContext.Provider value={navHidden}>
       {/* Magic Mouse fire particle overlay */}
       {config.magicMouse && <CursorFireEffect />}
 
@@ -133,7 +133,7 @@ function MainLayoutInner() {
           </div>
         </div>
       )}
-    </>
+    </NavHiddenContext.Provider>
   );
 }
 
