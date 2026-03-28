@@ -12,6 +12,7 @@
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
+import { isLocalhostDev } from './index';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,8 +45,8 @@ export function EmotionDevProvider({ children }: EmotionDevProviderProps) {
   const [devEmotion, setDevEmotionState] = useState<BlobbiEmotion | null>(null);
   
   const setDevEmotion = useCallback((emotion: BlobbiEmotion | null) => {
-    // Only allow in development
-    if (!import.meta.env.DEV) return;
+    // Only allow in localhost development
+    if (!isLocalhostDev()) return;
     setDevEmotionState(emotion);
   }, []);
   
@@ -76,8 +77,8 @@ export function EmotionDevProvider({ children }: EmotionDevProviderProps) {
 export function useEmotionDev(): EmotionDevContextValue {
   const context = useContext(EmotionDevContext);
   
-  // In production or if no provider, return safe defaults
-  if (!import.meta.env.DEV || !context) {
+  // Outside localhost dev or if no provider, return safe defaults
+  if (!isLocalhostDev() || !context) {
     return {
       devEmotion: null,
       setDevEmotion: () => {},
@@ -97,8 +98,8 @@ export function useEmotionDev(): EmotionDevContextValue {
 export function useEffectiveEmotion(baseEmotion?: BlobbiEmotion): BlobbiEmotion {
   const { devEmotion, isDevEmotionActive } = useEmotionDev();
   
-  // Dev override takes precedence
-  if (import.meta.env.DEV && isDevEmotionActive && devEmotion) {
+  // Dev override takes precedence (only in localhost dev)
+  if (isLocalhostDev() && isDevEmotionActive && devEmotion) {
     return devEmotion;
   }
   
