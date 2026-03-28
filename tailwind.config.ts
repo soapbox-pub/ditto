@@ -102,16 +102,21 @@ export default {
 						boxShadow: '0 0 8px 2px hsl(var(--primary) / 0.15)'
 					}
 				},
-				'badge-spotlight': {
-					from: { transform: 'rotate(0deg)' },
-					to: { transform: 'rotate(360deg)' }
-				}
+			'badge-spotlight': {
+				from: { transform: 'rotate(0deg)' },
+				to: { transform: 'rotate(360deg)' }
+			},
+			'highlight-fade': {
+				from: { backgroundColor: 'hsl(var(--primary) / 0.10)' },
+				to: { backgroundColor: 'transparent' }
+			}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'pending-glow': 'pending-glow 2.5s ease-in-out infinite',
-				'badge-spotlight': 'badge-spotlight 8s linear infinite'
+				'badge-spotlight': 'badge-spotlight 8s linear infinite',
+				'highlight-fade': 'highlight-fade 1.5s ease-out forwards'
 			}
 		}
 	},
