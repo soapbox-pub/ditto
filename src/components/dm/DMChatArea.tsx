@@ -21,8 +21,10 @@ import { cn } from '@/lib/utils';
 import { NoteContent } from '@/components/NoteContent';
 import { GifPicker } from '@/components/GifPicker';
 import { EmojiPicker } from '@/components/EmojiPicker';
+import { EmojiShortcodeAutocomplete } from '@/components/EmojiShortcodeAutocomplete';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useInsertText } from '@/hooks/useInsertText';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 interface DMChatAreaProps {
@@ -235,6 +237,7 @@ export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
   const { emojis: allCustomEmojis } = useCustomEmojis();
   const customEmojis = feedSettings.showCustomEmojis !== false ? allCustomEmojis : [];
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { insertAtCursor, insertEmoji } = useInsertText(textareaRef, messageText, setMessageText);
   
   // Determine default protocol based on mode
   const getDefaultProtocol = () => {
@@ -378,15 +381,22 @@ export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
       <div className="p-4 border-t">
         <div className="flex gap-2">
           <div className="flex-1 flex flex-col gap-1.5">
-            <Textarea
-              ref={textareaRef}
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
-              className="min-h-[80px] resize-none"
-              disabled={isSending}
-            />
+            <div className="relative">
+              <Textarea
+                ref={textareaRef}
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
+                className="min-h-[80px] resize-none"
+                disabled={isSending}
+              />
+              <EmojiShortcodeAutocomplete
+                textareaRef={textareaRef}
+                content={messageText}
+                onInsertEmoji={insertAtCursor}
+              />
+            </div>
             {/* Toolbar row */}
             <div className="flex items-center gap-0.5">
               {/* Emoji picker */}
@@ -413,20 +423,7 @@ export const DMChatArea = ({ pubkey, onBack, className }: DMChatAreaProps) => {
                     customEmojis={customEmojis}
                     onSelect={(selection) => {
                       const text = selection.type === 'native' ? selection.emoji : `:${selection.shortcode}:`;
-                      const textarea = textareaRef.current;
-                      if (textarea) {
-                        const start = textarea.selectionStart;
-                        const end = textarea.selectionEnd;
-                        const newText = messageText.slice(0, start) + text + messageText.slice(end);
-                        setMessageText(newText);
-                        requestAnimationFrame(() => {
-                          textarea.focus();
-                          const pos = start + text.length;
-                          textarea.setSelectionRange(pos, pos);
-                        });
-                      } else {
-                        setMessageText((prev) => prev + text);
-                      }
+                      insertEmoji(text);
                     }}
                   />
                 </PopoverContent>
