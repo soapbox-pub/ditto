@@ -271,6 +271,11 @@ public class NotificationRelayService extends Service {
         }
 
         List<Integer> enabledKinds = parseEnabledKinds(enabledKindsJson);
+        if (enabledKinds.isEmpty()) {
+            Log.d(TAG, "No enabled kinds, skipping fetch");
+            releaseFetchWakeLock();
+            return;
+        }
         List<String> authors = parseAuthors(authorsJson);
         fetch(relayUrls.get(relayIndex), userPubkey, enabledKinds, authors);
     }
@@ -550,12 +555,11 @@ public class NotificationRelayService extends Service {
         return authors;
     }
 
-    /** Default kinds when no preference is set. */
-    private static final int[] DEFAULT_KINDS = {1, 6, 16, 7, 9735, 1111, 1222, 1244};
-
     /**
-     * Parse the enabled notification kinds from JSON. Falls back to default
-     * kinds when the value is null or invalid.
+     * Parse the enabled notification kinds from JSON. Returns an empty list
+     * when the value is null or invalid — the caller should skip polling
+     * when the list is empty (the JS layer always provides kinds via
+     * DittoNotification.configure in the same write as pubkey/relays).
      */
     private List<Integer> parseEnabledKinds(String json) {
         List<Integer> kinds = new ArrayList<>();
@@ -567,11 +571,6 @@ public class NotificationRelayService extends Service {
                 }
             } catch (JSONException e) {
                 Log.w(TAG, "Failed to parse enabled kinds", e);
-            }
-        }
-        if (kinds.isEmpty()) {
-            for (int k : DEFAULT_KINDS) {
-                kinds.add(k);
             }
         }
         return kinds;
