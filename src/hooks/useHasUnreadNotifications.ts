@@ -1,15 +1,12 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useFollowList } from './useFollowActions';
 import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
-
-/** All kinds that can appear as notifications. */
-const NOTIFICATION_KINDS = [1, 6, 16, 7, 9735, 1111, 1222, 1244] as const;
 
 /**
  * Lightweight hook that checks whether the user has any unread notifications.
@@ -19,15 +16,15 @@ const NOTIFICATION_KINDS = [1, 6, 16, 7, 9735, 1111, 1222, 1244] as const;
  * Respects the user's per-type notification preferences so that disabled
  * types (e.g. reactions) don't trigger the unread dot.
  *
- * Also opens a real-time subscription so the unread dot appears immediately
- * when a new notification arrives, instead of waiting for the next poll.
+ * Real-time updates are handled by the subscription in `useNotifications`,
+ * which invalidates the `notifications-unread` query key when new events
+ * arrive. This hook only needs polling as a fallback.
  *
  * Use this in navigation components (sidebar, mobile bottom nav) for the dot indicator.
  * Use `useNotifications` on the actual notifications page where the full list is needed.
  */
 export function useHasUnreadNotifications(): boolean {
   const { nostr } = useNostr();
-  const queryClient = useQueryClient();
   const { user } = useCurrentUser();
   const { settings } = useEncryptedSettings();
 
@@ -83,35 +80,6 @@ export function useHasUnreadNotifications(): boolean {
     refetchInterval: Capacitor.isNativePlatform() ? false : 60_000,
     placeholderData: (prev) => prev,
   });
-
-  // Real-time subscription for instant unread-dot updates.
-  // When a new notification event arrives, invalidate the query to re-check.
-  useEffect(() => {
-    if (!user || notificationsCursor === null || Capacitor.isNativePlatform()) return;
-
-    const ac = new AbortController();
-
-    (async () => {
-      try {
-        for await (const msg of nostr.req(
-          [{
-            kinds: [...NOTIFICATION_KINDS],
-            '#p': [user.pubkey],
-            since: Math.floor(Date.now() / 1000),
-          }],
-          { signal: ac.signal },
-        )) {
-          if (msg[0] === 'EVENT' && msg[2].pubkey !== user.pubkey) {
-            queryClient.invalidateQueries({ queryKey: ['notifications-unread', user.pubkey] });
-          }
-        }
-      } catch {
-        // AbortError on cleanup — expected
-      }
-    })();
-
-    return () => ac.abort();
-  }, [nostr, user, notificationsCursor, queryClient]);
 
   return hasUnread;
 }

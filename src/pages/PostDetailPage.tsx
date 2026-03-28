@@ -155,7 +155,7 @@ import { useMuteList } from "@/hooks/useMuteList";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
 import { toast } from "@/hooks/useToast";
-import { useEventStats, type EventStats } from "@/hooks/useTrending";
+import { useEventStats } from "@/hooks/useTrending";
 import { extractISBNFromEvent } from "@/lib/bookstr";
 import { canZap } from "@/lib/canZap";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
@@ -1105,36 +1105,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       });
     }
   }, [isKind1, isComment, replies, event.id, commentsData, muteItems]);
-
-  // Seed the event-stats cache with client-side reply counts for each comment
-  // in the thread.  NIP-85 may not have stats for kind 1111 events, so this
-  // ensures sub-comment counts are visible without extra relay queries.
-  useEffect(() => {
-    if (!replies || replies.length === 0) return;
-
-    // Count direct replies for each event in the thread
-    const replyCounts = new Map<string, number>();
-    for (const r of replies) {
-      // For kind 1, parent is determined by NIP-10 e-tag; for kind 1111, by lowercase e-tag
-      const parentId = isKind1
-        ? getParentEventId(r) ?? event.id
-        : r.tags.find(([n]) => n === 'e')?.[1];
-      if (parentId) {
-        replyCounts.set(parentId, (replyCounts.get(parentId) ?? 0) + 1);
-      }
-    }
-
-    // Seed any events whose stats cache currently shows 0 replies (or is empty)
-    for (const [eventId, count] of replyCounts) {
-      const existing = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
-      if (!existing || existing.replies === 0) {
-        queryClient.setQueryData<EventStats>(['event-stats', eventId], (prev) => ({
-          ...(prev ?? { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, zapCount: 0, reactionEmojis: [] }),
-          replies: Math.max(prev?.replies ?? 0, count),
-        }));
-      }
-    }
-  }, [replies, isKind1, event.id, queryClient]);
 
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
