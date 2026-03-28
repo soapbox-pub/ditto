@@ -474,7 +474,7 @@ function ArchiveSearchBar() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const { data: results, isFetching } = useArchiveSearch(debouncedQuery);
 

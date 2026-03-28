@@ -104,7 +104,7 @@ async function fetchTenorTrending(pos?: string): Promise<{ results: GifResult[];
 export function useGifSearch() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const handleQueryChange = useCallback((value: string) => {
     setQuery(value);

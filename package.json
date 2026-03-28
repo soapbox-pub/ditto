@@ -54,7 +54,7 @@
     "@getalby/sdk": "^5.1.1",
     "@hookform/resolvers": "^5.2.2",
     "@nostrify/nostrify": "^0.51.0",
-    "@nostrify/react": "^0.3.1",
+    "@nostrify/react": "^0.4.0",
     "@nostrify/types": "^0.36.9",
     "@plausible-analytics/tracker": "^0.4.4",
     "@radix-ui/react-accordion": "^1.2.0",
@@ -105,10 +105,10 @@
     "lucide-react": "^0.462.0",
     "nostr-tools": "^2.13.0",
     "qrcode": "^1.5.4",
-    "react": "^18.3.1",
+    "react": "^19.2.4",
     "react-blurhash": "^0.3.0",
-    "react-day-picker": "^8.10.1",
-    "react-dom": "^18.3.1",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "^19.2.4",
     "react-easy-crop": "^5.5.6",
     "react-hook-form": "^7.71.1",
     "react-intersection-observer": "^9.16.0",
@@ -121,7 +121,7 @@
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "uri-templates": "^0.2.0",
-    "vaul": "^0.9.3",
+    "vaul": "^1.1.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -132,13 +132,14 @@
     "@html-eslint/eslint-plugin": "^0.41.0",
     "@html-eslint/parser": "^0.41.0",
     "@tailwindcss/typography": "^0.5.15",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.3.0",
+    "@testing-library/react": "^16.3.2",
     "@types/dompurify": "^3.0.5",
     "@types/node": "^22.5.5",
     "@types/qrcode": "^1.5.5",
-    "@types/react": "^18.3.1",
-    "@types/react-dom": "^18.3.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "@webbtc/webln-types": "^3.0.0",
     "@webxdc/types": "^2.1.2",
@@ -155,5 +156,9 @@
     "typescript-eslint": "^8.0.1",
     "vite": "^8.0.0",
     "vitest": "^3.1.4"
+  },
+  "overrides": {
+    "react": "$react",
+    "react-dom": "$react-dom"
   }
 }

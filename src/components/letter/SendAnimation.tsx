@@ -165,7 +165,7 @@ export function SendAnimation({
   const splatId = useId();
 
   const [t, setT] = useState(0);
-  const cancelRef = useRef<() => void>();
+  const cancelRef = useRef<(() => void) | undefined>(undefined);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
