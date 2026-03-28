@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useEmotionDev } from './EmotionDevContext';
+import { isLocalhostDev } from './index';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -49,8 +50,8 @@ const EMOTIONS: Array<{ value: BlobbiEmotion; label: string; emoji: string }> = 
 export function BlobbiEmotionPanel({ isOpen, onClose }: BlobbiEmotionPanelProps) {
   const { devEmotion, setDevEmotion, clearDevEmotion } = useEmotionDev();
   
-  // Don't render in production
-  if (!import.meta.env.DEV) {
+  // Don't render outside localhost development
+  if (!isLocalhostDev()) {
     return null;
   }
   
