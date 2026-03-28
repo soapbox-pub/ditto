@@ -400,7 +400,7 @@ export function SearchPage() {
       ? authorPubkeys
       : undefined;
 
-  const { posts, isLoading: postsLoading, newPostCount } = useStreamPosts(debouncedSearchQuery, {
+  const { posts, isLoading: postsLoading, newPostCount, flushStreamBuffer } = useStreamPosts(debouncedSearchQuery, {
     includeReplies,
     mediaType,
     language,
@@ -757,7 +757,10 @@ export function SearchPage() {
               }}
             >
               <button
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                onClick={() => {
+                  flushStreamBuffer();
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
                 className="pointer-events-auto px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors animate-in fade-in slide-in-from-top-2 duration-300"
               >
                 {newPostCount} new post{newPostCount !== 1 ? 's' : ''}
