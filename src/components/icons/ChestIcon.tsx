@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Chest icon from @lucide/lab — used for Treasures / traditional geocaches.
+ * Chest icon from @lucide/lab — used for Treasures.
  * Rendered as a standard lucide-style SVG component.
  */
 export const ChestIcon = React.forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>(

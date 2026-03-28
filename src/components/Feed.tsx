@@ -40,7 +40,7 @@ const LANDING_KINDS = [
   36767, // Themes
   37381, // Magic Decks
   3367,  // Color Moments
-  37516, // Treasures (Geocaches)
+  37516, // Treasures
   7516,  // Treasures (Found Logs)
   30030, // Emoji Packs
   30009, // Badge Definitions
