@@ -83,7 +83,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   31923: 'calendar event',
   32267: 'app',
   34139: 'playlist',
-  34236: 'vine',
+  34236: 'divine',
   34550: 'community',
   35128: 'nsite',
   36767: 'theme',

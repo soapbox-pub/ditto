@@ -113,7 +113,7 @@ const KIND_LABELS: Record<number, string> = {
   31923: 'a calendar event',
   32267: 'an app',
   34139: 'a playlist',
-  34236: 'a vine',
+  34236: 'a divine',
   34550: 'a community',
   35128: 'an nsite',
   36767: 'a theme',
