@@ -17,9 +17,9 @@ export function useNsecPasteGuard() {
       e.stopImmediatePropagation();
 
       toast({
-        title: "Private key detected",
+        title: "Secret key detected",
         description:
-          "You just tried to paste an nsec (private key). This should never be shared publicly — it gives full control of your account.",
+          "Your clipboard contains a secret key. Posting it publicly could give someone else full access to your account.",
         variant: "destructive",
       });
     }
