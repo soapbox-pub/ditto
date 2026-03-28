@@ -2204,7 +2204,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         </div>
 
         {/* Tabs */}
-        <SubHeaderBar>
+        <SubHeaderBar pinned>
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
             <div className="flex gap-1 px-2 py-2">
