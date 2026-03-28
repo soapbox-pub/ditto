@@ -46,6 +46,7 @@ import { genUserName } from '@/lib/genUserName';
 
 import { canZap } from '@/lib/canZap';
 import { shareOrCopy } from '@/lib/share';
+import { openUrl } from '@/lib/downloadFile';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { BioContent } from '@/components/BioContent';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
@@ -68,6 +69,10 @@ import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
 import { ProfileRecoveryDialog } from '@/components/ProfileRecoveryDialog';
+import { GiveBadgeDialog } from '@/components/GiveBadgeDialog';
+import { BadgeThumbnail } from '@/components/BadgeThumbnail';
+import { useProfileBadges } from '@/hooks/useProfileBadges';
+import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
@@ -81,10 +86,11 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS as DndCSS } from '@dnd-kit/utilities';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
-import { loadAndApplyFont } from '@/lib/fontLoader';
+import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
+import { resolveCssFamily } from '@/lib/fonts';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
-import { FontPicker } from '@/components/FontPicker';
+import { FontSection } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { formatNumber } from '@/lib/formatNumber';
@@ -153,6 +159,7 @@ interface ProfileMoreMenuProps {
 
 function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile }: ProfileMoreMenuProps) {
   const { toast } = useToast();
+  const { user } = useCurrentUser();
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
@@ -162,8 +169,13 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const [reportOpen, setReportOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [giveBadgeOpen, setGiveBadgeOpen] = useState(false);
 
   const close = () => onOpenChange(false);
+  const openAfterClose = (setter: (v: boolean) => void) => {
+    close();
+    setTimeout(() => setter(true), 150);
+  };
 
   const handleCopyPubkey = () => {
     navigator.clipboard.writeText(npubEncoded);
@@ -192,15 +204,8 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     close();
   };
 
-  const handleReport = () => {
-    close();
-    setTimeout(() => setReportOpen(true), 150);
-  };
-
-  const handleAddToList = () => {
-    close();
-    setTimeout(() => setAddToListOpen(true), 150);
-  };
+  const handleReport = () => openAfterClose(setReportOpen);
+  const handleAddToList = () => openAfterClose(setAddToListOpen);
 
   const handleToggleSidebar = () => {
     if (isInSidebar) {
@@ -213,10 +218,8 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     close();
   };
 
-  const handleRecovery = () => {
-    close();
-    setTimeout(() => setRecoveryOpen(true), 150);
-  };
+  const handleRecovery = () => openAfterClose(setRecoveryOpen);
+  const handleGiveBadge = () => openAfterClose(setGiveBadgeOpen);
 
   return (
   <>
@@ -266,6 +269,13 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             <Separator />
 
             <div className="py-1">
+              {user && (
+                <MenuRow
+                  icon={<Award className="size-5" />}
+                  label="Give badge"
+                  onClick={handleGiveBadge}
+                />
+              )}
               <MenuRow
                 icon={<VolumeX className="size-5" />}
                 label={userMuted ? `Unmute @${displayName}` : `Mute @${displayName}`}
@@ -308,6 +318,15 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
       <ProfileRecoveryDialog
         open={recoveryOpen}
         onOpenChange={setRecoveryOpen}
+      />
+    )}
+
+    {!isOwnProfile && (
+      <GiveBadgeDialog
+        open={giveBadgeOpen}
+        onOpenChange={setGiveBadgeOpen}
+        recipientPubkey={pubkey}
+        recipientName={displayName}
       />
     )}
   </>
@@ -788,11 +807,7 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const a = document.createElement('a');
-    a.href = imageUrl;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.click();
+    openUrl(imageUrl);
   };
 
   return (
@@ -1327,6 +1342,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     primary: '258 70% 60%',
   });
   const [localProfileFont, setLocalProfileFont] = useState<ThemeFont | undefined>();
+  const [localProfileTitleFont, setLocalProfileTitleFont] = useState<ThemeFont | undefined>();
   const [localProfileBg, setLocalProfileBg] = useState<ThemeBackground | undefined>();
 
   // Initialize local state from profile theme when dialog opens
@@ -1334,6 +1350,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     if (editProfileThemeOpen && profileTheme) {
       setLocalProfileColors(profileTheme.colors);
       setLocalProfileFont(profileTheme.font);
+      setLocalProfileTitleFont(profileTheme.titleFont);
       setLocalProfileBg(profileTheme.background);
     }
   }, [editProfileThemeOpen, profileTheme]);
@@ -1347,6 +1364,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const ownThemeRef = useRef({ ownTheme, ownCustomTheme, configuredThemes });
   ownThemeRef.current = { ownTheme, ownCustomTheme, configuredThemes };
   const profileThemeFont = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.font : undefined;
+  const profileThemeTitleFont = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.titleFont : undefined;
   const profileThemeBackground = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.background : undefined;
 
   // Whether we need to override the custom theme on this profile.
@@ -1367,11 +1385,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     `${hslStringToHex(c.primary)}${hslStringToHex(c.text)}${hslStringToHex(c.background)}`;
   const fontFamily = (f?: { family: string }) => f?.family ?? '';
   const ownCustomThemeSnapshot = ownCustomTheme
-    ? colorsToHex(ownCustomTheme.colors) + fontFamily(ownCustomTheme.font) + JSON.stringify(ownCustomTheme.background ?? '')
+    ? colorsToHex(ownCustomTheme.colors) + fontFamily(ownCustomTheme.font) + fontFamily(ownCustomTheme.titleFont) + JSON.stringify(ownCustomTheme.background ?? '')
     : null;
   const profileThemeDiffers = profileHasTheme && ownCustomThemeSnapshot && profileTheme && ownCustomTheme
     ? (colorsToHex(profileTheme.colors) !== colorsToHex(ownCustomTheme.colors)
       || fontFamily(profileTheme.font) !== fontFamily(ownCustomTheme.font)
+      || fontFamily(profileTheme.titleFont) !== fontFamily(ownCustomTheme.titleFont)
       || JSON.stringify(profileTheme.background ?? '') !== JSON.stringify(ownCustomTheme.background ?? ''))
     : false;
 
@@ -1397,6 +1416,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     () => profileThemeColors ? (profileThemeFont ?? { family: 'Inter' }) : undefined,
     [profileThemeColors, profileThemeFont],
   );
+  // Title font falls back to the body font when not explicitly set,
+  // so the display name inherits the theme's body font rather than the default.
+  const effectiveProfileTitleFont = useMemo(
+    () => profileThemeColors ? (profileThemeTitleFont ?? effectiveProfileFont) : undefined,
+    [profileThemeColors, profileThemeTitleFont, effectiveProfileFont],
+  );
   const effectiveProfileBackground = profileThemeColors ? profileThemeBackground : undefined;
 
   useLayoutEffect(() => {
@@ -1415,6 +1440,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
     // Apply profile font (if any)
     loadAndApplyFont(effectiveProfileFont);
+
+    // Apply profile title font (if any)
+    loadAndApplyTitleFont(effectiveProfileTitleFont);
 
     // Apply profile background image (if any)
     const bgStyleId = 'theme-background';
@@ -1461,6 +1489,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       // Restore own font or clear override
       loadAndApplyFont(ownActiveConfig?.font);
 
+      // Restore own title font or clear override
+      loadAndApplyTitleFont(ownActiveConfig?.titleFont);
+
       // Restore own background or remove override
       const bgEl = document.getElementById(bgStyleId) as HTMLStyleElement | null;
       const ownBgUrl = ownActiveConfig?.background?.url;
@@ -1485,7 +1516,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         bgEl?.remove();
       }
     };
-  }, [effectiveProfileColors, effectiveProfileFont, effectiveProfileBackground]);
+  }, [effectiveProfileColors, effectiveProfileFont, effectiveProfileTitleFont, effectiveProfileBackground]);
 
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 
@@ -1556,6 +1587,11 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     }
     return events;
   }, [mediaData?.pages]);
+
+  // Profile badges for bio section
+  const { refs: badgeRefs } = useProfileBadges(pubkey);
+  const firstBadgeRefs = useMemo(() => badgeRefs.slice(0, 5), [badgeRefs]);
+  const { badgeMap } = useBadgeDefinitions(firstBadgeRefs);
 
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {
@@ -1984,7 +2020,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
                   {/* NIP-38 thought bubble — floats beside the avatar over the banner */}
                   {feedSettings.showUserStatuses !== false && profileStatus.status && (
-                    <div className="absolute -top-2 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
+                    <div className="absolute top-3 md:top-4 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
                       <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg">
                         <p className="text-xs md:text-sm text-foreground italic truncate pr-1">
                           {profileStatus.url ? (
@@ -1995,9 +2031,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                             profileStatus.status
                           )}
                         </p>
-                        {/* Speech bubble triangle tail — slightly angled toward avatar */}
-                        <div className="absolute -bottom-[6px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-t-[6px] border-t-border" />
-                        <div className="absolute -bottom-[5px] left-3 size-0 border-l-[4px] border-l-transparent border-r-[8px] border-r-transparent border-t-[6px] border-t-background" />
+                        {/* Speech bubble triangle tail — bottom-left corner, points diagonally down-left toward avatar */}
+                        <div className="absolute -bottom-[7px] left-1 size-0 border-t-[8px] border-t-border border-r-[8px] border-r-transparent" />
+                        <div className="absolute -bottom-[5.5px] left-1 size-0 border-t-[7px] border-t-background border-r-[7px] border-r-transparent" />
                       </div>
                     </div>
                   )}
@@ -2060,7 +2096,10 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </div>
               </div>
 
-              <h2 className="text-xl font-bold truncate">
+              <h2
+                className="text-xl font-bold truncate"
+                style={effectiveProfileTitleFont ? { fontFamily: 'var(--title-font-family)' } : undefined}
+              >
                 {metadataEvent ? (
                   <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
                 ) : displayName}
@@ -2129,6 +2168,27 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </p>
               )}
 
+              {/* Badge preview */}
+              {badgeRefs.length > 0 && (
+                <div className="flex items-center gap-1.5 mt-2">
+                  {firstBadgeRefs.map((ref) => {
+                    const badge = badgeMap.get(ref.aTag);
+                    if (!badge) return null;
+                    return (
+                      <Link
+                        key={ref.aTag}
+                        to={`/${nip19.naddrEncode({ kind: 30009, pubkey: ref.pubkey, identifier: ref.identifier })}`}
+                      >
+                        <BadgeThumbnail badge={badge} size={32} className="transition-transform hover:scale-110" />
+                      </Link>
+                    );
+                  })}
+                  {badgeRefs.length > 5 && (
+                    <span className="text-[10px] text-muted-foreground font-medium">+{badgeRefs.length - 5}</span>
+                  )}
+                </div>
+              )}
+
               {/* Profile fields shown inline on mobile (sidebar is hidden below xl) */}
               {fields.length > 0 && (
                 <div className="mt-4 space-y-3 xl:hidden">
@@ -2144,7 +2204,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         </div>
 
         {/* Tabs */}
-        <SubHeaderBar>
+        <SubHeaderBar pinned>
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
             <div className="flex gap-1 px-2 py-2">
@@ -2681,7 +2741,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             <PortalContainerProvider value={editThemePortalContainer}>
             <div className="overflow-y-auto max-h-[85vh] p-6 space-y-4">
             <DialogHeader>
-              <DialogTitle>Edit Profile Theme</DialogTitle>
+              <DialogTitle style={localProfileTitleFont?.family ? { fontFamily: `"${resolveCssFamily(localProfileTitleFont.family)}", inherit` } : undefined}>Edit Profile Theme</DialogTitle>
               <DialogDescription>
                 Customize the theme visitors see on your profile
               </DialogDescription>
@@ -2705,10 +2765,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 ))}
               </div>
 
-              {/* Font */}
-              <FontPicker
-                value={localProfileFont}
-                onChange={setLocalProfileFont}
+              {/* Fonts (body + title) */}
+              <FontSection
+                bodyFont={localProfileFont}
+                onBodyFontChange={setLocalProfileFont}
+                titleFont={localProfileTitleFont}
+                onTitleFontChange={setLocalProfileTitleFont}
               />
 
               {/* Background */}
@@ -2727,6 +2789,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       themeConfig: {
                         colors: localProfileColors,
                         font: localProfileFont,
+                        titleFont: localProfileTitleFont,
                         background: localProfileBg,
                       },
                     });

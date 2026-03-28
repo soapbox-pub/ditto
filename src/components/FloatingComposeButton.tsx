@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Plus, Construction } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,9 +7,11 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { getAvatarShape, getEmojiMaskUrl } from '@/lib/avatarShape';
+import { FabButton } from '@/components/FabButton';
+
+// Lazy-load the compose modal (pulls in emoji-mart ~620K)
+const ReplyComposeModal = lazy(() => import('@/components/ReplyComposeModal').then(m => ({ default: m.ReplyComposeModal })));
 
 
 
@@ -25,29 +27,10 @@ interface FloatingComposeButtonProps {
 }
 
 export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: FloatingComposeButtonProps) {
-  const { user, metadata, isLoading } = useCurrentUser();
+  const { user, isLoading } = useCurrentUser();
   const navigate = useNavigate();
   const [composeOpen, setComposeOpen] = useState(false);
   const [comingSoonOpen, setComingSoonOpen] = useState(false);
-
-  const avatarShape = getAvatarShape(metadata);
-
-  /** When the user has a custom emoji shape, use it as the FAB mask instead of a circle. */
-  const shapeMaskStyle = useMemo<React.CSSProperties | undefined>(() => {
-    if (!avatarShape) return undefined;
-    const maskUrl = getEmojiMaskUrl(avatarShape);
-    if (!maskUrl) return undefined;
-    return {
-      WebkitMaskImage: `url(${maskUrl})`,
-      maskImage: `url(${maskUrl})`,
-      WebkitMaskSize: 'contain',
-      maskSize: 'contain' as string,
-      WebkitMaskRepeat: 'no-repeat',
-      maskRepeat: 'no-repeat' as string,
-      WebkitMaskPosition: 'center',
-      maskPosition: 'center' as string,
-    };
-  }, [avatarShape]);
 
   // Hide until user metadata is resolved so the shape mask is immediately
   // correct — avoids a brief flash of the default circle fallback.
@@ -69,26 +52,16 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
 
   return (
     <>
-      <button
+      <FabButton
         onClick={handleClick}
-        className="relative size-16 transition-transform hover:scale-105 active:scale-95"
-        style={{ filter: 'drop-shadow(0 2px 8px hsl(var(--primary) / 0.25))' }}
+        icon={icon ?? <Plus strokeWidth={4} size={16} />}
+      />
 
-      >
-        {/* FAB background: user's avatar shape (emoji mask) or circle (default) */}
-        <div
-          className={`absolute inset-0 bg-primary ${shapeMaskStyle ? '' : 'rounded-full'}`}
-          style={shapeMaskStyle}
-        />
-        {/* Plus icon centered on the button */}
-        <span className="absolute inset-0 flex items-center justify-center text-primary-foreground">
-          {icon ?? <Plus strokeWidth={4} size={16} />}
-        </span>
-      </button>
-
-      {/* Kind 1: Compose modal */}
-      {kind === 1 && (
-        <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
+      {/* Kind 1: Compose modal (lazy-loaded) */}
+      {kind === 1 && composeOpen && (
+        <Suspense fallback={null}>
+          <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
+        </Suspense>
       )}
 
       {/* Other kinds: Coming soon dialog */}

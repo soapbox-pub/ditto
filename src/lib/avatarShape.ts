@@ -1,7 +1,10 @@
 import type React from 'react';
 
 /**
- * An avatar shape is an emoji string stored in kind-0 metadata as the `shape` property.
+ * An avatar shape is stored in kind-0 metadata as the `shape` property.
+ * Supported formats:
+ * - Emoji string (e.g., "🐱", "⭐") - uses emoji glyph as mask
+ *
  * When absent or invalid, avatars render as circles (the default).
  */
 export type AvatarShape = string;
@@ -27,9 +30,15 @@ export function isEmoji(value: string): boolean {
   return /[^\x00-\x7F]/.test(value);
 }
 
-/** Type guard for valid avatar shape values (emoji strings only). */
+/**
+ * Type guard for valid avatar shape values.
+ * Valid shapes are:
+ * - Emoji strings (non-ASCII, short)
+ */
 export function isValidAvatarShape(value: unknown): value is AvatarShape {
   if (typeof value !== 'string' || value.length === 0) return false;
+
+  // Must be an emoji
   return isEmoji(value);
 }
 
@@ -43,14 +52,15 @@ export function getAvatarShape(metadata: { [key: string]: unknown } | undefined)
   return isValidAvatarShape(raw) ? raw : undefined;
 }
 
-// ── Emoji border style ───────────────────────────────────────────────────
+// ── Shaped avatar border style ───────────────────────────────────────────
 
 /**
- * CSS filter that creates a crisp, solid outline around an emoji-masked avatar,
- * mimicking the appearance of `border-4 border-background` without clipping
- * the mask shape. Apply this to a **wrapper** around the masked `<Avatar>`.
+ * CSS filter that creates a crisp, solid outline around a shaped avatar
+ * (emoji), mimicking the appearance of `border-4 border-background`
+ * without clipping the mask shape. Apply this to a **wrapper** around the
+ * masked `<Avatar>`.
  */
-export const emojiAvatarBorderStyle: React.CSSProperties = {
+export const shapedAvatarBorderStyle: React.CSSProperties = {
   filter:
     'drop-shadow(3px 0 0 hsl(var(--background)))' +
     ' drop-shadow(-3px 0 0 hsl(var(--background)))' +
@@ -58,10 +68,39 @@ export const emojiAvatarBorderStyle: React.CSSProperties = {
     ' drop-shadow(0 -3px 0 hsl(var(--background)))',
 };
 
+/** @deprecated Use shapedAvatarBorderStyle instead */
+export const emojiAvatarBorderStyle = shapedAvatarBorderStyle;
+
 // ── Emoji mask generation ──────────────────────────────────────────────────
 
 /** In-memory cache: emoji string → data-URL. */
 const emojiMaskCache = new Map<string, string>();
+
+// ── Unified mask URL getter ──────────────────────────────────────────────
+
+/**
+ * Get mask URL for emoji avatar shapes.
+ * Returns empty string if shape is invalid or mask generation fails.
+ */
+export function getAvatarMaskUrl(shape: string): string {
+  if (isEmoji(shape)) {
+    return getEmojiMaskUrl(shape);
+  }
+
+  return '';
+}
+
+/**
+ * Async version of getAvatarMaskUrl.
+ * For emoji, this is equivalent to the sync version.
+ */
+export async function getAvatarMaskUrlAsync(shape: string): Promise<string> {
+  if (isEmoji(shape)) {
+    return getEmojiMaskUrl(shape);
+  }
+
+  return '';
+}
 
 /**
  * Renders the user's native OS emoji onto a canvas and produces a PNG

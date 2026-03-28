@@ -3,7 +3,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme } from '@/contexts/AppContext';
 import { builtinThemes, themePresets, buildThemeCssFromCore, resolveTheme, resolveThemeConfig, type ThemeConfig, type ThemesConfig } from '@/themes';
 import { AppConfigSchema } from '@/lib/schemas';
-import { loadAndApplyFont } from '@/lib/fontLoader';
+import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
 import { hslToRgb, parseHsl, rgbToHex } from '@/lib/colorUtils';
 import { z } from 'zod';
 
@@ -158,6 +158,8 @@ function useApplyFonts(theme: Theme, customTheme: ThemeConfig | undefined, theme
   const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
   const fontFamily = activeConfig?.font?.family;
   const fontUrl = activeConfig?.font?.url;
+  const titleFontFamily = activeConfig?.titleFont?.family;
+  const titleFontUrl = activeConfig?.titleFont?.url;
 
   useEffect(() => {
     if (fontFamily) {
@@ -167,6 +169,15 @@ function useApplyFonts(theme: Theme, customTheme: ThemeConfig | undefined, theme
       loadAndApplyFont(undefined);
     }
   }, [theme, fontFamily, fontUrl]);
+
+  useEffect(() => {
+    if (titleFontFamily) {
+      loadAndApplyTitleFont({ family: titleFontFamily, url: titleFontUrl });
+    } else {
+      // Clear any custom title font overrides when no title font is configured
+      loadAndApplyTitleFont(undefined);
+    }
+  }, [theme, titleFontFamily, titleFontUrl]);
 }
 
 /** Style element ID for background image CSS. */
