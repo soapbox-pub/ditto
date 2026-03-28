@@ -12,6 +12,7 @@ import { useInterests } from '@/hooks/useInterests';
 import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
+import { buildTagFilterValues } from '@/lib/tagFilterValues';
 import { PageHeader } from '@/components/PageHeader';
 import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
@@ -73,19 +74,21 @@ export function TagFeedPage({
 
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
   const kindsKey = [...kinds].sort().join(',');
+  const tagFilterValues = useMemo(() => buildTagFilterValues(tag, filterKey), [tag, filterKey]);
+  const tagFilterValuesKey = tagFilterValues.join('|');
 
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['tag-feed', filterKey, tag, kindsKey],
+    queryKey: ['tag-feed', filterKey, tagFilterValuesKey, kindsKey],
     queryFn: async ({ signal }) => {
       const ditto = nostr.group(DITTO_RELAYS);
       const tagFilter: NostrFilter = { kinds, limit: 40, ...(search ? { search } : {}) };
       // NostrFilter uses `#${letter}` index signature — assign after construction to satisfy TS
-      (tagFilter as Record<string, unknown>)[filterKey] = [tag];
+      (tagFilter as Record<string, unknown>)[filterKey] = tagFilterValues;
       return ditto.query([tagFilter], {
         signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
       });
     },
-    enabled: !!tag,
+    enabled: tagFilterValues.length > 0,
   });
 
   const filteredEvents = useMemo(() => {

@@ -1,0 +1,88 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">  
+  <!-- Rose stem -->
+  <rect x="98" y="120" width="4" height="50" fill="url(#roseyStem)" rx="2" />
+  
+  <!-- Thorns -->
+  <path d="M 98 130 L 94 128" stroke="#15803d" stroke-width="2" stroke-linecap="round" />
+  <path d="M 102 145 L 106 143" stroke="#15803d" stroke-width="2" stroke-linecap="round" />
+  
+  <!-- Leaves -->
+  <ellipse cx="85" cy="140" rx="12" ry="8" fill="url(#roseyLeaf)" transform="rotate(-30 85 140)" />
+  <ellipse cx="115" cy="150" rx="12" ry="8" fill="url(#roseyLeaf)" transform="rotate(30 115 150)" />
+  
+  <!-- Rose petals - layered -->
+  <circle cx="100" cy="90" r="35" fill="url(#roseyPetal1)" />
+  <path d="M 100 60 Q 120 70 125 90 Q 120 110 100 120 Q 80 110 75 90 Q 80 70 100 60" fill="url(#roseyPetal2)" />
+  <path d="M 100 65 Q 115 73 118 90 Q 115 107 100 115 Q 85 107 82 90 Q 85 73 100 65" fill="url(#roseyPetal3)" />
+  <circle cx="100" cy="90" r="20" fill="url(#roseyCenter)" />
+  
+  <!-- Sleeping eyes -->
+  <path d="M 82 85 Q 90 88 98 85" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M 102 85 Q 110 88 118 85" stroke="#1f2937" stroke-width="3" fill="none" stroke-linecap="round" />
+  
+  <!-- Peaceful mouth -->
+  <circle cx="100" cy="100" r="2" fill="#1f2937" />
+  
+  <!-- Rosy cheeks -->
+  <circle cx="75" cy="95" r="6" fill="url(#roseyBlush)" opacity="0.6" />
+  <circle cx="125" cy="95" r="6" fill="url(#roseyBlush)" opacity="0.6" />
+  
+  <!-- Little arms from center -->
+  <ellipse cx="70" cy="90" rx="8" ry="12" fill="url(#roseyArm)" transform="rotate(-30 70 90)" />
+  <ellipse cx="130" cy="90" rx="8" ry="12" fill="url(#roseyArm)" transform="rotate(30 130 90)" />
+  
+  <!-- Floating petals with gentle animation -->
+  <g>
+    <animateTransform attributeName="transform" type="translate" values="0,0; 2,3; 0,0" dur="6s" repeatCount="indefinite" />
+    <ellipse cx="55" cy="70" rx="8" ry="5" fill="url(#roseyFloatingPetal)" opacity="0.5" transform="rotate(45 55 70)" />
+    <ellipse cx="145" cy="75" rx="7" ry="4" fill="url(#roseyFloatingPetal)" opacity="0.4" transform="rotate(-30 145 75)" />
+    <ellipse cx="50" cy="120" rx="6" ry="3.5" fill="url(#roseyFloatingPetal)" opacity="0.4" transform="rotate(60 50 120)" />
+    <ellipse cx="150" cy="115" rx="7" ry="4" fill="url(#roseyFloatingPetal)" opacity="0.3" transform="rotate(-45 150 115)" />
+  </g>
+
+  <!-- "Zzz" sleeping -->
+  <text x="150" y="60" font-size="10" fill="#666" opacity="0.8">Z</text>
+  <text x="157" y="55" font-size="8" fill="#666" opacity="0.6">z</text>
+  <text x="162" y="51" font-size="6" fill="#666" opacity="0.4">z</text>
+  
+  <defs>
+    <radialGradient id="roseyStem" cx="0.5" cy="0.5">
+      <stop offset="0%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#15803d" />
+    </radialGradient>
+    <radialGradient id="roseyLeaf" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#4ade80" />
+      <stop offset="100%" stop-color="#16a34a" />
+    </radialGradient>
+    <radialGradient id="roseyPetal1" cx="0.3" cy="0.2">
+      <stop offset="0%" stop-color="#fce7f3" />
+      <stop offset="30%" stop-color="#f9a8d4" />
+      <stop offset="70%" stop-color="#f472b6" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </radialGradient>
+    <radialGradient id="roseyPetal2" cx="0.4" cy="0.3">
+      <stop offset="0%" stop-color="#fbcfe8" />
+      <stop offset="100%" stop-color="#f472b6" />
+    </radialGradient>
+    <radialGradient id="roseyPetal3" cx="0.5" cy="0.4">
+      <stop offset="0%" stop-color="#fce7f3" />
+      <stop offset="100%" stop-color="#f9a8d4" />
+    </radialGradient>
+    <radialGradient id="roseyCenter" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#f9a8d4" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </radialGradient>
+    <radialGradient id="roseyBlush" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#fce7f3" />
+      <stop offset="100%" stop-color="#f472b6" />
+    </radialGradient>
+    <radialGradient id="roseyArm" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#f9a8d4" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </radialGradient>
+    <radialGradient id="roseyFloatingPetal" cx="0.5" cy="0.5">
+      <stop offset="0%" stop-color="#fbcfe8" />
+      <stop offset="100%" stop-color="#f472b6" />
+    </radialGradient>
+  </defs>
+</svg>

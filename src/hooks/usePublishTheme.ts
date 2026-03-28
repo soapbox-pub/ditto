@@ -17,16 +17,21 @@ import { resolveFontUrl } from '@/lib/fontLoader';
 /**
  * Resolve font URLs for Nostr publishing.
  * Bundled fonts get CDN URLs, others keep their existing URL.
+ * If no title font is set, it falls back to the body font so published
+ * events always include both font tags when a body font is present.
  */
 function resolveThemeForPublishing(config: ThemeConfig): ThemeConfig {
-  if (!config.font) return config;
-
+  const effectiveTitleFont = config.titleFont ?? config.font;
   return {
     ...config,
-    font: {
+    font: config.font ? {
       family: config.font.family,
       url: resolveFontUrl(config.font.family, config.font.url),
-    },
+    } : undefined,
+    titleFont: effectiveTitleFont ? {
+      family: effectiveTitleFont.family,
+      url: resolveFontUrl(effectiveTitleFont.family, effectiveTitleFont.url),
+    } : undefined,
   };
 }
 
@@ -68,11 +73,13 @@ export function usePublishTheme() {
     sourceAuthor?: string;
     /** d-tag of the source theme definition */
     sourceIdentifier?: string;
+    /** Optional description from the source theme definition */
+    description?: string;
   }) => {
     if (!user) throw new Error('Must be logged in');
 
     const resolved = resolveThemeForPublishing(opts.themeConfig);
-    const tags = buildActiveThemeTags(resolved, opts.sourceAuthor, opts.sourceIdentifier);
+    const tags = buildActiveThemeTags(resolved, opts.sourceAuthor, opts.sourceIdentifier, opts.description);
 
     await publishEvent({
       kind: ACTIVE_THEME_KIND,

@@ -71,7 +71,7 @@ export function SidebarNavItem({
             <span className="absolute -top-1 right-0 size-2.5 bg-primary rounded-full" />
           )}
         </span>
-        <span className="truncate">{label}</span>
+        <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{label}</span>
       </Link>
 
       {editing && (

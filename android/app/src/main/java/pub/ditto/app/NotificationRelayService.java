@@ -243,6 +243,8 @@ public class NotificationRelayService extends Service {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String userPubkey = prefs.getString("userPubkey", null);
         String relayUrlsJson = prefs.getString("relayUrls", null);
+        String enabledKindsJson = prefs.getString("enabledKinds", null);
+        String authorsJson = prefs.getString("authors", null);
 
         if (userPubkey == null || relayUrlsJson == null) {
             Log.d(TAG, "No config, skipping fetch");
@@ -268,10 +270,17 @@ public class NotificationRelayService extends Service {
             return;
         }
 
-        fetch(relayUrls.get(relayIndex), userPubkey);
+        List<Integer> enabledKinds = parseEnabledKinds(enabledKindsJson);
+        if (enabledKinds.isEmpty()) {
+            Log.d(TAG, "No enabled kinds, skipping fetch");
+            releaseFetchWakeLock();
+            return;
+        }
+        List<String> authors = parseAuthors(authorsJson);
+        fetch(relayUrls.get(relayIndex), userPubkey, enabledKinds, authors);
     }
 
-    private void fetch(String relayUrl, String userPubkey) {
+    private void fetch(String relayUrl, String userPubkey, List<Integer> enabledKinds, List<String> authors) {
         long since = poller.getLastSeenTimestamp();
         if (since == 0) {
             since = (System.currentTimeMillis() / 1000) - 300; // 5 min ago on first run
@@ -284,13 +293,24 @@ public class NotificationRelayService extends Service {
         try {
             JSONObject filter = new JSONObject();
             JSONArray kinds = new JSONArray();
-            kinds.put(1); kinds.put(6); kinds.put(16); kinds.put(7); kinds.put(9735); kinds.put(1111);
+            for (int kind : enabledKinds) {
+                kinds.put(kind);
+            }
             filter.put("kinds", kinds);
             JSONArray pTags = new JSONArray();
             pTags.put(userPubkey);
             filter.put("#p", pTags);
             filter.put("since", since + 1);
             filter.put("limit", FETCH_LIMIT);
+
+            // When "only from people I follow" is enabled, restrict to those authors
+            if (!authors.isEmpty()) {
+                JSONArray authorsArr = new JSONArray();
+                for (String author : authors) {
+                    authorsArr.put(author);
+                }
+                filter.put("authors", authorsArr);
+            }
 
             JSONArray req = new JSONArray();
             req.put("REQ");
@@ -397,7 +417,8 @@ public class NotificationRelayService extends Service {
         }
 
         Log.d(TAG, "Retrying in " + backoffMs + "ms on relay " + relayIndex);
-        Runnable retry = () -> fetch(relayUrls.get(relayIndex), userPubkey);
+        // Re-read config from prefs on retry so enabled kinds stay current.
+        Runnable retry = this::runFetchCycle;
         handler.postDelayed(retry, backoffMs);
         backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
 
@@ -513,6 +534,46 @@ public class NotificationRelayService extends Service {
             Log.w(TAG, "Failed to parse relay URLs", e);
         }
         return urls;
+    }
+
+    /**
+     * Parse the authors filter from JSON. Returns an empty list when the value
+     * is null or invalid (meaning no author restriction).
+     */
+    private List<String> parseAuthors(String json) {
+        List<String> authors = new ArrayList<>();
+        if (json != null) {
+            try {
+                JSONArray arr = new JSONArray(json);
+                for (int i = 0; i < arr.length(); i++) {
+                    authors.add(arr.getString(i));
+                }
+            } catch (JSONException e) {
+                Log.w(TAG, "Failed to parse authors", e);
+            }
+        }
+        return authors;
+    }
+
+    /**
+     * Parse the enabled notification kinds from JSON. Returns an empty list
+     * when the value is null or invalid — the caller should skip polling
+     * when the list is empty (the JS layer always provides kinds via
+     * DittoNotification.configure in the same write as pubkey/relays).
+     */
+    private List<Integer> parseEnabledKinds(String json) {
+        List<Integer> kinds = new ArrayList<>();
+        if (json != null) {
+            try {
+                JSONArray arr = new JSONArray(json);
+                for (int i = 0; i < arr.length(); i++) {
+                    kinds.add(arr.getInt(i));
+                }
+            } catch (JSONException e) {
+                Log.w(TAG, "Failed to parse enabled kinds", e);
+            }
+        }
+        return kinds;
     }
 
     private Notification buildForegroundNotification() {
