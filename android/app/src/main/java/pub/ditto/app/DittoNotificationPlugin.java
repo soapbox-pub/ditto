@@ -26,6 +26,7 @@ public class DittoNotificationPlugin extends Plugin {
         String userPubkey = call.getString("userPubkey");
         String relayUrlsRaw = null;
         String enabledKindsRaw = null;
+        String authorsRaw = null;
 
         try {
             JSONArray relayUrls = call.getArray("relayUrls");
@@ -45,6 +46,15 @@ public class DittoNotificationPlugin extends Plugin {
             Log.w(TAG, "Failed to read enabledKinds", e);
         }
 
+        try {
+            JSONArray authors = call.getArray("authors");
+            if (authors != null) {
+                authorsRaw = authors.toString();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to read authors", e);
+        }
+
         SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
 
         if (userPubkey != null && relayUrlsRaw != null) {
@@ -54,8 +64,13 @@ public class DittoNotificationPlugin extends Plugin {
             if (enabledKindsRaw != null) {
                 editor.putString("enabledKinds", enabledKindsRaw);
             }
+            if (authorsRaw != null) {
+                editor.putString("authors", authorsRaw);
+            } else {
+                editor.remove("authors");
+            }
             editor.apply();
-            Log.d(TAG, "Configured: pubkey=" + userPubkey.substring(0, 8) + "..., relays=" + relayUrlsRaw + ", kinds=" + enabledKindsRaw);
+            Log.d(TAG, "Configured: pubkey=" + userPubkey.substring(0, 8) + "..., relays=" + relayUrlsRaw + ", kinds=" + enabledKindsRaw + ", authors=" + (authorsRaw != null ? authorsRaw.length() + " chars" : "all"));
         } else {
             // Clear config (user logged out)
             prefs.edit().clear().apply();
