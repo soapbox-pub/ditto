@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.2.1] - 2026-03-28
+
+### Fixed
+- New posts no longer cause scroll jumps -- they buffer while you're reading and appear with a tap
+- Mobile header no longer shows double-layered backgrounds on notched devices
+- Pinned tabs stay properly positioned when scrolling on mobile
+- Signer approval toasts no longer fire in rapid succession on unstable connections
+- Toasts are easier to swipe away on mobile
+- Content warnings now blur thumbnails in the media grid
+
 ## [2.2.0] - 2026-03-28
 
 ### Added
