@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.1.1] - 2026-03-27
+
+### Added
+- Emoji picker and shortcode autocomplete in zap comment box
+- Zap button on badge detail view
+- Theme descriptions now display on "updated their theme" posts and detail pages
+- Badge thumbnail previews in award notifications
+- Letter notifications with envelope card preview
+- Kind-specific labels in notification text instead of generic "post"
+
+### Fixed
+- Compose modal no longer closes when dismissing emoji picker on mobile
+- Compose preview overflow is now scrollable in modal
+- Toast notifications swipe up to dismiss on mobile instead of sideways
+- File downloads and URL opening work correctly on iOS
+- Badges page no longer shows infinite skeleton when logged out
+
 ## [2.1.0] - 2026-03-26
 
 ### Added

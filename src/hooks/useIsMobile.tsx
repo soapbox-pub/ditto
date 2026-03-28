@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 
-const MOBILE_BREAKPOINT = 768;
+import tailwindConfig from "../../tailwind.config"
+
+const MOBILE_BREAKPOINT = parseFloat(tailwindConfig.theme.screens.md);
 
 export function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
