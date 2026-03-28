@@ -820,6 +820,11 @@ function AcceptBadgeButton({ awardEvent }: { awardEvent: NostrEvent }) {
 // ──────────────────────────────────────
 function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   const { name: badgeName, badge } = useBadgeAward(item.event);
+  const parsed = useMemo(() => parseBadgeATag(item.event), [item.event]);
+  const badgeNaddr = useMemo(
+    () => parsed ? nip19.naddrEncode({ kind: BADGE_DEFINITION_KIND, pubkey: parsed.pubkey, identifier: parsed.identifier }) : undefined,
+    [parsed],
+  );
 
   return (
     <NotificationWrapper isNew={isNew}>
@@ -837,7 +842,7 @@ function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew
           </div>
         </div>
         {badge && (
-          <div className="mt-2 flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-2">
+          <Link to={badgeNaddr ? `/${badgeNaddr}` : '#'} className="mt-2 flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-2 transition-colors hover:bg-muted/60">
             <BadgeThumbnail badge={badge} size={48} className="shrink-0" />
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">{badge.name}</p>
@@ -845,7 +850,7 @@ function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew
                 <p className="text-xs text-muted-foreground line-clamp-2">{badge.description}</p>
               )}
             </div>
-          </div>
+          </Link>
         )}
       </div>
     </NotificationWrapper>
@@ -881,23 +886,29 @@ function BadgeAwardNotificationGroup({ group }: { group: GroupedNotificationItem
           const badge = aTag ? badgeMap.get(aTag) : undefined;
           const displayName = badge?.name || (parsed ? unslugify(parsed.identifier) : undefined);
 
+          const badgeNaddr = parsed
+            ? nip19.naddrEncode({ kind: BADGE_DEFINITION_KIND, pubkey: parsed.pubkey, identifier: parsed.identifier })
+            : undefined;
+
           return (
             <div key={actor.event.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-2">
-              {badge ? (
-                <BadgeThumbnail badge={badge} size={36} className="shrink-0" />
-              ) : (
-                <div className="shrink-0 size-9 rounded-lg border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
-                  <Award className="size-4 text-primary/30" />
+              <Link to={badgeNaddr ? `/${badgeNaddr}` : '#'} className="flex items-center gap-3 flex-1 min-w-0 transition-colors hover:opacity-80">
+                {badge ? (
+                  <BadgeThumbnail badge={badge} size={36} className="shrink-0" />
+                ) : (
+                  <div className="shrink-0 size-9 rounded-lg border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
+                    <Award className="size-4 text-primary/30" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  {displayName && (
+                    <p className="text-sm font-medium truncate">{displayName}</p>
+                  )}
+                  {badge?.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-1">{badge.description}</p>
+                  )}
                 </div>
-              )}
-              <div className="flex-1 min-w-0">
-                {displayName && (
-                  <p className="text-sm font-medium truncate">{displayName}</p>
-                )}
-                {badge?.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-1">{badge.description}</p>
-                )}
-              </div>
+              </Link>
               <div className="shrink-0">
                 <AcceptBadgeButton awardEvent={actor.event} />
               </div>
