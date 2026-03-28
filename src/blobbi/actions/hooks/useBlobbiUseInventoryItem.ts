@@ -53,6 +53,7 @@ export interface UseItemResult {
   itemName: string;
   action: InventoryAction;
   quantity: number;
+  effectiveItemCount: number; // How many items actually changed stats (may be less than quantity due to caps)
   statsChanged: Record<string, number>;
   xpGained: number;
   newXP: number;
@@ -193,10 +194,14 @@ export function useBlobbiUseInventoryItem({
       // Apply effects multiple times (once per quantity) to simulate using items in sequence.
       // This ensures proper clamping at each step, e.g., using 5 health items when at 90 health
       // won't give more than 100 health total.
+      // 
+      // CRITICAL: Track the number of items that actually produced stat changes for XP calculation.
+      // If a stat is already at 100, additional items don't increase it and shouldn't grant XP.
       // Use canonical companion stage for egg checks
       const isEggCompanion = canonical.companion.stage === 'egg';
       const statsUpdate: Record<string, string> = {};
       const statsChanged: Record<string, number> = {};
+      let effectiveItemCount = 0; // Number of items that actually changed stats
 
       if (isEggCompanion && action === 'medicine') {
         // Egg medicine handling:
@@ -206,9 +211,15 @@ export function useBlobbiUseInventoryItem({
         
         const healthDelta = shopItem.effect.health ?? 0;
         // Apply health effect N times in sequence with clamping at each step
+        // Track how many applications actually changed the stat
         let currentHealth = statsAfterDecay.health ?? 0;
         for (let i = 0; i < quantity; i++) {
+          const prevHealth = currentHealth;
           currentHealth = applyStat(currentHealth, healthDelta);
+          // Only count this item as effective if it actually changed the stat
+          if (currentHealth !== prevHealth) {
+            effectiveItemCount++;
+          }
         }
         
         statsUpdate.health = currentHealth.toString();
@@ -231,11 +242,18 @@ export function useBlobbiUseInventoryItem({
         const happinessDelta = shopItem.effect.happiness ?? 0;
         
         // Apply effects N times in sequence
+        // Track how many applications actually changed any stat
         let currentHygiene = statsAfterDecay.hygiene ?? 0;
         let currentHappiness = statsAfterDecay.happiness ?? 0;
         for (let i = 0; i < quantity; i++) {
+          const prevHygiene = currentHygiene;
+          const prevHappiness = currentHappiness;
           currentHygiene = applyStat(currentHygiene, hygieneDelta);
           currentHappiness = applyStat(currentHappiness, happinessDelta);
+          // Count this item as effective if it changed ANY stat
+          if (currentHygiene !== prevHygiene || currentHappiness !== prevHappiness) {
+            effectiveItemCount++;
+          }
         }
         
         statsUpdate.hygiene = currentHygiene.toString();
@@ -255,9 +273,21 @@ export function useBlobbiUseInventoryItem({
       } else {
         // Normal stats application for baby/adult
         // Apply item effects N times in sequence ON TOP of decayed stats
+        // Track how many applications actually changed any stat
         let currentStats: Partial<BlobbiStats> = { ...statsAfterDecay };
         for (let i = 0; i < quantity; i++) {
+          const prevStats = { ...currentStats };
           currentStats = applyItemEffects(currentStats, shopItem.effect);
+          // Count this item as effective if it changed ANY stat
+          const hasAnyChange = 
+            prevStats.hunger !== currentStats.hunger ||
+            prevStats.happiness !== currentStats.happiness ||
+            prevStats.energy !== currentStats.energy ||
+            prevStats.hygiene !== currentStats.hygiene ||
+            prevStats.health !== currentStats.health;
+          if (hasAnyChange) {
+            effectiveItemCount++;
+          }
         }
 
         statsUpdate.hunger = clampStat(currentStats.hunger).toString();
@@ -291,12 +321,11 @@ export function useBlobbiUseInventoryItem({
       // Get streak updates (will only update if needed based on day)
       const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
       
-      // ─── Apply XP Gain (ONLY if stats actually changed) ───
-      // Check if any stat actually changed from the initial decayed value
-      const hasStatChange = Object.values(statsChanged).some(change => change !== 0);
-      
-      // Only grant XP if the action produced a real state change
-      const xpGained = hasStatChange ? calculateInventoryActionXP(action, quantity) : 0;
+      // ─── Apply XP Gain (Based on effective item count) ───
+      // Only grant XP for items that actually changed stats.
+      // If user used 100 food items but hunger capped at item #4, only 4 items were effective.
+      // This prevents XP farming by mass-using items after stats are already maxed.
+      const xpGained = effectiveItemCount > 0 ? calculateInventoryActionXP(action, effectiveItemCount) : 0;
       const currentXP = canonical.companion.experience ?? 0;
       const newXP = applyXPGain(currentXP, xpGained);
       
@@ -343,6 +372,7 @@ export function useBlobbiUseInventoryItem({
         itemName: shopItem.name,
         action,
         quantity,
+        effectiveItemCount, // How many items actually changed stats
         statsChanged,
         xpGained,
         newXP,
