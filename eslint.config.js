@@ -39,6 +39,13 @@ export default tseslint.config(
         },
       ],
       "custom/no-placeholder-comments": "error",
+      "no-restricted-syntax": [
+        "error",
+        {
+          "selector": "CallExpression[callee.object.type='MetaProperty'][callee.property.name='glob']",
+          "message": "import.meta.glob is Vite-only and breaks other bundlers. Inline the assets or use standard imports instead.",
+        },
+      ],
       "no-warning-comments": [
         "error",
         { terms: ["fixme"] },
