@@ -316,7 +316,7 @@ export function SearchPage() {
   const activeFilterLabels = useMemo(() => {
     const labels: string[] = [];
     if (!includeReplies) labels.push('No replies');
-    if (mediaType !== 'all') labels.push({ images: 'Images', videos: 'Videos', vines: 'Shorts & Vines', none: 'No media' }[mediaType] ?? mediaType);
+    if (mediaType !== 'all') labels.push({ images: 'Images', videos: 'Videos', vines: 'Shorts & Divines', none: 'No media' }[mediaType] ?? mediaType);
     if (language !== 'global') labels.push(language.toUpperCase());
     if (platform !== 'nostr') labels.push({ activitypub: 'Mastodon', atproto: 'Bluesky' }[platform] ?? platform);
     if (sort !== 'recent') labels.push(sort === 'hot' ? 'Hot' : 'Trending');

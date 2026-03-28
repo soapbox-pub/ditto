@@ -17,7 +17,7 @@
 - Blobbi companion that follows you around the app, tracks your cursor, blinks, expresses emotions, and reacts to what you're doing
 - Blobbi shop and inventory system with items that affect your pet's stats
 - Daily missions with reroll, care streaks, and stage-based rewards
-- Immersive full-screen vines experience on both mobile and desktop with floating controls
+- Immersive full-screen divines experience on both mobile and desktop with floating controls
 - NIP-11 relay information panel on the network settings page
 - Link preview cards now display inside quoted posts instead of raw URLs
 - Nsec paste guard warns you before accidentally pasting private keys outside the login field

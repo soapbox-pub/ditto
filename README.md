@@ -13,7 +13,7 @@ Made by [Soapbox](https://soapbox.pub).
 ## Features
 
 - **Theming** -- 9 built-in theme presets, 19 CSS token properties for full customization, and the ability to publish and share themes as Nostr events
-- **Infinite Content Types** -- Text notes, articles, short-form videos (Vines), live streams, polls, follow packs, color moments, magic decks, geocaching, and Webxdc mini-apps
+- **Infinite Content Types** -- Text notes, articles, short-form videos (Divines), live streams, polls, follow packs, color moments, magic decks, geocaching, and Webxdc mini-apps
 - **Lightning Payments** -- Zap posts and profiles with sats via Nostr Wallet Connect (NWC) or WebLN
 - **Private Messaging** -- End-to-end encrypted DMs (NIP-04 and NIP-17)
 - **Comments** -- Comment on anything: posts, URLs, profiles, hashtags, books, and more (NIP-22)
