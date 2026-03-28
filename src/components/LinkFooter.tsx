@@ -36,6 +36,10 @@ export function LinkFooter() {
           Source
         </a>
         {' · '}
+        <Link to="/changelog" className="text-primary hover:underline">
+          Changelog
+        </Link>
+        {' · '}
         <a
           href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git"
           className="text-primary hover:underline"
