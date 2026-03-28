@@ -395,7 +395,7 @@ export const NoteCard = memo(function NoteCard({
     return null;
   }
 
-  // Hide magic decks tagged t:unlisted and geocaches tagged t:hidden
+  // Hide magic decks tagged t:unlisted and treasures tagged t:hidden
   if (
     isMagicDeck &&
     event.tags.some(([n, v]) => n === "t" && v === "unlisted")
