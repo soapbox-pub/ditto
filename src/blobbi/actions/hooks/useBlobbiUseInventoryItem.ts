@@ -291,8 +291,12 @@ export function useBlobbiUseInventoryItem({
       // Get streak updates (will only update if needed based on day)
       const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
       
-      // ─── Apply XP Gain ───
-      const xpGained = calculateInventoryActionXP(action, quantity);
+      // ─── Apply XP Gain (ONLY if stats actually changed) ───
+      // Check if any stat actually changed from the initial decayed value
+      const hasStatChange = Object.values(statsChanged).some(change => change !== 0);
+      
+      // Only grant XP if the action produced a real state change
+      const xpGained = hasStatChange ? calculateInventoryActionXP(action, quantity) : 0;
       const currentXP = canonical.companion.experience ?? 0;
       const newXP = applyXPGain(currentXP, xpGained);
       

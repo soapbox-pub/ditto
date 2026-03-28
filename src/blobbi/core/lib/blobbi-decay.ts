@@ -214,6 +214,23 @@ function hoursFromSeconds(seconds: number): number {
   return seconds / 3600;
 }
 
+/**
+ * Round a stat delta toward zero (truncate fractional part).
+ * 
+ * CRITICAL: We use Math.trunc() instead of Math.floor() because:
+ * - Math.floor(-0.5) = -1 (rounds down, applying decay even with tiny elapsed time)
+ * - Math.trunc(-0.5) = 0 (rounds toward zero, no decay applied)
+ * 
+ * This prevents the bug where any action within seconds of the last action
+ * would still apply -1 decay even though insufficient time passed.
+ * 
+ * @param delta - Calculated stat change (can be positive or negative)
+ * @returns Integer delta to apply
+ */
+function roundDelta(delta: number): number {
+  return Math.trunc(delta);
+}
+
 // ─── Stage-Specific Decay Calculators ─────────────────────────────────────────
 
 /**
@@ -233,7 +250,7 @@ function calculateEggDecay(
   
   // Calculate hygiene decay first
   const hygieneDelta = EGG_DECAY.hygiene * elapsedHours;
-  hygiene = clamp(hygiene + Math.floor(hygieneDelta));
+  hygiene = clamp(hygiene + roundDelta(hygieneDelta));
   
   // Calculate health decay (depends on current hygiene)
   let healthDelta = EGG_DECAY.health.base * elapsedHours;
@@ -243,7 +260,7 @@ function calculateEggDecay(
   if (hygiene < 40) {
     healthDelta += EGG_DECAY.health.hygieneBelow40 * elapsedHours;
   }
-  health = clamp(health + Math.floor(healthDelta));
+  health = clamp(health + roundDelta(healthDelta));
   
   // Calculate happiness (depends on updated health and hygiene)
   let happinessDelta: number;
@@ -254,7 +271,7 @@ function calculateEggDecay(
   } else {
     happinessDelta = EGG_DECAY.happiness.poor * elapsedHours;
   }
-  happiness = clamp(happiness + Math.floor(happinessDelta));
+  happiness = clamp(happiness + roundDelta(happinessDelta));
   
   return {
     hunger: 100,    // Fixed for eggs
@@ -289,10 +306,10 @@ function calculateBabyDecay(
   const energyDelta = (isSleeping ? BABY_DECAY.energy.sleeping : BABY_DECAY.energy.awake) * elapsedHours;
   
   // Apply basic deltas
-  hunger = clamp(hunger + Math.floor(hungerDelta));
-  happiness = clamp(happiness + Math.floor(happinessDelta));
-  hygiene = clamp(hygiene + Math.floor(hygieneDelta));
-  energy = clamp(energy + Math.floor(energyDelta));
+  hunger = clamp(hunger + roundDelta(hungerDelta));
+  happiness = clamp(happiness + roundDelta(happinessDelta));
+  hygiene = clamp(hygiene + roundDelta(hygieneDelta));
+  energy = clamp(energy + roundDelta(energyDelta));
   
   // Calculate health (complex conditional decay + possible regen)
   let healthDelta = BABY_DECAY.health.base * elapsedHours;
@@ -319,7 +336,7 @@ function calculateBabyDecay(
     healthDelta += BABY_DECAY.health.regenRate * elapsedHours;
   }
   
-  health = clamp(health + Math.floor(healthDelta));
+  health = clamp(health + roundDelta(healthDelta));
   
   return { hunger, happiness, hygiene, energy, health };
 }
@@ -348,10 +365,10 @@ function calculateAdultDecay(
   const energyDelta = (isSleeping ? ADULT_DECAY.energy.sleeping : ADULT_DECAY.energy.awake) * elapsedHours;
   
   // Apply basic deltas
-  hunger = clamp(hunger + Math.floor(hungerDelta));
-  happiness = clamp(happiness + Math.floor(happinessDelta));
-  hygiene = clamp(hygiene + Math.floor(hygieneDelta));
-  energy = clamp(energy + Math.floor(energyDelta));
+  hunger = clamp(hunger + roundDelta(hungerDelta));
+  happiness = clamp(happiness + roundDelta(happinessDelta));
+  hygiene = clamp(hygiene + roundDelta(hygieneDelta));
+  energy = clamp(energy + roundDelta(energyDelta));
   
   // Calculate health (complex conditional decay + possible regen)
   let healthDelta = ADULT_DECAY.health.base * elapsedHours;
@@ -378,7 +395,7 @@ function calculateAdultDecay(
     healthDelta += ADULT_DECAY.health.regenRate * elapsedHours;
   }
   
-  health = clamp(health + Math.floor(healthDelta));
+  health = clamp(health + roundDelta(healthDelta));
   
   return { hunger, happiness, hygiene, energy, health };
 }
@@ -391,8 +408,8 @@ function calculateAdultDecay(
  * This is a pure, deterministic function that:
  * 1. Calculates elapsed time from lastDecayAt to now
  * 2. Applies stage-specific decay rates
- * 3. Floors all stat deltas before application
- * 4. Clamps final stats to 0-100 range
+ * 3. Truncates all stat deltas toward zero before application (prevents micro-decay from tiny elapsed times)
+ * 4. Clamps final stats to 1-100 range
  * 5. Returns updated stats without side effects
  * 
  * @param input - Decay input parameters from persisted state

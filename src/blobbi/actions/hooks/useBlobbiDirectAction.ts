@@ -132,6 +132,9 @@ export function useBlobbiDirectAction({
       const happinessDelta = DIRECT_ACTION_HAPPINESS_EFFECTS[action];
       const newHappiness = applyStat(statsAfterDecay.happiness, happinessDelta);
       
+      // Track if happiness actually changed
+      const happinessChanged = newHappiness !== statsAfterDecay.happiness;
+      
       // Build stats update
       const isEgg = canonical.companion.stage === 'egg';
       const statsUpdate: Record<string, string> = {
@@ -164,8 +167,9 @@ export function useBlobbiDirectAction({
       // Get streak updates (will only update if needed based on day)
       const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
       
-      // ─── Apply XP Gain ───
-      const xpGained = calculateActionXP(action);
+      // ─── Apply XP Gain (ONLY if happiness actually changed) ───
+      // Direct actions modify happiness. Only grant XP if happiness actually increased.
+      const xpGained = happinessChanged ? calculateActionXP(action) : 0;
       const currentXP = canonical.companion.experience ?? 0;
       const newXP = applyXPGain(currentXP, xpGained);
       
