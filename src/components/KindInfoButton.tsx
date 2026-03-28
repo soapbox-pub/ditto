@@ -32,7 +32,7 @@ export function KindInfoButton({ kindDef, icon, open, onOpenChange }: KindInfoBu
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-xs p-6">
+      <DialogContent className="max-w-xs rounded-xl p-6">
         <div className="flex flex-col items-center text-center gap-4">
           {icon && (
             <div className="text-primary [&>svg]:size-10">
