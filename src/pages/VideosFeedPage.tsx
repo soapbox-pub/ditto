@@ -22,6 +22,7 @@ import { nip19 } from "nostr-tools";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Blurhash } from "react-blurhash";
 import { Link } from "react-router-dom";
+import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import { PageHeader } from "@/components/PageHeader";
@@ -951,6 +952,7 @@ export function VideosFeedPage() {
           onClick={() => setFeedTab("global")}
         />
       </SubHeaderBar>
+      <div style={{ height: ARC_OVERHANG_PX }} />
 
       {/* Live streams strip — follows tab filters by followed authors */}
       <LiveStreamsStrip tab={feedTab} />
