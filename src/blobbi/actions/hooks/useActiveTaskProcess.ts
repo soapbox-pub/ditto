@@ -17,7 +17,7 @@
  */
 
 import { useMemo } from 'react';
-import type { BlobbiCompanion } from '@/lib/blobbi';
+import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import type { HatchTask, HatchTasksResult } from './useHatchTasks';
 import type { EvolveTasksResult } from './useEvolveTasks';
 import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';

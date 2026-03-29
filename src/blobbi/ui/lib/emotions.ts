@@ -12,7 +12,20 @@
  * - Use SVG markers (<!-- Eyes -->, <!-- Pupils -->, <!-- Mouth -->) when available
  * - Fall back to regex parsing for backward compatibility
  * - Deterministic behavior (no random flickering)
+ *
+ * Eye-related effects are delegated to the eye system module for consistency.
  */
+
+import {
+  // Detection
+  detectEyePositions as detectEyesFromEyeSystem,
+  // Effects - imported with aliases to allow gradual migration
+  applySadEyes as applySadEyesFromEyeSystem,
+  applyStarEyes as applyStarEyesFromEyeSystem,
+  applyDizzyEyes as applyDizzyEyesFromEyeSystem,
+  // Types
+  type EyePosition,
+} from './eyes';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -383,12 +396,8 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
 
 // ─── Eye Position Detection ───────────────────────────────────────────────────
 
-export interface EyePosition {
-  cx: number;
-  cy: number;
-  radius: number;
-  side: 'left' | 'right';
-}
+// EyePosition type is imported from the eye system module
+export type { EyePosition } from './eyes';
 
 export interface MouthPosition {
   startX: number;
@@ -402,70 +411,13 @@ export interface MouthPosition {
 }
 
 /**
- * Detect eye positions from SVG content
- * Looks for the blobbi-eye groups or falls back to pupil detection
+ * Detect eye positions from SVG content.
+ * Delegates to the eye system module for consistent detection.
+ *
+ * @deprecated Use `detectEyePositions` from `./eyes` directly for new code.
  */
 export function detectEyePositions(svgText: string): EyePosition[] {
-  const eyes: EyePosition[] = [];
-
-  // First try to find blobbi-eye groups (already processed by eye-animation)
-  const eyeGroupRegex = /class="blobbi-eye blobbi-eye-(left|right)"/g;
-  let match;
-
-  while ((match = eyeGroupRegex.exec(svgText)) !== null) {
-    const side = match[1] as 'left' | 'right';
-    
-    // Find the pupil circle within this context
-    // Look backwards from match to find the data-cx/data-cy on the blink group
-    const beforeMatch = svgText.slice(0, match.index);
-    const blinkGroupMatch = beforeMatch.match(/data-cx="([\d.]+)" data-cy="([\d.]+)"[^>]*>\s*$/);
-    
-    if (blinkGroupMatch) {
-      const cx = parseFloat(blinkGroupMatch[1]);
-      const cy = parseFloat(blinkGroupMatch[2]);
-      
-      // Estimate radius from nearby pupil circle
-      const afterMatch = svgText.slice(match.index, match.index + 200);
-      const radiusMatch = afterMatch.match(/r="([\d.]+)"/);
-      const radius = radiusMatch ? parseFloat(radiusMatch[1]) : 6;
-      
-      eyes.push({ cx, cy, radius, side });
-    }
-  }
-
-  // If no blobbi-eye groups found, fall back to direct pupil detection
-  if (eyes.length === 0) {
-    // Match circles with dark fill colors OR gradient fills containing "Pupil" in the ID
-    // This handles both direct hex colors and gradient references like url(#blobbiPupilGradient)
-    const pupilRegex = /<circle[^>]*fill="(#1f2937|#374151|#1e1b4b|#0891b2|url\([^)]*[Pp]upil[^)]*\))"[^>]*\/>/g;
-    const pupils: Array<{ cx: number; cy: number; radius: number }> = [];
-    
-    let pupilMatch;
-    while ((pupilMatch = pupilRegex.exec(svgText)) !== null) {
-      const cxMatch = pupilMatch[0].match(/cx="([\d.]+)"/);
-      const cyMatch = pupilMatch[0].match(/cy="([\d.]+)"/);
-      const rMatch = pupilMatch[0].match(/r="([\d.]+)"/);
-      
-      if (cxMatch && cyMatch && rMatch) {
-        pupils.push({
-          cx: parseFloat(cxMatch[1]),
-          cy: parseFloat(cyMatch[1]),
-          radius: parseFloat(rMatch[1]),
-        });
-      }
-    }
-    
-    // Sort by X to determine left/right
-    pupils.sort((a, b) => a.cx - b.cx);
-    pupils.forEach((p, i) => {
-      eyes.push({
-        ...p,
-        side: i === 0 ? 'left' : 'right',
-      });
-    });
-  }
-
-  return eyes;
+  return detectEyesFromEyeSystem(svgText);
 }
 
 /**
@@ -1229,121 +1181,6 @@ function generateAngerRiseEffect(bodyPath: BodyPathInfo, config: BodyEffectConfi
   return { defs, overlay };
 }
 
-// ─── Dizzy Effect Generation ──────────────────────────────────────────────────
-
-/**
- * Generate spiral eyes for the dizzy effect.
- * These replace the normal eyes with rotating spirals.
- */
-function generateDizzySpirals(eyes: EyePosition[], config: DizzyEffectConfig): string {
-  const dur = config.rotationDuration;
-  
-  return eyes.map(eye => {
-    // Create a spiral path centered at the eye position
-    // The spiral is made of concentric circles that form a spiral pattern
-    const spiralSize = eye.radius * 1.2;
-    
-    // SVG spiral using path - 2 turns of spiral
-    const spiralPath = createSpiralPath(eye.cx, eye.cy, spiralSize);
-    
-    return `<g class="blobbi-dizzy-spiral blobbi-dizzy-spiral-${eye.side}">
-      <path
-        d="${spiralPath}"
-        stroke="#1f2937"
-        stroke-width="1.5"
-        fill="none"
-        stroke-linecap="round"
-      >
-        <animateTransform
-          attributeName="transform"
-          type="rotate"
-          from="360 ${eye.cx} ${eye.cy}"
-          to="0 ${eye.cx} ${eye.cy}"
-          dur="${dur}s"
-          repeatCount="indefinite"
-        />
-      </path>
-    </g>`;
-  }).join('\n');
-}
-
-/**
- * Create a spiral path centered at (cx, cy) with given radius.
- */
-function createSpiralPath(cx: number, cy: number, radius: number): string {
-  // Create a simple 2-turn spiral
-  const points: string[] = [];
-  const turns = 2;
-  const steps = 40;
-  
-  for (let i = 0; i <= steps; i++) {
-    const angle = (i / steps) * turns * 2 * Math.PI;
-    const r = (i / steps) * radius;
-    const x = cx + r * Math.cos(angle);
-    const y = cy + r * Math.sin(angle);
-    
-    if (i === 0) {
-      points.push(`M ${x.toFixed(2)} ${y.toFixed(2)}`);
-    } else {
-      points.push(`L ${x.toFixed(2)} ${y.toFixed(2)}`);
-    }
-  }
-  
-  return points.join(' ');
-}
-
-/**
- * Generate CSS styles for dizzy effect.
- * Hides the normal eyes when dizzy spirals are shown.
- */
-function generateDizzyStyles(): string {
-  return `
-  <style type="text/css">
-    /* Hide normal eyes when dizzy */
-    .blobbi-dizzy .blobbi-blink {
-      opacity: 0;
-    }
-  </style>`;
-}
-
-/**
- * Apply dizzy effect to the SVG.
- */
-function applyDizzyEffect(svgText: string, eyes: EyePosition[], config: DizzyEffectConfig): string {
-  // Add 'blobbi-dizzy' class to SVG root
-  svgText = svgText.replace(/<svg([^>]*)>/, (match, attrs) => {
-    if (attrs.includes('class="')) {
-      return match.replace(/class="([^"]*)"/, 'class="$1 blobbi-dizzy"');
-    } else if (attrs.includes("class='")) {
-      return match.replace(/class='([^']*)'/, "class='$1 blobbi-dizzy'");
-    } else {
-      return `<svg${attrs} class="blobbi-dizzy">`;
-    }
-  });
-  
-  // Add dizzy styles
-  const dizzyStyles = generateDizzyStyles();
-  if (svgText.includes('<defs>')) {
-    svgText = svgText.replace('<defs>', '<defs>' + dizzyStyles);
-  } else {
-    svgText = svgText.replace(/(<svg[^>]*>)/, '$1' + dizzyStyles);
-  }
-  
-  // Generate spiral overlays
-  const spirals = generateDizzySpirals(eyes, config);
-  
-  // Insert spirals before closing </svg> tag
-  const dizzyOverlay = `
-  <!-- Dizzy spiral eyes -->
-  <g class="blobbi-dizzy-eyes">
-    ${spirals}
-  </g>`;
-  
-  svgText = svgText.replace('</svg>', dizzyOverlay + '\n</svg>');
-  
-  return svgText;
-}
-
 // ─── Animated Eyebrows Generation ─────────────────────────────────────────────
 
 /**
@@ -1415,188 +1252,6 @@ function generateSmallSmile(mouth: MouthPosition, config: SmallSmileConfig): str
     fill="none" 
     stroke-linecap="round"
   />`;
-}
-
-// ─── Star Eyes Generation ─────────────────────────────────────────────────────
-
-/**
- * Create a 5-pointed star path centered at (cx, cy) with given size.
- * Uses the standard star polygon formula.
- */
-function createStarPath(cx: number, cy: number, outerRadius: number, innerRadius: number, points: number = 5): string {
-  const pathPoints: string[] = [];
-  const angleOffset = -Math.PI / 2; // Start from top
-  
-  for (let i = 0; i < points * 2; i++) {
-    const angle = angleOffset + (i * Math.PI) / points;
-    const radius = i % 2 === 0 ? outerRadius : innerRadius;
-    const x = cx + radius * Math.cos(angle);
-    const y = cy + radius * Math.sin(angle);
-    
-    if (i === 0) {
-      pathPoints.push(`M ${x.toFixed(2)} ${y.toFixed(2)}`);
-    } else {
-      pathPoints.push(`L ${x.toFixed(2)} ${y.toFixed(2)}`);
-    }
-  }
-  
-  pathPoints.push('Z'); // Close the path
-  return pathPoints.join(' ');
-}
-
-/**
- * Generate a single star SVG element for insertion into blobbi-eye group.
- */
-function generateStarElement(eye: EyePosition, config: StarEyesConfig): string {
-  const color = config.color || '#fbbf24'; // Default: amber-400
-  const scale = config.scale || 1.0;
-  const points = config.points || 5;
-  
-  // Star size based on pupil radius - smaller for cute look
-  const outerRadius = eye.radius * scale;
-  const innerRadius = outerRadius * 0.4; // Inner radius is 40% of outer for nice star shape
-  
-  const starPath = createStarPath(eye.cx, eye.cy, outerRadius, innerRadius, points);
-  
-  return `<g class="blobbi-star-eye blobbi-star-eye-${eye.side}">
-      <path
-        d="${starPath}"
-        fill="${color}"
-        stroke="#f59e0b"
-        stroke-width="0.5"
-      />
-      <!-- Small highlight on star -->
-      <circle cx="${eye.cx - outerRadius * 0.2}" cy="${eye.cy - outerRadius * 0.3}" r="${outerRadius * 0.15}" fill="white" opacity="0.7" />
-    </g>`;
-}
-
-/**
- * Generate a single sparkle element at specified position.
- */
-function createSparkleElement(x: number, y: number, size: number, color: string, delay: number, duration: number): string {
-  return `<g class="blobbi-sparkle" style="transform-origin: ${x}px ${y}px;">
-      <path 
-        d="M ${x} ${y - size} L ${x + size * 0.3} ${y} L ${x} ${y + size} L ${x - size * 0.3} ${y} Z M ${x - size} ${y} L ${x} ${y + size * 0.3} L ${x + size} ${y} L ${x} ${y - size * 0.3} Z"
-        fill="${color}"
-        opacity="0"
-      >
-        <animate attributeName="opacity" values="0;0.7;0" dur="${duration}s" begin="${delay}s" repeatCount="indefinite" />
-      </path>
-    </g>`;
-}
-
-/**
- * Generate sparkle elements around the entire Blobbi for the excited effect.
- * Subtle, soft sparkles distributed around the body perimeter.
- */
-function generateSparkles(config: StarEyesConfig): string {
-  const color = config.color || '#fbbf24';
-  
-  // Sparkle positions around the Blobbi body
-  // Assuming viewBox is roughly 100x100 for baby, 200x200 for adult
-  // These positions create a halo effect around the character
-  const sparklePositions = [
-    // Top area
-    { x: 30, y: 8, size: 2.5, delay: 0 },
-    { x: 50, y: 5, size: 3, delay: 0.8 },
-    { x: 70, y: 8, size: 2, delay: 1.6 },
-    // Upper sides
-    { x: 15, y: 25, size: 2.5, delay: 0.4 },
-    { x: 85, y: 25, size: 2.5, delay: 1.2 },
-    // Middle sides  
-    { x: 10, y: 50, size: 2, delay: 0.6 },
-    { x: 90, y: 50, size: 2.5, delay: 1.4 },
-    // Lower sides
-    { x: 15, y: 75, size: 2, delay: 1.0 },
-    { x: 85, y: 75, size: 2, delay: 0.2 },
-    // Bottom corners
-    { x: 25, y: 90, size: 2.5, delay: 1.8 },
-    { x: 75, y: 90, size: 2, delay: 0.5 },
-  ];
-  
-  const sparkles = sparklePositions.map(({ x, y, size, delay }) => {
-    // Vary the duration slightly for more organic feel
-    const duration = 2 + (delay * 0.3);
-    return createSparkleElement(x, y, size, color, delay, duration);
-  });
-  
-  return sparkles.join('\n  ');
-}
-
-/**
- * Generate CSS styles for star eyes effect.
- * Hides the original pupils but keeps the white eye circles and allows stars to show.
- */
-function generateStarEyesStyles(): string {
-  return `
-  <style type="text/css">
-    /* Hide original pupil circles, but the star elements we inject are visible */
-    .blobbi-star-eyes .blobbi-eye > circle:not(.blobbi-star-eye *),
-    .blobbi-star-eyes .blobbi-eye > circle[fill]:not([fill="white"]) {
-      opacity: 0;
-    }
-    /* Ensure star elements are visible */
-    .blobbi-star-eyes .blobbi-star-eye {
-      opacity: 1;
-    }
-  </style>`;
-}
-
-/**
- * Apply star eyes effect to the SVG.
- * Inserts stars INTO the blobbi-eye groups so they track with eye movement.
- */
-function applyStarEyes(svgText: string, eyes: EyePosition[], config: StarEyesConfig): string {
-  // Add 'blobbi-star-eyes' class to SVG root
-  svgText = svgText.replace(/<svg([^>]*)>/, (match, attrs) => {
-    if (attrs.includes('class="')) {
-      return match.replace(/class="([^"]*)"/, 'class="$1 blobbi-star-eyes"');
-    } else if (attrs.includes("class='")) {
-      return match.replace(/class='([^']*)'/, "class='$1 blobbi-star-eyes'");
-    } else {
-      return `<svg${attrs} class="blobbi-star-eyes">`;
-    }
-  });
-  
-  // Add star eyes styles
-  const starStyles = generateStarEyesStyles();
-  if (svgText.includes('<defs>')) {
-    svgText = svgText.replace('<defs>', '<defs>' + starStyles);
-  } else {
-    svgText = svgText.replace(/(<svg[^>]*>)/, '$1' + starStyles);
-  }
-  
-  // Insert stars INTO each blobbi-eye group so they track with eye movement
-  for (const eye of eyes) {
-    const starElement = generateStarElement(eye, config);
-    
-    // Find the blobbi-eye group for this side and insert the star before the closing </g>
-    const eyeGroupRegex = new RegExp(
-      `(<g[^>]*class="[^"]*blobbi-eye-${eye.side}[^"]*"[^>]*>)([\\s\\S]*?)(</g>)`,
-      'i'
-    );
-    
-    const match = svgText.match(eyeGroupRegex);
-    if (match) {
-      // Insert star at the end of the group (so it renders on top)
-      svgText = svgText.replace(
-        eyeGroupRegex,
-        `$1$2\n    ${starElement}\n  $3`
-      );
-    }
-  }
-  
-  // Add sparkles around the entire Blobbi as a separate overlay
-  const sparkles = generateSparkles(config);
-  const sparkleOverlay = `
-  <!-- Excited sparkles around Blobbi -->
-  <g class="blobbi-sparkles-group">
-    ${sparkles}
-  </g>`;
-  
-  svgText = svgText.replace('</svg>', sparkleOverlay + '\n</svg>');
-  
-  return svgText;
 }
 
 // ─── Droopy Mouth Generation ──────────────────────────────────────────────────
@@ -2127,22 +1782,15 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: B
   }
   
   // Generate sad eye effects (watery eyes with repositioned highlights)
+  // Delegated to eye system for consistent behavior
   if (config.pupilModification?.wateryEyes && eyes.length > 0) {
     if (import.meta.env.DEV) {
-      console.log('[Sad Eyes] Applying sad eye effects. Eyes detected:', eyes.length);
+      console.log('[Sad Eyes] Applying sad eye effects via eye system. Eyes detected:', eyes.length);
       eyes.forEach(e => console.log(`  - ${e.side} eye at (${e.cx}, ${e.cy}) radius=${e.radius}`));
     }
     
-    // 1. Apply sad highlights INTO the blobbi-eye groups (for tracking/blinking)
-    //    This also hides the original highlights
-    svgText = applySadEyeHighlights(svgText, eyes);
-    
-    // 2. Apply blue water fill INTO blobbi-blink groups (after eye white, before pupil)
-    //    Only if includeWaterFill is not explicitly set to false (default is true for backward compat)
     const includeWaterFill = config.pupilModification.includeWaterFill !== false;
-    if (includeWaterFill) {
-      svgText = applySadEyeWaterFill(svgText, eyes);
-    }
+    svgText = applySadEyesFromEyeSystem(svgText, { includeWaterFill }, eyes);
   }
   
   // Generate tears
@@ -2182,8 +1830,13 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: B
   }
   
   // Generate dizzy effect (spiral eyes)
+  // Delegated to eye system for consistent behavior
   if (config.dizzyEffect?.enabled && eyes.length > 0) {
-    svgText = applyDizzyEffect(svgText, eyes, config.dizzyEffect);
+    svgText = applyDizzyEyesFromEyeSystem(
+      svgText,
+      { rotationDuration: config.dizzyEffect.rotationDuration },
+      eyes
+    );
   }
   
   // Apply animated eyebrows (bouncing animation for excited/mischievous)
@@ -2198,8 +1851,17 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: B
   }
   
   // Generate star eyes (for excited)
+  // Delegated to eye system for consistent behavior
   if (config.starEyes?.enabled && eyes.length > 0) {
-    svgText = applyStarEyes(svgText, eyes, config.starEyes);
+    svgText = applyStarEyesFromEyeSystem(
+      svgText,
+      {
+        points: config.starEyes.points ?? 5,
+        color: config.starEyes.color ?? '#fbbf24',
+        scale: config.starEyes.scale ?? 0.9,
+      },
+      eyes
+    );
   }
   
   // Generate big smile (for excited)

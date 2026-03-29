@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
-import type { BlobbiCompanion } from '@/lib/blobbi';
+import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import type { InventoryAction, DirectAction } from '../lib/blobbi-action-utils';
 
 interface BlobbiActionsModalProps {

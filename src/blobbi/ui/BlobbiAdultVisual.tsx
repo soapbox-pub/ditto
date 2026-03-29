@@ -7,7 +7,7 @@
  * Eyes always track the mouse cursor in real-time.
  */
 
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef } from 'react';
 
 import { resolveAdultSvgWithForm, customizeAdultSvgFromBlobbi } from '@/blobbi/adult-blobbi';
 import { cn } from '@/lib/utils';
@@ -16,24 +16,19 @@ import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
 import { addEyeAnimation } from './lib/eye-animation';
 import { applyEmotion, type BlobbiEmotion } from './lib/emotions';
 import { useBlobbiEyes, type BlobbiLookMode } from './lib/useBlobbiEyes';
-import type { Blobbi } from '@/types/blobbi';
-import { isBlobbiSleeping } from '@/types/blobbi';
+import { useExternalEyeOffset } from './lib/useExternalEyeOffset';
+import type { ExternalEyeOffset, BlobbiReactionState } from './lib/types';
+import type { Blobbi } from '@/blobbi/core/types/blobbi';
+import { isBlobbiSleeping } from '@/blobbi/core/types/blobbi';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// Re-export types for backwards compatibility
+export type { ExternalEyeOffset };
 
 /**
  * Reaction states for adult Blobbi animations
+ * @deprecated Use BlobbiReactionState from './lib/types' instead
  */
-export type AdultReactionState = 'idle' | 'listening' | 'swaying' | 'singing' | 'happy';
-
-/**
- * External eye offset for companion control
- * Values range from -1 to 1, converted to pixel movement internally
- */
-export interface ExternalEyeOffset {
-  x: number;
-  y: number;
-}
+export type AdultReactionState = BlobbiReactionState;
 
 export interface BlobbiAdultVisualProps {
   /** The Blobbi data */
@@ -90,31 +85,12 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
 
   // External eye offset control - applies offset directly when provided
   // This bypasses useBlobbiEyes and gives companion full control
-  useEffect(() => {
-    if (!externalEyeOffset || !containerRef.current || isSleeping) return;
-
-    const eyeElements = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-left, .blobbi-eye-right');
-    if (eyeElements.length === 0) return;
-
-    // Convert -1 to 1 offset to pixel movement
-    // Increased max movement for more visible eye tracking (4.5px horizontal for adults)
-    const maxMovementX = 4.5;
-    const x = externalEyeOffset.x * maxMovementX;
-    
-    // Asymmetric vertical movement:
-    // - Upward (negative y): stronger movement (1.0x) for clear "looking up" effect
-    // - Downward (positive y): reduced movement (0.6x) to avoid looking too droopy
-    // Y offset: -1 = looking up, +1 = looking down
-    const maxMovementYUp = 4.5;  // Full range for looking up
-    const maxMovementYDown = 2.7; // Reduced range for looking down (0.6x)
-    const y = externalEyeOffset.y < 0 
-      ? externalEyeOffset.y * maxMovementYUp    // Looking up: full range
-      : externalEyeOffset.y * maxMovementYDown; // Looking down: reduced range
-
-    eyeElements.forEach(el => {
-      el.setAttribute('transform', `translate(${x} ${y})`);
-    });
-  }, [externalEyeOffset, isSleeping]);
+  useExternalEyeOffset({
+    containerRef,
+    externalEyeOffset,
+    isSleeping,
+    variant: 'adult',
+  });
 
   // Memoize the customized SVG to avoid unnecessary processing
   const customizedSvg = useMemo(() => {

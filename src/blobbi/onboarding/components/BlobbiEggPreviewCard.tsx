@@ -19,7 +19,7 @@ import { cn, formatCompactNumber } from '@/lib/utils';
 import {
   BLOBBI_PREVIEW_REROLL_COST,
   BLOBBI_ADOPTION_COST,
-} from '@/lib/blobbi';
+} from '@/blobbi/core/lib/blobbi';
 
 import type { BlobbiEggPreview } from '../lib/blobbi-preview';
 import { previewToBlobbiCompanion } from '../lib/blobbi-preview';

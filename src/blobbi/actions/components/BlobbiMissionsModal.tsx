@@ -27,7 +27,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useState } from 'react';
 
-import type { BlobbiCompanion, BlobbonautProfile } from '@/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { HatchTasksResult } from '../hooks/useHatchTasks';
 import type { EvolveTasksResult } from '../hooks/useEvolveTasks';
