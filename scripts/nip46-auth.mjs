@@ -20,6 +20,7 @@
 import { NPool, NRelay1, NConnectSigner, NSecSigner } from '@nostrify/nostrify';
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
 import { bytesToHex } from '@noble/hashes/utils';
+import QRCode from 'qrcode';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -108,7 +109,10 @@ async function main() {
 
   const nostrConnectURI = `nostrconnect://${clientPubkey}?${searchParams.toString()}`;
 
-  console.log('Import this URI into your signer app (e.g. Amber):');
+  console.log('Scan this QR code with your signer app (e.g. Amber):');
+  console.log('');
+  console.log(await QRCode.toString(nostrConnectURI, { type: 'terminal', small: true }));
+  console.log('Or import this URI manually:');
   console.log('');
   console.log(`  ${nostrConnectURI}`);
   console.log('');
