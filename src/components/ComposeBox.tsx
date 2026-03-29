@@ -998,7 +998,7 @@ export function ComposeBox({
   if (!user && compact) return null;
 
   return (
-    <div className={cn("px-4 py-3 bg-background/50")}>
+    <div className={cn("px-4 py-3 bg-background/85")}>
       {/* Preview toggle at top when not controlled and has previewable content */}
       {hasPreviewableContent && controlledPreviewMode === undefined && (
         <div className="flex items-center justify-end mb-3">
