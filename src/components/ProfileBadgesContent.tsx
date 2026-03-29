@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Award, Loader2 } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
@@ -114,10 +114,12 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
     return map;
   }, [badgeDefsQuery.data]);
 
+  const [expanded, setExpanded] = useState(false);
+
   if (badgeRefs.length === 0) return null;
 
-  const showRefs = badgeRefs.slice(0, PREVIEW_LIMIT);
   const remaining = Math.max(0, badgeRefs.length - PREVIEW_LIMIT);
+  const showRefs = expanded ? badgeRefs : badgeRefs.slice(0, PREVIEW_LIMIT);
 
   return (
     <div className="mt-3 space-y-3">
@@ -153,12 +155,15 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
               </Link>
             );
           })}
-          {remaining > 0 && (
-            <div className="flex flex-col items-center justify-center gap-1.5">
-              <div className="size-12 rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-xs font-medium">
+          {remaining > 0 && !expanded && (
+            <button
+              className="flex flex-col items-center justify-center gap-1.5"
+              onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
+            >
+              <div className="size-12 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground text-xs font-medium transition-colors">
                 +{remaining}
               </div>
-            </div>
+            </button>
           )}
         </div>
       ) : badgeRefs.length > 0 ? (
