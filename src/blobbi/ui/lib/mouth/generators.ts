@@ -217,14 +217,16 @@ export function generateFoodIcon(config: FoodIconConfig): string {
 // ─── Sleepy Mouth ─────────────────────────────────────────────────────────────
 
 /**
- * Generate a canonical sleepy mouth: a small round ellipse with a subtle
- * breathing animation (gently expands and contracts).
+ * Generate the canonical sleepy mouth.
  * 
- * This is a standalone mouth shape, not a morph of the current mouth.
- * Positioned at the center of the detected mouth location.
+ * A small round filled ellipse with a subtle breathing animation
+ * (gently expands and contracts like a sleeping creature's breath).
  * 
- * @param centerX - Horizontal center of the mouth area
- * @param centerY - Vertical center of the mouth area
+ * This is a **direct replacement** — when applied, it completely replaces
+ * the current mouth with no morph, transition, or interpolation.
+ * 
+ * @param centerX - Horizontal center from the stable mouth anchor
+ * @param centerY - Vertical center from the stable mouth anchor
  */
 export function generateSleepyMouth(centerX: number, centerY: number): string {
   // Small round mouth — like a tiny "o" of gentle breathing
@@ -232,7 +234,6 @@ export function generateSleepyMouth(centerX: number, centerY: number): string {
   const ry = 3.2;
   
   // Breathing animation: subtle expand/contract cycle
-  // Keeps the mouth soft and alive without being distracting
   const breathDuration = 3; // seconds per breath cycle
   const expandRx = rx + 0.5;
   const expandRy = ry + 0.6;
@@ -249,18 +250,15 @@ export function generateSleepyMouth(centerX: number, centerY: number): string {
 }
 
 /**
- * Apply the sleepy mouth to a Blobbi SVG.
+ * Apply the canonical sleepy mouth to a Blobbi SVG.
  * 
- * Replaces whatever mouth is currently present (smile, frown, round, etc.)
- * with the canonical sleepy breathing mouth, positioned at the given anchor.
+ * **Direct replacement**: removes the current mouth entirely and inserts
+ * the sleepy breathing mouth in its place. No morph, no transition,
+ * no interpolation between mouth states.
  * 
- * The anchor should come from the original neutral SVG (via
- * `mouthAnchorFromDetection`) so the position is stable regardless of
- * what base emotion mouth was applied before sleepy.
- * 
- * @param svgText - SVG content (may already have a base emotion mouth applied)
- * @param anchor - Stable mouth position from the original neutral SVG
- * @returns Modified SVG with the sleepy mouth replacing the current mouth
+ * @param svgText - SVG content (may have any mouth: smile, frown, round, etc.)
+ * @param anchor - Stable position from `mouthAnchorFromDetection()` on original SVG
+ * @returns SVG with current mouth replaced by the canonical sleepy mouth
  */
 export function applySleepyMouth(svgText: string, anchor: MouthAnchor): string {
   const sleepyMouthSvg = generateSleepyMouth(anchor.cx, anchor.cy);

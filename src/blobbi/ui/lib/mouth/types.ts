@@ -36,8 +36,10 @@ export interface MouthDetectionResult {
  * Stable anchor point for the mouth area.
  * 
  * Derived from the original neutral SVG before any emotion modifications.
- * Used by overlays (sleepy, etc.) and future mouth shapes that need a
- * reliable position regardless of what mouth is currently active.
+ * 
+ * Canonical mouth shapes (like sleepy) use this anchor for positioning
+ * when they directly replace the current mouth. This ensures consistent
+ * placement regardless of what mouth shape was previously active.
  */
 export interface MouthAnchor {
   /** Horizontal center of the mouth area */

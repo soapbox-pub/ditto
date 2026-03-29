@@ -31,13 +31,15 @@ export function detectMouthPosition(svgText: string): MouthDetectionResult | nul
 /**
  * Derive a stable anchor point for the mouth area.
  * 
- * This should be called on the original/unmodified SVG (before any emotion
- * mouth replacements) so the position is always from the neutral mouth.
- * The anchor can then be passed to overlays like sleepy that need a reliable
- * position regardless of what mouth shape was applied by a base emotion.
+ * Call this on the **original/unmodified SVG** (before any emotion mouth
+ * replacements) so the position is always from the neutral mouth.
+ * 
+ * The anchor provides a stable { cx, cy } that canonical mouth shapes
+ * (like sleepy) use for positioning when they directly replace the
+ * current mouth.
  * 
  * @param detection - Result from detectMouthPosition() on the original SVG
- * @returns A stable { cx, cy } anchor, or null if no mouth was detected
+ * @returns A stable { cx, cy } anchor
  */
 export function mouthAnchorFromDetection(detection: MouthDetectionResult): MouthAnchor {
   const pos = detection.position;
@@ -161,15 +163,15 @@ export function replaceMouthSection(svgText: string, newMouthSvg: string): strin
 }
 
 /**
- * Replace any element with a `blobbi-mouth` class in the SVG.
+ * Replace the current mouth element in the SVG with new mouth content.
  * 
- * This is a broader replacement than `replaceMouthSection` — it finds
- * any element (path, ellipse, etc.) that has a `blobbi-mouth` class
- * and replaces it. Used by overlays like sleepy that need to replace
- * mouths set by base emotions (which may be ellipses, not Q-curve paths).
+ * **Direct replacement**: removes the existing mouth entirely and inserts
+ * the new mouth SVG. No morphing, transitioning, or interpolation.
  * 
- * Falls back to `replaceMouthSection` if no class-based mouth is found
- * (handles the case where the mouth is still the original SVG path).
+ * Searches for mouth elements in this order:
+ * 1. Self-closing elements with `blobbi-mouth` class (path, ellipse)
+ * 2. Open/close elements with `blobbi-mouth` class (animated paths)
+ * 3. Fallback: Q-curve path patterns (original SVG mouth)
  */
 export function replaceCurrentMouth(svgText: string, newMouthSvg: string): string {
   // Match any self-closing element with blobbi-mouth class

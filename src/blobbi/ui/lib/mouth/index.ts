@@ -4,9 +4,12 @@
  * Canonical owner of all mouth-related logic:
  * - Detection (marker-based + regex fallback)
  * - Anchor positioning (stable mouth center from neutral SVG)
- * - SVG replacement
+ * - Direct replacement (no morphing/transitioning between shapes)
  * - Shape generation (round, frown, droopy, big smile, small smile, sleepy)
  * - Mouth-adjacent effects (drool, food icon)
+ * 
+ * Sleepy mouth is a canonical standalone shape that directly replaces
+ * the current mouth using the stable anchor position.
  */
 
 // ─── Types ────────────────────────────────────────────────────────────────────

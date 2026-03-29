@@ -319,7 +319,7 @@ function generateTears(eyes: EyePosition[], config: TearConfig, seed?: number): 
   }).join('\n');
 }
 
-// ─── Sleepy Overlay (cross-cutting, coordinates eyes + mouth) ─────────────────
+// ─── Sleepy Animation (eyes + canonical mouth replacement) ────────────────────
 
 function generateSleepyStyles(config: SleepyAnimationConfig): string {
   const dur = config.cycleDuration;
