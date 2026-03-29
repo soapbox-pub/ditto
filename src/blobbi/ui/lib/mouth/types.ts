@@ -32,6 +32,20 @@ export interface MouthDetectionResult {
   endIndex?: number;
 }
 
+/**
+ * Stable anchor point for the mouth area.
+ * 
+ * Derived from the original neutral SVG before any emotion modifications.
+ * Used by overlays (sleepy, etc.) and future mouth shapes that need a
+ * reliable position regardless of what mouth is currently active.
+ */
+export interface MouthAnchor {
+  /** Horizontal center of the mouth area */
+  cx: number;
+  /** Vertical center of the mouth area */
+  cy: number;
+}
+
 // ─── Mouth Shape Configs ──────────────────────────────────────────────────────
 
 /**

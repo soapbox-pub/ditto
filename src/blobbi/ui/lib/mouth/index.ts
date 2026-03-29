@@ -3,10 +3,10 @@
  * 
  * Canonical owner of all mouth-related logic:
  * - Detection (marker-based + regex fallback)
+ * - Anchor positioning (stable mouth center from neutral SVG)
  * - SVG replacement
- * - Shape generation (round, frown, droopy, big smile, small smile)
+ * - Shape generation (round, frown, droopy, big smile, small smile, sleepy)
  * - Mouth-adjacent effects (drool, food icon)
- * - Sleepy mouth animation
  */
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -14,6 +14,7 @@
 export type {
   MouthPosition,
   MouthDetectionResult,
+  MouthAnchor,
   RoundMouthConfig,
   DroopyMouthConfig,
   BigSmileConfig,
@@ -22,9 +23,14 @@ export type {
   FoodIconConfig,
 } from './types';
 
-// ─── Detection & Replacement ──────────────────────────────────────────────────
+// ─── Detection, Anchor & Replacement ──────────────────────────────────────────
 
-export { detectMouthPosition, replaceMouthSection, replaceCurrentMouth } from './detection';
+export {
+  detectMouthPosition,
+  mouthAnchorFromDetection,
+  replaceMouthSection,
+  replaceCurrentMouth,
+} from './detection';
 
 // ─── Generators ───────────────────────────────────────────────────────────────
 

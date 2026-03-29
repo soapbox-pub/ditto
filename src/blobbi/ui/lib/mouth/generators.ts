@@ -7,6 +7,7 @@
 
 import type {
   MouthPosition,
+  MouthAnchor,
   RoundMouthConfig,
   SmallSmileConfig,
   DroopyMouthConfig,
@@ -14,7 +15,7 @@ import type {
   DroolConfig,
   FoodIconConfig,
 } from './types';
-import { detectMouthPosition, replaceCurrentMouth } from './detection';
+import { replaceCurrentMouth } from './detection';
 
 // ─── Round Mouth ──────────────────────────────────────────────────────────────
 
@@ -251,22 +252,17 @@ export function generateSleepyMouth(centerX: number, centerY: number): string {
  * Apply the sleepy mouth to a Blobbi SVG.
  * 
  * Replaces whatever mouth is currently present (smile, frown, round, etc.)
- * with the canonical sleepy breathing mouth. Detects the current mouth
- * position so the sleepy mouth is placed correctly.
+ * with the canonical sleepy breathing mouth, positioned at the given anchor.
+ * 
+ * The anchor should come from the original neutral SVG (via
+ * `mouthAnchorFromDetection`) so the position is stable regardless of
+ * what base emotion mouth was applied before sleepy.
  * 
  * @param svgText - SVG content (may already have a base emotion mouth applied)
+ * @param anchor - Stable mouth position from the original neutral SVG
  * @returns Modified SVG with the sleepy mouth replacing the current mouth
  */
-export function applySleepyMouth(svgText: string): string {
-  // Detect where the mouth is so we can place the sleepy mouth in the right spot
-  const mouth = detectMouthPosition(svgText);
-  if (!mouth) {
-    return svgText;
-  }
-  
-  const centerX = (mouth.position.startX + mouth.position.endX) / 2;
-  const centerY = mouth.position.controlY;
-  
-  const sleepyMouthSvg = generateSleepyMouth(centerX, centerY);
+export function applySleepyMouth(svgText: string, anchor: MouthAnchor): string {
+  const sleepyMouthSvg = generateSleepyMouth(anchor.cx, anchor.cy);
   return replaceCurrentMouth(svgText, sleepyMouthSvg);
 }

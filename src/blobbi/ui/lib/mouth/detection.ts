@@ -7,7 +7,7 @@
  * 2. Fallback: Regex-based Q-curve path matching
  */
 
-import type { MouthPosition, MouthDetectionResult } from './types';
+import type { MouthPosition, MouthDetectionResult, MouthAnchor } from './types';
 
 // ─── Main Detection ───────────────────────────────────────────────────────────
 
@@ -24,6 +24,27 @@ export function detectMouthPosition(svgText: string): MouthDetectionResult | nul
     return markerResult;
   }
   return detectMouthByRegex(svgText);
+}
+
+// ─── Mouth Anchor ─────────────────────────────────────────────────────────────
+
+/**
+ * Derive a stable anchor point for the mouth area.
+ * 
+ * This should be called on the original/unmodified SVG (before any emotion
+ * mouth replacements) so the position is always from the neutral mouth.
+ * The anchor can then be passed to overlays like sleepy that need a reliable
+ * position regardless of what mouth shape was applied by a base emotion.
+ * 
+ * @param detection - Result from detectMouthPosition() on the original SVG
+ * @returns A stable { cx, cy } anchor, or null if no mouth was detected
+ */
+export function mouthAnchorFromDetection(detection: MouthDetectionResult): MouthAnchor {
+  const pos = detection.position;
+  return {
+    cx: (pos.startX + pos.endX) / 2,
+    cy: pos.controlY,
+  };
 }
 
 // ─── Marker-Based Detection ───────────────────────────────────────────────────

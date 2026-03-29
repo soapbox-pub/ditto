@@ -31,6 +31,7 @@ import {
 // Mouth
 import {
   detectMouthPosition,
+  mouthAnchorFromDetection,
   replaceMouthSection,
   generateRoundMouth,
   generateSadMouth,
@@ -391,7 +392,7 @@ function generateSleepyZzz(): string {
   </g>`;
 }
 
-function applySleepyAnimation(svgText: string, eyes: EyePosition[], config: SleepyAnimationConfig): string {
+function applySleepyAnimation(svgText: string, eyes: EyePosition[], anchor: { cx: number; cy: number } | null, config: SleepyAnimationConfig): string {
   // Add 'blobbi-sleepy' class to SVG root
   svgText = svgText.replace(/<svg([^>]*)>/, (match, attrs) => {
     if (attrs.includes('class="')) {
@@ -415,7 +416,9 @@ function applySleepyAnimation(svgText: string, eyes: EyePosition[], config: Slee
   svgText = generateSleepyClipAnimations(svgText, config);
   
   // Replace current mouth with canonical sleepy breathing mouth (delegates to mouth/ module)
-  svgText = applySleepyMouth(svgText);
+  if (anchor) {
+    svgText = applySleepyMouth(svgText, anchor);
+  }
   
   // Overlays: closed eye lines + Zzz
   const closedEyeLines = generateClosedEyeLines(eyes);
@@ -453,9 +456,10 @@ export function applyEmotion(
     return svgText;
   }
   
-  // ── Detection phase ──
+  // ── Detection phase (runs on original SVG before modifications) ──
   const eyes = detectEyePositions(svgText);
   const mouth = detectMouthPosition(svgText);
+  const mouthAnchor = mouth ? mouthAnchorFromDetection(mouth) : null;
   
   const overlays: string[] = [];
   
@@ -520,7 +524,7 @@ export function applyEmotion(
   
   // ── Sleepy animation (cross-cutting overlay) ──
   if (config.sleepyAnimation?.enabled) {
-    svgText = applySleepyAnimation(svgText, eyes, config.sleepyAnimation);
+    svgText = applySleepyAnimation(svgText, eyes, mouthAnchor, config.sleepyAnimation);
   }
   
   // ── Dizzy eyes (from eyes/ module) ──
