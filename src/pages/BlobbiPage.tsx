@@ -83,6 +83,9 @@ import {
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
+import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
+import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
+import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -858,8 +861,33 @@ function BlobbiDashboard({
   // DEV ONLY: Emotion panel state
   const [showEmotionPanel, setShowEmotionPanel] = useState(false);
   
-  // DEV ONLY: Get effective emotion (dev override or default)
-  const effectiveEmotion = useEffectiveEmotion();
+  // DEV ONLY: Get effective emotion (dev override or base)
+  const devEmotionOverride = useEffectiveEmotion();
+  
+  // Action override emotion - set when Blobbi is doing an action (eating, cleaning, etc.)
+  // This takes priority over status reactions but not dev override
+  const [actionOverrideEmotion, setActionOverrideEmotion] = useState<BlobbiEmotion | null>(null);
+  
+  // Status-based automatic reactions
+  // Uses projected stats (with decay applied) for accurate reactions
+  const currentStats = useMemo(() => ({
+    hunger: projectedState?.stats.hunger ?? companion.stats.hunger ?? 100,
+    happiness: projectedState?.stats.happiness ?? companion.stats.happiness ?? 100,
+    health: projectedState?.stats.health ?? companion.stats.health ?? 100,
+    hygiene: projectedState?.stats.hygiene ?? companion.stats.hygiene ?? 100,
+    energy: projectedState?.stats.energy ?? companion.stats.energy ?? 100,
+  }), [projectedState, companion.stats]);
+  
+  const { currentEmotion: statusEmotion } = useStatusReaction({
+    stats: currentStats,
+    enabled: !isSleeping && !isEgg, // Disable when sleeping or egg stage
+    actionOverride: actionOverrideEmotion,
+  });
+  
+  // Final emotion: dev override > status reaction system (which handles action override internally)
+  const effectiveEmotion: BlobbiEmotion = isLocalhostDev() && devEmotionOverride !== 'neutral' 
+    ? devEmotionOverride 
+    : statusEmotion;
   
   // Adoption flow modal state
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
@@ -1209,24 +1237,29 @@ function BlobbiDashboard({
   const handleCloseInlineActivity = () => {
     setInlineActivity(createNoActivity());
     setBlobbiReaction('idle');
+    setActionOverrideEmotion(null);
   };
   
   // Handle music playback state changes (for Blobbi reaction)
   const handleMusicPlaybackStart = () => {
     setBlobbiReaction('listening');
+    setActionOverrideEmotion(getActionEmotion('music'));
   };
   
   const handleMusicPlaybackStop = () => {
     setBlobbiReaction('idle');
+    setActionOverrideEmotion(null);
   };
   
   // Handle sing recording state changes (for Blobbi reaction)
   const handleSingRecordingStart = () => {
     setBlobbiReaction('singing');
+    setActionOverrideEmotion(getActionEmotion('sing'));
   };
   
   const handleSingRecordingStop = () => {
     setBlobbiReaction('idle');
+    setActionOverrideEmotion(null);
   };
   
   // Handle opening track picker to change track (from inline player)
@@ -1238,12 +1271,16 @@ function BlobbiDashboard({
   const handleUseItem = async (itemId: string, quantity: number = 1) => {
     if (!inventoryAction || isUsingItem) return;
     setUsingItemId(itemId);
+    // Set action emotion override while item is being used
+    setActionOverrideEmotion(getActionEmotion(inventoryAction as ActionType));
     try {
       await onUseItem(itemId, inventoryAction, quantity);
       // Close the modal on success
       setInventoryAction(null);
     } finally {
       setUsingItemId(null);
+      // Clear action emotion after a brief delay for visual feedback
+      setTimeout(() => setActionOverrideEmotion(null), 1500);
     }
   };
   
@@ -1260,12 +1297,16 @@ function BlobbiDashboard({
     if (!action) return;
 
     setUsingItemId(itemId);
+    // Set action emotion override while item is being used
+    setActionOverrideEmotion(getActionEmotion(action as ActionType));
     try {
       await onUseItem(itemId, action, quantity);
       // Close the inventory modal on success
       setShowInventoryModal(false);
     } finally {
       setUsingItemId(null);
+      // Clear action emotion after a brief delay for visual feedback
+      setTimeout(() => setActionOverrideEmotion(null), 1500);
     }
   };
   
