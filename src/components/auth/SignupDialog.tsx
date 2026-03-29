@@ -60,7 +60,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
       await downloadTextFile(filename, nsec);
 
       if (Capacitor.getPlatform() === 'android') {
-        toast({ title: 'Key saved', description: `Saved to Documents/${filename}` });
+        toast({ title: 'Key saved', description: `Saved to Download/${filename}` });
       }
 
       // Continue to profile step
