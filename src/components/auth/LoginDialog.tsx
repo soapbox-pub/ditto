@@ -16,6 +16,7 @@ import {
   generateNostrConnectURI,
   type NostrConnectParams,
 } from '@/hooks/useLoginActions';
+import { androidResume } from '@/lib/androidResume';
 import { DialogTitle } from '@radix-ui/react-dialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -76,29 +77,75 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
     setConnectError(null);
   }, [login, config.appName]);
 
-  // Start listening for connection (async) - runs after params are set
+  // Start listening for connection (async) - runs after params are set.
+  //
+  // On Android, switching to Amber freezes the WebSocket so the NIP-46
+  // response is silently dropped. When Ditto returns to the foreground we
+  // abort the stale subscription and start a fresh one — the relay still
+  // has the response event so `limit: 1` picks it up immediately.
   useEffect(() => {
     if (!nostrConnectParams || isWaitingForConnect) return;
+
+    let cancelled = false;
+    let stopWatching: (() => void) | undefined;
+
+    const attemptConnect = async (signal: AbortSignal) => {
+      try {
+        await login.nostrconnect(nostrConnectParams, signal);
+        if (!cancelled) {
+          stopWatching?.();
+          onLogin();
+          onClose();
+        }
+      } catch (error) {
+        if (cancelled) return;
+        // AbortError means we intentionally aborted (dialog closed or retry)
+        if (error instanceof Error && error.name === 'AbortError') return;
+        throw error;
+      }
+    };
 
     const startListening = async () => {
       setIsWaitingForConnect(true);
       abortControllerRef.current = new AbortController();
 
+      // On Android, watch for foreground resume and retry the subscription.
+      ({ destroy: stopWatching } = androidResume({
+        threshold: 0,
+        onResume: () => {
+          if (cancelled) return;
+          console.log('[LoginDialog] foreground resume — retrying nostrconnect');
+          // Abort the current (stale) subscription
+          abortControllerRef.current?.abort();
+          // Start a fresh subscription
+          abortControllerRef.current = new AbortController();
+          attemptConnect(abortControllerRef.current.signal).catch((error) => {
+            if (!cancelled) {
+              console.error('Nostrconnect retry failed:', error);
+              setConnectError(error instanceof Error ? error.message : String(error));
+              setIsWaitingForConnect(false);
+            }
+          });
+        },
+      }));
+
       try {
-        await login.nostrconnect(nostrConnectParams, abortControllerRef.current.signal);
-        onLogin();
-        onClose();
+        await attemptConnect(abortControllerRef.current.signal);
       } catch (error) {
-        console.error('Nostrconnect failed:', error);
-        // Don't show error if it was aborted (dialog closed)
-        if (error instanceof Error && error.name !== 'AbortError') {
-          setConnectError(error.message);
+        if (!cancelled) {
+          console.error('Nostrconnect failed:', error);
+          setConnectError(error instanceof Error ? error.message : String(error));
+          setIsWaitingForConnect(false);
         }
-        setIsWaitingForConnect(false);
       }
     };
 
     startListening();
+
+    return () => {
+      cancelled = true;
+      stopWatching?.();
+    };
   }, [nostrConnectParams, login, onLogin, onClose, isWaitingForConnect]);
 
   // Clean up on close
