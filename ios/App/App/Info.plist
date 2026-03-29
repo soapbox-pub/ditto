@@ -47,5 +47,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ditto needs access to your photo library to upload images to your posts and profile.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ditto needs access to your microphone to record voice messages.</string>
 </dict>
 </plist>
