@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Loader2,
   Pencil,
+  RotateCcw,
   Trash2,
   Upload,
   Users,
@@ -25,6 +26,7 @@ import {
   type BadgeData,
   parseBadgeDefinition,
 } from "@/components/BadgeContent";
+import { BadgeRecoveryDialog } from "@/components/BadgeRecoveryDialog";
 import { BadgeThumbnail } from "@/components/BadgeThumbnail";
 import { CreateBadgeDialog } from "@/components/CreateBadgeDialog";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
@@ -256,6 +258,7 @@ function MyBadgesContent({
 }: MyBadgesTabProps) {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
 
   // Accepted badges
   const { refs, isLoading: isLoadingRefs } = useProfileBadges(user?.pubkey);
@@ -343,6 +346,17 @@ function MyBadgesContent({
           title="Accepted"
           count={isLoadingAccepted ? undefined : localRefs.length}
           icon={<Check className="size-4" />}
+          action={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+              onClick={() => setRecoveryOpen(true)}
+            >
+              <RotateCcw className="size-3.5" />
+              Recovery
+            </Button>
+          }
         />
         {isLoadingAccepted ? (
           <div className="space-y-2 mt-2">
@@ -396,6 +410,11 @@ function MyBadgesContent({
           <CreatedBadgeList badges={createdBadges} />
         )}
       </section>
+
+      <BadgeRecoveryDialog
+        open={recoveryOpen}
+        onOpenChange={setRecoveryOpen}
+      />
     </div>
   );
 }
