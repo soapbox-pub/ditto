@@ -1,6 +1,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
+  Camera,
   FileCode,
   FileText,
   GitBranch,
@@ -1750,6 +1751,12 @@ interface KindHeaderConfig {
 }
 
 const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
+  20: {
+    icon: Camera,
+    action: "shared a",
+    noun: "photo",
+    nounRoute: "/photos",
+  },
   4: {
     icon: Mail,
     action: "sent an",

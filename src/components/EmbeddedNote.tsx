@@ -171,7 +171,13 @@ function EmbeddedNoteCard({
   }, [truncatedContent, event.tags, event.kind]);
 
   // Detect stripped attachments to show indicator chips
+  const isPhoto = event.kind === 20;
   const attachments = useMemo(() => {
+    // Kind 20 (NIP-68 photo events): count images from imeta tags instead of content
+    if (isPhoto) {
+      const photoCount = event.tags.filter(([n]) => n === 'imeta').length;
+      return { imgs: 0, vids: 0, auds: 0, apps: 0, links: 0, photos: photoCount };
+    }
     const imgs = (event.content.match(new RegExp(IMAGE_URL_REGEX.source, 'gi')) || []).length;
     const vids = extractVideoUrls(event.content).length;
     const auds = extractAudioUrls(event.content).length;
@@ -180,8 +186,8 @@ function EmbeddedNoteCard({
     const nonMediaLinks = allUrls.filter((u) => !IMETA_MEDIA_URL_REGEX.test(u)).length;
     // Subtract 1 if we're showing a link preview card for the first URL
     const links = firstLinkUrl ? nonMediaLinks - 1 : nonMediaLinks;
-    return { imgs, vids, auds, apps, links };
-  }, [event.content, firstLinkUrl]);
+    return { imgs, vids, auds, apps, links, photos: 0 };
+  }, [event.content, event.tags, isPhoto, firstLinkUrl]);
 
   // NIP-36 content-warning check
   const cwTag = event.tags.find(([name]) => name === 'content-warning');
@@ -290,8 +296,14 @@ function EmbeddedNoteCard({
         )}
 
         {/* Attachment indicators for stripped media/links */}
-        {!hasCW && (attachments.imgs > 0 || attachments.vids > 0 || attachments.auds > 0 || attachments.apps > 0 || attachments.links > 0) && (
+        {!hasCW && (attachments.photos > 0 || attachments.imgs > 0 || attachments.vids > 0 || attachments.auds > 0 || attachments.apps > 0 || attachments.links > 0) && (
           <div className="flex items-center gap-2 flex-wrap">
+            {attachments.photos > 0 && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Image className="size-3" />
+                {attachments.photos > 1 ? `${attachments.photos} photos` : 'Photo'}
+              </span>
+            )}
             {attachments.imgs > 0 && (
               <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                 <Image className="size-3" />

@@ -41,6 +41,7 @@ import { FollowPackDetailContent } from "@/components/FollowPackDetailContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
+import { ImageGallery } from "@/components/ImageGallery";
 import {
   InteractionsModal,
   type InteractionTab,
@@ -131,6 +132,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 32267) return "App Details";
   if (kind === 15128 || kind === 35128) return "Nsite";
   if (kind === VANISH_KIND) return "Request to Vanish";
+  if (kind === 20) return "Photo";
   if (kind === 4) return "Encrypted Message";
   if (kind === 6 || kind === 16) return "Repost";
   if (kind === 7) return "Reaction";
@@ -715,6 +717,78 @@ function EventNotFound({
   );
 }
 
+/** NIP-68 Photo detail content (kind 20). */
+function PhotoDetailContent({ event }: { event: NostrEvent }) {
+  const photos = useMemo(() => parsePhotoUrls(event.tags), [event.tags]);
+  const title = getTag(event.tags, "title");
+  const description = event.content;
+  const hashtags = event.tags.filter(([n]) => n === "t").map(([, v]) => v);
+
+  // Build imetaMap with blurhash so ImageGallery can show blurhash placeholders
+  const imetaMap = useMemo(() => {
+    const map = new Map<string, { dim?: string; blurhash?: string }>();
+    for (const photo of photos) {
+      map.set(photo.url, { blurhash: photo.blurhash });
+    }
+    return map;
+  }, [photos]);
+
+  if (photos.length === 0) return null;
+
+  return (
+    <div className="mt-3 space-y-3">
+      {title && <p className="text-[15px] font-semibold leading-snug break-words">{title}</p>}
+      <ImageGallery
+        images={photos.map((p) => p.url)}
+        maxVisible={4}
+        maxGridHeight="600px"
+        imetaMap={imetaMap}
+      />
+      {description && (
+        <p className="text-sm text-muted-foreground leading-relaxed break-words">
+          {description}
+        </p>
+      )}
+      {hashtags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {hashtags.slice(0, 8).map((tag) => (
+            <Link
+              key={tag}
+              to={`/t/${encodeURIComponent(tag)}`}
+              className="text-sm text-primary hover:underline"
+            >
+              #{tag}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Parse all imeta image URLs from NIP-68 photo events. */
+function parsePhotoUrls(
+  tags: string[][],
+): Array<{ url: string; alt?: string; blurhash?: string }> {
+  const results: Array<{ url: string; alt?: string; blurhash?: string }> = [];
+  for (const tag of tags) {
+    if (tag[0] !== "imeta") continue;
+    const parts: Record<string, string> = {};
+    for (let i = 1; i < tag.length; i++) {
+      const p = tag[i];
+      const sp = p.indexOf(" ");
+      if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
+    }
+    if (parts.url)
+      results.push({
+        url: parts.url,
+        alt: parts.alt,
+        blurhash: parts.blurhash,
+      });
+  }
+  return results;
+}
+
 /** Video + title + hashtags for a kind 34236 vine on the detail page. */
 function VideoDetailContent({ event }: { event: NostrEvent }) {
   const imeta = useMemo(() => parseImeta(event.tags), [event.tags]);
@@ -877,6 +951,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isVoiceMessage = event.kind === 1222 || event.kind === 1244;
   const isReaction = event.kind === 7;
   const isRepost = event.kind === 6 || event.kind === 16;
+  const isPhoto = event.kind === 20;
   const isVideo = event.kind === 21 || event.kind === 22;
   const isCommunity = event.kind === 34550;
   const isGitRepo = event.kind === 30617;
@@ -903,6 +978,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isVoiceMessage &&
     !isReaction &&
     !isRepost &&
+    !isPhoto &&
     !isVideo &&
     !isCommunity &&
     !isDevKind &&
@@ -1697,7 +1773,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
           {/* Post content — kind-based dispatch, guarded by NIP-36 content-warning */}
           <ContentWarningGuard event={event}>
-            {isVideo ? (
+            {isPhoto ? (
+              <PhotoDetailContent event={event} />
+            ) : isVideo ? (
               <VideoDetailContent event={event} />
             ) : isArticle ? (
               <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
