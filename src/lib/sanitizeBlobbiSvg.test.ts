@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { sanitizeBlobbiSvg } from './sanitizeBlobbiSvg';
+import { sanitizeSvg } from './sanitizeSvg';
 
 describe('sanitizeBlobbiSvg', () => {
   it('preserves data-* attributes used by eye animation', () => {
@@ -209,5 +210,166 @@ describe('sanitizeBlobbiSvg', () => {
     const sanitized = sanitizeBlobbiSvg(largeSvg);
 
     expect(sanitized).toBe('');
+  });
+});
+
+describe('sanitizer isolation', () => {
+  // These tests verify that the two sanitizers are properly isolated and
+  // that importing one doesn't affect the other.
+
+  it('sanitizeBlobbiSvg allows data-* attributes', () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <g data-cx="35" data-cy="45">
+        <circle cx="35" cy="45" r="5" fill="#1f2937" />
+      </g>
+    </svg>`;
+
+    const sanitized = sanitizeBlobbiSvg(svg);
+
+    expect(sanitized).toContain('data-cx="35"');
+    expect(sanitized).toContain('data-cy="45"');
+  });
+
+  it('sanitizeSvg blocks style tags (Blobbi allows them)', () => {
+    // This is a key difference: Blobbi needs <style> for @keyframes, generic doesn't
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <style>.test { fill: red; }</style>
+      <circle cx="50" cy="50" r="10" fill="blue" />
+    </svg>`;
+
+    const genericSanitized = sanitizeSvg(svg);
+    const blobbiSanitized = sanitizeBlobbiSvg(svg);
+
+    // Generic sanitizer blocks <style>
+    expect(genericSanitized).not.toContain('<style');
+    expect(genericSanitized).not.toContain('.test');
+
+    // Blobbi sanitizer allows <style>
+    expect(blobbiSanitized).toContain('<style');
+    expect(blobbiSanitized).toContain('.test');
+  });
+
+  it('sanitizeSvg blocks animate elements (Blobbi allows them)', () => {
+    // This is a key difference: Blobbi needs SMIL animations, generic doesn't
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <rect x="10" y="20" width="30" height="25">
+        <animate attributeName="y" values="20;40;20" dur="2s" />
+      </rect>
+    </svg>`;
+
+    const genericSanitized = sanitizeSvg(svg);
+    const blobbiSanitized = sanitizeBlobbiSvg(svg);
+
+    // Generic sanitizer blocks <animate>
+    expect(genericSanitized).not.toContain('<animate');
+    expect(genericSanitized).not.toContain('attributeName');
+
+    // Blobbi sanitizer allows <animate>
+    expect(blobbiSanitized).toContain('<animate');
+    expect(blobbiSanitized).toContain('attributeName="y"');
+  });
+
+  it('sanitizeSvg blocks style attribute (Blobbi allows it)', () => {
+    // This is a key difference: Blobbi needs inline styles for animations, generic blocks them
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="10" fill="blue" style="transform-origin: center; animation: pulse 2s infinite;" />
+    </svg>`;
+
+    const genericSanitized = sanitizeSvg(svg);
+    const blobbiSanitized = sanitizeBlobbiSvg(svg);
+
+    // Generic sanitizer blocks style attribute (explicitly forbidden)
+    expect(genericSanitized).not.toContain('style=');
+    expect(genericSanitized).not.toContain('transform-origin');
+
+    // Blobbi sanitizer allows style attribute for animations
+    expect(blobbiSanitized).toContain('style=');
+    expect(blobbiSanitized).toContain('transform-origin');
+  });
+
+  it('both sanitizers allow defs/gradients (SVG profile includes them)', () => {
+    // Both sanitizers use SVG profile which includes structural elements like defs
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <defs>
+        <linearGradient id="grad1">
+          <stop offset="0%" stop-color="red" />
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="10" fill="url(#grad1)" />
+    </svg>`;
+
+    const genericSanitized = sanitizeSvg(svg);
+    const blobbiSanitized = sanitizeBlobbiSvg(svg);
+
+    // Both sanitizers allow structural SVG elements
+    expect(genericSanitized).toContain('<defs');
+    expect(genericSanitized).toContain('<linearGradient');
+    expect(blobbiSanitized).toContain('<defs');
+    expect(blobbiSanitized).toContain('<linearGradient');
+  });
+
+  it('both sanitizers block script tags', () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <script>alert('xss')</script>
+      <circle cx="50" cy="50" r="10" fill="blue" />
+    </svg>`;
+
+    const genericSanitized = sanitizeSvg(svg);
+    const blobbiSanitized = sanitizeBlobbiSvg(svg);
+
+    // Both should block script
+    expect(genericSanitized).not.toContain('<script');
+    expect(genericSanitized).not.toContain('alert');
+    expect(blobbiSanitized).not.toContain('<script');
+    expect(blobbiSanitized).not.toContain('alert');
+  });
+
+  it('both sanitizers block event handlers', () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" onload="alert('xss')">
+      <circle cx="50" cy="50" r="10" fill="blue" onclick="alert('xss')" />
+    </svg>`;
+
+    const genericSanitized = sanitizeSvg(svg);
+    const blobbiSanitized = sanitizeBlobbiSvg(svg);
+
+    // Both should block event handlers
+    expect(genericSanitized).not.toContain('onload');
+    expect(genericSanitized).not.toContain('onclick');
+    expect(blobbiSanitized).not.toContain('onload');
+    expect(blobbiSanitized).not.toContain('onclick');
+  });
+
+  it('both sanitizers block foreignObject', () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <foreignObject width="100" height="100">
+        <div xmlns="http://www.w3.org/1999/xhtml">XSS content</div>
+      </foreignObject>
+    </svg>`;
+
+    const genericSanitized = sanitizeSvg(svg);
+    const blobbiSanitized = sanitizeBlobbiSvg(svg);
+
+    // Both should block foreignObject
+    expect(genericSanitized).not.toContain('foreignObject');
+    expect(genericSanitized).not.toContain('XSS content');
+    expect(blobbiSanitized).not.toContain('foreignObject');
+    expect(blobbiSanitized).not.toContain('XSS content');
+  });
+
+  it('both sanitizers block href/xlink:href', () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <a href="javascript:alert('xss')">
+        <circle cx="50" cy="50" r="10" fill="blue" />
+      </a>
+    </svg>`;
+
+    const genericSanitized = sanitizeSvg(svg);
+    const blobbiSanitized = sanitizeBlobbiSvg(svg);
+
+    // Both should block href
+    expect(genericSanitized).not.toContain('href');
+    expect(genericSanitized).not.toContain('javascript');
+    expect(blobbiSanitized).not.toContain('href');
+    expect(blobbiSanitized).not.toContain('javascript');
   });
 });
