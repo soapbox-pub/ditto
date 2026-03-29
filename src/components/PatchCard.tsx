@@ -1,5 +1,6 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { FileText, GitCommit, User, Wand2 } from "lucide-react";
+import { openUrl } from "@/lib/downloadFile";
 import { Badge } from "@/components/ui/badge";
 
 interface PatchCardProps {
@@ -141,11 +142,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 							className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 							onClick={(e) => {
 								e.stopPropagation();
-								window.open(
-									"https://shakespeare.diy",
-									"_blank",
-									"noopener,noreferrer",
-								);
+								openUrl("https://shakespeare.diy");
 							}}
 						>
 							<Wand2 className="size-3" />

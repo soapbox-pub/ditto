@@ -7,6 +7,7 @@
 
 import { ExternalLink, Check, Loader2, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { openUrl } from '@/lib/downloadFile';
 
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -48,7 +49,7 @@ function TaskRow({ task, onOpenPostModal }: TaskRowProps) {
         navigate(task.actionTarget);
         break;
       case 'external_link':
-        window.open(task.actionTarget, '_blank', 'noopener,noreferrer');
+        openUrl(task.actionTarget);
         break;
       case 'open_modal':
         if (task.actionTarget === 'blobbi_post') {

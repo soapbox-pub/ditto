@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, forwardRef } from 'react';
 import { Zap, Copy, Check, ExternalLink, Sparkle, Sparkles, Star, Rocket, X, Smile } from 'lucide-react';
+import { openUrl } from '@/lib/downloadFile';
 import { HelpTip } from '@/components/HelpTip';
 import { Button } from '@/components/ui/button';
 import {
@@ -348,7 +349,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const openInWallet = () => {
     if (invoice) {
       const lightningUrl = `lightning:${invoice}`;
-      window.open(lightningUrl, '_blank');
+      openUrl(lightningUrl);
     }
   };
 
