@@ -6,9 +6,6 @@ import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { Badge } from '@/components/ui/badge';
-import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
 import { parseBadgeDefinition } from '@/components/BadgeContent';
 import { isProfileBadgesKind } from '@/lib/badgeUtils';
 
@@ -82,9 +79,6 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
   const { nostr } = useNostr();
   const badgeRefs = useMemo(() => parseProfileBadges(event), [event]);
 
-  const author = useAuthor(event.pubkey);
-  const displayName = author.data?.metadata?.name || genUserName(event.pubkey);
-
   // Fetch all referenced badge definitions in a single query
   const badgeDefsQuery = useQuery({
     queryKey: ['badge-definitions', badgeRefs.map((r) => r.aTag).join(',')],
@@ -129,17 +123,6 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
 
   return (
     <div className="mt-3 space-y-3">
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <Award className="size-4 text-primary shrink-0" />
-        <span className="text-[15px] font-semibold leading-snug">
-          {displayName}'s Badges
-        </span>
-        <Badge variant="secondary" className="text-[10px] shrink-0">
-          {badgeRefs.length} badge{badgeRefs.length !== 1 ? 's' : ''}
-        </Badge>
-      </div>
-
       {/* Badge grid */}
       {badgeDefsQuery.isLoading ? (
         <div className="flex items-center justify-center py-6">
