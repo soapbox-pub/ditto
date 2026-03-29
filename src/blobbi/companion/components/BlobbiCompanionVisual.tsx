@@ -1,6 +1,6 @@
 /**
  * BlobbiCompanionVisual
- * 
+ *
  * Visual component for rendering the companion Blobbi.
  * Supports external eye offset control for custom gaze behavior.
  */
@@ -9,10 +9,10 @@ import { useMemo, useRef } from 'react';
 
 import { BlobbiBabyVisual } from '@/blobbi/ui/BlobbiBabyVisual';
 import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
+import { companionDataToBlobbi } from '@/blobbi/ui/lib/adapters';
 import { useEffectiveEmotion } from '@/blobbi/dev/EmotionDevContext';
 import { cn } from '@/lib/utils';
 import type { CompanionData, EyeOffset, CompanionDirection } from '../types/companion.types';
-import type { Blobbi } from '@/blobbi/core/types/blobbi';
 
 interface BlobbiCompanionVisualProps {
   /** Companion data */
@@ -39,35 +39,7 @@ interface BlobbiCompanionVisualProps {
   debugMode?: boolean;
 }
 
-/**
- * Convert CompanionData to the Blobbi type for rendering.
- */
-function toBlobiForVisual(companion: CompanionData): Blobbi {
-  return {
-    id: companion.d,
-    name: companion.name,
-    lifeStage: companion.stage,
-    state: 'active',
-    isSleeping: false,
-    stats: {
-      hunger: 100,
-      happiness: 100,
-      health: 100,
-      hygiene: 100,
-      energy: companion.energy,
-    },
-    baseColor: companion.visualTraits.baseColor,
-    secondaryColor: companion.visualTraits.secondaryColor,
-    eyeColor: companion.visualTraits.eyeColor,
-    pattern: companion.visualTraits.pattern,
-    specialMark: companion.visualTraits.specialMark,
-    size: companion.visualTraits.size,
-    seed: companion.seed ?? '',
-    tags: [],
-    // Include adult form info for proper rendering
-    adult: companion.adultType ? { evolutionForm: companion.adultType } : undefined,
-  };
-}
+
 
 export function BlobbiCompanionVisual({
   companion,
@@ -84,7 +56,7 @@ export function BlobbiCompanionVisual({
 }: BlobbiCompanionVisualProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   
-  const blobbi = useMemo(() => toBlobiForVisual(companion), [companion]);
+  const blobbi = useMemo(() => companionDataToBlobbi(companion), [companion]);
   
   // DEV ONLY: Get effective emotion from dev context
   const effectiveEmotion = useEffectiveEmotion();

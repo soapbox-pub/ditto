@@ -15,9 +15,9 @@ import { BlobbiEggVisual, type BlobbiEggSize } from './BlobbiEggVisual';
 import { BlobbiBabyVisual } from './BlobbiBabyVisual';
 import { BlobbiAdultVisual } from './BlobbiAdultVisual';
 import { FloatingMusicNotes } from './FloatingMusicNotes';
+import { blobbiCompanionToBlobbi } from './lib/adapters';
 import { cn } from '@/lib/utils';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
-import type { Blobbi } from '@/blobbi/core/types/blobbi';
 import type { BlobbiLookMode } from './lib/useBlobbiEyes';
 import type { BlobbiEmotion } from './lib/emotions';
 
@@ -68,43 +68,6 @@ const SIZE_CONFIG: Record<BlobbiVisualSize, string> = {
   lg: 'size-40',
 };
 
-// ─── Adapter ──────────────────────────────────────────────────────────────────
-
-/**
- * Converts BlobbiCompanion to the Blobbi type for baby/adult rendering.
- *
- * This is a minimal adapter that extracts only the fields needed
- * by BlobbiBabyVisual and BlobbiAdultVisual. It does not perform a full conversion.
- */
-function toBlobbiForVisual(companion: BlobbiCompanion): Blobbi {
-  return {
-    id: companion.d,
-    name: companion.name,
-    lifeStage: companion.stage,
-    state: companion.state,
-    isSleeping: companion.state === 'sleeping',
-    stats: {
-      hunger: companion.stats.hunger ?? 100,
-      happiness: companion.stats.happiness ?? 100,
-      health: companion.stats.health ?? 100,
-      hygiene: companion.stats.hygiene ?? 100,
-      energy: companion.stats.energy ?? 100,
-    },
-    // Visual traits
-    baseColor: companion.visualTraits.baseColor,
-    secondaryColor: companion.visualTraits.secondaryColor,
-    eyeColor: companion.visualTraits.eyeColor,
-    pattern: companion.visualTraits.pattern,
-    specialMark: companion.visualTraits.specialMark,
-    size: companion.visualTraits.size,
-    // Metadata
-    seed: companion.seed,
-    tags: companion.allTags,
-    // Adult-specific data (for adult form resolution)
-    adult: companion.adultType ? { evolutionForm: companion.adultType } : undefined,
-  };
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -135,7 +98,7 @@ export function BlobbiStageVisual({
 
   // Convert to Blobbi for baby/adult rendering (memoized)
   const blobbiForVisual = useMemo(
-    () => (stage === 'baby' || stage === 'adult' ? toBlobbiForVisual(companion) : null),
+    () => (stage === 'baby' || stage === 'adult' ? blobbiCompanionToBlobbi(companion) : null),
     [companion, stage]
   );
 

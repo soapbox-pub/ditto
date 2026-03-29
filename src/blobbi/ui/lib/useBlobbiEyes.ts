@@ -26,19 +26,21 @@
 
 import { useEffect, useRef } from 'react';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import type { BlobbiLookMode, EyePosition } from './types';
+import {
+  DEFAULT_EYE_MAX_MOVEMENT,
+  EYE_VERTICAL_SCALE,
+  BLINK_MIN_INTERVAL,
+  BLINK_MAX_INTERVAL,
+  BLINK_CLOSE_DURATION,
+  BLINK_CLOSED_DURATION,
+  BLINK_OPEN_DURATION,
+  BLINK_CLOSED_AMOUNT,
+  DOUBLE_BLINK_CHANCE,
+} from './constants';
 
-export interface EyePosition {
-  x: number;
-  y: number;
-}
-
-/**
- * Controls how the Blobbi's eyes behave
- * - 'follow-pointer': Eyes track the mouse cursor (default)
- * - 'forward': Eyes look straight ahead (for photos/export)
- */
-export type BlobbiLookMode = 'follow-pointer' | 'forward';
+// Re-export types for backwards compatibility
+export type { BlobbiLookMode, EyePosition };
 
 export interface UseBlobbiEyesOptions {
   /** Whether the Blobbi is sleeping (disables animation) */
@@ -49,27 +51,12 @@ export interface UseBlobbiEyesOptions {
   lookMode?: BlobbiLookMode;
   /** Disable blinking animation (for photo/export mode) */
   disableBlink?: boolean;
-  /** 
+  /**
    * Disable eye tracking only (keep blinking).
    * Used when external system controls eye position (e.g., companion mode).
    */
   disableTracking?: boolean;
 }
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const DEFAULT_MAX_MOVEMENT = 2;
-const VERTICAL_SCALE = 0.7; // Reduce vertical movement to 70%
-
-// ─── Blink Constants ──────────────────────────────────────────────────────────
-
-const BLINK_MIN_INTERVAL = 2000; // Minimum time between blinks (ms)
-const BLINK_MAX_INTERVAL = 5000; // Maximum time between blinks (ms)
-const BLINK_CLOSE_DURATION = 80; // Time to close eyes (ms)
-const BLINK_CLOSED_DURATION = 100; // Time eyes stay closed (ms)
-const BLINK_OPEN_DURATION = 120; // Time to open eyes (ms)
-const BLINK_CLOSED_AMOUNT = 0.95; // How much of the eye to hide when closed (0.95 = 95% hidden)
-const DOUBLE_BLINK_CHANCE = 0.2; // 20% chance for double blink
 
 // ─── Global Mouse Position ────────────────────────────────────────────────────
 
@@ -215,7 +202,7 @@ export function useBlobbiEyes(
   containerRef: React.RefObject<HTMLDivElement | null>,
   options: UseBlobbiEyesOptions = {}
 ): void {
-  const { isSleeping = false, maxMovement = DEFAULT_MAX_MOVEMENT, lookMode = 'follow-pointer', disableBlink = false, disableTracking = false } = options;
+  const { isSleeping = false, maxMovement = DEFAULT_EYE_MAX_MOVEMENT, lookMode = 'follow-pointer', disableBlink = false, disableTracking = false } = options;
 
   // Animation frame ref for cleanup
   const animationRef = useRef<number | null>(null);
@@ -378,7 +365,7 @@ export function useBlobbiEyes(
 
           // Calculate eye position (instant, no interpolation)
           eyeX = Math.cos(angle) * maxMovement;
-          eyeY = Math.sin(angle) * maxMovement * VERTICAL_SCALE;
+          eyeY = Math.sin(angle) * maxMovement * EYE_VERTICAL_SCALE;
         }
         // 'forward' mode: eyes stay at (0, 0) - looking straight ahead
 

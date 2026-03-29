@@ -15,6 +15,15 @@
  * - Eye white stays fixed during mouse tracking
  */
 
+import { darkenColor } from './svg/colors';
+import {
+  PUPIL_COLORS,
+  EYE_PROXIMITY,
+  EYE_WHITE_MIN_RADIUS,
+  DEFAULT_EYELID_COLOR,
+  EYELID_DARKEN_AMOUNT,
+} from './constants';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ElementInfo {
@@ -49,48 +58,6 @@ interface FullEyeGroup {
   blinkCenterY: number;
   /** Eye white geometry for eyelid generation (rx, ry for ellipse) */
   eyeWhiteGeometry: { rx: number; ry: number } | null;
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-// Dark colors used for pupils
-// These are the solid fill colors used in adult Blobbi SVGs for pupils
-// - #1f2937, #374151, #1e293b, #111827, #0f172a: Dark gray/slate colors (most forms)
-// - #64748b: Slate color (cloudi)
-// - #1e1b4b: Dark indigo (starri, crysti)
-// - #0891b2: Cyan (droppi)
-const PUPIL_COLORS = ['#1f2937', '#374151', '#1e293b', '#111827', '#0f172a', '#64748b', '#1e1b4b', '#0891b2'];
-
-// Default eyelid color (used when no base color is provided)
-const DEFAULT_EYELID_COLOR = '#6d28d9';
-
-// Max distance for elements to belong to the same eye
-const EYE_PROXIMITY = 15;
-
-// How much to darken the base color for eyelids (0-100)
-// Keep it subtle so it reads as an eyelid, not a shadow
-const EYELID_DARKEN_AMOUNT = 8;
-
-// ─── Color Helpers ────────────────────────────────────────────────────────────
-
-/**
- * Darken a hex color by a percentage
- */
-function darkenColor(color: string, percent: number): string {
-  if (!color.startsWith('#')) return color;
-  
-  const num = parseInt(color.slice(1), 16);
-  const amt = Math.round(2.55 * percent);
-  const R = Math.max(0, (num >> 16) - amt);
-  const G = Math.max(0, ((num >> 8) & 0x00FF) - amt);
-  const B = Math.max(0, (num & 0x0000FF) - amt);
-  
-  return '#' + (
-    0x1000000 +
-    R * 0x10000 +
-    G * 0x100 +
-    B
-  ).toString(16).slice(1).toUpperCase();
 }
 
 // ─── Detection Helpers ────────────────────────────────────────────────────────
@@ -131,7 +98,7 @@ function isEyeWhiteElement(element: string, radius: number): boolean {
 
   // Check for plain white fills - must be LARGE to be an eye white
   // Adults use r=8-12 for eye whites, r=2-6 for highlights
-  // Use radius >= 8 threshold to avoid catching highlights as eye whites
+  // Use radius >= EYE_WHITE_MIN_RADIUS threshold to avoid catching highlights as eye whites
   const isWhite =
     element.includes('fill="white"') ||
     element.includes("fill='white'") ||
@@ -140,7 +107,7 @@ function isEyeWhiteElement(element: string, radius: number): boolean {
     element.includes('fill="#FFF"') ||
     element.includes('fill="#FFFFFF"');
 
-  if (isWhite && radius >= 8) {
+  if (isWhite && radius >= EYE_WHITE_MIN_RADIUS) {
     return true;
   }
 
@@ -168,7 +135,7 @@ function isPupilElement(element: string): boolean {
 
 /**
  * Check if element is a highlight (white element, typically small)
- * 
+ *
  * Highlights are the white reflective spots on the pupil.
  * They're white fills that are smaller than eye whites.
  * Adults use r=2-6 for highlights, r=8+ for eye whites.
@@ -182,9 +149,9 @@ function isHighlightElement(element: string, radius: number): boolean {
     element.includes('fill="#FFF"') ||
     element.includes('fill="#FFFFFF"');
 
-  // Highlights are white fills with radius < 8 (the eye white threshold)
+  // Highlights are white fills with radius < EYE_WHITE_MIN_RADIUS (the eye white threshold)
   // This captures adult highlights at r=2-6 and baby highlights at r=2
-  return isWhite && radius < 8;
+  return isWhite && radius < EYE_WHITE_MIN_RADIUS;
 }
 
 /**
