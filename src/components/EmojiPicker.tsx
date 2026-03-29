@@ -117,6 +117,18 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
 
 		if (customCategories) {
 			pickerOptions.custom = customCategories;
+			// Order: Recent, Custom, then standard categories
+			pickerOptions.categories = [
+				"frequent",
+				"custom-nostr",
+				"people",
+				"nature",
+				"foods",
+				"activity",
+				"places",
+				"objects",
+				"flags",
+			];
 		}
 
 		const picker = new Picker(pickerOptions);
