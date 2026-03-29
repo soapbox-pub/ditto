@@ -282,7 +282,7 @@ function SetupQuestionnaire({
 
       // Let the user know where the file ended up on Android
       if (Capacitor.getPlatform() === "android") {
-        toast({ title: "Key saved", description: `Saved to Documents/${filename}` });
+        toast({ title: "Key saved", description: `Saved to Download/${filename}` });
       }
 
       // Log in with the new key

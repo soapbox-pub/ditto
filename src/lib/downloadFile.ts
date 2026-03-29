@@ -4,8 +4,7 @@ import { Capacitor } from '@capacitor/core';
  * Download a text file to the user's device.
  *
  * On the web this uses the classic `<a download>` trick.
- * On Android it writes directly to the app-scoped Documents directory
- * (no extra permissions needed on Android 11+).
+ * On Android it writes to the public Download folder via ExternalStorage.
  * On iOS it writes to a temp file and presents the native share sheet.
  */
 export async function downloadTextFile(filename: string, content: string): Promise<void> {
@@ -14,13 +13,12 @@ export async function downloadTextFile(filename: string, content: string): Promi
   if (platform === 'android') {
     const { Filesystem, Directory } = await import('@capacitor/filesystem');
 
-    // Write directly to the Documents directory. On Android 11+ the app can
-    // write to its own scoped area inside public Documents without needing
-    // WRITE_EXTERNAL_STORAGE permission.
+    // Write to the public Download folder. On Android 11+ no storage
+    // permissions are required for app-created files in shared directories.
     await Filesystem.writeFile({
-      path: filename,
+      path: `Download/${filename}`,
       data: content,
-      directory: Directory.Documents,
+      directory: Directory.ExternalStorage,
     });
   } else if (platform === 'ios') {
     const { Filesystem, Directory } = await import('@capacitor/filesystem');
