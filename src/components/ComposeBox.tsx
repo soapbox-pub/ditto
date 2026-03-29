@@ -224,6 +224,26 @@ export function ComposeBox({
   const voiceRecorder = useVoiceRecorder();
   const [isPublishingVoice, setIsPublishingVoice] = useState(false);
 
+  const resetComposeState = useCallback(() => {
+    setContent('');
+    setCwEnabled(false);
+    setCwText('');
+    setExpanded(false);
+    setPickerOpen(false);
+    setTrayOpen(false);
+    setInternalPreviewMode(false);
+    setMode(initialMode);
+    setPollQuestion('');
+    setPollOptions([{ id: pollOptionId(), label: '' }, { id: pollOptionId(), label: '' }]);
+    setPollType('singlechoice');
+    setPollDuration(7);
+    setRemovedEmbeds(new Set());
+    setUploadedFileTags([]);
+    setUploadedFileGroups(new Map());
+    setWebxdcUuids(new Map());
+    setWebxdcMetas(new Map());
+  }, [initialMode]);
+
   // Use controlled preview mode if provided, otherwise use internal state
   const previewMode = controlledPreviewMode !== undefined ? controlledPreviewMode : internalPreviewMode;
 
@@ -919,15 +939,7 @@ export function ComposeBox({
         });
       }
 
-      setContent('');
-      setCwEnabled(false);
-      setCwText('');
-      setExpanded(false);
-      setRemovedEmbeds(new Set());
-      setUploadedFileTags([]);
-      setUploadedFileGroups(new Map());
-      setWebxdcUuids(new Map());
-      setWebxdcMetas(new Map());
+      resetComposeState();
       // Optimistically bump the reply count on the parent event
       if (replyTo && !(replyTo instanceof URL)) {
         queryClient.setQueryData<EventStats>(['event-stats', replyTo.id], (prev) =>
@@ -975,12 +987,7 @@ export function ComposeBox({
 
     try {
       await createEvent({ kind: 1068, content: pollQuestion.trim(), tags });
-      // Reset poll state
-      setMode('post');
-      setPollQuestion('');
-      setPollOptions([{ id: pollOptionId(), label: '' }, { id: pollOptionId(), label: '' }]);
-      setPollType('singlechoice');
-      setPollDuration(7);
+      resetComposeState();
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       toast({ title: 'Poll published!' });
       onSuccess?.();
