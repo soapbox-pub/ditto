@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Bug, CalendarDays, ExternalLink, FlaskConical, Minus, Package, Plus, RefreshCw, ScrollText, ShieldAlert, Tag } from 'lucide-react';
+import { Bug, CalendarDays, FlaskConical, Minus, Package, Plus, RefreshCw, ScrollText, ShieldAlert, Tag } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/PageHeader';
@@ -97,22 +97,23 @@ export function ChangelogPage() {
                 {/* Version header */}
                 <div className="flex items-center gap-3 px-4 py-3 bg-secondary/30">
                   <Tag className="size-4 text-primary shrink-0" />
-                  <span className="font-semibold text-sm">v{entry.version}</span>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground ml-auto">
-                    <div className="flex items-center gap-1.5">
-                      <CalendarDays className="size-3.5" />
-                      <span>{formatDate(entry.date)}</span>
-                    </div>
-                    <a
-                      href={`${GITLAB_REPO}/-/releases/v${entry.version}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-foreground transition-colors"
-                      title={`View v${entry.version} on GitLab`}
-                    >
-                      <ExternalLink className="size-3.5" />
-                    </a>
-                  </div>
+                  <a
+                    href={`${GITLAB_REPO}/-/releases/v${entry.version}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-sm hover:underline"
+                  >
+                    v{entry.version}
+                  </a>
+                  <a
+                    href={`${GITLAB_REPO}/-/releases/v${entry.version}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
+                  >
+                    <CalendarDays className="size-3.5" />
+                    <span>{formatDate(entry.date)}</span>
+                  </a>
                 </div>
 
                 {/* Sections */}
