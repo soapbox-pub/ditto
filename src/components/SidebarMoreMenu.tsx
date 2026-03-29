@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { SeparatorHorizontal, ChevronDown, ChevronUp, LinkIcon, Pencil, Check } from 'lucide-react';
 import { useState } from 'react';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { sidebarItemIcon, itemPath } from '@/lib/sidebarItems';
 import type { HiddenSidebarItem } from '@/hooks/useFeedSettings';
 import { nip19 } from 'nostr-tools';
@@ -22,6 +23,7 @@ interface SidebarMoreMenuProps {
 export function SidebarMoreMenu({
   editing, hiddenItems, onDoneEditing, onStartEditing, onAdd, onAddDivider, onNavigate, linkClassName, homePage,
 }: SidebarMoreMenuProps) {
+  const { user } = useCurrentUser();
   const [expanded, setExpanded] = useState(false);
   const [linkInput, setLinkInput] = useState(false);
   const [linkValue, setLinkValue] = useState('');
@@ -179,13 +181,15 @@ export function SidebarMoreMenu({
           {hiddenItems.length === 0 && (
             <p className={`px-3 py-3 text-muted-foreground ${sizeClass}`}>All items are in the sidebar</p>
           )}
-          <button
-            onClick={() => { setExpanded(false); onStartEditing(); }}
-            className={`flex items-center gap-4 px-3 py-3 rounded-full transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary/40 bg-background/85 ${sizeClass}`}
-          >
-            <Pencil className="size-6" />
-            <span>Edit sidebar</span>
-          </button>
+          {user && (
+            <button
+              onClick={() => { setExpanded(false); onStartEditing(); }}
+              className={`flex items-center gap-4 px-3 py-3 rounded-full transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary/40 bg-background/85 ${sizeClass}`}
+            >
+              <Pencil className="size-6" />
+              <span>Edit sidebar</span>
+            </button>
+          )}
         </div>
       )}
     </div>
