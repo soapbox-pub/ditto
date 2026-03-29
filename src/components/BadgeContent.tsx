@@ -1,6 +1,8 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { Award } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+
+import { useCardTilt } from '@/hooks/useCardTilt';
 
 /** Parsed NIP-58 badge definition data. */
 export interface BadgeData {
@@ -81,22 +83,8 @@ export function BadgeContent({ event }: BadgeContentProps) {
           />
         </div>
 
-        {/* Badge image */}
-        <div className="relative z-[1]">
-          {heroImage ? (
-            <img
-              src={heroImage}
-              alt={badge.name}
-              className="size-28 rounded-2xl object-cover drop-shadow-lg"
-              loading="lazy"
-              decoding="async"
-            />
-          ) : (
-            <div className="size-28 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
-              <Award className="size-12 text-primary/30" />
-            </div>
-          )}
-        </div>
+        {/* Badge image with mouse-only 3D tilt */}
+        <BadgeImageTilt heroImage={heroImage} badgeName={badge.name} />
 
         {/* Badge info */}
         <div className="relative z-[1] mt-4 text-center px-6 max-w-xs">
@@ -106,6 +94,104 @@ export function BadgeContent({ event }: BadgeContentProps) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Extra padding (px) around the badge that expands the mouse hit-area. */
+const INTERACT_PAD = 48;
+
+/**
+ * Badge image with mouse-only 3D tilt. Touch events are ignored so
+ * tapping through to the detail view is not interfered with.
+ */
+function BadgeImageTilt({ heroImage, badgeName }: { heroImage?: string; badgeName: string }) {
+  const tilt = useCardTilt(25, 1.08);
+  const glareRef = useRef<HTMLDivElement>(null);
+
+  const imageMask: React.CSSProperties | undefined = heroImage ? {
+    maskImage: `url(${heroImage})`,
+    WebkitMaskImage: `url(${heroImage})`,
+    maskSize: 'cover',
+    WebkitMaskSize: 'cover',
+    maskRepeat: 'no-repeat',
+    WebkitMaskRepeat: 'no-repeat',
+    maskPosition: 'center',
+    WebkitMaskPosition: 'center',
+  } : undefined;
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.pointerType === 'touch') return;
+      tilt.onPointerMove(e);
+
+      const el = tilt.ref.current;
+      const glare = glareRef.current;
+      if (!el || !glare) return;
+      const rect = el.getBoundingClientRect();
+      const x = ((e.clientX - rect.left - INTERACT_PAD) / (rect.width - INTERACT_PAD * 2)) * 100;
+      const y = ((e.clientY - rect.top - INTERACT_PAD) / (rect.height - INTERACT_PAD * 2)) * 100;
+      glare.style.background = `radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.08) 35%, transparent 65%)`;
+      glare.style.opacity = '1';
+    },
+    [tilt],
+  );
+
+  const handlePointerLeave = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.pointerType === 'touch') return;
+      tilt.onPointerLeave(e);
+      const glare = glareRef.current;
+      if (glare) glare.style.opacity = '0';
+    },
+    [tilt],
+  );
+
+  // Override touch-action back to auto so scrolling works normally on touch
+  const style: React.CSSProperties = {
+    ...tilt.style,
+    touchAction: 'auto',
+    transformStyle: 'preserve-3d',
+    padding: INTERACT_PAD,
+    margin: -INTERACT_PAD,
+  };
+
+  return (
+    <div
+      ref={tilt.ref}
+      style={style}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      className="relative z-[1] select-none"
+    >
+      {heroImage ? (
+        <img
+          src={heroImage}
+          alt={badgeName}
+          className="size-28 rounded-2xl object-cover drop-shadow-lg"
+          loading="lazy"
+          decoding="async"
+        />
+      ) : (
+        <div className="size-28 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
+          <Award className="size-12 text-primary/30" />
+        </div>
+      )}
+      {/* Specular glare overlay */}
+      {heroImage && imageMask && (
+        <div
+          ref={glareRef}
+          className="absolute pointer-events-none"
+          style={{
+            inset: INTERACT_PAD,
+            opacity: 0,
+            transition: 'opacity 0.4s ease-out',
+            mixBlendMode: 'overlay',
+            ...imageMask,
+          }}
+          aria-hidden="true"
+        />
+      )}
     </div>
   );
 }
