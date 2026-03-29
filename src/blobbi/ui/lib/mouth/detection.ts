@@ -138,3 +138,50 @@ export function replaceMouthSection(svgText: string, newMouthSvg: string): strin
     return '';
   });
 }
+
+/**
+ * Replace any element with a `blobbi-mouth` class in the SVG.
+ * 
+ * This is a broader replacement than `replaceMouthSection` — it finds
+ * any element (path, ellipse, etc.) that has a `blobbi-mouth` class
+ * and replaces it. Used by overlays like sleepy that need to replace
+ * mouths set by base emotions (which may be ellipses, not Q-curve paths).
+ * 
+ * Falls back to `replaceMouthSection` if no class-based mouth is found
+ * (handles the case where the mouth is still the original SVG path).
+ */
+export function replaceCurrentMouth(svgText: string, newMouthSvg: string): string {
+  // Match any self-closing element with blobbi-mouth class
+  // Handles <path .../>, <ellipse .../>, etc.
+  const classMouthRegex = /<(?:path|ellipse)[^>]*class="[^"]*blobbi-mouth[^"]*"[^>]*\/>/g;
+  
+  const matches = svgText.match(classMouthRegex);
+  if (matches && matches.length > 0) {
+    let replaced = false;
+    return svgText.replace(classMouthRegex, () => {
+      if (!replaced) {
+        replaced = true;
+        return newMouthSvg;
+      }
+      return '';
+    });
+  }
+  
+  // Also match blobbi-mouth elements with children (non-self-closing, e.g. animated paths)
+  // Pattern: <path class="...blobbi-mouth..." ...>...</path>
+  const openCloseMouthRegex = /<path[^>]*class="[^"]*blobbi-mouth[^"]*"[^>]*>[\s\S]*?<\/path>/g;
+  const openCloseMatches = svgText.match(openCloseMouthRegex);
+  if (openCloseMatches && openCloseMatches.length > 0) {
+    let replaced = false;
+    return svgText.replace(openCloseMouthRegex, () => {
+      if (!replaced) {
+        replaced = true;
+        return newMouthSvg;
+      }
+      return '';
+    });
+  }
+  
+  // Fallback: try the original Q-curve path replacement
+  return replaceMouthSection(svgText, newMouthSvg);
+}

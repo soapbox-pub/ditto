@@ -94,10 +94,4 @@ export interface FoodIconConfig {
   type?: 'utensils' | 'plate';
 }
 
-/**
- * Configuration for sleepy mouth animation.
- */
-export interface SleepyMouthAnimationConfig {
-  /** Total duration of one full sleep cycle in seconds */
-  cycleDuration: number;
-}
+

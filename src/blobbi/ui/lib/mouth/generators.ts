@@ -13,8 +13,8 @@ import type {
   BigSmileConfig,
   DroolConfig,
   FoodIconConfig,
-  SleepyMouthAnimationConfig,
 } from './types';
+import { detectMouthPosition, replaceCurrentMouth } from './detection';
 
 // ─── Round Mouth ──────────────────────────────────────────────────────────────
 
@@ -213,58 +213,60 @@ export function generateFoodIcon(config: FoodIconConfig): string {
   </g>`;
 }
 
-// ─── Sleepy Mouth Animation ───────────────────────────────────────────────────
+// ─── Sleepy Mouth ─────────────────────────────────────────────────────────────
 
 /**
- * Apply sleepy mouth animation to the SVG.
- * Morphs the CURRENT mouth path to U-shaped and back using SMIL.
- * Works as an overlay — preserves whatever mouth is already present.
+ * Generate a canonical sleepy mouth: a small round ellipse with a subtle
+ * breathing animation (gently expands and contracts).
+ * 
+ * This is a standalone mouth shape, not a morph of the current mouth.
+ * Positioned at the center of the detected mouth location.
+ * 
+ * @param centerX - Horizontal center of the mouth area
+ * @param centerY - Vertical center of the mouth area
  */
-export function applySleepyMouthAnimation(svgText: string, config: SleepyMouthAnimationConfig): string {
-  const dur = config.cycleDuration;
+export function generateSleepyMouth(centerX: number, centerY: number): string {
+  // Small round mouth — like a tiny "o" of gentle breathing
+  const rx = 2.8;
+  const ry = 3.2;
   
-  // Find current mouth path (could be smile, frown, droopy, etc.)
-  const mouthRegex = /<path[^>]*class="[^"]*blobbi-mouth[^"]*"[^>]*d="([^"]+)"([^>]*)\/>/;
-  const match = svgText.match(mouthRegex);
+  // Breathing animation: subtle expand/contract cycle
+  // Keeps the mouth soft and alive without being distracting
+  const breathDuration = 3; // seconds per breath cycle
+  const expandRx = rx + 0.5;
+  const expandRy = ry + 0.6;
   
-  if (!match) {
-    return svgText;
-  }
-  
-  const [fullMatch, currentMouthPath, restOfAttributes] = match;
-  
-  const coordMatch = currentMouthPath.match(/M\s*([\d.]+)\s+([\d.]+)\s*Q\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
-  if (!coordMatch) {
-    return svgText;
-  }
-  
-  const startX = parseFloat(coordMatch[1]);
-  const startY = parseFloat(coordMatch[2]);
-  const endX = parseFloat(coordMatch[5]);
-  const endY = parseFloat(coordMatch[6]);
-  
-  const centerX = (startX + endX) / 2;
-  const baselineY = (startY + endY) / 2;
-  
-  const roundRadius = 3;
-  const uMouthPath = `M ${centerX - roundRadius} ${baselineY} Q ${centerX - roundRadius} ${baselineY + roundRadius * 1.5} ${centerX} ${baselineY + roundRadius * 1.5} Q ${centerX + roundRadius} ${baselineY + roundRadius * 1.5} ${centerX + roundRadius} ${baselineY}`;
-  const transitionPath = `M ${centerX - roundRadius * 2} ${baselineY} Q ${centerX} ${baselineY + roundRadius * 0.8} ${centerX + roundRadius * 2} ${baselineY}`;
-  
-  const animatedMouth = `<path 
+  return `<ellipse
     class="blobbi-mouth blobbi-mouth-sleepy"
-    d="${currentMouthPath}"
-    ${restOfAttributes}
+    cx="${centerX}" cy="${centerY}"
+    rx="${rx}" ry="${ry}"
+    fill="#1f2937"
   >
-    <animate
-      attributeName="d"
-      values="${currentMouthPath};${currentMouthPath};${transitionPath};${uMouthPath};${uMouthPath};${transitionPath};${currentMouthPath};${currentMouthPath}"
-      keyTimes="0;0.10;0.25;0.40;0.62;0.75;0.90;1"
-      dur="${dur}s"
-      repeatCount="indefinite"
-      calcMode="spline"
-      keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"
-    />
-  </path>`;
+    <animate attributeName="rx" values="${rx};${expandRx};${rx}" dur="${breathDuration}s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1" />
+    <animate attributeName="ry" values="${ry};${expandRy};${ry}" dur="${breathDuration}s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1" />
+  </ellipse>`;
+}
+
+/**
+ * Apply the sleepy mouth to a Blobbi SVG.
+ * 
+ * Replaces whatever mouth is currently present (smile, frown, round, etc.)
+ * with the canonical sleepy breathing mouth. Detects the current mouth
+ * position so the sleepy mouth is placed correctly.
+ * 
+ * @param svgText - SVG content (may already have a base emotion mouth applied)
+ * @returns Modified SVG with the sleepy mouth replacing the current mouth
+ */
+export function applySleepyMouth(svgText: string): string {
+  // Detect where the mouth is so we can place the sleepy mouth in the right spot
+  const mouth = detectMouthPosition(svgText);
+  if (!mouth) {
+    return svgText;
+  }
   
-  return svgText.replace(fullMatch, animatedMouth);
+  const centerX = (mouth.position.startX + mouth.position.endX) / 2;
+  const centerY = mouth.position.controlY;
+  
+  const sleepyMouthSvg = generateSleepyMouth(centerX, centerY);
+  return replaceCurrentMouth(svgText, sleepyMouthSvg);
 }

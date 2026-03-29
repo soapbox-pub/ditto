@@ -20,12 +20,11 @@ export type {
   SmallSmileConfig,
   DroolConfig,
   FoodIconConfig,
-  SleepyMouthAnimationConfig,
 } from './types';
 
 // ─── Detection & Replacement ──────────────────────────────────────────────────
 
-export { detectMouthPosition, replaceMouthSection } from './detection';
+export { detectMouthPosition, replaceMouthSection, replaceCurrentMouth } from './detection';
 
 // ─── Generators ───────────────────────────────────────────────────────────────
 
@@ -37,5 +36,6 @@ export {
   generateBigSmile,
   generateDrool,
   generateFoodIcon,
-  applySleepyMouthAnimation,
+  generateSleepyMouth,
+  applySleepyMouth,
 } from './generators';
