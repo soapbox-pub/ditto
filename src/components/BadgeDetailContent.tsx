@@ -11,7 +11,6 @@ import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { ReactionButton } from '@/components/ReactionButton';
@@ -179,11 +178,6 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
               <VerifiedNip05Text nip05={metadata.nip05} pubkey={event.pubkey} className="text-sm text-muted-foreground truncate block" />
             )}
           </div>
-
-          <Badge variant="secondary" className="shrink-0 gap-1">
-            <Award className="size-3" />
-            Badge
-          </Badge>
         </div>
 
         {/* Badge name */}
