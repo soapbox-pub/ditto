@@ -32,6 +32,8 @@ interface BlobbiEmotionPanelProps {
 const EMOTIONS: Array<{ value: BlobbiEmotion; label: string; emoji: string }> = [
   { value: 'neutral', label: 'Default', emoji: '😊' },
   { value: 'sad', label: 'Sad', emoji: '😢' },
+  { value: 'boring', label: 'Boring', emoji: '😑' },
+  { value: 'dirty', label: 'Dirty', emoji: '💩' },
   { value: 'happy', label: 'Extra Happy', emoji: '😄' },
   { value: 'angry', label: 'Angry', emoji: '😠' },
   { value: 'surprised', label: 'Surprised', emoji: '😲' },
