@@ -39,7 +39,7 @@ export function useAuthor(pubkey: string | undefined) {
       );
 
       if (!event) {
-        throw new Error('Profile not found');
+        return {};
       }
 
       const parsed = parseAuthorEvent(event);
