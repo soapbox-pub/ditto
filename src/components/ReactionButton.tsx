@@ -150,7 +150,7 @@ export function ReactionButton({
             if (hasReacted) return;
             setMenuOpen(false);
             const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
-            queryClient.setQueryData(['user-reaction', eventId], '❤️');
+            queryClient.setQueryData(['user-reaction', eventId], { content: '❤️' });
             if (prevStats) {
               queryClient.setQueryData<EventStats>(['event-stats', eventId], {
                 ...prevStats,

@@ -368,8 +368,8 @@ export function EmojiShortcodeAutocomplete({
             key={emoji.id}
             data-emoji-item
             className={cn(
-              'w-full flex items-center gap-3 px-3 py-1.5 text-left transition-colors cursor-pointer',
-              index === selectedIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+              'w-full flex items-center gap-3 px-3 py-1.5 text-left text-popover-foreground transition-colors cursor-pointer',
+              index === selectedIndex ? 'bg-secondary/60' : 'hover:bg-secondary/60',
             )}
             onClick={() => selectEmoji(emoji)}
             onMouseDown={(e) => e.preventDefault()}
@@ -384,7 +384,7 @@ export function EmojiShortcodeAutocomplete({
             ) : (
               <span className="text-xl leading-none shrink-0">{emoji.native}</span>
             )}
-            <span className="text-sm truncate text-muted-foreground">
+            <span className="text-sm truncate">
               :{emoji.id.replace('custom:', '')}:
             </span>
           </button>
