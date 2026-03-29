@@ -1378,19 +1378,20 @@ NIP-46 bunker signing requires two keys: the **user's key** (held by Amber) and 
 The `publish-zapstore` job restores the client key from `ZAPSTORE_CLIENT_KEY` into `~/.config/zsp/bunker-keys/<bunker-pubkey>.key` before running `zsp`, so the bunker recognizes the CI runner as an already-authorized client.
 
 **Initial setup (one-time):**
-1. Generate a client key: `nak key generate` (save the hex output)
-2. Store it as `ZAPSTORE_CLIENT_KEY` in GitLab CI/CD variables
-3. Get a bunker URL from Amber (with `secret` param for first connection)
-4. Authorize the client key locally using `nak`:
-   ```bash
-   export NOSTR_CLIENT_KEY="<the hex client key>"
-   nak event --sec "bunker://<pubkey>?relay=...&secret=<secret>" -c "test"
-   ```
-5. Approve the connection on Amber when prompted
-6. Store the bunker URL **without the `secret` param** as `ZAPSTORE_BUNKER_URL` in GitLab CI/CD variables (the secret is single-use and no longer needed after authorization)
+
+Run the NIP-46 client-initiated auth script:
+
+```bash
+node scripts/nip46-auth.mjs
+```
+
+This generates a `nostrconnect://` URI. Import/paste it into Amber and approve the connection. The script will then output the `bunker://` URI and client key hex, and write the client key to `~/.config/zsp/bunker-keys/`. Update the GitLab CI/CD variables with the printed values.
+
+The script accepts options:
+- `--relay <url>` -- relay for NIP-46 communication (default: `wss://relay.ditto.pub`)
+- `--name <name>` -- app name shown to the signer (default: `Ditto`)
+- `--timeout <sec>` -- how long to wait for approval (default: 300)
 
 **Key points:**
-- The `secret` in bunker URLs is **single-use** -- it is consumed on first connection and cannot be reused
-- The `ZAPSTORE_CLIENT_KEY` must be authorized locally first by connecting to the bunker with a fresh secret and approving on Amber
 - After authorization, the bunker recognizes the client key and no secret or manual approval is needed for CI runs
-- If the client key is rotated, the authorization step must be repeated with a new bunker URL secret
+- If the client key is rotated, run the script again and update the GitLab CI/CD variables
