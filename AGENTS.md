@@ -294,14 +294,16 @@ When adding support for a new Nostr event kind to the application, the kind must
    - `WELL_KNOWN_KIND_LABELS` in `src/components/ExternalContentHeader.tsx` -- used in addressable event preview headers
    - The icon fallback in `AddressableEventPreview` in the same file
 
-6. **Inline embeds / quote posts** -- events can be quoted inline via `nostr:nevent1...` or `nostr:naddr1...` URIs in note content. Both `EmbeddedNote` and `EmbeddedNaddr` render a compact card (author + title/content preview) for all kinds automatically — no per-kind registration needed. The same components are reused by CommentContext hover cards and the reply composer.
+6. **Embedded note cards** (`src/components/EmbeddedNote.tsx`, `src/components/EmbeddedNaddr.tsx`) -- these are the small preview cards shown inside quote posts, reply context indicators, and CommentContext hover cards. They are **separate components** from `NoteCard` and render a minimal card (author + title/content preview + attachment indicators). Basic rendering works for all kinds automatically, but kinds whose media lives in tags rather than in the `content` field (e.g. kind 20 photos via `imeta` tags) may need attachment indicator logic added to `EmbeddedNoteCard`.
+
+   > **Note**: Do not confuse these with the `compact` prop on `NoteCard`. The `compact` prop simply hides action buttons on a full `NoteCard`; `EmbeddedNote`/`EmbeddedNaddr` are entirely different components with their own rendering logic.
 
 7. **Reply composer** (`src/components/ReplyComposeModal.tsx`):
    - The `EmbeddedPost` component delegates to the shared `EmbeddedNote`/`EmbeddedNaddr` components — no per-kind registration needed
 
 #### Why so many places?
 
-These are genuinely different UI contexts (feed cards, detail pages, inline embeds, reply previews, comment context labels) with different rendering requirements. However, several of them maintain independent kind-to-label maps that could theoretically be unified. When in doubt, search the codebase for an existing kind number like `30617` to find all the registration points.
+These are genuinely different UI contexts (feed cards, detail pages, embedded note cards, reply previews, comment context labels) with different rendering requirements. However, several of them maintain independent kind-to-label maps that could theoretically be unified. When in doubt, search the codebase for an existing kind number like `30617` to find all the registration points.
 
 ### NIP.md
 
