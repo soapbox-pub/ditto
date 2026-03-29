@@ -2,6 +2,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import { BookMarked, Copy, Check, ExternalLink, Globe, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { openUrl } from "@/lib/downloadFile";
 import { NostrURI } from "@/lib/NostrURI";
 
 interface GitRepoCardProps {
@@ -115,11 +116,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 								className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 								onClick={(e) => {
 									e.stopPropagation();
-									window.open(
-										shakespeareUrl,
-										"_blank",
-										"noopener,noreferrer",
-									);
+									openUrl(shakespeareUrl);
 								}}
 							>
 								<Wand2 className="size-3" />
@@ -132,11 +129,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
 								onClick={(e) => {
 									e.stopPropagation();
-									window.open(
-										webUrls[0],
-										"_blank",
-										"noopener,noreferrer",
-									);
+									openUrl(webUrls[0]);
 								}}
 							>
 								<ExternalLink className="size-3" />
@@ -148,11 +141,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
 								onClick={(e) => {
 									e.stopPropagation();
-									window.open(
-										webUrls[0],
-										"_blank",
-										"noopener,noreferrer",
-									);
+									openUrl(webUrls[0]);
 								}}
 							>
 								<Globe className="size-3" />
