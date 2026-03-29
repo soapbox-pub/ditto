@@ -17,7 +17,9 @@ import {
   MediaCollage,
   MediaCollageSkeleton,
 } from "@/components/MediaCollage";
+import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { PageHeader } from "@/components/PageHeader";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { SubHeaderBar } from "@/components/SubHeaderBar";
 import { TabButton } from "@/components/TabButton";
 import { useLayoutOptions } from "@/contexts/LayoutContext";
@@ -27,6 +29,7 @@ import { useFeed } from "@/hooks/useFeed";
 import { useFeedTab } from "@/hooks/useFeedTab";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useMuteList } from "@/hooks/useMuteList";
+import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { useInfiniteHotFeed } from "@/hooks/useTrending";
 import { getExtraKindDef } from "@/lib/extraKinds";
 import type { FeedItem } from "@/lib/feedUtils";
@@ -86,6 +89,8 @@ export function PhotosFeedPage() {
     pageCount: rawData?.pages?.length,
   });
 
+  const handleRefresh = usePageRefresh(['feed']);
+
   // Flatten — follows returns { items: FeedItem[] }, global returns NostrEvent[]
   const photoEvents = useMemo(() => {
     if (!rawData?.pages) return [];
@@ -133,34 +138,37 @@ export function PhotosFeedPage() {
             onClick={() => setActiveTab("global")}
           />
         </SubHeaderBar>
+        <div style={{ height: ARC_OVERHANG_PX }} />
 
         {/* Grid */}
-        {showSkeleton ? (
-          <MediaCollageSkeleton count={15} />
-        ) : photoEvents.length === 0 ? (
-          <FeedEmptyState
-            message={
-              activeTab === "follows"
-                ? "No photos yet. Follow some photographers to see their photos here."
-                : "No photos found. Check your relay connections or come back soon."
-            }
-            onSwitchToGlobal={
-              activeTab === "follows" ? () => setActiveTab("global") : undefined
-            }
-          />
-        ) : (
-          <>
-            <MediaCollage
-              events={photoEvents}
-              hasNextPage={hasNextPage}
-              isFetchingNextPage={isFetchingNextPage}
-              onNearEnd={() => {
-                if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-              }}
+        <PullToRefresh onRefresh={handleRefresh}>
+          {showSkeleton ? (
+            <MediaCollageSkeleton count={15} />
+          ) : photoEvents.length === 0 ? (
+            <FeedEmptyState
+              message={
+                activeTab === "follows"
+                  ? "No photos yet. Follow some photographers to see their photos here."
+                  : "No photos found. Check your relay connections or come back soon."
+              }
+              onSwitchToGlobal={
+                activeTab === "follows" ? () => setActiveTab("global") : undefined
+              }
             />
-            <div ref={scrollRef} className="h-px" />
-          </>
-        )}
+          ) : (
+            <>
+              <MediaCollage
+                events={photoEvents}
+                hasNextPage={hasNextPage}
+                isFetchingNextPage={isFetchingNextPage}
+                onNearEnd={() => {
+                  if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+                }}
+              />
+              <div ref={scrollRef} className="h-px" />
+            </>
+          )}
+        </PullToRefresh>
       </main>
 
       {composeOpen && (

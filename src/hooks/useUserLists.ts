@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { useFollowPacks } from './useFollowPacks';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import type { NostrEvent, NostrSigner } from '@nostrify/nostrify';
 
 export interface UserList {
@@ -237,18 +238,27 @@ export function useUserLists() {
     },
   });
 
-  /** Add a pubkey to an existing list (or create if not found). */
+  /** Add a pubkey to an existing list. */
   const addToList = useMutation({
     mutationFn: async ({ listId, pubkey }: { listId: string; pubkey: string }) => {
       if (!user) throw new Error('Must be logged in');
-      const list = lists.find((l) => l.id === listId);
-      if (!list) throw new Error('List not found');
-      // Guard against both the parsed cache and the raw tags being stale
-      const rawPubkeys = list.event.tags.filter(([n]) => n === 'p').map(([, pk]) => pk);
-      if (list.pubkeys.includes(pubkey) || rawPubkeys.includes(pubkey)) return;
 
-      const newTags = [...list.event.tags, ['p', pubkey]];
-      const content = await encryptPrivateTags(list.privatePubkeys, user.signer, user.pubkey);
+      // Fetch the freshest version of this specific list from relays
+      const freshEvent = await fetchFreshEvent(nostr, {
+        kinds: [30000],
+        authors: [user.pubkey],
+        '#d': [listId],
+      });
+
+      if (!freshEvent) throw new Error('List not found');
+
+      const freshList = await parseListEventWithDecryption(freshEvent, user.signer, user.pubkey);
+
+      // Guard against duplicates
+      if (freshList.pubkeys.includes(pubkey)) return;
+
+      const newTags = [...freshEvent.tags, ['p', pubkey]];
+      const content = await encryptPrivateTags(freshList.privatePubkeys, user.signer, user.pubkey);
       await publishEvent({
         kind: 30000,
         content,
@@ -264,15 +274,24 @@ export function useUserLists() {
   const removeFromList = useMutation({
     mutationFn: async ({ listId, pubkey }: { listId: string; pubkey: string }) => {
       if (!user) throw new Error('Must be logged in');
-      const list = lists.find((l) => l.id === listId);
-      if (!list) throw new Error('List not found');
+
+      // Fetch the freshest version of this specific list from relays
+      const freshEvent = await fetchFreshEvent(nostr, {
+        kinds: [30000],
+        authors: [user.pubkey],
+        '#d': [listId],
+      });
+
+      if (!freshEvent) throw new Error('List not found');
+
+      const freshList = await parseListEventWithDecryption(freshEvent, user.signer, user.pubkey);
 
       // Remove from public tags
-      const newTags = list.event.tags.filter(
+      const newTags = freshEvent.tags.filter(
         ([name, pk]) => !(name === 'p' && pk === pubkey),
       );
       // Remove from private pubkeys too
-      const newPrivatePubkeys = list.privatePubkeys.filter((pk) => pk !== pubkey);
+      const newPrivatePubkeys = freshList.privatePubkeys.filter((pk) => pk !== pubkey);
       const content = await encryptPrivateTags(newPrivatePubkeys, user.signer, user.pubkey);
       await publishEvent({
         kind: 30000,
@@ -289,17 +308,26 @@ export function useUserLists() {
   const renameList = useMutation({
     mutationFn: async ({ listId, title }: { listId: string; title: string }) => {
       if (!user) throw new Error('Must be logged in');
-      const list = lists.find((l) => l.id === listId);
-      if (!list) throw new Error('List not found');
 
-      const newTags = list.event.tags.map(([name, ...rest]) =>
+      // Fetch the freshest version of this specific list from relays
+      const freshEvent = await fetchFreshEvent(nostr, {
+        kinds: [30000],
+        authors: [user.pubkey],
+        '#d': [listId],
+      });
+
+      if (!freshEvent) throw new Error('List not found');
+
+      const freshList = await parseListEventWithDecryption(freshEvent, user.signer, user.pubkey);
+
+      const newTags = freshEvent.tags.map(([name, ...rest]) =>
         name === 'title' ? ['title', title.trim(), ...rest] : [name, ...rest],
       );
       // If no title tag existed, add one
       if (!newTags.find(([n]) => n === 'title')) {
         newTags.push(['title', title.trim()]);
       }
-      const content = await encryptPrivateTags(list.privatePubkeys, user.signer, user.pubkey);
+      const content = await encryptPrivateTags(freshList.privatePubkeys, user.signer, user.pubkey);
       await publishEvent({
         kind: 30000,
         content,

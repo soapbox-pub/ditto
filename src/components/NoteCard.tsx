@@ -1,6 +1,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
+  Camera,
   FileCode,
   FileText,
   GitBranch,
@@ -137,7 +138,7 @@ function parseImeta(tags: string[][]): { url?: string; thumbnail?: string } {
 
 /** Encodes the NIP-19 identifier for navigating to an event. */
 function encodeEventId(event: NostrEvent): string {
-  // Addressable events use naddr
+  // Addressable events (30000-39999) use naddr with their d-tag
   if (event.kind >= 30000 && event.kind < 40000) {
     const dTag = getTag(event.tags, "d");
     if (dTag) {
@@ -147,6 +148,14 @@ function encodeEventId(event: NostrEvent): string {
         identifier: dTag,
       });
     }
+  }
+  // Replaceable events (10000-19999) use naddr with an empty identifier
+  if (event.kind >= 10000 && event.kind < 20000) {
+    return nip19.naddrEncode({
+      kind: event.kind,
+      pubkey: event.pubkey,
+      identifier: "",
+    });
   }
   return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
@@ -248,7 +257,7 @@ export const NoteCard = memo(function NoteCard({
   const isCalendarEvent = event.kind === 31922 || event.kind === 31923;
   const isEmojiPack = event.kind === 30030;
   const isBadgeDefinition = event.kind === 30009;
-  const isProfileBadges = event.kind === 30008;
+  const isProfileBadges = event.kind === 10008 || event.kind === 30008;
   const isBadge = isBadgeDefinition || isProfileBadges;
   const isReaction = event.kind === 7;
   const isRepost = event.kind === 6 || event.kind === 16;
@@ -1024,6 +1033,28 @@ export const NoteCard = memo(function NoteCard({
 
   // ── Threaded layout (with or without connector line) ──
   if (threaded || threadedLast) {
+    // Kind action header (e.g. "updated their badges") — same logic as normal layout
+    const threadedKindHeader = !repostedBy && KIND_HEADER_MAP[event.kind]
+      ? (() => {
+          const cfg = KIND_HEADER_MAP[event.kind];
+          const isLive = event.kind === 30311 && getEffectiveStreamStatus(event) === "live";
+          return (
+            <EventActionHeader
+              pubkey={event.pubkey}
+              icon={cfg.icon}
+              iconClassName={
+                event.kind === 30311
+                  ? isLive ? "text-primary" : "text-muted-foreground"
+                  : cfg.iconClassName
+              }
+              action={typeof cfg.action === "function" ? cfg.action(event.tags, event) : cfg.action}
+              noun={cfg.noun}
+              nounRoute={cfg.nounRoute}
+            />
+          );
+        })()
+      : null;
+
     return (
       <article
         className={cn(
@@ -1034,6 +1065,7 @@ export const NoteCard = memo(function NoteCard({
         onClick={handleCardClick}
         onAuxClick={handleAuxClick}
       >
+        {threadedKindHeader}
         {isFollowPack ? (
           <div className={cn("min-w-0", threaded && "pb-3")}>
             {contentBlock}
@@ -1750,6 +1782,12 @@ interface KindHeaderConfig {
 }
 
 const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
+  20: {
+    icon: Camera,
+    action: "shared a",
+    noun: "photo",
+    nounRoute: "/photos",
+  },
   4: {
     icon: Mail,
     action: "sent an",
@@ -1795,6 +1833,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: Award,
     action: "created a",
     noun: "badge",
+    nounRoute: "/badges",
+  },
+  10008: {
+    icon: Award,
+    action: "updated their",
+    noun: "badges",
     nounRoute: "/badges",
   },
   30008: {

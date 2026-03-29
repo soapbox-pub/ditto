@@ -1,8 +1,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { useQueryClient } from "@tanstack/react-query";
 import { useSeoMeta } from "@unhead/react";
 import { CalendarDays, Loader2 } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import { NoteCard } from "@/components/NoteCard";
@@ -18,6 +17,7 @@ import { useFeed } from "@/hooks/useFeed";
 import { useFeedTab } from "@/hooks/useFeedTab";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useMuteList } from "@/hooks/useMuteList";
+import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { getExtraKindDef } from "@/lib/extraKinds";
 import { isEventMuted } from "@/lib/muteHelpers";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
@@ -37,7 +37,6 @@ export function EventsFeedPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
-  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useFeedTab<FeedTab>("events", [
     "follows",
@@ -49,11 +48,8 @@ export function EventsFeedPage() {
 
   // Calendar events feed
   const feedQuery = useFeed(activeTab, { kinds: [31922, 31923] });
-  const queryKey = useMemo(() => ["feed", activeTab], [activeTab]);
 
-  const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey });
-  }, [queryClient, queryKey]);
+  const handleRefresh = usePageRefresh(useMemo(() => ["feed", activeTab], [activeTab]));
 
   const {
     data: rawData,

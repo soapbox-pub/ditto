@@ -72,7 +72,10 @@ interface MenuItemProps {
 function MenuItem({ icon, label, onClick, destructive }: MenuItemProps) {
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       className={cn(
         'flex items-center gap-4 w-full px-5 py-3 text-[15px] transition-colors hover:bg-secondary/60',
         destructive ? 'text-destructive' : 'text-muted-foreground',
@@ -166,9 +169,27 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const [mentionComposeOpen, setMentionComposeOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [eventJsonOpen, setEventJsonOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
 
   const nip19Id = encodeEventNip19(event);
   const mentionContent = `nostr:${nip19.npubEncode(event.pubkey)} `;
+
+  const handleDelete = () => {
+    deleteEvent(
+      { eventId: event.id, eventKind: event.kind },
+      {
+        onSuccess: () => {
+          setDeleteConfirmOpen(false);
+          toast({ title: 'Post deleted' });
+        },
+        onError: () => {
+          toast({ title: 'Failed to delete post', variant: 'destructive' });
+        },
+      },
+    );
+  };
 
   return (
     <>
@@ -192,6 +213,10 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
           onViewEventJson={() => {
             onOpenChange(false);
             setTimeout(() => setEventJsonOpen(true), 150);
+          }}
+          onDelete={() => {
+            onOpenChange(false);
+            setTimeout(() => setDeleteConfirmOpen(true), 150);
           }}
         />
       )}
@@ -217,6 +242,30 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
         open={eventJsonOpen}
         onOpenChange={setEventJsonOpen}
       />
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will request deletion from relays. Some relays may still keep a copy of the original event. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -226,9 +275,10 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onMention: () => void;
   onAddToList: () => void;
   onViewEventJson: () => void;
+  onDelete: () => void;
 }
 
-function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, onAddToList, onViewEventJson }: NoteMoreMenuContentProps) {
+function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, onAddToList, onViewEventJson, onDelete }: NoteMoreMenuContentProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const { isBookmarked, toggleBookmark } = useBookmarks();
@@ -242,9 +292,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   const displayName = metadata?.name || genUserName(event.pubkey);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', event.pubkey);
-  const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
   const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const nip19Id = encodeEventNip19(event);
   const nostrUri = `nostr:${nip19Id}`;
@@ -321,21 +369,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
       },
     });
     close();
-  };
-
-  const handleDelete = () => {
-    deleteEvent(
-      { eventId: event.id, eventKind: event.kind },
-      {
-        onSuccess: () => {
-          toast({ title: 'Post deleted' });
-          close();
-        },
-        onError: () => {
-          toast({ title: 'Failed to delete post', variant: 'destructive' });
-        },
-      },
-    );
   };
 
   return (
@@ -427,7 +460,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
             <MenuItem
               icon={<Trash2 className="size-5" />}
               label="Delete post"
-              onClick={() => setDeleteConfirmOpen(true)}
+              onClick={onDelete}
               destructive
             />
           )}
@@ -472,27 +505,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
           </Button>
         </div>
       </DialogContent>
-
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete post?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will request deletion from relays. Some relays may still keep a copy of the original event. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Dialog>
   );
 }

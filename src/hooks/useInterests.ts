@@ -8,6 +8,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 export function useInterests(tagName: 't' | 'g' = 't') {
@@ -55,8 +56,13 @@ export function useInterests(tagName: 't' | 'g' = 't') {
       const normalized = tag.toLowerCase().replace(/^#/, '');
       if (!normalized) throw new Error('Empty tag');
 
-      const existing = interestsQuery.data;
-      const currentTags = existing?.tags ?? [];
+      // Fetch the freshest kind 10015 from relays before mutating
+      const freshEvent = await fetchFreshEvent(nostr, {
+        kinds: [10015],
+        authors: [user.pubkey],
+      });
+
+      const currentTags = freshEvent?.tags ?? [];
 
       // Don't add duplicates
       if (currentTags.some(([n, v]) => n === tagName && v.toLowerCase() === normalized)) return;
@@ -64,7 +70,7 @@ export function useInterests(tagName: 't' | 'g' = 't') {
       const newTags = [...currentTags, [tagName, normalized]];
       await publishEvent({
         kind: 10015,
-        content: existing?.content ?? '',
+        content: freshEvent?.content ?? '',
         tags: newTags,
       } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
     },
@@ -77,15 +83,20 @@ export function useInterests(tagName: 't' | 'g' = 't') {
       if (!user) throw new Error('Must be logged in');
       const normalized = tag.toLowerCase().replace(/^#/, '');
 
-      const existing = interestsQuery.data;
-      if (!existing) return;
+      // Fetch the freshest kind 10015 from relays before mutating
+      const freshEvent = await fetchFreshEvent(nostr, {
+        kinds: [10015],
+        authors: [user.pubkey],
+      });
 
-      const newTags = existing.tags.filter(
+      if (!freshEvent) return;
+
+      const newTags = freshEvent.tags.filter(
         ([name, value]) => !(name === tagName && value.toLowerCase() === normalized),
       );
       await publishEvent({
         kind: 10015,
-        content: existing.content ?? '',
+        content: freshEvent.content ?? '',
         tags: newTags,
       } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
     },

@@ -11,7 +11,6 @@ import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { ReactionButton } from '@/components/ReactionButton';
@@ -179,11 +178,6 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
               <VerifiedNip05Text nip05={metadata.nip05} pubkey={event.pubkey} className="text-sm text-muted-foreground truncate block" />
             )}
           </div>
-
-          <Badge variant="secondary" className="shrink-0 gap-1">
-            <Award className="size-3" />
-            Badge
-          </Badge>
         </div>
 
         {/* Badge name */}
@@ -575,6 +569,7 @@ const INTERACT_PAD = 80;
 function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: string }) {
   const tilt = useCardTilt(30, 1.06);
   const glareRef = useRef<HTMLDivElement>(null);
+  const glareFadeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Mask string that clips overlays to the badge image's visible pixels.
   // This ensures glare and edge effects don't paint over transparent areas.
@@ -589,31 +584,65 @@ function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: str
     WebkitMaskPosition: 'center',
   };
 
+  /** Update the specular glare position to follow the pointer. */
+  const updateGlare = useCallback((clientX: number, clientY: number) => {
+    const el = tilt.ref.current;
+    const glare = glareRef.current;
+    if (!el || !glare) return;
+    const rect = el.getBoundingClientRect();
+    const x = ((clientX - rect.left - INTERACT_PAD) / (rect.width - INTERACT_PAD * 2)) * 100;
+    const y = ((clientY - rect.top - INTERACT_PAD) / (rect.height - INTERACT_PAD * 2)) * 100;
+    glare.style.background = `radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.08) 35%, transparent 65%)`;
+    glare.style.opacity = '1';
+  }, [tilt.ref]);
+
+  const fadeGlare = useCallback(() => {
+    const glare = glareRef.current;
+    if (glare) glare.style.opacity = '0';
+  }, []);
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      tilt.onPointerDown(e);
+      if (e.pointerType === 'touch') {
+        clearTimeout(glareFadeTimerRef.current);
+        updateGlare(e.clientX, e.clientY);
+      }
+    },
+    [tilt, updateGlare],
+  );
+
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       tilt.onPointerMove(e);
-
-      // Move the specular glare to follow the cursor.
-      // Coordinates are mapped to the image area (inset by INTERACT_PAD).
-      const el = tilt.ref.current;
-      const glare = glareRef.current;
-      if (!el || !glare) return;
-      const rect = el.getBoundingClientRect();
-      const x = ((e.clientX - rect.left - INTERACT_PAD) / (rect.width - INTERACT_PAD * 2)) * 100;
-      const y = ((e.clientY - rect.top - INTERACT_PAD) / (rect.height - INTERACT_PAD * 2)) * 100;
-      glare.style.background = `radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.08) 35%, transparent 65%)`;
-      glare.style.opacity = '1';
+      updateGlare(e.clientX, e.clientY);
     },
-    [tilt],
+    [tilt, updateGlare],
+  );
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      tilt.onPointerUp(e);
+      if (e.pointerType === 'touch') {
+        // Fade glare after the same linger delay as the tilt reset
+        clearTimeout(glareFadeTimerRef.current);
+        glareFadeTimerRef.current = setTimeout(fadeGlare, 600);
+      }
+    },
+    [tilt, fadeGlare],
   );
 
   const handlePointerLeave = useCallback(
-    () => {
-      tilt.onPointerLeave();
-      const glare = glareRef.current;
-      if (glare) glare.style.opacity = '0';
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      tilt.onPointerLeave(e);
+      if (e.pointerType === 'touch') {
+        clearTimeout(glareFadeTimerRef.current);
+        glareFadeTimerRef.current = setTimeout(fadeGlare, 600);
+      } else {
+        fadeGlare();
+      }
     },
-    [tilt],
+    [tilt, fadeGlare],
   );
 
   return (
@@ -651,7 +680,9 @@ function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: str
       <div
         ref={tilt.ref}
         style={{ ...tilt.style, transformStyle: 'preserve-3d', padding: INTERACT_PAD, margin: -INTERACT_PAD }}
+        onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
         className="relative select-none"
       >

@@ -79,12 +79,10 @@ export function BadgeShowcaseGrid({
               onClick={(e) => e.stopPropagation()}
             >
               {item.badge ? (
-                <div className="transition-transform group-hover:scale-110">
-                  <BadgeThumbnail badge={item.badge} size={thumbnailSize} />
-                </div>
+                <BadgeThumbnail badge={item.badge} size={thumbnailSize} />
               ) : (
                 <div
-                  className="rounded-lg border border-border bg-background flex items-center justify-center transition-transform group-hover:scale-110"
+                  className="rounded-lg border border-border bg-background flex items-center justify-center"
                   style={{ width: thumbnailSize, height: thumbnailSize }}
                 >
                   <Award className="size-6 text-muted-foreground" />

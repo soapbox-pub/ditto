@@ -1,5 +1,7 @@
 import { type ReactNode, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useNostr } from '@nostrify/react';
+import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
 import { Award, Image, MessageSquareOff } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -7,10 +9,13 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { parseBadgeDefinition } from '@/components/BadgeContent';
+import { parseBadgeDefinition, type BadgeData } from '@/components/BadgeContent';
+import { BadgeThumbnail } from '@/components/BadgeThumbnail';
+import { parseProfileBadges } from '@/components/ProfileBadgesContent';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { isProfileBadgesKind } from '@/lib/badgeUtils';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
@@ -75,6 +80,11 @@ export function EmbeddedNaddr({ addr, className, disableHoverCards }: EmbeddedNa
   // Badge definitions get a compact showcase instead of a link-preview card
   if (event.kind === 30009) {
     return <EmbeddedBadgeCard event={event} className={className} />;
+  }
+
+  // Profile badges (kind 10008/30008) get a compact badge row preview
+  if (isProfileBadgesKind(event.kind)) {
+    return <EmbeddedProfileBadgesCard event={event} className={className} />;
   }
 
   return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} />;
@@ -168,6 +178,147 @@ function EmbeddedBadgeCard({ event, className }: { event: NostrEvent; className?
             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{badge.description}</p>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Maximum badge thumbnails to show in the embedded preview. */
+const EMBED_BADGE_LIMIT = 6;
+
+/** Compact badge list preview for kind 10008/30008 profile badges embeds. */
+export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEvent; className?: string }) {
+  const { nostr } = useNostr();
+  const navigate = useNavigate();
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
+  const displayName = metadata?.name || genUserName(event.pubkey);
+
+  const badgeRefs = useMemo(() => parseProfileBadges(event), [event]);
+
+  // Fetch badge definitions for the preview
+  const { data: badgeDefs } = useQuery({
+    queryKey: ['badge-definitions-embed', badgeRefs.map((r) => r.aTag).join(',')],
+    queryFn: async () => {
+      if (badgeRefs.length === 0) return [];
+      const filters = badgeRefs.slice(0, EMBED_BADGE_LIMIT).map((ref) => ({
+        kinds: [30009 as const],
+        authors: [ref.pubkey],
+        '#d': [ref.identifier],
+        limit: 1,
+      }));
+      return nostr.query(filters);
+    },
+    enabled: badgeRefs.length > 0,
+    staleTime: 5 * 60_000,
+  });
+
+  const badgeMap = useMemo(() => {
+    const map = new Map<string, BadgeData>();
+    if (!badgeDefs) return map;
+    for (const ev of badgeDefs) {
+      const parsed = parseBadgeDefinition(ev);
+      if (!parsed) continue;
+      map.set(`30009:${ev.pubkey}:${parsed.identifier}`, parsed);
+    }
+    return map;
+  }, [badgeDefs]);
+
+  const naddrId = useMemo(
+    () => nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: '' }),
+    [event.kind, event.pubkey],
+  );
+
+  const showRefs = badgeRefs.slice(0, EMBED_BADGE_LIMIT);
+  const remaining = Math.max(0, badgeRefs.length - EMBED_BADGE_LIMIT);
+
+  return (
+    <div
+      className={cn(
+        'group block rounded-2xl border border-border overflow-hidden',
+        'hover:bg-secondary/40 transition-colors cursor-pointer',
+        className,
+      )}
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/${naddrId}`);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/${naddrId}`);
+        }
+      }}
+    >
+      <div className="px-3 py-2 space-y-2">
+        {/* Author row */}
+        <div className="flex items-center gap-2 min-w-0">
+          {author.isLoading ? (
+            <>
+              <Skeleton className="size-5 rounded-full shrink-0" />
+              <Skeleton className="h-3.5 w-24" />
+            </>
+          ) : (
+            <>
+              <Link
+                to={`/${nip19.npubEncode(event.pubkey)}`}
+                className="shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Avatar shape={avatarShape} className="size-5">
+                  <AvatarImage src={metadata?.picture} alt={displayName} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                    {displayName[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+              <Link
+                to={`/${nip19.npubEncode(event.pubkey)}`}
+                className="text-sm font-semibold truncate hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {author.data?.event ? (
+                  <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                ) : displayName}
+              </Link>
+            </>
+          )}
+          <span className="text-xs text-muted-foreground shrink-0">
+            · {timeAgo(event.created_at)}
+          </span>
+        </div>
+
+        {/* Badge thumbnails row */}
+        {showRefs.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            {showRefs.map((ref) => {
+              const badge = badgeMap.get(ref.aTag);
+              if (!badge) return (
+                <div key={ref.aTag} className="size-8 rounded-md border border-border bg-background flex items-center justify-center shrink-0">
+                  <Award className="size-4 text-muted-foreground" />
+                </div>
+              );
+              return (
+                <BadgeThumbnail key={ref.aTag} badge={badge} size={32} />
+              );
+            })}
+            {remaining > 0 && (
+              <span className="text-[10px] text-muted-foreground font-medium ml-0.5">
+                +{remaining}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Kind label */}
+        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Award className="size-3 shrink-0" />
+          {badgeRefs.length} badge{badgeRefs.length !== 1 ? 's' : ''}
+        </p>
       </div>
     </div>
   );

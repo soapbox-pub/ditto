@@ -136,7 +136,9 @@ export const BlossomServerMetadataSchema = z.object({
  */
 export const FeedSettingsSchema = z.looseObject({
   feedIncludePosts: z.boolean().optional(),
+  feedIncludeComments: z.boolean().optional(),
   feedIncludeReposts: z.boolean().optional(),
+  feedIncludeGenericReposts: z.boolean().optional(),
   feedIncludeArticles: z.boolean().optional(),
   showArticles: z.boolean().optional(),
   showEvents: z.boolean().optional(),

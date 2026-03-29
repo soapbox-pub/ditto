@@ -294,14 +294,16 @@ When adding support for a new Nostr event kind to the application, the kind must
    - `WELL_KNOWN_KIND_LABELS` in `src/components/ExternalContentHeader.tsx` -- used in addressable event preview headers
    - The icon fallback in `AddressableEventPreview` in the same file
 
-6. **Inline embeds / quote posts** -- events can be quoted inline via `nostr:nevent1...` or `nostr:naddr1...` URIs in note content. Both `EmbeddedNote` and `EmbeddedNaddr` render a compact card (author + title/content preview) for all kinds automatically — no per-kind registration needed. The same components are reused by CommentContext hover cards and the reply composer.
+6. **Embedded note cards** (`src/components/EmbeddedNote.tsx`, `src/components/EmbeddedNaddr.tsx`) -- these are the small preview cards shown inside quote posts, reply context indicators, and CommentContext hover cards. They are **separate components** from `NoteCard` and render a minimal card (author + title/content preview + attachment indicators). Basic rendering works for all kinds automatically, but kinds whose media lives in tags rather than in the `content` field (e.g. kind 20 photos via `imeta` tags) may need attachment indicator logic added to `EmbeddedNoteCard`.
+
+   > **Note**: Do not confuse these with the `compact` prop on `NoteCard`. The `compact` prop simply hides action buttons on a full `NoteCard`; `EmbeddedNote`/`EmbeddedNaddr` are entirely different components with their own rendering logic.
 
 7. **Reply composer** (`src/components/ReplyComposeModal.tsx`):
    - The `EmbeddedPost` component delegates to the shared `EmbeddedNote`/`EmbeddedNaddr` components — no per-kind registration needed
 
 #### Why so many places?
 
-These are genuinely different UI contexts (feed cards, detail pages, inline embeds, reply previews, comment context labels) with different rendering requirements. However, several of them maintain independent kind-to-label maps that could theoretically be unified. When in doubt, search the codebase for an existing kind number like `30617` to find all the registration points.
+These are genuinely different UI contexts (feed cards, detail pages, embedded note cards, reply previews, comment context labels) with different rendering requirements. However, several of them maintain independent kind-to-label maps that could theoretically be unified. When in doubt, search the codebase for an existing kind number like `30617` to find all the registration points.
 
 ### NIP.md
 
@@ -692,6 +694,27 @@ export function MyComponent() {
 ```
 
 The `useCurrentUser` hook should be used to ensure that the user is logged in before they are able to publish Nostr events.
+
+### Mutating Replaceable Events (CRITICAL)
+
+Replaceable (kind 10000-19999) and addressable (kind 30000-39999) events require a read-modify-write cycle: fetch the current event, modify its tags, then publish a new version. **Never read from TanStack Query cache before mutating** -- the cache can be stale from another device or a rapid prior operation, and republishing stale data silently drops the user's data.
+
+Use `fetchFreshEvent()` from `src/lib/fetchFreshEvent.ts` inside every mutation:
+
+```typescript
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+
+// Inside a mutation function:
+const freshEvent = await fetchFreshEvent(nostr, {
+  kinds: [10003],
+  authors: [user.pubkey],
+});
+const currentTags = freshEvent?.tags ?? [];
+// ...modify tags...
+await publishEvent({ kind: 10003, content: freshEvent?.content ?? '', tags: newTags });
+```
+
+This applies to all list-type hooks (bookmarks, pins, interests, follow sets, badges, etc.). See `useFollowActions` and `useMuteList` for complete examples.
 
 ### Nostr Login
 
@@ -1355,19 +1378,20 @@ NIP-46 bunker signing requires two keys: the **user's key** (held by Amber) and 
 The `publish-zapstore` job restores the client key from `ZAPSTORE_CLIENT_KEY` into `~/.config/zsp/bunker-keys/<bunker-pubkey>.key` before running `zsp`, so the bunker recognizes the CI runner as an already-authorized client.
 
 **Initial setup (one-time):**
-1. Generate a client key: `nak key generate` (save the hex output)
-2. Store it as `ZAPSTORE_CLIENT_KEY` in GitLab CI/CD variables
-3. Get a bunker URL from Amber (with `secret` param for first connection)
-4. Authorize the client key locally using `nak`:
-   ```bash
-   export NOSTR_CLIENT_KEY="<the hex client key>"
-   nak event --sec "bunker://<pubkey>?relay=...&secret=<secret>" -c "test"
-   ```
-5. Approve the connection on Amber when prompted
-6. Store the bunker URL **without the `secret` param** as `ZAPSTORE_BUNKER_URL` in GitLab CI/CD variables (the secret is single-use and no longer needed after authorization)
+
+Run the NIP-46 client-initiated auth script:
+
+```bash
+node scripts/nip46-auth.mjs
+```
+
+This generates a `nostrconnect://` URI. Import/paste it into Amber and approve the connection. The script will then output the `bunker://` URI and client key hex, and write the client key to `~/.config/zsp/bunker-keys/`. Update the GitLab CI/CD variables with the printed values.
+
+The script accepts options:
+- `--relay <url>` -- relay for NIP-46 communication (default: `wss://relay.ditto.pub`)
+- `--name <name>` -- app name shown to the signer (default: `Ditto`)
+- `--timeout <sec>` -- how long to wait for approval (default: 300)
 
 **Key points:**
-- The `secret` in bunker URLs is **single-use** -- it is consumed on first connection and cannot be reused
-- The `ZAPSTORE_CLIENT_KEY` must be authorized locally first by connecting to the bunker with a fresh secret and approving on Amber
 - After authorization, the bunker recognizes the client key and no secret or manual approval is needed for CI runs
-- If the client key is rotated, the authorization step must be repeated with a new bunker URL secret
+- If the client key is rotated, run the script again and update the GitLab CI/CD variables

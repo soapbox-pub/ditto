@@ -5,9 +5,11 @@ import { useInView } from "react-intersection-observer";
 import { Link } from "react-router-dom";
 import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/PageHeader";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useMuteList } from "@/hooks/useMuteList";
+import { usePageRefresh } from "@/hooks/usePageRefresh";
 import {
   type SortMode,
   useInfiniteSortedPosts,
@@ -25,6 +27,12 @@ export function TrendsPage() {
   });
 
   const [trendSort, setTrendSort] = useState<SortMode>("hot");
+
+  const refreshQueryKey = useMemo(
+    () => [['trending-tags'], ['infinite-sorted-posts', trendSort]],
+    [trendSort],
+  );
+  const handleRefresh = usePageRefresh(refreshQueryKey);
 
   const { data: trends, isLoading: trendsLoading } = useTrendingTags(true);
   const {
@@ -67,76 +75,78 @@ export function TrendsPage() {
     <main className="">
       <PageHeader title="Trends" icon={<TrendingUp className="size-5" />} />
 
-      {/* Trending Hashtags */}
-      <div className="px-4 pt-4 pb-2">
-        <h3 className="text-lg font-bold text-foreground">Trending Hashtags</h3>
-      </div>
-      {trendsLoading ? (
-        <div className="divide-y divide-border">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <TrendSkeleton key={i} />
-          ))}
+      <PullToRefresh onRefresh={handleRefresh}>
+        {/* Trending Hashtags */}
+        <div className="px-4 pt-4 pb-2">
+          <h3 className="text-lg font-bold text-foreground">Trending Hashtags</h3>
         </div>
-      ) : trends && trends.tags.length > 0 ? (
-        <div className="flex flex-wrap gap-2 px-4 pb-4">
-          {trends.tags.slice(0, 5).map((trend, index) => (
-            <TrendItem
-              key={index}
-              trend={{ tag: trend.tag, count: trend.accounts }}
-            />
-          ))}
-        </div>
-      ) : (
-        <EmptyState message="No trending hashtags right now." />
-      )}
+        {trendsLoading ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <TrendSkeleton key={i} />
+            ))}
+          </div>
+        ) : trends && trends.tags.length > 0 ? (
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            {trends.tags.slice(0, 5).map((trend, index) => (
+              <TrendItem
+                key={index}
+                trend={{ tag: trend.tag, count: trend.accounts }}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState message="No trending hashtags right now." />
+        )}
 
-      {/* Sort sub-tabs */}
-      <div className="flex border-b border-border">
-        <SortTabButton
-          icon={<Flame className="size-4" />}
-          label="Hot"
-          active={trendSort === "hot"}
-          onClick={() => setTrendSort("hot")}
-        />
-        <SortTabButton
-          icon={<TrendingUp className="size-4" />}
-          label="Rising"
-          active={trendSort === "rising"}
-          onClick={() => setTrendSort("rising")}
-        />
-        <SortTabButton
-          icon={<Swords className="size-4" />}
-          label="Controversial"
-          active={trendSort === "controversial"}
-          onClick={() => setTrendSort("controversial")}
-        />
-      </div>
+        {/* Sort sub-tabs */}
+        <div className="flex border-b border-border">
+          <SortTabButton
+            icon={<Flame className="size-4" />}
+            label="Hot"
+            active={trendSort === "hot"}
+            onClick={() => setTrendSort("hot")}
+          />
+          <SortTabButton
+            icon={<TrendingUp className="size-4" />}
+            label="Rising"
+            active={trendSort === "rising"}
+            onClick={() => setTrendSort("rising")}
+          />
+          <SortTabButton
+            icon={<Swords className="size-4" />}
+            label="Controversial"
+            active={trendSort === "controversial"}
+            onClick={() => setTrendSort("controversial")}
+          />
+        </div>
 
-      {/* Sorted posts — infinite scroll */}
-      {(sortedPending || sortedLoading) && sortedPosts.length === 0 ? (
-        <div className="divide-y divide-border">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <PostSkeleton key={i} />
-          ))}
-        </div>
-      ) : sortedPosts.length > 0 ? (
-        <div>
-          {sortedPosts.map((event) => (
-            <NoteCard key={event.id} event={event} />
-          ))}
-          {hasNextSorted && (
-            <div ref={sortedScrollRef} className="py-4">
-              {isFetchingNextSorted && (
-                <div className="flex justify-center">
-                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      ) : (
-        <EmptyState message={`No ${trendSort} posts right now.`} />
-      )}
+        {/* Sorted posts — infinite scroll */}
+        {(sortedPending || sortedLoading) && sortedPosts.length === 0 ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <PostSkeleton key={i} />
+            ))}
+          </div>
+        ) : sortedPosts.length > 0 ? (
+          <div>
+            {sortedPosts.map((event) => (
+              <NoteCard key={event.id} event={event} />
+            ))}
+            {hasNextSorted && (
+              <div ref={sortedScrollRef} className="py-4">
+                {isFetchingNextSorted && (
+                  <div className="flex justify-center">
+                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <EmptyState message={`No ${trendSort} posts right now.`} />
+        )}
+      </PullToRefresh>
     </main>
   );
 }

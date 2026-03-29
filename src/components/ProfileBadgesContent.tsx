@@ -1,20 +1,20 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, Loader2 } from 'lucide-react';
+import { Award } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { Badge } from '@/components/ui/badge';
-import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
-import { parseBadgeDefinition } from '@/components/BadgeContent';
+import { parseBadgeDefinition, type BadgeData } from '@/components/BadgeContent';
+import { BadgeThumbnail } from '@/components/BadgeThumbnail';
+import { isProfileBadgesKind } from '@/lib/badgeUtils';
 
 /** Maximum badges to show in the preview grid before truncating. */
 const PREVIEW_LIMIT = 12;
 
-/** A parsed badge reference from a kind 30008 profile badges event. */
+/** A parsed badge reference from a profile badges event. */
 interface BadgeRef {
   /** The `a` tag value referencing a kind 30009 badge definition. */
   aTag: string;
@@ -26,11 +26,14 @@ interface BadgeRef {
   identifier: string;
 }
 
-/** Parse a kind 30008 profile badges event into badge references. */
+/** Parse a profile badges event (kind 10008 or legacy 30008) into badge references. */
 export function parseProfileBadges(event: NostrEvent): BadgeRef[] {
-  if (event.kind !== 30008) return [];
-  const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-  if (dTag !== 'profile_badges') return [];
+  if (!isProfileBadgesKind(event.kind)) return [];
+  // Legacy kind 30008 requires d=profile_badges; kind 10008 doesn't need it
+  if (event.kind === 30008) {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1];
+    if (dTag !== 'profile_badges') return [];
+  }
 
   const refs: BadgeRef[] = [];
   const tags = event.tags;
@@ -71,15 +74,12 @@ interface ProfileBadgesContentProps {
 }
 
 /**
- * Renders a NIP-58 profile badges event (kind 30008) as an inline card in the feed.
+ * Renders a NIP-58 profile badges event (kind 10008 or legacy 30008) as an inline card in the feed.
  * Shows a grid of the user's accepted badges with images and names.
  */
 export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
   const { nostr } = useNostr();
   const badgeRefs = useMemo(() => parseProfileBadges(event), [event]);
-
-  const author = useAuthor(event.pubkey);
-  const displayName = author.data?.metadata?.name || genUserName(event.pubkey);
 
   // Fetch all referenced badge definitions in a single query
   const badgeDefsQuery = useQuery({
@@ -102,44 +102,45 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
     staleTime: 5 * 60_000,
   });
 
-  // Build a lookup map from a-tag to parsed badge display info
+  // Build a lookup map from a-tag to parsed badge data
   const badgeMap = useMemo(() => {
-    const map = new Map<string, { name: string; thumb?: string; description?: string }>();
+    const map = new Map<string, BadgeData>();
     if (!badgeDefsQuery.data) return map;
     for (const event of badgeDefsQuery.data) {
       const parsed = parseBadgeDefinition(event);
       if (!parsed) continue;
       const aTag = `30009:${event.pubkey}:${parsed.identifier}`;
-      const thumb = parsed.thumbs.find((t) => t.dimensions === '64x64')?.url
-        ?? parsed.thumbs[0]?.url
-        ?? parsed.image;
-      map.set(aTag, { name: parsed.name, thumb, description: parsed.description });
+      map.set(aTag, parsed);
     }
     return map;
   }, [badgeDefsQuery.data]);
 
+  const [expanded, setExpanded] = useState(false);
+
   if (badgeRefs.length === 0) return null;
 
-  const showRefs = badgeRefs.slice(0, PREVIEW_LIMIT);
-  const remaining = Math.max(0, badgeRefs.length - PREVIEW_LIMIT);
+  // When overflowing, reserve one grid cell for the "+N" indicator
+  const hasOverflow = badgeRefs.length > PREVIEW_LIMIT;
+  const visibleLimit = hasOverflow ? PREVIEW_LIMIT - 1 : PREVIEW_LIMIT;
+  const remaining = Math.max(0, badgeRefs.length - visibleLimit);
+  const showRefs = expanded ? badgeRefs : badgeRefs.slice(0, visibleLimit);
 
   return (
     <div className="mt-3 space-y-3">
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <Award className="size-4 text-primary shrink-0" />
-        <span className="text-[15px] font-semibold leading-snug">
-          {displayName}'s Badges
-        </span>
-        <Badge variant="secondary" className="text-[10px] shrink-0">
-          {badgeRefs.length} badge{badgeRefs.length !== 1 ? 's' : ''}
-        </Badge>
-      </div>
-
       {/* Badge grid */}
       {badgeDefsQuery.isLoading ? (
-        <div className="flex items-center justify-center py-6">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+          {badgeRefs.slice(0, visibleLimit).map((ref, idx) => (
+            <div key={`${ref.aTag}-${idx}`} className="flex flex-col items-center gap-1.5">
+              <Skeleton className="size-12 rounded-lg" />
+              <Skeleton className="h-2.5 w-12" />
+            </div>
+          ))}
+          {hasOverflow && (
+            <div className="flex flex-col items-center justify-center gap-1.5">
+              <Skeleton className="size-12 rounded-lg" />
+            </div>
+          )}
         </div>
       ) : showRefs.length > 0 ? (
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
@@ -155,16 +156,10 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
                 title={badge?.description || badge?.name || ref.identifier}
                 onClick={(e) => e.stopPropagation()}
               >
-                {badge?.thumb ? (
-                  <img
-                    src={badge.thumb}
-                    alt={badge.name}
-                    className="size-12 rounded-lg object-cover transition-transform group-hover:scale-110"
-                    loading="lazy"
-                    decoding="async"
-                  />
+                {badge ? (
+                  <BadgeThumbnail badge={badge} size={48} />
                 ) : (
-                  <div className="size-12 rounded-lg border border-border bg-background flex items-center justify-center transition-transform group-hover:scale-110">
+                  <div className="size-12 rounded-lg border border-border bg-background flex items-center justify-center">
                     <Award className="size-6 text-muted-foreground" />
                   </div>
                 )}
@@ -174,12 +169,15 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
               </Link>
             );
           })}
-          {remaining > 0 && (
-            <div className="flex flex-col items-center justify-center gap-1.5">
-              <div className="size-12 rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-xs font-medium">
+          {remaining > 0 && !expanded && (
+            <button
+              className="flex flex-col items-center justify-center gap-1.5"
+              onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
+            >
+              <div className="size-12 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground text-xs font-medium transition-colors">
                 +{remaining}
               </div>
-            </div>
+            </button>
           )}
         </div>
       ) : badgeRefs.length > 0 ? (

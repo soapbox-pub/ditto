@@ -1,5 +1,4 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { useQueryClient } from "@tanstack/react-query";
 import { useSeoMeta } from "@unhead/react";
 import { Loader2, Pencil, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
@@ -19,6 +18,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFeedTab } from "@/hooks/useFeedTab";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useTheme } from "@/hooks/useTheme";
+import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { useThemeFeed } from "@/hooks/useThemeFeed";
 import { deduplicateEvents } from "@/lib/deduplicateEvents";
 
@@ -28,7 +28,6 @@ export function ThemesPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { autoShareTheme, setAutoShareTheme } = useTheme();
-  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useFeedTab<ThemesTab>("themes", [
     "my-themes",
@@ -79,9 +78,7 @@ export function ThemesPage() {
 
   const feedEvents = deduplicateEvents(rawData?.pages as NostrEvent[][]);
 
-  const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["theme-feed", feedTab] });
-  }, [queryClient, feedTab]);
+  const handleRefresh = usePageRefresh(["theme-feed", feedTab]);
 
   const showSkeleton =
     activeTab !== "my-themes" && (isPending || (isLoading && !rawData));

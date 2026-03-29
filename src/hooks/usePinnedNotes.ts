@@ -2,6 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
@@ -48,10 +49,20 @@ export function usePinnedNotes(pubkey?: string) {
     mutationFn: async (eventId: string) => {
       if (!user) throw new Error('User is not logged in');
 
-      const currentTags = pinnedListQuery.data?.tags ?? [];
+      // Fetch the freshest kind 10001 from relays before mutating
+      const freshEvent = await fetchFreshEvent(nostr, {
+        kinds: [10001],
+        authors: [user.pubkey],
+      });
+
+      const currentTags = freshEvent?.tags ?? [];
+      const currentlyPinned = currentTags.some(
+        ([name, id]) => name === 'e' && id === eventId,
+      );
+
       let newTags: string[][];
 
-      if (isPinned(eventId)) {
+      if (currentlyPinned) {
         // Remove the pin
         newTags = currentTags.filter(
           ([name, id]) => !(name === 'e' && id === eventId),
@@ -63,7 +74,7 @@ export function usePinnedNotes(pubkey?: string) {
 
       await publishEvent({
         kind: 10001,
-        content: pinnedListQuery.data?.content ?? '',
+        content: freshEvent?.content ?? '',
         tags: newTags,
         created_at: Math.floor(Date.now() / 1000),
       } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);

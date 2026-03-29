@@ -98,6 +98,7 @@ const KIND_LABELS: Record<number, string> = {
   7516: 'a found log',
   15128: 'an nsite',
   16767: 'a theme',
+  10008: 'profile badges',
   30008: 'profile badges',
   30009: 'a badge',
   30023: 'an article',
@@ -139,6 +140,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   1618: GitPullRequest,
   15128: Rocket,
   35128: Rocket,
+  10008: Award,
   30008: Award,
   30009: Award,
   30023: BookOpen,
@@ -380,8 +382,8 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
     return <ProfileCommentContext pubkey={root.addr.pubkey} className={className} />;
   }
 
-  // Kind 30008 (profile badges) roots — show "@User's profile badges"
-  if (root.addr?.kind === 30008) {
+  // Kind 10008 or 30008 (profile badges) roots — show "@User's profile badges"
+  if (root.addr?.kind === 10008 || root.addr?.kind === 30008) {
     return <ProfileBadgesCommentContext root={root} className={className} />;
   }
 
@@ -410,7 +412,7 @@ function ProfileCommentContext({ pubkey, className }: { pubkey: string; classNam
   );
 }
 
-/** Comment context for kind 30008 (profile badges) roots — shows "Commenting on profile badges by @User". */
+/** Comment context for kind 10008/30008 (profile badges) roots — shows "Commenting on profile badges by @User". */
 function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
   const pubkey = root.addr?.pubkey ?? '';
   const author = useAuthor(pubkey);

@@ -23,8 +23,8 @@ export interface PendingBadge {
  * Compute pending (unaccepted) badges for a user.
  *
  * A badge is "pending" when a kind 8 award event tags the user, but the
- * user's kind 30008 profile_badges event does NOT contain the corresponding
- * `e` tag (award event ID).
+ * user's profile badges event (kind 10008 or legacy 30008) does NOT contain
+ * the corresponding `e` tag (award event ID).
  */
 export function usePendingBadges(pubkey: string | undefined) {
   const { nostr } = useNostr();

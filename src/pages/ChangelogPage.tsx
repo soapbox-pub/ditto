@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Bug, CalendarDays, ExternalLink, FlaskConical, Minus, Package, Plus, RefreshCw, ScrollText, ShieldAlert, Tag } from 'lucide-react';
+import { Bug, CalendarDays, FlaskConical, Minus, Package, Plus, RefreshCw, ScrollText, ShieldAlert, Tag } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/PageHeader';
@@ -49,6 +49,7 @@ function formatDate(raw: string): string {
 
 const commitSha = import.meta.env.COMMIT_SHA;
 const commitTag = import.meta.env.COMMIT_TAG;
+const buildDate = import.meta.env.BUILD_DATE;
 const isPreRelease = !commitTag;
 
 export function ChangelogPage() {
@@ -96,22 +97,23 @@ export function ChangelogPage() {
                 {/* Version header */}
                 <div className="flex items-center gap-3 px-4 py-3 bg-secondary/30">
                   <Tag className="size-4 text-primary shrink-0" />
-                  <span className="font-semibold text-sm">v{entry.version}</span>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground ml-auto">
-                    <div className="flex items-center gap-1.5">
-                      <CalendarDays className="size-3.5" />
-                      <span>{formatDate(entry.date)}</span>
-                    </div>
-                    <a
-                      href={`${GITLAB_REPO}/-/releases/v${entry.version}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-foreground transition-colors"
-                      title={`View v${entry.version} on GitLab`}
-                    >
-                      <ExternalLink className="size-3.5" />
-                    </a>
-                  </div>
+                  <a
+                    href={`${GITLAB_REPO}/-/releases/v${entry.version}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-sm hover:underline"
+                  >
+                    v{entry.version}
+                  </a>
+                  <a
+                    href={`${GITLAB_REPO}/-/releases/v${entry.version}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
+                  >
+                    <CalendarDays className="size-3.5" />
+                    <span>{formatDate(entry.date)}</span>
+                  </a>
                 </div>
 
                 {/* Sections */}
@@ -153,21 +155,21 @@ function PreReleaseBanner({ latestVersion }: { latestVersion: string }) {
       <div className="flex items-center gap-2">
         <FlaskConical className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
         <span className="text-sm font-medium text-amber-800 dark:text-amber-300">Pre-release build</span>
-        {commitSha && (
+        {commitSha && buildDate && (
           <a
             href={`${GITLAB_REPO}/-/commit/${commitSha}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto text-[11px] font-mono text-amber-600/70 dark:text-amber-400/70 hover:text-amber-800 dark:hover:text-amber-300 transition-colors"
+            className="ml-auto text-[11px] text-amber-600/70 dark:text-amber-400/70 hover:text-amber-800 dark:hover:text-amber-300 transition-colors"
           >
-            {commitSha}
+            {formatDate(buildDate.split('T')[0])}
           </a>
         )}
       </div>
       <p className="text-xs text-amber-700/80 dark:text-amber-400/70">
         This build contains changes not yet included in a release.{' '}
         <a
-          href={`${GITLAB_REPO}/-/compare/v${latestVersion}...main`}
+          href={`${GITLAB_REPO}/-/compare/v${latestVersion}...${commitSha || 'main'}`}
           target="_blank"
           rel="noopener noreferrer"
           className="underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-200 transition-colors"

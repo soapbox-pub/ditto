@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from 'react';
+import { createContext, useContext, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 
 /** Options that pages can set to configure the persistent MainLayout. */
 export interface LayoutOptions {
@@ -122,49 +122,51 @@ function useLayoutStore(): LayoutStore {
  * Hook for pages to declare their layout options.
  * Call this at the top of a page component to configure the surrounding MainLayout.
  *
- * Sets options synchronously during render so the layout never shows stale values.
+ * Uses useLayoutEffect so the store is updated synchronously after commit
+ * but before the browser paints, avoiding stale layout flashes without
+ * violating React's "no setState during render" rule.
  * Resets to defaults on unmount so options don't leak to the next page.
  */
 export function useLayoutOptions(options: LayoutOptions): void {
   const store = useLayoutStore();
   const prev = useRef<LayoutOptions | null>(null);
 
-  // Set options synchronously during render (before commit) so the layout
-  // picks them up in the same paint as the new page.
-  const changed =
-    prev.current === null ||
-    prev.current.showFAB !== options.showFAB ||
-    prev.current.fabKind !== options.fabKind ||
-    prev.current.fabHref !== options.fabHref ||
-    prev.current.onFabClick !== options.onFabClick ||
-    prev.current.fabIcon !== options.fabIcon ||
-    prev.current.wrapperClassName !== options.wrapperClassName ||
-    prev.current.rightSidebar !== options.rightSidebar ||
-    prev.current.scrollContainer !== options.scrollContainer ||
-    prev.current.noOverscroll !== options.noOverscroll ||
-    prev.current.noMaxWidth !== options.noMaxWidth ||
-    prev.current.hasSubHeader !== options.hasSubHeader ||
-    prev.current.noArcs !== options.noArcs ||
-    prev.current.hideTopBar !== options.hideTopBar ||
-    prev.current.hideBottomNav !== options.hideBottomNav;
+  // Update the store synchronously after commit (before paint) so the
+  // layout picks up the new options in the same frame as the new page.
+  useLayoutEffect(() => {
+    const changed =
+      prev.current === null ||
+      prev.current.showFAB !== options.showFAB ||
+      prev.current.fabKind !== options.fabKind ||
+      prev.current.fabHref !== options.fabHref ||
+      prev.current.onFabClick !== options.onFabClick ||
+      prev.current.fabIcon !== options.fabIcon ||
+      prev.current.wrapperClassName !== options.wrapperClassName ||
+      prev.current.rightSidebar !== options.rightSidebar ||
+      prev.current.scrollContainer !== options.scrollContainer ||
+      prev.current.noOverscroll !== options.noOverscroll ||
+      prev.current.noMaxWidth !== options.noMaxWidth ||
+      prev.current.hasSubHeader !== options.hasSubHeader ||
+      prev.current.noArcs !== options.noArcs ||
+      prev.current.hideTopBar !== options.hideTopBar ||
+      prev.current.hideBottomNav !== options.hideBottomNav;
 
-  if (changed) {
-    prev.current = options;
-    store.setOptions(options);
-  }
+    if (changed) {
+      prev.current = options;
+      store.setOptions(options);
+    }
 
-  // Clean up on unmount — reset to defaults so the next page starts fresh.
-  // Only reset if the store still holds this component's options.
-  // During page transitions the new page's render-phase setOptions runs
-  // before the old page's cleanup effect, so blindly resetting would
-  // clobber the incoming page's options (causing the FAB to disappear).
-  useEffect(() => {
+    // Clean up on unmount — reset to defaults so the next page starts fresh.
+    // Only reset if the store still holds this component's options.
+    // During page transitions the new page's useLayoutEffect runs before
+    // the old page's cleanup, so blindly resetting would clobber the
+    // incoming page's options (causing the FAB to disappear).
     return () => {
       if (store.getOptions() === prev.current) {
         store.reset();
       }
     };
-  }, [store]);
+  });
 }
 
 /** Hook for MainLayout to read the current layout options reactively. */

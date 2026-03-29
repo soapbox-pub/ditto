@@ -399,18 +399,30 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // Flush buffered streamed events into the main list (called by UI when user wants to see new posts)
   const flushStreamBuffer = doFlush;
 
+  // Shared predicate for client-side filtering (mute, content, search, media, author, etc.)
+  const matchesFilters = useCallback((event: NostrEvent) => {
+    if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+    if (shouldFilterEvent(event)) return false;
+    if (resolvedAuthorPubkeys) {
+      const authorSet = new Set(resolvedAuthorPubkeys);
+      if (!authorSet.has(event.pubkey)) return false;
+    }
+    return filterEvent(event, options, query);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
+  }, [options.includeReplies, options.mediaType, protocolsKey, query, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey]);
+
   // Apply client-side filters (including mute filtering and content filters) without restarting the stream
   const posts = useMemo(() => {
-    const authorSet = resolvedAuthorPubkeys ? new Set(resolvedAuthorPubkeys) : undefined;
-    return allEvents.filter((event) => {
-      if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
-      if (shouldFilterEvent(event)) return false;
-      // Client-side author filter for streaming events (relay filter handles initial batch)
-      if (authorSet && !authorSet.has(event.pubkey)) return false;
-      return filterEvent(event, options, query);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
-  }, [allEvents, options.includeReplies, options.mediaType, protocolsKey, query, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey]);
+    return allEvents.filter(matchesFilters);
+  }, [allEvents, matchesFilters]);
 
-  return { posts, isLoading, newPostCount: streamBufferCount, flushStreamBuffer, flushedIds };
+  // Count only buffered events that pass the same filters so the "N new posts"
+  // pill reflects the actual number the user will see after flushing.
+  const filteredNewPostCount = useMemo(() => {
+    return streamBufferRef.current.filter(matchesFilters).length;
+  // streamBufferCount is used as a dependency to re-evaluate when the buffer changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streamBufferCount, matchesFilters]);
+
+  return { posts, isLoading, newPostCount: filteredNewPostCount, flushStreamBuffer, flushedIds };
 }

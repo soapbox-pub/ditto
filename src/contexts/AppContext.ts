@@ -38,8 +38,12 @@ export interface BlossomServerMetadata {
 export interface FeedSettings {
   /** Include text posts (kind 1) in the feed */
   feedIncludePosts: boolean;
+  /** Include NIP-22 comments (kind 1111) in the feed */
+  feedIncludeComments: boolean;
   /** Include reposts (kind 6) in the feed */
   feedIncludeReposts: boolean;
+  /** Include generic reposts (kind 16) in the feed */
+  feedIncludeGenericReposts: boolean;
   /** Include long-form articles (kind 30023) in the feed */
   feedIncludeArticles: boolean;
   /** Show Articles (kind 30023) link in sidebar */
@@ -136,11 +140,11 @@ export interface FeedSettings {
   showBadges: boolean;
   /** Show badge definitions (kind 30009) on the Badges page */
   showBadgeDefinitions: boolean;
-  /** Show profile badges (kind 30008) on the Badges page */
+  /** Show profile badges (kind 10008/30008) on the Badges page */
   showProfileBadges: boolean;
   /** Include badge definitions (kind 30009) in the follows/global feed */
   feedIncludeBadgeDefinitions: boolean;
-  /** Include profile badges (kind 30008) in the follows/global feed */
+  /** Include profile badges (kind 10008/30008) in the follows/global feed */
   feedIncludeProfileBadges: boolean;
   /** Include Request to Vanish events (kind 62) in the follows/global feed */
   feedIncludeVanish: boolean;

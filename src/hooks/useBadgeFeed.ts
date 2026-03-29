@@ -4,7 +4,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useFollowList } from './useFollowActions';
-import { BADGE_DEFINITION_KIND, BADGE_PROFILE_KIND } from '@/lib/badgeUtils';
+import { BADGE_DEFINITION_KIND, BADGE_PROFILE_KIND, BADGE_PROFILE_KIND_LEGACY } from '@/lib/badgeUtils';
 import { TEAM_SOAPBOX_PACK } from '@/lib/helpContent';
 
 const PAGE_SIZE = 20;
@@ -64,9 +64,9 @@ export function useBadgeFeed(tab: 'follows' = 'follows') {
         ...(authors ? { authors } : {}),
       };
 
-      // Query both badge kinds in a single request
+      // Query all badge kinds in a single request (including legacy 30008)
       const events = await nostr.query(
-        [{ kinds: [BADGE_DEFINITION_KIND, BADGE_PROFILE_KIND], ...shared }],
+        [{ kinds: [BADGE_DEFINITION_KIND, BADGE_PROFILE_KIND, BADGE_PROFILE_KIND_LEGACY], ...shared }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 

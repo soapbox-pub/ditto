@@ -1,7 +1,7 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { type AvatarShape, isEmoji, getAvatarMaskUrlAsync, isValidAvatarShape } from "@/lib/avatarShape"
+import { type AvatarShape, isEmoji, getAvatarMaskUrl, isValidAvatarShape } from "@/lib/avatarShape"
 
 /**
  * Shared ref so AvatarFallback can check if a sibling AvatarImage
@@ -29,28 +29,10 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
     const isEmojiShape = hasValidShape && isEmoji(shape)
     const hasCustomShape = isEmojiShape
 
-    // State for the async-loaded mask URL
-    const [maskUrl, setMaskUrl] = React.useState<string>('')
-
-    // Load mask URL asynchronously when shape changes
-    React.useEffect(() => {
-      if (!hasCustomShape || !shape) {
-        setMaskUrl('')
-        return
-      }
-
-      let cancelled = false
-
-      getAvatarMaskUrlAsync(shape).then((url) => {
-        if (!cancelled) {
-          setMaskUrl(url)
-        }
-      })
-
-      return () => {
-        cancelled = true
-      }
-    }, [hasCustomShape, shape])
+    // Compute mask URL synchronously — getAvatarMaskUrl renders the emoji
+    // to a canvas and caches the data-URL, so subsequent calls are instant.
+    // This avoids a flash of the unmasked square avatar on first paint.
+    const maskUrl = hasCustomShape && shape ? getAvatarMaskUrl(shape) : ''
 
     const mergedStyle = React.useMemo<React.CSSProperties>(() => {
       if (maskUrl) {

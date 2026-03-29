@@ -199,7 +199,7 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
 
       {hasSubKinds && def.subKinds && def.subKinds.map((sub) => (
         <SubKindRow
-          key={sub.showKey}
+          key={sub.feedKey}
           sub={sub}
         />
       ))}
@@ -211,7 +211,7 @@ function NotesFeedSettings() {
   return (
     <>
       {FEED_KINDS.map((def) => (
-        <ContentTypeRow key={def.feedKey ?? String(def.kind)} def={def} />
+        <ContentTypeRow key={def.id} def={def} />
       ))}
     </>
   );
@@ -231,7 +231,7 @@ function FeedSettingsFormInternals() {
               </span>
             </div>
             {sectionKinds.map((def) => (
-              <ContentTypeRow key={def.feedKey ?? def.showKey ?? String(def.kind)} def={def} />
+              <ContentTypeRow key={def.id} def={def} />
             ))}
           </div>
         );

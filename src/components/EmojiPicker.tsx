@@ -117,6 +117,18 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
 
 		if (customCategories) {
 			pickerOptions.custom = customCategories;
+			// Order: Recent, Custom, then standard categories
+			pickerOptions.categories = [
+				"frequent",
+				"custom-nostr",
+				"people",
+				"nature",
+				"foods",
+				"activity",
+				"places",
+				"objects",
+				"flags",
+			];
 		}
 
 		const picker = new Picker(pickerOptions);
@@ -127,8 +139,16 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
 			const shadowRoot = (container.firstChild as HTMLElement)?.shadowRoot;
 			if (shadowRoot) {
 				const style = document.createElement("style");
-				style.textContent =
-					".sticky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background-color: var(--em-color-background) !important; } input { font-size: 16px !important; } #nav button { color: rgba(var(--em-rgb-color), .85) !important; } #nav button[aria-selected] { color: rgb(var(--em-rgb-accent)) !important; }";
+				style.textContent = [
+					".sticky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background-color: var(--em-color-background) !important; }",
+					"input { font-size: 16px !important; }",
+					"#nav button { color: rgba(var(--em-rgb-color), .85) !important; }",
+					"#nav button[aria-selected] { color: rgb(var(--em-rgb-accent)) !important; }",
+					// Fix SVGs without intrinsic width/height collapsing to 0x0 in custom emoji grid.
+					// emoji-mart only sets max-width/max-height on <img>, which can't size a dimensionless SVG.
+					// The <img> lives inside <span class="emoji-mart-emoji" data-emoji-set="...">
+					".emoji-mart-emoji img[src] { width: 1em; height: 1em; object-fit: contain; }",
+				].join(" ");
 				shadowRoot.appendChild(style);
 			}
 		});

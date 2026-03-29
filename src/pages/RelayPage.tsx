@@ -95,7 +95,7 @@ export function RelayPage() {
 
   return (
     <main>
-      <PageHeader title={hostname} icon={<Server className="size-5" />}>
+      <PageHeader title={hostname} icon={<Server className="size-5" />} className="py-2 sidebar:py-4">
         <button
           onClick={() => setInfoOpen((o) => !o)}
           className={`p-2 rounded-full transition-colors ${infoOpen ? 'text-foreground bg-secondary' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'}`}
@@ -105,10 +105,8 @@ export function RelayPage() {
         </button>
       </PageHeader>
 
-      <div className="sticky top-mobile-bar sidebar:top-0 z-10">
-        <RelayInfoPanel info={info} infoLoading={infoLoading} infoError={infoError} open={infoOpen} />
-        <SubHeaderBar className="relative">{null}</SubHeaderBar>
-      </div>
+      <RelayInfoPanel info={info} infoLoading={infoLoading} infoError={infoError} open={infoOpen} />
+      <SubHeaderBar>{null}</SubHeaderBar>
 
       <div style={{ height: ARC_OVERHANG_PX }} />
 

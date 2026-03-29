@@ -13,8 +13,8 @@ interface BadgeRefForReorder {
 /**
  * Mutation to reorder the user's accepted badges.
  *
- * Republishes the kind 30008 event with badge `a` + `e` tag pairs in the
- * new order. The `d` tag is always first.
+ * Republishes the profile badges event as kind 10008 with badge `a` + `e`
+ * tag pairs in the new order.
  */
 export function useReorderBadges() {
   const { user } = useCurrentUser();
@@ -25,7 +25,7 @@ export function useReorderBadges() {
     mutationFn: async (orderedRefs: BadgeRefForReorder[]) => {
       if (!user) throw new Error('User is not logged in');
 
-      const newTags: string[][] = [['d', 'profile_badges']];
+      const newTags: string[][] = [];
       for (const ref of orderedRefs) {
         newTags.push(['a', ref.aTag]);
         if (ref.eTag) {

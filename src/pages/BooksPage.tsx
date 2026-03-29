@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useSeoMeta } from "@unhead/react";
 import { BookMarked, Loader2, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,6 +19,7 @@ import { usePrefetchBookSummaries } from "@/hooks/useBookSummary";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFeedTab } from "@/hooks/useFeedTab";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { deduplicateEvents } from "@/lib/deduplicateEvents";
 import type { ExtraKindDef } from "@/lib/extraKinds";
 
@@ -40,7 +40,6 @@ const booksDef: ExtraKindDef = {
 export function BooksPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useFeedTab<FeedTab>("books", [
     "follows",
@@ -73,9 +72,7 @@ export function BooksPage() {
     pageCount: rawData?.pages?.length,
   });
 
-  const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["book-feed", activeTab] });
-  }, [queryClient, activeTab]);
+  const handleRefresh = usePageRefresh(["book-feed", activeTab]);
 
   const events = deduplicateEvents(rawData?.pages);
 
