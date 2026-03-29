@@ -119,20 +119,28 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
 
   if (badgeRefs.length === 0) return null;
 
-  const remaining = Math.max(0, badgeRefs.length - PREVIEW_LIMIT);
-  const showRefs = expanded ? badgeRefs : badgeRefs.slice(0, PREVIEW_LIMIT);
+  // When overflowing, reserve one grid cell for the "+N" indicator
+  const hasOverflow = badgeRefs.length > PREVIEW_LIMIT;
+  const visibleLimit = hasOverflow ? PREVIEW_LIMIT - 1 : PREVIEW_LIMIT;
+  const remaining = Math.max(0, badgeRefs.length - visibleLimit);
+  const showRefs = expanded ? badgeRefs : badgeRefs.slice(0, visibleLimit);
 
   return (
     <div className="mt-3 space-y-3">
       {/* Badge grid */}
       {badgeDefsQuery.isLoading ? (
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
-          {badgeRefs.slice(0, PREVIEW_LIMIT).map((ref, idx) => (
+          {badgeRefs.slice(0, visibleLimit).map((ref, idx) => (
             <div key={`${ref.aTag}-${idx}`} className="flex flex-col items-center gap-1.5">
               <Skeleton className="size-12 rounded-lg" />
               <Skeleton className="h-2.5 w-12" />
             </div>
           ))}
+          {hasOverflow && (
+            <div className="flex flex-col items-center justify-center gap-1.5">
+              <Skeleton className="size-12 rounded-lg" />
+            </div>
+          )}
         </div>
       ) : showRefs.length > 0 ? (
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
