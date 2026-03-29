@@ -3,6 +3,7 @@ import { Plus, Check, Loader2 } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DITTO_RELAYS } from '@/lib/appRelays';
@@ -10,6 +11,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useInterests } from '@/hooks/useInterests';
 import { useMuteList } from '@/hooks/useMuteList';
+import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { buildTagFilterValues } from '@/lib/tagFilterValues';
@@ -77,8 +79,14 @@ export function TagFeedPage({
   const tagFilterValues = useMemo(() => buildTagFilterValues(tag, filterKey), [tag, filterKey]);
   const tagFilterValuesKey = tagFilterValues.join('|');
 
+  const queryKey = useMemo(
+    () => ['tag-feed', filterKey, tagFilterValuesKey, kindsKey],
+    [filterKey, tagFilterValuesKey, kindsKey],
+  );
+  const handleRefresh = usePageRefresh(queryKey);
+
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['tag-feed', filterKey, tagFilterValuesKey, kindsKey],
+    queryKey,
     queryFn: async ({ signal }) => {
       const ditto = nostr.group(DITTO_RELAYS);
       const tagFilter: NostrFilter = { kinds, limit: 40, ...(search ? { search } : {}) };
@@ -121,15 +129,19 @@ export function TagFeedPage({
         )}
       </PageHeader>
 
-      {isLoading ? (
-        <FeedSkeleton />
-      ) : filteredEvents && filteredEvents.length > 0 ? (
-        filteredEvents.map((event) => <NoteCard key={event.id} event={event} />)
-      ) : (
-        <div className="py-16 text-center text-muted-foreground px-4">
-          <span className="break-all">{emptyMessage}</span>
-        </div>
-      )}
+      <PullToRefresh onRefresh={handleRefresh}>
+        {isLoading ? (
+          <FeedSkeleton />
+        ) : filteredEvents && filteredEvents.length > 0 ? (
+          <div>
+            {filteredEvents.map((event) => <NoteCard key={event.id} event={event} />)}
+          </div>
+        ) : (
+          <div className="py-16 text-center text-muted-foreground px-4">
+            <span className="break-all">{emptyMessage}</span>
+          </div>
+        )}
+      </PullToRefresh>
     </main>
   );
 }

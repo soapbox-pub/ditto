@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
 import { NoteCard } from '@/components/NoteCard';
@@ -68,7 +69,6 @@ interface FeedProps {
 export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home' }: FeedProps = {}) {
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
-  const queryClient = useQueryClient();
   const { savedFeeds } = useSavedFeeds();
   const { hashtags } = useInterests();
   const { hashtags: geotags } = useInterests('g');
@@ -162,9 +162,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     [useDittoQuery, activeTab],
   );
 
-  const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey });
-  }, [queryClient, queryKey]);
+  const handleRefresh = usePageRefresh(queryKey);
 
   const {
     data: rawData,
@@ -361,6 +359,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
   const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
 
   // Resolve variable placeholders ($follows etc.) the same way profile tabs do
   const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(
@@ -382,6 +381,12 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
 
   const isLoading = isResolving || isStreamLoading;
 
+  // useStreamPosts doesn't use TanStack Query, so refresh by invalidating the
+  // resolution query and letting the stream reconnect via remount.
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['resolve-tab-filter'] });
+  }, [queryClient]);
+
   // Simple scroll-based load more isn't available with useStreamPosts (it's a stream),
   // but we still wire the ref for future pagination support
   useEffect(() => {
@@ -400,17 +405,21 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
 
   if (posts.length === 0) {
     return (
-      <FeedEmptyState message={`No posts found for "${feed.label}". The search may return results as new content arrives.`} />
+      <PullToRefresh onRefresh={handleRefresh}>
+        <FeedEmptyState message={`No posts found for "${feed.label}". The search may return results as new content arrives.`} />
+      </PullToRefresh>
     );
   }
 
   return (
-    <div>
-      {posts.map((event) => (
-        <NoteCard key={event.id} event={event} />
-      ))}
-      <div ref={scrollRef} className="py-2" />
-    </div>
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div>
+        {posts.map((event) => (
+          <NoteCard key={event.id} event={event} />
+        ))}
+        <div ref={scrollRef} className="py-2" />
+      </div>
+    </PullToRefresh>
   );
 }
 
@@ -422,8 +431,11 @@ function HashtagFeedContent({ tag }: { tag: string }) {
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
   const kindsKey = [...kinds].sort().join(',');
 
+  const queryKey = useMemo(() => ['hashtag-feed', tag, kindsKey], [tag, kindsKey]);
+  const handleRefresh = usePageRefresh(queryKey);
+
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['hashtag-feed', tag, kindsKey],
+    queryKey,
     queryFn: async ({ signal }) => {
       const ditto = nostr.group(DITTO_RELAYS);
       return ditto.query(
@@ -451,16 +463,20 @@ function HashtagFeedContent({ tag }: { tag: string }) {
 
   if (filteredEvents.length === 0) {
     return (
-      <FeedEmptyState message={`No posts found with #${tag}.`} />
+      <PullToRefresh onRefresh={handleRefresh}>
+        <FeedEmptyState message={`No posts found with #${tag}.`} />
+      </PullToRefresh>
     );
   }
 
   return (
-    <div>
-      {filteredEvents.map((event) => (
-        <NoteCard key={event.id} event={event} />
-      ))}
-    </div>
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div>
+        {filteredEvents.map((event) => (
+          <NoteCard key={event.id} event={event} />
+        ))}
+      </div>
+    </PullToRefresh>
   );
 }
 
@@ -472,8 +488,11 @@ function GeotagFeedContent({ tag }: { tag: string }) {
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
   const kindsKey = [...kinds].sort().join(',');
 
+  const queryKey = useMemo(() => ['geotag-feed', tag, kindsKey], [tag, kindsKey]);
+  const handleRefresh = usePageRefresh(queryKey);
+
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['geotag-feed', tag, kindsKey],
+    queryKey,
     queryFn: async ({ signal }) => {
       const ditto = nostr.group(DITTO_RELAYS);
       const filter = { kinds, limit: 40 } as Record<string, unknown>;
@@ -502,16 +521,20 @@ function GeotagFeedContent({ tag }: { tag: string }) {
 
   if (filteredEvents.length === 0) {
     return (
-      <FeedEmptyState message={`No posts found near ${tag}.`} />
+      <PullToRefresh onRefresh={handleRefresh}>
+        <FeedEmptyState message={`No posts found near ${tag}.`} />
+      </PullToRefresh>
     );
   }
 
   return (
-    <div>
-      {filteredEvents.map((event) => (
-        <NoteCard key={event.id} event={event} />
-      ))}
-    </div>
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div>
+        {filteredEvents.map((event) => (
+          <NoteCard key={event.id} event={event} />
+        ))}
+      </div>
+    </PullToRefresh>
   );
 }
 

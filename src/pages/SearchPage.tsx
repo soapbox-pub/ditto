@@ -16,6 +16,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { Link, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
@@ -411,6 +412,11 @@ export function SearchPage() {
   });
   const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? debouncedSearchQuery : '');
 
+  const handleRefresh = useCallback(async () => {
+    flushStreamBuffer();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [flushStreamBuffer]);
+
   return (
     <main className="flex-1 min-w-0">
       <PageHeader title="Search" icon={<SearchIcon className="size-5" />} />
@@ -740,91 +746,93 @@ export function SearchPage() {
         )}
       </div>
 
-      {/* ─── Posts Tab ─── */}
-      {activeTab === 'posts' && (
-        <>
-          {/* New posts pill — sticks below the SubHeaderBar arc, hides with nav.
-              Mobile: top = MobileTopBar (2.5rem) + safe-area + SubHeaderBar (~2.5rem).
-              Desktop: top = SubHeaderBar only (~2.5rem), no MobileTopBar. */}
-          {newPostCount > 0 && (
-            <div
-              className={cn(
-                'sticky new-posts-pill z-10 flex justify-center pointer-events-none',
-                'max-sidebar:transition-opacity max-sidebar:duration-300 max-sidebar:ease-in-out',
-                navHidden && 'max-sidebar:opacity-0 max-sidebar:pointer-events-none',
-              )}
-              style={{ marginBottom: '-3rem' }}
-            >
-              <button
-                onClick={() => {
-                  flushStreamBuffer();
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="pointer-events-auto px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors animate-in fade-in slide-in-from-top-2 duration-300"
+      <PullToRefresh onRefresh={handleRefresh}>
+        {/* ─── Posts Tab ─── */}
+        {activeTab === 'posts' && (
+          <>
+            {/* New posts pill — sticks below the SubHeaderBar arc, hides with nav.
+                Mobile: top = MobileTopBar (2.5rem) + safe-area + SubHeaderBar (~2.5rem).
+                Desktop: top = SubHeaderBar only (~2.5rem), no MobileTopBar. */}
+            {newPostCount > 0 && (
+              <div
+                className={cn(
+                  'sticky new-posts-pill z-10 flex justify-center pointer-events-none',
+                  'max-sidebar:transition-opacity max-sidebar:duration-300 max-sidebar:ease-in-out',
+                  navHidden && 'max-sidebar:opacity-0 max-sidebar:pointer-events-none',
+                )}
+                style={{ marginBottom: '-3rem' }}
               >
-                {newPostCount} new post{newPostCount !== 1 ? 's' : ''}
-              </button>
-            </div>
-          )}
-          {/* Post results — stream */}
-          {postsLoading && posts.length === 0 ? (
-            <div className="divide-y divide-border">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <PostSkeleton key={i} />
-              ))}
-            </div>
-          ) : posts.length > 0 ? (
-            <div>
-              {posts.map((event) => {
-                const isNew = flushedIds.has(event.id);
-                if (isRepostKind(event.kind)) {
-                  const embedded = parseRepostContent(event);
-                  if (embedded) {
-                    return <NoteCard key={event.id} event={embedded} repostedBy={event.pubkey} highlight={isNew} />;
-                  }
-                  return null;
-                }
-                return <NoteCard key={event.id} event={event} highlight={isNew} />;
-              })}
-            </div>
-          ) : debouncedSearchQuery.trim() ? (
-            <EmptyState
-              message="No posts found matching your search."
-              activeFilters={activeFilterLabels}
-              onResetFilters={hasActiveFilters ? resetFilters : undefined}
-            />
-          ) : (
-            <EmptyState message="Enter a search query to find posts." />
-          )}
-        </>
-      )}
-
-      {/* ─── Accounts Tab ─── */}
-      {activeTab === 'accounts' && (
-        <>
-          <div>
-            {debouncedSearchQuery.trim() ? (
-              profilesLoading ? (
-                <div className="divide-y divide-border">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <AccountSkeleton key={i} />
-                  ))}
-                </div>
-              ) : profiles && profiles.length > 0 ? (
-                <div className="divide-y divide-border">
-                  {profiles.map((profile) => (
-                    <AccountItem key={profile.pubkey} profile={profile} isFollowed={followedPubkeys.has(profile.pubkey)} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState message="No accounts found matching your search." />
-              )
-            ) : (
-              <FollowsList />
+                <button
+                  onClick={() => {
+                    flushStreamBuffer();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="pointer-events-auto px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors animate-in fade-in slide-in-from-top-2 duration-300"
+                >
+                  {newPostCount} new post{newPostCount !== 1 ? 's' : ''}
+                </button>
+              </div>
             )}
-          </div>
-        </>
-      )}
+            {/* Post results — stream */}
+            {postsLoading && posts.length === 0 ? (
+              <div className="divide-y divide-border">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <PostSkeleton key={i} />
+                ))}
+              </div>
+            ) : posts.length > 0 ? (
+              <div>
+                {posts.map((event) => {
+                  const isNew = flushedIds.has(event.id);
+                  if (isRepostKind(event.kind)) {
+                    const embedded = parseRepostContent(event);
+                    if (embedded) {
+                      return <NoteCard key={event.id} event={embedded} repostedBy={event.pubkey} highlight={isNew} />;
+                    }
+                    return null;
+                  }
+                  return <NoteCard key={event.id} event={event} highlight={isNew} />;
+                })}
+              </div>
+            ) : debouncedSearchQuery.trim() ? (
+              <EmptyState
+                message="No posts found matching your search."
+                activeFilters={activeFilterLabels}
+                onResetFilters={hasActiveFilters ? resetFilters : undefined}
+              />
+            ) : (
+              <EmptyState message="Enter a search query to find posts." />
+            )}
+          </>
+        )}
+
+        {/* ─── Accounts Tab ─── */}
+        {activeTab === 'accounts' && (
+          <>
+            <div>
+              {debouncedSearchQuery.trim() ? (
+                profilesLoading ? (
+                  <div className="divide-y divide-border">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <AccountSkeleton key={i} />
+                    ))}
+                  </div>
+                ) : profiles && profiles.length > 0 ? (
+                  <div className="divide-y divide-border">
+                    {profiles.map((profile) => (
+                      <AccountItem key={profile.pubkey} profile={profile} isFollowed={followedPubkeys.has(profile.pubkey)} />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState message="No accounts found matching your search." />
+                )
+              ) : (
+                <FollowsList />
+              )}
+            </div>
+          </>
+        )}
+      </PullToRefresh>
     </main>
   );
 }

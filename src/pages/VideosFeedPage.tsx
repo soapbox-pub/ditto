@@ -25,6 +25,7 @@ import { Link } from "react-router-dom";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import { PageHeader } from "@/components/PageHeader";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { SubHeaderBar } from "@/components/SubHeaderBar";
 import { TabButton } from "@/components/TabButton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -40,6 +41,7 @@ import { useFollowList } from "@/hooks/useFollowActions";
 import { useMuteList } from "@/hooks/useMuteList";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
+import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { useInfiniteHotFeed } from "@/hooks/useTrending";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { getExtraKindDef } from "@/lib/extraKinds";
@@ -912,6 +914,8 @@ export function VideosFeedPage() {
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
+  const handleRefresh = usePageRefresh(['feed']);
+
   // When the shorts player is open, render it directly as the page root —
   // same flex-1 column that VinesFeedPage uses, fully replacing the feed UI.
   if (shortsPlayerIndex !== null) {
@@ -951,58 +955,60 @@ export function VideosFeedPage() {
       {/* Live streams strip — follows tab filters by followed authors */}
       <LiveStreamsStrip tab={feedTab} />
 
-      {showSkeleton ? (
-        <div className="pt-3 pb-8 px-4">
-          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-            Videos
-          </p>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-6">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <VideoSkeleton key={i} />
-            ))}
-          </div>
-        </div>
-      ) : videoEvents.length === 0 ? (
-        <FeedEmptyState
-          message={
-            feedTab === "follows"
-              ? "No videos yet. Follow some creators to see their videos here."
-              : "No videos found. Check your relay connections or come back soon."
-          }
-          onSwitchToGlobal={
-            feedTab === "follows" ? () => setFeedTab("global") : undefined
-          }
-        />
-      ) : (
-        <div className="pt-3 pb-8">
-          {/* Normal videos — 2-column grid */}
-          {normalVideos.length > 0 && (
-            <div className="px-4 mb-8">
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                Videos
-              </p>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-6">
-                {visibleVideos.map((e) => (
-                  <VideoGridCard key={e.id} event={e} />
-                ))}
-              </div>
-              {!showAllVideos && normalVideos.length > initialVideoCount && (
-                <button
-                  className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2 border border-border rounded-lg"
-                  onClick={() => setShowAllVideos(true)}
-                >
-                  Show {normalVideos.length - initialVideoCount} more
-                </button>
-              )}
+      <PullToRefresh onRefresh={handleRefresh}>
+        {showSkeleton ? (
+          <div className="pt-3 pb-8 px-4">
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+              Videos
+            </p>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <VideoSkeleton key={i} />
+              ))}
             </div>
-          )}
+          </div>
+        ) : videoEvents.length === 0 ? (
+          <FeedEmptyState
+            message={
+              feedTab === "follows"
+                ? "No videos yet. Follow some creators to see their videos here."
+                : "No videos found. Check your relay connections or come back soon."
+            }
+            onSwitchToGlobal={
+              feedTab === "follows" ? () => setFeedTab("global") : undefined
+            }
+          />
+        ) : (
+          <div className="pt-3 pb-8">
+            {/* Normal videos — 2-column grid */}
+            {normalVideos.length > 0 && (
+              <div className="px-4 mb-8">
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                  Videos
+                </p>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-6">
+                  {visibleVideos.map((e) => (
+                    <VideoGridCard key={e.id} event={e} />
+                  ))}
+                </div>
+                {!showAllVideos && normalVideos.length > initialVideoCount && (
+                  <button
+                    className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2 border border-border rounded-lg"
+                    onClick={() => setShowAllVideos(true)}
+                  >
+                    Show {normalVideos.length - initialVideoCount} more
+                  </button>
+                )}
+              </div>
+            )}
 
-          {/* Shorts shelf */}
-          {shorts.length > 0 && (
-            <ShortsSection events={shorts} onOpen={setShortsPlayerIndex} />
-          )}
-        </div>
-      )}
+            {/* Shorts shelf */}
+            {shorts.length > 0 && (
+              <ShortsSection events={shorts} onOpen={setShortsPlayerIndex} />
+            )}
+          </div>
+        )}
+      </PullToRefresh>
     </main>
   );
 }

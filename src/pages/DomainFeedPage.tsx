@@ -5,10 +5,12 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useMuteList } from '@/hooks/useMuteList';
+import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
@@ -67,6 +69,13 @@ export function DomainFeedPage() {
   });
 
   const { muteItems } = useMuteList();
+
+  const refreshQueryKey = useMemo(
+    () => [['domain-pubkeys', domain], ['domain-feed', domain]],
+    [domain],
+  );
+  const handleRefresh = usePageRefresh(refreshQueryKey);
+
   const { data: pubkeys, isLoading: pubkeysLoading, isError: pubkeysError } = useDomainPubkeys(domain);
 
   const { data: events, isLoading: eventsLoading } = useQuery<NostrEvent[]>({
@@ -108,37 +117,41 @@ export function DomainFeedPage() {
           }
         />
 
-        {pubkeysError ? (
-          <div className="py-16 text-center text-muted-foreground">
-            <p>Could not fetch users from {domain}.</p>
-            <p className="text-xs mt-2">Make sure the domain has a valid /.well-known/nostr.json</p>
-          </div>
-        ) : isLoading ? (
-          <div className="divide-y divide-border">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="px-4 py-3">
-                <div className="flex gap-3">
-                  <Skeleton className="size-11 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
+        <PullToRefresh onRefresh={handleRefresh}>
+          {pubkeysError ? (
+            <div className="py-16 text-center text-muted-foreground">
+              <p>Could not fetch users from {domain}.</p>
+              <p className="text-xs mt-2">Make sure the domain has a valid /.well-known/nostr.json</p>
+            </div>
+          ) : isLoading ? (
+            <div className="divide-y divide-border">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="px-4 py-3">
+                  <div className="flex gap-3">
+                    <Skeleton className="size-11 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredEvents && filteredEvents.length > 0 ? (
-          filteredEvents.map((event) => <NoteCard key={event.id} event={event} />)
-        ) : pubkeys && pubkeys.length === 0 ? (
-          <div className="py-16 text-center text-muted-foreground">
-            No users found on {domain}.
-          </div>
-        ) : (
-          <div className="py-16 text-center text-muted-foreground">
-            No posts found from users on {domain}.
-          </div>
-        )}
+              ))}
+            </div>
+          ) : filteredEvents && filteredEvents.length > 0 ? (
+            <div>
+              {filteredEvents.map((event) => <NoteCard key={event.id} event={event} />)}
+            </div>
+          ) : pubkeys && pubkeys.length === 0 ? (
+            <div className="py-16 text-center text-muted-foreground">
+              No users found on {domain}.
+            </div>
+          ) : (
+            <div className="py-16 text-center text-muted-foreground">
+              No posts found from users on {domain}.
+            </div>
+          )}
+        </PullToRefresh>
       </main>
   );
 }
