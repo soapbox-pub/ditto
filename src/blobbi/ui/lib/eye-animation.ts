@@ -23,6 +23,7 @@ import {
   DEFAULT_EYELID_COLOR,
   EYELID_DARKEN_AMOUNT,
 } from './constants';
+import { EYE_CLASSES } from './eyes/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -438,10 +439,11 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
     const clipHeight = eyeHeight + clipPadding * 2;
 
     // Store eye geometry as data attributes for the animation loop
-    // data-eye-top/bottom define the clipping bounds for blink animation
-    // data-clip-id references the clipPath element
+    // Uses the official EYE_DATA_ATTRS naming convention from eyes/types.ts
+    // data-eye-cx/cy: eye center coordinates
+    // data-clip-top/height/id: clipping bounds for blink animation
     const clipId = `blobbi-blink-clip-${instanceId}-${group.side}`;
-    const blinkGroup = `<g class="blobbi-blink blobbi-blink-${group.side}" data-cx="${group.blinkCenterX}" data-cy="${group.blinkCenterY}" data-eye-top="${clipTop}" data-eye-bottom="${eyeBottom + clipPadding}" data-clip-height="${clipHeight}" data-clip-id="${clipId}" clip-path="url(#${clipId})">
+    const blinkGroup = `<g class="blobbi-blink blobbi-blink-${group.side}" data-eye-cx="${group.blinkCenterX}" data-eye-cy="${group.blinkCenterY}" data-eye-side="${group.side}" data-clip-top="${clipTop}" data-clip-height="${clipHeight}" data-clip-id="${clipId}" clip-path="url(#${clipId})">
     ${blinkContent}
   </g>`;
 
@@ -463,7 +465,7 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
     // Generate clipPath definition for this eye
     // The rect starts at full height and will be animated to shrink from top
     const clipPathDef = `<clipPath id="${clipId}">
-      <rect class="blobbi-blink-clip-rect" x="${clipLeft}" y="${clipTop}" width="${clipWidth}" height="${clipHeight}" />
+      <rect class="${EYE_CLASSES.clipRect}" x="${clipLeft}" y="${clipTop}" width="${clipWidth}" height="${clipHeight}" />
     </clipPath>`;
     
     // Store clipPath to add to defs later

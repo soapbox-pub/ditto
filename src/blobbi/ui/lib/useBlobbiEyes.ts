@@ -38,6 +38,7 @@ import {
   BLINK_CLOSED_AMOUNT,
   DOUBLE_BLINK_CHANCE,
 } from './constants';
+import { EYE_CLASSES, EYE_DATA_ATTRS } from './eyes/types';
 
 // Re-export types for backwards compatibility
 export type { BlobbiLookMode, EyePosition };
@@ -234,16 +235,22 @@ export function useBlobbiEyes(
         rightEyesRef.current.forEach((el) => {
           el.setAttribute('transform', 'translate(0 0)');
         });
-        // Reset clip-paths to fully open
+        // Reset clip-paths to fully open (unless SMIL animations are controlling them)
         [...leftBlinkRef.current, ...rightBlinkRef.current].forEach((el) => {
-          const clipId = el.getAttribute('data-clip-id');
-          const eyeTopAttr = el.getAttribute('data-eye-top');
-          const clipHeightAttr = el.getAttribute('data-clip-height');
+          const clipId = el.getAttribute(EYE_DATA_ATTRS.clipId);
+          // Try new format first, fall back to legacy for old SVGs
+          const clipTopAttr = el.getAttribute(EYE_DATA_ATTRS.clipTop) ?? el.getAttribute(EYE_DATA_ATTRS.legacyEyeTop);
+          const clipHeightAttr = el.getAttribute(EYE_DATA_ATTRS.clipHeight);
           
-          if (clipId && eyeTopAttr && clipHeightAttr && containerRef.current) {
+          if (clipId && clipTopAttr && clipHeightAttr && containerRef.current) {
             const clipRect = containerRef.current.querySelector(`#${clipId} rect`) as SVGRectElement | null;
             if (clipRect) {
-              clipRect.setAttribute('y', eyeTopAttr);
+              // Don't override SMIL animations (e.g., sleepy emotion)
+              const hasSmilAnimation = clipRect.querySelector('animate') !== null;
+              if (hasSmilAnimation) {
+                return;
+              }
+              clipRect.setAttribute('y', clipTopAttr);
               clipRect.setAttribute('height', clipHeightAttr);
             }
           }
@@ -272,12 +279,12 @@ export function useBlobbiEyes(
       }
 
       // Query and cache TRACKING elements (pupil + highlight only)
-      const leftEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-left');
-      const rightEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-right');
+      const leftEyes = containerRef.current.querySelectorAll<SVGGElement>(`.${EYE_CLASSES.eyeLeft}`);
+      const rightEyes = containerRef.current.querySelectorAll<SVGGElement>(`.${EYE_CLASSES.eyeRight}`);
 
       // Query and cache BLINK elements (whole eye including white)
-      const leftBlink = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-blink-left');
-      const rightBlink = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-blink-right');
+      const leftBlink = containerRef.current.querySelectorAll<SVGGElement>(`.${EYE_CLASSES.blinkLeft}`);
+      const rightBlink = containerRef.current.querySelectorAll<SVGGElement>(`.${EYE_CLASSES.blinkRight}`);
 
       if (leftEyes.length === 0 && rightEyes.length === 0) {
         return false; // SVG not rendered yet
@@ -371,13 +378,18 @@ export function useBlobbiEyes(
 
         // ─── Apply Tracking Transform (pupils only) ──────────────────────────
         // Only translate - no scale here. Eye whites stay fixed.
+        // Skip if a CSS animation is controlling the transform (e.g., sleepy wake-up glance)
         const trackingTransform = `translate(${eyeX} ${eyeY})`;
 
         leftEyesRef.current.forEach((el) => {
+          const animationName = getComputedStyle(el).animationName;
+          if (animationName && animationName !== 'none') return;
           el.setAttribute('transform', trackingTransform);
         });
 
         rightEyesRef.current.forEach((el) => {
+          const animationName = getComputedStyle(el).animationName;
+          if (animationName && animationName !== 'none') return;
           el.setAttribute('transform', trackingTransform);
         });
       }
@@ -390,22 +402,33 @@ export function useBlobbiEyes(
       // 
       // The clip-path rect's Y position moves down as the blink progresses,
       // effectively hiding more of the eye from the top.
+      //
+      // IMPORTANT: Skip JS-based blink if the clip-rect has SMIL <animate> children
+      // (e.g., sleepy emotion uses SMIL animations that we shouldn't override)
       const applyBlinkClip = (el: SVGGElement) => {
-        const clipId = el.getAttribute('data-clip-id');
-        const eyeTopAttr = el.getAttribute('data-eye-top');
-        const clipHeightAttr = el.getAttribute('data-clip-height');
+        const clipId = el.getAttribute(EYE_DATA_ATTRS.clipId);
+        // Try new format first, fall back to legacy for old SVGs
+        const clipTopAttr = el.getAttribute(EYE_DATA_ATTRS.clipTop) ?? el.getAttribute(EYE_DATA_ATTRS.legacyEyeTop);
+        const clipHeightAttr = el.getAttribute(EYE_DATA_ATTRS.clipHeight);
 
-        if (clipId && eyeTopAttr && clipHeightAttr && containerRef.current) {
-          const eyeTop = parseFloat(eyeTopAttr);
-          const fullHeight = parseFloat(clipHeightAttr);
-          
+        if (clipId && clipTopAttr && clipHeightAttr && containerRef.current) {
           // Find the clip rect element
           const clipRect = containerRef.current.querySelector(`#${clipId} rect`) as SVGRectElement | null;
           if (clipRect) {
+            // Check if SMIL animations are controlling this clip-rect
+            // If so, don't override them with JS-based blink animation
+            const hasSmilAnimation = clipRect.querySelector('animate') !== null;
+            if (hasSmilAnimation) {
+              return; // Let SMIL handle the animation
+            }
+            
+            const clipTop = parseFloat(clipTopAttr);
+            const fullHeight = parseFloat(clipHeightAttr);
+            
             // Calculate new Y position and height based on blink progress
             // As blinkProgress goes from 0 to 1, the rect moves down and shrinks
             const closedOffset = fullHeight * blinkProgress;
-            const newY = eyeTop + closedOffset;
+            const newY = clipTop + closedOffset;
             const newHeight = fullHeight - closedOffset;
             
             clipRect.setAttribute('y', newY.toString());

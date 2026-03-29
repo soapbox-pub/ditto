@@ -116,12 +116,13 @@ export function extractProcessedEyes(svgText: string): ProcessedEyeData[] {
     if (!sideMatch) continue;
     const side = sideMatch[1] as EyeSide;
 
-    // Extract data attributes (try new format first, then legacy)
+    // Extract data attributes (try new format first, then legacy for backwards compat)
     const cx = extractDataAttr(groupTag, EYE_DATA_ATTRS.cx) ??
                extractDataAttr(groupTag, EYE_DATA_ATTRS.legacyCx);
     const cy = extractDataAttr(groupTag, EYE_DATA_ATTRS.cy) ??
                extractDataAttr(groupTag, EYE_DATA_ATTRS.legacyCy);
     const clipId = extractStringAttr(groupTag, EYE_DATA_ATTRS.clipId);
+    // New format uses data-clip-top, legacy uses data-eye-top
     const clipTop = extractDataAttr(groupTag, EYE_DATA_ATTRS.clipTop) ??
                     extractDataAttr(groupTag, EYE_DATA_ATTRS.legacyEyeTop);
     const clipHeight = extractDataAttr(groupTag, EYE_DATA_ATTRS.clipHeight);
@@ -171,9 +172,17 @@ function detectFromProcessedSvg(svgText: string): EyePosition[] {
   while ((match = eyeGroupRegex.exec(svgText)) !== null) {
     const side = match[1] as EyeSide;
 
-    // Find the data-cx/data-cy on the parent blink group
+    // Find the parent blink group and extract eye center coordinates
+    // Try new format (data-eye-cx) first, then fall back to legacy (data-cx)
     const beforeMatch = svgText.slice(0, match.index);
-    const blinkGroupMatch = beforeMatch.match(/data-cx="([\d.]+)" data-cy="([\d.]+)"[^>]*>\s*$/);
+    
+    // Try new format first
+    let blinkGroupMatch = beforeMatch.match(/data-eye-cx="([\d.]+)" data-eye-cy="([\d.]+)"[^>]*>\s*$/);
+    
+    // Fall back to legacy format for old SVGs
+    if (!blinkGroupMatch) {
+      blinkGroupMatch = beforeMatch.match(/data-cx="([\d.]+)" data-cy="([\d.]+)"[^>]*>\s*$/);
+    }
 
     if (blinkGroupMatch) {
       const cx = parseFloat(blinkGroupMatch[1]);

@@ -23,8 +23,9 @@ import {
   applySadEyes as applySadEyesFromEyeSystem,
   applyStarEyes as applyStarEyesFromEyeSystem,
   applyDizzyEyes as applyDizzyEyesFromEyeSystem,
-  // Types
+  // Types and constants
   type EyePosition,
+  EYE_CLASSES,
 } from './eyes';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1640,8 +1641,11 @@ function generateSleepyClipAnimations(svgText: string, config: SleepyAnimationCo
   const dur = config.cycleDuration;
   
   // Find all clip-path rects and add SMIL animations to them
-  // Pattern: <rect class="blobbi-blink-clip-rect" x="..." y="..." width="..." height="..." />
-  const clipRectRegex = /<rect\s+class="blobbi-blink-clip-rect"\s+x="([^"]+)"\s+y="([^"]+)"\s+width="([^"]+)"\s+height="([^"]+)"\s*\/>/g;
+  // Uses EYE_CLASSES.clipRect for the class name
+  const clipRectRegex = new RegExp(
+    `<rect\\s+class="${EYE_CLASSES.clipRect}"\\s+x="([^"]+)"\\s+y="([^"]+)"\\s+width="([^"]+)"\\s+height="([^"]+)"\\s*/>`,
+    'g'
+  );
   
   return svgText.replace(clipRectRegex, (match, x, y, width, height) => {
     const baseY = parseFloat(y);
@@ -1658,7 +1662,7 @@ function generateSleepyClipAnimations(svgText: string, config: SleepyAnimationCo
     const heightValues = `${fullHeight};${fullHeight};${closedHeight};${closedHeight};${fullHeight};${fullHeight}`;
     const keyTimes = '0;0.10;0.35;0.62;0.75;1';
     
-    return `<rect class="blobbi-blink-clip-rect" x="${x}" y="${y}" width="${width}" height="${height}">
+    return `<rect class="${EYE_CLASSES.clipRect}" x="${x}" y="${y}" width="${width}" height="${height}">
         <animate attributeName="y" values="${yValues}" keyTimes="${keyTimes}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1" />
         <animate attributeName="height" values="${heightValues}" keyTimes="${keyTimes}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1" />
       </rect>`;

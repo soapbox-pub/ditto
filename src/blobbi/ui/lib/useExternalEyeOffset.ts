@@ -6,7 +6,7 @@
  * instead of the default mouse tracking.
  *
  * This hook:
- * - Queries the DOM for .blobbi-eye-left and .blobbi-eye-right elements
+ * - Queries the DOM for blobbi-eye-left and blobbi-eye-right elements
  * - Converts -1 to 1 offset to pixel movement
  * - Applies asymmetric vertical movement (up stronger than down)
  *
@@ -24,6 +24,7 @@ import {
   ADULT_EXTERNAL_EYE_MAX_Y_UP,
   ADULT_EXTERNAL_EYE_MAX_Y_DOWN,
 } from './constants';
+import { EYE_CLASSES } from './eyes/types';
 
 interface UseExternalEyeOffsetOptions {
   /** Reference to the container element containing the Blobbi SVG */
@@ -51,7 +52,7 @@ export function useExternalEyeOffset({
   useEffect(() => {
     if (!externalEyeOffset || !containerRef.current || isSleeping) return;
 
-    const eyeElements = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-left, .blobbi-eye-right');
+    const eyeElements = containerRef.current.querySelectorAll<SVGGElement>(`.${EYE_CLASSES.eyeLeft}, .${EYE_CLASSES.eyeRight}`);
     if (eyeElements.length === 0) return;
 
     // Select movement constants based on variant
@@ -72,6 +73,13 @@ export function useExternalEyeOffset({
         : externalEyeOffset.y * maxMovementYDown; // Looking down: reduced range
 
     eyeElements.forEach((el) => {
+      // Check if a CSS animation is controlling this element's transform
+      // (e.g., sleepy wake-up glance). Don't override CSS animations.
+      const animationName = getComputedStyle(el).animationName;
+      if (animationName && animationName !== 'none') {
+        return; // Let CSS animation control the transform
+      }
+      
       el.setAttribute('transform', `translate(${x} ${y})`);
     });
   }, [containerRef, externalEyeOffset, isSleeping, variant]);

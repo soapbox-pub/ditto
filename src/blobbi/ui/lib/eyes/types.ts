@@ -90,9 +90,7 @@ export const EYE_CLASSES = {
   effectFixedLeft: 'blobbi-eye-effect-fixed-left',
   effectFixedRight: 'blobbi-eye-effect-fixed-right',
 
-  // Clip path rectangles
-  clipRectLeft: 'blobbi-blink-clip-rect-left',
-  clipRectRight: 'blobbi-blink-clip-rect-right',
+  // Clip path rectangles (generic class - side is determined by parent clipPath ID)
   clipRect: 'blobbi-blink-clip-rect',
 
   // Specific element markers

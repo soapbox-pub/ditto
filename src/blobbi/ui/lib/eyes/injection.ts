@@ -248,7 +248,10 @@ export function animateClipPathBlink(
   openPercents: number[]
 ): string {
   // Find all clip-path rects and add SMIL animations
-  const clipRectRegex = /<rect\s+class="blobbi-blink-clip-rect"\s+x="([^"]+)"\s+y="([^"]+)"\s+width="([^"]+)"\s+height="([^"]+)"\s*\/>/g;
+  const clipRectRegex = new RegExp(
+    `<rect\\s+class="${EYE_CLASSES.clipRect}"\\s+x="([^"]+)"\\s+y="([^"]+)"\\s+width="([^"]+)"\\s+height="([^"]+)"\\s*/>`,
+    'g'
+  );
 
   return svgText.replace(clipRectRegex, (match, x, y, width, height) => {
     const baseY = parseFloat(y);
@@ -268,7 +271,7 @@ export function animateClipPathBlink(
     const keyTimesStr = keyTimes.join(';');
     const keySplines = new Array(keyTimes.length - 1).fill('0.4 0 0.6 1').join(';');
 
-    return `<rect class="blobbi-blink-clip-rect" x="${x}" y="${y}" width="${width}" height="${height}">
+    return `<rect class="${EYE_CLASSES.clipRect}" x="${x}" y="${y}" width="${width}" height="${height}">
         <animate attributeName="y" values="${yValues}" keyTimes="${keyTimesStr}" dur="${duration}s" repeatCount="indefinite" calcMode="spline" keySplines="${keySplines}" />
         <animate attributeName="height" values="${heightValues}" keyTimes="${keyTimesStr}" dur="${duration}s" repeatCount="indefinite" calcMode="spline" keySplines="${keySplines}" />
       </rect>`;
