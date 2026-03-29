@@ -11,6 +11,7 @@ import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { openUrl } from "@/lib/downloadFile";
 
 interface PullRequestCardProps {
 	event: NostrEvent;
@@ -141,11 +142,7 @@ export function PullRequestCard({
 								className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 								onClick={(e) => {
 									e.stopPropagation();
-									window.open(
-										shakespeareUrl,
-										"_blank",
-										"noopener,noreferrer",
-									);
+									openUrl(shakespeareUrl);
 								}}
 							>
 								<Wand2 className="size-3" />

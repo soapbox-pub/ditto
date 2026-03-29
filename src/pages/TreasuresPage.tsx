@@ -18,7 +18,7 @@ export function TreasuresPage() {
       kindDef={treasuresDef}
       emptyMessage={
         kinds.length === 0
-          ? 'All treasure types are disabled. Enable geocaches or found logs in Settings > Feed.'
+          ? 'All treasure types are disabled. Enable treasures or found logs in Settings > Feed.'
           : undefined
       }
     />

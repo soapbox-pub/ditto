@@ -13,7 +13,6 @@ export { BlobbiPostModal } from './components/BlobbiPostModal';
 export { StartIncubationDialog } from './components/StartIncubationDialog';
 export { StartEvolutionDialog } from './components/StartEvolutionDialog';
 export { BlobbiMissionsModal } from './components/BlobbiMissionsModal';
-export type { AudioSource } from './components/PlayMusicModal';
 
 // Hooks
 export { useBlobbiUseInventoryItem } from './hooks/useBlobbiUseInventoryItem';
@@ -88,14 +87,14 @@ export type { DirectActionRequest, DirectActionResult, UseBlobbiDirectActionPara
 export { useAudioPlayback } from './hooks/useAudioPlayback';
 export type { PlaybackState, PlaybackError, UseAudioPlaybackOptions, UseAudioPlaybackReturn } from './hooks/useAudioPlayback';
 
-// Built-in tracks
+// Track catalog
 export { 
-  BLOBBI_BUILTIN_TRACKS,
-  getAllBuiltInTracks,
-  getBuiltInTrackById,
+  BLOBBI_TRACK_CATALOG,
+  getAllTracks,
+  getTrackById,
   formatTrackDuration,
-  type BuiltInTrack,
-} from './lib/blobbi-builtin-tracks';
+  type BlobbiTrack,
+} from './lib/blobbi-track-catalog';
 
 // Activity state
 export {
@@ -108,7 +107,7 @@ export {
   type SingActivityState,
   type NoActivityState,
   type BlobbiReactionState,
-  type MusicTrackSource,
+  type SelectedTrack,
 } from './lib/blobbi-activity-state';
 
 // Re-export stat bounds from canonical source

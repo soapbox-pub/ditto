@@ -1,6 +1,6 @@
 // src/blobbi/actions/lib/blobbi-activity-state.ts
 
-import type { AudioSource } from '../components/PlayMusicModal';
+import type { SelectedTrack } from '../components/PlayMusicModal';
 
 /**
  * Types of inline activities that can be displayed in BlobbiPage
@@ -8,14 +8,14 @@ import type { AudioSource } from '../components/PlayMusicModal';
 export type InlineActivityType = 'none' | 'music' | 'sing';
 
 // Re-export for convenience
-export type { AudioSource as MusicTrackSource } from '../components/PlayMusicModal';
+export type { SelectedTrack } from '../components/PlayMusicModal';
 
 /**
  * State for the music inline activity
  */
 export interface MusicActivityState {
   type: 'music';
-  source: AudioSource;
+  selection: SelectedTrack;
   isPublished: boolean;
 }
 
@@ -54,10 +54,10 @@ export type BlobbiReactionState =
 /**
  * Helper to create a music activity state
  */
-export function createMusicActivity(source: AudioSource): MusicActivityState {
+export function createMusicActivity(selection: SelectedTrack): MusicActivityState {
   return {
     type: 'music',
-    source,
+    selection,
     isPublished: false,
   };
 }

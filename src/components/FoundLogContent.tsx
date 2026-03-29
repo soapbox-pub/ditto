@@ -39,7 +39,7 @@ export function FoundLogContent({ event }: { event: NostrEvent }) {
 
   const geocacheName = geocacheEvent?.tags.find(([n]) => n === 'name')?.[1];
 
-  // Build naddr link for the geocache
+  // Build naddr link for the treasure
   const geocacheLink = useMemo(() => {
     if (!geocacheAddr) return undefined;
     return `/${nip19.naddrEncode({ kind: geocacheAddr.kind, pubkey: geocacheAddr.pubkey, identifier: geocacheAddr.identifier })}`;
@@ -47,7 +47,7 @@ export function FoundLogContent({ event }: { event: NostrEvent }) {
 
   return (
     <div className="mt-2">
-      {/* Geocache name link + verified badge */}
+      {/* Treasure name link + verified badge */}
       <div className="flex flex-wrap items-center gap-1.5 mb-2">
         {geocacheLoading ? (
           <Skeleton className="h-5 w-32" />

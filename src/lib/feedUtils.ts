@@ -91,7 +91,7 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
   if (isDeprecatedFollowSet(event)) return true;
   // Unlisted magic decks (kind 37381)
   if (event.kind === 37381 && event.tags.some(([n, v]) => n === 't' && v === 'unlisted')) return true;
-  // Hidden geocaches (kind 37516)
+  // Hidden treasures (kind 37516)
   if (event.kind === 37516 && event.tags.some(([n, v]) => n === 't' && v === 'hidden')) return true;
   return false;
 }

@@ -11,6 +11,7 @@ import { useMemo, useRef, useEffect } from 'react';
 
 import { resolveAdultSvgWithForm, customizeAdultSvgFromBlobbi } from '@/blobbi/adult-blobbi';
 import { cn } from '@/lib/utils';
+import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
 
 import { addEyeAnimation } from './lib/eye-animation';
 import { applyEmotion, type BlobbiEmotion } from './lib/emotions';
@@ -140,6 +141,11 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
     return colorizedSvg;
   }, [blobbi, isSleeping, emotion]);
 
+  // Defense-in-depth: sanitize the final SVG before DOM injection.
+  // The upstream pipeline validates inputs (normalizeHexColor, instanceId sanitization),
+  // but this catches anything unexpected from the 3000+ lines of SVG string manipulation.
+  const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
+
   return (
     <div
       ref={containerRef}
@@ -155,8 +161,7 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
         effectiveReaction === 'singing' && 'animate-blobbi-bounce',
         className
       )}
-      // Safe: SVG content comes from our own trusted module
-      dangerouslySetInnerHTML={{ __html: customizedSvg }}
+      dangerouslySetInnerHTML={{ __html: safeSvg }}
     />
   );
 }

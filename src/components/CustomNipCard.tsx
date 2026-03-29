@@ -1,5 +1,6 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { FileCode, Wand2 } from "lucide-react";
+import { openUrl } from "@/lib/downloadFile";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 
@@ -119,11 +120,7 @@ export function CustomNipCard({ event, preview = true }: CustomNipCardProps) {
 							className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 							onClick={(e) => {
 								e.stopPropagation();
-								window.open(
-									"https://shakespeare.diy",
-									"_blank",
-									"noopener,noreferrer",
-								);
+								openUrl("https://shakespeare.diy");
 							}}
 						>
 							<Wand2 className="size-3" />

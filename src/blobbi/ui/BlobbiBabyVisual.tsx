@@ -15,6 +15,7 @@ import { useBlobbiEyes, type BlobbiLookMode } from './lib/useBlobbiEyes';
 import { cn } from '@/lib/utils';
 import type { Blobbi } from '@/blobbi/core/types/blobbi';
 import { isBlobbiSleeping } from '@/blobbi/core/types/blobbi';
+import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -134,6 +135,11 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
     return colorizedSvg;
   }, [blobbi, isSleeping, emotion]);
 
+  // Defense-in-depth: sanitize the final SVG before DOM injection.
+  // The upstream pipeline validates inputs (normalizeHexColor, instanceId sanitization),
+  // but this catches anything unexpected from the 3000+ lines of SVG string manipulation.
+  const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
+
   return (
     <div
       ref={containerRef}
@@ -149,8 +155,7 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
         effectiveReaction === 'singing' && 'animate-blobbi-bounce',
         className
       )}
-      // Safe: SVG content comes from our own trusted module
-      dangerouslySetInnerHTML={{ __html: customizedSvg }}
+      dangerouslySetInnerHTML={{ __html: safeSvg }}
     />
   );
 }

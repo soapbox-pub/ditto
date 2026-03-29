@@ -7,7 +7,7 @@
  * Streamlined for profile tabs: only Search Query, Author Scope (Me / Contacts / People / Global),
  * and multi-select Kind picker.
  */
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Loader2, Check, Globe, Users, User, UserSearch,
 } from 'lucide-react';
@@ -156,18 +156,19 @@ export function ProfileTabEditModal({
     }
   }, []);
 
-  // Reset state when modal opens
-  const handleOpenChange = (o: boolean) => {
-    if (o) {
-      setLabel(tab?.label ?? '');
+  // Reset form state whenever the modal opens or the tab being edited changes.
+  // This runs as an effect rather than inside onOpenChange because the Dialog
+  // does not fire onOpenChange when opened programmatically via the `open` prop.
+  useEffect(() => {
+    if (open) {
       const f = tab ? tab.filter : { authors: [ownerPubkey] };
+      setLabel(tab?.label ?? '');
       setQuery(typeof f.search === 'string' ? f.search : '');
       setAuthorScope(filterToScope(f, ownerPubkey));
       setPeoplePubkeys(filterToPeoplePubkeys(f, ownerPubkey));
       setSelectedKinds(parseSelectedKinds(f));
     }
-    onOpenChange(o);
-  };
+  }, [open, tab, ownerPubkey]);
 
   const handleSave = async () => {
     if (!label.trim() || isPending) return;
@@ -190,7 +191,7 @@ export function ProfileTabEditModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent ref={dialogContentRef} className="max-w-sm max-h-[90dvh] overflow-y-auto">
         <PortalContainerProvider value={portalContainer}>
         <DialogHeader>
