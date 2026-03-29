@@ -91,7 +91,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   {
     kind: 1111,
     id: 'comments',
-    feedKey: 'feedIncludePosts',
+    feedKey: 'feedIncludeComments',
     label: 'Comments',
     description: 'NIP-22 comments on posts and external content',
     addressable: false,
@@ -111,7 +111,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   {
     kind: 16,
     id: 'generic-reposts',
-    feedKey: 'feedIncludeReposts',
+    feedKey: 'feedIncludeGenericReposts',
     label: 'Reposted Other Content',
     description: 'Shared non-text-note posts from others',
     addressable: false,

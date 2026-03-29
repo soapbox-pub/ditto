@@ -59,7 +59,9 @@ const hardcodedConfig: AppConfig = {
   },
   feedSettings: {
     feedIncludePosts: true,
+    feedIncludeComments: true,
     feedIncludeReposts: true,
+    feedIncludeGenericReposts: true,
     feedIncludeArticles: true,
     showArticles: true,
     showEvents: true,

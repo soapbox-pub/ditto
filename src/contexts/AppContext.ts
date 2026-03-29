@@ -38,8 +38,12 @@ export interface BlossomServerMetadata {
 export interface FeedSettings {
   /** Include text posts (kind 1) in the feed */
   feedIncludePosts: boolean;
+  /** Include NIP-22 comments (kind 1111) in the feed */
+  feedIncludeComments: boolean;
   /** Include reposts (kind 6) in the feed */
   feedIncludeReposts: boolean;
+  /** Include generic reposts (kind 16) in the feed */
+  feedIncludeGenericReposts: boolean;
   /** Include long-form articles (kind 30023) in the feed */
   feedIncludeArticles: boolean;
   /** Show Articles (kind 30023) link in sidebar */
