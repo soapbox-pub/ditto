@@ -190,18 +190,49 @@ export function useBlobbiUseInventoryItem({
       // Start with decayed stats as the base
       const statsAfterDecay = decayResult.stats;
       
+      // ─── Validate Play Energy Requirements ───
+      // For play actions, validate the Blobbi has enough energy AFTER decay
+      if (action === 'play') {
+        const energyCost = Math.abs(shopItem.effect.energy ?? 0);
+        const currentEnergy = statsAfterDecay.energy;
+        
+        if (energyCost > 0 && currentEnergy < energyCost) {
+          throw new Error(
+            `Your Blobbi needs at least ${energyCost} energy to play with this toy (current: ${currentEnergy})`
+          );
+        }
+        
+        // Also check if playing would have any effect at all
+        // If happiness is maxed AND we can't spend energy, playing is pointless
+        const happinessGain = shopItem.effect.happiness ?? 0;
+        const currentHappiness = statsAfterDecay.happiness;
+        const wouldGainHappiness = happinessGain > 0 && currentHappiness < 100;
+        const wouldSpendEnergy = energyCost > 0 && currentEnergy >= energyCost;
+        
+        if (!wouldGainHappiness && !wouldSpendEnergy) {
+          throw new Error(
+            'Playing would have no effect - your Blobbi is already at maximum happiness and has no energy to spend'
+          );
+        }
+      }
+      
       // ─── Apply Item Effects ───
       // Apply effects multiple times (once per quantity) to simulate using items in sequence.
       // This ensures proper clamping at each step, e.g., using 5 health items when at 90 health
       // won't give more than 100 health total.
       // 
-      // CRITICAL: Track the number of items that actually produced stat changes for XP calculation.
-      // If a stat is already at 100, additional items don't increase it and shouldn't grant XP.
+      // CRITICAL: Track the number of items that actually produced INTENDED stat changes for XP.
+      // XP counting is action-aware - only count positive intended effects, NOT negative side effects:
+      // - feed: count when hunger/energy/health/happiness INCREASE (NOT when hygiene decreases)
+      // - clean: count when hygiene or happiness INCREASES
+      // - medicine: count when health/energy/happiness INCREASE (NOT negative side effects)
+      // - play: EXCEPTION - count when happiness increases OR energy decreases (both are intended effects)
+      //
       // Use canonical companion stage for egg checks
       const isEggCompanion = canonical.companion.stage === 'egg';
       const statsUpdate: Record<string, string> = {};
       const statsChanged: Record<string, number> = {};
-      let effectiveItemCount = 0; // Number of items that actually changed stats
+      let effectiveItemCount = 0; // Number of items that produced intended effects
 
       if (isEggCompanion && action === 'medicine') {
         // Egg medicine handling:
@@ -211,13 +242,13 @@ export function useBlobbiUseInventoryItem({
         
         const healthDelta = shopItem.effect.health ?? 0;
         // Apply health effect N times in sequence with clamping at each step
-        // Track how many applications actually changed the stat
+        // Only count items that actually INCREASED health (positive effect only)
         let currentHealth = statsAfterDecay.health ?? 0;
         for (let i = 0; i < quantity; i++) {
           const prevHealth = currentHealth;
           currentHealth = applyStat(currentHealth, healthDelta);
-          // Only count this item as effective if it actually changed the stat
-          if (currentHealth !== prevHealth) {
+          // Only count as effective if health increased (not just changed)
+          if (healthDelta > 0 && currentHealth > prevHealth) {
             effectiveItemCount++;
           }
         }
@@ -242,7 +273,7 @@ export function useBlobbiUseInventoryItem({
         const happinessDelta = shopItem.effect.happiness ?? 0;
         
         // Apply effects N times in sequence
-        // Track how many applications actually changed any stat
+        // Only count items that INCREASED hygiene or happiness (positive effects only)
         let currentHygiene = statsAfterDecay.hygiene ?? 0;
         let currentHappiness = statsAfterDecay.happiness ?? 0;
         for (let i = 0; i < quantity; i++) {
@@ -250,8 +281,10 @@ export function useBlobbiUseInventoryItem({
           const prevHappiness = currentHappiness;
           currentHygiene = applyStat(currentHygiene, hygieneDelta);
           currentHappiness = applyStat(currentHappiness, happinessDelta);
-          // Count this item as effective if it changed ANY stat
-          if (currentHygiene !== prevHygiene || currentHappiness !== prevHappiness) {
+          // Count as effective if hygiene OR happiness increased (positive effects only)
+          const hygieneIncreased = hygieneDelta > 0 && currentHygiene > prevHygiene;
+          const happinessIncreased = happinessDelta > 0 && currentHappiness > prevHappiness;
+          if (hygieneIncreased || happinessIncreased) {
             effectiveItemCount++;
           }
         }
@@ -273,19 +306,47 @@ export function useBlobbiUseInventoryItem({
       } else {
         // Normal stats application for baby/adult
         // Apply item effects N times in sequence ON TOP of decayed stats
-        // Track how many applications actually changed any stat
+        // Use action-aware effectiveness checking for XP calculation
         let currentStats: Partial<BlobbiStats> = { ...statsAfterDecay };
+        const effect = shopItem.effect;
+        
         for (let i = 0; i < quantity; i++) {
           const prevStats = { ...currentStats };
-          currentStats = applyItemEffects(currentStats, shopItem.effect);
-          // Count this item as effective if it changed ANY stat
-          const hasAnyChange = 
-            prevStats.hunger !== currentStats.hunger ||
-            prevStats.happiness !== currentStats.happiness ||
-            prevStats.energy !== currentStats.energy ||
-            prevStats.hygiene !== currentStats.hygiene ||
-            prevStats.health !== currentStats.health;
-          if (hasAnyChange) {
+          currentStats = applyItemEffects(currentStats, effect);
+          
+          // Action-aware effectiveness check:
+          // Only count INTENDED positive effects, not negative side effects
+          let isEffective = false;
+          
+          if (action === 'feed') {
+            // Feed: count when hunger/energy/health/happiness INCREASE
+            // Do NOT count hygiene decrease (that's a side effect)
+            const hungerIncreased = (effect.hunger ?? 0) > 0 && (currentStats.hunger ?? 0) > (prevStats.hunger ?? 0);
+            const energyIncreased = (effect.energy ?? 0) > 0 && (currentStats.energy ?? 0) > (prevStats.energy ?? 0);
+            const healthIncreased = (effect.health ?? 0) > 0 && (currentStats.health ?? 0) > (prevStats.health ?? 0);
+            const happinessIncreased = (effect.happiness ?? 0) > 0 && (currentStats.happiness ?? 0) > (prevStats.happiness ?? 0);
+            isEffective = hungerIncreased || energyIncreased || healthIncreased || happinessIncreased;
+          } else if (action === 'clean') {
+            // Clean: count when hygiene or happiness INCREASES
+            const hygieneIncreased = (effect.hygiene ?? 0) > 0 && (currentStats.hygiene ?? 0) > (prevStats.hygiene ?? 0);
+            const happinessIncreased = (effect.happiness ?? 0) > 0 && (currentStats.happiness ?? 0) > (prevStats.happiness ?? 0);
+            isEffective = hygieneIncreased || happinessIncreased;
+          } else if (action === 'medicine') {
+            // Medicine: count when health/energy/happiness INCREASE
+            // Do NOT count negative side effects (like happiness decrease on Super Medicine)
+            const healthIncreased = (effect.health ?? 0) > 0 && (currentStats.health ?? 0) > (prevStats.health ?? 0);
+            const energyIncreased = (effect.energy ?? 0) > 0 && (currentStats.energy ?? 0) > (prevStats.energy ?? 0);
+            const happinessIncreased = (effect.happiness ?? 0) > 0 && (currentStats.happiness ?? 0) > (prevStats.happiness ?? 0);
+            isEffective = healthIncreased || energyIncreased || happinessIncreased;
+          } else if (action === 'play') {
+            // Play: EXCEPTION - both happiness increase AND energy decrease are intended effects
+            // Playing naturally consumes energy, so energy decrease counts as valid
+            const happinessIncreased = (effect.happiness ?? 0) > 0 && (currentStats.happiness ?? 0) > (prevStats.happiness ?? 0);
+            const energyDecreased = (effect.energy ?? 0) < 0 && (currentStats.energy ?? 0) < (prevStats.energy ?? 0);
+            isEffective = happinessIncreased || energyDecreased;
+          }
+          
+          if (isEffective) {
             effectiveItemCount++;
           }
         }
