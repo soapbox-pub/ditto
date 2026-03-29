@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, Loader2 } from 'lucide-react';
+import { Award } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
@@ -125,8 +126,13 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
     <div className="mt-3 space-y-3">
       {/* Badge grid */}
       {badgeDefsQuery.isLoading ? (
-        <div className="flex items-center justify-center py-6">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+          {badgeRefs.slice(0, PREVIEW_LIMIT).map((ref, idx) => (
+            <div key={`${ref.aTag}-${idx}`} className="flex flex-col items-center gap-1.5">
+              <Skeleton className="size-12 rounded-lg" />
+              <Skeleton className="h-2.5 w-12" />
+            </div>
+          ))}
         </div>
       ) : showRefs.length > 0 ? (
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
