@@ -130,7 +130,7 @@ function isIdsOnlyFilter(filter: NostrFilter): filter is { ids: string[]; limit?
  * single multi-kind query when multiple hooks request different kinds for the
  * same pubkey in the same microtask tick.
  */
-const REPLACEABLE_KINDS = new Set([0, 3, 10000, 10001, 10002, 10003, 16767]);
+const REPLACEABLE_KINDS = new Set([0, 3, 10000, 10001, 10002, 10003, 10015, 10030, 10063, 16767]);
 
 /**
  * A filter that fetches a single replaceable event by author:
