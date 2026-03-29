@@ -144,7 +144,6 @@ import { CommunityContent } from "@/components/CommunityContent";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
 import { EmojiPackContent } from "@/components/EmojiPackContent";
 import {
-  AddressableEventPreview,
   CommunityPreview,
   ExternalContentPreview,
   ProfilePreview,
@@ -1397,7 +1396,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       )}
       {profileRootPubkey && <ProfilePreview pubkey={profileRootPubkey} />}
       {communityRootAddr && <CommunityPreview addr={communityRootAddr} />}
-      {addrRoot && <AddressableEventPreview addr={addrRoot} />}
+      {addrRoot && <AddrAncestor addr={addrRoot} />}
 
       {/* Book context for reviews (kind 31985) and posts that tag a book */}
       {bookIsbn && <ExternalContentPreview identifier={`isbn:${bookIsbn}`} />}
@@ -2122,6 +2121,41 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Renders a parent event fetched by addr coordinates as a threaded NoteCard.
+ * Used when a kind 1111 comment references its root via an `a` tag (no event ID).
+ */
+function AddrAncestor({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
+  const { data: event, isLoading } = useAddrEvent(addr);
+
+  if (isLoading) {
+    return (
+      <div className="px-4 pt-3 pb-0">
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center">
+            <Skeleton className="size-10 rounded-full shrink-0" />
+            <div className="w-0.5 flex-1 mt-2 bg-foreground/20" />
+          </div>
+          <div className="flex-1 min-w-0 pb-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!event) return null;
+
+  return <NoteCard event={event} threaded />;
 }
 
 /**
