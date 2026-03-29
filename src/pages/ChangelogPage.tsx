@@ -49,6 +49,7 @@ function formatDate(raw: string): string {
 
 const commitSha = import.meta.env.COMMIT_SHA;
 const commitTag = import.meta.env.COMMIT_TAG;
+const buildDate = import.meta.env.BUILD_DATE;
 const isPreRelease = !commitTag;
 
 export function ChangelogPage() {
@@ -153,21 +154,21 @@ function PreReleaseBanner({ latestVersion }: { latestVersion: string }) {
       <div className="flex items-center gap-2">
         <FlaskConical className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
         <span className="text-sm font-medium text-amber-800 dark:text-amber-300">Pre-release build</span>
-        {commitSha && (
+        {commitSha && buildDate && (
           <a
             href={`${GITLAB_REPO}/-/commit/${commitSha}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto text-[11px] font-mono text-amber-600/70 dark:text-amber-400/70 hover:text-amber-800 dark:hover:text-amber-300 transition-colors"
+            className="ml-auto text-[11px] text-amber-600/70 dark:text-amber-400/70 hover:text-amber-800 dark:hover:text-amber-300 transition-colors"
           >
-            {commitSha}
+            {formatDate(buildDate.split('T')[0])}
           </a>
         )}
       </div>
       <p className="text-xs text-amber-700/80 dark:text-amber-400/70">
         This build contains changes not yet included in a release.{' '}
         <a
-          href={`${GITLAB_REPO}/-/compare/v${latestVersion}...main`}
+          href={`${GITLAB_REPO}/-/compare/v${latestVersion}...${commitSha || 'main'}`}
           target="_blank"
           rel="noopener noreferrer"
           className="underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-200 transition-colors"
