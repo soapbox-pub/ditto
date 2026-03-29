@@ -693,6 +693,27 @@ export function MyComponent() {
 
 The `useCurrentUser` hook should be used to ensure that the user is logged in before they are able to publish Nostr events.
 
+### Mutating Replaceable Events (CRITICAL)
+
+Replaceable (kind 10000-19999) and addressable (kind 30000-39999) events require a read-modify-write cycle: fetch the current event, modify its tags, then publish a new version. **Never read from TanStack Query cache before mutating** -- the cache can be stale from another device or a rapid prior operation, and republishing stale data silently drops the user's data.
+
+Use `fetchFreshEvent()` from `src/lib/fetchFreshEvent.ts` inside every mutation:
+
+```typescript
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+
+// Inside a mutation function:
+const freshEvent = await fetchFreshEvent(nostr, {
+  kinds: [10003],
+  authors: [user.pubkey],
+});
+const currentTags = freshEvent?.tags ?? [];
+// ...modify tags...
+await publishEvent({ kind: 10003, content: freshEvent?.content ?? '', tags: newTags });
+```
+
+This applies to all list-type hooks (bookmarks, pins, interests, follow sets, badges, etc.). See `useFollowActions` and `useMuteList` for complete examples.
+
 ### Nostr Login
 
 To enable login with Nostr, simply use the `LoginArea` component already included in this project.
