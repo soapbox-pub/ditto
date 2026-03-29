@@ -22,8 +22,9 @@ const TOUCH_LINGER_MS = 600;
  *
  * @param maxTilt  Maximum rotation in degrees (default 20)
  * @param scaleFactor  Scale multiplier on hover (default 1.05)
+ * @param perspective  CSS perspective distance in px (default 600)
  */
-export function useCardTilt(maxTilt = 20, scaleFactor = 1.05) {
+export function useCardTilt(maxTilt = 20, scaleFactor = 1.05, perspective = 600) {
   const ref = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState<TiltState>(INITIAL);
   const frameRef = useRef<number>(0);
@@ -106,7 +107,7 @@ export function useCardTilt(maxTilt = 20, scaleFactor = 1.05) {
   );
 
   const style: React.CSSProperties = {
-    transform: `perspective(600px) rotateX(${tilt.rotateX}deg) rotateY(${tilt.rotateY}deg) scale3d(${tilt.scale}, ${tilt.scale}, ${tilt.scale})`,
+    transform: `perspective(${perspective}px) rotateX(${tilt.rotateX}deg) rotateY(${tilt.rotateY}deg) scale3d(${tilt.scale}, ${tilt.scale}, ${tilt.scale})`,
     transition: tilt.scale === 1 ? 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1)' : 'transform 0.1s ease-out',
     willChange: 'transform',
     touchAction: 'none',

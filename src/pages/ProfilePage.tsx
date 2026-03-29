@@ -2190,7 +2190,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                         key={ref.aTag}
                         to={`/${nip19.naddrEncode({ kind: 30009, pubkey: ref.pubkey, identifier: ref.identifier })}`}
                       >
-                        <BadgeThumbnail badge={badge} size={32} className="transition-transform hover:scale-110" />
+                        <BadgeThumbnail badge={badge} size={32} />
                       </Link>
                     );
                   })}

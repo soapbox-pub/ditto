@@ -6,7 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { parseBadgeDefinition } from '@/components/BadgeContent';
+import { parseBadgeDefinition, type BadgeData } from '@/components/BadgeContent';
+import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { isProfileBadgesKind } from '@/lib/badgeUtils';
 
 /** Maximum badges to show in the preview grid before truncating. */
@@ -100,18 +101,15 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
     staleTime: 5 * 60_000,
   });
 
-  // Build a lookup map from a-tag to parsed badge display info
+  // Build a lookup map from a-tag to parsed badge data
   const badgeMap = useMemo(() => {
-    const map = new Map<string, { name: string; thumb?: string; description?: string }>();
+    const map = new Map<string, BadgeData>();
     if (!badgeDefsQuery.data) return map;
     for (const event of badgeDefsQuery.data) {
       const parsed = parseBadgeDefinition(event);
       if (!parsed) continue;
       const aTag = `30009:${event.pubkey}:${parsed.identifier}`;
-      const thumb = parsed.thumbs.find((t) => t.dimensions === '64x64')?.url
-        ?? parsed.thumbs[0]?.url
-        ?? parsed.image;
-      map.set(aTag, { name: parsed.name, thumb, description: parsed.description });
+      map.set(aTag, parsed);
     }
     return map;
   }, [badgeDefsQuery.data]);
@@ -142,16 +140,10 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
                 title={badge?.description || badge?.name || ref.identifier}
                 onClick={(e) => e.stopPropagation()}
               >
-                {badge?.thumb ? (
-                  <img
-                    src={badge.thumb}
-                    alt={badge.name}
-                    className="size-12 rounded-lg object-cover transition-transform group-hover:scale-110"
-                    loading="lazy"
-                    decoding="async"
-                  />
+                {badge ? (
+                  <BadgeThumbnail badge={badge} size={48} />
                 ) : (
-                  <div className="size-12 rounded-lg border border-border bg-background flex items-center justify-center transition-transform group-hover:scale-110">
+                  <div className="size-12 rounded-lg border border-border bg-background flex items-center justify-center">
                     <Award className="size-6 text-muted-foreground" />
                   </div>
                 )}

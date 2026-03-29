@@ -1,5 +1,8 @@
+import { useCallback } from 'react';
 import { Award } from 'lucide-react';
+
 import type { BadgeData } from '@/components/BadgeContent';
+import { useCardTilt } from '@/hooks/useCardTilt';
 import { cn } from '@/lib/utils';
 
 interface BadgeThumbnailProps {
@@ -12,39 +15,70 @@ interface BadgeThumbnailProps {
 /**
  * Renders a badge thumbnail with appropriate image resolution for the given size.
  * Falls back to an Award icon when no image is available.
+ *
+ * Includes a mouse-only 3D tilt effect. Touch events are ignored so tapping
+ * through to badge detail views and normal scrolling are not disrupted.
  */
 export function BadgeThumbnail({ badge, size = 48, className }: BadgeThumbnailProps) {
-  // Pick the best image for the requested size
   const thumbUrl = pickThumb(badge, size);
+  // Tight perspective relative to the small thumbnail makes the 3D rotation
+  // clearly visible even on 28-48px elements.
+  const tilt = useCardTilt(35, 1.15, size * 3);
 
-  return thumbUrl ? (
-    <img
-      src={thumbUrl}
-      alt={badge.name}
-      className={cn(
-        'rounded-lg object-cover',
-        className,
-      )}
-      style={{ width: size, height: size }}
-      loading="lazy"
-      decoding="async"
-    />
-  ) : (
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.pointerType === 'touch') return;
+      tilt.onPointerMove(e);
+    },
+    [tilt],
+  );
+
+  const handlePointerLeave = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.pointerType === 'touch') return;
+      tilt.onPointerLeave(e);
+    },
+    [tilt],
+  );
+
+  const style: React.CSSProperties = {
+    ...tilt.style,
+    touchAction: 'auto',
+  };
+
+  return (
     <div
-      className={cn(
-        'rounded-lg border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center',
-        className,
-      )}
-      style={{ width: size, height: size }}
+      ref={tilt.ref}
+      style={style}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
     >
-      <Award className="text-primary/30" style={{ width: size * 0.5, height: size * 0.5 }} />
+      {thumbUrl ? (
+        <img
+          src={thumbUrl}
+          alt={badge.name}
+          className={cn('rounded-lg object-cover', className)}
+          style={{ width: size, height: size }}
+          loading="lazy"
+          decoding="async"
+        />
+      ) : (
+        <div
+          className={cn(
+            'rounded-lg border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center',
+            className,
+          )}
+          style={{ width: size, height: size }}
+        >
+          <Award className="text-primary/30" style={{ width: size * 0.5, height: size * 0.5 }} />
+        </div>
+      )}
     </div>
   );
 }
 
 /** Pick the best thumbnail or image for a target pixel size. */
 function pickThumb(badge: BadgeData, targetSize: number): string | undefined {
-  // Prefer exact or next-larger thumbnail
   const sorted = [...badge.thumbs].sort((a, b) => {
     const aSize = parseDimension(a.dimensions);
     const bSize = parseDimension(b.dimensions);
@@ -56,7 +90,6 @@ function pickThumb(badge: BadgeData, targetSize: number): string | undefined {
     if (dim >= targetSize) return thumb.url;
   }
 
-  // Fall back to largest thumb, then full image
   return sorted[sorted.length - 1]?.url ?? badge.image;
 }
 

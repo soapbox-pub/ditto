@@ -142,7 +142,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
                   to={`/${nip19.naddrEncode({ kind: 30009, pubkey: ref.pubkey, identifier: ref.identifier })}`}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <BadgeThumbnail badge={badge} size={28} className="transition-transform hover:scale-110" />
+                  <BadgeThumbnail badge={badge} size={28} />
                 </Link>
               );
             })}
