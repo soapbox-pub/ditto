@@ -28,6 +28,7 @@ import {
 } from '../utils/animation';
 import { BlobbiCompanionVisual } from './BlobbiCompanionVisual';
 import { useClickDetection } from '../interaction';
+import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
 interface BlobbiCompanionProps {
   /** Companion data */
@@ -58,6 +59,10 @@ interface BlobbiCompanionProps {
   onEndDrag: () => void;
   /** Click callback (when interaction is a click, not a drag) */
   onClick?: () => void;
+  /** Base emotion for persistent face state (boring, dirty, dizzy, hungry) */
+  baseEmotion?: BlobbiEmotion;
+  /** Overlay emotion (sleepy, action override, etc.) */
+  emotion?: BlobbiEmotion;
   /** Callback to report rendered position (including animations) */
   onPositionUpdate?: (position: Position) => void;
   /** Debug mode - disables animations and shows visual debug aids */
@@ -79,6 +84,8 @@ export function BlobbiCompanion({
   onUpdateDrag,
   onEndDrag,
   onClick,
+  baseEmotion,
+  emotion,
   onPositionUpdate,
   debugMode = false,
 }: BlobbiCompanionProps) {
@@ -316,6 +323,8 @@ export function BlobbiCompanion({
         floatOffset={floatOffset}
         isOnGround={isOnGround}
         distanceFromGround={distanceFromGround}
+        baseEmotion={baseEmotion}
+        emotion={emotion}
         debugMode={debugMode}
       />
     </div>

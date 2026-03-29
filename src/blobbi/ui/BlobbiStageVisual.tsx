@@ -47,11 +47,17 @@ export interface BlobbiStageVisualProps {
   /** Disable blinking animation (for photo/export mode) */
   disableBlink?: boolean;
   /** 
-   * Emotional state to display.
-   * Adds visual overlays like eyebrows, modified mouth, and tears.
+   * Emotional state to display (overlay emotion).
+   * When used with baseEmotion, this is applied on top of the base.
    * Default: 'neutral' (no modifications)
    */
   emotion?: BlobbiEmotion;
+  /**
+   * Base emotion for persistent face state (boring, dirty, dizzy, hungry).
+   * Applied first, then the overlay emotion animates on top.
+   * Example: baseEmotion='boring', emotion='sleepy' → boring face with sleepy animation
+   */
+  baseEmotion?: BlobbiEmotion;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -88,6 +94,7 @@ export function BlobbiStageVisual({
   lookMode = 'follow-pointer',
   disableBlink = false,
   emotion = 'neutral',
+  baseEmotion,
   className,
 }: BlobbiStageVisualProps) {
   const { stage } = companion;
@@ -134,6 +141,7 @@ export function BlobbiStageVisual({
           lookMode={lookMode}
           disableBlink={disableBlink}
           emotion={emotion}
+          baseEmotion={baseEmotion}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />
@@ -151,6 +159,7 @@ export function BlobbiStageVisual({
           lookMode={lookMode}
           disableBlink={disableBlink}
           emotion={emotion}
+          baseEmotion={baseEmotion}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />

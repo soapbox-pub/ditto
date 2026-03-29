@@ -11,6 +11,7 @@ import { BlobbiBabyVisual } from '@/blobbi/ui/BlobbiBabyVisual';
 import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
 import { companionDataToBlobbi } from '@/blobbi/ui/lib/adapters';
 import { useEffectiveEmotion } from '@/blobbi/dev/EmotionDevContext';
+import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 import { cn } from '@/lib/utils';
 import type { CompanionData, EyeOffset, CompanionDirection } from '../types/companion.types';
 
@@ -33,6 +34,10 @@ interface BlobbiCompanionVisualProps {
   isOnGround?: boolean;
   /** Distance from ground in pixels (for shadow fade, 0 = on ground) */
   distanceFromGround?: number;
+  /** Base emotion for persistent face state (boring, dirty, dizzy, hungry) */
+  baseEmotion?: BlobbiEmotion;
+  /** Overlay emotion (sleepy, action override, etc.) */
+  emotion?: BlobbiEmotion;
   /** Additional class names */
   className?: string;
   /** Debug mode - shows visual boundaries */
@@ -51,6 +56,8 @@ export function BlobbiCompanionVisual({
   floatOffset = { x: 0, y: 0, rotation: 0 },
   isOnGround = true,
   distanceFromGround = 0,
+  baseEmotion: baseEmotionProp,
+  emotion: emotionProp,
   className,
   debugMode = false,
 }: BlobbiCompanionVisualProps) {
@@ -58,8 +65,13 @@ export function BlobbiCompanionVisual({
   
   const blobbi = useMemo(() => companionDataToBlobbi(companion), [companion]);
   
-  // DEV ONLY: Get effective emotion from dev context
-  const effectiveEmotion = useEffectiveEmotion();
+  // DEV ONLY: Get effective emotion from dev context (overrides production emotions)
+  const devEmotion = useEffectiveEmotion();
+  const hasDevOverride = devEmotion !== 'neutral';
+  
+  // Final emotions: dev override > props from status reaction system
+  const effectiveBaseEmotion = hasDevOverride ? undefined : baseEmotionProp;
+  const effectiveEmotion = hasDevOverride ? devEmotion : (emotionProp ?? 'neutral');
   
   // Eye offset is now passed directly to the visual components via externalEyeOffset prop
   // This is more reliable than DOM manipulation which can be overwritten by useBlobbiEyes
@@ -206,6 +218,7 @@ export function BlobbiCompanionVisual({
             lookMode="forward"
             externalEyeOffset={eyeOffset}
             emotion={effectiveEmotion}
+            baseEmotion={effectiveBaseEmotion}
             className="size-full"
           />
         )}
@@ -216,6 +229,7 @@ export function BlobbiCompanionVisual({
             lookMode="forward"
             externalEyeOffset={eyeOffset}
             emotion={effectiveEmotion}
+            baseEmotion={effectiveBaseEmotion}
             className="size-full"
           />
         )}

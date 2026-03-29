@@ -878,16 +878,20 @@ function BlobbiDashboard({
     energy: projectedState?.stats.energy ?? companion.stats.energy ?? 100,
   }), [projectedState, companion.stats]);
   
-  const { currentEmotion: statusEmotion } = useStatusReaction({
+  const { baseEmotion: statusBaseEmotion, overlayEmotion: statusOverlayEmotion } = useStatusReaction({
     stats: currentStats,
     enabled: !isSleeping && !isEgg, // Disable when sleeping or egg stage
     actionOverride: actionOverrideEmotion,
   });
   
-  // Final emotion: dev override > status reaction system (which handles action override internally)
-  const effectiveEmotion: BlobbiEmotion = isLocalhostDev() && devEmotionOverride !== 'neutral' 
-    ? devEmotionOverride 
-    : statusEmotion;
+  // Final emotions: dev override > status reaction system
+  // Dev override replaces the overlay for visual testing; base persists underneath
+  const hasDevOverride = isLocalhostDev() && devEmotionOverride !== 'neutral';
+  const effectiveBaseEmotion: BlobbiEmotion = hasDevOverride ? 'neutral' : statusBaseEmotion;
+  const effectiveOverlayEmotion: BlobbiEmotion | null = hasDevOverride ? devEmotionOverride : statusOverlayEmotion;
+  
+  // The emotion prop passed to the visual: overlay if present, otherwise base
+  const effectiveEmotion: BlobbiEmotion = effectiveOverlayEmotion ?? effectiveBaseEmotion;
   
   // Adoption flow modal state
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
@@ -1425,6 +1429,7 @@ function BlobbiDashboard({
               animated={!isSleeping}
               reaction={blobbiReaction}
               emotion={effectiveEmotion}
+              baseEmotion={effectiveBaseEmotion !== 'neutral' ? effectiveBaseEmotion : undefined}
               className="size-48 sm:size-56"
             />
           </div>

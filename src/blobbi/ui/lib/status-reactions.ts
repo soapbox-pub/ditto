@@ -259,6 +259,10 @@ export function analyzeAllStats(stats: BlobbiStats): StatAnalysis[] {
  * Resolve the best reaction to show based on current stats.
  * Uses priority-based selection with probabilistic triggering.
  * 
+ * @deprecated Use `resolveStatusEmotions()` instead, which properly separates
+ * base and overlay emotions. This function flattens everything into a single
+ * emotion and is kept only for legacy compatibility.
+ * 
  * @param stats - Current Blobbi stats
  * @param forceCheck - If true, bypasses probability check (useful for initial state)
  * @param timing - Timing configuration
@@ -356,32 +360,6 @@ export function resolveStatusEmotions(stats: BlobbiStats): StatusEmotionResult {
     triggeringBaseStat: baseWinner?.stat ?? null,
     triggeringOverlayStat: sleepyAnalysis?.stat ?? null,
   };
-}
-
-/**
- * Combine base and overlay emotions into a single emotion for the visual system.
- * 
- * The visual system (BlobbiAdultVisual/BlobbiBabyVisual) applies emotions sequentially:
- * 1. Apply base emotion (changes face: mouth, eyes, eyebrows)
- * 2. Apply overlay emotion (adds animations on top without replacing the face)
- * 
- * When both are present, overlay takes precedence as the "primary" emotion,
- * but the applyEmotion function internally applies the base first.
- * 
- * @param result - Result from resolveStatusEmotions
- * @returns The emotion to pass to visual components
- */
-export function combineEmotions(result: StatusEmotionResult): BlobbiEmotion {
-  // If we have both base and overlay, return overlay (which will apply base first internally)
-  // If we only have overlay (shouldn't happen, but handle it), return overlay
-  // If we only have base, return base
-  // If neither, return neutral
-  
-  if (result.overlayEmotion) {
-    return result.overlayEmotion;
-  }
-  
-  return result.baseEmotion ?? 'neutral';
 }
 
 // ─── Action Emotion Mapping ───────────────────────────────────────────────────

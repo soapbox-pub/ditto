@@ -14,13 +14,16 @@
  * - Selecting an action shows available items as floating bubbles
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 
 import { useBlobbiCompanion } from '../hooks/useBlobbiCompanion';
 import { useCompanionItemReaction } from '../hooks/useCompanionItemReaction';
 import { BlobbiCompanion } from './BlobbiCompanion';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { calculateGroundY } from '../utils/movement';
+import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
+import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
+import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 import {
   useCompanionActionMenu,
   useBlobbiActions,
@@ -211,6 +214,37 @@ export function BlobbiCompanionLayer() {
     closeMenu();
   }, [closeMenu]);
   
+  // Status-based emotion reactions for the companion
+  // Uses the same two-layer system as the main BlobbiPage
+  const isSleeping = companion?.state === 'sleeping';
+  const companionStats = useMemo(() => companion?.stats ?? {
+    hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100,
+  }, [companion?.stats]);
+  
+  const [companionActionOverride, setCompanionActionOverride] = useState<BlobbiEmotion | null>(null);
+  
+  const { baseEmotion: companionBaseEmotion, overlayEmotion: companionOverlayEmotion } = useStatusReaction({
+    stats: companionStats,
+    enabled: isVisible && !isSleeping && companion?.stage !== 'egg',
+    actionOverride: companionActionOverride,
+  });
+  
+  // Set action override when using items on companion
+  // (This is triggered by handleItemUse above - we wrap it to add emotion)
+  const originalHandleItemUse = handleItemUse;
+  const handleItemUseWithEmotion = useCallback(async (item: CompanionItem): Promise<{ success: boolean; error?: string }> => {
+    const action = CATEGORY_TO_ACTION[item.category] as ActionType | undefined;
+    if (action) {
+      setCompanionActionOverride(getActionEmotion(action));
+      setTimeout(() => setCompanionActionOverride(null), 1500);
+    }
+    return originalHandleItemUse(item);
+  }, [originalHandleItemUse]);
+  
+  // Compute the emotion prop: overlay if present, otherwise base
+  const companionEmotionProp = companionOverlayEmotion ?? companionBaseEmotion;
+  const companionBaseEmotionProp = companionBaseEmotion !== 'neutral' ? companionBaseEmotion : undefined;
+  
   // Don't render anything if not visible
   if (!isVisible || !companion) {
     return null;
@@ -232,6 +266,8 @@ export function BlobbiCompanionLayer() {
     onUpdateDrag: updateDrag,
     onEndDrag: endDrag,
     onClick: handleCompanionClick,
+    baseEmotion: companionBaseEmotionProp,
+    emotion: companionEmotionProp,
     onPositionUpdate: handlePositionUpdate,
   };
   
@@ -354,7 +390,7 @@ export function BlobbiCompanionLayer() {
         companionSize={config.size}
         onItemRelease={handleItemClick}
         onItemLanded={handleItemLanded}
-        onItemUse={handleItemUse}
+        onItemUse={handleItemUseWithEmotion}
         isItemOnCooldown={isItemOnCooldown}
       />
     </div>

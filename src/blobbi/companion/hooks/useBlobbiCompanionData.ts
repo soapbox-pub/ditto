@@ -100,6 +100,14 @@ export function useBlobbiCompanionData(): UseBlobbiCompanionDataResult {
       stage: blobbi.stage,
       visualTraits: blobbi.visualTraits,
       energy: blobbi.stats.energy ?? 100,
+      stats: {
+        hunger: blobbi.stats.hunger ?? 100,
+        happiness: blobbi.stats.happiness ?? 100,
+        health: blobbi.stats.health ?? 100,
+        hygiene: blobbi.stats.hygiene ?? 100,
+        energy: blobbi.stats.energy ?? 100,
+      },
+      state: blobbi.state,
       // Include adult form info for proper rendering
       adultType: blobbi.adultType,
       seed: blobbi.seed,
