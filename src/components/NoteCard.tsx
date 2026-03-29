@@ -1033,6 +1033,28 @@ export const NoteCard = memo(function NoteCard({
 
   // ── Threaded layout (with or without connector line) ──
   if (threaded || threadedLast) {
+    // Kind action header (e.g. "updated their badges") — same logic as normal layout
+    const threadedKindHeader = !repostedBy && KIND_HEADER_MAP[event.kind]
+      ? (() => {
+          const cfg = KIND_HEADER_MAP[event.kind];
+          const isLive = event.kind === 30311 && getEffectiveStreamStatus(event) === "live";
+          return (
+            <EventActionHeader
+              pubkey={event.pubkey}
+              icon={cfg.icon}
+              iconClassName={
+                event.kind === 30311
+                  ? isLive ? "text-primary" : "text-muted-foreground"
+                  : cfg.iconClassName
+              }
+              action={typeof cfg.action === "function" ? cfg.action(event.tags, event) : cfg.action}
+              noun={cfg.noun}
+              nounRoute={cfg.nounRoute}
+            />
+          );
+        })()
+      : null;
+
     return (
       <article
         className={cn(
@@ -1043,6 +1065,7 @@ export const NoteCard = memo(function NoteCard({
         onClick={handleCardClick}
         onAuxClick={handleAuxClick}
       >
+        {threadedKindHeader}
         {isFollowPack ? (
           <div className={cn("min-w-0", threaded && "pb-3")}>
             {contentBlock}
