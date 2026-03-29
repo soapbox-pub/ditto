@@ -33,7 +33,7 @@ import {
 /**
  * Available emotion states for Blobbies
  */
-export type BlobbiEmotion = 'neutral' | 'sad' | 'happy' | 'angry' | 'surprised' | 'sleepy' | 'curious' | 'dizzy' | 'excited' | 'excitedB' | 'mischievous' | 'adoring' | 'hungry';
+export type BlobbiEmotion = 'neutral' | 'sad' | 'boring' | 'dirty' | 'happy' | 'angry' | 'surprised' | 'sleepy' | 'curious' | 'dizzy' | 'excited' | 'excitedB' | 'mischievous' | 'adoring' | 'hungry';
 
 /**
  * Blobbi variant for variant-specific adjustments
@@ -74,6 +74,10 @@ export interface EmotionConfig {
   foodIcon?: FoodIconConfig;
   /** Droopy/weak mouth (less curved than sad) */
   droopyMouth?: DroopyMouthConfig;
+  /** Dirt marks on body (for dirty emotion) */
+  dirtMarks?: DirtMarksConfig;
+  /** Stink cloud puffs (for dirty emotion) */
+  stinkClouds?: StinkCloudsConfig;
 }
 
 export interface PupilModification {
@@ -198,6 +202,20 @@ export interface DroopyMouthConfig {
   curveScale: number;
 }
 
+export interface DirtMarksConfig {
+  /** Enable dirt marks on body */
+  enabled: boolean;
+  /** Number of dirt marks (default: 3) */
+  count?: number;
+}
+
+export interface StinkCloudsConfig {
+  /** Enable stink clouds animation */
+  enabled: boolean;
+  /** Number of cloud puffs (default: 3) */
+  count?: number;
+}
+
 // ─── Emotion Configurations ───────────────────────────────────────────────────
 
 /**
@@ -229,6 +247,42 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
       eye: 'alternating', // Alternates between eyes over time
       duration: 6, // Slower: 6 seconds per tear cycle
       pauseBetween: 3, // 3 second pause between tears
+    },
+  },
+  boring: {
+    // Low-energy, unamused, mildly down - not dramatic like sad
+    // No tears, just tired/unimpressed look
+    droopyMouth: {
+      widthScale: 0.9, // Slightly narrower (tired)
+      curveScale: 0.4, // Very shallow frown (barely there)
+    },
+    eyebrows: {
+      angle: 0, // Flat eyebrows (no emotion, just tired/bored)
+      offsetY: -9, // Positioned above eyes
+      strokeWidth: 1.3, // Thin, subtle
+      color: '#4b5563', // Lighter gray (less intense than sad)
+    },
+  },
+  dirty: {
+    // Hygiene-related bad state - visual indicators of dirtiness
+    // Uses the boring face as base, plus dirt/stink effects
+    droopyMouth: {
+      widthScale: 0.9,
+      curveScale: 0.4,
+    },
+    eyebrows: {
+      angle: 0,
+      offsetY: -9,
+      strokeWidth: 1.3,
+      color: '#4b5563',
+    },
+    dirtMarks: {
+      enabled: true,
+      count: 3, // 3 small dirt marks/scratches
+    },
+    stinkClouds: {
+      enabled: true,
+      count: 3, // 3 small stink puffs
     },
   },
   happy: {
@@ -1514,47 +1568,73 @@ function generateSleepyStyles(config: SleepyAnimationConfig): string {
 
 /**
  * Generate animated sleepy mouth that transitions:
- * smile → U-shaped sleepy mouth → smile
+ * current mouth → U-shaped sleepy mouth → current mouth
  * 
  * Uses SVG SMIL animation on path d attribute for smooth morphing.
- * No intermediate flat line - direct transition to the cute U-shaped mouth.
+ * This works as an OVERLAY - it animates whatever mouth is already present,
+ * so if Blobbi has a frown from being unhealthy, it will animate:
+ * frown → U-shaped sleepy mouth → frown (NOT smile!)
+ * 
+ * @param svgText - The current SVG content with mouth already applied
+ * @param config - Sleepy animation configuration
+ * @returns The current mouth path with SMIL animation added
  */
-function generateSleepyMouth(mouth: MouthPosition, config: SleepyAnimationConfig): string {
+function applySleepyMouthAnimation(svgText: string, config: SleepyAnimationConfig): string {
   const dur = config.cycleDuration;
   
-  // Calculate mouth center for U-shaped mouth position
-  const centerX = (mouth.startX + mouth.endX) / 2;
-  const baselineY = (mouth.startY + mouth.endY) / 2;
+  // Find the current mouth path in the SVG
+  // This could be the default smile, a sad frown, a droopy mouth, etc.
+  // We want to animate FROM this current state, not replace it
+  const mouthRegex = /<path[^>]*class="[^"]*blobbi-mouth[^"]*"[^>]*d="([^"]+)"([^>]*)\/>/;
+  const match = svgText.match(mouthRegex);
   
-  // 1. Original smile path
-  const smilePath = `M ${mouth.startX} ${mouth.startY} Q ${mouth.controlX} ${mouth.controlY} ${mouth.endX} ${mouth.endY}`;
+  if (!match) {
+    // No mouth found, can't apply animation
+    return svgText;
+  }
+  
+  const [fullMatch, currentMouthPath, restOfAttributes] = match;
+  
+  // Parse the current mouth to get its center point
+  // Extract coordinates from the path (M x y Q cx cy ex ey)
+  const coordMatch = currentMouthPath.match(/M\s*([\d.]+)\s+([\d.]+)\s*Q\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+  if (!coordMatch) {
+    return svgText;
+  }
+  
+  const startX = parseFloat(coordMatch[1]);
+  const startY = parseFloat(coordMatch[2]);
+  const endX = parseFloat(coordMatch[5]);
+  const endY = parseFloat(coordMatch[6]);
+  
+  // Calculate center for the U-shaped sleepy mouth
+  const centerX = (startX + endX) / 2;
+  const baselineY = (startY + endY) / 2;
   
   // 2. U-shaped sleepy mouth (small, cute, rounded)
   const roundRadius = 3;
   const uMouthPath = `M ${centerX - roundRadius} ${baselineY} Q ${centerX - roundRadius} ${baselineY + roundRadius * 1.5} ${centerX} ${baselineY + roundRadius * 1.5} Q ${centerX + roundRadius} ${baselineY + roundRadius * 1.5} ${centerX + roundRadius} ${baselineY}`;
   
-  // Intermediate: smile that's starting to close (less wide, transitioning toward U)
-  const transitionPath = `M ${centerX - roundRadius * 2} ${baselineY} Q ${centerX} ${mouth.controlY * 0.7 + baselineY * 0.3} ${centerX + roundRadius * 2} ${baselineY}`;
+  // Intermediate: transitioning toward U (narrower than current, but not fully U yet)
+  const transitionPath = `M ${centerX - roundRadius * 2} ${baselineY} Q ${centerX} ${baselineY + roundRadius * 0.8} ${centerX + roundRadius * 2} ${baselineY}`;
   
-  // Timeline - direct smile to U-shaped transition:
-  // 0-10%:   smile (awake)
-  // 10-25%:  smile → transition (getting sleepy)
+  // Timeline - animate from CURRENT mouth to U-shaped and back:
+  // 0-10%:   current mouth (awake)
+  // 10-25%:  current → transition (getting sleepy)
   // 25-40%:  transition → U-shaped (falling asleep)
   // 40-62%:  U-shaped (asleep)
   // 62-75%:  U-shaped → transition (waking)
-  // 75-90%:  transition → smile
-  // 90-100%: smile (awake, glancing)
+  // 75-90%:  transition → current mouth
+  // 90-100%: current mouth (awake, glancing)
   
-  return `<path 
+  const animatedMouth = `<path 
     class="blobbi-mouth blobbi-mouth-sleepy"
-    d="${smilePath}"
-    ${mouth.strokeAttrs || 'stroke="#1f2937" stroke-width="2.5"'}
-    fill="none" 
-    stroke-linecap="round"
+    d="${currentMouthPath}"
+    ${restOfAttributes}
   >
     <animate
       attributeName="d"
-      values="${smilePath};${smilePath};${transitionPath};${uMouthPath};${uMouthPath};${transitionPath};${smilePath};${smilePath}"
+      values="${currentMouthPath};${currentMouthPath};${transitionPath};${uMouthPath};${uMouthPath};${transitionPath};${currentMouthPath};${currentMouthPath}"
       keyTimes="0;0.10;0.25;0.40;0.62;0.75;0.90;1"
       dur="${dur}s"
       repeatCount="indefinite"
@@ -1562,6 +1642,8 @@ function generateSleepyMouth(mouth: MouthPosition, config: SleepyAnimationConfig
       keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"
     />
   </path>`;
+  
+  return svgText.replace(fullMatch, animatedMouth);
 }
 
 /**
@@ -1692,11 +1774,9 @@ function applySleepyAnimation(svgText: string, eyes: EyePosition[], mouth: Mouth
   // Add SMIL animations to clip-path rects for eye closing effect
   svgText = generateSleepyClipAnimations(svgText, config);
   
-  // Replace mouth with animated sleepy mouth
-  if (mouth) {
-    const sleepyMouthSvg = generateSleepyMouth(mouth.position, config);
-    svgText = replaceMouthSection(svgText, sleepyMouthSvg);
-  }
+  // Apply sleepy mouth animation (animates the CURRENT mouth, doesn't replace it)
+  // This is the key change - sleepy now works as an OVERLAY on the existing mouth
+  svgText = applySleepyMouthAnimation(svgText, config);
   
   // Generate overlays (closed eye lines + Zzz)
   const closedEyeLines = generateClosedEyeLines(eyes);
@@ -1715,6 +1795,103 @@ function applySleepyAnimation(svgText: string, eyes: EyePosition[], mouth: Mouth
   return svgText;
 }
 
+// ─── Dirt Marks Generation ────────────────────────────────────────────────────
+
+/**
+ * Generate dirt marks/scratches on the lower body.
+ * Creates small curved lines that look like dirt or scratches.
+ */
+function generateDirtMarks(config: DirtMarksConfig): string {
+  const count = config.count || 3;
+  const marks: string[] = [];
+  
+  // Place dirt marks in the lower portion of Blobbi (y: 70-85 for 100x100 viewBox)
+  // Randomized but deterministic positions for consistency
+  const positions = [
+    { x: 35, y: 75, angle: 15, length: 4 },
+    { x: 55, y: 80, angle: -10, length: 3.5 },
+    { x: 45, y: 72, angle: 5, length: 3 },
+  ].slice(0, count);
+  
+  positions.forEach((pos, i) => {
+    // Create a short curved line
+    const startX = pos.x;
+    const startY = pos.y;
+    const endX = startX + pos.length * Math.cos((pos.angle * Math.PI) / 180);
+    const endY = startY + pos.length * Math.sin((pos.angle * Math.PI) / 180);
+    const controlX = (startX + endX) / 2 + 1;
+    const controlY = (startY + endY) / 2 - 0.5;
+    
+    marks.push(`<path
+      class="blobbi-dirt-mark blobbi-dirt-mark-${i}"
+      d="M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}"
+      stroke="#78716c"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      fill="none"
+      opacity="0.6"
+    />`);
+  });
+  
+  return marks.join('\n');
+}
+
+// ─── Stink Clouds Generation ──────────────────────────────────────────────────
+
+/**
+ * Generate animated stink cloud puffs below the Blobbi.
+ * Creates small wavy lines that float upward to indicate poor hygiene.
+ */
+function generateStinkClouds(config: StinkCloudsConfig): string {
+  const count = config.count || 3;
+  const clouds: string[] = [];
+  
+  // Stink clouds appear below and around Blobbi (y: 85-95 for 100x100 viewBox)
+  const positions = [
+    { x: 38, y: 88, delay: 0 },
+    { x: 50, y: 90, delay: 0.8 },
+    { x: 62, y: 87, delay: 1.6 },
+  ].slice(0, count);
+  
+  positions.forEach((pos, i) => {
+    // Create a small wavy cloud shape using curves
+    const startX = pos.x;
+    const startY = pos.y;
+    
+    clouds.push(`<g class="blobbi-stink-cloud blobbi-stink-cloud-${i}" opacity="0">
+      <path
+        d="M ${startX} ${startY} 
+           Q ${startX - 1.5} ${startY - 1} ${startX - 2} ${startY - 2}
+           Q ${startX - 1} ${startY - 3} ${startX} ${startY - 2.5}
+           Q ${startX + 1} ${startY - 3} ${startX + 2} ${startY - 2}
+           Q ${startX + 1.5} ${startY - 1} ${startX} ${startY}"
+        fill="#9ca3af"
+        opacity="0.5"
+      />
+      <!-- Float up animation -->
+      <animateTransform
+        attributeName="transform"
+        type="translate"
+        values="0 0; 0 -12"
+        dur="3s"
+        begin="${pos.delay}s"
+        repeatCount="indefinite"
+      />
+      <!-- Fade in and out -->
+      <animate
+        attributeName="opacity"
+        values="0;0.6;0.6;0"
+        keyTimes="0;0.15;0.7;1"
+        dur="3s"
+        begin="${pos.delay}s"
+        repeatCount="indefinite"
+      />
+    </g>`);
+  });
+  
+  return clouds.join('\n');
+}
+
 // ─── Main Emotion Application ─────────────────────────────────────────────────
 
 /**
@@ -1723,13 +1900,37 @@ function applySleepyAnimation(svgText: string, eyes: EyePosition[], mouth: Mouth
  * This function adds emotion-specific elements (eyebrows, modified mouth, tears)
  * without modifying the base SVG structure.
  * 
+ * ARCHITECTURAL NOTE - Base vs Overlay Emotions:
+ * 
+ * The emotion system now has two layers:
+ * 
+ * 1. BASE EMOTIONS (persistent face):
+ *    - boring, dirty, dizzy, sad, happy, angry, hungry, etc.
+ *    - These REPLACE the face completely (mouth, eyebrows, sometimes eyes)
+ *    - They represent the Blobbi's ongoing condition
+ * 
+ * 2. OVERLAY EMOTIONS (temporary animations):
+ *    - sleepy (currently the only overlay)
+ *    - These ANIMATE on top of the existing face without replacing it
+ *    - sleepy animates whatever mouth is already present (smile → U → smile, or frown → U → frown)
+ * 
+ * The sleepy overlay works by:
+ * - Finding the current mouth path in the SVG (which may be a smile, frown, droopy mouth, etc.)
+ * - Animating from current mouth → U-shaped sleepy mouth → back to current mouth
+ * - This means sleepy preserves the base emotional state visually
+ * 
  * @param svgText - The base SVG content
  * @param emotion - The emotion to apply
  * @param variant - The Blobbi variant (baby/adult) for variant-specific adjustments
  * @param form - Optional adult form for form-specific adjustments (e.g., owli, froggi)
  * @returns Modified SVG with emotion overlays
  */
-export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: BlobbiVariant = 'adult', form?: string): string {
+export function applyEmotion(
+  svgText: string,
+  emotion: BlobbiEmotion,
+  variant: BlobbiVariant = 'adult',
+  form?: string
+): string {
   if (emotion === 'neutral') {
     return svgText;
   }
@@ -1902,6 +2103,16 @@ export function applyEmotion(svgText: string, emotion: BlobbiEmotion, variant: B
   // Generate food icon (for hungry)
   if (config.foodIcon?.enabled) {
     overlays.push(generateFoodIcon(config.foodIcon));
+  }
+  
+  // Generate dirt marks (for dirty)
+  if (config.dirtMarks?.enabled) {
+    overlays.push(generateDirtMarks(config.dirtMarks));
+  }
+  
+  // Generate stink clouds (for dirty)
+  if (config.stinkClouds?.enabled) {
+    overlays.push(generateStinkClouds(config.stinkClouds));
   }
   
   // Insert overlays before closing </svg> tag

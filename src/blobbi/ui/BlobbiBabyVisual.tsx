@@ -49,6 +49,13 @@ export interface BlobbiBabyVisualProps {
    * Default: 'neutral' (no modifications)
    */
   emotion?: BlobbiEmotion;
+  /**
+   * Base emotion for overlay animations.
+   * When emotion is an overlay (like 'sleepy'), this base emotion is applied first,
+   * then the overlay animates on top of it.
+   * Example: baseEmotion='boring', emotion='sleepy' → boring face with sleepy animation
+   */
+  baseEmotion?: BlobbiEmotion;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -63,7 +70,7 @@ export interface BlobbiBabyVisualProps {
  * - Eyes always track the mouse cursor (instant, real-time)
  * - Renders safely using dangerouslySetInnerHTML
  */
-export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, emotion = 'neutral', className }: BlobbiBabyVisualProps) {
+export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, emotion = 'neutral', baseEmotion, className }: BlobbiBabyVisualProps) {
   const isSleeping = isBlobbiSleeping(blobbi);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -99,8 +106,15 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
       // Pass base color for eyelid generation
       let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId: blobbi.id });
       
-      // Apply emotion overlays (eyebrows, sad mouth, tears, etc.)
-      // Pass 'baby' variant for baby-specific adjustments (e.g., eyebrow positioning)
+      // Apply base emotion first (if provided)
+      // Base emotions set the persistent face state (boring, dirty, dizzy, etc.)
+      if (baseEmotion && baseEmotion !== 'neutral') {
+        animatedSvg = applyEmotion(animatedSvg, baseEmotion, 'baby');
+      }
+      
+      // Apply primary emotion
+      // If this is an overlay emotion (sleepy), it will animate on top of the base
+      // If this is a regular emotion and no baseEmotion was provided, it acts as the base
       if (emotion !== 'neutral') {
         animatedSvg = applyEmotion(animatedSvg, emotion, 'baby');
       }
@@ -109,7 +123,7 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
     }
 
     return colorizedSvg;
-  }, [blobbi, isSleeping, emotion]);
+  }, [blobbi, isSleeping, emotion, baseEmotion]);
 
   // Defense-in-depth: sanitize the final SVG before DOM injection.
   // The upstream pipeline validates inputs (normalizeHexColor, instanceId sanitization),

@@ -84,6 +84,20 @@ export interface StatusReactionResult {
   cooldownMs: number;
 }
 
+/**
+ * Result of resolving emotions with base + overlay separation.
+ */
+export interface StatusEmotionResult {
+  /** The base/persistent emotion (null = neutral/default) */
+  baseEmotion: BlobbiEmotion | null;
+  /** The overlay emotion (null = none) */
+  overlayEmotion: BlobbiEmotion | null;
+  /** The stat that triggered the base emotion */
+  triggeringBaseStat: ReactiveStat | null;
+  /** The stat that triggered the overlay emotion */
+  triggeringOverlayStat: ReactiveStat | null;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /**
@@ -112,6 +126,12 @@ export const TRIGGER_PROBABILITIES: Record<StatSeverity, number> = {
  * Stat reaction configurations.
  * Priority order: energy > health > hunger > hygiene > happiness
  * Lower priority number = checked first (wins ties).
+ * 
+ * Updated emotion mapping:
+ * - boring: low-energy, unamused state (replaces sad as generic fallback)
+ * - dirty: hygiene-specific state with visual dirt/stink effects
+ * - dizzy: critical health state only
+ * - sad: reserved for dramatic emotional distress (not used by stats currently)
  */
 export const STAT_REACTION_CONFIGS: StatReactionConfig[] = [
   {
@@ -119,27 +139,28 @@ export const STAT_REACTION_CONFIGS: StatReactionConfig[] = [
     priority: 1,
     normalReaction: 'sleepy',
     // Energy doesn't have a distinct critical reaction
+    // sleepy is now an OVERLAY that preserves the base face
   },
   {
     stat: 'health',
     priority: 2,
-    normalReaction: 'sad',
-    criticalReaction: 'dizzy', // Critical health shows dizzy instead of sad
+    normalReaction: 'boring', // Non-critical health shows boring (not feeling good)
+    criticalReaction: 'dizzy', // Critical health shows dizzy (seriously unwell)
   },
   {
     stat: 'hunger',
     priority: 3,
-    normalReaction: 'hungry',
+    normalReaction: 'hungry', // Hungry emotion already has appropriate visuals
   },
   {
     stat: 'hygiene',
     priority: 4,
-    normalReaction: 'sad',
+    normalReaction: 'dirty', // Hygiene shows dirty with stink clouds/dirt marks
   },
   {
     stat: 'happiness',
     priority: 5,
-    normalReaction: 'sad',
+    normalReaction: 'boring', // Low happiness shows boring (low energy, unamused)
   },
 ];
 
@@ -281,7 +302,7 @@ export function resolveStatusReaction(
  * Useful for determining if a reaction should be overridden.
  */
 export function isStatusReaction(emotion: BlobbiEmotion): boolean {
-  const statusEmotions: BlobbiEmotion[] = ['sleepy', 'hungry', 'sad', 'dizzy'];
+  const statusEmotions: BlobbiEmotion[] = ['sleepy', 'hungry', 'boring', 'dirty', 'dizzy'];
   return statusEmotions.includes(emotion);
 }
 
@@ -290,6 +311,77 @@ export function isStatusReaction(emotion: BlobbiEmotion): boolean {
  */
 export function getDefaultEmotion(): BlobbiEmotion {
   return 'neutral'; // Base happy expression
+}
+
+/**
+ * Resolve status emotions with base + overlay separation.
+ * 
+ * This is the NEW recommended way to resolve emotions from stats.
+ * It properly separates:
+ * - BASE emotions (persistent face: boring, dirty, dizzy, hungry, etc.)
+ * - OVERLAY emotions (temporary animations: sleepy)
+ * 
+ * Example:
+ * - If energy is low AND health is low:
+ *   - Base: boring (from health)
+ *   - Overlay: sleepy (from energy)
+ *   - Result: Blobbi has a boring/tired face with sleepy animation on top
+ * 
+ * @param stats - Current Blobbi stats
+ * @returns Base emotion and optional overlay emotion
+ */
+export function resolveStatusEmotions(stats: BlobbiStats): StatusEmotionResult {
+  const analyses = analyzeAllStats(stats);
+  
+  // No stats are low enough to trigger
+  if (analyses.length === 0) {
+    return {
+      baseEmotion: null,
+      overlayEmotion: null,
+      triggeringBaseStat: null,
+      triggeringOverlayStat: null,
+    };
+  }
+  
+  // Separate overlay emotions (sleepy) from base emotions
+  const sleepyAnalysis = analyses.find(a => a.reaction === 'sleepy');
+  const baseAnalyses = analyses.filter(a => a.reaction !== 'sleepy');
+  
+  // Get the highest priority base emotion (if any)
+  const baseWinner = baseAnalyses.length > 0 ? baseAnalyses[0] : null;
+  
+  return {
+    baseEmotion: baseWinner?.reaction ?? null,
+    overlayEmotion: sleepyAnalysis?.reaction ?? null,
+    triggeringBaseStat: baseWinner?.stat ?? null,
+    triggeringOverlayStat: sleepyAnalysis?.stat ?? null,
+  };
+}
+
+/**
+ * Combine base and overlay emotions into a single emotion for the visual system.
+ * 
+ * The visual system (BlobbiAdultVisual/BlobbiBabyVisual) applies emotions sequentially:
+ * 1. Apply base emotion (changes face: mouth, eyes, eyebrows)
+ * 2. Apply overlay emotion (adds animations on top without replacing the face)
+ * 
+ * When both are present, overlay takes precedence as the "primary" emotion,
+ * but the applyEmotion function internally applies the base first.
+ * 
+ * @param result - Result from resolveStatusEmotions
+ * @returns The emotion to pass to visual components
+ */
+export function combineEmotions(result: StatusEmotionResult): BlobbiEmotion {
+  // If we have both base and overlay, return overlay (which will apply base first internally)
+  // If we only have overlay (shouldn't happen, but handle it), return overlay
+  // If we only have base, return base
+  // If neither, return neutral
+  
+  if (result.overlayEmotion) {
+    return result.overlayEmotion;
+  }
+  
+  return result.baseEmotion ?? 'neutral';
 }
 
 // ─── Action Emotion Mapping ───────────────────────────────────────────────────

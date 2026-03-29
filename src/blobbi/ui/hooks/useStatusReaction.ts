@@ -71,8 +71,10 @@ export interface StatusReactionState {
  * states where the visual should remain as long as the condition persists.
  */
 const PERSISTENT_REACTIONS: Set<BlobbiEmotion> = new Set([
-  'sleepy',   // Energy critical - continuous drowsy state
+  'sleepy',   // Energy critical - continuous drowsy state (overlay)
   'sad',      // Unhappy/unhealthy - continuous sadness with tears
+  'boring',   // Low energy, unamused, mildly down - persistent base face
+  'dirty',    // Poor hygiene - persistent visual state with dirt/stink
   'dizzy',    // Health critical - continuous disorientation
   'hungry',   // Hunger critical - continuous hunger indication
 ]);
