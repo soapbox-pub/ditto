@@ -68,6 +68,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   7516: 'found log',
   15128: 'nsite',
   16767: 'theme',
+  10008: 'profile badges',
   30008: 'profile badges',
   30009: 'badge',
   30023: 'article',

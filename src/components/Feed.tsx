@@ -45,7 +45,8 @@ const LANDING_KINDS = [
   7516,  // Treasures (Found Logs)
   30030, // Emoji Packs
   30009, // Badge Definitions
-  30008, // Profile Badges
+  10008, // Profile Badges
+  30008, // Profile Badges (legacy)
 ];
 
 /** Webxdc needs a MIME-type tag filter, so it gets its own filter object. */

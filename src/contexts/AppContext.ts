@@ -136,11 +136,11 @@ export interface FeedSettings {
   showBadges: boolean;
   /** Show badge definitions (kind 30009) on the Badges page */
   showBadgeDefinitions: boolean;
-  /** Show profile badges (kind 30008) on the Badges page */
+  /** Show profile badges (kind 10008/30008) on the Badges page */
   showProfileBadges: boolean;
   /** Include badge definitions (kind 30009) in the follows/global feed */
   feedIncludeBadgeDefinitions: boolean;
-  /** Include profile badges (kind 30008) in the follows/global feed */
+  /** Include profile badges (kind 10008/30008) in the follows/global feed */
   feedIncludeProfileBadges: boolean;
   /** Include Request to Vanish events (kind 62) in the follows/global feed */
   feedIncludeVanish: boolean;

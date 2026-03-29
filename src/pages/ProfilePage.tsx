@@ -1149,7 +1149,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     'Posts': { kinds: [1, 6], authors: [pubkey] },
     'Posts & replies': { authors: [pubkey] },
     'Media': { kinds: [1], authors: [pubkey] },
-    'Badges': { kinds: [30008], authors: [pubkey], '#d': ['profile_badges'] },
+    'Badges': { kinds: [10008, 30008], authors: [pubkey] },
     'Likes': { kinds: [7], authors: [pubkey] },
     'Wall': { kinds: [1111], '#A': [`0:${pubkey}:`] },
   } : {};
@@ -2833,17 +2833,19 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName: string }) {
   const { nostr } = useNostr();
 
-  // Fetch the user's kind 30008 profile badges event
+  // Fetch the user's profile badges event (both new kind 10008 and legacy 30008)
   const profileBadgesQuery = useQuery({
     queryKey: ['profile-badges', pubkey],
     queryFn: async () => {
-      const events = await nostr.query([{
-        kinds: [30008],
-        authors: [pubkey],
-        '#d': ['profile_badges'],
-        limit: 1,
-      }]);
-      return events[0] ?? null;
+      const events = await nostr.query([
+        { kinds: [10008], authors: [pubkey], limit: 1 },
+        { kinds: [30008], authors: [pubkey], '#d': ['profile_badges'], limit: 1 },
+      ]);
+      if (events.length === 0) return null;
+      // Pick the most recent event across both kinds
+      return events.reduce((latest, current) =>
+        current.created_at > latest.created_at ? current : latest,
+      );
     },
     staleTime: 2 * 60_000,
   });

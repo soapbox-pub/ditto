@@ -4,15 +4,14 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { BADGE_PROFILE_KIND } from '@/lib/badgeUtils';
-import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { BADGE_PROFILE_KIND, fetchFreshProfileBadges } from '@/lib/badgeUtils';
 
 /**
  * Mutation to accept a badge — adds the `a` + `e` tag pair to the user's
- * kind 30008 profile_badges event and publishes the update.
+ * profile badges event and publishes the update as kind 10008.
  *
- * Fetches the freshest event from relays before mutating to avoid overwriting
- * badges accepted on another device or in a rapid sequence.
+ * Fetches the freshest event from relays (checking both kind 10008 and legacy
+ * 30008) before mutating to avoid overwriting badges accepted on another device.
  */
 export function useAcceptBadge() {
   const { user } = useCurrentUser();
@@ -24,12 +23,8 @@ export function useAcceptBadge() {
     mutationFn: async ({ aTag, awardEventId }: { aTag: string; awardEventId: string }) => {
       if (!user) throw new Error('User is not logged in');
 
-      // Fetch the freshest kind 30008 from relays before mutating
-      const freshEvent = await fetchFreshEvent(nostr, {
-        kinds: [BADGE_PROFILE_KIND],
-        authors: [user.pubkey],
-        '#d': ['profile_badges'],
-      });
+      // Fetch the freshest profile badges event from relays (both kinds)
+      const freshEvent = await fetchFreshProfileBadges(nostr, user.pubkey);
 
       const currentTags = freshEvent?.tags ?? [['d', 'profile_badges']];
 
@@ -39,13 +34,12 @@ export function useAcceptBadge() {
       );
       if (alreadyHas) return;
 
-      // Ensure the d tag is present
-      const hasDTag = currentTags.some(([n, v]) => n === 'd' && v === 'profile_badges');
-      const baseTags = hasDTag ? currentTags : [['d', 'profile_badges'], ...currentTags];
+      // Strip any legacy `d` tag — kind 10008 is replaceable and doesn't need it
+      const withoutDTag = currentTags.filter(([n, v]) => !(n === 'd' && v === 'profile_badges'));
 
       // Append the new badge pair at the end
       const newTags = [
-        ...baseTags,
+        ...withoutDTag,
         ['a', aTag],
         ['e', awardEventId],
       ];

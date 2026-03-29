@@ -10,11 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { parseBadgeDefinition } from '@/components/BadgeContent';
+import { isProfileBadgesKind } from '@/lib/badgeUtils';
 
 /** Maximum badges to show in the preview grid before truncating. */
 const PREVIEW_LIMIT = 12;
 
-/** A parsed badge reference from a kind 30008 profile badges event. */
+/** A parsed badge reference from a profile badges event. */
 interface BadgeRef {
   /** The `a` tag value referencing a kind 30009 badge definition. */
   aTag: string;
@@ -26,11 +27,14 @@ interface BadgeRef {
   identifier: string;
 }
 
-/** Parse a kind 30008 profile badges event into badge references. */
+/** Parse a profile badges event (kind 10008 or legacy 30008) into badge references. */
 export function parseProfileBadges(event: NostrEvent): BadgeRef[] {
-  if (event.kind !== 30008) return [];
-  const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-  if (dTag !== 'profile_badges') return [];
+  if (!isProfileBadgesKind(event.kind)) return [];
+  // Legacy kind 30008 requires d=profile_badges; kind 10008 doesn't need it
+  if (event.kind === 30008) {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1];
+    if (dTag !== 'profile_badges') return [];
+  }
 
   const refs: BadgeRef[] = [];
   const tags = event.tags;
@@ -71,7 +75,7 @@ interface ProfileBadgesContentProps {
 }
 
 /**
- * Renders a NIP-58 profile badges event (kind 30008) as an inline card in the feed.
+ * Renders a NIP-58 profile badges event (kind 10008 or legacy 30008) as an inline card in the feed.
  * Shows a grid of the user's accepted badges with images and names.
  */
 export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {

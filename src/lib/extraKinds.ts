@@ -11,12 +11,14 @@ export interface SubKindDef {
   showKey: keyof FeedSettings;
   /** Key in FeedSettings that controls inclusion in mixed feeds. */
   feedKey: keyof FeedSettings;
+  /** Additional kind numbers to include alongside `kind` when the feed toggle is on. */
+  extraFeedKinds?: number[];
   /** Human-readable label. */
   label: string;
   /** Short description. */
   description: string;
   /** Whether this kind is addressable (30000-39999). */
-  addressable: boolean;
+  addressable?: boolean;
 }
 
 /** An external site where users can create or participate in a specific kind. */
@@ -420,12 +422,12 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
         addressable: true,
       },
       {
-        kind: 30008,
+        kind: 10008,
         showKey: 'showProfileBadges',
         feedKey: 'feedIncludeProfileBadges',
         label: 'Profile Badges',
-        description: 'Accepted profile badges (kind 30008)',
-        addressable: true,
+        description: 'Accepted profile badges (kind 10008)',
+        extraFeedKinds: [30008], // legacy kind for backwards compatibility
       },
     ],
   },
@@ -493,6 +495,9 @@ export function getEnabledFeedKinds(feedSettings: FeedSettings): number[] {
       for (const sub of def.subKinds) {
         if (feedSettings[sub.feedKey]) {
           kinds.push(sub.kind);
+          if (sub.extraFeedKinds) {
+            kinds.push(...sub.extraFeedKinds);
+          }
         }
       }
     } else if (def.feedKey && feedSettings[def.feedKey]) {
@@ -512,7 +517,7 @@ export function getPageKinds(def: ExtraKindDef, feedSettings: FeedSettings): num
 
   return def.subKinds
     .filter((sub) => feedSettings[sub.showKey])
-    .map((sub) => sub.kind);
+    .flatMap((sub) => sub.extraFeedKinds ? [sub.kind, ...sub.extraFeedKinds] : [sub.kind]);
 }
 
 /**
@@ -528,6 +533,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   1618: 'patch comment',
   15128: 'nsite',
   35128: 'nsite',
+  30008: 'profile badges',
   30817: 'repository issue',
   32267: 'app',
   30063: 'release',
@@ -574,6 +580,13 @@ for (const def of EXTRA_KINDS) {
       if (!KIND_TO_ID.has(sub.kind)) {
         KIND_TO_ID.set(sub.kind, def.id);
       }
+      if (sub.extraFeedKinds) {
+        for (const k of sub.extraFeedKinds) {
+          if (!KIND_TO_ID.has(k)) {
+            KIND_TO_ID.set(k, def.id);
+          }
+        }
+      }
     }
   }
   if (def.extraFeedKinds) {
@@ -610,6 +623,11 @@ export function getAllExtraKindNumbers(): number[] {
     if (def.subKinds) {
       for (const sub of def.subKinds) {
         if (!kinds.includes(sub.kind)) kinds.push(sub.kind);
+        if (sub.extraFeedKinds) {
+          for (const k of sub.extraFeedKinds) {
+            if (!kinds.includes(k)) kinds.push(k);
+          }
+        }
       }
     } else {
       kinds.push(def.kind);

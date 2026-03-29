@@ -248,7 +248,7 @@ export const NoteCard = memo(function NoteCard({
   const isCalendarEvent = event.kind === 31922 || event.kind === 31923;
   const isEmojiPack = event.kind === 30030;
   const isBadgeDefinition = event.kind === 30009;
-  const isProfileBadges = event.kind === 30008;
+  const isProfileBadges = event.kind === 10008 || event.kind === 30008;
   const isBadge = isBadgeDefinition || isProfileBadges;
   const isReaction = event.kind === 7;
   const isRepost = event.kind === 6 || event.kind === 16;
@@ -1795,6 +1795,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: Award,
     action: "created a",
     noun: "badge",
+    nounRoute: "/badges",
+  },
+  10008: {
+    icon: Award,
+    action: "updated their",
+    noun: "badges",
     nounRoute: "/badges",
   },
   30008: {

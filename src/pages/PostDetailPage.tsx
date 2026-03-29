@@ -101,8 +101,11 @@ const CALENDAR_EVENT_KINDS = new Set([31922, 31923]);
 /** NIP-58 Badge Definition. */
 const BADGE_DEFINITION_KIND = 30009;
 
-/** NIP-58 Profile Badges. */
-const BADGE_PROFILE_KIND = 30008;
+/** NIP-58 Profile Badges (new replaceable kind). */
+const BADGE_PROFILE_KIND_NEW = 10008;
+
+/** NIP-58 Profile Badges (legacy addressable kind). */
+const BADGE_PROFILE_KIND_LEGACY = 30008;
 
 /** Kind 31985 = Bookstr book reviews. */
 const BOOK_REVIEW_KIND = 31985;
@@ -123,7 +126,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 1618) return "Pull Request";
   if (kind === 30817) return "Custom NIP";
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
-  if (kind === BADGE_PROFILE_KIND) return "Badge Collection";
+  if (kind === BADGE_PROFILE_KIND_NEW || kind === BADGE_PROFILE_KIND_LEGACY) return "Badge Collection";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
   if (kind === 32267) return "App Details";
   if (kind === 15128 || kind === 35128) return "Nsite";
@@ -357,7 +360,7 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   }
 
   // NIP-58 profile badges get a NoteCard view (same as the feed) + comments
-  if (resolvedEvent.kind === BADGE_PROFILE_KIND) {
+  if (resolvedEvent.kind === BADGE_PROFILE_KIND_NEW || resolvedEvent.kind === BADGE_PROFILE_KIND_LEGACY) {
     return (
       <PostDetailShell title="Badge Collection">
         <MutedContentGuard event={resolvedEvent}>
@@ -376,7 +379,7 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   );
 }
 
-/** NoteCard + NIP-22 comments section for kind 30008 profile badges detail page. */
+/** NoteCard + NIP-22 comments section for kind 10008/30008 profile badges detail page. */
 function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
   const { muteItems } = useMuteList();
   const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
