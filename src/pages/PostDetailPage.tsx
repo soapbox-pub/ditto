@@ -949,6 +949,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           identifier: dTag,
         });
     }
+    if (event.kind >= 10000 && event.kind < 20000) {
+      return nip19.naddrEncode({
+        kind: event.kind,
+        pubkey: event.pubkey,
+        identifier: "",
+      });
+    }
     return nip19.neventEncode({ id: event.id, author: event.pubkey });
   }, [event]);
 

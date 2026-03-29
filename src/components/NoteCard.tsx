@@ -138,7 +138,7 @@ function parseImeta(tags: string[][]): { url?: string; thumbnail?: string } {
 
 /** Encodes the NIP-19 identifier for navigating to an event. */
 function encodeEventId(event: NostrEvent): string {
-  // Addressable events use naddr
+  // Addressable events (30000-39999) use naddr with their d-tag
   if (event.kind >= 30000 && event.kind < 40000) {
     const dTag = getTag(event.tags, "d");
     if (dTag) {
@@ -148,6 +148,14 @@ function encodeEventId(event: NostrEvent): string {
         identifier: dTag,
       });
     }
+  }
+  // Replaceable events (10000-19999) use naddr with an empty identifier
+  if (event.kind >= 10000 && event.kind < 20000) {
+    return nip19.naddrEncode({
+      kind: event.kind,
+      pubkey: event.pubkey,
+      identifier: "",
+    });
   }
   return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
