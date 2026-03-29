@@ -26,7 +26,7 @@ import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
 
 const dmConfig: DMConfig = {
-  enabled: true,
+  enabled: false,
   protocolMode: PROTOCOL_MODE.NIP04_OR_NIP17,
 };
 
