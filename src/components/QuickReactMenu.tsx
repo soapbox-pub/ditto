@@ -87,8 +87,8 @@ export function QuickReactMenu({
     // Set selected emoji for optimistic update
     setSelectedEmoji(emoji);
 
-    // Track emoji usage (only for native emojis)
-    if (!emojiTag) trackEmojiUsage(emoji);
+    // Track emoji usage for quick-react bar ordering
+    trackEmojiUsage(emoji);
 
     // If a custom handler is provided, delegate to it
     if (onReact) {
