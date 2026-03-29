@@ -1,5 +1,40 @@
 # Changelog
 
+## [2.2.2] - 2026-03-29
+
+### Added
+- Dedicated photo upload flow for sharing photos as NIP-68 kind 20 events
+- Pull-to-refresh on all feed pages
+- 3D tilt effect on badge images -- hover over badges to see them pop
+- Multi-select badge awarding with indicators for already-sent badges
+- Badge list recovery dialog for restoring kind 10008 profile badge lists
+- Compact badge row preview in embedded profile badges events
+- Custom emoji usage tracking so your most-used custom emojis appear in the quick-react bar
+- Release notes now included in Zapstore publishing
+- Changelog link in the app footer
+
+### Changed
+- "Vines" renamed to "Divines" everywhere in the app
+- Custom emojis appear first in the emoji picker, right after recent
+- Threaded comment view now shows the parent event as a NoteCard with kind action headers
+
+### Fixed
+- Delete post dialog no longer freezes the feed on desktop
+- Amber login on Android now properly retries when returning from the background
+- Key downloads on Android save to the correct location
+- Custom emoji SVGs render correctly in the emoji-mart picker
+- Double-tap reactions now properly show the emoji on the post
+- Emoji shortcode autocomplete text and highlight colors
+- Profile skeleton no longer flickers for brand-new users with no metadata
+- Addressable event routing now works correctly for replaceable events (kind 10000-19999)
+- Badge notifications are now clickable
+- Custom profile tab form no longer retains fields from a previously edited tab
+- Double line under profile tabs in edit mode
+- Inconsistent use of "geocache" vs "treasures" terminology
+- Search page "N new posts" pill no longer shows unfiltered count
+- Stale-cache overwrites in replaceable event mutations
+- Click-through on delete confirmation and note menu items
+
 ## [2.2.1] - 2026-03-28
 
 ### Fixed
