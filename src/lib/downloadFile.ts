@@ -4,27 +4,39 @@ import { Capacitor } from '@capacitor/core';
  * Download a text file to the user's device.
  *
  * On the web this uses the classic `<a download>` trick.
- * On native (Capacitor iOS/Android) this writes to a temp file via
- * the Filesystem plugin and presents the native share sheet so the
- * user can save / AirDrop / share the file.
+ * On Android it writes to the public Download folder via ExternalStorage.
+ * On iOS it writes to a temp file and presents the native share sheet.
  */
 export async function downloadTextFile(filename: string, content: string): Promise<void> {
-  if (Capacitor.isNativePlatform()) {
+  const platform = Capacitor.getPlatform();
+
+  if (platform === 'android') {
+    const { Filesystem, Directory } = await import('@capacitor/filesystem');
+
+    // Write to the public Download folder. On Android 11+ no storage
+    // permissions are required for app-created files in shared directories.
+    await Filesystem.writeFile({
+      path: `Download/${filename}`,
+      data: content,
+      directory: Directory.ExternalStorage,
+    });
+  } else if (platform === 'ios') {
     const { Filesystem, Directory } = await import('@capacitor/filesystem');
     const { Share } = await import('@capacitor/share');
 
-    // Write to the cache directory (always writable, no permissions needed)
     const result = await Filesystem.writeFile({
       path: filename,
       data: content,
       directory: Directory.Cache,
     });
 
-    // Present the native share sheet so the user can save / share the file
-    await Share.share({
-      title: filename,
-      url: result.uri,
-    });
+    // On iOS there is no user-visible Downloads folder, so present the
+    // share sheet and let the user choose where to save / send the file.
+    try {
+      await Share.share({ title: filename, url: result.uri });
+    } catch {
+      // User dismissed the share sheet — not a real failure
+    }
   } else {
     // Web: use the anchor-click download pattern
     const blob = new Blob([content], { type: 'text/plain; charset=utf-8' });
