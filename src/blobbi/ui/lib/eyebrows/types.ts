@@ -1,29 +1,22 @@
 /**
  * Eyebrow System Type Definitions
- * 
- * Types for eyebrow generation and animation.
- * These types are currently also defined in emotions.ts for backward compatibility.
- * New code should import from this module.
  */
 
-// ─── Eyebrow Types ────────────────────────────────────────────────────────────
+import type { EyePosition } from '../eyes';
+
+// Re-export EyePosition so eyebrow code can reference it without importing eyes directly
+export type { EyePosition };
 
 /**
- * Available eyebrow expression types for future recipe-based emotions.
+ * Blobbi variant for variant-specific adjustments.
  */
-export type EyebrowExpressionType =
-  | 'neutral'     // No eyebrows (default)
-  | 'worried'     // Angled up toward center (/\) — sad, concerned
-  | 'angry'       // Angled down toward center (\/) — angry, intense
-  | 'flat'        // Horizontal, no angle — bored, tired
-  | 'raised'      // Angled up away from center — surprised, curious
-  | 'bouncing';   // Animated bounce — mischievous, excited
+export type BlobbiVariant = 'baby' | 'adult';
 
 /**
  * Configuration for eyebrow generation.
  */
 export interface EyebrowConfig {
-  /** Angle in degrees (positive = worried/up, negative = angry/down) */
+  /** Angle in degrees (positive = worried/up toward center, negative = angry/down) */
   angle: number;
   /** Vertical offset from eye center */
   offsetY: number;

@@ -1,32 +1,14 @@
 /**
  * Body Effects Type Definitions
  * 
- * Body effects are visual decorators that apply to the Blobbi's body
- * independently of face emotions. They can stack with any face state:
- * - boring + dirty
- * - sleepy + dirty
- * - dizzy + dirty
- * - neutral + dirty
- * 
- * Body effects never modify eyes, mouth, or eyebrows.
+ * Body effects are visual decorators applied to the Blobbi's body
+ * independently of face emotions. They can stack with any face state.
  */
 
 // ─── Body Effect Types ────────────────────────────────────────────────────────
 
 /**
- * Available body effect types.
- * Each type generates SVG overlays on or around the Blobbi body.
- */
-export type BodyEffectType =
-  | 'dirtyMarks'
-  | 'stinkClouds'
-  | 'angerRise'
-  | 'sparkles'
-  | 'sweat';
-
-/**
  * Configuration for dirt marks on body.
- * Small curved lines that look like dirt or scratches.
  */
 export interface DirtMarksConfig {
   /** Enable dirt marks on body */
@@ -37,7 +19,6 @@ export interface DirtMarksConfig {
 
 /**
  * Configuration for stink cloud puffs.
- * Wavy cloud shapes that float upward below the Blobbi.
  */
 export interface StinkCloudsConfig {
   /** Enable stink clouds animation */
@@ -48,17 +29,19 @@ export interface StinkCloudsConfig {
 
 /**
  * Configuration for anger-rise body effect.
- * Red overlay that rises inside the body shape.
+ * Used by the legacy EmotionConfig.bodyEffect path.
  */
-export interface AngerRiseConfig {
-  /** Color for the effect (e.g., red for anger) */
+export interface BodyEffectConfig {
+  /** Type of body effect */
+  type: 'anger-rise';
+  /** Color for the effect */
   color: string;
   /** Animation duration in seconds */
   duration: number;
 }
 
 /**
- * A body effect specification — what effects to apply.
+ * Body effects specification for the new composable pipeline.
  * Multiple effects can be active simultaneously.
  */
 export interface BodyEffectsSpec {
@@ -67,17 +50,14 @@ export interface BodyEffectsSpec {
   /** Stink cloud puffs below the body */
   stinkClouds?: StinkCloudsConfig;
   /** Anger-rise color overlay inside body */
-  angerRise?: AngerRiseConfig;
+  angerRise?: { color: string; duration: number };
 }
 
 /**
- * SVG result from generating a body effect.
- * Effects may produce overlays (appended before </svg>),
- * defs (gradients, clip-paths), or both.
+ * Internal: detected body path info for body-level effects.
  */
-export interface BodyEffectResult {
-  /** SVG overlay elements to insert before </svg> */
-  overlays: string[];
-  /** SVG defs to add to <defs> section */
-  defs: string[];
+export interface BodyPathInfo {
+  pathD: string;
+  minY: number;
+  maxY: number;
 }

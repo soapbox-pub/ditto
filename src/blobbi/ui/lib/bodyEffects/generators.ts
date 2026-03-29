@@ -2,22 +2,71 @@
  * Body Effect Generators
  * 
  * Pure functions that generate SVG markup for body-level visual effects.
- * Each generator returns SVG strings — no DOM manipulation, no side effects.
- * 
- * These generators are extracted from the monolithic emotions.ts to be
- * independently usable and composable.
+ * Each generator returns SVG strings — no DOM manipulation.
  */
 
-import type { DirtMarksConfig, StinkCloudsConfig, AngerRiseConfig } from './types';
+import type {
+  DirtMarksConfig,
+  StinkCloudsConfig,
+  BodyEffectConfig,
+  BodyPathInfo,
+} from './types';
+
+// ─── Body Path Detection ──────────────────────────────────────────────────────
+
+/**
+ * Detect the body path from the SVG.
+ * Looks for the main body path (body gradient fill or "Body" comment).
+ */
+export function detectBodyPath(svgText: string): BodyPathInfo | null {
+  // Strategy 1: path with body gradient fill
+  const bodyGradientMatch = svgText.match(/<path[^>]*d="([^"]+)"[^>]*fill="url\(#[^"]*[Bb]ody[^"]*\)"[^>]*\/>/);
+  if (bodyGradientMatch) {
+    const pathD = bodyGradientMatch[1];
+    const bounds = estimatePathBounds(pathD);
+    return { pathD, ...bounds };
+  }
+  
+  // Strategy 2: path after "Body" comment
+  const commentMatch = svgText.match(/<!--[^>]*[Bb]ody[^>]*-->\s*<path[^>]*d="([^"]+)"/);
+  if (commentMatch) {
+    const pathD = commentMatch[1];
+    const bounds = estimatePathBounds(pathD);
+    return { pathD, ...bounds };
+  }
+  
+  return null;
+}
+
+/**
+ * Estimate the bounding box of a path from its d attribute.
+ */
+function estimatePathBounds(pathD: string): { minY: number; maxY: number } {
+  const numbers = pathD.match(/-?\d+\.?\d*/g)?.map(Number) || [];
+  
+  let minY = 100;
+  let maxY = 0;
+  
+  for (let i = 1; i < numbers.length; i += 2) {
+    const y = numbers[i];
+    if (y !== undefined && y >= 5 && y <= 100) {
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  
+  if (minY >= maxY) {
+    minY = 10;
+    maxY = 90;
+  }
+  
+  return { minY, maxY };
+}
 
 // ─── Dirt Marks ───────────────────────────────────────────────────────────────
 
 /**
  * Generate dirt marks/scratches on the lower body.
- * Creates small curved lines that look like dirt or scratches.
- * 
- * Positions are deterministic (no randomness) for consistent rendering.
- * Marks appear in the lower portion of Blobbi (y: 70-85 for 100x100 viewBox).
  */
 export function generateDirtMarks(config: DirtMarksConfig): string {
   if (!config.enabled) return '';
@@ -57,13 +106,6 @@ export function generateDirtMarks(config: DirtMarksConfig): string {
 
 /**
  * Generate animated stink cloud puffs below the Blobbi.
- * Creates small wavy shapes that float upward to indicate poor hygiene.
- * 
- * Each cloud has:
- * - A wavy path shape (gray)
- * - An upward translate animation (3s cycle)
- * - A fade in/out opacity animation
- * - Staggered delay for natural appearance
  */
 export function generateStinkClouds(config: StinkCloudsConfig): string {
   if (!config.enabled) return '';
@@ -91,7 +133,6 @@ export function generateStinkClouds(config: StinkCloudsConfig): string {
         fill="#9ca3af"
         opacity="0.5"
       />
-      <!-- Float up animation -->
       <animateTransform
         attributeName="transform"
         type="translate"
@@ -100,7 +141,6 @@ export function generateStinkClouds(config: StinkCloudsConfig): string {
         begin="${pos.delay}s"
         repeatCount="indefinite"
       />
-      <!-- Fade in and out -->
       <animate
         attributeName="opacity"
         values="0;0.6;0.6;0"
@@ -118,47 +158,66 @@ export function generateStinkClouds(config: StinkCloudsConfig): string {
 // ─── Anger Rise ───────────────────────────────────────────────────────────────
 
 /**
- * Detect the body path in SVG for body-level effects.
- * Looks for paths with a body-related gradient fill.
+ * Generate the anger-rise body effect.
+ * Creates a colored overlay that animates from bottom to top inside the body shape.
  */
-export function detectBodyPath(svgText: string): string | null {
-  // Look for the body path: a path with a body-gradient fill
-  const bodyPathRegex = /<path[^>]*d="([^"]*)"[^>]*fill="url\(#[^"]*[Bb]ody[^"]*\)"[^>]*\/>/;
-  const match = svgText.match(bodyPathRegex);
-  return match ? match[1] : null;
-}
-
-/**
- * Generate an anger-rise effect: a colored overlay that rises inside the body shape.
- * Returns both defs (clip-path + gradient) and the overlay element.
- */
-export function generateAngerRise(
-  bodyPathD: string,
-  config: AngerRiseConfig
+export function generateAngerRiseEffect(
+  bodyPath: BodyPathInfo,
+  config: BodyEffectConfig,
 ): { defs: string; overlay: string } {
-  const clipId = 'anger-body-clip';
-  const gradId = 'anger-rise-grad';
+  const { pathD, minY, maxY } = bodyPath;
+  const bodyHeight = maxY - minY;
+  
+  const clipId = 'blobbi-anger-clip';
+  const gradientId = 'blobbi-anger-gradient';
   
   const defs = `
     <clipPath id="${clipId}">
-      <path d="${bodyPathD}" />
+      <path d="${pathD}" />
     </clipPath>
-    <linearGradient id="${gradId}" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0%" stop-color="${config.color}" stop-opacity="0.4" />
-      <stop offset="100%" stop-color="${config.color}" stop-opacity="0" />
+    <linearGradient id="${gradientId}" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="${config.color}">
+        <animate 
+          attributeName="stop-opacity" 
+          values="0;0.5;0.5" 
+          keyTimes="0;0.5;1"
+          dur="${config.duration}s" 
+          fill="freeze"
+        />
+      </stop>
+      <stop stop-color="${config.color}">
+        <animate 
+          attributeName="offset" 
+          values="0;1" 
+          dur="${config.duration}s" 
+          fill="freeze"
+        />
+        <animate 
+          attributeName="stop-opacity" 
+          values="0;0.4;0.4" 
+          keyTimes="0;0.3;1"
+          dur="${config.duration}s" 
+          fill="freeze"
+        />
+      </stop>
+      <stop stop-color="${config.color}" stop-opacity="0">
+        <animate 
+          attributeName="offset" 
+          values="0;1" 
+          dur="${config.duration}s" 
+          fill="freeze"
+        />
+      </stop>
     </linearGradient>`;
   
   const overlay = `
-    <g class="blobbi-body-effect blobbi-anger-rise" clip-path="url(#${clipId})">
-      <rect x="0" y="0" width="100" height="100" fill="url(#${gradId})">
-        <animate
-          attributeName="y"
-          values="100;30;100"
-          dur="${config.duration}s"
-          repeatCount="indefinite"
-        />
-      </rect>
-    </g>`;
+    <rect 
+      class="blobbi-anger-rise"
+      x="0" y="${minY}" 
+      width="100" height="${bodyHeight}"
+      fill="url(#${gradientId})"
+      clip-path="url(#${clipId})"
+    />`;
   
   return { defs, overlay };
 }

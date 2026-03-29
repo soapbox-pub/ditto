@@ -1,12 +1,8 @@
 /**
  * Mouth System Type Definitions
- * 
- * Types for mouth detection and generation.
- * These types are currently also defined in emotions.ts for backward compatibility.
- * New code should import from this module.
  */
 
-// ─── Mouth Types ──────────────────────────────────────────────────────────────
+// ─── Mouth Position ───────────────────────────────────────────────────────────
 
 /**
  * Detected mouth position from SVG content.
@@ -36,20 +32,7 @@ export interface MouthDetectionResult {
   endIndex?: number;
 }
 
-// ─── Mouth Shape Types ────────────────────────────────────────────────────────
-
-/**
- * Available mouth shape types for future recipe-based emotions.
- */
-export type MouthShapeType =
-  | 'smile'       // Default happy smile (Q curve down)
-  | 'flat'        // Straight line (neutral/bored)
-  | 'droopy'      // Narrower, shallow frown (tired/hungry)
-  | 'frown'       // Full inverted curve (sad)
-  | 'round'       // Circular "O" shape (surprised/curious)
-  | 'bigSmile'    // Wider/deeper smile (excited)
-  | 'smallSmile'  // Scaled-down smug smile (mischievous)
-  | 'sleepyMorph'; // Animated morph to U-shape and back (sleepy)
+// ─── Mouth Shape Configs ──────────────────────────────────────────────────────
 
 /**
  * Configuration for round "O" mouth.
@@ -89,4 +72,32 @@ export interface BigSmileConfig {
 export interface SmallSmileConfig {
   /** Scale factor (0.5 = half size, 1.0 = normal) */
   scale: number;
+}
+
+/**
+ * Configuration for drool drop from corner of mouth.
+ */
+export interface DroolConfig {
+  /** Enable drool effect */
+  enabled: boolean;
+  /** Which side of the mouth the drool appears (default: 'right') */
+  side?: 'left' | 'right';
+}
+
+/**
+ * Configuration for food icon above head.
+ */
+export interface FoodIconConfig {
+  /** Enable food icon above head */
+  enabled: boolean;
+  /** Icon type (default: 'utensils') */
+  type?: 'utensils' | 'plate';
+}
+
+/**
+ * Configuration for sleepy mouth animation.
+ */
+export interface SleepyMouthAnimationConfig {
+  /** Total duration of one full sleep cycle in seconds */
+  cycleDuration: number;
 }
