@@ -10,8 +10,9 @@
  *
  * This config is intentionally broader than `sanitizeSvg()` (used for
  * untrusted user-drawn stickers) because Blobbi SVGs legitimately use
- * gradients, clip paths, CSS animations, and data attributes. The two
- * configs exist for different threat models and should not be merged.
+ * gradients, clip paths, masks, CSS animations, SMIL animations, and data
+ * attributes. The two configs exist for different threat models and should
+ * not be merged.
  *
  * Blocked: <script>, <foreignObject>, <iframe>, <embed>, <object>, <a>,
  *          <use>, <image>, all event handlers (on*), href/xlink:href.
@@ -23,9 +24,9 @@ import DOMPurify from 'dompurify';
  * SVG elements used by the Blobbi rendering pipeline:
  * - Structural: svg, g, defs, path, circle, ellipse, rect, line, polyline, polygon
  * - Gradients: radialGradient, linearGradient, stop
- * - Clipping: clipPath
- * - Animation: animate, animateTransform
- * - Text: text (used in fallback SVGs)
+ * - Clipping/Masking: clipPath, mask
+ * - Animation: animate, animateTransform, animateMotion
+ * - Text: text, tspan (used in Zzz sleepy animation)
  * - Style: style (used for @keyframes in emotion system)
  */
 const ALLOWED_TAGS = [
@@ -44,14 +45,17 @@ const ALLOWED_TAGS = [
   'radialGradient',
   'linearGradient',
   'stop',
-  // Clipping
+  // Clipping and Masking
   'clipPath',
-  // Animation
+  'mask',
+  // SMIL Animation (eye tracking, blinking, emotions, tears, sleepy mouth morphing)
   'animate',
   'animateTransform',
-  // Text (fallback SVGs)
+  'animateMotion',
+  // Text (fallback SVGs, Zzz sleepy animation)
   'text',
-  // Style (emotion @keyframes)
+  'tspan',
+  // Style (emotion @keyframes for dizzy spirals, star eyes, sleepy, animated brows)
   'style',
 ];
 
@@ -60,11 +64,15 @@ const ALLOWED_TAGS = [
  *
  * Notably absent: href, xlink:href (Blobbi gradients use url(#id) references
  * instead), and all event handlers (on*).
+ *
+ * IMPORTANT: data-* attributes are handled separately via ADD_ATTR since
+ * ALLOWED_ATTR puts DOMPurify into whitelist mode which would strip them.
  */
 const ALLOWED_ATTRS = [
   // Structural
   'xmlns',
   'viewBox',
+  'preserveAspectRatio',
   'width',
   'height',
   'id',
@@ -82,9 +90,12 @@ const ALLOWED_ATTRS = [
   'fill-rule',
   'opacity',
   'transform',
+  'transform-origin',
+  'transform-box',
   'style',
   'clip-path',
   'clip-rule',
+  'mask',
   // Geometry
   'cx',
   'cy',
@@ -105,21 +116,32 @@ const ALLOWED_ATTRS = [
   'stop-opacity',
   'gradientUnits',
   'gradientTransform',
+  'patternUnits',
   'spreadMethod',
   'fx',
   'fy',
-  // Animation attributes
+  // SMIL Animation attributes (used by tears, sleepy, dizzy, anger-rise, etc.)
   'attributeName',
+  'attributeType',
   'values',
   'keyTimes',
+  'keySplines',    // Used for smooth easing in sleepy mouth morphing
+  'keyPoints',
+  'calcMode',      // Used with keySplines for spline interpolation
   'dur',
   'begin',
   'end',
   'repeatCount',
+  'repeatDur',
+  'fill',          // Also used as animation fill="freeze" for anger-rise
   'from',
   'to',
-  'type',
-  // Text
+  'by',
+  'type',          // Used in animateTransform type="rotate" and <style type="text/css">
+  'additive',
+  'accumulate',
+  'path',          // For animateMotion
+  // Text attributes
   'text-anchor',
   'dominant-baseline',
   'font-family',
@@ -127,21 +149,90 @@ const ALLOWED_ATTRS = [
   'font-weight',
 ];
 
+/**
+ * Forbidden event handler attributes.
+ * These are blocked to prevent XSS via inline event handlers.
+ */
+const FORBIDDEN_ATTRS = [
+  // Event handlers (comprehensive list)
+  'onload',
+  'onerror',
+  'onclick',
+  'ondblclick',
+  'onmousedown',
+  'onmouseup',
+  'onmouseover',
+  'onmouseout',
+  'onmouseenter',
+  'onmouseleave',
+  'onmousemove',
+  'onfocus',
+  'onblur',
+  'onkeydown',
+  'onkeyup',
+  'onkeypress',
+  'onchange',
+  'oninput',
+  'onsubmit',
+  'onreset',
+  'onanimationend',
+  'onanimationstart',
+  'onanimationiteration',
+  'ontransitionend',
+  'ontransitionstart',
+  'onbegin',       // SVG SMIL event
+  'onend',         // SVG SMIL event
+  'onrepeat',      // SVG SMIL event
+  // Link targets — Blobbi SVGs use url(#id) for gradient refs, not href
+  'href',
+  'xlink:href',
+];
+
 /** Maximum SVG string length (512 KB). Blobbi SVGs with all emotion overlays are ~30 KB. */
 const MAX_SVG_LENGTH = 512 * 1024;
+
+/**
+ * Configure DOMPurify once at module load time.
+ *
+ * We add a hook to dynamically allow all data-* attributes. When ALLOWED_ATTR
+ * is specified, DOMPurify switches to strict whitelist mode and would otherwise
+ * strip data-* attributes.
+ *
+ * The eye animation system depends on these data attributes:
+ * - data-cx, data-cy: Eye center coordinates
+ * - data-eye-top, data-eye-bottom: Eye bounds for clip-path animation
+ * - data-clip-height: Full height of clip rect
+ * - data-clip-id: Reference to the clipPath element ID
+ *
+ * These are all generated by our own code (eye-animation.ts), not user input.
+ */
+DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
+  // Allow any attribute starting with "data-"
+  // These are used by the eye animation system for storing geometry/state
+  if (data.attrName.startsWith('data-')) {
+    data.allowedAttributes[data.attrName] = true;
+  }
+});
 
 /**
  * Sanitize a Blobbi SVG string before injection via `dangerouslySetInnerHTML`.
  *
  * This is the output-boundary safety net for the Blobbi rendering pipeline.
  * It strips scripts, event handlers, and other dangerous constructs while
- * preserving the gradients, animations, and clip paths that the pipeline
+ * preserving the gradients, animations, clip paths, and CSS that the pipeline
  * legitimately produces.
  *
- * DOMPurify also handles data-* attributes by default (allowed unless
- * explicitly forbidden), which the eye animation system relies on for
- * data-cx, data-cy, data-eye-top, data-eye-bottom, data-clip-height,
- * data-clip-id.
+ * Key features:
+ * - All data-* attributes are allowed (via hook) for eye animation system
+ * - SMIL animation elements and attributes are preserved
+ * - CSS @keyframes in <style> tags are allowed (for emotions)
+ * - Event handlers and href attributes are blocked
+ *
+ * What this sanitizer catches:
+ * - Any <script> tags that might be injected
+ * - Event handlers like onclick, onload, etc.
+ * - Links via href/xlink:href
+ * - Dangerous elements like foreignObject, iframe, etc.
  */
 export function sanitizeBlobbiSvg(dirty: string): string {
   if (dirty.length > MAX_SVG_LENGTH) {
@@ -151,8 +242,10 @@ export function sanitizeBlobbiSvg(dirty: string): string {
     return '';
   }
 
+  // Note: We do NOT use USE_PROFILES because the SVG profile has its own
+  // internal whitelist that conflicts with our explicit ALLOWED_TAGS/ALLOWED_ATTR.
+  // Instead, we explicitly define what's allowed, which gives us full control.
   return DOMPurify.sanitize(dirty, {
-    USE_PROFILES: { svg: true, svgFilters: false },
     ALLOWED_TAGS,
     ALLOWED_ATTR: ALLOWED_ATTRS,
     FORBID_TAGS: [
@@ -165,23 +258,7 @@ export function sanitizeBlobbiSvg(dirty: string): string {
       'image',
       'a',
     ],
-    FORBID_ATTR: [
-      // Event handlers
-      'onload',
-      'onerror',
-      'onclick',
-      'onmouseover',
-      'onmouseout',
-      'onmouseenter',
-      'onmouseleave',
-      'onfocus',
-      'onblur',
-      'onanimationend',
-      'onanimationstart',
-      // Link targets — Blobbi SVGs use url(#id) for gradient refs, not href
-      'href',
-      'xlink:href',
-    ],
+    FORBID_ATTR: FORBIDDEN_ATTRS,
     RETURN_DOM: false,
     RETURN_DOM_FRAGMENT: false,
   }) as string;
