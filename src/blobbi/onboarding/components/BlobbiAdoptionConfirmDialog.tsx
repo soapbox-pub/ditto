@@ -16,7 +16,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
-import { BLOBBI_ADOPTION_COST } from '@/lib/blobbi';
+import { BLOBBI_ADOPTION_COST } from '@/blobbi/core/lib/blobbi';
 import { formatCompactNumber } from '@/lib/utils';
 
 import type { BlobbiEggPreview } from '../lib/blobbi-preview';

@@ -21,12 +21,12 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiCompanion, BlobbonautProfile } from '@/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
-} from '@/lib/blobbi';
-import { applyBlobbiDecay } from '@/lib/blobbi-decay';
+} from '@/blobbi/core/lib/blobbi';
+import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,7 +62,7 @@ export interface UseStartIncubationParams {
     allTags: string[][];
     wasMigrated: boolean;
     profileAllTags: string[][];
-    profileStorage: import('@/lib/blobbi').StorageItem[];
+    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
@@ -325,7 +325,7 @@ export interface UseStopIncubationParams {
     allTags: string[][];
     wasMigrated: boolean;
     profileAllTags: string[][];
-    profileStorage: import('@/lib/blobbi').StorageItem[];
+    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
@@ -476,7 +476,7 @@ export interface UseStartEvolutionParams {
     allTags: string[][];
     wasMigrated: boolean;
     profileAllTags: string[][];
-    profileStorage: import('@/lib/blobbi').StorageItem[];
+    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
@@ -627,7 +627,7 @@ export interface UseStopEvolutionParams {
     allTags: string[][];
     wasMigrated: boolean;
     profileAllTags: string[][];
-    profileStorage: import('@/lib/blobbi').StorageItem[];
+    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
@@ -780,7 +780,7 @@ export interface UseSyncTaskCompletionsParams {
     allTags: string[][];
     wasMigrated: boolean;
     profileAllTags: string[][];
-    profileStorage: import('@/lib/blobbi').StorageItem[];
+    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;

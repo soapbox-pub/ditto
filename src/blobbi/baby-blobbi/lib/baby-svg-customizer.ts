@@ -4,7 +4,7 @@
  * Handles applying colors and customizations to baby SVG content
  */
 
-import { Blobbi } from '@/types/blobbi';
+import { Blobbi } from '@/blobbi/core/types/blobbi';
 import { BabySvgCustomization } from '../types/baby.types';
 
 /**

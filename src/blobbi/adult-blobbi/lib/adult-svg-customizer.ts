@@ -8,7 +8,7 @@
  * We replace gradient colors, not the gradient structure.
  */
 
-import type { Blobbi } from '@/types/blobbi';
+import type { Blobbi } from '@/blobbi/core/types/blobbi';
 import type { AdultForm, AdultSvgCustomization } from '../types/adult.types';
 
 // ─── Color Utilities ──────────────────────────────────────────────────────────

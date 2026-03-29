@@ -6,12 +6,12 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiCompanion } from '@/lib/blobbi';
+import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
-} from '@/lib/blobbi';
-import { applyBlobbiDecay } from '@/lib/blobbi-decay';
+} from '@/blobbi/core/lib/blobbi';
+import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import {
   clampStat,
   applyStat,
@@ -22,6 +22,7 @@ import {
 import { trackMultipleDailyMissionActions } from '../lib/daily-mission-tracker';
 import type { DailyMissionAction } from '../lib/daily-missions';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
+import { calculateActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
 import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';
 import { EVOLVE_REQUIRED_INTERACTIONS } from './useEvolveTasks';
 
@@ -50,6 +51,8 @@ export interface DirectActionRequest {
 export interface DirectActionResult {
   action: DirectAction;
   happinessChange: number;
+  xpGained: number;
+  newXP: number;
 }
 
 /**
@@ -129,6 +132,9 @@ export function useBlobbiDirectAction({
       const happinessDelta = DIRECT_ACTION_HAPPINESS_EFFECTS[action];
       const newHappiness = applyStat(statsAfterDecay.happiness, happinessDelta);
       
+      // Track if happiness actually changed
+      const happinessChanged = newHappiness !== statsAfterDecay.happiness;
+      
       // Build stats update
       const isEgg = canonical.companion.stage === 'egg';
       const statsUpdate: Record<string, string> = {
@@ -161,9 +167,16 @@ export function useBlobbiDirectAction({
       // Get streak updates (will only update if needed based on day)
       const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
       
+      // ─── Apply XP Gain (ONLY if happiness actually changed) ───
+      // Direct actions modify happiness. Only grant XP if happiness actually increased.
+      const xpGained = happinessChanged ? calculateActionXP(action) : 0;
+      const currentXP = canonical.companion.experience ?? 0;
+      const newXP = applyXPGain(currentXP, xpGained);
+      
       const blobbiTags = updateBlobbiTags(updatedTags, {
         ...statsUpdate,
         ...streakUpdates,
+        experience: newXP.toString(),
         last_interaction: nowStr,
         last_decay_at: nowStr,
       });
@@ -185,13 +198,16 @@ export function useBlobbiDirectAction({
       return {
         action,
         happinessChange: happinessDelta,
+        xpGained,
+        newXP,
       };
     },
-    onSuccess: ({ action, happinessChange }) => {
+    onSuccess: ({ action, happinessChange, xpGained }) => {
       const actionMeta = DIRECT_ACTION_METADATA[action];
+      const xpText = formatXPGain(xpGained);
       toast({
         title: `${actionMeta.label} complete!`,
-        description: `Your Blobbi's happiness increased by ${happinessChange}!`,
+        description: `Your Blobbi's happiness increased by ${happinessChange}! ${xpText}`,
       });
 
       // Track daily mission progress

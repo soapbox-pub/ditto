@@ -18,7 +18,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-import type { BlobbiCompanion, BlobbonautProfile } from '@/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
 import type { ShopItem } from '../types/shop.types';
 import { getShopItemById } from '../lib/blobbi-shop-items';
 import { canUseItemForStage } from '@/blobbi/actions/lib/blobbi-action-utils';

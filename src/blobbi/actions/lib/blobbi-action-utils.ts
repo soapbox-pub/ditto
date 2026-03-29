@@ -1,6 +1,6 @@
 // src/blobbi/actions/lib/blobbi-action-utils.ts
 
-import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStats, type StorageItem } from '@/lib/blobbi';
+import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStats, type StorageItem } from '@/blobbi/core/lib/blobbi';
 import type { ItemEffect, ShopItemCategory } from '@/blobbi/shop/types/shop.types';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 

@@ -19,7 +19,7 @@ import {
   KIND_BLOBBI_STATE,
   isValidBlobbiEvent,
   parseBlobbiEvent,
-} from '@/lib/blobbi';
+} from '@/blobbi/core/lib/blobbi';
 import type { CompanionData } from '../types/companion.types';
 
 interface UseBlobbiCompanionDataResult {
