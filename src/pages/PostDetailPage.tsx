@@ -266,6 +266,28 @@ export function PostDetailPage({
     );
   }
 
+  // NIP-58 badge definitions get a detail view with issuer info and awardees
+  if (resolvedEvent.kind === BADGE_DEFINITION_KIND) {
+    return (
+      <PostDetailShell title="Badge Details">
+        <MutedContentGuard event={resolvedEvent}>
+          <BadgeDetailContent event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
+    );
+  }
+
+  // NIP-58 profile badges get a NoteCard view (same as the feed) + comments
+  if (resolvedEvent.kind === BADGE_PROFILE_KIND_NEW || resolvedEvent.kind === BADGE_PROFILE_KIND_LEGACY) {
+    return (
+      <PostDetailShell title="Badge Collection">
+        <MutedContentGuard event={resolvedEvent}>
+          <ProfileBadgesDetailView event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
+    );
+  }
+
   return (
     <PostDetailShell title={detailTitle}>
       <MutedContentGuard event={resolvedEvent}>
