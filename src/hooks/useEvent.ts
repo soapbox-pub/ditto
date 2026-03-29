@@ -112,7 +112,14 @@ export function useAddrEvent(addr: AddrCoords | undefined, relays?: string[]) {
     queryKey: ['addr-event', addr?.kind ?? 0, addr?.pubkey ?? '', addr?.identifier ?? ''],
     queryFn: async () => {
       if (!addr) return null;
-      const filter: NostrFilter[] = [{ kinds: [addr.kind], authors: [addr.pubkey], '#d': [addr.identifier], limit: 1 }];
+      // Replaceable events (10000-19999) are identified by kind+author only — no d-tag.
+      // Addressable events (30000-39999) additionally need the d-tag filter.
+      const isReplaceable = addr.kind >= 10000 && addr.kind < 20000;
+      const baseFilter: NostrFilter = { kinds: [addr.kind], authors: [addr.pubkey], limit: 1 };
+      if (!isReplaceable) {
+        baseFilter['#d'] = [addr.identifier];
+      }
+      const filter: NostrFilter[] = [baseFilter];
 
       // For Zapstore kinds, try the canonical relay first for fastest results
       if (ZAPSTORE_KINDS.includes(addr.kind)) {
