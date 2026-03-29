@@ -273,7 +273,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
               {user && (
                 <MenuRow
                   icon={<Award className="size-5" />}
-                  label="Give badge"
+                  label="Award badge"
                   onClick={handleGiveBadge}
                 />
               )}
