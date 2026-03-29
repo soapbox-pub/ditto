@@ -75,7 +75,7 @@ import {
   type InventoryAction,
   type DirectAction,
   type InlineActivityState,
-  type AudioSource,
+  type SelectedTrack,
   type BlobbiReactionState,
   type StartIncubationMode,
   getStreakTagUpdates,
@@ -1170,21 +1170,21 @@ function BlobbiDashboard({
   };
   
   // Handle track selected from picker - creates inline music player or changes track
-  const handleTrackSelected = async (source: AudioSource) => {
+  const handleTrackSelected = async (selection: SelectedTrack) => {
     setShowTrackPickerModal(false);
     
     // Check if we're changing an existing track (already published) or selecting initial track
     const isChangingTrack = inlineActivity.type === 'music' && inlineActivity.isPublished;
     
     if (isChangingTrack) {
-      // Just update the source, keep isPublished: true
+      // Just update the selection, keep isPublished: true
       // The InlineMusicPlayer will detect the URL change and reload
       setInlineActivity(prev => 
-        prev.type === 'music' ? { ...prev, source } : prev
+        prev.type === 'music' ? { ...prev, selection } : prev
       );
     } else {
       // Initial track selection - need to publish the action
-      setInlineActivity(createMusicActivity(source));
+      setInlineActivity(createMusicActivity(selection));
       
       // Publish the action first, then playback will start after publish succeeds
       try {
@@ -1461,7 +1461,7 @@ function BlobbiDashboard({
         {inlineActivity.type === 'music' && (
           <div className="mt-6">
             <InlineMusicPlayer
-              source={inlineActivity.source}
+              selection={inlineActivity.selection}
               onChangeTrack={handleChangeTrack}
               onClose={handleCloseInlineActivity}
               onPlaybackStart={handleMusicPlaybackStart}

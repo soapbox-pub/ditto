@@ -1,22 +1,18 @@
-// src/blobbi/actions/lib/blobbi-builtin-tracks.ts
+// src/blobbi/actions/lib/blobbi-track-catalog.ts
 
 /**
- * Built-in music tracks for the Blobbi "Play Music" action.
+ * Blobbi Track Catalog
  * 
- * ## Asset Location
- * 
- * Audio files live in: `public/blobbi/audio/`
- * 
- * In Vite, files in `public/` are served at root paths, so:
- * - `public/blobbi/audio/foo.m4a` → accessible at `/blobbi/audio/foo.m4a`
+ * Music tracks for the Blobbi "Play Music" action.
+ * All tracks are hosted on remote Blossom servers and streamed on-demand.
  * 
  * ## Adding New Tracks
  * 
  * 1. Convert the audio file to M4A (AAC-LC):
  *    `ffmpeg -i input.m4a -c:a aac -b:a 64k -ar 48000 output.m4a`
- * 2. Place the M4A file in `public/blobbi/audio/`
- * 3. Add a new entry to `BLOBBI_BUILTIN_TRACKS` below
- * 4. Set `path` to `/blobbi/audio/<filename>.m4a`
+ * 2. Upload the M4A file to a Blossom server
+ * 3. Add a new entry to `BLOBBI_TRACK_CATALOG` below
+ * 4. Set `url` to the full Blossom URL
  * 5. Get the duration: `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 <file>`
  * 
  * ## Supported Formats
@@ -24,35 +20,35 @@
  * M4A (AAC-LC) is required for iOS/Safari compatibility and small file size.
  */
 
-export interface BuiltInTrack {
+export interface BlobbiTrack {
   /** Unique identifier for the track (used in state/events) */
   id: string;
   /** Display title shown in the UI */
   title: string;
   /** Artist or source attribution */
   artist: string;
-  /** Path to audio file (relative to public directory root) */
-  path: string;
+  /** Full URL to the remote audio file (Blossom server) */
+  url: string;
   /** Duration in seconds (for display, get via ffprobe) */
   durationSeconds: number;
-  /** Optional cover art path (relative to public directory root) */
+  /** Optional cover art URL */
   coverArt?: string;
   /** Optional tags for categorization/filtering */
   tags?: string[];
 }
 
 /**
- * Built-in track catalog for Blobbi music player.
+ * Blobbi track catalog.
  * 
  * All tracks are royalty-free/Creative Commons licensed.
- * Audio files located at: public/blobbi/audio/
+ * Audio files hosted on remote Blossom servers.
  */
-export const BLOBBI_BUILTIN_TRACKS: BuiltInTrack[] = [
+export const BLOBBI_TRACK_CATALOG: BlobbiTrack[] = [
   {
     id: 'nap_in_the_meadow',
     title: 'Nap in the Meadow',
     artist: 'Chilltape FM',
-    path: '/blobbi/audio/chilltapefm-nap-in-the-meadow.m4a',
+    url: 'https://blossom.ditto.pub/6be1c95e879187f83af2a661ccac2bd96196f7bc334af44529ede6270b2811fc.m4a',
     durationSeconds: 240, // 4:00
     tags: ['relaxing', 'nature'],
   },
@@ -60,7 +56,7 @@ export const BLOBBI_BUILTIN_TRACKS: BuiltInTrack[] = [
     id: 'happy_kids',
     title: 'Happy Kids',
     artist: 'Dmitrii Kolesnikov',
-    path: '/blobbi/audio/happy-kids.m4a',
+    url: 'https://blossom.ditto.pub/94d49abd178aa8afb14737a55e0a7143f6b337f618d74858d011232bb2db845d.m4a',
     durationSeconds: 129, // 2:09
     tags: ['upbeat', 'fun'],
   },
@@ -68,7 +64,7 @@ export const BLOBBI_BUILTIN_TRACKS: BuiltInTrack[] = [
     id: 'soft_piano',
     title: 'Soft Piano',
     artist: 'Dmitrii Kolesnikov',
-    path: '/blobbi/audio/soft-piano.m4a',
+    url: 'https://blossom.ditto.pub/5367242d3dc555c77f5c637fd153df1166708a24c5a4c222bb4dcaeabf740743.m4a',
     durationSeconds: 124, // 2:04
     tags: ['calming', 'sleep'],
   },
@@ -76,15 +72,15 @@ export const BLOBBI_BUILTIN_TRACKS: BuiltInTrack[] = [
     id: 'epic_sacred_light',
     title: 'Epic Sacred Light',
     artist: 'Ura Megis',
-    path: '/blobbi/audio/epic-sacred-light.m4a',
+    url: 'https://blossom.dreamith.to/c22953791d686605958165fd44a84cd7d9fd3d4423ebf786e47891ed3a82c6db.m4a',
     durationSeconds: 223, // 3:43
     tags: ['energetic', 'adventure'],
   },
   {
-    id: 'split_memmories',
-    title: 'Split Memmories',
+    id: 'split_memories',
+    title: 'Split Memories',
     artist: 'ido berg',
-    path: '/blobbi/audio/split-memmories.m4a',
+    url: 'https://blossom.ditto.pub/57ba2e2122a732449880ae531d4bfac9a580bc19693c7dda735afbfa336b35fe.m4a',
     durationSeconds: 153, // 2:33
     tags: ['ambient', 'relaxing'],
   },
@@ -92,24 +88,24 @@ export const BLOBBI_BUILTIN_TRACKS: BuiltInTrack[] = [
     id: 'minhas_mensagens',
     title: 'Minhas Mensagens',
     artist: 'PReis',
-    path: '/blobbi/audio/minhas-mensagens-preis.m4a',
+    url: 'https://blossom.ditto.pub/0945064dc8f946f3392be23629b166e72090cafca7cca865a20b5395dd83ff46.m4a',
     durationSeconds: 248, // 4:08
     tags: ['ambient', 'relaxing'],
   },
 ];
 
 /**
- * Get a built-in track by ID
+ * Get a track by ID from the catalog
  */
-export function getBuiltInTrackById(id: string): BuiltInTrack | undefined {
-  return BLOBBI_BUILTIN_TRACKS.find(track => track.id === id);
+export function getTrackById(id: string): BlobbiTrack | undefined {
+  return BLOBBI_TRACK_CATALOG.find(track => track.id === id);
 }
 
 /**
- * Get all built-in tracks
+ * Get all tracks from the catalog
  */
-export function getAllBuiltInTracks(): BuiltInTrack[] {
-  return BLOBBI_BUILTIN_TRACKS;
+export function getAllTracks(): BlobbiTrack[] {
+  return BLOBBI_TRACK_CATALOG;
 }
 
 /**

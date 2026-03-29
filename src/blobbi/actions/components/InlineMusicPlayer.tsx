@@ -9,14 +9,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 
 import { useAudioPlayback } from '../hooks/useAudioPlayback';
-import type { AudioSource } from './PlayMusicModal';
+import type { SelectedTrack } from './PlayMusicModal';
 
 // Re-export for external use
-export type { AudioSource as MusicTrackSource } from './PlayMusicModal';
+export type { SelectedTrack } from './PlayMusicModal';
 
 interface InlineMusicPlayerProps {
-  /** The selected track source */
-  source: AudioSource;
+  /** The selected track */
+  selection: SelectedTrack;
   /** Called when user wants to change the track */
   onChangeTrack: () => void;
   /** Called when user closes the player */
@@ -34,7 +34,7 @@ interface InlineMusicPlayerProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function InlineMusicPlayer({
-  source,
+  selection,
   onChangeTrack,
   onClose,
   onPlaybackStart,
@@ -64,20 +64,20 @@ export function InlineMusicPlayer({
   // that requires explicit user action (play button) to restart
   useEffect(() => {
     if (isPublished && playbackState === 'idle') {
-      load(source.url, true);
+      load(selection.url, true);
       onPlaybackStart?.();
     }
-  }, [isPublished, playbackState, source.url, load, onPlaybackStart]);
+  }, [isPublished, playbackState, selection.url, load, onPlaybackStart]);
   
   // Force reload when source URL changes while already playing/paused
   useEffect(() => {
     // Only trigger reload if we're in an active playback state with a different URL
     if (isPublished && (playbackState === 'playing' || playbackState === 'paused')) {
       // The load function will check if URL changed and reload if needed
-      load(source.url, true);
+      load(selection.url, true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only react to source.url changes
-  }, [source.url]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only react to selection.url changes
+  }, [selection.url]);
   
   // Notify on playback state changes
   useEffect(() => {
@@ -99,20 +99,15 @@ export function InlineMusicPlayer({
   // Handle play/pause toggle
   const handleToggle = useCallback(async () => {
     if (playbackState === 'idle' || playbackState === 'stopped') {
-      load(source.url, true);
+      load(selection.url, true);
     } else {
       await toggle();
     }
-  }, [playbackState, source.url, load, toggle]);
+  }, [playbackState, selection.url, load, toggle]);
   
-  // Track title
-  const trackTitle = source.type === 'builtin' 
-    ? source.track?.title ?? 'Unknown Track'
-    : source.file?.name ?? 'Uploaded Track';
-  
-  const trackArtist = source.type === 'builtin'
-    ? source.track?.artist
-    : undefined;
+  // Track info
+  const trackTitle = selection.track.title;
+  const trackArtist = selection.track.artist;
   
   const isLoading = playbackState === 'loading' || isPublishing;
   const hasError = playbackState === 'error';
