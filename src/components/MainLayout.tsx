@@ -17,14 +17,14 @@ import { cn } from '@/lib/utils';
 function PageSkeleton() {
   return (
     <>
-      {/* Main column skeleton */}
-      <main className="flex-1 min-w-0 min-h-screen">
+      {/* Main column skeleton — mirrors the Outlet wrapper's border + bg classes */}
+      <main className="flex-1 min-w-0 min-h-screen sidebar:border-l sidebar:border-r border-border bg-background/85 sidebar:max-w-[600px]">
         {/* Header skeleton */}
-        <div className="flex items-center gap-4 px-4 pt-4 pb-5 bg-background/85">
+        <div className="flex items-center gap-4 px-4 pt-4 pb-5">
           <Skeleton className="h-6 w-32" />
         </div>
         {/* Content skeletons */}
-        <div className="space-y-4 px-4 bg-background/85 min-h-dvh">
+        <div className="space-y-4 px-4 min-h-dvh">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="space-y-3 py-4 border-b border-border">
               <div className="flex items-center gap-3">
@@ -42,22 +42,60 @@ function PageSkeleton() {
           ))}
         </div>
       </main>
-      {/* Right sidebar skeleton */}
-      <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen pt-5 pb-3 px-5">
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <Skeleton className="h-6 w-24" />
+      {/* Right sidebar skeleton — mirrors RightSidebar's container + widget card styling */}
+      <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3">
+        {/* Trends widget skeleton */}
+        <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
+          <div className="flex items-center justify-between mb-3">
+            <Skeleton className="h-6 w-20" />
+            <Skeleton className="h-4 w-14" />
+          </div>
+          <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex justify-between items-center">
                 <div className="space-y-1.5">
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-3 w-32" />
                 </div>
-                <Skeleton className="h-8 w-12" />
+                <Skeleton className="h-[28px] w-[50px] rounded" />
               </div>
             ))}
           </div>
-        </div>
+        </section>
+        {/* Hot Posts widget skeleton */}
+        <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
+          <div className="flex items-center justify-between mb-3">
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-4 w-12" />
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="size-5 rounded-full" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-3/4" />
+              </div>
+            ))}
+          </div>
+        </section>
+        {/* New Accounts widget skeleton */}
+        <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
+          <Skeleton className="h-6 w-28 mb-3" />
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="size-10 rounded-full" />
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-36" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </aside>
     </>
   );
