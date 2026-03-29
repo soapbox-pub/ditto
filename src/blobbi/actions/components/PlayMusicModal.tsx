@@ -1,7 +1,7 @@
 // src/blobbi/actions/components/PlayMusicModal.tsx
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Music, Upload, Play, Pause, Check, Loader2, Volume2, X, AlertCircle } from 'lucide-react';
+import { Music, Play, Pause, Check, Loader2, Volume2, AlertCircle } from 'lucide-react';
 
 import {
   Dialog,
@@ -10,30 +10,29 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 import {
-  getAllBuiltInTracks,
+  getAllTracks,
   formatTrackDuration,
-  type BuiltInTrack,
-} from '../lib/blobbi-builtin-tracks';
+  type BlobbiTrack,
+} from '../lib/blobbi-track-catalog';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /**
- * Audio source for the music player
+ * Selected track for the music player
  */
-export type AudioSource = 
-  | { type: 'builtin'; track: BuiltInTrack; url: string }
-  | { type: 'uploaded'; file: File; url: string };
+export interface SelectedTrack {
+  track: BlobbiTrack;
+  url: string;
+}
 
 interface PlayMusicModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called with the selected audio source when user confirms */
-  onConfirm: (source: AudioSource) => void;
+  /** Called with the selected track when user confirms */
+  onConfirm: (selection: SelectedTrack) => void;
   isLoading: boolean;
 }
 
@@ -45,102 +44,53 @@ export function PlayMusicModal({
   onConfirm,
   isLoading,
 }: PlayMusicModalProps) {
-  const [selectedSource, setSelectedSource] = useState<AudioSource | null>(null);
+  const [selectedTrack, setSelectedTrack] = useState<SelectedTrack | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [builtInError, setBuiltInError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const builtInTracks = getAllBuiltInTracks();
+  // Track the current audio source URL to detect changes
+  const currentAudioUrlRef = useRef<string | null>(null);
   
-  // Cleanup audio on unmount or modal close
+  const tracks = getAllTracks();
+  
+  // Cleanup audio on unmount
   useEffect(() => {
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
-      // Revoke object URL if it was an uploaded file
-      if (selectedSource?.type === 'uploaded') {
-        URL.revokeObjectURL(selectedSource.url);
-      }
     };
-  }, [selectedSource]);
+  }, []);
   
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
-      setSelectedSource(null);
+      setSelectedTrack(null);
       setIsPlaying(false);
-      setUploadError(null);
-      setBuiltInError(null);
+      setError(null);
       currentAudioUrlRef.current = null;
     }
   }, [open]);
   
-  // Handle selecting a built-in track
-  const handleSelectBuiltIn = useCallback((track: BuiltInTrack) => {
+  // Handle selecting a track
+  const handleSelectTrack = useCallback((track: BlobbiTrack) => {
     // Stop current playback
     if (audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
     }
     
-    // Revoke previous URL if uploaded
-    if (selectedSource?.type === 'uploaded') {
-      URL.revokeObjectURL(selectedSource.url);
-    }
-    
-    setSelectedSource({ type: 'builtin', track, url: track.path });
-    setBuiltInError(null);
-  }, [selectedSource]);
-  
-  // Handle file upload
-  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    // Validate file type
-    const validTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a', 'audio/mp4'];
-    if (!validTypes.includes(file.type) && !file.name.match(/\.(mp3|wav|ogg|m4a)$/i)) {
-      setUploadError('Please upload an MP3, WAV, OGG, or M4A file.');
-      return;
-    }
-    
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setUploadError('File is too large. Maximum size is 10MB.');
-      return;
-    }
-    
-    // Stop current playback
-    if (audioRef.current) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    }
-    
-    // Revoke previous URL if uploaded
-    if (selectedSource?.type === 'uploaded') {
-      URL.revokeObjectURL(selectedSource.url);
-    }
-    
-    const url = URL.createObjectURL(file);
-    setSelectedSource({ type: 'uploaded', file, url });
-    setUploadError(null);
-  }, [selectedSource]);
-  
-  // Track the current audio source URL to detect changes
-  const currentAudioUrlRef = useRef<string | null>(null);
+    setSelectedTrack({ track, url: track.url });
+    setError(null);
+  }, []);
   
   // Handle play/pause preview
   const handleTogglePlay = useCallback(() => {
-    if (!selectedSource) return;
+    if (!selectedTrack) return;
     
-    const audioUrl = selectedSource.type === 'builtin' 
-      ? selectedSource.track.path 
-      : selectedSource.url;
+    const audioUrl = selectedTrack.url;
     
     // Check if we need to create a new Audio instance (source changed or first time)
     const needsNewAudio = !audioRef.current || currentAudioUrlRef.current !== audioUrl;
@@ -159,9 +109,7 @@ export function PlayMusicModal({
       
       audioRef.current.onended = () => setIsPlaying(false);
       audioRef.current.onerror = () => {
-        if (selectedSource.type === 'builtin') {
-          setBuiltInError('This track is not available yet. Try uploading your own music!');
-        }
+        setError('Failed to load this track. Please try another one.');
         setIsPlaying(false);
       };
     }
@@ -173,26 +121,24 @@ export function PlayMusicModal({
     } else {
       // Start playback (either new source or resuming)
       audioRef.current?.play().catch(() => {
-        if (selectedSource.type === 'builtin') {
-          setBuiltInError('This track is not available yet. Try uploading your own music!');
-        }
+        setError('Failed to play this track. Please try another one.');
         setIsPlaying(false);
       });
       setIsPlaying(true);
     }
-  }, [selectedSource, isPlaying]);
+  }, [selectedTrack, isPlaying]);
   
   // Handle confirm
   const handleConfirm = useCallback(() => {
-    if (!selectedSource) return;
+    if (!selectedTrack) return;
     
     // Stop playback
     if (audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
     }
-    onConfirm(selectedSource);
-  }, [selectedSource, onConfirm]);
+    onConfirm(selectedTrack);
+  }, [selectedTrack, onConfirm]);
   
   // Handle close
   const handleClose = useCallback((isOpen: boolean) => {
@@ -202,12 +148,6 @@ export function PlayMusicModal({
     }
     onOpenChange(isOpen);
   }, [onOpenChange]);
-  
-  const selectedName = selectedSource?.type === 'builtin' 
-    ? selectedSource.track.title 
-    : selectedSource?.type === 'uploaded'
-    ? selectedSource.file.name
-    : null;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -227,116 +167,32 @@ export function PlayMusicModal({
           </div>
         </DialogHeader>
 
-        {/* Content */}
+        {/* Content - Track List */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          <Tabs defaultValue="builtin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="builtin">Built-in</TabsTrigger>
-              <TabsTrigger 
-                value="upload" 
-                disabled
-                className="gap-1.5 data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed"
-              >
-                Upload
-                <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 font-normal">
-                  Soon
-                </Badge>
-              </TabsTrigger>
-            </TabsList>
-            
-            {/* Built-in Tracks Tab */}
-            <TabsContent value="builtin" className="mt-4">
-              <div className="grid gap-2">
-                {builtInTracks.map((track) => (
-                  <TrackRow
-                    key={track.id}
-                    track={track}
-                    isSelected={selectedSource?.type === 'builtin' && selectedSource.track.id === track.id}
-                    onSelect={() => handleSelectBuiltIn(track)}
-                  />
-                ))}
+          <div className="grid gap-2">
+            {tracks.map((track) => (
+              <TrackRow
+                key={track.id}
+                track={track}
+                isSelected={selectedTrack?.track.id === track.id}
+                onSelect={() => handleSelectTrack(track)}
+              />
+            ))}
+          </div>
+          {error && (
+            <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="size-4 text-amber-500 mt-0.5 shrink-0" />
+                <p className="text-sm text-amber-600 dark:text-amber-400">{error}</p>
               </div>
-              {builtInError && (
-                <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="size-4 text-amber-500 mt-0.5 shrink-0" />
-                    <p className="text-sm text-amber-600 dark:text-amber-400">{builtInError}</p>
-                  </div>
-                </div>
-              )}
-            </TabsContent>
-            
-            {/* Upload Tab */}
-            <TabsContent value="upload" className="mt-4">
-              <div className="space-y-4">
-                {/* Upload Area */}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className={cn(
-                    "w-full p-8 rounded-xl border-2 border-dashed transition-colors",
-                    "hover:border-primary/50 hover:bg-primary/5",
-                    "flex flex-col items-center justify-center gap-3",
-                    selectedSource?.type === 'uploaded' 
-                      ? "border-primary/30 bg-primary/5" 
-                      : "border-border"
-                  )}
-                >
-                  <div className="size-12 rounded-full bg-muted flex items-center justify-center">
-                    <Upload className="size-6 text-muted-foreground" />
-                  </div>
-                  <div className="text-center">
-                    <p className="font-medium">Upload Audio File</p>
-                    <p className="text-sm text-muted-foreground">
-                      MP3, WAV, OGG, M4A (max 10MB)
-                    </p>
-                  </div>
-                </button>
-                
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="audio/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                
-                {/* Upload Error */}
-                {uploadError && (
-                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
-                    <div className="flex items-start gap-2">
-                      <X className="size-4 text-destructive mt-0.5 shrink-0" />
-                      <p className="text-sm text-destructive">{uploadError}</p>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Uploaded File Display */}
-                {selectedSource?.type === 'uploaded' && (
-                  <div className="p-4 rounded-xl border bg-card/60">
-                    <div className="flex items-center gap-3">
-                      <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Music className="size-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{selectedSource.file.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {(selectedSource.file.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-                      <Check className="size-5 text-primary shrink-0" />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="px-6 py-4 border-t bg-muted/30">
           {/* Preview Controls */}
-          {selectedSource && (
+          {selectedTrack && (
             <div className="mb-4 p-3 rounded-lg bg-card border">
               <div className="flex items-center gap-3">
                 <Button
@@ -352,7 +208,7 @@ export function PlayMusicModal({
                   )}
                 </Button>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate text-sm">{selectedName}</p>
+                  <p className="font-medium truncate text-sm">{selectedTrack.track.title}</p>
                   <p className="text-xs text-muted-foreground">
                     {isPlaying ? 'Now playing...' : 'Click to preview'}
                   </p>
@@ -376,7 +232,7 @@ export function PlayMusicModal({
             </Button>
             <Button
               onClick={handleConfirm}
-              disabled={!selectedSource || isLoading}
+              disabled={!selectedTrack || isLoading}
               className="flex-1"
             >
               {isLoading ? (
@@ -401,7 +257,7 @@ export function PlayMusicModal({
 // ─── Track Row Component ──────────────────────────────────────────────────────
 
 interface TrackRowProps {
-  track: BuiltInTrack;
+  track: BlobbiTrack;
   isSelected: boolean;
   onSelect: () => void;
 }
