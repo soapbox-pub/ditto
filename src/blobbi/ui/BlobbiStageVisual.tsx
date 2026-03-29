@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import type { BlobbiLookMode } from './lib/useBlobbiEyes';
 import type { BlobbiEmotion } from './lib/emotions';
+import type { BodyEffectsSpec } from './lib/bodyEffects';
 
 export type { BlobbiLookMode };
 
@@ -53,11 +54,16 @@ export interface BlobbiStageVisualProps {
    */
   emotion?: BlobbiEmotion;
   /**
-   * Base emotion for persistent face state (boring, dirty, dizzy, hungry).
+   * Base emotion for persistent face state (boring, dizzy, hungry).
    * Applied first, then the overlay emotion animates on top.
    * Example: baseEmotion='boring', emotion='sleepy' → boring face with sleepy animation
    */
   baseEmotion?: BlobbiEmotion;
+  /**
+   * Body-level visual effects (dirt marks, stink clouds, etc.).
+   * Applied independently of face emotions — can stack with any face state.
+   */
+  bodyEffects?: BodyEffectsSpec;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -95,6 +101,7 @@ export function BlobbiStageVisual({
   disableBlink = false,
   emotion = 'neutral',
   baseEmotion,
+  bodyEffects,
   className,
 }: BlobbiStageVisualProps) {
   const { stage } = companion;
@@ -142,6 +149,7 @@ export function BlobbiStageVisual({
           disableBlink={disableBlink}
           emotion={emotion}
           baseEmotion={baseEmotion}
+          bodyEffects={bodyEffects}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />
@@ -160,6 +168,7 @@ export function BlobbiStageVisual({
           disableBlink={disableBlink}
           emotion={emotion}
           baseEmotion={baseEmotion}
+          bodyEffects={bodyEffects}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />

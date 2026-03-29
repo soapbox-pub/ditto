@@ -12,6 +12,7 @@ import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
 import { companionDataToBlobbi } from '@/blobbi/ui/lib/adapters';
 import { useEffectiveEmotion } from '@/blobbi/dev/EmotionDevContext';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
+import type { BodyEffectsSpec } from '@/blobbi/ui/lib/bodyEffects';
 import { cn } from '@/lib/utils';
 import type { CompanionData, EyeOffset, CompanionDirection } from '../types/companion.types';
 
@@ -38,6 +39,8 @@ interface BlobbiCompanionVisualProps {
   baseEmotion?: BlobbiEmotion;
   /** Overlay emotion (sleepy, action override, etc.) */
   emotion?: BlobbiEmotion;
+  /** Body-level visual effects (dirt marks, stink clouds, etc.) */
+  bodyEffects?: BodyEffectsSpec;
   /** Additional class names */
   className?: string;
   /** Debug mode - shows visual boundaries */
@@ -58,6 +61,7 @@ export function BlobbiCompanionVisual({
   distanceFromGround = 0,
   baseEmotion: baseEmotionProp,
   emotion: emotionProp,
+  bodyEffects: bodyEffectsProp,
   className,
   debugMode = false,
 }: BlobbiCompanionVisualProps) {
@@ -72,6 +76,7 @@ export function BlobbiCompanionVisual({
   // Final emotions: dev override > props from status reaction system
   const effectiveBaseEmotion = hasDevOverride ? undefined : baseEmotionProp;
   const effectiveEmotion = hasDevOverride ? devEmotion : (emotionProp ?? 'neutral');
+  const effectiveBodyEffects = hasDevOverride ? undefined : bodyEffectsProp;
   
   // Eye offset is now passed directly to the visual components via externalEyeOffset prop
   // This is more reliable than DOM manipulation which can be overwritten by useBlobbiEyes
@@ -219,6 +224,7 @@ export function BlobbiCompanionVisual({
             externalEyeOffset={eyeOffset}
             emotion={effectiveEmotion}
             baseEmotion={effectiveBaseEmotion}
+            bodyEffects={effectiveBodyEffects}
             className="size-full"
           />
         )}
@@ -230,6 +236,7 @@ export function BlobbiCompanionVisual({
             externalEyeOffset={eyeOffset}
             emotion={effectiveEmotion}
             baseEmotion={effectiveBaseEmotion}
+            bodyEffects={effectiveBodyEffects}
             className="size-full"
           />
         )}

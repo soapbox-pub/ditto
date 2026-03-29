@@ -13,6 +13,7 @@
 
 import type { BlobbiEmotion } from './emotions';
 import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
+import type { BodyEffectsSpec } from './bodyEffects';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,6 +97,8 @@ export interface StatusEmotionResult {
   triggeringBaseStat: ReactiveStat | null;
   /** The stat that triggered the overlay emotion */
   triggeringOverlayStat: ReactiveStat | null;
+  /** Body effects to apply (independent of face emotions) */
+  bodyEffects: BodyEffectsSpec | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -127,11 +130,16 @@ export const TRIGGER_PROBABILITIES: Record<StatSeverity, number> = {
  * Priority order: energy > health > hunger > hygiene > happiness
  * Lower priority number = checked first (wins ties).
  * 
- * Updated emotion mapping:
- * - boring: low-energy, unamused state (replaces sad as generic fallback)
- * - dirty: hygiene-specific state with visual dirt/stink effects
+ * Emotion mapping:
+ * - boring: low-energy, unamused state (generic "not feeling good" face)
  * - dizzy: critical health state only
+ * - hungry: hunger-specific face with drool and food icon
+ * - sleepy: energy overlay (preserves base face)
  * - sad: reserved for dramatic emotional distress (not used by stats currently)
+ * 
+ * NOTE: "dirty" is no longer a face emotion. Hygiene maps to 'boring' for
+ * the face, and dirty body effects (dirt marks, stink clouds) are applied
+ * as a separate body decorator layer via resolveStatusEmotions().bodyEffects.
  */
 export const STAT_REACTION_CONFIGS: StatReactionConfig[] = [
   {
@@ -155,7 +163,7 @@ export const STAT_REACTION_CONFIGS: StatReactionConfig[] = [
   {
     stat: 'hygiene',
     priority: 4,
-    normalReaction: 'dirty', // Hygiene shows dirty with stink clouds/dirt marks
+    normalReaction: 'boring', // Low hygiene shows boring face + dirty body effects
   },
   {
     stat: 'happiness',
@@ -306,7 +314,7 @@ export function resolveStatusReaction(
  * Useful for determining if a reaction should be overridden.
  */
 export function isStatusReaction(emotion: BlobbiEmotion): boolean {
-  const statusEmotions: BlobbiEmotion[] = ['sleepy', 'hungry', 'boring', 'dirty', 'dizzy'];
+  const statusEmotions: BlobbiEmotion[] = ['sleepy', 'hungry', 'boring', 'dizzy'];
   return statusEmotions.includes(emotion);
 }
 
@@ -320,22 +328,35 @@ export function getDefaultEmotion(): BlobbiEmotion {
 /**
  * Resolve status emotions with base + overlay separation.
  * 
- * This is the NEW recommended way to resolve emotions from stats.
+ * This is the recommended way to resolve emotions from stats.
  * It properly separates:
- * - BASE emotions (persistent face: boring, dirty, dizzy, hungry, etc.)
+ * - BASE emotions (persistent face: boring, dizzy, hungry)
  * - OVERLAY emotions (temporary animations: sleepy)
+ * - BODY EFFECTS (decorators: dirt marks, stink clouds)
+ * 
+ * Body effects are independent of face emotions:
+ * - Low hygiene adds dirty body effects AND a boring face
+ * - The dirty effects stack with whatever face state wins
  * 
  * Example:
- * - If energy is low AND health is low:
- *   - Base: boring (from health)
+ * - If energy is low AND hygiene is low:
+ *   - Base: boring (from hygiene, unless a higher-priority stat wins)
  *   - Overlay: sleepy (from energy)
- *   - Result: Blobbi has a boring/tired face with sleepy animation on top
+ *   - Body: dirty marks + stink clouds (from hygiene)
+ *   - Result: Boring face + sleepy animation + dirt/stink effects
  * 
  * @param stats - Current Blobbi stats
- * @returns Base emotion and optional overlay emotion
+ * @returns Base emotion, optional overlay emotion, and body effects
  */
 export function resolveStatusEmotions(stats: BlobbiStats): StatusEmotionResult {
   const analyses = analyzeAllStats(stats);
+  
+  // Resolve body effects independently from face emotions.
+  // Hygiene triggers dirty body effects regardless of which face emotion wins.
+  const hygieneAnalysis = analyses.find(a => a.stat === 'hygiene');
+  const bodyEffects: BodyEffectsSpec | null = hygieneAnalysis
+    ? { dirtyMarks: { enabled: true, count: 3 }, stinkClouds: { enabled: true, count: 3 } }
+    : null;
   
   // No stats are low enough to trigger
   if (analyses.length === 0) {
@@ -344,6 +365,7 @@ export function resolveStatusEmotions(stats: BlobbiStats): StatusEmotionResult {
       overlayEmotion: null,
       triggeringBaseStat: null,
       triggeringOverlayStat: null,
+      bodyEffects: null,
     };
   }
   
@@ -359,6 +381,7 @@ export function resolveStatusEmotions(stats: BlobbiStats): StatusEmotionResult {
     overlayEmotion: sleepyAnalysis?.reaction ?? null,
     triggeringBaseStat: baseWinner?.stat ?? null,
     triggeringOverlayStat: sleepyAnalysis?.stat ?? null,
+    bodyEffects,
   };
 }
 

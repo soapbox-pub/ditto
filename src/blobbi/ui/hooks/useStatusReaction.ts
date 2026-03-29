@@ -2,7 +2,7 @@
  * useStatusReaction Hook
  * 
  * Manages automatic status-based reactions for Blobbi using a two-layer emotion model:
- * 1. **Base emotion**: Persistent face state (boring, dirty, dizzy, hungry)
+ * 1. **Base emotion**: Persistent face state (boring, dizzy, hungry)
  * 2. **Overlay emotion**: Temporary animation on top (sleepy)
  * 
  * The hook uses `resolveStatusEmotions()` as the single source of truth for
@@ -37,6 +37,7 @@ import {
   type StatSeverity,
   type StatusEmotionResult,
 } from '../lib/status-reactions';
+import type { BodyEffectsSpec } from '../lib/bodyEffects';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ export interface UseStatusReactionOptions {
 }
 
 export interface StatusReactionState {
-  /** Base emotion (persistent face: boring, dirty, dizzy, hungry) */
+  /** Base emotion (persistent face: boring, dizzy, hungry) */
   baseEmotion: BlobbiEmotion;
   /** Overlay emotion (animation on top: sleepy, or action override) */
   overlayEmotion: BlobbiEmotion | null;
@@ -66,6 +67,8 @@ export interface StatusReactionState {
   currentSeverity: StatSeverity | null;
   /** Whether an action override is active (replaces overlay) */
   isOverrideActive: boolean;
+  /** Body effects to apply (independent of face emotions, e.g. dirty) */
+  bodyEffects: BodyEffectsSpec | null;
 }
 
 // ─── Emotion Cycle Durations ──────────────────────────────────────────────────
@@ -81,7 +84,6 @@ const EMOTION_CYCLE_DURATIONS: Partial<Record<BlobbiEmotion, number>> = {
   dizzy: 2000,     // 2s rotation (matches dizzyEffect.rotationDuration)
   hungry: 4000,    // Drool/icon animation cycle
   boring: 3000,    // Boring expression settle time
-  dirty: 3000,     // Dirt/stink cloud cycle
   angry: 2000,     // Anger rise animation
   surprised: 1000, // Brief expression
   curious: 1000,   // Brief expression
@@ -115,6 +117,8 @@ interface InternalState {
   currentBaseStat: ReactiveStat | null;
   /** The stat triggering the current overlay */
   currentOverlayStat: ReactiveStat | null;
+  /** Current body effects (no animation safety needed — applied immediately) */
+  currentBodyEffects: BodyEffectsSpec | null;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -158,6 +162,7 @@ export function useStatusReaction({
     overlayEmotion: null,
     triggeringBaseStat: null,
     triggeringOverlayStat: null,
+    bodyEffects: null,
   });
 
   // Refs for timers and internal state (don't cause re-renders)
@@ -169,6 +174,7 @@ export function useStatusReaction({
     currentOverlay: null,
     currentBaseStat: null,
     currentOverlayStat: null,
+    currentBodyEffects: null,
   });
 
   // Stable reference to stats for use in callbacks
@@ -195,12 +201,14 @@ export function useStatusReaction({
     internal.currentOverlay = null;
     internal.currentBaseStat = null;
     internal.currentOverlayStat = null;
+    internal.currentBodyEffects = null;
     
     setStatusEmotions({
       baseEmotion: null,
       overlayEmotion: null,
       triggeringBaseStat: null,
       triggeringOverlayStat: null,
+      bodyEffects: null,
     });
   }, []);
 
@@ -292,13 +300,20 @@ export function useStatusReaction({
       }
     }
 
+    // Body effects update immediately (no animation safety needed)
+    const bodyEffectsChanged = resolved.bodyEffects !== internal.currentBodyEffects;
+    if (bodyEffectsChanged) {
+      internal.currentBodyEffects = resolved.bodyEffects;
+    }
+
     // Only trigger a re-render if something actually changed
-    if (baseChanged || overlayChanged) {
+    if (baseChanged || overlayChanged || bodyEffectsChanged) {
       setStatusEmotions({
         baseEmotion: internal.currentBase,
         overlayEmotion: internal.currentOverlay,
         triggeringBaseStat: internal.currentBaseStat,
         triggeringOverlayStat: internal.currentOverlayStat,
+        bodyEffects: internal.currentBodyEffects,
       });
     }
   }, []);
@@ -337,6 +352,7 @@ export function useStatusReaction({
     internal.currentOverlay = initialResolved.overlayEmotion;
     internal.currentOverlayStat = initialResolved.triggeringOverlayStat;
     internal.overlayStartTime = Date.now();
+    internal.currentBodyEffects = initialResolved.bodyEffects;
 
     setStatusEmotions(initialResolved);
 
@@ -374,12 +390,20 @@ export function useStatusReaction({
       }
     }
 
+    // Also re-resolve body effects on stat change
+    const freshResolved = resolveStatusEmotions(stats);
+    if (freshResolved.bodyEffects !== internal.currentBodyEffects) {
+      internal.currentBodyEffects = freshResolved.bodyEffects;
+      changed = true;
+    }
+
     if (changed) {
       setStatusEmotions({
         baseEmotion: internal.currentBase,
         overlayEmotion: internal.currentOverlay,
         triggeringBaseStat: internal.currentBaseStat,
         triggeringOverlayStat: internal.currentOverlayStat,
+        bodyEffects: internal.currentBodyEffects,
       });
     }
   }, [stats]);
@@ -418,6 +442,7 @@ export function useStatusReaction({
     triggeringOverlayStat: isOverrideActive ? null : statusEmotions.triggeringOverlayStat,
     currentSeverity,
     isOverrideActive,
+    bodyEffects: statusEmotions.bodyEffects,
   };
 }
 

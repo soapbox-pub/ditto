@@ -11,6 +11,7 @@ import { useMemo, useRef } from 'react';
 import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
 import { addEyeAnimation } from './lib/eye-animation';
 import { applyEmotion, type BlobbiEmotion } from './lib/emotions';
+import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
 import { useBlobbiEyes, type BlobbiLookMode } from './lib/useBlobbiEyes';
 import { useExternalEyeOffset } from './lib/useExternalEyeOffset';
 import type { ExternalEyeOffset, BlobbiReactionState } from './lib/types';
@@ -56,6 +57,11 @@ export interface BlobbiBabyVisualProps {
    * Example: baseEmotion='boring', emotion='sleepy' → boring face with sleepy animation
    */
   baseEmotion?: BlobbiEmotion;
+  /**
+   * Body-level visual effects (dirt marks, stink clouds, etc.).
+   * Applied independently of face emotions — can stack with any face state.
+   */
+  bodyEffects?: BodyEffectsSpec;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -70,7 +76,7 @@ export interface BlobbiBabyVisualProps {
  * - Eyes always track the mouse cursor (instant, real-time)
  * - Renders safely using dangerouslySetInnerHTML
  */
-export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, emotion = 'neutral', baseEmotion, className }: BlobbiBabyVisualProps) {
+export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, emotion = 'neutral', baseEmotion, bodyEffects, className }: BlobbiBabyVisualProps) {
   const isSleeping = isBlobbiSleeping(blobbi);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -119,11 +125,16 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
         animatedSvg = applyEmotion(animatedSvg, emotion, 'baby');
       }
       
+      // Apply body effects (independent of face emotions)
+      if (bodyEffects) {
+        animatedSvg = applyBodyEffects(animatedSvg, bodyEffects);
+      }
+      
       return animatedSvg;
     }
 
     return colorizedSvg;
-  }, [blobbi, isSleeping, emotion, baseEmotion]);
+  }, [blobbi, isSleeping, emotion, baseEmotion, bodyEffects]);
 
   // Defense-in-depth: sanitize the final SVG before DOM injection.
   // The upstream pipeline validates inputs (normalizeHexColor, instanceId sanitization),

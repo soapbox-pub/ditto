@@ -223,7 +223,7 @@ export function BlobbiCompanionLayer() {
   
   const [companionActionOverride, setCompanionActionOverride] = useState<BlobbiEmotion | null>(null);
   
-  const { baseEmotion: companionBaseEmotion, overlayEmotion: companionOverlayEmotion } = useStatusReaction({
+  const { baseEmotion: companionBaseEmotion, overlayEmotion: companionOverlayEmotion, bodyEffects: companionBodyEffects } = useStatusReaction({
     stats: companionStats,
     enabled: isVisible && !isSleeping && companion?.stage !== 'egg',
     actionOverride: companionActionOverride,
@@ -268,6 +268,7 @@ export function BlobbiCompanionLayer() {
     onClick: handleCompanionClick,
     baseEmotion: companionBaseEmotionProp,
     emotion: companionEmotionProp,
+    bodyEffects: companionBodyEffects ?? undefined,
     onPositionUpdate: handlePositionUpdate,
   };
   

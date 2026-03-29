@@ -264,25 +264,22 @@ export const EMOTION_CONFIGS: Record<BlobbiEmotion, EmotionConfig> = {
     },
   },
   dirty: {
-    // Hygiene-related bad state - visual indicators of dirtiness
-    // Uses the boring face as base, plus dirt/stink effects
-    droopyMouth: {
-      widthScale: 0.9,
-      curveScale: 0.4,
-    },
-    eyebrows: {
-      angle: 0,
-      offsetY: -9,
-      strokeWidth: 1.3,
-      color: '#4b5563',
-    },
+    // BODY-LEVEL DECORATOR: Dirty is no longer a face emotion.
+    // It adds body effects (dirt marks, stink clouds) without modifying
+    // eyes, mouth, or eyebrows. Any face emotion can coexist with dirty.
+    // 
+    // The face state for low hygiene is handled by the status reaction
+    // system mapping hygiene → 'boring' as the base face emotion.
+    //
+    // Kept in EMOTION_CONFIGS for backward compatibility with
+    // applyEmotion(svg, 'dirty') which still works as a body-only effect.
     dirtMarks: {
       enabled: true,
-      count: 3, // 3 small dirt marks/scratches
+      count: 3,
     },
     stinkClouds: {
       enabled: true,
-      count: 3, // 3 small stink puffs
+      count: 3,
     },
   },
   happy: {

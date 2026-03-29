@@ -29,6 +29,7 @@ import {
 import { BlobbiCompanionVisual } from './BlobbiCompanionVisual';
 import { useClickDetection } from '../interaction';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
+import type { BodyEffectsSpec } from '@/blobbi/ui/lib/bodyEffects';
 
 interface BlobbiCompanionProps {
   /** Companion data */
@@ -63,6 +64,8 @@ interface BlobbiCompanionProps {
   baseEmotion?: BlobbiEmotion;
   /** Overlay emotion (sleepy, action override, etc.) */
   emotion?: BlobbiEmotion;
+  /** Body-level visual effects (dirt marks, stink clouds, etc.) */
+  bodyEffects?: BodyEffectsSpec;
   /** Callback to report rendered position (including animations) */
   onPositionUpdate?: (position: Position) => void;
   /** Debug mode - disables animations and shows visual debug aids */
@@ -86,6 +89,7 @@ export function BlobbiCompanion({
   onClick,
   baseEmotion,
   emotion,
+  bodyEffects,
   onPositionUpdate,
   debugMode = false,
 }: BlobbiCompanionProps) {
@@ -325,6 +329,7 @@ export function BlobbiCompanion({
         distanceFromGround={distanceFromGround}
         baseEmotion={baseEmotion}
         emotion={emotion}
+        bodyEffects={bodyEffects}
         debugMode={debugMode}
       />
     </div>

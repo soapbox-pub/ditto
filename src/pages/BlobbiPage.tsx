@@ -878,7 +878,7 @@ function BlobbiDashboard({
     energy: projectedState?.stats.energy ?? companion.stats.energy ?? 100,
   }), [projectedState, companion.stats]);
   
-  const { baseEmotion: statusBaseEmotion, overlayEmotion: statusOverlayEmotion } = useStatusReaction({
+  const { baseEmotion: statusBaseEmotion, overlayEmotion: statusOverlayEmotion, bodyEffects: statusBodyEffects } = useStatusReaction({
     stats: currentStats,
     enabled: !isSleeping && !isEgg, // Disable when sleeping or egg stage
     actionOverride: actionOverrideEmotion,
@@ -1430,6 +1430,7 @@ function BlobbiDashboard({
               reaction={blobbiReaction}
               emotion={effectiveEmotion}
               baseEmotion={effectiveBaseEmotion !== 'neutral' ? effectiveBaseEmotion : undefined}
+              bodyEffects={hasDevOverride ? undefined : (statusBodyEffects ?? undefined)}
               className="size-48 sm:size-56"
             />
           </div>
