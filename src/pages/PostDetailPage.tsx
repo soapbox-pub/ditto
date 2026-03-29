@@ -24,7 +24,7 @@ const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m =
 import { AudioVisualizer } from "@/components/AudioVisualizer";
 import { BadgeDetailContent } from "@/components/BadgeDetailContent";
 import { CalendarEventDetailPage } from "@/components/CalendarEventDetailPage";
-import { ComposeBox } from "@/components/ComposeBox";
+
 import {
   ColorMomentContent,
   ColorMomentEyeButton,
@@ -426,9 +426,6 @@ function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
   return (
     <div>
       <NoteCard event={event} />
-      <div className="border-t border-border">
-        <ComposeBox compact replyTo={event} />
-      </div>
       <div className="pb-16 sidebar:pb-0">
         {commentsLoading ? (
           <div className="divide-y divide-border">
