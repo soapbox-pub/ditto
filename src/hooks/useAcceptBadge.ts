@@ -1,26 +1,37 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { BADGE_PROFILE_KIND } from '@/lib/badgeUtils';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 /**
  * Mutation to accept a badge — adds the `a` + `e` tag pair to the user's
  * kind 30008 profile_badges event and publishes the update.
+ *
+ * Fetches the freshest event from relays before mutating to avoid overwriting
+ * badges accepted on another device or in a rapid sequence.
  */
 export function useAcceptBadge() {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
-  const { event: profileBadgesEvent } = useProfileBadges(user?.pubkey);
 
   return useMutation({
     mutationFn: async ({ aTag, awardEventId }: { aTag: string; awardEventId: string }) => {
       if (!user) throw new Error('User is not logged in');
 
-      const currentTags = profileBadgesEvent?.tags ?? [['d', 'profile_badges']];
+      // Fetch the freshest kind 30008 from relays before mutating
+      const freshEvent = await fetchFreshEvent(nostr, {
+        kinds: [BADGE_PROFILE_KIND],
+        authors: [user.pubkey],
+        '#d': ['profile_badges'],
+      });
+
+      const currentTags = freshEvent?.tags ?? [['d', 'profile_badges']];
 
       // Don't add duplicates
       const alreadyHas = currentTags.some(

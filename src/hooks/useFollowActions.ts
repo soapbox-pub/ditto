@@ -3,30 +3,8 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import type { NostrEvent } from '@nostrify/nostrify';
-
-/**
- * Fetches the absolute freshest kind 3 follow list via the pool.
- * The pool already routes to all configured read relays.
- */
-async function fetchFreshFollowEvent(
-  nostr: ReturnType<typeof useNostr>['nostr'],
-  pubkey: string,
-): Promise<NostrEvent | null> {
-  const signal = AbortSignal.timeout(10_000);
-
-  const followEvents = await nostr.query(
-    [{ kinds: [3], authors: [pubkey], limit: 1 }],
-    { signal },
-  );
-
-  if (followEvents.length === 0) return null;
-
-  // Pick the most recent event across all relays
-  return followEvents.reduce((latest, current) =>
-    current.created_at > latest.created_at ? current : latest,
-  );
-}
 
 // ---------------------------------------------------------------------------
 // useFollowList — cached view of the user's follow list for UI reads
@@ -135,7 +113,7 @@ export function useFollowActions(): UseFollowActionsReturn {
 
       try {
         // ① Fetch the freshest kind 3 event via pool
-        const latestEvent = await fetchFreshFollowEvent(nostr, user.pubkey);
+        const latestEvent = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] });
 
         // ② Separate tags into `p` tags (follow entries) and everything else
         const existingTags = latestEvent?.tags ?? [];

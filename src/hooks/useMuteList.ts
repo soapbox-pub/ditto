@@ -5,6 +5,7 @@ import { nip19 } from 'nostr-tools';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 export interface MuteListItem {
   type: 'pubkey' | 'hashtag' | 'word' | 'thread';
@@ -50,29 +51,6 @@ export function parseMuteTags(tags: string[][]): MuteListItem[] {
     }
   }
   return items;
-}
-
-/**
- * Fetches the absolute freshest kind 10000 mute list via the pool.
- * Mirrors the safety pattern from useFollowActions' fetchFreshFollowEvent.
- */
-async function fetchFreshMuteEvent(
-  nostr: ReturnType<typeof useNostr>['nostr'],
-  pubkey: string,
-): Promise<NostrEvent | null> {
-  const signal = AbortSignal.timeout(10_000);
-
-  const muteEvents = await nostr.query(
-    [{ kinds: [10000], authors: [pubkey], limit: 1 }],
-    { signal },
-  );
-
-  if (muteEvents.length === 0) return null;
-
-  // Pick the most recent event across all relays
-  return muteEvents.reduce((latest, current) =>
-    current.created_at > latest.created_at ? current : latest,
-  );
 }
 
 /**
@@ -226,7 +204,7 @@ export function useMuteList() {
       }
 
       // ① Fetch the freshest kind 10000 from relays before mutating
-      const freshEvent = await fetchFreshMuteEvent(nostr, user.pubkey);
+      const freshEvent = await fetchFreshEvent(nostr, { kinds: [10000], authors: [user.pubkey] });
       const currentItems = await getAllMuteItems(freshEvent, user.signer, user.pubkey);
 
       // ② Add only if not already present (dedup)
@@ -253,7 +231,7 @@ export function useMuteList() {
       if (!user) throw new Error('User not logged in');
 
       // ① Fetch the freshest kind 10000 from relays before mutating
-      const freshEvent = await fetchFreshMuteEvent(nostr, user.pubkey);
+      const freshEvent = await fetchFreshEvent(nostr, { kinds: [10000], authors: [user.pubkey] });
       const currentItems = await getAllMuteItems(freshEvent, user.signer, user.pubkey);
 
       // ② Remove the target item

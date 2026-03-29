@@ -1,30 +1,42 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { BADGE_PROFILE_KIND } from '@/lib/badgeUtils';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 /**
  * Mutation to remove a badge from the user's profile — removes the `a` + `e`
  * tag pair from the kind 30008 event and republishes.
+ *
+ * Fetches the freshest event from relays before mutating to avoid overwriting
+ * badges accepted on another device or in a rapid sequence.
  *
  * Note: This does NOT reject the badge award. The user can re-accept the
  * badge later since the kind 8 award event still exists.
  */
 export function useRemoveBadge() {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
-  const { event: profileBadgesEvent } = useProfileBadges(user?.pubkey);
 
   return useMutation({
     mutationFn: async (aTag: string) => {
       if (!user) throw new Error('User is not logged in');
-      if (!profileBadgesEvent) throw new Error('No profile badges event found');
 
-      const tags = profileBadgesEvent.tags;
+      // Fetch the freshest kind 30008 from relays before mutating
+      const freshEvent = await fetchFreshEvent(nostr, {
+        kinds: [BADGE_PROFILE_KIND],
+        authors: [user.pubkey],
+        '#d': ['profile_badges'],
+      });
+
+      if (!freshEvent) throw new Error('No profile badges event found');
+
+      const tags = freshEvent.tags;
       const newTags: string[][] = [];
 
       for (let i = 0; i < tags.length; i++) {
