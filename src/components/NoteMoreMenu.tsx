@@ -72,7 +72,10 @@ interface MenuItemProps {
 function MenuItem({ icon, label, onClick, destructive }: MenuItemProps) {
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       className={cn(
         'flex items-center gap-4 w-full px-5 py-3 text-[15px] transition-colors hover:bg-secondary/60',
         destructive ? 'text-destructive' : 'text-muted-foreground',
