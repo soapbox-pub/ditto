@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import type { NostrEvent, NostrMetadata } from "@nostrify/nostrify";
 import { useNostr } from "@nostrify/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -278,6 +279,11 @@ function SetupQuestionnaire({
       const filename = `nostr-${location.hostname.replaceAll(/\./g, "-")}-${npub.slice(5, 9)}.nsec.txt`;
 
       await downloadTextFile(filename, nsec);
+
+      // Let the user know where the file ended up on Android
+      if (Capacitor.getPlatform() === "android") {
+        toast({ title: "Key saved", description: `Saved to Documents/${filename}` });
+      }
 
       // Log in with the new key
       login.nsec(nsec);
