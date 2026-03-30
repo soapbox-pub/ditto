@@ -6,14 +6,20 @@
  * instead of the default mouse tracking.
  *
  * This hook:
+ * - Runs a RAF loop to continuously apply eye offset
  * - Queries the DOM for blobbi-eye-left and blobbi-eye-right elements
  * - Converts -1 to 1 offset to pixel movement
  * - Applies asymmetric vertical movement (up stronger than down)
  *
- * Previously this logic was duplicated in BlobbiBabyVisual and BlobbiAdultVisual.
+ * The RAF loop is necessary because:
+ * - useBlobbiEyes also runs a RAF loop for blinking
+ * - SVG content can change due to emotion recipes
+ * - A useEffect that only runs on prop change can miss DOM updates
+ *
+ * Previously this was a simple useEffect, but that caused stuck eyes when idle.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import type { ExternalEyeOffset, BlobbiVariant } from './types';
 import {
@@ -40,8 +46,9 @@ interface UseExternalEyeOffsetOptions {
 /**
  * Apply external eye offset to Blobbi eye elements.
  *
- * This bypasses useBlobbiEyes and gives the external system (e.g., companion)
- * full control over eye position.
+ * This bypasses useBlobbiEyes tracking and gives the external system (e.g., companion)
+ * full control over eye position. Uses a RAF loop to ensure transforms are continuously
+ * applied even when the SVG DOM changes.
  */
 export function useExternalEyeOffset({
   containerRef,
@@ -49,38 +56,78 @@ export function useExternalEyeOffset({
   isSleeping,
   variant,
 }: UseExternalEyeOffsetOptions): void {
+  // Use ref to store latest offset for RAF loop to read
+  const offsetRef = useRef(externalEyeOffset);
+  const animationRef = useRef<number | null>(null);
+  
+  // Keep ref updated with latest value
   useEffect(() => {
-    if (!externalEyeOffset || !containerRef.current || isSleeping) return;
-
-    const eyeElements = containerRef.current.querySelectorAll<SVGGElement>(`.${EYE_CLASSES.eyeLeft}, .${EYE_CLASSES.eyeRight}`);
-    if (eyeElements.length === 0) return;
-
+    offsetRef.current = externalEyeOffset;
+  }, [externalEyeOffset]);
+  
+  // RAF loop for continuous eye offset application
+  useEffect(() => {
+    // Don't run loop if disabled
+    if (!externalEyeOffset || isSleeping) {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+      return;
+    }
+    
     // Select movement constants based on variant
     const maxMovementX = variant === 'baby' ? BABY_EXTERNAL_EYE_MAX_X : ADULT_EXTERNAL_EYE_MAX_X;
     const maxMovementYUp = variant === 'baby' ? BABY_EXTERNAL_EYE_MAX_Y_UP : ADULT_EXTERNAL_EYE_MAX_Y_UP;
     const maxMovementYDown = variant === 'baby' ? BABY_EXTERNAL_EYE_MAX_Y_DOWN : ADULT_EXTERNAL_EYE_MAX_Y_DOWN;
-
-    // Convert -1 to 1 offset to pixel movement
-    const x = externalEyeOffset.x * maxMovementX;
-
-    // Asymmetric vertical movement:
-    // - Upward (negative y): stronger movement for clear "looking up" effect
-    // - Downward (positive y): reduced movement to avoid looking too droopy
-    // Y offset: -1 = looking up, +1 = looking down
-    const y =
-      externalEyeOffset.y < 0
-        ? externalEyeOffset.y * maxMovementYUp // Looking up: full range
-        : externalEyeOffset.y * maxMovementYDown; // Looking down: reduced range
-
-    eyeElements.forEach((el) => {
-      // Check if a CSS animation is controlling this element's transform
-      // (e.g., sleepy wake-up glance). Don't override CSS animations.
-      const animationName = getComputedStyle(el).animationName;
-      if (animationName && animationName !== 'none') {
-        return; // Let CSS animation control the transform
+    
+    const applyOffset = () => {
+      const offset = offsetRef.current;
+      if (!offset || !containerRef.current) {
+        animationRef.current = requestAnimationFrame(applyOffset);
+        return;
       }
       
-      el.setAttribute('transform', `translate(${x} ${y})`);
-    });
+      const eyeElements = containerRef.current.querySelectorAll<SVGGElement>(
+        `.${EYE_CLASSES.eyeLeft}, .${EYE_CLASSES.eyeRight}`
+      );
+      
+      if (eyeElements.length > 0) {
+        // Convert -1 to 1 offset to pixel movement
+        const x = offset.x * maxMovementX;
+
+        // Asymmetric vertical movement:
+        // - Upward (negative y): stronger movement for clear "looking up" effect
+        // - Downward (positive y): reduced movement to avoid looking too droopy
+        // Y offset: -1 = looking up, +1 = looking down
+        const y = offset.y < 0
+          ? offset.y * maxMovementYUp // Looking up: full range
+          : offset.y * maxMovementYDown; // Looking down: reduced range
+
+        const transform = `translate(${x} ${y})`;
+        
+        eyeElements.forEach((el) => {
+          // Check if a CSS animation is controlling this element's transform
+          // (e.g., sleepy wake-up glance). Don't override CSS animations.
+          const animationName = getComputedStyle(el).animationName;
+          if (animationName && animationName !== 'none') {
+            return; // Let CSS animation control the transform
+          }
+          
+          el.setAttribute('transform', transform);
+        });
+      }
+      
+      animationRef.current = requestAnimationFrame(applyOffset);
+    };
+    
+    animationRef.current = requestAnimationFrame(applyOffset);
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+    };
   }, [containerRef, externalEyeOffset, isSleeping, variant]);
 }
