@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   UserPlus, LogOut,
@@ -26,7 +26,7 @@ import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { getSidebarItem, isItemActive } from '@/lib/sidebarItems';
+import { isItemActive } from '@/lib/sidebarItems';
 
 import { useUserStatus } from '@/hooks/useUserStatus';
 import { usePublishStatus } from '@/hooks/usePublishStatus';
@@ -47,15 +47,8 @@ export function LeftSidebar() {
   } = useFeedSettings();
   const { config } = useAppContext();
 
-  const visibleItems = useMemo(() => {
-    if (user) return orderedItems;
-    return orderedItems.filter((id) => !getSidebarItem(id)?.requiresAuth);
-  }, [orderedItems, user]);
-
-  const visibleHiddenItems = useMemo(() => {
-    if (user) return hiddenItems;
-    return hiddenItems.filter((item) => !getSidebarItem(item.id)?.requiresAuth);
-  }, [hiddenItems, user]);
+  const visibleItems = orderedItems;
+  const visibleHiddenItems = hiddenItems;
 
   const hasUnread = useHasUnreadNotifications();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
