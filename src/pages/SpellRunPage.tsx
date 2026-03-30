@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, AlertCircle, WandSparkles } from 'lucide-react';
+import { AlertCircle, WandSparkles } from 'lucide-react';
 
 import { NoteCard } from '@/components/NoteCard';
+import { PageHeader } from '@/components/PageHeader';
 import { SpellContent } from '@/components/SpellContent';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -96,24 +97,18 @@ export function SpellRunPage() {
   if (!decoded) return <NotFound />;
 
   return (
-    <main className="flex-1 min-w-0">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 pt-4 pb-3 border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        <Link to="/spells" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <WandSparkles className="size-5 text-primary shrink-0" />
-          <h1 className="text-lg font-bold truncate">
-            {spellName ?? 'Spell Results'}
-          </h1>
-        </div>
+    <main className="">
+      <PageHeader
+        title={spellName ?? 'Spell Results'}
+        icon={<WandSparkles className="size-5 text-primary" />}
+        backTo="/spells"
+      >
         {resolvedFilter && (
           <Badge variant="secondary" className="text-xs font-mono shrink-0">
             {resolvedFilter.cmd}
           </Badge>
         )}
-      </div>
+      </PageHeader>
 
       {/* Spell summary card */}
       {spellEvent && (
