@@ -542,7 +542,7 @@ function ReactionCommentContext({ event, className }: { event: NostrEvent; class
         className="text-primary hover:underline shrink-0 cursor-pointer"
         onClick={(e) => e.stopPropagation()}
       >
-        <ReactionEmoji content={event.content} tags={event.tags} className="inline-block align-text-bottom" />
+        <ReactionEmoji content={event.content} tags={event.tags} className="inline-block h-[1.2em] w-[1.2em] align-text-bottom object-contain" />
       </Link>
       <span className="shrink-0">by</span>
       {author.isLoading ? (
