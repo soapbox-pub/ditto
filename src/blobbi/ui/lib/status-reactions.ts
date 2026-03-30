@@ -602,6 +602,11 @@ const EYES_PRIORITY: ReactiveStat[] = ['health', 'energy', 'happiness', 'hunger'
  * 3. happiness (sad mouth)
  * 4. hunger (round mouth at warning/high, droopy at critical)
  * 5. hygiene (grimace/droopy)
+ *
+ * **Exception:** Critical health overrides this priority list entirely.
+ * When health is critical, the dizzy round mouth always wins regardless
+ * of energy. This ensures "sick/urgent" reads over "sleepy" in severe states.
+ * See the mouth resolution logic in resolveStatusRecipe() for details.
  */
 const MOUTH_PRIORITY: ReactiveStat[] = ['energy', 'health', 'happiness', 'hunger', 'hygiene'];
 
@@ -758,7 +763,19 @@ export function resolveStatusRecipe(stats: BlobbiStats): StatusRecipeResult {
 
   // 3. Pick exclusive parts by priority
   const eyes = pickPart(contributions, EYES_PRIORITY, 'eyes');
-  const mouth = pickPart(contributions, MOUTH_PRIORITY, 'mouth');
+
+  // Mouth has a special rule: critical health overrides normal priority.
+  // When Blobbi is severely unwell (dizzy), the face should read "urgent/sick"
+  // not "sleepy", even if energy is also low. This ensures the dizzy round
+  // mouth appears in severe multi-stat scenarios like "health critical + tired".
+  let mouth: MouthRecipe | undefined;
+  const healthSeverity = lowStats.get('health');
+  if (healthSeverity === 'critical' && contributions.get('health')?.mouth) {
+    mouth = contributions.get('health')!.mouth;
+  } else {
+    mouth = pickPart(contributions, MOUTH_PRIORITY, 'mouth');
+  }
+
   const eyebrows = pickPart(contributions, EYEBROW_PRIORITY, 'eyebrows');
 
   // 4. Merge additive parts from all contributors
