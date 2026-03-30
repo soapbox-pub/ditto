@@ -799,14 +799,13 @@ export function AIChatPage() {
   }
 
   return (
-    <main className="flex flex-col ai-chat-height sidebar:h-dvh bg-secondary/50">
+    <main className="flex flex-col ai-chat-height sidebar:h-dvh overflow-hidden bg-secondary/50">
       {/* Header */}
       <div className="shrink-0 px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
-        <PageHeader title="AI Chat" icon={<Bot className="size-5" />} className="px-0 mt-0 mb-0">
-          <CreditsBadge getCredits={getCredits} />
-        </PageHeader>
+        <PageHeader title="AI Chat" icon={<Bot className="size-5" />} className="px-0 mt-0 mb-0" />
 
         <div className="flex items-center gap-2">
+          <CreditsBadge getCredits={getCredits} />
           {/* Model selector */}
           <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
             <SelectTrigger className="w-full sidebar:w-44 h-8 text-base md:text-xs">
