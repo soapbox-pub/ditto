@@ -247,9 +247,10 @@ export const FONT_OPTIONS = [
 ];
 
 /**
- * Serializable stationery for localStorage persistence (no raw NostrEvent).
+ * Serializable stationery for localStorage persistence.
+ * NostrEvent is a plain JSON object, so it serializes fine.
  */
-export type SerializableStationery = Omit<Stationery, 'event'>;
+export type SerializableStationery = Stationery;
 
 /**
  * User's default letter preferences — persisted per-pubkey in settings.

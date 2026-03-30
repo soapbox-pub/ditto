@@ -100,6 +100,8 @@ interface LetterEditorProps {
   cardOverlay?: ReactNode;
   /** Content rendered between the drawer and the card (e.g. recipient row). */
   beforeCard?: ReactNode;
+  /** External ref for the card container — used for sticker positioning. */
+  cardRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -116,6 +118,7 @@ export function LetterEditor({
   bodyContent,
   cardOverlay,
   beforeCard,
+  cardRef: externalCardRef,
 }: LetterEditorProps) {
   const {
     selectedFont, setSelectedFont,
@@ -126,7 +129,8 @@ export function LetterEditor({
     signature, setSignature,
   } = state;
 
-  const cardRef = useRef<HTMLDivElement>(null);
+  const internalCardRef = useRef<HTMLDivElement>(null);
+  const cardRef = externalCardRef ?? internalCardRef;
   const [lineHeightPx, setLineHeightPx] = useState(0);
 
   useEffect(() => {

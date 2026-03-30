@@ -124,6 +124,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   const queryClient = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bodyAreaRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const initialRecipient = useMemo(() => {
     if (!toPubkey) return undefined;
@@ -202,7 +203,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
     return () => ro.disconnect();
   }, []);
 
-  const canSend = !!resolvedRecipient && body.trim().length > 0 && !!user;
+  const canSend = !!resolvedRecipient && (body.trim().length > 0 || stickers.length > 0) && !!user;
 
   const handleAddSticker = useCallback((emoji: { shortcode: string; url: string }) => {
     setStickers((prev) => [
@@ -448,13 +449,14 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
             }}
           />
         )}
+        cardRef={cardRef}
         cardOverlay={
           <LetterStickers
             stickers={stickers}
             editable
             onUpdate={handleUpdateSticker}
             onRemove={handleRemoveSticker}
-            containerRef={bodyAreaRef}
+            containerRef={cardRef}
           />
         }
       />
