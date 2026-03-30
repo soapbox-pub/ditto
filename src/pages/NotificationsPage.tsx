@@ -797,6 +797,8 @@ function parseBadgeATag(event: NostrEvent): { pubkey: string; identifier: string
   if (!aVal) return undefined;
   const parts = aVal.split(':');
   if (parts.length < 3 || !parts[1] || !parts[2]) return undefined;
+  // Validate pubkey is a 64-char hex string to avoid crashes in nip19.naddrEncode
+  if (!/^[0-9a-f]{64}$/.test(parts[1])) return undefined;
   return { pubkey: parts[1], identifier: parts.slice(2).join(':') };
 }
 
