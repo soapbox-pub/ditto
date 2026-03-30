@@ -22,7 +22,7 @@ import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { NoteCard } from '@/components/NoteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
-import { ZapDialog } from '@/components/ZapDialog';
+import { ProfileReactionButton } from '@/components/ProfileReactionButton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Nip05Badge, VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -44,7 +44,6 @@ import { ThreadedReplyList } from '@/components/ThreadedReplyList';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 
-import { canZap } from '@/lib/canZap';
 import { shareOrCopy } from '@/lib/share';
 import { openUrl } from '@/lib/downloadFile';
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -2077,13 +2076,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       <Share2 className="size-5" />
                     </Button>
                   )}
-                  {/* Zap button */}
-                  {!isOwnProfile && authorEvent && canZap(metadata) && (
-                    <ZapDialog target={authorEvent}>
-                      <Button variant="outline" size="icon" className="rounded-full size-10" title="Zap this user">
-                        <Zap className="size-5" />
-                      </Button>
-                    </ZapDialog>
+                  {/* Profile reaction button */}
+                  {!isOwnProfile && authorEvent && (
+                    <ProfileReactionButton profileEvent={authorEvent} />
                   )}
                   {isOwnProfile ? (
                     <Link to="/settings/profile">

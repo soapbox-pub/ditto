@@ -52,6 +52,7 @@ type NotificationTab = 'all' | 'mentions';
  * Falls back to "post" for unknown kinds.
  */
 const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
+  0: 'profile',
   1: 'post',
   4: 'encrypted message',
   6: 'repost',
@@ -459,10 +460,12 @@ function ActorLink({ pubkey, name }: { pubkey: string; name: string }) {
 // Like Notification (single actor)
 // ──────────────────────────────────────
 function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
-  const noun = getNotificationKindNoun(item.referencedEvent?.kind);
+  const isProfileReaction = item.referencedEvent?.kind === 0
+    || item.event.tags.some(([name, value]) => name === 'a' && value?.startsWith('0:'));
+  const noun = isProfileReaction ? 'profile' : getNotificationKindNoun(item.referencedEvent?.kind);
   return (
     <NotificationWrapper isNew={isNew}>
-      <div className="px-4 pt-3">
+      <div className={cn('px-4 pt-3', isProfileReaction && 'pb-3')}>
         <NotificationHeader
           actorPubkey={item.event.pubkey}
           icon={
@@ -473,7 +476,7 @@ function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: bool
           action={`reacted to your ${noun}`}
         />
       </div>
-      <ReferencedNoteCard item={item} />
+      {!isProfileReaction && <ReferencedNoteCard item={item} />}
     </NotificationWrapper>
   );
 }
@@ -558,7 +561,9 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
 function LikeNotificationGroup({ group }: { group: GroupedNotificationItem }) {
   // Use the first actor's reaction emoji as the icon
   const firstEvent = group.actors[0].event;
-  const noun = getNotificationKindNoun(group.referencedEvent?.kind);
+  const isProfileReaction = group.referencedEvent?.kind === 0
+    || firstEvent.tags.some(([name, value]) => name === 'a' && value?.startsWith('0:'));
+  const noun = isProfileReaction ? 'profile' : getNotificationKindNoun(group.referencedEvent?.kind);
   return (
     <NotificationWrapper isNew={group.isNew}>
       <GroupHeader
@@ -570,7 +575,7 @@ function LikeNotificationGroup({ group }: { group: GroupedNotificationItem }) {
         }
         action={`reacted to your ${noun}`}
       />
-      <ReferencedNoteCard item={group.actors[0]} />
+      {!isProfileReaction && <ReferencedNoteCard item={group.actors[0]} />}
     </NotificationWrapper>
   );
 }
