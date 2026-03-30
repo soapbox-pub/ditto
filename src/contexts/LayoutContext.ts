@@ -1,4 +1,4 @@
-import { createContext, useContext, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 
 /** Options that pages can set to configure the persistent MainLayout. */
 export interface LayoutOptions {
@@ -60,6 +60,24 @@ export interface LayoutOptions {
   hideBottomNav?: boolean;
 }
 
+/** All own-property keys of LayoutOptions used for shallow comparison. */
+const LAYOUT_KEYS: (keyof LayoutOptions)[] = [
+  'showFAB', 'fabKind', 'fabHref', 'onFabClick', 'fabIcon',
+  'wrapperClassName', 'rightSidebar', 'scrollContainer',
+  'noOverscroll', 'noMaxWidth', 'hasSubHeader', 'noArcs',
+  'hideTopBar', 'hideBottomNav',
+];
+
+/** Shallow-compare two LayoutOptions objects. */
+function shallowEqualOptions(a: LayoutOptions | null, b: LayoutOptions): boolean {
+  if (a === null) return false;
+  if (a === b) return true;
+  for (const key of LAYOUT_KEYS) {
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+}
+
 type Listener = () => void;
 
 const EMPTY: LayoutOptions = {};
@@ -73,8 +91,6 @@ export class LayoutStore {
   private listeners = new Set<Listener>();
 
   getSnapshot = (): LayoutOptions => this.options;
-
-  getOptions = (): LayoutOptions => this.options;
 
   subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener);
@@ -122,51 +138,49 @@ function useLayoutStore(): LayoutStore {
  * Hook for pages to declare their layout options.
  * Call this at the top of a page component to configure the surrounding MainLayout.
  *
- * Uses useLayoutEffect so the store is updated synchronously after commit
- * but before the browser paints, avoiding stale layout flashes without
- * violating React's "no setState during render" rule.
- * Resets to defaults on unmount so options don't leak to the next page.
+ * Two effects collaborate:
+ *
+ * 1. **useLayoutEffect (no deps)** — runs after every commit, before paint.
+ *    Writes the latest options to the store so MainLayout never paints stale
+ *    values. Has no cleanup — the write is idempotent and runs every render.
+ *
+ * 2. **useEffect ([] deps)** — runs once on mount, returns a cleanup that
+ *    fires only on unmount. The cleanup defers the reset to a
+ *    requestAnimationFrame so it doesn't race with Suspense transitions:
+ *    all pages are lazy-loaded, so the old page unmounts (cleanup fires)
+ *    before the new page mounts. If the incoming page also calls
+ *    useLayoutOptions, its useLayoutEffect overwrites the store
+ *    synchronously before paint — by the time the rAF fires, the store
+ *    no longer holds the old snapshot and the reset is skipped.
+ *    If the incoming page does NOT call useLayoutOptions (e.g.
+ *    PostDetailPage), the rAF fires on the next frame and clears stale
+ *    options.
  */
 export function useLayoutOptions(options: LayoutOptions): void {
   const store = useLayoutStore();
   const prev = useRef<LayoutOptions | null>(null);
 
-  // Update the store synchronously after commit (before paint) so the
-  // layout picks up the new options in the same frame as the new page.
+  // Synchronous write — runs after every commit, before paint.
+  // No cleanup; the write is idempotent across re-renders.
   useLayoutEffect(() => {
-    const changed =
-      prev.current === null ||
-      prev.current.showFAB !== options.showFAB ||
-      prev.current.fabKind !== options.fabKind ||
-      prev.current.fabHref !== options.fabHref ||
-      prev.current.onFabClick !== options.onFabClick ||
-      prev.current.fabIcon !== options.fabIcon ||
-      prev.current.wrapperClassName !== options.wrapperClassName ||
-      prev.current.rightSidebar !== options.rightSidebar ||
-      prev.current.scrollContainer !== options.scrollContainer ||
-      prev.current.noOverscroll !== options.noOverscroll ||
-      prev.current.noMaxWidth !== options.noMaxWidth ||
-      prev.current.hasSubHeader !== options.hasSubHeader ||
-      prev.current.noArcs !== options.noArcs ||
-      prev.current.hideTopBar !== options.hideTopBar ||
-      prev.current.hideBottomNav !== options.hideBottomNav;
-
-    if (changed) {
+    if (!shallowEqualOptions(prev.current, options)) {
       prev.current = options;
       store.setOptions(options);
     }
-
-    // Clean up on unmount — reset to defaults so the next page starts fresh.
-    // Only reset if the store still holds this component's options.
-    // During page transitions the new page's useLayoutEffect runs before
-    // the old page's cleanup, so blindly resetting would clobber the
-    // incoming page's options (causing the FAB to disappear).
-    return () => {
-      if (store.getOptions() === prev.current) {
-        store.reset();
-      }
-    };
   });
+
+  // Unmount-only cleanup — deferred so incoming pages can overwrite first.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    return () => {
+      const snapshot = prev.current;
+      requestAnimationFrame(() => {
+        if (store.getSnapshot() === snapshot) {
+          store.reset();
+        }
+      });
+    };
+  }, [store]);
 }
 
 /** Hook for MainLayout to read the current layout options reactively. */
