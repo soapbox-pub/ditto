@@ -46,7 +46,7 @@ export function useUserReaction(eventId: string | undefined): ResolvedEmoji | nu
       const content = events[0].content.trim();
       if (content === '-') return null;
 
-      return resolveReactionEmoji(events[0]);
+      return resolveReactionEmoji(events[0]) ?? null;
     },
     enabled: !!eventId && !!user && !hasCachedValue,
     staleTime: 5 * 60 * 1000,
