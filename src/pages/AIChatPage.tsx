@@ -413,6 +413,35 @@ Keep spell names short and descriptive (2-4 words). When you create a spell, bri
 Be concise and friendly. When you use a tool, briefly describe what you created.`,
 };
 
+// ─── Chat Persistence ───
+
+const CHAT_STORAGE_KEY = 'ditto:ai-chat-messages';
+
+/** Serialized shape stored in localStorage (Date → ISO string). */
+interface StoredMessage extends Omit<DisplayMessage, 'timestamp'> {
+  timestamp: string;
+}
+
+function loadMessages(): DisplayMessage[] {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) return [];
+    const stored: StoredMessage[] = JSON.parse(raw);
+    return stored.map((m) => ({ ...m, timestamp: new Date(m.timestamp) }));
+  } catch {
+    return [];
+  }
+}
+
+function saveMessages(messages: DisplayMessage[]): void {
+  try {
+    const stored: StoredMessage[] = messages.map((m) => ({ ...m, timestamp: m.timestamp.toISOString() }));
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(stored));
+  } catch {
+    // Storage full or unavailable — silently ignore
+  }
+}
+
 // ─── Page Component ───
 
 export function AIChatPage() {
@@ -421,7 +450,7 @@ export function AIChatPage() {
   const { sendChatMessage, getAvailableModels, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
   const { executeToolCall } = useToolExecutor();
 
-  const [messages, setMessages] = useState<DisplayMessage[]>([]);
+  const [messages, setMessages] = useState<DisplayMessage[]>(loadMessages);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [models, setModels] = useState<Model[]>([]);
@@ -438,6 +467,11 @@ export function AIChatPage() {
   });
 
   useLayoutOptions({ noOverscroll: true });
+
+  // Persist messages to localStorage
+  useEffect(() => {
+    saveMessages(messages);
+  }, [messages]);
 
   // Scroll to bottom on new messages
   const scrollToBottom = useCallback(() => {
@@ -619,6 +653,7 @@ export function AIChatPage() {
   // Clear conversation
   const handleClear = useCallback(() => {
     setMessages([]);
+    localStorage.removeItem(CHAT_STORAGE_KEY);
     clearError();
   }, [clearError]);
 
