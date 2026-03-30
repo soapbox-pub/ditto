@@ -23,6 +23,7 @@ import { NoteCard } from '@/components/NoteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ProfileReactionButton } from '@/components/ProfileReactionButton';
+import { ZapDialog } from '@/components/ZapDialog';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Nip05Badge, VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -44,6 +45,7 @@ import { ThreadedReplyList } from '@/components/ThreadedReplyList';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 
+import { canZap } from '@/lib/canZap';
 import { shareOrCopy } from '@/lib/share';
 import { openUrl } from '@/lib/downloadFile';
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -155,9 +157,10 @@ interface ProfileMoreMenuProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isOwnProfile?: boolean;
+  authorEvent?: NostrEvent;
 }
 
-function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile }: ProfileMoreMenuProps) {
+function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile, authorEvent }: ProfileMoreMenuProps) {
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
@@ -170,6 +173,9 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [giveBadgeOpen, setGiveBadgeOpen] = useState(false);
+  const zapTriggerRef = useRef<HTMLSpanElement>(null);
+  const author = useAuthor(pubkey);
+  const showZap = !isOwnProfile && authorEvent && canZap(author.data?.metadata);
 
   const close = () => onOpenChange(false);
   const openAfterClose = (setter: (v: boolean) => void) => {
@@ -220,6 +226,10 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
 
   const handleRecovery = () => openAfterClose(setRecoveryOpen);
   const handleGiveBadge = () => openAfterClose(setGiveBadgeOpen);
+  const handleZap = () => {
+    close();
+    setTimeout(() => zapTriggerRef.current?.click(), 150);
+  };
 
   return (
   <>
@@ -269,6 +279,13 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             <Separator />
 
             <div className="py-1">
+              {showZap && (
+                <MenuRow
+                  icon={<Zap className="size-5" />}
+                  label="Zap"
+                  onClick={handleZap}
+                />
+              )}
               {user && (
                 <MenuRow
                   icon={<Award className="size-5" />}
@@ -328,6 +345,12 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
         recipientPubkey={pubkey}
         recipientName={displayName}
       />
+    )}
+
+    {showZap && authorEvent && (
+      <ZapDialog target={authorEvent}>
+        <span ref={zapTriggerRef} className="hidden" />
+      </ZapDialog>
     )}
   </>
   );
@@ -2576,6 +2599,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             open={moreMenuOpen}
             onOpenChange={setMoreMenuOpen}
             isOwnProfile={isOwnProfile}
+            authorEvent={authorEvent}
           />
         )}
 
