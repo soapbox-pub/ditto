@@ -130,6 +130,11 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   const bodyAreaRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const timer = setTimeout(() => textareaRef.current?.focus(), 300);
+    return () => clearTimeout(timer);
+  }, []);
+
   const initialRecipient = useMemo(() => {
     if (!toPubkey) return undefined;
     try {
@@ -155,7 +160,11 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   );
   // Start from the live theme stationery immediately — don't wait for encrypted settings.
   // If the user has saved a custom stationery preference, switch to it once prefs load.
-  const [stationery, setStationery] = useState<Stationery>(themeStationery);
+  // If no custom theme is active, fall back to the default parchment color so the letter
+  // doesn't just inherit the plain app background.
+  const [stationery, setStationery] = useState<Stationery>(
+    isThemeDefault ? { color: DEFAULT_STATIONERY_COLOR } : themeStationery,
+  );
   const [frame, setFrame] = useState<FrameStyle>(() => prefs.frame ?? 'none');
   const [frameTint, setFrameTint] = useState(() => prefs.frameTint ?? false);
   const [overlay, setOverlay] = useState<Overlay>('none');
@@ -190,7 +199,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   }, []);
 
   useEffect(() => {
-    if (!userPickedStationery.current && isThemeDefault) {
+    if (!userPickedStationery.current && !isThemeDefault) {
       setStationery(themeStationery);
     }
   }, [themeStationery, isThemeDefault]);
@@ -392,10 +401,10 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
         }
         beforeCard={
           <div className="max-w-xl mx-auto w-full px-5 pb-2 pt-4 max-sidebar:pt-[calc(20px+2.5rem)]">
-            <div className="flex items-center">
+            <div className="flex items-center gap-2 min-w-0">
               <span className="text-sm font-medium text-muted-foreground shrink-0 w-14">To</span>
               {!initialRecipient && !resolvedRecipient ? (
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <ProfileSearchDropdown
                     placeholder="search for a person..."
                     onSelect={(profile) => setResolvedRecipient(profile.pubkey)}

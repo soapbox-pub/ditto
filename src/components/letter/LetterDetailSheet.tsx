@@ -5,6 +5,7 @@
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { Loader2, Lock } from 'lucide-react';
+import { InkPenIcon } from '@/components/icons/InkPenIcon';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useDecryptLetter } from '@/hooks/useLetters';
 import { FONT_OPTIONS, LINE_HEIGHT_RATIO, COLOR_MOMENT_KIND, THEME_KIND, resolveStationery, colorMomentToStationery, themeToStationery, type Letter } from '@/lib/letterTypes';
@@ -24,6 +25,9 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { nip19 } from 'nostr-tools';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 // ---------------------------------------------------------------------------
 // Attached gift — color moment or theme that can be applied on the spot
@@ -104,7 +108,7 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
   const textColor = backgroundTextColor(bg);
 
   return (
-    <div className="relative max-w-[220px] mx-auto mt-16 pointer-events-none">
+    <div className="relative max-w-[220px] mx-auto mb-12 pointer-events-none">
       {/* Present box — overlaps the bubble top */}
       <div className="flex justify-center relative z-10 mb-[-20px]">
         <svg width="56" height="60" viewBox="0 0 56 60" fill="none" className="drop-shadow-sm">
@@ -134,7 +138,7 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
 
       {/* Themed bubble — clickable */}
       <div
-        onClick={handleApply}
+        onClick={(e) => { e.stopPropagation(); handleApply(); }}
         role="button"
         tabIndex={0}
         title={applied ? 'Theme applied!' : `Tap to use "${attachment.label}" as your theme`}
@@ -183,11 +187,14 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
 interface LetterDetailSheetProps {
   letter: Letter | null;
   onClose: () => void;
+  /** Called when the user wants to reply — receives the sender's npub. */
+  onReply?: (senderNpub: string) => void;
 }
 
-export function LetterDetailSheet({ letter, onClose }: LetterDetailSheetProps) {
+export function LetterDetailSheet({ letter, onClose, onReply }: LetterDetailSheetProps) {
   const letterRef = useRef<HTMLDivElement>(null);
   const [lineHeightPx, setLineHeightPx] = useState(0);
+  const { user } = useCurrentUser();
 
   const { data: decrypted, isLoading: isDecrypting } = useDecryptLetter(letter ?? undefined);
   const content = decrypted?.content;
@@ -233,14 +240,30 @@ export function LetterDetailSheet({ letter, onClose }: LetterDetailSheetProps) {
 
   return (
     <Dialog open={!!letter} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="p-0 gap-0 border-none bg-transparent shadow-none max-w-[calc(100vw-2rem)] sm:max-w-lg overflow-visible [&>button]:hidden">
+      <DialogContent
+        className="p-0 gap-0 border-none bg-transparent shadow-none max-w-[calc(100vw-2rem)] sm:max-w-lg overflow-visible [&>button]:hidden"
+      >
         <DialogTitle className="sr-only">Letter</DialogTitle>
 
-        <div style={effectiveFrame && effectiveFrame !== 'none'
-          ? { padding: '28px 28px 44px' }
-          : { padding: '0' }
-        }>
-          <div ref={letterRef} className="relative" style={{ containerType: 'inline-size' }}>
+        {/* Outer click-to-close layer — zero height so dialog centers on the card only */}
+        <div className="relative" onClick={onClose}>
+
+          {/* Attached gift — absolutely above the card */}
+          {effectiveStationery?.event && (
+            <div className="absolute bottom-full left-0 right-0 pointer-events-none">
+              <LetterAttachment event={effectiveStationery.event} />
+            </div>
+          )}
+
+          <div
+            ref={letterRef}
+            className="relative"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              containerType: 'inline-size',
+              ...(effectiveFrame && effectiveFrame !== 'none' ? { padding: '28px 28px 44px' } : {}),
+            }}
+          >
             <StationeryBackground
               stationery={effectiveStationery}
               frame={effectiveFrame}
@@ -311,9 +334,25 @@ export function LetterDetailSheet({ letter, onClose }: LetterDetailSheetProps) {
             )}
           </div>
 
-          {/* Attached gift — color moment or theme */}
-          {effectiveStationery?.event && (
-            <LetterAttachment event={effectiveStationery.event} />
+          {/* Reply button — absolutely below the card */}
+          {onReply && letter && user?.pubkey !== letter.sender && (
+            <div className="absolute top-full left-0 right-0 flex justify-center pt-12 pointer-events-none">
+              <Button
+                variant="default"
+                size="lg"
+                className="gap-3 rounded-full px-12 text-lg h-14 bg-primary text-primary-foreground hover:bg-primary/90 pointer-events-auto"
+                style={{ filter: 'drop-shadow(0 2px 8px hsl(var(--primary) / 0.25))' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const senderNpub = nip19.npubEncode(letter.sender);
+                  onClose();
+                  setTimeout(() => onReply(senderNpub), 150);
+                }}
+              >
+                <InkPenIcon className="w-5 h-5" strokeWidth={2} />
+                Reply
+              </Button>
+            </div>
           )}
         </div>
       </DialogContent>

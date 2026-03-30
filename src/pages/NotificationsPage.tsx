@@ -36,6 +36,8 @@ import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
 import { LETTER_KIND, type Letter } from '@/lib/letterTypes';
 import { EnvelopeCard } from '@/components/letter/EnvelopeCard';
 import { LetterDetailSheet } from '@/components/letter/LetterDetailSheet';
+import { ComposeLetterSheet } from '@/components/letter/ComposeLetterSheet';
+import { InkPenIcon } from '@/components/icons/InkPenIcon';
 import { Button } from '@/components/ui/button';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { BadgeContent, type BadgeData } from '@/components/BadgeContent';
@@ -707,6 +709,8 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
 function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   const navigate = useNavigate();
   const [showDetail, setShowDetail] = useState(false);
+  const [replyToNpub, setReplyToNpub] = useState<string | undefined>(undefined);
+  const [composing, setComposing] = useState(false);
 
   const letter = useMemo<Letter>(() => ({
     event: item.event,
@@ -717,38 +721,64 @@ function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: bo
   }), [item.event]);
 
   return (
-    <NotificationWrapper isNew={isNew}>
-      <div className="px-4 pt-3">
-        <NotificationHeader
-          actorPubkey={item.event.pubkey}
-          icon={<Mail className="size-4 text-primary" />}
-          action="sent you a letter"
+    <>
+      {composing && (
+        <ComposeLetterSheet
+          onClose={() => { setComposing(false); setReplyToNpub(undefined); }}
+          toPubkey={replyToNpub}
         />
-      </div>
-      <div className="flex flex-col items-center gap-3 px-4 pb-4 pt-2">
-        <div className="w-[280px]">
-          <EnvelopeCard
-            letter={letter}
-            mode="inbox"
-            index={0}
-            onClick={() => setShowDetail(true)}
-            minimal
+      )}
+      <NotificationWrapper isNew={isNew}>
+        <div className="px-4 pt-3">
+          <NotificationHeader
+            actorPubkey={item.event.pubkey}
+            icon={<Mail className="size-4 text-primary" />}
+            action="sent you a letter"
           />
         </div>
-        <Button
-          variant="outline"
-          className="rounded-full px-5 h-9 text-sm font-medium gap-1.5 hover:bg-primary hover:text-primary-foreground transition-colors"
-          onClick={() => navigate('/letters')}
-        >
-          <Mail className="size-3.5" />
-          View all letters
-        </Button>
-      </div>
-      <LetterDetailSheet
-        letter={showDetail ? letter : null}
-        onClose={() => setShowDetail(false)}
-      />
-    </NotificationWrapper>
+        <div className="flex flex-col items-center gap-3 px-4 pb-4 pt-2">
+          <div className="w-[280px]">
+            <EnvelopeCard
+              letter={letter}
+              mode="inbox"
+              index={0}
+              onClick={() => setShowDetail(true)}
+              minimal
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="rounded-full px-5 h-9 text-sm font-medium gap-1.5 hover:bg-primary hover:text-primary-foreground transition-colors"
+              onClick={() => navigate('/letters')}
+            >
+              <Mail className="size-3.5" />
+              View all letters
+            </Button>
+            <Button
+              variant="default"
+              className="rounded-full px-5 h-9 text-sm font-medium gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 border border-transparent"
+              onClick={() => {
+                setReplyToNpub(nip19.npubEncode(item.event.pubkey));
+                setComposing(true);
+              }}
+            >
+              <InkPenIcon className="size-3.5" strokeWidth={2} />
+              Reply
+            </Button>
+          </div>
+        </div>
+        <LetterDetailSheet
+          letter={showDetail ? letter : null}
+          onClose={() => setShowDetail(false)}
+          onReply={(npub) => {
+            setShowDetail(false);
+            setReplyToNpub(npub);
+            setComposing(true);
+          }}
+        />
+      </NotificationWrapper>
+    </>
   );
 }
 
