@@ -161,40 +161,60 @@ export function extractProcessedEyes(svgText: string): ProcessedEyeData[] {
 
 /**
  * Detect eyes from processed SVG (with blobbi-eye groups).
+ * 
+ * Supports both old structure (.blobbi-eye contains pupils directly)
+ * and new structure (.blobbi-eye > .blobbi-eye-gaze contains pupils).
  */
 function detectFromProcessedSvg(svgText: string): EyePosition[] {
   const eyes: EyePosition[] = [];
 
-  // Look for blobbi-eye groups with data attributes
-  const eyeGroupRegex = /class="blobbi-eye blobbi-eye-(left|right)"/g;
+  // Look for blobbi-eye groups - flexible matching for class attribute order
+  // Matches: class="blobbi-eye blobbi-eye-left" or class="blobbi-eye-left blobbi-eye" etc.
+  const eyeGroupRegex = /class="[^"]*blobbi-eye-(left|right)[^"]*"/g;
   let match;
+  const processedSides = new Set<string>();
 
   while ((match = eyeGroupRegex.exec(svgText)) !== null) {
     const side = match[1] as EyeSide;
+    
+    // Skip if we already processed this side (may match both .blobbi-eye and .blobbi-eye-gaze)
+    // Only process the first match per side (should be the .blobbi-eye group)
+    const classContent = match[0];
+    const isGazeGroup = classContent.includes('blobbi-eye-gaze');
+    if (isGazeGroup || processedSides.has(side)) continue;
+    processedSides.add(side);
 
     // Find the parent blink group and extract eye center coordinates
-    // Try new format (data-eye-cx) first, then fall back to legacy (data-cx)
+    // The blink group contains data-eye-cx and data-eye-cy
     const beforeMatch = svgText.slice(0, match.index);
     
-    // Try new format first
-    let blinkGroupMatch = beforeMatch.match(/data-eye-cx="([\d.]+)" data-eye-cy="([\d.]+)"[^>]*>\s*$/);
+    // More flexible matching: data attributes can be in any order
+    // Find the nearest blobbi-blink group opening tag before this
+    const blinkGroupStart = beforeMatch.lastIndexOf('blobbi-blink');
+    if (blinkGroupStart === -1) continue;
     
-    // Fall back to legacy format for old SVGs
-    if (!blinkGroupMatch) {
-      blinkGroupMatch = beforeMatch.match(/data-cx="([\d.]+)" data-cy="([\d.]+)"[^>]*>\s*$/);
-    }
+    // Extract the full opening tag of the blink group
+    const blinkTagStart = beforeMatch.lastIndexOf('<g', blinkGroupStart);
+    const blinkTagEnd = beforeMatch.indexOf('>', blinkGroupStart);
+    if (blinkTagStart === -1 || blinkTagEnd === -1) continue;
+    
+    const blinkTag = beforeMatch.slice(blinkTagStart, blinkTagEnd + 1);
+    
+    // Extract data-eye-cx and data-eye-cy (or legacy data-cx/data-cy)
+    const cxMatch = blinkTag.match(/data-eye-cx="([\d.]+)"/) || blinkTag.match(/data-cx="([\d.]+)"/);
+    const cyMatch = blinkTag.match(/data-eye-cy="([\d.]+)"/) || blinkTag.match(/data-cy="([\d.]+)"/);
+    
+    if (!cxMatch || !cyMatch) continue;
+    
+    const cx = parseFloat(cxMatch[1]);
+    const cy = parseFloat(cyMatch[1]);
 
-    if (blinkGroupMatch) {
-      const cx = parseFloat(blinkGroupMatch[1]);
-      const cy = parseFloat(blinkGroupMatch[2]);
+    // Estimate radius from nearby pupil circle (search forward)
+    const afterMatch = svgText.slice(match.index, match.index + 500);
+    const radiusMatch = afterMatch.match(/\br="([\d.]+)"/);
+    const radius = radiusMatch ? parseFloat(radiusMatch[1]) : 6;
 
-      // Estimate radius from nearby pupil circle
-      const afterMatch = svgText.slice(match.index, match.index + 200);
-      const radiusMatch = afterMatch.match(/\br="([\d.]+)"/);
-      const radius = radiusMatch ? parseFloat(radiusMatch[1]) : 6;
-
-      eyes.push({ cx, cy, radius, side });
-    }
+    eyes.push({ cx, cy, radius, side });
   }
 
   return eyes;

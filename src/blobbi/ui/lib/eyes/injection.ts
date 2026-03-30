@@ -10,10 +10,12 @@
  * <g class="blobbi-blink blobbi-blink-{side}" clip-path="...">  <!-- blink group -->
  *   <ellipse ... />  <!-- eye white - FIXED (doesn't track) -->
  *   <!-- FIXED EFFECT LAYER: Insert fixed effects here (e.g., water fill) -->
- *   <g class="blobbi-eye blobbi-eye-{side}">  <!-- tracking group -->
- *     <circle ... />  <!-- pupil -->
- *     <circle ... />  <!-- highlight(s) -->
- *     <!-- TRACKING EFFECT LAYER: Insert tracking effects here (e.g., sad highlights, stars) -->
+ *   <g class="blobbi-eye blobbi-eye-{side}">  <!-- CSS animation layer (e.g., sleepy wake-glance) -->
+ *     <g class="blobbi-eye-gaze blobbi-eye-gaze-{side}">  <!-- gaze tracking layer -->
+ *       <circle ... />  <!-- pupil -->
+ *       <circle ... />  <!-- highlight(s) -->
+ *       <!-- TRACKING EFFECT LAYER: Insert tracking effects here (e.g., sad highlights, stars) -->
+ *     </g>
  *   </g>
  * </g>
  */
@@ -23,13 +25,16 @@ import { EyeSide, EYE_CLASSES } from './types';
 // ─── Layer Injection ──────────────────────────────────────────────────────────
 
 /**
- * Inject markup into the eye tracking layer (blobbi-eye group).
+ * Inject markup into the eye tracking layer (blobbi-eye-gaze group).
  *
  * Content injected here will:
- * - Track with eye movement (follow mouse)
+ * - Track with eye movement (follow mouse/gaze)
  * - Participate in blink animation
  *
  * Use for: Replacement pupils (stars, hearts), tracking highlights
+ *
+ * Note: This targets the innermost gaze group (.blobbi-eye-gaze), not .blobbi-eye.
+ * The .blobbi-eye layer is for CSS animations; gaze transforms happen in .blobbi-eye-gaze.
  *
  * @param svgText - The SVG content
  * @param side - Which eye to inject into
@@ -41,22 +46,29 @@ export function injectIntoEyeTrackLayer(
   side: EyeSide,
   markup: string
 ): string {
-  // Find the blobbi-eye group for this side and inject before closing </g>
-  const eyeGroupRegex = new RegExp(
-    `(<g[^>]*class="[^"]*${EYE_CLASSES.eye}-${side}[^"]*"[^>]*>)([\\s\\S]*?)(</g>)`,
-    'i'
-  );
-
-  const match = svgText.match(eyeGroupRegex);
-  if (!match) {
-    return svgText;
+  // Find the blobbi-eye-gaze group (innermost tracking group) and inject before closing </g>
+  // Use balanced group matching to handle nested groups correctly
+  const gazeGroupStart = svgText.indexOf(`class="${EYE_CLASSES.gaze} ${EYE_CLASSES.gaze}-${side}"`);
+  if (gazeGroupStart === -1) {
+    // Fallback: try alternate class order
+    const altStart = svgText.indexOf(`class="${EYE_CLASSES.gaze}-${side}`);
+    if (altStart === -1) return svgText;
   }
-
-  // Insert markup at the end of the group content (so it renders on top)
-  return svgText.replace(
-    eyeGroupRegex,
-    `$1$2\n    ${markup}\n  $3`
-  );
+  
+  // Find opening <g tag that contains this class
+  const beforeClass = svgText.lastIndexOf('<g', gazeGroupStart);
+  if (beforeClass === -1) return svgText;
+  
+  // Find the end of the opening tag
+  const openTagEnd = svgText.indexOf('>', gazeGroupStart);
+  if (openTagEnd === -1) return svgText;
+  
+  // Find the matching closing </g> using balanced parsing
+  const closingIndex = findMatchingCloseTag(svgText, openTagEnd + 1, 'g');
+  if (closingIndex === -1) return svgText;
+  
+  // Insert markup just before the closing </g>
+  return svgText.slice(0, closingIndex) + `\n        ${markup}\n      ` + svgText.slice(closingIndex);
 }
 
 /**
@@ -281,7 +293,83 @@ export function animateClipPathBlink(
 // ─── Internal Helpers ─────────────────────────────────────────────────────────
 
 /**
- * Modify the content inside an eye tracking group.
+ * Find the matching closing tag for a given element type, handling nested elements.
+ * 
+ * @param svgText - The SVG content
+ * @param startIndex - Index to start searching from (after opening tag)
+ * @param tagName - The tag name to match (e.g., 'g')
+ * @returns Index of the opening '<' of the closing tag, or -1 if not found
+ */
+function findMatchingCloseTag(svgText: string, startIndex: number, tagName: string): number {
+  let depth = 1;
+  let i = startIndex;
+  const openPattern = new RegExp(`<${tagName}(?:\\s|>)`, 'gi');
+  const closePattern = new RegExp(`</${tagName}>`, 'gi');
+  
+  while (i < svgText.length && depth > 0) {
+    // Look for next open or close tag
+    openPattern.lastIndex = i;
+    closePattern.lastIndex = i;
+    
+    const openMatch = openPattern.exec(svgText);
+    const closeMatch = closePattern.exec(svgText);
+    
+    if (!closeMatch) return -1; // No more closing tags
+    
+    // Check which comes first
+    if (!openMatch || closeMatch.index < openMatch.index) {
+      // Closing tag comes first
+      depth--;
+      if (depth === 0) {
+        return closeMatch.index;
+      }
+      i = closeMatch.index + closeMatch[0].length;
+    } else {
+      // Opening tag comes first
+      depth++;
+      i = openMatch.index + openMatch[0].length;
+    }
+  }
+  
+  return -1;
+}
+
+/**
+ * Find a group element by class pattern and return its boundaries.
+ * 
+ * @param svgText - The SVG content
+ * @param classPattern - Pattern to match in the class attribute
+ * @returns Object with openTagStart, openTagEnd, closeTagStart, closeTagEnd, or null
+ */
+function findGroupByClass(
+  svgText: string,
+  classPattern: string
+): { openTagStart: number; openTagEnd: number; closeTagStart: number; closeTagEnd: number } | null {
+  // Find the class attribute
+  const classIndex = svgText.indexOf(classPattern);
+  if (classIndex === -1) return null;
+  
+  // Find the opening <g that contains this class
+  const openTagStart = svgText.lastIndexOf('<g', classIndex);
+  if (openTagStart === -1) return null;
+  
+  // Find the end of the opening tag
+  const openTagEnd = svgText.indexOf('>', classIndex);
+  if (openTagEnd === -1) return null;
+  
+  // Find the matching closing </g> using balanced parsing
+  const closeTagStart = findMatchingCloseTag(svgText, openTagEnd + 1, 'g');
+  if (closeTagStart === -1) return null;
+  
+  const closeTagEnd = closeTagStart + 4; // '</g>'.length
+  
+  return { openTagStart, openTagEnd: openTagEnd + 1, closeTagStart, closeTagEnd };
+}
+
+/**
+ * Modify the content inside an eye gaze group.
+ * 
+ * This targets the innermost .blobbi-eye-gaze group to modify pupils/highlights.
  *
  * @param svgText - The SVG content
  * @param side - Which eye to modify
@@ -293,33 +381,24 @@ function modifyEyeGroupContent(
   side: EyeSide,
   modifier: (content: string) => string
 ): string {
-  // Find the opening tag of the blobbi-eye group
-  const openTagRegex = new RegExp(
-    `<g[^>]*class="[^"]*${EYE_CLASSES.eye}-${side}[^"]*"[^>]*>`,
-    'i'
-  );
-
-  const openMatch = svgText.match(openTagRegex);
-  if (!openMatch || openMatch.index === undefined) {
-    return svgText;
+  // Target the gaze group (innermost) instead of eye group
+  // This contains the actual pupil and highlight elements
+  const classPattern = `class="${EYE_CLASSES.gaze} ${EYE_CLASSES.gaze}-${side}"`;
+  const bounds = findGroupByClass(svgText, classPattern);
+  
+  if (!bounds) {
+    // Fallback: try alternate class order
+    const altPattern = `class="${EYE_CLASSES.gaze}-${side}`;
+    const altBounds = findGroupByClass(svgText, altPattern);
+    if (!altBounds) return svgText;
+    
+    const content = svgText.substring(altBounds.openTagEnd, altBounds.closeTagStart);
+    const modifiedContent = modifier(content);
+    return svgText.substring(0, altBounds.openTagEnd) + modifiedContent + svgText.substring(altBounds.closeTagStart);
   }
-
-  const openTagStart = openMatch.index;
-  const openTagEnd = openTagStart + openMatch[0].length;
-
-  // Find the matching closing </g> tag
-  const afterOpenTag = svgText.substring(openTagEnd);
-  const closeTagIndex = afterOpenTag.indexOf('</g>');
-
-  if (closeTagIndex === -1) {
-    return svgText;
-  }
-
-  const content = afterOpenTag.substring(0, closeTagIndex);
-  const absoluteCloseStart = openTagEnd + closeTagIndex;
-
-  // Apply the modifier and reconstruct
+  
+  const content = svgText.substring(bounds.openTagEnd, bounds.closeTagStart);
   const modifiedContent = modifier(content);
-
-  return svgText.substring(0, openTagEnd) + modifiedContent + svgText.substring(absoluteCloseStart);
+  
+  return svgText.substring(0, bounds.openTagEnd) + modifiedContent + svgText.substring(bounds.closeTagStart);
 }
