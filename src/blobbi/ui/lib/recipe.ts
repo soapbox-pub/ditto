@@ -79,6 +79,7 @@ import {
 // Body Effects
 import {
   applyBodyEffects,
+  detectBodyPath,
   type BodyEffectsSpec,
   type DirtMarksConfig,
   type StinkCloudsConfig,
@@ -772,7 +773,13 @@ export function applyVisualRecipe(
 
   // ── Extras: food icon ──
   if (recipe.extras?.foodIcon?.enabled) {
-    overlays.push(generateFoodIcon({ ...recipe.extras.foodIcon, variant }));
+    // Detect body path for shape-aware positioning (adults only)
+    const bodyPath = variant === 'adult' ? detectBodyPath(svgText) : null;
+    overlays.push(generateFoodIcon({ 
+      ...recipe.extras.foodIcon, 
+      variant,
+      bodyPath: bodyPath ?? undefined,
+    }));
   }
 
   // ── Insert overlays ──

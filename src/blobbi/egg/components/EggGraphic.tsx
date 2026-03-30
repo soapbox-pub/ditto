@@ -42,14 +42,22 @@ interface EggGraphicProps {
  * Create a spiral path for sick/dizzy effects.
  * Generates a true Archimedean spiral that starts from center and winds outward.
  * Based on the spiral algorithm from eyes/effects.ts.
+ * 
+ * @param cx - Center X coordinate
+ * @param cy - Center Y coordinate  
+ * @param radius - Outer radius of the spiral
+ * @param clockwise - If true, winds clockwise; if false, winds counter-clockwise (default: true)
  */
-function createEggSpiralPath(cx: number, cy: number, radius: number): string {
+function createEggSpiralPath(cx: number, cy: number, radius: number, clockwise: boolean = true): string {
   const points: string[] = [];
   const turns = 2; // Number of complete rotations
   const steps = 40; // Smoothness of the spiral
+  
+  // Direction multiplier: 1 for clockwise, -1 for counter-clockwise
+  const direction = clockwise ? 1 : -1;
 
   for (let i = 0; i <= steps; i++) {
-    const angle = (i / steps) * turns * 2 * Math.PI;
+    const angle = direction * (i / steps) * turns * 2 * Math.PI;
     const r = (i / steps) * radius;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle);
@@ -831,7 +839,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
           <>
             {/* ═══ OUTER SPIRALS (floating around egg) ═══ */}
             
-            {/* Outer 1 - top left, large, gray, counter-clockwise */}
+            {/* Outer 1 - top left, large, gray, COUNTER-CLOCKWISE path */}
             <svg
               className="absolute"
               style={{
@@ -846,7 +854,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
             >
               <g>
                 <path
-                  d={createEggSpiralPath(10, 10, 8)}
+                  d={createEggSpiralPath(10, 10, 8, false)}
                   stroke="#4b5563"
                   strokeWidth="1.5"
                   fill="none"
@@ -864,7 +872,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
               </g>
             </svg>
             
-            {/* Outer 2 - right side, medium, gray, clockwise */}
+            {/* Outer 2 - right side, medium, gray, CLOCKWISE path */}
             <svg
               className="absolute"
               style={{
@@ -879,7 +887,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
             >
               <g>
                 <path
-                  d={createEggSpiralPath(10, 10, 8)}
+                  d={createEggSpiralPath(10, 10, 8, true)}
                   stroke="#6b7280"
                   strokeWidth="1.4"
                   fill="none"
@@ -897,7 +905,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
               </g>
             </svg>
             
-            {/* Outer 3 - bottom left, small, white accent */}
+            {/* Outer 3 - bottom left, small, white accent, COUNTER-CLOCKWISE path */}
             <svg
               className="absolute"
               style={{
@@ -912,7 +920,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
             >
               <g>
                 <path
-                  d={createEggSpiralPath(10, 10, 8)}
+                  d={createEggSpiralPath(10, 10, 8, false)}
                   stroke="white"
                   strokeWidth="1.3"
                   fill="none"
@@ -930,7 +938,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
               </g>
             </svg>
             
-            {/* Outer 4 - bottom right, tiny, gray */}
+            {/* Outer 4 - bottom right, tiny, gray, CLOCKWISE path */}
             <svg
               className="absolute"
               style={{
@@ -945,7 +953,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
             >
               <g>
                 <path
-                  d={createEggSpiralPath(10, 10, 8)}
+                  d={createEggSpiralPath(10, 10, 8, true)}
                   stroke="#9ca3af"
                   strokeWidth="1.2"
                   fill="none"
@@ -965,7 +973,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
             
             {/* ═══ INNER SPIRALS (across egg body) ═══ */}
             
-            {/* Inner 1 - upper egg, small, white, subtle */}
+            {/* Inner 1 - upper egg, small, white, COUNTER-CLOCKWISE path */}
             <svg
               className="absolute"
               style={{
@@ -980,7 +988,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
             >
               <g>
                 <path
-                  d={createEggSpiralPath(10, 10, 7)}
+                  d={createEggSpiralPath(10, 10, 7, false)}
                   stroke="white"
                   strokeWidth="1.2"
                   fill="none"
@@ -998,7 +1006,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
               </g>
             </svg>
             
-            {/* Inner 2 - mid-right egg, tiny, gray */}
+            {/* Inner 2 - mid-right egg, tiny, gray, CLOCKWISE path */}
             <svg
               className="absolute"
               style={{
@@ -1013,7 +1021,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
             >
               <g>
                 <path
-                  d={createEggSpiralPath(10, 10, 7)}
+                  d={createEggSpiralPath(10, 10, 7, true)}
                   stroke="#6b7280"
                   strokeWidth="1.1"
                   fill="none"
@@ -1046,7 +1054,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
             >
               <g>
                 <path
-                  d={createEggSpiralPath(10, 10, 7)}
+                  d={createEggSpiralPath(10, 10, 7, false)}
                   stroke="white"
                   strokeWidth="1"
                   fill="none"

@@ -313,18 +313,36 @@ export function generateDroolAtAnchor(anchor: DroolAnchor, config: DroolConfig):
  * Generate a fork and knife icon near the Blobbi.
  * 
  * Position and size vary by variant:
- *   - Baby (100x100): Upper-right, smaller icon
- *   - Adult (200x200): Upper-left, larger icon, more prominent
+ *   - Baby (100x100): Upper-right, smaller icon (fixed positions)
+ *   - Adult (200x200): Upper-left relative to body bounds, larger icon
+ * 
+ * For adults, when bodyPath is provided, positions are computed relative
+ * to the detected body silhouette for shape-aware placement.
  */
 export function generateFoodIcon(config: FoodIconConfig): string {
   const variant = config.variant ?? 'baby';
-  
-  // Variant-specific positioning and scaling
-  // Adult: upper-left corner, larger and more visible
-  // Baby: upper-right, smaller (original behavior)
   const isAdult = variant === 'adult';
-  const iconX = isAdult ? 55 : 68;  // Adult: upper-left; Baby: upper-right
-  const iconY = isAdult ? 45 : 8;   // Adult: near top of body; Baby: above head
+  
+  // Compute position based on variant and body detection
+  let iconX: number;
+  let iconY: number;
+  
+  if (isAdult && config.bodyPath) {
+    // Adult with detected body: position relative to body bounds
+    // Upper-left of body, outside the face region
+    const { minX, minY, width, height } = config.bodyPath;
+    iconX = minX + width * 0.15;  // 15% from left edge of body
+    iconY = minY + height * 0.25; // 25% down from top of body
+  } else if (isAdult) {
+    // Adult fallback without body detection
+    iconX = 55;
+    iconY = 45;
+  } else {
+    // Baby: fixed upper-right position
+    iconX = 68;
+    iconY = 8;
+  }
+  
   const scale = isAdult ? 1.8 : 1;  // Adult: 80% larger
   const strokeScale = isAdult ? 1.5 : 1;
   

@@ -110,6 +110,16 @@ export interface FoodIconConfig {
   type?: 'utensils' | 'plate';
   /** Blobbi variant for position/size scaling */
   variant?: 'baby' | 'adult';
+  /** Detected body path for shape-aware positioning (adults only) */
+  bodyPath?: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+    centerX: number;
+    width: number;
+    height: number;
+  };
 }
 
 
