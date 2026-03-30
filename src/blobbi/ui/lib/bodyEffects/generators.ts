@@ -6,7 +6,10 @@
  * 
  * Coordinate systems by variant:
  *   - Baby:  100x100 viewBox, body roughly x: 25-75, y: 15-88
- *   - Adult: 200x200 viewBox, body varies by form but center ~100, width ~70
+ *   - Adult: 200x200 viewBox, body varies significantly by form
+ * 
+ * For adults, dirt marks use detected body bounds (not hardcoded positions)
+ * to correctly follow each form's actual silhouette.
  */
 
 import type {
@@ -19,52 +22,72 @@ import type {
 // ─── Body Path Detection ──────────────────────────────────────────────────────
 
 /**
- * Detect the body path from the SVG.
+ * Detect the body path from the SVG and extract full bounding box.
  * Looks for the main body path (body gradient fill or "Body" comment).
+ * Returns both X and Y bounds for shape-aware dirt placement.
  */
 export function detectBodyPath(svgText: string): BodyPathInfo | null {
   // Strategy 1: path with body gradient fill
   const bodyGradientMatch = svgText.match(/<path[^>]*d="([^"]+)"[^>]*fill="url\(#[^"]*[Bb]ody[^"]*\)"[^>]*\/>/);
   if (bodyGradientMatch) {
     const pathD = bodyGradientMatch[1];
-    const bounds = estimatePathBounds(pathD);
-    return { pathD, ...bounds };
+    return { pathD, ...estimatePathBounds(pathD) };
   }
   
   // Strategy 2: path after "Body" comment
   const commentMatch = svgText.match(/<!--[^>]*[Bb]ody[^>]*-->\s*<path[^>]*d="([^"]+)"/);
   if (commentMatch) {
     const pathD = commentMatch[1];
-    const bounds = estimatePathBounds(pathD);
-    return { pathD, ...bounds };
+    return { pathD, ...estimatePathBounds(pathD) };
   }
   
   return null;
 }
 
 /**
- * Estimate the bounding box of a path from its d attribute.
+ * Estimate the full bounding box of a path from its d attribute.
+ * Extracts both X and Y coordinate ranges for shape-aware placement.
  */
-function estimatePathBounds(pathD: string): { minY: number; maxY: number } {
+function estimatePathBounds(pathD: string): Omit<BodyPathInfo, 'pathD'> {
+  // Parse path commands to extract coordinate pairs
+  // This handles M, L, Q, C commands by extracting numbers in sequence
   const numbers = pathD.match(/-?\d+\.?\d*/g)?.map(Number) || [];
   
-  let minY = 100;
-  let maxY = 0;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
   
-  for (let i = 1; i < numbers.length; i += 2) {
-    const y = numbers[i];
-    if (y !== undefined && y >= 5 && y <= 100) {
+  // Process numbers as x,y pairs
+  for (let i = 0; i < numbers.length - 1; i += 2) {
+    const x = numbers[i];
+    const y = numbers[i + 1];
+    
+    if (x !== undefined && !isNaN(x)) {
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+    }
+    if (y !== undefined && !isNaN(y)) {
       minY = Math.min(minY, y);
       maxY = Math.max(maxY, y);
     }
   }
   
-  if (minY >= maxY) {
+  // Fallback to sensible defaults if parsing failed
+  if (!isFinite(minX) || !isFinite(maxX)) {
+    minX = 20;
+    maxX = 80;
+  }
+  if (!isFinite(minY) || !isFinite(maxY)) {
     minY = 10;
     maxY = 90;
   }
   
-  return { minY, maxY };
+  const width = maxX - minX;
+  const height = maxY - minY;
+  const centerX = minX + width / 2;
+  
+  return { minX, maxX, minY, maxY, centerX, width, height };
 }
 
 // ─── Dirt Marks ───────────────────────────────────────────────────────────────
@@ -83,17 +106,19 @@ function estimatePathBounds(pathD: string): { minY: number; maxY: number } {
  *   - Side contours in lower half of body
  *
  * Baby (100x100 viewBox):
+ *   - Uses fixed positions (body shape is consistent)
  *   - Face region: x: 30-70, y: 35-70 (AVOID)
  *   - Safe lower edges: y > 72, prefer x < 35 or x > 65
  *
- * Adult (200x200 viewBox):
- *   - Face region: x: 80-120, y: 70-115 (AVOID)
- *   - Safe lower edges: y > 120, prefer x < 85 or x > 115
+ * Adult (variable body shapes):
+ *   - Uses detected body bounds for shape-aware placement
+ *   - Positions computed relative to actual body silhouette
+ *   - Dirt placed at lower 30% of body height, near side edges
  */
 
 /**
  * Dirt mark positions for baby variant (100x100 viewBox).
- * Positioned at lower-left and lower-right edges, avoiding face region.
+ * Baby has consistent body shape, so fixed positions work well.
  */
 const BABY_DIRT_POSITIONS = [
   // Primary marks - lower side edges, well below face
@@ -106,18 +131,42 @@ const BABY_DIRT_POSITIONS = [
 ];
 
 /**
- * Dirt mark positions for adult variant (200x200 viewBox).
- * Positioned at lower side edges, avoiding face region entirely.
+ * Compute dirt mark positions relative to detected body bounds.
+ * Places marks at lower-left and lower-right edges, avoiding face region.
+ * 
+ * @param bodyPath - Detected body path with bounds
+ * @param count - Number of marks to generate
+ * @returns Array of position objects relative to actual body silhouette
  */
-const ADULT_DIRT_POSITIONS = [
-  // Primary marks - lower side edges
-  { x: 78, y: 125, angle: 30, length: 4 },    // lower-left side
-  { x: 122, y: 122, angle: -25, length: 4 },  // lower-right side
-  { x: 80, y: 138, angle: 20, length: 3.5 },  // very low left
-  // Additional marks for higher counts
-  { x: 120, y: 135, angle: -20, length: 3.5 }, // very low right
-  { x: 100, y: 145, angle: 5, length: 3 },    // bottom center (safe - well below face)
-];
+function computeAdultDirtPositions(
+  bodyPath: BodyPathInfo,
+  count: number
+): Array<{ x: number; y: number; angle: number; length: number }> {
+  const { minX, maxX, minY, centerX, width, height } = bodyPath;
+  
+  // Safe zone: lower 35% of body height (well below face)
+  const safeTopY = minY + height * 0.65;
+  
+  // Edge margins: 15% inward from body edges
+  const leftEdgeX = minX + width * 0.15;
+  const rightEdgeX = maxX - width * 0.15;
+  
+  // Mark length scales with body size
+  const markLength = Math.max(3, width * 0.05);
+  
+  // All possible positions - ordered by priority
+  const allPositions = [
+    // Primary marks - lower side edges
+    { x: leftEdgeX, y: safeTopY + height * 0.08, angle: 25, length: markLength },
+    { x: rightEdgeX, y: safeTopY + height * 0.05, angle: -20, length: markLength },
+    { x: leftEdgeX + width * 0.05, y: safeTopY + height * 0.18, angle: 15, length: markLength * 0.85 },
+    // Additional marks for higher counts
+    { x: rightEdgeX - width * 0.05, y: safeTopY + height * 0.15, angle: -15, length: markLength * 0.85 },
+    { x: centerX, y: safeTopY + height * 0.22, angle: 5, length: markLength * 0.75 },
+  ];
+  
+  return allPositions.slice(0, count);
+}
 
 /**
  * Generate dirt marks/scratches on the body.
@@ -126,8 +175,9 @@ const ADULT_DIRT_POSITIONS = [
  *   - AVOID face region (eyes, mouth, eyebrows, tears, drool, blush, sparkles)
  *   - PREFER lower-left and lower-right edges of body silhouette
  *   - Bottom edge placement is safe (well below face elements)
+ *   - Adult uses detected body bounds; baby uses fixed positions
  *
- * @param config - Dirt marks configuration including variant
+ * @param config - Dirt marks configuration including variant and bodyPath
  * @returns SVG markup for dirt marks
  */
 export function generateDirtMarks(config: DirtMarksConfig): string {
@@ -137,9 +187,26 @@ export function generateDirtMarks(config: DirtMarksConfig): string {
   const variant = config.variant ?? 'adult';
   const marks: string[] = [];
 
-  // Select positions based on variant
-  const basePositions = variant === 'baby' ? BABY_DIRT_POSITIONS : ADULT_DIRT_POSITIONS;
-  const positions = basePositions.slice(0, count);
+  // Compute positions based on variant
+  let positions: Array<{ x: number; y: number; angle: number; length: number }>;
+  
+  if (variant === 'adult' && config.bodyPath) {
+    // Adult with detected body: use shape-aware placement
+    positions = computeAdultDirtPositions(config.bodyPath, count);
+  } else if (variant === 'baby') {
+    // Baby: use fixed positions (consistent body shape)
+    positions = BABY_DIRT_POSITIONS.slice(0, count);
+  } else {
+    // Adult fallback without body detection: use conservative defaults
+    // These are positioned relative to typical adult body center
+    positions = [
+      { x: 78, y: 130, angle: 25, length: 4 },
+      { x: 122, y: 128, angle: -20, length: 4 },
+      { x: 80, y: 145, angle: 15, length: 3.5 },
+      { x: 120, y: 142, angle: -15, length: 3.5 },
+      { x: 100, y: 152, angle: 5, length: 3 },
+    ].slice(0, count);
+  }
 
   // Scale factors for stroke width based on viewBox
   const strokeWidth = variant === 'baby' ? 1.3 : 2;
@@ -180,36 +247,63 @@ const BABY_DUST_POSITIONS = {
     { x: 65, y: 89, r: 1.3, delay: 0.6 },
   ],
   // Front layer - at lower side edges, NOT in face region
+  // Stronger visibility than back layer
   front: [
-    { x: 28, y: 78, r: 1.0, delay: 0.1 },   // lower-left edge
-    { x: 70, y: 76, r: 0.9, delay: 0.4 },   // lower-right edge
-    { x: 32, y: 84, r: 0.8, delay: 0.7 },   // very low left
+    { x: 28, y: 78, r: 1.2, delay: 0.1 },   // lower-left edge
+    { x: 70, y: 76, r: 1.1, delay: 0.4 },   // lower-right edge
+    { x: 32, y: 84, r: 1.0, delay: 0.7 },   // very low left
   ],
 };
 
 /**
- * Dust particle positions for adult variant (200x200 viewBox).
- * All particles positioned at lower edges, avoiding face region.
+ * Compute dust particle positions relative to detected body bounds.
+ * Places particles at lower edges, avoiding face region.
+ * 
+ * @param bodyPath - Detected body path with bounds
+ * @returns Object with back and front layer particle positions
  */
-const ADULT_DUST_POSITIONS = {
-  // Back layer - below the body
-  back: [
-    { x: 80, y: 175, r: 2.5, delay: 0 },
-    { x: 100, y: 180, r: 2.2, delay: 0.3 },
-    { x: 120, y: 173, r: 2.3, delay: 0.6 },
-  ],
-  // Front layer - at lower side edges, NOT in face region
-  front: [
-    { x: 75, y: 130, r: 1.8, delay: 0.1 },   // lower-left side
-    { x: 125, y: 128, r: 1.6, delay: 0.4 },  // lower-right side
-    { x: 78, y: 142, r: 1.4, delay: 0.7 },   // very low left
-  ],
-};
+function computeAdultDustPositions(bodyPath: BodyPathInfo): {
+  back: Array<{ x: number; y: number; r: number; delay: number }>;
+  front: Array<{ x: number; y: number; r: number; delay: number }>;
+} {
+  const { minX, maxX, maxY, centerX, width, height } = bodyPath;
+  
+  // Back layer: below the body bottom
+  const backY = maxY + height * 0.05;
+  
+  // Front layer: lower 30% of body, at side edges
+  const frontTopY = maxY - height * 0.3;
+  
+  // Edge positions
+  const leftEdgeX = minX + width * 0.15;
+  const rightEdgeX = maxX - width * 0.15;
+  
+  // Particle radius scales with body size
+  const baseRadius = Math.max(1.5, width * 0.025);
+  
+  return {
+    back: [
+      { x: leftEdgeX, y: backY, r: baseRadius, delay: 0 },
+      { x: centerX, y: backY + 3, r: baseRadius * 0.85, delay: 0.3 },
+      { x: rightEdgeX, y: backY - 2, r: baseRadius * 0.9, delay: 0.6 },
+    ],
+    front: [
+      { x: leftEdgeX - width * 0.05, y: frontTopY + height * 0.08, r: baseRadius * 0.9, delay: 0.1 },
+      { x: rightEdgeX + width * 0.05, y: frontTopY + height * 0.05, r: baseRadius * 0.85, delay: 0.4 },
+      { x: leftEdgeX, y: frontTopY + height * 0.18, r: baseRadius * 0.75, delay: 0.7 },
+    ],
+  };
+}
 
 /**
  * Generate animated dust particles around the Blobbi.
  * Creates both back-layer (below body) and front-layer (in front of body) particles
  * for a stronger "dirty" visual effect.
+ * 
+ * Distribution:
+ *   - Back layer: underneath/behind the body (lower z-index)
+ *   - Front layer: near lower body edges, in front (higher z-index)
+ *   - Front dust is more visible (larger, higher opacity)
  *
  * @param config - Dirt marks configuration (reused for dust)
  * @returns SVG markup for dust particles
@@ -220,28 +314,54 @@ export function generateDustParticles(config: DirtMarksConfig): string {
   const variant = config.variant ?? 'adult';
   const particles: string[] = [];
 
-  const positions = variant === 'baby' ? BABY_DUST_POSITIONS : ADULT_DUST_POSITIONS;
+  // Compute positions based on variant
+  let positions: {
+    back: Array<{ x: number; y: number; r: number; delay: number }>;
+    front: Array<{ x: number; y: number; r: number; delay: number }>;
+  };
+  
+  if (variant === 'adult' && config.bodyPath) {
+    // Adult with detected body: use shape-aware placement
+    positions = computeAdultDustPositions(config.bodyPath);
+  } else if (variant === 'baby') {
+    // Baby: use fixed positions
+    positions = BABY_DUST_POSITIONS;
+  } else {
+    // Adult fallback: conservative defaults
+    positions = {
+      back: [
+        { x: 80, y: 175, r: 2.5, delay: 0 },
+        { x: 100, y: 180, r: 2.2, delay: 0.3 },
+        { x: 120, y: 173, r: 2.3, delay: 0.6 },
+      ],
+      front: [
+        { x: 75, y: 135, r: 2.0, delay: 0.1 },
+        { x: 125, y: 132, r: 1.8, delay: 0.4 },
+        { x: 78, y: 148, r: 1.6, delay: 0.7 },
+      ],
+    };
+  }
 
-  // Generate back layer particles
+  // Generate back layer particles (underneath body)
   positions.back.forEach((pos, i) => {
     particles.push(`<circle
       class="blobbi-dust-particle blobbi-dust-back-${i}"
-      cx="${pos.x}"
-      cy="${pos.y}"
-      r="${pos.r}"
+      cx="${pos.x.toFixed(1)}"
+      cy="${pos.y.toFixed(1)}"
+      r="${pos.r.toFixed(1)}"
       fill="#57534e"
-      opacity="0.6"
+      opacity="0.55"
     >
       <animate
         attributeName="opacity"
-        values="0.6;0.3;0.6"
+        values="0.55;0.3;0.55"
         dur="2s"
         begin="${pos.delay}s"
         repeatCount="indefinite"
       />
       <animate
         attributeName="cy"
-        values="${pos.y};${pos.y - 2};${pos.y}"
+        values="${pos.y.toFixed(1)};${(pos.y - 2).toFixed(1)};${pos.y.toFixed(1)}"
         dur="2s"
         begin="${pos.delay}s"
         repeatCount="indefinite"
@@ -249,26 +369,26 @@ export function generateDustParticles(config: DirtMarksConfig): string {
     </circle>`);
   });
 
-  // Generate front layer particles with slightly stronger opacity
+  // Generate front layer particles (in front of body, more visible)
   positions.front.forEach((pos, i) => {
     particles.push(`<circle
       class="blobbi-dust-particle blobbi-dust-front-${i}"
-      cx="${pos.x}"
-      cy="${pos.y}"
-      r="${pos.r}"
-      fill="#44403c"
-      opacity="0.7"
+      cx="${pos.x.toFixed(1)}"
+      cy="${pos.y.toFixed(1)}"
+      r="${pos.r.toFixed(1)}"
+      fill="#3f3f46"
+      opacity="0.75"
     >
       <animate
         attributeName="opacity"
-        values="0.7;0.4;0.7"
+        values="0.75;0.45;0.75"
         dur="2.5s"
         begin="${pos.delay}s"
         repeatCount="indefinite"
       />
       <animate
         attributeName="cy"
-        values="${pos.y};${pos.y - 3};${pos.y}"
+        values="${pos.y.toFixed(1)};${(pos.y - 3).toFixed(1)};${pos.y.toFixed(1)}"
         dur="2.5s"
         begin="${pos.delay}s"
         repeatCount="indefinite"

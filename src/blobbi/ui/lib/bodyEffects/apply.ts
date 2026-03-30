@@ -21,6 +21,9 @@ import {
  * emotions.ts should delegate to this function rather than calling
  * individual generators directly.
  * 
+ * For adult variants, detects body path bounds to enable shape-aware
+ * placement of dirt marks and dust particles.
+ * 
  * @param svgText - The base SVG content (may already have face emotions applied)
  * @param spec - Which body effects to apply
  * @returns Modified SVG with body effects applied
@@ -34,13 +37,25 @@ export function applyBodyEffects(svgText: string, spec: BodyEffectsSpec): string
   const idSuffix = spec.idPrefix ?? Math.random().toString(36).slice(2, 8);
   const variant = spec.variant ?? 'adult';
   
+  // Detect body path for adult shape-aware placement
+  // This enables dirt marks and dust to follow the actual body silhouette
+  const bodyPath = variant === 'adult' ? detectBodyPath(svgText) : null;
+  
   // Dirt marks + dust particles
   if (spec.dirtyMarks?.enabled) {
-    const dirtMarkup = generateDirtMarks({ ...spec.dirtyMarks, variant });
+    const dirtMarkup = generateDirtMarks({ 
+      ...spec.dirtyMarks, 
+      variant,
+      bodyPath: bodyPath ?? undefined,
+    });
     if (dirtMarkup) overlays.push(dirtMarkup);
     
     // Add dust particles (includes both back and front layers)
-    const dustMarkup = generateDustParticles({ ...spec.dirtyMarks, variant });
+    const dustMarkup = generateDustParticles({ 
+      ...spec.dirtyMarks, 
+      variant,
+      bodyPath: bodyPath ?? undefined,
+    });
     if (dustMarkup) overlays.push(dustMarkup);
   }
   

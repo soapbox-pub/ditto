@@ -27,6 +27,8 @@ export interface DirtMarksConfig {
   count?: number;
   /** Blobbi variant for coordinate scaling (default: 'adult') */
   variant?: BlobbiVariant;
+  /** Detected body path info for shape-aware placement (adult only) */
+  bodyPath?: BodyPathInfo;
 }
 
 /**
@@ -80,9 +82,18 @@ export interface BodyEffectsSpec {
 
 /**
  * Internal: detected body path info for body-level effects.
+ * Used to place dirt marks relative to the actual body silhouette.
  */
 export interface BodyPathInfo {
   pathD: string;
+  minX: number;
+  maxX: number;
   minY: number;
   maxY: number;
+  /** Center X coordinate of the body */
+  centerX: number;
+  /** Width of the body */
+  width: number;
+  /** Height of the body */
+  height: number;
 }

@@ -758,16 +758,17 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
                 className="animate-egg-dust-particle"
               />
             </div>
-            {/* Front-layer dust - ONLY at lower-left and lower-right edges */}
-            {/* Lower-left edge particle */}
+            {/* Front-layer dust - at lower-left and lower-right edges
+                More visible than back layer, stronger colors */}
+            {/* Lower-left edge particle - larger, more visible */}
             <div
               className="absolute animate-egg-dust-particle"
               style={{
                 bottom: '12%',
-                left: '8%',
-                width: '0.22em',
-                height: '0.22em',
-                background: 'rgba(68, 64, 60, 0.7)',
+                left: '6%',
+                width: '0.28em',
+                height: '0.28em',
+                background: 'rgba(63, 63, 70, 0.8)',
                 borderRadius: '50%',
                 zIndex: 25,
                 animationDelay: '0.1s',
@@ -778,10 +779,10 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
               className="absolute animate-egg-dust-particle"
               style={{
                 bottom: '15%',
-                right: '6%',
-                width: '0.2em',
-                height: '0.2em',
-                background: 'rgba(68, 64, 60, 0.65)',
+                right: '5%',
+                width: '0.25em',
+                height: '0.25em',
+                background: 'rgba(63, 63, 70, 0.75)',
                 borderRadius: '50%',
                 zIndex: 25,
                 animationDelay: '0.5s',
@@ -792,82 +793,136 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
               className="absolute animate-egg-dust-particle"
               style={{
                 bottom: '5%',
-                left: '15%',
-                width: '0.18em',
-                height: '0.18em',
-                background: 'rgba(87, 83, 78, 0.6)',
+                left: '18%',
+                width: '0.22em',
+                height: '0.22em',
+                background: 'rgba(68, 64, 60, 0.7)',
                 borderRadius: '50%',
                 zIndex: 25,
                 animationDelay: '0.8s',
               }}
             />
+            {/* Very bottom right particle */}
+            <div
+              className="absolute animate-egg-dust-particle"
+              style={{
+                bottom: '3%',
+                right: '20%',
+                width: '0.2em',
+                height: '0.2em',
+                background: 'rgba(68, 64, 60, 0.65)',
+                borderRadius: '50%',
+                zIndex: 25,
+                animationDelay: '1.1s',
+              }}
+            />
           </>
         )}
 
-        {/* Sick effect: floating dizzy spirals around egg */}
+        {/* Sick effect: floating dizzy spirals around egg
+            Uses the same spiral construction as Blobbi dizzy eyes:
+            - True Archimedean spiral path (createEggSpiralPath)
+            - SVG-native rotation animation (animateTransform)
+            - Dark stroke color matching dizzy eye style
+            - Positioned floating around egg, not inside shell
+        */}
         {statusEffects?.sick && (
           <>
-            {/* Spiral 1 - top right */}
+            {/* Spiral 1 - top right, largest */}
             <svg
-              className="absolute animate-egg-spiral"
+              className="absolute"
               style={{
-                top: '5%',
-                right: '5%',
-                width: '1em',
-                height: '1em',
+                top: '2%',
+                right: '2%',
+                width: '1.1em',
+                height: '1.1em',
                 zIndex: 20,
+                overflow: 'visible',
               }}
               viewBox="0 0 20 20"
             >
-              <path
-                d={createEggSpiralPath(10, 10, 8)}
-                stroke="rgba(147, 51, 234, 0.7)"
-                strokeWidth="1.5"
-                fill="none"
-                strokeLinecap="round"
-              />
+              <g>
+                <path
+                  d={createEggSpiralPath(10, 10, 8)}
+                  stroke="#1f2937"
+                  strokeWidth="1.5"
+                  fill="none"
+                  strokeLinecap="round"
+                  opacity="0.7"
+                />
+                <animateTransform
+                  attributeName="transform"
+                  type="rotate"
+                  from="360 10 10"
+                  to="0 10 10"
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+              </g>
             </svg>
-            {/* Spiral 2 - left side */}
+            {/* Spiral 2 - left side, medium */}
             <svg
-              className="absolute animate-egg-spiral"
+              className="absolute"
               style={{
-                top: '30%',
-                left: '0%',
-                width: '0.8em',
-                height: '0.8em',
+                top: '35%',
+                left: '-2%',
+                width: '0.9em',
+                height: '0.9em',
                 zIndex: 20,
-                animationDelay: '0.5s',
+                overflow: 'visible',
               }}
               viewBox="0 0 20 20"
             >
-              <path
-                d={createEggSpiralPath(10, 10, 8)}
-                stroke="rgba(147, 51, 234, 0.6)"
-                strokeWidth="1.5"
-                fill="none"
-                strokeLinecap="round"
-              />
+              <g>
+                <path
+                  d={createEggSpiralPath(10, 10, 8)}
+                  stroke="#1f2937"
+                  strokeWidth="1.5"
+                  fill="none"
+                  strokeLinecap="round"
+                  opacity="0.6"
+                />
+                <animateTransform
+                  attributeName="transform"
+                  type="rotate"
+                  from="0 10 10"
+                  to="360 10 10"
+                  dur="2.5s"
+                  repeatCount="indefinite"
+                />
+              </g>
             </svg>
-            {/* Spiral 3 - bottom right */}
+            {/* Spiral 3 - bottom right, smallest */}
             <svg
-              className="absolute animate-egg-spiral"
+              className="absolute"
               style={{
-                bottom: '20%',
-                right: '0%',
-                width: '0.7em',
-                height: '0.7em',
+                bottom: '18%',
+                right: '-3%',
+                width: '0.75em',
+                height: '0.75em',
                 zIndex: 20,
-                animationDelay: '1s',
+                overflow: 'visible',
               }}
               viewBox="0 0 20 20"
             >
-              <path
-                d={createEggSpiralPath(10, 10, 8)}
-                stroke="rgba(147, 51, 234, 0.6)"
-                strokeWidth="1.5"
-                fill="none"
-                strokeLinecap="round"
-              />
+              <g>
+                <path
+                  d={createEggSpiralPath(10, 10, 8)}
+                  stroke="#1f2937"
+                  strokeWidth="1.5"
+                  fill="none"
+                  strokeLinecap="round"
+                  opacity="0.55"
+                />
+                <animateTransform
+                  attributeName="transform"
+                  type="rotate"
+                  from="360 10 10"
+                  to="0 10 10"
+                  dur="3s"
+                  repeatCount="indefinite"
+                />
+              </g>
             </svg>
           </>
         )}
