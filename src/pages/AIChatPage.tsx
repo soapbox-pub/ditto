@@ -6,6 +6,7 @@ import { Bot, Send, Trash2, Palette, Type } from 'lucide-react';
 import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 
+import { NoteCard } from '@/components/NoteCard';
 import { PageHeader } from '@/components/PageHeader';
 import { useShakespeare, type ChatMessage, type Model, type ChatCompletionTool } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -169,8 +170,8 @@ interface DisplayMessage {
   content: string;
   timestamp: Date;
   toolCalls?: ToolCall[];
-  /** A spell event published by the create_spell tool, to be rendered inline. */
-  spellEvent?: NostrEvent;
+  /** A Nostr event published by a tool, rendered inline in the chat. */
+  nostrEvent?: NostrEvent;
 }
 
 interface ToolCall {
@@ -232,8 +233,8 @@ function buildSpellTags(args: Record<string, unknown>): string[][] {
 interface ToolExecutorResult {
   /** JSON string returned to the AI as the tool result. */
   result: string;
-  /** The published spell event, if this was a create_spell call. */
-  spellEvent?: NostrEvent;
+  /** A Nostr event published by the tool, to be rendered inline in the chat. */
+  nostrEvent?: NostrEvent;
 }
 
 function useToolExecutor() {
@@ -339,7 +340,7 @@ function useToolExecutor() {
               pubkey,
               name: args.name,
             }),
-            spellEvent,
+            nostrEvent: spellEvent,
           };
         } catch (err) {
           return { result: JSON.stringify({
@@ -488,7 +489,7 @@ export function AIChatPage() {
 
       if (assistantMsg.tool_calls && assistantMsg.tool_calls.length > 0) {
         // Execute tool calls
-        let spellEvent: NostrEvent | undefined;
+        let nostrEvent: NostrEvent | undefined;
         const toolCalls: ToolCall[] = [];
 
         for (const tc of assistantMsg.tool_calls) {
@@ -501,8 +502,8 @@ export function AIChatPage() {
 
           const execResult = await executeToolCall(tc.function.name, args);
 
-          if (execResult.spellEvent) {
-            spellEvent = execResult.spellEvent;
+          if (execResult.nostrEvent) {
+            nostrEvent = execResult.nostrEvent;
           }
 
           toolCalls.push({
@@ -520,7 +521,7 @@ export function AIChatPage() {
            content: assistantMsg.content || '',
           timestamp: new Date(),
           toolCalls,
-          spellEvent,
+          nostrEvent,
         };
         const messagesWithTool = [...newMessages, toolMsg];
         setMessages(messagesWithTool);
@@ -753,6 +754,13 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
             </div>
           )}
         </div>
+
+        {/* Inline Nostr event (e.g. a spell created by a tool) */}
+        {message.nostrEvent && (
+          <div className="w-full rounded-xl overflow-hidden border border-border mt-1">
+            <NoteCard event={message.nostrEvent} compact />
+          </div>
+        )}
 
         {/* Tool call indicators */}
         {message.toolCalls && message.toolCalls.length > 0 && (
