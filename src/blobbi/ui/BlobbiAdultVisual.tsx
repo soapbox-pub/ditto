@@ -7,9 +7,14 @@
  * Eyes always track the mouse cursor in real-time.
  *
  * Accepts either:
- *   - `recipe` + `recipeLabel`: a pre-resolved visual recipe (recipe-first path)
+ *   - `recipe` + `recipeLabel`: a pre-resolved visual recipe (recipe-first path
+ *     from useStatusReaction). The recipe includes body effects — no separate
+ *     bodyEffects prop is needed for this path.
  *   - `emotion`: a named emotion preset (convenience path, resolved internally)
- * Body effects are applied independently.
+ *
+ * An optional `bodyEffects` prop is available for manual/external use cases
+ * outside the status reaction system (e.g. dev tools, previews). It is NOT
+ * fed from useStatusReaction to avoid double-applying body effects.
  */
 
 import { useMemo, useRef } from 'react';
@@ -68,7 +73,9 @@ export interface BlobbiAdultVisualProps {
   emotion?: BlobbiEmotion;
   /**
    * Body-level visual effects (dirt marks, stink clouds, etc.).
-   * Applied independently of face recipes.
+   * Optional — for manual/external use cases only.
+   * Do NOT pass status-reaction body effects here; those are already
+   * folded into the recipe and applied by applyVisualRecipe().
    */
   bodyEffects?: BodyEffectsSpec;
   /** Additional CSS classes for the container */

@@ -42,7 +42,10 @@ interface BlobbiCompanionVisualProps {
   recipeLabel?: string;
   /** Named emotion preset (convenience). Ignored when `recipe` is provided. */
   emotion?: BlobbiEmotion;
-  /** Body-level visual effects (dirt marks, stink clouds, etc.) */
+  /**
+   * Body-level visual effects — for manual/external use only.
+   * Status-reaction body effects are already folded into the recipe.
+   */
   bodyEffects?: BodyEffectsSpec;
   /** Additional class names */
   className?: string;

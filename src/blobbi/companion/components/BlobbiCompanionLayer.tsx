@@ -214,8 +214,9 @@ export function BlobbiCompanionLayer() {
     closeMenu();
   }, [closeMenu]);
   
-  // Status-based emotion reactions for the companion
-  // Uses the same part-based recipe system as the main BlobbiPage
+  // Status-based visual reactions for the companion.
+  // Uses the recipe-first pipeline: stats → resolveStatusRecipe() → recipe.
+  // Body effects (dirt, stink) are folded into the recipe by the resolver.
   const isSleeping = companion?.state === 'sleeping';
   const companionStats = useMemo(() => companion?.stats ?? {
     hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100,
@@ -223,7 +224,7 @@ export function BlobbiCompanionLayer() {
   
   const [companionActionOverride, setCompanionActionOverride] = useState<BlobbiEmotion | null>(null);
   
-  const { recipe: companionRecipe, recipeLabel: companionRecipeLabel, bodyEffects: companionBodyEffects } = useStatusReaction({
+  const { recipe: companionRecipe, recipeLabel: companionRecipeLabel } = useStatusReaction({
     stats: companionStats,
     enabled: isVisible && !isSleeping && companion?.stage !== 'egg',
     actionOverride: companionActionOverride,
@@ -268,7 +269,7 @@ export function BlobbiCompanionLayer() {
     onClick: handleCompanionClick,
     recipe: companionRecipeProp,
     recipeLabel: companionRecipeLabelProp,
-    bodyEffects: companionBodyEffects ?? undefined,
+
     onPositionUpdate: handlePositionUpdate,
   };
   

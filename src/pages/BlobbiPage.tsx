@@ -868,8 +868,10 @@ function BlobbiDashboard({
   // This takes priority over status reactions but not dev override
   const [actionOverrideEmotion, setActionOverrideEmotion] = useState<BlobbiEmotion | null>(null);
   
-  // Status-based automatic reactions
-  // Uses projected stats (with decay applied) for accurate reactions
+  // Status-based automatic reactions (recipe-first pipeline).
+  // Uses projected stats (with decay applied) for accurate reactions.
+  // Body effects (dirt, stink) are folded into the recipe by the resolver —
+  // no separate bodyEffects prop needed.
   const currentStats = useMemo(() => ({
     hunger: projectedState?.stats.hunger ?? companion.stats.hunger ?? 100,
     happiness: projectedState?.stats.happiness ?? companion.stats.happiness ?? 100,
@@ -878,7 +880,7 @@ function BlobbiDashboard({
     energy: projectedState?.stats.energy ?? companion.stats.energy ?? 100,
   }), [projectedState, companion.stats]);
   
-  const { recipe: statusRecipe, recipeLabel: statusRecipeLabel, bodyEffects: statusBodyEffects } = useStatusReaction({
+  const { recipe: statusRecipe, recipeLabel: statusRecipeLabel } = useStatusReaction({
     stats: currentStats,
     enabled: !isSleeping && !isEgg, // Disable when sleeping or egg stage
     actionOverride: actionOverrideEmotion,
@@ -1426,7 +1428,7 @@ function BlobbiDashboard({
               recipe={hasDevOverride ? undefined : statusRecipe}
               recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
               emotion={effectiveEmotion}
-              bodyEffects={hasDevOverride ? undefined : (statusBodyEffects ?? undefined)}
+
               className="size-48 sm:size-56"
             />
           </div>

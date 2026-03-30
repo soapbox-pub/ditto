@@ -18,7 +18,7 @@
  * - useExternalEyeOffset.ts: External eye offset control
  * - recipe.ts: Part-based visual recipe system (core architecture)
  * - emotions.ts: Public API for emotion presets (delegates to recipe.ts)
- * - status-reactions.ts: Status-based emotion resolution
+ * - status-reactions.ts: Stats → recipe resolution (recipe-first pipeline)
  */
 
 // Types

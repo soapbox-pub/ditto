@@ -6,15 +6,20 @@
  * passed straight to the rendering pipeline — no emotion-name intermediaries.
  *
  * The hook's output is recipe-first:
- *   - `recipe`: the fully resolved visual recipe (empty = neutral)
+ *   - `recipe`: the fully resolved visual recipe (includes body effects)
  *   - `recipeLabel`: human-readable label for debugging / CSS class naming
  *   - metadata: triggeringStat, severity, isOverrideActive
- *   - `bodyEffects`: extracted for consumers that apply body effects separately
+ *
+ * Body effects (dirt marks, stink clouds) are folded into the recipe by
+ * resolveStatusRecipe(). Consumers should NOT apply body effects separately
+ * from the status reaction path — applyVisualRecipe() handles everything.
  *
  * Features:
  *   - Periodic stat checks with configurable intervals
  *   - Animation-aware state transitions (won't interrupt mid-animation)
  *   - Override support for temporary action reactions
+ *   - Re-resolution on stat recovery (switches to next-priority reaction
+ *     rather than forcing neutral when only one stat recovers)
  *   - Clean state management with proper cleanup
  */
 
@@ -24,14 +29,12 @@ import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
 import {
   resolveStatusRecipe,
   DEFAULT_TIMING,
-  SEVERITY_THRESHOLDS,
   type StatusReactionTiming,
   type ReactiveStat,
   type StatSeverity,
   type StatusRecipeResult,
 } from '../lib/status-reactions';
 import { resolveVisualRecipe, type BlobbiVisualRecipe } from '../lib/recipe';
-import type { BodyEffectsSpec } from '../lib/bodyEffects';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,7 +50,7 @@ export interface UseStatusReactionOptions {
 }
 
 export interface StatusReactionState {
-  /** The fully resolved visual recipe to render */
+  /** The fully resolved visual recipe to render (includes body effects) */
   recipe: BlobbiVisualRecipe;
   /** Human-readable label for the recipe (for CSS classes, debugging) */
   recipeLabel: string;
@@ -59,8 +62,6 @@ export interface StatusReactionState {
   currentSeverity: StatSeverity | null;
   /** Whether an action override is active */
   isOverrideActive: boolean;
-  /** Body effects spec (also folded into recipe, but exposed for separate application) */
-  bodyEffects: BodyEffectsSpec | null;
 }
 
 // ─── Animation Cycle Durations ────────────────────────────────────────────────
@@ -83,14 +84,19 @@ const LABEL_CYCLE_DURATIONS: Record<string, number> = {
   mischievous: 1500,
 };
 
+/**
+ * Get the minimum animation cycle duration for a recipe label.
+ *
+ * For merged labels like "boring-sleepy" or "hungry-sleepy", computes the
+ * maximum matching duration among all matching parts. This ensures merged
+ * recipes respect the longest animation cycle among their components.
+ */
 function getRecipeCycleDuration(label: string): number {
-  // For merged labels like "boring-sleepy", use the longest duration
-  for (const [key, duration] of Object.entries(LABEL_CYCLE_DURATIONS)) {
-    if (label.includes(key)) {
-      return duration;
-    }
-  }
-  return 2000;
+  const matches = Object.entries(LABEL_CYCLE_DURATIONS)
+    .filter(([key]) => label.includes(key))
+    .map(([, duration]) => duration);
+
+  return matches.length > 0 ? Math.max(...matches) : 2000;
 }
 
 // ─── Internal State ───────────────────────────────────────────────────────────
@@ -106,7 +112,6 @@ const NEUTRAL_RESULT: StatusRecipeResult = {
   label: 'neutral',
   triggeringStat: null,
   severity: null,
-  bodyEffects: null,
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -155,37 +160,28 @@ export function useStatusReaction({
 
   /**
    * Apply a resolved recipe, respecting animation safety.
+   *
+   * Transition rules:
+   *   - Same label → no change (recipe content may still update)
+   *   - To neutral → apply immediately
+   *   - From neutral → apply immediately
+   *   - Between non-neutral recipes → wait for current animation cycle to finish
    */
   const applyResult = useCallback((resolved: StatusRecipeResult) => {
     const internal = internalRef.current;
     const now = Date.now();
     const prev = internal.current;
 
-    // Same label → no visual change needed (body effects may update independently)
+    // Same label → no visual change needed
     if (resolved.label === prev.label) {
-      // But body effects can change independently
-      if (resolved.bodyEffects !== prev.bodyEffects) {
-        internal.current = resolved;
-        setCurrentResult(resolved);
-      }
       return;
     }
 
-    // Transitioning to neutral (all stats recovered)
+    // Transitioning to neutral → apply immediately
     if (resolved.label === 'neutral') {
-      if (prev.triggeringStat) {
-        const statValue = statsRef.current[prev.triggeringStat];
-        if (statValue >= SEVERITY_THRESHOLDS.warning) {
-          internal.current = resolved;
-          internal.recipeStartTime = now;
-          setCurrentResult(resolved);
-        }
-        // else: stat hasn't actually recovered, keep current
-      } else {
-        internal.current = resolved;
-        internal.recipeStartTime = now;
-        setCurrentResult(resolved);
-      }
+      internal.current = resolved;
+      internal.recipeStartTime = now;
+      setCurrentResult(resolved);
       return;
     }
 
@@ -241,27 +237,20 @@ export function useStatusReaction({
     };
   }, [enabled, checkStats, clearTimers, clearState]);
 
-  // Watch for stat recovery on persistent recipes
+  // Re-resolve on stat changes.
+  //
+  // When stats change, always re-run resolveStatusRecipe() to get the
+  // freshly resolved recipe. This handles the case where one stat recovers
+  // but another is still low — instead of forcing neutral, we transition
+  // to the recipe for the remaining low stat(s).
+  //
+  // Example: energy low + hunger low → merged sleepy/hungry recipe.
+  // Energy recovers → re-resolve → hunger still low → hungry recipe.
+  // Only goes neutral if resolveStatusRecipe() itself returns neutral.
   useEffect(() => {
-    const internal = internalRef.current;
-    const prev = internal.current;
-
-    if (prev.triggeringStat && prev.label !== 'neutral') {
-      const statValue = stats[prev.triggeringStat];
-      if (statValue >= SEVERITY_THRESHOLDS.warning) {
-        internal.current = NEUTRAL_RESULT;
-        setCurrentResult(NEUTRAL_RESULT);
-        return;
-      }
-    }
-
-    // Re-resolve body effects on stat change (they update immediately)
     const fresh = resolveStatusRecipe(stats);
-    if (fresh.bodyEffects !== prev.bodyEffects) {
-      internal.current = { ...prev, bodyEffects: fresh.bodyEffects };
-      setCurrentResult(internal.current);
-    }
-  }, [stats]);
+    applyResult(fresh);
+  }, [stats, applyResult]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -293,6 +282,5 @@ export function useStatusReaction({
     triggeringStat: currentResult.triggeringStat,
     currentSeverity: currentResult.severity,
     isOverrideActive,
-    bodyEffects: currentResult.bodyEffects,
   };
 }

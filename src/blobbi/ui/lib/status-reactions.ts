@@ -8,14 +8,16 @@
  * Design principles:
  *   - Priority order determines which stat "wins" for face expression
  *   - When multiple stats are low, their recipes are merged internally
- *   - Body effects (dirty) are folded into the recipe
- *   - The output is a single, fully-resolved recipe — no secondary emotions
+ *   - Body effects (dirty) are folded directly into the recipe's bodyEffects
+ *   - The output is a single, fully-resolved recipe — no secondary outputs
  *   - Named emotions are only used internally as lookup keys for presets
+ *   - Consumers receive one recipe and pass it to applyVisualRecipe()
+ *     which handles all rendering including body effects — no separate
+ *     body effects channel needed
  */
 
 import type { BlobbiEmotion } from './emotion-types';
 import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
-import type { BodyEffectsSpec } from './bodyEffects';
 import { resolveVisualRecipe, mergeVisualRecipes, type BlobbiVisualRecipe } from './recipe';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -73,10 +75,10 @@ export interface StatusReactionTiming {
 }
 
 /**
- * Result of resolving the best reaction from current stats.
+ * Result of resolving the best reaction to show based on current stats.
  *
- * @deprecated Use `resolveStatusEmotions()` instead, which properly separates
- * emotion from body effects.
+ * @deprecated Use `resolveStatusRecipe()` instead, which resolves stats
+ * directly into a fully-resolved BlobbiVisualRecipe.
  */
 export interface StatusReactionResult {
   /** The emotion to display (null = stay at default) */
@@ -95,7 +97,10 @@ export interface StatusReactionResult {
  * Result of resolving stats into a final visual recipe.
  *
  * The recipe is fully resolved — no further merging is needed by consumers.
- * Body effects from hygiene are folded directly into the recipe.
+ * Body effects from hygiene are folded directly into recipe.bodyEffects.
+ * Consumers pass this recipe to applyVisualRecipe() which handles all
+ * rendering including body effects. No separate body effects channel is needed.
+ *
  * Metadata (triggeringStat, label) is provided for UI display and
  * animation-safety decisions in the hook layer.
  */
@@ -108,8 +113,6 @@ export interface StatusRecipeResult {
   triggeringStat: ReactiveStat | null;
   /** Severity of the triggering stat */
   severity: StatSeverity | null;
-  /** Body effects spec for external consumers that apply body effects separately */
-  bodyEffects: BodyEffectsSpec | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -148,8 +151,8 @@ export const TRIGGER_PROBABILITIES: Record<StatSeverity, number> = {
  *   - hungry: hunger-specific face with drool and food icon
  *
  * NOTE: "dirty" is NOT a face emotion. Hygiene maps to 'boring' for
- * the face, and dirty body effects (dirt marks, stink clouds) are applied
- * as independent body decorators via resolveStatusEmotions().bodyEffects.
+ * the face. Dirty body effects (dirt marks, stink clouds) are folded
+ * directly into the recipe's bodyEffects by resolveStatusRecipe().
  */
 export const STAT_REACTION_CONFIGS: StatReactionConfig[] = [
   {
@@ -274,7 +277,7 @@ export function analyzeAllStats(stats: BlobbiStats): StatAnalysis[] {
 /**
  * Resolve the best reaction to show based on current stats.
  *
- * @deprecated Use `resolveStatusEmotions()` instead.
+ * @deprecated Use `resolveStatusRecipe()` instead.
  *
  * @param stats - Current Blobbi stats
  * @param forceCheck - If true, bypasses probability check
@@ -352,12 +355,6 @@ export function getDefaultEmotion(): BlobbiEmotion {
 export function resolveStatusRecipe(stats: BlobbiStats): StatusRecipeResult {
   const analyses = analyzeAllStats(stats);
 
-  // Hygiene triggers dirty body effects independently of face emotions.
-  const hygieneAnalysis = analyses.find(a => a.stat === 'hygiene');
-  const bodyEffects: BodyEffectsSpec | null = hygieneAnalysis
-    ? { dirtyMarks: { enabled: true, count: 3 }, stinkClouds: { enabled: true, count: 3 } }
-    : null;
-
   // No stats are low enough to trigger → neutral
   if (analyses.length === 0) {
     return {
@@ -365,7 +362,6 @@ export function resolveStatusRecipe(stats: BlobbiStats): StatusRecipeResult {
       label: 'neutral',
       triggeringStat: null,
       severity: null,
-      bodyEffects: null,
     };
   }
 
@@ -392,13 +388,18 @@ export function resolveStatusRecipe(stats: BlobbiStats): StatusRecipeResult {
     label = winner.reaction;
   }
 
-  // Fold dirty body effects into the recipe
-  if (bodyEffects) {
+  // Hygiene triggers dirty body effects — fold directly into the recipe.
+  // This is the only place dirty body effects are added. Consumers receive
+  // a single recipe that applyVisualRecipe() renders in full.
+  const hygieneAnalysis = analyses.find(a => a.stat === 'hygiene');
+  if (hygieneAnalysis) {
     recipe = {
       ...recipe,
-      bodyEffects: recipe.bodyEffects
-        ? { ...recipe.bodyEffects, ...bodyEffects }
-        : { dirtMarks: bodyEffects.dirtyMarks, stinkClouds: bodyEffects.stinkClouds },
+      bodyEffects: {
+        ...recipe.bodyEffects,
+        dirtMarks: { enabled: true, count: 3 },
+        stinkClouds: { enabled: true, count: 3 },
+      },
     };
   }
 
@@ -407,7 +408,6 @@ export function resolveStatusRecipe(stats: BlobbiStats): StatusRecipeResult {
     label,
     triggeringStat: winner.stat,
     severity: winner.severity,
-    bodyEffects,
   };
 }
 

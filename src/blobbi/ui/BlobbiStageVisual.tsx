@@ -45,7 +45,10 @@ export interface BlobbiStageVisualProps {
   recipeLabel?: string;
   /** Named emotion preset (convenience path). Ignored when `recipe` is provided. */
   emotion?: BlobbiEmotion;
-  /** Body-level visual effects, applied independently. */
+  /**
+   * Body-level visual effects — for manual/external use only.
+   * Status-reaction body effects are already in the recipe.
+   */
   bodyEffects?: BodyEffectsSpec;
   className?: string;
 }
