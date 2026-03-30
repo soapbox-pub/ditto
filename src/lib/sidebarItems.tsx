@@ -36,6 +36,7 @@ import {
   User,
   WandSparkles,
 } from "lucide-react";
+import { nip19 } from 'nostr-tools';
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
 import { PlanetIcon } from "@/components/icons/PlanetIcon";
@@ -274,10 +275,20 @@ export function isItemActive(
   profilePath?: string,
   homePage?: string,
 ): boolean {
-  // Nostr URI items: active when pathname matches /<nip19>
+  // Nostr URI items: active when pathname matches /<nip19> or /spells/run/<nevent>
   if (isNostrUri(id)) {
     const nip19Id = nostrUriToNip19(id);
-    return pathname === `/${nip19Id}`;
+    if (pathname === `/${nip19Id}`) return true;
+
+    // Spell events navigate to /spells/run/<nevent> — match by event ID
+    if (pathname.startsWith('/spells/run/')) {
+      const sidebarEventId = safeDecodeEventId(nip19Id);
+      const pathNevent = pathname.slice('/spells/run/'.length);
+      const pathEventId = safeDecodeEventId(pathNevent);
+      return !!(sidebarEventId && pathEventId && sidebarEventId === pathEventId);
+    }
+
+    return false;
   }
 
   // External content items: active when pathname matches /i/<encoded-value>
@@ -296,4 +307,18 @@ export function isItemActive(
     return pathname === "/" || pathname === itemPathname;
 
   return pathname === itemPathname;
+}
+
+/** Safely decode a NIP-19 identifier and extract its event ID, or null on failure. */
+function safeDecodeEventId(bech32: string): string | null {
+  try {
+    const decoded = nip19.decode(bech32);
+    switch (decoded.type) {
+      case 'note': return decoded.data as string;
+      case 'nevent': return (decoded.data as { id: string }).id;
+      default: return null;
+    }
+  } catch {
+    return null;
+  }
 }

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { GripVertical, X, FileText, Scroll } from 'lucide-react';
+import { GripVertical, X, FileText, Scroll, WandSparkles } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { nip19 } from 'nostr-tools';
@@ -21,7 +21,8 @@ import { useNostrEventSidebar } from '@/hooks/useNostrEventSidebar';
  * Used as a fallback when getKindIcon() returns undefined.
  */
 const KNOWN_KIND_ICONS: Record<number, ComponentType<{ className?: string }>> = {
-  30000: Scroll,  // NIP-51 lists
+  777: WandSparkles, // Spells
+  30000: Scroll,     // NIP-51 lists
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -114,7 +115,10 @@ export function NostrEventSidebarItem({
     return null;
   }
 
-  const path = `/${nip19Id}`;
+  const isSpell = decoded.kind === 777;
+  const path = isSpell && decoded.eventId
+    ? `/spells/run/${nip19.neventEncode({ id: decoded.eventId, author: decoded.pubkey || undefined, relays: decoded.relays })}`
+    : `/${nip19Id}`;
   const isProfile = decoded.type === 'npub' || decoded.type === 'nprofile';
 
   return (

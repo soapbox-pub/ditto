@@ -9,7 +9,7 @@ import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, MapPin, WandSparkles } from 'lucide-react';
+import { Loader2, MapPin } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useFeed } from '@/hooks/useFeed';
@@ -20,15 +20,12 @@ import { useFeedTab } from '@/hooks/useFeedTab';
 import { useInterests } from '@/hooks/useInterests';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
-import { useBookmarks } from '@/hooks/useBookmarks';
-import { useFollowList } from '@/hooks/useFollowActions';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
 import { useCuratedDittoFeed } from '@/hooks/useCuratedDittoFeed';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { diversifyFeedPages } from '@/lib/feedDiversity';
-import { resolveSpell } from '@/lib/spellEngine';
 import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
@@ -63,12 +60,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const { hashtags } = useInterests();
   const { hashtags: geotags } = useInterests('g');
   const { data: curatorFollowList, isError: isCuratorError } = useCuratorFollowList();
-  const { events: bookmarkedEvents } = useBookmarks();
-  const bookmarkedSpells = useMemo(
-    () => bookmarkedEvents.filter((e) => e.kind === 777),
-    [bookmarkedEvents],
-  );
-
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
     const stored = localStorage.getItem('ditto:showGlobalFeed');
@@ -123,13 +114,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
   // Is the active tab a geotag interest?
   const activeGeotag = activeTab.startsWith('geotag:') ? activeTab.slice(7) : null;
-
-  // Is the active tab a bookmarked spell?
-  const activeSpellId = activeTab.startsWith('spell:') ? activeTab.slice(6) : null;
-  const activeSpellEvent = useMemo(
-    () => activeSpellId ? bookmarkedSpells.find((s) => s.id === activeSpellId) ?? null : null,
-    [activeSpellId, bookmarkedSpells],
-  );
 
   // When logged out (and not on a kind-specific page), show the "hot" sorted
   // feed instead of the noisy global feed so new visitors see quality content.
@@ -299,22 +283,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               </span>
             </TabButton>
           ))}
-          {showSavedFeedTabs && bookmarkedSpells.map((spell) => {
-            const spellName = spell.tags.find(([t]) => t === 'name')?.[1] ?? 'Spell';
-            return (
-              <TabButton
-                key={`spell:${spell.id}`}
-                label={spellName}
-                active={activeTab === `spell:${spell.id}`}
-                onClick={() => handleSetActiveTab(`spell:${spell.id}`)}
-              >
-                <span className="flex items-center justify-center gap-1">
-                  <WandSparkles className="size-3.5" />
-                  {spellName}
-                </span>
-              </TabButton>
-            );
-          })}
         </SubHeaderBar>
       )}
 
@@ -324,8 +292,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         <HashtagFeedContent tag={activeHashtag} />
       ) : activeGeotag ? (
         <GeotagFeedContent tag={activeGeotag} />
-      ) : activeSpellEvent ? (
-        <SpellFeedContent spell={activeSpellEvent} />
       ) : activeSavedFeed ? (
         <SavedFeedContent feed={activeSavedFeed} />
       ) : (
@@ -568,76 +534,6 @@ function GeotagFeedContent({ tag }: { tag: string }) {
         ))}
       </div>
     </PullToRefresh>
-  );
-}
-
-/** Renders the results of executing a bookmarked spell. */
-function SpellFeedContent({ spell }: { spell: NostrEvent }) {
-  const { nostr } = useNostr();
-  const { user } = useCurrentUser();
-  const { muteItems } = useMuteList();
-  const { data: followData } = useFollowList();
-  const contactPubkeys = useMemo(() => followData?.pubkeys ?? [], [followData?.pubkeys]);
-
-  // Resolve the spell into a filter
-  const resolved = useMemo(() => {
-    try {
-      return resolveSpell(spell, user?.pubkey, contactPubkeys);
-    } catch {
-      return null;
-    }
-  }, [spell, user?.pubkey, contactPubkeys]);
-
-  const { data: events, isLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['spell-feed', spell.id, JSON.stringify(resolved?.filter)],
-    queryFn: async ({ signal }) => {
-      if (!resolved) return [];
-      const store = resolved.relays.length > 0
-        ? nostr.group(resolved.relays)
-        : nostr;
-      return store.query(
-        [resolved.filter],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]) },
-      );
-    },
-    enabled: !!resolved,
-    staleTime: 60 * 1000,
-  });
-
-  const filteredEvents = useMemo((): NostrEvent[] => {
-    if (!events) return [];
-    if (muteItems.length === 0) return events;
-    return events.filter((e) => !isEventMuted(e, muteItems));
-  }, [events, muteItems]);
-
-  if (!resolved) {
-    return (
-      <FeedEmptyState message="Could not resolve this spell. You may need to log in or have contacts for this spell to work." />
-    );
-  }
-
-  if (isLoading && filteredEvents.length === 0) {
-    return (
-      <div className="divide-y divide-border">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <NoteCardSkeleton key={i} />
-        ))}
-      </div>
-    );
-  }
-
-  if (filteredEvents.length === 0) {
-    return (
-      <FeedEmptyState message="No results found for this spell." />
-    );
-  }
-
-  return (
-    <div>
-      {filteredEvents.map((event) => (
-        <NoteCard key={event.id} event={event} />
-      ))}
-    </div>
   );
 }
 
