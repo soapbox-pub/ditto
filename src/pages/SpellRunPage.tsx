@@ -4,17 +4,20 @@ import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
-import { AlertCircle, WandSparkles } from 'lucide-react';
+import { AlertCircle, Star, WandSparkles } from 'lucide-react';
 
 import { NoteCard } from '@/components/NoteCard';
 import { PageHeader } from '@/components/PageHeader';
 import { SpellContent } from '@/components/SpellContent';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { cn } from '@/lib/utils';
 import { resolveSpell } from '@/lib/spellEngine';
 import NotFound from './NotFound';
 
@@ -89,6 +92,22 @@ export function SpellRunPage() {
 
   const spellName = spellEvent?.tags.find(([t]) => t === 'name')?.[1];
 
+  // Sidebar integration
+  const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
+  const nostrUri = spellEvent
+    ? `nostr:${nip19.neventEncode({ id: spellEvent.id, author: spellEvent.pubkey })}`
+    : '';
+  const isInSidebar = nostrUri ? orderedItems.includes(nostrUri) : false;
+
+  const handleToggleSidebar = () => {
+    if (!nostrUri) return;
+    if (isInSidebar) {
+      removeFromSidebar(nostrUri);
+    } else {
+      addToSidebar(nostrUri);
+    }
+  };
+
   useSeoMeta({
     title: spellName ? `${spellName} | Spell Results` : 'Spell Results',
   });
@@ -112,8 +131,19 @@ export function SpellRunPage() {
 
       {/* Spell summary card */}
       {spellEvent && (
-        <div className="px-4 py-3 border-b border-border bg-muted/30">
-          <SpellContent event={spellEvent} />
+        <div className="flex items-start gap-2 px-4 py-3 border-b border-border bg-muted/30">
+          <div className="flex-1 min-w-0">
+            <SpellContent event={spellEvent} />
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0 size-8"
+            onClick={handleToggleSidebar}
+            title={isInSidebar ? 'Remove from sidebar' : 'Add to sidebar'}
+          >
+            <Star className={cn('size-4', isInSidebar ? 'fill-primary text-primary' : 'text-muted-foreground')} />
+          </Button>
         </div>
       )}
 
