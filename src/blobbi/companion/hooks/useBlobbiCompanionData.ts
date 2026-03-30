@@ -4,22 +4,18 @@
  * Fetches the current companion data from the user's Blobbonaut profile.
  * This is the data layer - it handles fetching and provides companion data.
  * 
- * IMPORTANT: This hook uses useBlobbonautProfile to ensure reactivity.
- * When the profile is updated (e.g., companion selected/removed), this hook
- * automatically receives the update via the shared query cache.
+ * IMPORTANT: This hook shares the same query cache as BlobbiPage via
+ * useBlobbisCollection. This ensures:
+ * - Immediate reactivity when stats change (optimistic updates)
+ * - Projected decay is applied for accurate visual reactions
+ * - No duplicate queries or stale cache issues
  */
 
 import { useMemo } from 'react';
-import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
 
-import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
-import {
-  KIND_BLOBBI_STATE,
-  isValidBlobbiEvent,
-  parseBlobbiEvent,
-} from '@/blobbi/core/lib/blobbi';
+import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
+import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
 import type { CompanionData } from '../types/companion.types';
 
 interface UseBlobbiCompanionDataResult {
@@ -36,87 +32,83 @@ interface UseBlobbiCompanionDataResult {
  * 
  * Flow:
  * 1. Use useBlobbonautProfile to get the profile (shared query, reactive)
- * 2. Read the currentCompanion from the profile
- * 3. If it exists, fetch the corresponding kind 31124 (Blobbi State) event
- * 4. Return the minimal data needed for rendering
+ * 2. Build a dList containing just the currentCompanion
+ * 3. Use useBlobbisCollection (shared with BlobbiPage) to get the companion
+ * 4. Apply projected decay for accurate UI reactions
+ * 5. Return the companion data with projected stats
  * 
  * Reactivity:
- * - Uses the same query cache as useBlobbonautProfile
- * - When profile is updated via updateProfileEvent(), this hook reacts immediately
- * - No duplicate queries or stale cache issues
+ * - Uses the same query cache as BlobbiPage (blobbi-collection)
+ * - When Blobbi state is updated, optimistic updates flow through immediately
+ * - Projected decay recalculates every 60 seconds
+ * - No separate query or stale cache issues
  */
 export function useBlobbiCompanionData(): UseBlobbiCompanionDataResult {
-  const { nostr } = useNostr();
-  const { user } = useCurrentUser();
-  
   // Use the shared profile hook - this ensures reactivity when profile changes
   const { profile, isLoading: profileLoading } = useBlobbonautProfile();
   
   // Extract current companion d-tag from the reactive profile
   const currentCompanionD = profile?.currentCompanion;
   
-  // Fetch the Blobbi state if we have a current companion
-  const blobbiQuery = useQuery({
-    queryKey: ['companion-blobbi', user?.pubkey, currentCompanionD],
-    queryFn: async ({ signal }) => {
-      if (!user?.pubkey || !currentCompanionD) return null;
-      
-      const events = await nostr.query([{
-        kinds: [KIND_BLOBBI_STATE],
-        authors: [user.pubkey],
-        '#d': [currentCompanionD],
-      }], { signal });
-      
-      // Get the latest valid event
-      const validEvents = events
-        .filter(isValidBlobbiEvent)
-        .sort((a, b) => b.created_at - a.created_at);
-      
-      if (validEvents.length === 0) return null;
-      
-      return parseBlobbiEvent(validEvents[0]);
-    },
-    enabled: !!user?.pubkey && !!currentCompanionD,
-    staleTime: 60_000, // 1 minute
-    gcTime: 5 * 60_000, // 5 minutes
-  });
+  // Build dList containing just the current companion (if set)
+  // This allows us to use the shared collection query cache
+  const dList = useMemo(() => {
+    if (!currentCompanionD) return undefined;
+    return [currentCompanionD];
+  }, [currentCompanionD]);
   
-  // Transform to CompanionData
+  // Use the shared collection query - same cache as BlobbiPage
+  // This ensures we get optimistic updates immediately
+  const {
+    companionsByD,
+    isLoading: collectionLoading,
+  } = useBlobbisCollection(dList);
+  
+  // Get the BlobbiCompanion from the collection
+  const blobbi = currentCompanionD ? companionsByD[currentCompanionD] ?? null : null;
+  
+  // Apply projected decay for accurate visual reactions
+  // This recalculates every 60 seconds while mounted
+  const projectedState = useProjectedBlobbiState(blobbi);
+  
+  // Transform to CompanionData with projected stats
   // When currentCompanionD becomes null/undefined, companion becomes null
   const companion = useMemo((): CompanionData | null => {
     // If no current companion is set in profile, return null immediately
     // This ensures removal is reactive
     if (!currentCompanionD) return null;
     
-    const blobbi = blobbiQuery.data;
     if (!blobbi) return null;
     
     // Only baby and adult can be companions
     if (blobbi.stage === 'egg') return null;
+    
+    // Use projected stats if available, otherwise fall back to base stats
+    const stats = projectedState?.stats ?? blobbi.stats;
     
     return {
       d: blobbi.d,
       name: blobbi.name,
       stage: blobbi.stage,
       visualTraits: blobbi.visualTraits,
-      energy: blobbi.stats.energy ?? 100,
+      energy: stats.energy ?? 100,
       stats: {
-        hunger: blobbi.stats.hunger ?? 100,
-        happiness: blobbi.stats.happiness ?? 100,
-        health: blobbi.stats.health ?? 100,
-        hygiene: blobbi.stats.hygiene ?? 100,
-        energy: blobbi.stats.energy ?? 100,
+        hunger: stats.hunger ?? 100,
+        happiness: stats.happiness ?? 100,
+        health: stats.health ?? 100,
+        hygiene: stats.hygiene ?? 100,
+        energy: stats.energy ?? 100,
       },
       state: blobbi.state,
       // Include adult form info for proper rendering
       adultType: blobbi.adultType,
       seed: blobbi.seed,
     };
-  }, [currentCompanionD, blobbiQuery.data]);
+  }, [currentCompanionD, blobbi, projectedState?.stats]);
   
   return {
     companion,
-    isLoading: profileLoading || (!!currentCompanionD && blobbiQuery.isLoading),
-    error: blobbiQuery.error ?? null,
+    isLoading: profileLoading || (!!currentCompanionD && collectionLoading),
+    error: null,
   };
 }
