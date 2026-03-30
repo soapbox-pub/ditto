@@ -132,7 +132,14 @@ const BABY_DIRT_POSITIONS = [
 
 /**
  * Compute dirt mark positions relative to detected body bounds.
- * Places marks at lower-left and lower-right edges, avoiding face region.
+ * Distributes marks naturally across the lower body, avoiding face region.
+ * 
+ * Distribution strategy:
+ *   - Lower-left edge (primary)
+ *   - Lower-right edge (primary)
+ *   - Mid-lower body (secondary)
+ *   - Side contours in lower half (additional)
+ *   - Never in upper half where face lives
  * 
  * @param bodyPath - Detected body path with bounds
  * @param count - Number of marks to generate
@@ -142,27 +149,37 @@ function computeAdultDirtPositions(
   bodyPath: BodyPathInfo,
   count: number
 ): Array<{ x: number; y: number; angle: number; length: number }> {
-  const { minX, maxX, minY, centerX, width, height } = bodyPath;
+  const { minX, maxX, minY, width, height } = bodyPath;
   
-  // Safe zone: lower 35% of body height (well below face)
-  const safeTopY = minY + height * 0.65;
+  // Face region ends at roughly 55% down from top (safe zone starts below)
+  const faceBottomY = minY + height * 0.55;
   
-  // Edge margins: 15% inward from body edges
-  const leftEdgeX = minX + width * 0.15;
-  const rightEdgeX = maxX - width * 0.15;
+  // Define body zones for natural distribution
+  const leftEdgeX = minX + width * 0.12;      // Near left edge
+  const leftMidX = minX + width * 0.28;       // Left-center area
+  const rightMidX = maxX - width * 0.28;      // Right-center area
+  const rightEdgeX = maxX - width * 0.12;     // Near right edge
+  
+  // Vertical zones (all below face)
+  const upperLowerY = faceBottomY + height * 0.08;  // Just below face
+  const midLowerY = faceBottomY + height * 0.18;    // Mid-lower body
+  const lowerY = faceBottomY + height * 0.30;       // Lower body
   
   // Mark length scales with body size
-  const markLength = Math.max(3, width * 0.05);
+  const markLength = Math.max(3, width * 0.06);
   
-  // All possible positions - ordered by priority
+  // Naturally distributed positions across the body
+  // Prioritized for visual balance: edges first, then fill in
   const allPositions = [
-    // Primary marks - lower side edges
-    { x: leftEdgeX, y: safeTopY + height * 0.08, angle: 25, length: markLength },
-    { x: rightEdgeX, y: safeTopY + height * 0.05, angle: -20, length: markLength },
-    { x: leftEdgeX + width * 0.05, y: safeTopY + height * 0.18, angle: 15, length: markLength * 0.85 },
-    // Additional marks for higher counts
-    { x: rightEdgeX - width * 0.05, y: safeTopY + height * 0.15, angle: -15, length: markLength * 0.85 },
-    { x: centerX, y: safeTopY + height * 0.22, angle: 5, length: markLength * 0.75 },
+    // Primary: lower-left and lower-right edges
+    { x: leftEdgeX, y: midLowerY, angle: 30, length: markLength },
+    { x: rightEdgeX, y: upperLowerY, angle: -25, length: markLength * 0.95 },
+    // Secondary: mid-lower body, offset from center
+    { x: leftMidX, y: lowerY, angle: 15, length: markLength * 0.85 },
+    // Additional: right side contour, lower area
+    { x: rightMidX, y: midLowerY + height * 0.08, angle: -12, length: markLength * 0.8 },
+    // Fill: left side contour
+    { x: leftEdgeX + width * 0.08, y: lowerY - height * 0.05, angle: 20, length: markLength * 0.75 },
   ];
   
   return allPositions.slice(0, count);

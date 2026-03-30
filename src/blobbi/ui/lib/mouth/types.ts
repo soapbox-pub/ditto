@@ -108,6 +108,8 @@ export interface FoodIconConfig {
   enabled: boolean;
   /** Icon type (default: 'utensils') */
   type?: 'utensils' | 'plate';
+  /** Blobbi variant for position/size scaling */
+  variant?: 'baby' | 'adult';
 }
 
 

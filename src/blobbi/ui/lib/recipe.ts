@@ -772,7 +772,7 @@ export function applyVisualRecipe(
 
   // ── Extras: food icon ──
   if (recipe.extras?.foodIcon?.enabled) {
-    overlays.push(generateFoodIcon(recipe.extras.foodIcon));
+    overlays.push(generateFoodIcon({ ...recipe.extras.foodIcon, variant }));
   }
 
   // ── Insert overlays ──

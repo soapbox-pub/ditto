@@ -310,34 +310,50 @@ export function generateDroolAtAnchor(anchor: DroolAnchor, config: DroolConfig):
 // ─── Food Icon ────────────────────────────────────────────────────────────────
 
 /**
- * Generate a small fork and knife icon above the Blobbi's head.
+ * Generate a fork and knife icon near the Blobbi.
+ * 
+ * Position and size vary by variant:
+ *   - Baby (100x100): Upper-right, smaller icon
+ *   - Adult (200x200): Upper-left, larger icon, more prominent
  */
 export function generateFoodIcon(config: FoodIconConfig): string {
-  const iconX = 68;
-  const iconY = 8;
+  const variant = config.variant ?? 'baby';
+  
+  // Variant-specific positioning and scaling
+  // Adult: upper-left corner, larger and more visible
+  // Baby: upper-right, smaller (original behavior)
+  const isAdult = variant === 'adult';
+  const iconX = isAdult ? 55 : 68;  // Adult: upper-left; Baby: upper-right
+  const iconY = isAdult ? 45 : 8;   // Adult: near top of body; Baby: above head
+  const scale = isAdult ? 1.8 : 1;  // Adult: 80% larger
+  const strokeScale = isAdult ? 1.5 : 1;
   
   if (config.type === 'plate') {
-    return `<g class="blobbi-food-icon" opacity="0.7">
-      <circle cx="${iconX}" cy="${iconY + 3}" r="5" fill="none" stroke="#9ca3af" stroke-width="0.8" />
-      <path d="M ${iconX - 4} ${iconY - 2} L ${iconX - 4} ${iconY + 5}" stroke="#9ca3af" stroke-width="0.8" stroke-linecap="round" />
-      <path d="M ${iconX - 5} ${iconY - 2} L ${iconX - 5} ${iconY + 1}" stroke="#9ca3af" stroke-width="0.6" stroke-linecap="round" />
-      <path d="M ${iconX - 3} ${iconY - 2} L ${iconX - 3} ${iconY + 1}" stroke="#9ca3af" stroke-width="0.6" stroke-linecap="round" />
-      <path d="M ${iconX + 4} ${iconY - 2} L ${iconX + 4} ${iconY + 5}" stroke="#9ca3af" stroke-width="0.8" stroke-linecap="round" />
-      <path d="M ${iconX + 4} ${iconY - 2} Q ${iconX + 5.5} ${iconY} ${iconX + 4} ${iconY + 2}" fill="none" stroke="#9ca3af" stroke-width="0.6" />
+    const r = 5 * scale;
+    return `<g class="blobbi-food-icon" opacity="0.75" transform="translate(${iconX}, ${iconY})">
+      <circle cx="0" cy="${3 * scale}" r="${r}" fill="none" stroke="#9ca3af" stroke-width="${0.8 * strokeScale}" />
+      <path d="M ${-4 * scale} ${-2 * scale} L ${-4 * scale} ${5 * scale}" stroke="#9ca3af" stroke-width="${0.8 * strokeScale}" stroke-linecap="round" />
+      <path d="M ${-5 * scale} ${-2 * scale} L ${-5 * scale} ${1 * scale}" stroke="#9ca3af" stroke-width="${0.6 * strokeScale}" stroke-linecap="round" />
+      <path d="M ${-3 * scale} ${-2 * scale} L ${-3 * scale} ${1 * scale}" stroke="#9ca3af" stroke-width="${0.6 * strokeScale}" stroke-linecap="round" />
+      <path d="M ${4 * scale} ${-2 * scale} L ${4 * scale} ${5 * scale}" stroke="#9ca3af" stroke-width="${0.8 * strokeScale}" stroke-linecap="round" />
+      <path d="M ${4 * scale} ${-2 * scale} Q ${5.5 * scale} 0 ${4 * scale} ${2 * scale}" fill="none" stroke="#9ca3af" stroke-width="${0.6 * strokeScale}" />
     </g>`;
   }
   
-  return `<g class="blobbi-food-icon" opacity="0.65">
-    <g transform="translate(${iconX - 5}, ${iconY})">
-      <path d="M 2 3 L 2 8" stroke="#6b7280" stroke-width="1" stroke-linecap="round" />
-      <path d="M 0.5 0 L 0.5 3" stroke="#6b7280" stroke-width="0.7" stroke-linecap="round" />
-      <path d="M 2 0 L 2 3" stroke="#6b7280" stroke-width="0.7" stroke-linecap="round" />
-      <path d="M 3.5 0 L 3.5 3" stroke="#6b7280" stroke-width="0.7" stroke-linecap="round" />
-      <path d="M 0.5 3 L 3.5 3" stroke="#6b7280" stroke-width="0.7" />
+  // Utensils icon (fork and knife)
+  return `<g class="blobbi-food-icon" opacity="${isAdult ? 0.75 : 0.65}" transform="translate(${iconX}, ${iconY}) scale(${scale})">
+    <!-- Fork -->
+    <g transform="translate(-5, 0)">
+      <path d="M 2 3 L 2 8" stroke="#6b7280" stroke-width="${1 * strokeScale}" stroke-linecap="round" />
+      <path d="M 0.5 0 L 0.5 3" stroke="#6b7280" stroke-width="${0.7 * strokeScale}" stroke-linecap="round" />
+      <path d="M 2 0 L 2 3" stroke="#6b7280" stroke-width="${0.7 * strokeScale}" stroke-linecap="round" />
+      <path d="M 3.5 0 L 3.5 3" stroke="#6b7280" stroke-width="${0.7 * strokeScale}" stroke-linecap="round" />
+      <path d="M 0.5 3 L 3.5 3" stroke="#6b7280" stroke-width="${0.7 * strokeScale}" />
     </g>
-    <g transform="translate(${iconX + 2}, ${iconY})">
+    <!-- Knife -->
+    <g transform="translate(2, 0)">
       <path d="M 0 0 L 0 4 Q 2 3 0 0" fill="#6b7280" />
-      <path d="M 0 4 L 0 8" stroke="#6b7280" stroke-width="1.2" stroke-linecap="round" />
+      <path d="M 0 4 L 0 8" stroke="#6b7280" stroke-width="${1.2 * strokeScale}" stroke-linecap="round" />
     </g>
   </g>`;
 }

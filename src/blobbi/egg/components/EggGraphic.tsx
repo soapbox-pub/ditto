@@ -819,21 +819,24 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
           </>
         )}
 
-        {/* Sick effect: floating dizzy spirals around egg
-            Uses the same spiral construction as Blobbi dizzy eyes:
-            - True Archimedean spiral path (createEggSpiralPath)
-            - SVG-native rotation animation (animateTransform)
-            - Dark stroke color matching dizzy eye style
-            - Positioned floating around egg, not inside shell
+        {/* Sick effect: layered dizzy spirals around and across egg
+            Creates a magical/dizzy atmosphere with multiple spiral layers:
+            - Outer spirals: floating around the egg shell
+            - Inner spirals: across the egg body itself
+            - Mixed colors: gray (primary) + white (accents)
+            - Varying sizes, speeds, and rotation directions
+            All use true Archimedean spiral paths matching Blobbi dizzy eyes
         */}
         {statusEffects?.sick && (
           <>
-            {/* Spiral 1 - top right, largest */}
+            {/* ═══ OUTER SPIRALS (floating around egg) ═══ */}
+            
+            {/* Outer 1 - top left, large, gray, counter-clockwise */}
             <svg
               className="absolute"
               style={{
-                top: '2%',
-                right: '2%',
+                top: '0%',
+                left: '-5%',
                 width: '1.1em',
                 height: '1.1em',
                 zIndex: 20,
@@ -844,43 +847,11 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
               <g>
                 <path
                   d={createEggSpiralPath(10, 10, 8)}
-                  stroke="#1f2937"
+                  stroke="#4b5563"
                   strokeWidth="1.5"
                   fill="none"
                   strokeLinecap="round"
-                  opacity="0.7"
-                />
-                <animateTransform
-                  attributeName="transform"
-                  type="rotate"
-                  from="360 10 10"
-                  to="0 10 10"
-                  dur="2s"
-                  repeatCount="indefinite"
-                />
-              </g>
-            </svg>
-            {/* Spiral 2 - left side, medium */}
-            <svg
-              className="absolute"
-              style={{
-                top: '35%',
-                left: '-2%',
-                width: '0.9em',
-                height: '0.9em',
-                zIndex: 20,
-                overflow: 'visible',
-              }}
-              viewBox="0 0 20 20"
-            >
-              <g>
-                <path
-                  d={createEggSpiralPath(10, 10, 8)}
-                  stroke="#1f2937"
-                  strokeWidth="1.5"
-                  fill="none"
-                  strokeLinecap="round"
-                  opacity="0.6"
+                  opacity="0.65"
                 />
                 <animateTransform
                   attributeName="transform"
@@ -892,14 +863,15 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
                 />
               </g>
             </svg>
-            {/* Spiral 3 - bottom right, smallest */}
+            
+            {/* Outer 2 - right side, medium, gray, clockwise */}
             <svg
               className="absolute"
               style={{
-                bottom: '18%',
-                right: '-3%',
-                width: '0.75em',
-                height: '0.75em',
+                top: '25%',
+                right: '-6%',
+                width: '0.95em',
+                height: '0.95em',
                 zIndex: 20,
                 overflow: 'visible',
               }}
@@ -908,11 +880,44 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
               <g>
                 <path
                   d={createEggSpiralPath(10, 10, 8)}
-                  stroke="#1f2937"
-                  strokeWidth="1.5"
+                  stroke="#6b7280"
+                  strokeWidth="1.4"
                   fill="none"
                   strokeLinecap="round"
-                  opacity="0.55"
+                  opacity="0.6"
+                />
+                <animateTransform
+                  attributeName="transform"
+                  type="rotate"
+                  from="360 10 10"
+                  to="0 10 10"
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+              </g>
+            </svg>
+            
+            {/* Outer 3 - bottom left, small, white accent */}
+            <svg
+              className="absolute"
+              style={{
+                bottom: '15%',
+                left: '-4%',
+                width: '0.7em',
+                height: '0.7em',
+                zIndex: 20,
+                overflow: 'visible',
+              }}
+              viewBox="0 0 20 20"
+            >
+              <g>
+                <path
+                  d={createEggSpiralPath(10, 10, 8)}
+                  stroke="white"
+                  strokeWidth="1.3"
+                  fill="none"
+                  strokeLinecap="round"
+                  opacity="0.5"
                 />
                 <animateTransform
                   attributeName="transform"
@@ -920,6 +925,140 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
                   from="360 10 10"
                   to="0 10 10"
                   dur="3s"
+                  repeatCount="indefinite"
+                />
+              </g>
+            </svg>
+            
+            {/* Outer 4 - bottom right, tiny, gray */}
+            <svg
+              className="absolute"
+              style={{
+                bottom: '8%',
+                right: '-3%',
+                width: '0.6em',
+                height: '0.6em',
+                zIndex: 20,
+                overflow: 'visible',
+              }}
+              viewBox="0 0 20 20"
+            >
+              <g>
+                <path
+                  d={createEggSpiralPath(10, 10, 8)}
+                  stroke="#9ca3af"
+                  strokeWidth="1.2"
+                  fill="none"
+                  strokeLinecap="round"
+                  opacity="0.5"
+                />
+                <animateTransform
+                  attributeName="transform"
+                  type="rotate"
+                  from="0 10 10"
+                  to="360 10 10"
+                  dur="3.5s"
+                  repeatCount="indefinite"
+                />
+              </g>
+            </svg>
+            
+            {/* ═══ INNER SPIRALS (across egg body) ═══ */}
+            
+            {/* Inner 1 - upper egg, small, white, subtle */}
+            <svg
+              className="absolute"
+              style={{
+                top: '18%',
+                left: '22%',
+                width: '0.55em',
+                height: '0.55em',
+                zIndex: 15,
+                overflow: 'visible',
+              }}
+              viewBox="0 0 20 20"
+            >
+              <g>
+                <path
+                  d={createEggSpiralPath(10, 10, 7)}
+                  stroke="white"
+                  strokeWidth="1.2"
+                  fill="none"
+                  strokeLinecap="round"
+                  opacity="0.4"
+                />
+                <animateTransform
+                  attributeName="transform"
+                  type="rotate"
+                  from="0 10 10"
+                  to="360 10 10"
+                  dur="4s"
+                  repeatCount="indefinite"
+                />
+              </g>
+            </svg>
+            
+            {/* Inner 2 - mid-right egg, tiny, gray */}
+            <svg
+              className="absolute"
+              style={{
+                top: '40%',
+                right: '18%',
+                width: '0.5em',
+                height: '0.5em',
+                zIndex: 15,
+                overflow: 'visible',
+              }}
+              viewBox="0 0 20 20"
+            >
+              <g>
+                <path
+                  d={createEggSpiralPath(10, 10, 7)}
+                  stroke="#6b7280"
+                  strokeWidth="1.1"
+                  fill="none"
+                  strokeLinecap="round"
+                  opacity="0.35"
+                />
+                <animateTransform
+                  attributeName="transform"
+                  type="rotate"
+                  from="360 10 10"
+                  to="0 10 10"
+                  dur="3s"
+                  repeatCount="indefinite"
+                />
+              </g>
+            </svg>
+            
+            {/* Inner 3 - lower-center egg, small, white accent */}
+            <svg
+              className="absolute"
+              style={{
+                bottom: '28%',
+                left: '35%',
+                width: '0.45em',
+                height: '0.45em',
+                zIndex: 15,
+                overflow: 'visible',
+              }}
+              viewBox="0 0 20 20"
+            >
+              <g>
+                <path
+                  d={createEggSpiralPath(10, 10, 7)}
+                  stroke="white"
+                  strokeWidth="1"
+                  fill="none"
+                  strokeLinecap="round"
+                  opacity="0.35"
+                />
+                <animateTransform
+                  attributeName="transform"
+                  type="rotate"
+                  from="0 10 10"
+                  to="360 10 10"
+                  dur="3.5s"
                   repeatCount="indefinite"
                 />
               </g>
