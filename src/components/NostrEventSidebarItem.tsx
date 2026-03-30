@@ -72,30 +72,60 @@ function ProfileSidebarLabel({ pubkey }: { pubkey: string }) {
 
 // ── Event sidebar item (non-profile) ──────────────────────────────────────────
 
-function EventSidebarIcon({ kind, className }: { kind: number; className?: string }) {
-  const Icon = getKindIcon(kind) ?? KNOWN_KIND_ICONS[kind] ?? FileText;
-  return <Icon className={cn('size-6', className)} />;
+function resolveKindIcon(kind: number): ComponentType<{ className?: string }> {
+  return getKindIcon(kind) ?? KNOWN_KIND_ICONS[kind] ?? FileText;
 }
 
-interface EventSidebarLabelProps {
+/**
+ * Renders icon + label for a non-profile event sidebar item.
+ * Fetches the event to resolve the kind (needed when the nevent doesn't
+ * encode a kind) and derives the correct icon and navigation path.
+ */
+function EventSidebarContent({ decoded, nip19Id, linkClassName, active, editing, onClick }: {
   decoded: DecodedNostrId;
-}
-
-function EventSidebarLabel({ decoded }: EventSidebarLabelProps) {
+  nip19Id: string;
+  linkClassName?: string;
+  active: boolean;
+  editing: boolean;
+  onClick?: (e: React.MouseEvent) => void;
+}) {
   const params = decoded.type === 'naddr' && decoded.identifier !== undefined
     ? { addr: { kind: decoded.kind!, pubkey: decoded.pubkey, identifier: decoded.identifier } }
     : { eventId: decoded.eventId };
 
   const { data, isLoading } = useNostrEventSidebar(params);
 
-  if (isLoading && !data) {
-    return <Skeleton className="h-4 w-20" />;
-  }
+  // Use fetched kind when available, fall back to decoded kind
+  const resolvedKind = data?.kind ?? decoded.kind ?? 1;
+  const isSpell = resolvedKind === 777;
+  const Icon = resolveKindIcon(resolvedKind);
+
+  const path = isSpell && decoded.eventId
+    ? `/spells/run/${nip19.neventEncode({ id: decoded.eventId, author: decoded.pubkey || undefined, relays: decoded.relays })}`
+    : `/${nip19Id}`;
 
   return (
-    <span className="truncate">
-      {data?.label ?? 'Event'}
-    </span>
+    <Link
+      to={path}
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-4 py-3 rounded-full transition-colors hover:bg-secondary/60 flex-1 min-w-0',
+        editing ? 'px-2' : 'px-3',
+        active ? 'font-bold text-primary' : 'font-normal text-foreground',
+        linkClassName ?? 'text-lg',
+      )}
+    >
+      <span className="shrink-0">
+        <Icon className="size-6" />
+      </span>
+      <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
+        {isLoading && !data ? (
+          <Skeleton className="h-4 w-20" />
+        ) : (
+          data?.label ?? 'Event'
+        )}
+      </span>
+    </Link>
   );
 }
 
@@ -115,10 +145,6 @@ export function NostrEventSidebarItem({
     return null;
   }
 
-  const isSpell = decoded.kind === 777;
-  const path = isSpell && decoded.eventId
-    ? `/spells/run/${nip19.neventEncode({ id: decoded.eventId, author: decoded.pubkey || undefined, relays: decoded.relays })}`
-    : `/${nip19Id}`;
   const isProfile = decoded.type === 'npub' || decoded.type === 'nprofile';
 
   return (
@@ -137,31 +163,34 @@ export function NostrEventSidebarItem({
         </button>
       )}
 
-      <Link
-        to={path}
-        onClick={onClick}
-        className={cn(
-          'flex items-center gap-4 py-3 rounded-full transition-colors hover:bg-secondary/60 flex-1 min-w-0',
-          editing ? 'px-2' : 'px-3',
-          active ? 'font-bold text-primary' : 'font-normal text-foreground',
-          linkClassName ?? 'text-lg',
-        )}
-      >
-        <span className="shrink-0">
-          {isProfile ? (
+      {isProfile ? (
+        <Link
+          to={`/${nip19Id}`}
+          onClick={onClick}
+          className={cn(
+            'flex items-center gap-4 py-3 rounded-full transition-colors hover:bg-secondary/60 flex-1 min-w-0',
+            editing ? 'px-2' : 'px-3',
+            active ? 'font-bold text-primary' : 'font-normal text-foreground',
+            linkClassName ?? 'text-lg',
+          )}
+        >
+          <span className="shrink-0">
             <ProfileSidebarIcon pubkey={decoded.pubkey} />
-          ) : (
-            <EventSidebarIcon kind={decoded.kind ?? 1} />
-          )}
-        </span>
-        <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
-          {isProfile ? (
+          </span>
+          <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
             <ProfileSidebarLabel pubkey={decoded.pubkey} />
-          ) : (
-            <EventSidebarLabel decoded={decoded} />
-          )}
-        </span>
-      </Link>
+          </span>
+        </Link>
+      ) : (
+        <EventSidebarContent
+          decoded={decoded}
+          nip19Id={nip19Id}
+          linkClassName={linkClassName}
+          active={active}
+          editing={editing}
+          onClick={onClick}
+        />
+      )}
 
       {editing && (
         <button
