@@ -332,6 +332,30 @@ export function useShakespeare() {
     }
   }, [user]);
 
+  // Get credits balance
+  const getCredits = useCallback(async (): Promise<{ amount: number }> => {
+    if (!user) {
+      throw new Error('User must be logged in to check credits');
+    }
+
+    const token = await createNIP98Token(
+      'GET',
+      `${SHAKESPEARE_API_URL}/credits`,
+      undefined,
+      user
+    );
+
+    const response = await fetch(`${SHAKESPEARE_API_URL}/credits`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Nostr ${token}`,
+      },
+    });
+
+    await handleAPIError(response);
+    return await response.json();
+  }, [user]);
+
   // Get available models
   const getAvailableModels = useCallback(async (): Promise<ModelsResponse> => {
     if (!user) {
@@ -391,6 +415,7 @@ export function useShakespeare() {
     sendChatMessage,
     sendStreamingMessage,
     getAvailableModels,
+    getCredits,
     clearError,
   };
 }

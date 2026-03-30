@@ -8,12 +8,14 @@ import { useNostr } from '@nostrify/react';
 
 import { NoteCard } from '@/components/NoteCard';
 import { PageHeader } from '@/components/PageHeader';
+import { useQuery } from '@tanstack/react-query';
 import { useShakespeare, type ChatMessage, type Model, type ChatCompletionTool } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { bundledFonts } from '@/lib/fonts';
 import { LoginArea } from '@/components/auth/LoginArea';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -447,7 +449,7 @@ function saveMessages(messages: DisplayMessage[]): void {
 export function AIChatPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { sendChatMessage, getAvailableModels, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
+  const { sendChatMessage, getAvailableModels, getCredits, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
   const { executeToolCall } = useToolExecutor();
 
   const [messages, setMessages] = useState<DisplayMessage[]>(loadMessages);
@@ -678,7 +680,9 @@ export function AIChatPage() {
     <main className="flex flex-col ai-chat-height sidebar:h-dvh bg-secondary/50">
       {/* Header */}
       <div className="shrink-0 px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
-        <PageHeader title="AI Chat" icon={<Bot className="size-5" />} className="px-0 mt-0 mb-0" />
+        <PageHeader title="AI Chat" icon={<Bot className="size-5" />} className="px-0 mt-0 mb-0">
+          <CreditsBadge getCredits={getCredits} />
+        </PageHeader>
 
         <div className="flex items-center gap-2">
           {/* Model selector */}
@@ -897,5 +901,24 @@ function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
         </span>
       )}
     </span>
+  );
+}
+
+function CreditsBadge({ getCredits }: { getCredits: () => Promise<{ amount: number }> }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['shakespeare-credits'],
+    queryFn: getCredits,
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  });
+
+  const formatted = data?.amount != null
+    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(data.amount)
+    : null;
+
+  return (
+    <Badge variant="secondary" className="text-xs tabular-nums shrink-0">
+      {isLoading ? '...' : formatted ?? '--'}
+    </Badge>
   );
 }
