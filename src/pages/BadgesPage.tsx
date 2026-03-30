@@ -72,7 +72,7 @@ import { useRemoveBadge } from "@/hooks/useRemoveBadge";
 import { useReorderBadges } from "@/hooks/useReorderBadges";
 import { useToast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
-import { BADGE_DEFINITION_KIND, getBadgeATag } from "@/lib/badgeUtils";
+import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, getBadgeATag } from "@/lib/badgeUtils";
 import { deduplicateEvents } from "@/lib/deduplicateEvents";
 import { genUserName } from "@/lib/genUserName";
 import { timeAgo } from "@/lib/timeAgo";
@@ -798,30 +798,46 @@ function CreatedBadgeRow({
   onEdit: (badge: ParsedBadge) => void;
 }) {
   const { toast } = useToast();
+  const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const [awardOpen, setAwardOpen] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
+      const badgeATag = `${BADGE_DEFINITION_KIND}:${badge.event.pubkey}:${badge.badge.identifier}`;
+
+      // Query all award events (kind 8) the user published for this badge
+      const awardEvents = await nostr.query([
+        { kinds: [BADGE_AWARD_KIND], authors: [badge.event.pubkey], '#a': [badgeATag], limit: 500 },
+      ]);
+
+      // Build deletion tags: badge definition + all awards
+      const tags: string[][] = [
+        ["e", badge.event.id],
+        ["a", badgeATag],
+        ["k", BADGE_DEFINITION_KIND.toString()],
+      ];
+
+      for (const award of awardEvents) {
+        tags.push(["e", award.id]);
+      }
+
+      if (awardEvents.length > 0) {
+        tags.push(["k", BADGE_AWARD_KIND.toString()]);
+      }
+
       await publishEvent({
         kind: 5,
         content: "",
-        tags: [
-          ["e", badge.event.id],
-          [
-            "a",
-            `${BADGE_DEFINITION_KIND}:${badge.event.pubkey}:${badge.badge.identifier}`,
-          ],
-          ["k", BADGE_DEFINITION_KIND.toString()],
-        ],
+        tags,
       } as Omit<NostrEvent, "id" | "pubkey" | "sig">);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-created-badges"] });
       toast({
         title: "Deletion requested",
-        description: "The badge has been requested for deletion.",
+        description: "The badge and all its awards have been requested for deletion.",
       });
     },
     onError: () => {
@@ -899,8 +915,8 @@ function CreatedBadgeRow({
                   </AlertDialogTitle>
                   <AlertDialogDescription>
                     This publishes a deletion request (NIP-09). Relays should
-                    remove the badge definition, but existing awards already
-                    issued will remain.
+                    remove the badge definition and all awards you issued
+                    for it.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
