@@ -438,12 +438,19 @@ function applySleepyAnimation(svgText: string, eyes: EyePosition[], anchor: { cx
  * 
  * Orchestrates calls to subsystem modules based on the emotion recipe.
  * Application order matters — each step may modify the SVG for the next.
+ * 
+ * @param svgText - The base SVG content
+ * @param emotion - The emotion to apply
+ * @param variant - 'baby' or 'adult' for variant-specific adjustments
+ * @param form - Adult form name (optional)
+ * @param instanceId - Unique ID for this Blobbi instance (used for stable SVG element IDs)
  */
 export function applyEmotion(
   svgText: string,
   emotion: BlobbiEmotion,
   variant: BlobbiVariant = 'adult',
-  form?: string
+  form?: string,
+  instanceId?: string,
 ): string {
   if (emotion === 'neutral') {
     return svgText;
@@ -585,6 +592,11 @@ export function applyEmotion(
       color: config.bodyEffect.color,
       duration: config.bodyEffect.duration,
     };
+  }
+  
+  // Use instanceId for stable SVG element IDs (falls back to random if not provided)
+  if (instanceId) {
+    bodySpec.idPrefix = instanceId;
   }
   
   // Only apply if we have body effects to apply

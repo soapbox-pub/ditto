@@ -115,19 +115,20 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
       // Apply base emotion first (if provided)
       // Base emotions set the persistent face state (boring, dirty, dizzy, etc.)
       if (baseEmotion && baseEmotion !== 'neutral') {
-        animatedSvg = applyEmotion(animatedSvg, baseEmotion, 'baby');
+        animatedSvg = applyEmotion(animatedSvg, baseEmotion, 'baby', undefined, blobbi.id);
       }
       
       // Apply primary emotion
       // If this is an overlay emotion (sleepy), it will animate on top of the base
       // If this is a regular emotion and no baseEmotion was provided, it acts as the base
       if (emotion !== 'neutral') {
-        animatedSvg = applyEmotion(animatedSvg, emotion, 'baby');
+        animatedSvg = applyEmotion(animatedSvg, emotion, 'baby', undefined, blobbi.id);
       }
       
       // Apply body effects (independent of face emotions)
       if (bodyEffects) {
-        animatedSvg = applyBodyEffects(animatedSvg, bodyEffects);
+        // Pass blobbi.id for stable SVG element IDs
+        animatedSvg = applyBodyEffects(animatedSvg, { ...bodyEffects, idPrefix: bodyEffects.idPrefix ?? blobbi.id });
       }
       
       return animatedSvg;
