@@ -35,9 +35,10 @@ import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
 import { LETTER_KIND, type Letter } from '@/lib/letterTypes';
 import { EnvelopeCard } from '@/components/letter/EnvelopeCard';
+import { LetterDetailSheet } from '@/components/letter/LetterDetailSheet';
 import { Button } from '@/components/ui/button';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
-import type { BadgeData } from '@/components/BadgeContent';
+import { BadgeContent, type BadgeData } from '@/components/BadgeContent';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 
@@ -323,7 +324,7 @@ function ReferencedNoteCard({ item }: { item: NotificationItem }) {
 
   if (!event) return null;
 
-  return <NoteCard event={event} className="border-0" />;
+  return <NoteCard event={event} className="border-0" hideKindHeader />;
 }
 
 // ──────────────────────────────────────
@@ -705,6 +706,7 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
 // ──────────────────────────────────────
 function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   const navigate = useNavigate();
+  const [showDetail, setShowDetail] = useState(false);
 
   const letter = useMemo<Letter>(() => ({
     event: item.event,
@@ -723,16 +725,29 @@ function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: bo
           action="sent you a letter"
         />
       </div>
-      <div className="px-4 pb-3 pt-1">
-        <div className="max-w-[160px]">
+      <div className="flex flex-col items-center gap-3 px-4 pb-4 pt-2">
+        <div className="w-[280px]">
           <EnvelopeCard
             letter={letter}
             mode="inbox"
             index={0}
-            onClick={() => navigate('/letters')}
+            onClick={() => setShowDetail(true)}
+            minimal
           />
         </div>
+        <Button
+          variant="outline"
+          className="rounded-full px-5 h-9 text-sm font-medium gap-1.5 hover:bg-primary hover:text-primary-foreground transition-colors"
+          onClick={() => navigate('/letters')}
+        >
+          <Mail className="size-3.5" />
+          View all letters
+        </Button>
       </div>
+      <LetterDetailSheet
+        letter={showDetail ? letter : null}
+        onClose={() => setShowDetail(false)}
+      />
     </NotificationWrapper>
   );
 }
@@ -757,25 +772,26 @@ function unslugify(slug: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Hook: resolve the display name and badge data for a single badge award event. */
-function useBadgeAward(awardEvent: NostrEvent): { name: string | undefined; badge: BadgeData | undefined } {
+/** Hook: resolve the display name, badge data, and definition event for a single badge award event. */
+function useBadgeAward(awardEvent: NostrEvent): { name: string | undefined; badge: BadgeData | undefined; definitionEvent: NostrEvent | undefined } {
   const parsed = useMemo(() => parseBadgeATag(awardEvent), [awardEvent]);
   const refs = useMemo(() => (parsed ? [parsed] : []), [parsed]);
   const { badgeMap } = useBadgeDefinitions(refs);
 
-  if (!parsed) return { name: undefined, badge: undefined };
+  if (!parsed) return { name: undefined, badge: undefined, definitionEvent: undefined };
   const aTag = `${BADGE_DEFINITION_KIND}:${parsed.pubkey}:${parsed.identifier}`;
   const definition = badgeMap.get(aTag);
   return {
     name: definition?.name || unslugify(parsed.identifier),
     badge: definition ?? undefined,
+    definitionEvent: definition?.event,
   };
 }
 
 // ──────────────────────────────────────
 // Accept Badge Button (shared by single and grouped badge notifications)
 // ──────────────────────────────────────
-function AcceptBadgeButton({ awardEvent }: { awardEvent: NostrEvent }) {
+function AcceptBadgeButton({ awardEvent, prominent }: { awardEvent: NostrEvent; prominent?: boolean }) {
   const { user } = useCurrentUser();
   const { refs } = useProfileBadges(user?.pubkey);
   const { mutate: acceptBadge, isPending, isSuccess } = useAcceptBadge();
@@ -789,10 +805,33 @@ function AcceptBadgeButton({ awardEvent }: { awardEvent: NostrEvent }) {
 
   if (alreadyAccepted) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-        <Check className="size-3" />
+      <span className={cn(
+        "inline-flex items-center gap-1 text-muted-foreground",
+        prominent ? "text-sm" : "text-xs",
+      )}>
+        <Check className={prominent ? "size-4" : "size-3"} />
         Accepted
       </span>
+    );
+  }
+
+  if (prominent) {
+    return (
+      <Button
+        className="rounded-full px-6 h-10 text-sm font-semibold gap-2 shadow-md hover:scale-105 active:scale-95 transition-all"
+        onClick={() => acceptBadge({ aTag, awardEventId: awardEvent.id })}
+        disabled={isPending}
+        style={{ filter: 'drop-shadow(0 2px 8px hsl(var(--primary) / 0.25))' }}
+      >
+        {isPending ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <>
+            <Award className="size-4" />
+            Accept Badge
+          </>
+        )}
+      </Button>
     );
   }
 
@@ -820,7 +859,7 @@ function AcceptBadgeButton({ awardEvent }: { awardEvent: NostrEvent }) {
 // Badge Award Notification (single actor)
 // ──────────────────────────────────────
 function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
-  const { name: badgeName, badge } = useBadgeAward(item.event);
+  const { definitionEvent } = useBadgeAward(item.event);
   const parsed = useMemo(() => parseBadgeATag(item.event), [item.event]);
   const badgeNaddr = useMemo(
     () => parsed ? nip19.naddrEncode({ kind: BADGE_DEFINITION_KIND, pubkey: parsed.pubkey, identifier: parsed.identifier }) : undefined,
@@ -829,30 +868,20 @@ function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew
 
   return (
     <NotificationWrapper isNew={isNew}>
-      <div className="px-4 pt-3 pb-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <NotificationHeader
-              actorPubkey={item.event.pubkey}
-              icon={<Award className="size-4 text-primary" />}
-              action={badgeName ? `awarded you the "${badgeName}" badge` : 'awarded you a badge'}
-            />
-          </div>
-          <div className="shrink-0">
-            <AcceptBadgeButton awardEvent={item.event} />
-          </div>
-        </div>
-        {badge && (
-          <Link to={badgeNaddr ? `/${badgeNaddr}` : '#'} className="mt-2 flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-2 transition-colors hover:bg-muted/60">
-            <BadgeThumbnail badge={badge} size={48} className="shrink-0" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{badge.name}</p>
-              {badge.description && (
-                <p className="text-xs text-muted-foreground line-clamp-2">{badge.description}</p>
-              )}
-            </div>
-          </Link>
-        )}
+      <div className="px-4 pt-3">
+        <NotificationHeader
+          actorPubkey={item.event.pubkey}
+          icon={<Award className="size-4 text-primary" />}
+          action="awarded you a badge"
+        />
+      </div>
+      {definitionEvent && (
+        <Link to={badgeNaddr ? `/${badgeNaddr}` : '#'} className="block">
+          <BadgeContent event={definitionEvent} />
+        </Link>
+      )}
+      <div className="flex justify-center pb-4 pt-1">
+        <AcceptBadgeButton awardEvent={item.event} prominent />
       </div>
     </NotificationWrapper>
   );

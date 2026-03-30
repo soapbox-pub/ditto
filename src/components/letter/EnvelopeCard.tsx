@@ -34,6 +34,8 @@ interface EnvelopeCardProps {
   mode: 'inbox' | 'sent';
   index: number;
   onClick: () => void;
+  /** Hide name/timestamp label — used in notification context. */
+  minimal?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,7 +84,7 @@ function shortTimeAgo(ts: number): string {
 const V_PCT = 65;
 const FLAP_Y_PCT = 15;
 
-export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps) {
+export function EnvelopeCard({ letter, mode, index, onClick, minimal }: EnvelopeCardProps) {
   const otherPubkey = mode === 'inbox' ? letter.sender : letter.recipient;
   const author = useAuthor(otherPubkey);
   const { data: decrypted } = useDecryptLetter(letter);
@@ -170,24 +172,26 @@ export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps
         </svg>
 
         {/* Layer 4: Name + time inside the envelope bottom */}
-        <div
-          className="absolute left-0 right-0 bottom-0 flex flex-col items-start px-2.5 pb-1.5 pt-0.5"
-          style={{ zIndex: 3 }}
-        >
-          <span
-            className="flex items-center gap-0.5 text-[9px] font-medium leading-tight"
-            style={{ color: C.textMuted }}
+        {!minimal && (
+          <div
+            className="absolute left-0 right-0 bottom-0 flex flex-col items-start px-2.5 pb-1.5 pt-0.5"
+            style={{ zIndex: 3 }}
           >
-            <Clock className="w-2 h-2" />
-            {timeStr}
-          </span>
-          <span
-            className="text-[11px] font-semibold truncate leading-tight max-w-full"
-            style={{ color: C.text }}
-          >
-            {displayName}
-          </span>
-        </div>
+            <span
+              className="flex items-center gap-0.5 text-[9px] font-medium leading-tight"
+              style={{ color: C.textMuted }}
+            >
+              <Clock className="w-2 h-2" />
+              {timeStr}
+            </span>
+            <span
+              className="text-[11px] font-semibold truncate leading-tight max-w-full"
+              style={{ color: C.text }}
+            >
+              {displayName}
+            </span>
+          </div>
+        )}
 
         {/* Layer 3: Avatar wax seal — positioned above V vertex */}
         <div
