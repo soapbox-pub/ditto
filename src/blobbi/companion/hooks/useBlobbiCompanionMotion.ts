@@ -5,7 +5,7 @@
  * This includes walking, gravity, and drag behavior.
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, type MutableRefObject } from 'react';
 
 import type {
   CompanionState,
@@ -37,6 +37,12 @@ interface UseBlobbiCompanionMotionOptions {
   energy: number;
   /** Callback when target is reached */
   onReachedTarget: () => void;
+  /**
+   * Shared ref to sync motion state with state hook.
+   * This allows the state hook to read live motion values without
+   * creating a circular dependency.
+   */
+  sharedMotionRef?: MutableRefObject<CompanionMotion>;
 }
 
 interface UseBlobbiCompanionMotionResult {
@@ -63,6 +69,7 @@ export function useBlobbiCompanionMotion({
   targetX,
   energy,
   onReachedTarget,
+  sharedMotionRef,
 }: UseBlobbiCompanionMotionOptions): UseBlobbiCompanionMotionResult {
   const [motion, setMotion] = useState<CompanionMotion>(() => 
     createInitialMotion(initialX, groundY)
@@ -71,6 +78,13 @@ export function useBlobbiCompanionMotion({
   const animationRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const config = DEFAULT_COMPANION_CONFIG;
+  
+  // Sync motion to shared ref so state hook can read it
+  useEffect(() => {
+    if (sharedMotionRef) {
+      sharedMotionRef.current = motion;
+    }
+  }, [motion, sharedMotionRef]);
   
   // Animation loop
   useEffect(() => {

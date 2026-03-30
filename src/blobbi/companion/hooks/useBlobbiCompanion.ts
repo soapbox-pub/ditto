@@ -20,8 +20,17 @@ import type {
   EntryType,
   InspectionDirection,
 } from '../types/companion.types';
+
+/** Default motion state used before motion hook initializes */
+const DEFAULT_MOTION: CompanionMotion = {
+  position: { x: 0, y: 0 },
+  velocity: { x: 0, y: 0 },
+  direction: 'right',
+  isGrounded: true,
+  isDragging: false,
+};
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
-import { calculateMovementBounds, calculateGroundY, calculateRestingPosition } from '../utils/movement';
+import { calculateMovementBounds, calculateGroundY } from '../utils/movement';
 import { useBlobbiCompanionData } from './useBlobbiCompanionData';
 import { useBlobbiCompanionState } from './useBlobbiCompanionState';
 import { useBlobbiCompanionMotion } from './useBlobbiCompanionMotion';
@@ -128,10 +137,14 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     y: groundY,
   }), [viewport.width, config.size, groundY]);
   
-  const restingPosition = useMemo(() =>
-    calculateRestingPosition(viewport.width, viewport.height, config.size, config),
-    [viewport.width, viewport.height, config]
-  );
+  // Shared motion ref - motion hook writes, state hook reads
+  // This solves the bidirectional dependency: state needs motion position,
+  // motion needs state/targetX. By using a ref, state can read current motion
+  // without creating a circular hook dependency.
+  const motionRef = useRef<CompanionMotion>({
+    ...DEFAULT_MOTION,
+    position: groundPosition,
+  });
   
   // Fetch companion data
   const { companion, isLoading } = useBlobbiCompanionData();
@@ -201,6 +214,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   }, [findMainContentPosition, triggerAttention, config.attention.postRouteDuration, config.attention.postRouteDelay]);
   
   // State management
+  // Pass the shared motionRef so state can read live motion values
   const {
     state,
     direction,
@@ -210,19 +224,14 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     onReachedTarget,
   } = useBlobbiCompanionState({
     isActive: isVisible,
-    motion: { 
-      position: restingPosition, 
-      velocity: { x: 0, y: 0 }, 
-      direction: 'right', 
-      isGrounded: true, 
-      isDragging: false 
-    },
+    motionRef,
     bounds,
     attentionTarget: currentAttention,
   });
   
   // Motion management
   // After entry completes, motion continues from groundPosition (where entry ended)
+  // Pass sharedMotionRef so state hook can read live motion values
   const {
     motion,
     startDrag,
@@ -237,6 +246,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     targetX,
     energy: companion?.energy ?? 50,
     onReachedTarget,
+    sharedMotionRef: motionRef,
   });
   
   // Entry animation management (handles route changes and companion changes)
