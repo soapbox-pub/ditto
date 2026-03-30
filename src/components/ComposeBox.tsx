@@ -234,6 +234,15 @@ export function ComposeBox({
     }
   }, [quotedEvent]);
 
+  // Auto-resize textarea height as content grows/shrinks
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    // Reset to auto so shrinking is detected correctly
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [content]);
+
   const charCount = content.length;
   const remaining = MAX_CHARS - charCount;
 
@@ -1162,10 +1171,10 @@ export function ComposeBox({
               onPaste={handlePaste}
               placeholder={placeholder}
               className={cn(
-                'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85 break-words',
+                'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85 break-words overflow-hidden transition-[min-height] duration-200 ease-in-out',
                 isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
               )}
-              rows={isExpanded ? 4 : 1}
+              rows={1}
               disabled={!user}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
