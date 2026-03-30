@@ -107,11 +107,17 @@ export function useExternalEyeOffset({
         const transform = `translate(${x} ${y})`;
         
         eyeElements.forEach((el) => {
-          // Check if a CSS animation is controlling this element's transform
-          // (e.g., sleepy wake-up glance). Don't override CSS animations.
-          const animationName = getComputedStyle(el).animationName;
+          // Check for CSS animations that use transform (like sleepy wake-up glance).
+          // Since we're in external gaze mode, we need to take control of the transform.
+          // We disable the animation and apply our transform instead.
+          const computedStyle = getComputedStyle(el);
+          const animationName = computedStyle.animationName;
+          
           if (animationName && animationName !== 'none') {
-            return; // Let CSS animation control the transform
+            // Disable the CSS animation so we can control the transform.
+            // This allows sleepy's eyelid clip-path animation to still run
+            // while we control eye position for gaze tracking.
+            el.style.animation = 'none';
           }
           
           el.setAttribute('transform', transform);
