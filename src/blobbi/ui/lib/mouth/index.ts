@@ -47,4 +47,8 @@ export {
   generateFoodIcon,
   generateSleepyMouth,
   applySleepyMouth,
+  // Drool anchor system for recipe-aware positioning
+  computeDroolAnchor,
+  generateDroolAtAnchor,
+  type DroolAnchor,
 } from './generators';

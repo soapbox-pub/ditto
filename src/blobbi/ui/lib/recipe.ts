@@ -47,9 +47,10 @@ import {
   generateSmallSmile,
   generateDroopyMouth,
   generateBigSmile,
-  generateDrool,
   generateFoodIcon,
   applySleepyMouth,
+  computeDroolAnchor,
+  generateDroolAtAnchor,
   type RoundMouthConfig,
   type SmallSmileConfig,
   type BigSmileConfig,
@@ -727,6 +728,7 @@ export function applyVisualRecipe(
   }
 
   // ── Extras: drool ──
+  // Drool anchor must match the *final* mouth shape position, not the original
   if (recipe.extras?.drool?.enabled && mouth) {
     const droolDefs = `
       <radialGradient id="droolGradient" cx="0.3" cy="0.2">
@@ -739,7 +741,10 @@ export function applyVisualRecipe(
     } else {
       svgText = svgText.replace(/(<svg[^>]*>)/, `$1\n  <defs>${droolDefs}\n  </defs>`);
     }
-    overlays.push(generateDrool(mouth.position, recipe.extras.drool));
+    // Compute drool anchor based on actual mouth shape being rendered
+    const droolSide = recipe.extras.drool.side || 'right';
+    const droolAnchor = computeDroolAnchor(mouth.position, recipe.mouth, droolSide);
+    overlays.push(generateDroolAtAnchor(droolAnchor, recipe.extras.drool));
   }
 
   // ── Extras: food icon ──

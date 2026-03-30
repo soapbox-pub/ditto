@@ -179,6 +179,134 @@ export function generateDrool(mouth: MouthPosition, config: DroolConfig): string
   </g>`;
 }
 
+// ─── Drool Anchor Computation ─────────────────────────────────────────────────
+
+/**
+ * Drool anchor point — where the drool attaches to the mouth.
+ */
+export interface DroolAnchor {
+  /** X position for drool attachment */
+  x: number;
+  /** Y position for drool attachment (top of drool drop) */
+  y: number;
+}
+
+/**
+ * Compute the effective drool anchor based on the mouth shape being rendered.
+ *
+ * Different mouth shapes render at different positions:
+ * - roundMouth: centered ellipse, drool attaches at cx + rx
+ * - droopyMouth: scaled width, drool attaches at scaled edge
+ * - sadMouth: same width as original, but shifted down
+ * - default: original mouth endX position
+ *
+ * This ensures drool always appears attached to the visible mouth corner.
+ */
+export function computeDroolAnchor(
+  mouth: MouthPosition,
+  mouthRecipe: {
+    roundMouth?: RoundMouthConfig;
+    droopyMouth?: DroopyMouthConfig;
+    sadMouth?: boolean;
+    smallSmile?: SmallSmileConfig;
+    bigSmile?: BigSmileConfig;
+  } | undefined,
+  side: 'left' | 'right' = 'right',
+): DroolAnchor {
+  const centerX = (mouth.startX + mouth.endX) / 2;
+  const baselineY = (mouth.startY + mouth.endY) / 2;
+  const curveAmount = mouth.controlY - baselineY;
+
+  // Round mouth: centered ellipse
+  if (mouthRecipe?.roundMouth) {
+    const rx = mouthRecipe.roundMouth.rx;
+    const cy = mouth.controlY; // round mouth uses controlY as center
+    const edgeX = side === 'right' ? centerX + rx : centerX - rx;
+    return { x: edgeX, y: cy };
+  }
+
+  // Droopy mouth: scaled width, shifted down
+  if (mouthRecipe?.droopyMouth) {
+    const halfWidth = ((mouth.endX - mouth.startX) / 2) * mouthRecipe.droopyMouth.widthScale;
+    const yOffset = Math.abs(curveAmount) * 0.3;
+    const edgeX = side === 'right' ? centerX + halfWidth : centerX - halfWidth;
+    return { x: edgeX, y: baselineY + yOffset };
+  }
+
+  // Sad mouth: same width, shifted down
+  if (mouthRecipe?.sadMouth) {
+    const yOffset = Math.abs(curveAmount) * 0.5;
+    const edgeX = side === 'right' ? mouth.endX : mouth.startX;
+    return { x: edgeX, y: mouth.endY + yOffset };
+  }
+
+  // Small smile: scaled inward
+  if (mouthRecipe?.smallSmile) {
+    const scale = mouthRecipe.smallSmile.scale;
+    const edgeX = side === 'right'
+      ? centerX + (mouth.endX - centerX) * scale
+      : centerX + (mouth.startX - centerX) * scale;
+    return { x: edgeX, y: baselineY };
+  }
+
+  // Big smile: scaled outward
+  if (mouthRecipe?.bigSmile) {
+    const halfWidth = ((mouth.endX - mouth.startX) / 2) * mouthRecipe.bigSmile.widthScale;
+    const edgeX = side === 'right' ? centerX + halfWidth : centerX - halfWidth;
+    return { x: edgeX, y: baselineY };
+  }
+
+  // Default: use original mouth position
+  const yOffset = Math.abs(curveAmount) * 0.3;
+  const edgeX = side === 'right' ? mouth.endX : mouth.startX;
+  return { x: edgeX, y: baselineY + yOffset };
+}
+
+/**
+ * Generate drool using a pre-computed anchor point.
+ *
+ * Use this instead of generateDrool when the mouth shape has changed,
+ * to ensure the drool attaches at the correct position.
+ */
+export function generateDroolAtAnchor(anchor: DroolAnchor, config: DroolConfig): string {
+  const side = config.side || 'right';
+  // Offset slightly inward from the edge
+  const droolX = side === 'right' ? anchor.x - 1 : anchor.x + 1;
+  const droolStartY = anchor.y + 1;
+
+  const dropSize = 3;
+  const dropLength = 6;
+
+  return `<g class="blobbi-drool">
+    <path
+      d="M ${droolX} ${droolStartY} 
+         Q ${droolX - dropSize * 0.3} ${droolStartY + dropLength * 0.4} ${droolX} ${droolStartY + dropLength * 0.6}
+         Q ${droolX + dropSize * 0.5} ${droolStartY + dropLength * 0.8} ${droolX} ${droolStartY + dropLength}
+         Q ${droolX - dropSize * 0.5} ${droolStartY + dropLength * 0.8} ${droolX} ${droolStartY + dropLength * 0.6}
+         Q ${droolX + dropSize * 0.3} ${droolStartY + dropLength * 0.4} ${droolX} ${droolStartY}
+         Z"
+      fill="url(#droolGradient)"
+      opacity="0.85"
+    >
+      <animate
+        attributeName="d"
+        values="M ${droolX} ${droolStartY} Q ${droolX - dropSize * 0.3} ${droolStartY + dropLength * 0.4} ${droolX} ${droolStartY + dropLength * 0.6} Q ${droolX + dropSize * 0.5} ${droolStartY + dropLength * 0.8} ${droolX} ${droolStartY + dropLength} Q ${droolX - dropSize * 0.5} ${droolStartY + dropLength * 0.8} ${droolX} ${droolStartY + dropLength * 0.6} Q ${droolX + dropSize * 0.3} ${droolStartY + dropLength * 0.4} ${droolX} ${droolStartY} Z;
+                M ${droolX} ${droolStartY} Q ${droolX - dropSize * 0.4} ${droolStartY + dropLength * 0.45} ${droolX - 0.3} ${droolStartY + dropLength * 0.65} Q ${droolX + dropSize * 0.4} ${droolStartY + dropLength * 0.85} ${droolX - 0.3} ${droolStartY + dropLength + 0.5} Q ${droolX - dropSize * 0.6} ${droolStartY + dropLength * 0.75} ${droolX - 0.3} ${droolStartY + dropLength * 0.65} Q ${droolX + dropSize * 0.2} ${droolStartY + dropLength * 0.35} ${droolX} ${droolStartY} Z;
+                M ${droolX} ${droolStartY} Q ${droolX - dropSize * 0.3} ${droolStartY + dropLength * 0.4} ${droolX} ${droolStartY + dropLength * 0.6} Q ${droolX + dropSize * 0.5} ${droolStartY + dropLength * 0.8} ${droolX} ${droolStartY + dropLength} Q ${droolX - dropSize * 0.5} ${droolStartY + dropLength * 0.8} ${droolX} ${droolStartY + dropLength * 0.6} Q ${droolX + dropSize * 0.3} ${droolStartY + dropLength * 0.4} ${droolX} ${droolStartY} Z"
+        dur="2s"
+        repeatCount="indefinite"
+        calcMode="spline"
+        keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
+      />
+    </path>
+    <ellipse 
+      cx="${droolX - 0.5}" cy="${droolStartY + dropLength * 0.3}" 
+      rx="0.8" ry="1"
+      fill="white" opacity="0.6"
+    />
+  </g>`;
+}
+
 // ─── Food Icon ────────────────────────────────────────────────────────────────
 
 /**
