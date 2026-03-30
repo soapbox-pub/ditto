@@ -878,20 +878,16 @@ function BlobbiDashboard({
     energy: projectedState?.stats.energy ?? companion.stats.energy ?? 100,
   }), [projectedState, companion.stats]);
   
-  const { baseEmotion: statusBaseEmotion, overlayEmotion: statusOverlayEmotion, bodyEffects: statusBodyEffects } = useStatusReaction({
+  const { emotion: statusEmotion, secondaryEmotion: statusSecondaryEmotion, bodyEffects: statusBodyEffects } = useStatusReaction({
     stats: currentStats,
     enabled: !isSleeping && !isEgg, // Disable when sleeping or egg stage
     actionOverride: actionOverrideEmotion,
   });
   
-  // Final emotions: dev override > status reaction system
-  // Dev override replaces the overlay for visual testing; base persists underneath
+  // Final emotion: dev override > status reaction system
   const hasDevOverride = isLocalhostDev() && devEmotionOverride !== 'neutral';
-  const effectiveBaseEmotion: BlobbiEmotion = hasDevOverride ? 'neutral' : statusBaseEmotion;
-  const effectiveOverlayEmotion: BlobbiEmotion | null = hasDevOverride ? devEmotionOverride : statusOverlayEmotion;
-  
-  // The emotion prop passed to the visual: overlay if present, otherwise base
-  const effectiveEmotion: BlobbiEmotion = effectiveOverlayEmotion ?? effectiveBaseEmotion;
+  const effectiveEmotion: BlobbiEmotion = hasDevOverride ? devEmotionOverride : statusEmotion;
+  const effectiveSecondaryEmotion: BlobbiEmotion | null = hasDevOverride ? null : statusSecondaryEmotion;
   
   // Adoption flow modal state
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
@@ -1429,7 +1425,7 @@ function BlobbiDashboard({
               animated={!isSleeping}
               reaction={blobbiReaction}
               emotion={effectiveEmotion}
-              baseEmotion={effectiveBaseEmotion !== 'neutral' ? effectiveBaseEmotion : undefined}
+              secondaryEmotion={hasDevOverride ? undefined : effectiveSecondaryEmotion}
               bodyEffects={hasDevOverride ? undefined : (statusBodyEffects ?? undefined)}
               className="size-48 sm:size-56"
             />

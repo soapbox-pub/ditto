@@ -2,11 +2,13 @@
  * BlobbiStageVisual - Stage-aware visual component for Blobbi
  *
  * Routes to the appropriate visual component based on the Blobbi's life stage:
- * - egg   → BlobbiEggVisual
- * - baby  → BlobbiBabyVisual
- * - adult → BlobbiAdultVisual
+ *   - egg   → BlobbiEggVisual
+ *   - baby  → BlobbiBabyVisual
+ *   - adult → BlobbiAdultVisual
  *
  * This component is the single entry point for rendering any Blobbi visually.
+ * It passes through the part-based visual recipe props (emotion, secondaryEmotion,
+ * bodyEffects) to the stage-specific components.
  */
 
 import { useMemo } from 'react';
@@ -48,20 +50,21 @@ export interface BlobbiStageVisualProps {
   /** Disable blinking animation (for photo/export mode) */
   disableBlink?: boolean;
   /** 
-   * Emotional state to display (overlay emotion).
-   * When used with baseEmotion, this is applied on top of the base.
+   * Emotional state to display.
+   * Resolves into a part-based visual recipe and applies all parts.
    * Default: 'neutral' (no modifications)
    */
   emotion?: BlobbiEmotion;
   /**
-   * Base emotion for persistent face state (boring, dizzy, hungry).
-   * Applied first, then the overlay emotion animates on top.
-   * Example: baseEmotion='boring', emotion='sleepy' → boring face with sleepy animation
+   * Secondary emotion for recipe-level merging.
+   * When provided, both emotions are resolved into recipes and merged
+   * (secondary provides parts not already defined by the primary).
+   * Example: emotion='sleepy', secondaryEmotion='boring' → sleepy eyes/mouth + boring eyebrows
    */
-  baseEmotion?: BlobbiEmotion;
+  secondaryEmotion?: BlobbiEmotion | null;
   /**
    * Body-level visual effects (dirt marks, stink clouds, etc.).
-   * Applied independently of face emotions — can stack with any face state.
+   * Applied independently of face emotions — can combine with any face state.
    */
   bodyEffects?: BodyEffectsSpec;
   /** Additional CSS classes for the container */
@@ -70,10 +73,6 @@ export interface BlobbiStageVisualProps {
 
 // ─── Size Configuration ───────────────────────────────────────────────────────
 
-/**
- * Container sizes for baby/adult stages.
- * Matches the egg visual sizing for consistency.
- */
 const SIZE_CONFIG: Record<BlobbiVisualSize, string> = {
   sm: 'size-14',
   md: 'size-24',
@@ -86,11 +85,12 @@ const SIZE_CONFIG: Record<BlobbiVisualSize, string> = {
  * Renders a Blobbi visual based on its current life stage.
  *
  * Responsibilities:
- * - Stage routing (egg/baby/adult)
- * - Size and container management
+ *   - Stage routing (egg/baby/adult)
+ *   - Size and container management
+ *   - Passing through visual recipe props
  *
  * Does NOT handle:
- * - Individual stage rendering logic (delegated to stage-specific components)
+ *   - Individual stage rendering logic (delegated to stage-specific components)
  */
 export function BlobbiStageVisual({
   companion,
@@ -100,13 +100,13 @@ export function BlobbiStageVisual({
   lookMode = 'follow-pointer',
   disableBlink = false,
   emotion = 'neutral',
-  baseEmotion,
+  secondaryEmotion,
   bodyEffects,
   className,
 }: BlobbiStageVisualProps) {
   const { stage } = companion;
   const isSleeping = companion.state === 'sleeping';
-  
+
   // Disable reactions when sleeping
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
@@ -118,8 +118,7 @@ export function BlobbiStageVisual({
 
   // Show music notes when listening to music
   const showMusicNotes = effectiveReaction === 'listening';
-  
-  // Container size class (shared across all stages)
+
   const containerClass = SIZE_CONFIG[size];
 
   // Egg stage
@@ -148,7 +147,7 @@ export function BlobbiStageVisual({
           lookMode={lookMode}
           disableBlink={disableBlink}
           emotion={emotion}
-          baseEmotion={baseEmotion}
+          secondaryEmotion={secondaryEmotion}
           bodyEffects={bodyEffects}
           className="size-full"
         />
@@ -167,7 +166,7 @@ export function BlobbiStageVisual({
           lookMode={lookMode}
           disableBlink={disableBlink}
           emotion={emotion}
-          baseEmotion={baseEmotion}
+          secondaryEmotion={secondaryEmotion}
           bodyEffects={bodyEffects}
           className="size-full"
         />

@@ -60,10 +60,10 @@ interface BlobbiCompanionProps {
   onEndDrag: () => void;
   /** Click callback (when interaction is a click, not a drag) */
   onClick?: () => void;
-  /** Base emotion for persistent face state (boring, dirty, dizzy, hungry) */
-  baseEmotion?: BlobbiEmotion;
-  /** Overlay emotion (sleepy, action override, etc.) */
+  /** Primary emotion for face expression */
   emotion?: BlobbiEmotion;
+  /** Secondary emotion for recipe-level merging (e.g. boring eyebrows when sleepy) */
+  secondaryEmotion?: BlobbiEmotion | null;
   /** Body-level visual effects (dirt marks, stink clouds, etc.) */
   bodyEffects?: BodyEffectsSpec;
   /** Callback to report rendered position (including animations) */
@@ -87,8 +87,8 @@ export function BlobbiCompanion({
   onUpdateDrag,
   onEndDrag,
   onClick,
-  baseEmotion,
   emotion,
+  secondaryEmotion,
   bodyEffects,
   onPositionUpdate,
   debugMode = false,
@@ -327,8 +327,8 @@ export function BlobbiCompanion({
         floatOffset={floatOffset}
         isOnGround={isOnGround}
         distanceFromGround={distanceFromGround}
-        baseEmotion={baseEmotion}
         emotion={emotion}
+        secondaryEmotion={secondaryEmotion}
         bodyEffects={bodyEffects}
         debugMode={debugMode}
       />

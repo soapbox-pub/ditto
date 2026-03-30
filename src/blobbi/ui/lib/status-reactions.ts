@@ -1,14 +1,23 @@
 /**
  * Status-Based Reaction System for Blobbi
- * 
- * Automatically determines which emotion Blobbi should display based on current stats.
+ *
+ * Determines which visual recipe Blobbi should display based on current stats.
  * Uses a priority-based system with severity levels and probabilistic selection.
- * 
+ *
+ * The system resolves stats into a single emotion + optional body effects.
+ * There is no separate "base" or "overlay" layer — each stat condition maps
+ * to one named emotion, and body effects are resolved independently.
+ *
+ * When multiple stats are low simultaneously (e.g. energy + hygiene), the
+ * system merges their visual recipes at the recipe level rather than stacking
+ * emotions sequentially. This is handled by resolveStatusEmotions().
+ *
  * Design principles:
- * - Priority order determines which stat "wins" when multiple are low
- * - Severity levels affect how often reactions appear
- * - Probabilistic triggering prevents constant flickering
- * - Extensible for future reactions and stat mappings
+ *   - Priority order determines which stat "wins" for face expression
+ *   - Severity levels affect how often reactions appear
+ *   - Probabilistic triggering prevents constant flickering
+ *   - Body effects (dirty) are independent of face emotions
+ *   - Sleepy is a full emotion with its own complete recipe, not an overlay
  */
 
 import type { BlobbiEmotion } from './emotions';
@@ -71,6 +80,9 @@ export interface StatusReactionTiming {
 
 /**
  * Result of resolving the best reaction from current stats.
+ *
+ * @deprecated Use `resolveStatusEmotions()` instead, which properly separates
+ * emotion from body effects.
  */
 export interface StatusReactionResult {
   /** The emotion to display (null = stay at default) */
@@ -86,17 +98,25 @@ export interface StatusReactionResult {
 }
 
 /**
- * Result of resolving emotions with base + overlay separation.
+ * Result of resolving emotions from current stats.
+ *
+ * The system resolves a single face emotion and independent body effects.
+ * When multiple stats are low, priority determines which face emotion wins.
+ * If both a face-affecting stat and energy are low simultaneously, the
+ * emotions are merged at the recipe level by the consumer.
  */
 export interface StatusEmotionResult {
-  /** The base/persistent emotion (null = neutral/default) */
-  baseEmotion: BlobbiEmotion | null;
-  /** The overlay emotion (null = none) */
-  overlayEmotion: BlobbiEmotion | null;
-  /** The stat that triggered the base emotion */
-  triggeringBaseStat: ReactiveStat | null;
-  /** The stat that triggered the overlay emotion */
-  triggeringOverlayStat: ReactiveStat | null;
+  /** Primary face emotion (null = neutral/default). When energy is also low,
+   *  this is the "lossy" face state and sleepy is provided as secondaryEmotion. */
+  emotion: BlobbiEmotion | null;
+  /** Secondary emotion to merge with the primary (only set when energy is low
+   *  AND another stat is also producing a face emotion). The consumer should
+   *  use mergeVisualRecipes() to combine these. */
+  secondaryEmotion: BlobbiEmotion | null;
+  /** The stat that triggered the primary emotion */
+  triggeringStat: ReactiveStat | null;
+  /** The stat that triggered the secondary emotion */
+  triggeringSecondaryStat: ReactiveStat | null;
   /** Body effects to apply (independent of face emotions) */
   bodyEffects: BodyEffectsSpec | null;
 }
@@ -129,46 +149,43 @@ export const TRIGGER_PROBABILITIES: Record<StatSeverity, number> = {
  * Stat reaction configurations.
  * Priority order: energy > health > hunger > hygiene > happiness
  * Lower priority number = checked first (wins ties).
- * 
+ *
  * Emotion mapping:
- * - boring: low-energy, unamused state (generic "not feeling good" face)
- * - dizzy: critical health state only
- * - hungry: hunger-specific face with drool and food icon
- * - sleepy: energy overlay (preserves base face)
- * - sad: reserved for dramatic emotional distress (not used by stats currently)
- * 
- * NOTE: "dirty" is no longer a face emotion. Hygiene maps to 'boring' for
+ *   - sleepy: low energy (full recipe with eye blink + breathing mouth + Zzz)
+ *   - boring: low-energy, unamused state (generic "not feeling good" face)
+ *   - dizzy: critical health state only
+ *   - hungry: hunger-specific face with drool and food icon
+ *
+ * NOTE: "dirty" is NOT a face emotion. Hygiene maps to 'boring' for
  * the face, and dirty body effects (dirt marks, stink clouds) are applied
- * as a separate body decorator layer via resolveStatusEmotions().bodyEffects.
+ * as independent body decorators via resolveStatusEmotions().bodyEffects.
  */
 export const STAT_REACTION_CONFIGS: StatReactionConfig[] = [
   {
     stat: 'energy',
     priority: 1,
     normalReaction: 'sleepy',
-    // Energy doesn't have a distinct critical reaction
-    // sleepy is now an OVERLAY that preserves the base face
   },
   {
     stat: 'health',
     priority: 2,
-    normalReaction: 'boring', // Non-critical health shows boring (not feeling good)
-    criticalReaction: 'dizzy', // Critical health shows dizzy (seriously unwell)
+    normalReaction: 'boring',
+    criticalReaction: 'dizzy',
   },
   {
     stat: 'hunger',
     priority: 3,
-    normalReaction: 'hungry', // Hungry emotion already has appropriate visuals
+    normalReaction: 'hungry',
   },
   {
     stat: 'hygiene',
     priority: 4,
-    normalReaction: 'boring', // Low hygiene shows boring face + dirty body effects
+    normalReaction: 'boring',
   },
   {
     stat: 'happiness',
     priority: 5,
-    normalReaction: 'boring', // Low happiness shows boring (low energy, unamused)
+    normalReaction: 'boring',
   },
 ];
 
@@ -226,12 +243,12 @@ export function analyzeStat(
 ): StatAnalysis {
   const severity = getSeverity(value);
   const triggerProbability = getTriggerProbability(severity);
-  
+
   // Choose between normal and critical reaction based on severity
   const reaction = severity === 'critical' && config.criticalReaction
     ? config.criticalReaction
     : config.normalReaction;
-  
+
   return {
     stat,
     value,
@@ -248,33 +265,30 @@ export function analyzeStat(
  */
 export function analyzeAllStats(stats: BlobbiStats): StatAnalysis[] {
   const analyses: StatAnalysis[] = [];
-  
+
   for (const config of STAT_REACTION_CONFIGS) {
     const value = stats[config.stat];
     const analysis = analyzeStat(config.stat, value, config);
-    
+
     // Only include if severity is not normal
     if (analysis.severity !== 'normal') {
       analyses.push(analysis);
     }
   }
-  
+
   // Sort by priority (lower number = higher priority)
   return analyses.sort((a, b) => a.priority - b.priority);
 }
 
 /**
  * Resolve the best reaction to show based on current stats.
- * Uses priority-based selection with probabilistic triggering.
- * 
- * @deprecated Use `resolveStatusEmotions()` instead, which properly separates
- * base and overlay emotions. This function flattens everything into a single
- * emotion and is kept only for legacy compatibility.
- * 
+ *
+ * @deprecated Use `resolveStatusEmotions()` instead.
+ *
  * @param stats - Current Blobbi stats
- * @param forceCheck - If true, bypasses probability check (useful for initial state)
+ * @param forceCheck - If true, bypasses probability check
  * @param timing - Timing configuration
- * @returns The reaction result with emotion, trigger decision, and cooldown
+ * @returns The reaction result
  */
 export function resolveStatusReaction(
   stats: BlobbiStats,
@@ -282,8 +296,7 @@ export function resolveStatusReaction(
   timing: StatusReactionTiming = DEFAULT_TIMING
 ): StatusReactionResult {
   const analyses = analyzeAllStats(stats);
-  
-  // No stats are low enough to trigger
+
   if (analyses.length === 0) {
     return {
       emotion: null,
@@ -293,13 +306,10 @@ export function resolveStatusReaction(
       cooldownMs: timing.checkInterval,
     };
   }
-  
-  // Get highest priority (first in sorted list)
+
   const winner = analyses[0];
-  
-  // Probabilistic trigger check
   const shouldTrigger = forceCheck || Math.random() < winner.triggerProbability;
-  
+
   return {
     emotion: winner.reaction,
     triggeringStat: winner.stat,
@@ -311,7 +321,6 @@ export function resolveStatusReaction(
 
 /**
  * Check if an emotion is a status-based reaction.
- * Useful for determining if a reaction should be overridden.
  */
 export function isStatusReaction(emotion: BlobbiEmotion): boolean {
   const statusEmotions: BlobbiEmotion[] = ['sleepy', 'hungry', 'boring', 'dizzy'];
@@ -322,65 +331,81 @@ export function isStatusReaction(emotion: BlobbiEmotion): boolean {
  * Get the default/neutral emotion when no status reactions are active.
  */
 export function getDefaultEmotion(): BlobbiEmotion {
-  return 'neutral'; // Base happy expression
+  return 'neutral';
 }
 
 /**
- * Resolve status emotions with base + overlay separation.
- * 
- * This is the recommended way to resolve emotions from stats.
- * It properly separates:
- * - BASE emotions (persistent face: boring, dizzy, hungry)
- * - OVERLAY emotions (temporary animations: sleepy)
- * - BODY EFFECTS (decorators: dirt marks, stink clouds)
- * 
- * Body effects are independent of face emotions:
- * - Low hygiene adds dirty body effects AND a boring face
- * - The dirty effects stack with whatever face state wins
- * 
- * Example:
- * - If energy is low AND hygiene is low:
- *   - Base: boring (from hygiene, unless a higher-priority stat wins)
- *   - Overlay: sleepy (from energy)
- *   - Body: dirty marks + stink clouds (from hygiene)
- *   - Result: Boring face + sleepy animation + dirt/stink effects
- * 
+ * Resolve status emotions from current stats.
+ *
+ * Returns a primary emotion, an optional secondary emotion (for merging),
+ * and independent body effects.
+ *
+ * When multiple stats are low:
+ *   - The highest-priority stat determines the primary emotion
+ *   - If energy is low AND another stat also triggers, sleepy becomes
+ *     the secondary emotion (to be merged at the recipe level)
+ *   - Body effects (dirty) are resolved independently from face emotions
+ *
+ * Example scenarios:
+ *   - Only energy low → emotion: 'sleepy', secondary: null
+ *   - Only hygiene low → emotion: 'boring', bodyEffects: dirty
+ *   - Energy + hygiene low → emotion: 'sleepy', secondary: 'boring', bodyEffects: dirty
+ *   - Energy + hunger low → emotion: 'sleepy', secondary: 'hungry'
+ *
  * @param stats - Current Blobbi stats
- * @returns Base emotion, optional overlay emotion, and body effects
+ * @returns Primary emotion, optional secondary, and body effects
  */
 export function resolveStatusEmotions(stats: BlobbiStats): StatusEmotionResult {
   const analyses = analyzeAllStats(stats);
-  
+
   // Resolve body effects independently from face emotions.
   // Hygiene triggers dirty body effects regardless of which face emotion wins.
   const hygieneAnalysis = analyses.find(a => a.stat === 'hygiene');
   const bodyEffects: BodyEffectsSpec | null = hygieneAnalysis
     ? { dirtyMarks: { enabled: true, count: 3 }, stinkClouds: { enabled: true, count: 3 } }
     : null;
-  
+
   // No stats are low enough to trigger
   if (analyses.length === 0) {
     return {
-      baseEmotion: null,
-      overlayEmotion: null,
-      triggeringBaseStat: null,
-      triggeringOverlayStat: null,
+      emotion: null,
+      secondaryEmotion: null,
+      triggeringStat: null,
+      triggeringSecondaryStat: null,
       bodyEffects: null,
     };
   }
-  
-  // Separate overlay emotions (sleepy) from base emotions
+
+  // The highest-priority analysis wins as primary emotion
+  const winner = analyses[0];
+
+  // Check if there's a sleepy analysis AND a separate face-affecting stat
   const sleepyAnalysis = analyses.find(a => a.reaction === 'sleepy');
-  const baseAnalyses = analyses.filter(a => a.reaction !== 'sleepy');
-  
-  // Get the highest priority base emotion (if any)
-  const baseWinner = baseAnalyses.length > 0 ? baseAnalyses[0] : null;
-  
+  const nonSleepyAnalyses = analyses.filter(a => a.reaction !== 'sleepy');
+
+  let primaryEmotion: BlobbiEmotion;
+  let primaryStat: ReactiveStat;
+  let secondaryEmotion: BlobbiEmotion | null = null;
+  let secondaryStat: ReactiveStat | null = null;
+
+  if (sleepyAnalysis && nonSleepyAnalyses.length > 0) {
+    // Both sleepy and another face emotion are active.
+    // Sleepy wins as primary (highest priority), the other is secondary for merging.
+    primaryEmotion = sleepyAnalysis.reaction;
+    primaryStat = sleepyAnalysis.stat;
+    secondaryEmotion = nonSleepyAnalyses[0].reaction;
+    secondaryStat = nonSleepyAnalyses[0].stat;
+  } else {
+    // Single winner takes all
+    primaryEmotion = winner.reaction;
+    primaryStat = winner.stat;
+  }
+
   return {
-    baseEmotion: baseWinner?.reaction ?? null,
-    overlayEmotion: sleepyAnalysis?.reaction ?? null,
-    triggeringBaseStat: baseWinner?.stat ?? null,
-    triggeringOverlayStat: sleepyAnalysis?.stat ?? null,
+    emotion: primaryEmotion,
+    secondaryEmotion,
+    triggeringStat: primaryStat,
+    triggeringSecondaryStat: secondaryStat,
     bodyEffects,
   };
 }
@@ -390,7 +415,7 @@ export function resolveStatusEmotions(stats: BlobbiStats): StatusEmotionResult {
 /**
  * Types of actions that can trigger temporary emotion overrides.
  */
-export type ActionType = 
+export type ActionType =
   | 'feed'      // Using food items
   | 'play'      // Using toys
   | 'clean'     // Using cleaning items
@@ -403,12 +428,12 @@ export type ActionType =
  * These are temporary emotions that override status reactions while the action is happening.
  */
 export const ACTION_EMOTION_MAP: Record<ActionType, BlobbiEmotion> = {
-  feed: 'happy',        // Happy while eating
-  play: 'excited',      // Excited while playing
-  clean: 'surprised',   // Surprised reaction to cleaning
-  medicine: 'curious',  // Curious about medicine
-  music: 'happy',       // Happy while listening to music
-  sing: 'excited',      // Excited while singing
+  feed: 'happy',
+  play: 'excited',
+  clean: 'surprised',
+  medicine: 'curious',
+  music: 'happy',
+  sing: 'excited',
 };
 
 /**

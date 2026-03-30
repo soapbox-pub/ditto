@@ -4,13 +4,23 @@
  * Uses the baby-blobbi module for SVG resolution and customization.
  * Handles awake vs sleeping states automatically.
  * Eyes always track the mouse cursor in real-time.
+ *
+ * Emotion rendering uses the part-based visual recipe system:
+ *   - A single `emotion` prop resolves into a visual recipe
+ *   - An optional `secondaryEmotion` is merged at the recipe level
+ *   - Body effects are applied independently
  */
 
 import { useMemo, useRef } from 'react';
 
 import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
 import { addEyeAnimation } from './lib/eye-animation';
-import { applyEmotion, type BlobbiEmotion } from './lib/emotions';
+import {
+  type BlobbiEmotion,
+  resolveVisualRecipe,
+  mergeVisualRecipes,
+  applyVisualRecipe,
+} from './lib/emotions';
 import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
 import { useBlobbiEyes, type BlobbiLookMode } from './lib/useBlobbiEyes';
 import { useExternalEyeOffset } from './lib/useExternalEyeOffset';
@@ -46,20 +56,20 @@ export interface BlobbiBabyVisualProps {
   externalEyeOffset?: ExternalEyeOffset;
   /** 
    * Emotional state to display.
-   * Adds visual overlays like eyebrows, modified mouth, and tears.
+   * Resolves into a part-based visual recipe and applies all parts.
    * Default: 'neutral' (no modifications)
    */
   emotion?: BlobbiEmotion;
   /**
-   * Base emotion for overlay animations.
-   * When emotion is an overlay (like 'sleepy'), this base emotion is applied first,
-   * then the overlay animates on top of it.
-   * Example: baseEmotion='boring', emotion='sleepy' → boring face with sleepy animation
+   * Secondary emotion for recipe-level merging.
+   * When provided, both emotions are resolved into recipes and merged
+   * (secondary provides parts not already defined by the primary).
+   * Example: emotion='sleepy', secondaryEmotion='boring' → sleepy eyes/mouth + boring eyebrows
    */
-  baseEmotion?: BlobbiEmotion;
+  secondaryEmotion?: BlobbiEmotion | null;
   /**
    * Body-level visual effects (dirt marks, stink clouds, etc.).
-   * Applied independently of face emotions — can stack with any face state.
+   * Applied independently of face emotions — can combine with any face state.
    */
   bodyEffects?: BodyEffectsSpec;
   /** Additional CSS classes for the container */
@@ -73,28 +83,27 @@ export interface BlobbiBabyVisualProps {
  *
  * - Resolves the correct SVG (awake or sleeping) based on state
  * - Applies color customization from Blobbi traits
+ * - Resolves emotions into part-based visual recipes
  * - Eyes always track the mouse cursor (instant, real-time)
  * - Renders safely using dangerouslySetInnerHTML
  */
-export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, emotion = 'neutral', baseEmotion, bodyEffects, className }: BlobbiBabyVisualProps) {
+export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, emotion = 'neutral', secondaryEmotion, bodyEffects, className }: BlobbiBabyVisualProps) {
   const isSleeping = isBlobbiSleeping(blobbi);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Disable reactions when sleeping
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
-  // Eye animation hook - handles DOM manipulation internally
-  // When externalEyeOffset is provided, we disable tracking but keep blinking
+  // Eye animation hook
   useBlobbiEyes(containerRef, {
     isSleeping,
     maxMovement: 2,
     lookMode,
     disableBlink,
-    disableTracking: !!externalEyeOffset, // External system controls eye position
+    disableTracking: !!externalEyeOffset,
   });
 
-  // External eye offset control - applies offset directly when provided
-  // This bypasses useBlobbiEyes and gives companion full control
+  // External eye offset control
   useExternalEyeOffset({
     containerRef,
     externalEyeOffset,
@@ -107,39 +116,36 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
     const baseSvg = resolveBabySvg(blobbi, { isSleeping });
     const colorizedSvg = customizeBabySvgFromBlobbi(baseSvg, blobbi, isSleeping);
 
-    // Add eye animation wrappers (only when not sleeping)
     if (!isSleeping) {
-      // Pass base color for eyelid generation
       let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId: blobbi.id });
-      
-      // Apply base emotion first (if provided)
-      // Base emotions set the persistent face state (boring, dirty, dizzy, etc.)
-      if (baseEmotion && baseEmotion !== 'neutral') {
-        animatedSvg = applyEmotion(animatedSvg, baseEmotion, 'baby', undefined, blobbi.id);
-      }
-      
-      // Apply primary emotion
-      // If this is an overlay emotion (sleepy), it will animate on top of the base
-      // If this is a regular emotion and no baseEmotion was provided, it acts as the base
+
+      // Apply emotion as a resolved visual recipe
       if (emotion !== 'neutral') {
-        animatedSvg = applyEmotion(animatedSvg, emotion, 'baby', undefined, blobbi.id);
+        let recipe = resolveVisualRecipe(emotion);
+
+        // If there's a secondary emotion, merge recipes (secondary fills gaps)
+        if (secondaryEmotion && secondaryEmotion !== 'neutral') {
+          const secondaryRecipe = resolveVisualRecipe(secondaryEmotion);
+          recipe = mergeVisualRecipes(secondaryRecipe, recipe);
+        }
+
+        const emotionName = secondaryEmotion
+          ? `${secondaryEmotion}-${emotion}`
+          : emotion;
+        animatedSvg = applyVisualRecipe(animatedSvg, recipe, emotionName, 'baby', undefined, blobbi.id);
       }
-      
+
       // Apply body effects (independent of face emotions)
       if (bodyEffects) {
-        // Pass blobbi.id for stable SVG element IDs
         animatedSvg = applyBodyEffects(animatedSvg, { ...bodyEffects, idPrefix: bodyEffects.idPrefix ?? blobbi.id });
       }
-      
+
       return animatedSvg;
     }
 
     return colorizedSvg;
-  }, [blobbi, isSleeping, emotion, baseEmotion, bodyEffects]);
+  }, [blobbi, isSleeping, emotion, secondaryEmotion, bodyEffects]);
 
-  // Defense-in-depth: sanitize the final SVG before DOM injection.
-  // The upstream pipeline validates inputs (normalizeHexColor, instanceId sanitization),
-  // but this catches anything unexpected from the 3000+ lines of SVG string manipulation.
   const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
 
   return (
@@ -147,9 +153,7 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
       ref={containerRef}
       className={cn(
         'relative flex items-center justify-center',
-        // Reduced opacity when sleeping for visual feedback
         isSleeping && 'opacity-70',
-        // Reaction animations for baby
         (effectiveReaction === 'listening' ||
           effectiveReaction === 'swaying' ||
           effectiveReaction === 'happy') &&

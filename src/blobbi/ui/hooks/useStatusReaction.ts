@@ -1,27 +1,23 @@
 /**
  * useStatusReaction Hook
- * 
- * Manages automatic status-based reactions for Blobbi using a two-layer emotion model:
- * 1. **Base emotion**: Persistent face state (boring, dizzy, hungry)
- * 2. **Overlay emotion**: Temporary animation on top (sleepy)
- * 
- * The hook uses `resolveStatusEmotions()` as the single source of truth for
- * mapping stats → emotions. Both layers are tracked independently:
- * - Base emotions persist while the triggering stat remains below threshold
- * - Overlay emotions (sleepy) persist independently of the base
- * 
+ *
+ * Manages automatic status-based reactions for Blobbi using the
+ * part-based visual recipe model.
+ *
+ * The hook resolves stats into:
+ *   - A primary emotion (the highest-priority face expression)
+ *   - An optional secondary emotion (for recipe-level merging)
+ *   - Independent body effects (dirty marks, stink clouds)
+ *
+ * When both energy and another stat are low, the system provides both
+ * emotions so the consumer can merge their visual recipes. This replaces
+ * the old base/overlay stacking model with proper recipe-level composition.
+ *
  * Features:
- * - Periodic stat checks with configurable intervals
- * - Independent persistence for base and overlay emotions
- * - Animation-aware state transitions (won't interrupt mid-animation)
- * - Override support for temporary action reactions (overrides overlay only)
- * - Clean state management with proper cleanup
- * 
- * Key Design Principles:
- * - Base and overlay emotions are resolved and tracked independently
- * - `resolveStatusEmotions()` determines what SHOULD be showing
- * - The hook manages WHEN transitions happen (animation safety, cooldowns)
- * - Action overrides replace the overlay emotion, base persists underneath
+ *   - Periodic stat checks with configurable intervals
+ *   - Animation-aware state transitions (won't interrupt mid-animation)
+ *   - Override support for temporary action reactions
+ *   - Clean state management with proper cleanup
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -53,19 +49,19 @@ export interface UseStatusReactionOptions {
 }
 
 export interface StatusReactionState {
-  /** Base emotion (persistent face: boring, dizzy, hungry) */
-  baseEmotion: BlobbiEmotion;
-  /** Overlay emotion (animation on top: sleepy, or action override) */
-  overlayEmotion: BlobbiEmotion | null;
-  /** Whether any status reaction is actively showing (base or overlay) */
+  /** Primary emotion (face expression from the highest-priority stat) */
+  emotion: BlobbiEmotion;
+  /** Secondary emotion for recipe merging (e.g. boring when sleepy is primary) */
+  secondaryEmotion: BlobbiEmotion | null;
+  /** Whether any status reaction is actively showing */
   isStatusReactionActive: boolean;
-  /** The stat that triggered the base emotion (if any) */
-  triggeringBaseStat: ReactiveStat | null;
-  /** The stat that triggered the overlay emotion (if any) */
-  triggeringOverlayStat: ReactiveStat | null;
+  /** The stat that triggered the primary emotion (if any) */
+  triggeringStat: ReactiveStat | null;
+  /** The stat that triggered the secondary emotion (if any) */
+  triggeringSecondaryStat: ReactiveStat | null;
   /** Severity of the highest-priority active reaction */
   currentSeverity: StatSeverity | null;
-  /** Whether an action override is active (replaces overlay) */
+  /** Whether an action override is active */
   isOverrideActive: boolean;
   /** Body effects to apply (independent of face emotions, e.g. dirty) */
   bodyEffects: BodyEffectsSpec | null;
@@ -76,26 +72,21 @@ export interface StatusReactionState {
 /**
  * Minimum animation cycle durations for each emotion.
  * Used to determine when it's safe to switch reactions without cutting animations.
- * These should match the CSS/SVG animation durations in the emotion configs.
  */
 const EMOTION_CYCLE_DURATIONS: Partial<Record<BlobbiEmotion, number>> = {
-  sleepy: 8000,    // 8s cycle duration (matches sleepyAnimation.cycleDuration)
-  sad: 6000,       // 6s tear cycle (matches tears.duration)
-  dizzy: 2000,     // 2s rotation (matches dizzyEffect.rotationDuration)
-  hungry: 4000,    // Drool/icon animation cycle
-  boring: 3000,    // Boring expression settle time
-  angry: 2000,     // Anger rise animation
-  surprised: 1000, // Brief expression
-  curious: 1000,   // Brief expression
-  excited: 1500,   // Star eyes + smile
-  excitedB: 1500,  // Star eyes variant
-  mischievous: 1500, // Bouncing eyebrows
+  sleepy: 8000,
+  sad: 6000,
+  dizzy: 2000,
+  hungry: 4000,
+  boring: 3000,
+  angry: 2000,
+  surprised: 1000,
+  curious: 1000,
+  excited: 1500,
+  excitedB: 1500,
+  mischievous: 1500,
 };
 
-/**
- * Get the minimum cycle duration for an emotion.
- * Returns a default if not specified.
- */
 function getEmotionCycleDuration(emotion: BlobbiEmotion): number {
   return EMOTION_CYCLE_DURATIONS[emotion] ?? 2000;
 }
@@ -103,40 +94,32 @@ function getEmotionCycleDuration(emotion: BlobbiEmotion): number {
 // ─── Internal State ───────────────────────────────────────────────────────────
 
 interface InternalState {
-  /** Timer for the next stat check */
   checkTimer: ReturnType<typeof setTimeout> | null;
-  /** Timestamp when the current base emotion was set */
-  baseStartTime: number;
-  /** Timestamp when the current overlay emotion was set */
-  overlayStartTime: number;
-  /** Currently active base emotion (to detect changes) */
-  currentBase: BlobbiEmotion | null;
-  /** Currently active overlay emotion (to detect changes) */
-  currentOverlay: BlobbiEmotion | null;
-  /** The stat triggering the current base */
-  currentBaseStat: ReactiveStat | null;
-  /** The stat triggering the current overlay */
-  currentOverlayStat: ReactiveStat | null;
-  /** Current body effects (no animation safety needed — applied immediately) */
+  emotionStartTime: number;
+  currentEmotion: BlobbiEmotion | null;
+  currentSecondaryStat: ReactiveStat | null;
+  currentSecondaryEmotion: BlobbiEmotion | null;
+  currentStat: ReactiveStat | null;
   currentBodyEffects: BodyEffectsSpec | null;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 /**
- * Hook for managing automatic status-based reactions with two-layer emotions.
- * 
+ * Hook for managing automatic status-based reactions.
+ *
  * @example
  * ```tsx
- * const { baseEmotion, overlayEmotion } = useStatusReaction({
+ * const { emotion, secondaryEmotion, bodyEffects } = useStatusReaction({
  *   stats: companion.stats,
  *   enabled: !isSleeping,
  *   actionOverride: activeActionEmotion,
  * });
- * 
+ *
  * <BlobbiStageVisual
- *   baseEmotion={baseEmotion}
- *   emotion={overlayEmotion ?? baseEmotion}
+ *   emotion={emotion}
+ *   secondaryEmotion={secondaryEmotion}
+ *   bodyEffects={bodyEffects}
  * />
  * ```
  */
@@ -146,7 +129,6 @@ export function useStatusReaction({
   timing: timingOverride,
   actionOverride,
 }: UseStatusReactionOptions): StatusReactionState {
-  // Merge timing config with defaults (memoized to avoid recreating on every render)
   const timing: StatusReactionTiming = useMemo(() => ({
     ...DEFAULT_TIMING,
     ...timingOverride,
@@ -156,36 +138,30 @@ export function useStatusReaction({
     },
   }), [timingOverride]);
 
-  // State: resolved base and overlay emotions from status
   const [statusEmotions, setStatusEmotions] = useState<StatusEmotionResult>({
-    baseEmotion: null,
-    overlayEmotion: null,
-    triggeringBaseStat: null,
-    triggeringOverlayStat: null,
+    emotion: null,
+    secondaryEmotion: null,
+    triggeringStat: null,
+    triggeringSecondaryStat: null,
     bodyEffects: null,
   });
 
-  // Refs for timers and internal state (don't cause re-renders)
   const internalRef = useRef<InternalState>({
     checkTimer: null,
-    baseStartTime: 0,
-    overlayStartTime: 0,
-    currentBase: null,
-    currentOverlay: null,
-    currentBaseStat: null,
-    currentOverlayStat: null,
+    emotionStartTime: 0,
+    currentEmotion: null,
+    currentSecondaryEmotion: null,
+    currentStat: null,
+    currentSecondaryStat: null,
     currentBodyEffects: null,
   });
 
-  // Stable reference to stats for use in callbacks
   const statsRef = useRef(stats);
   statsRef.current = stats;
 
-  // Stable reference to timing
   const timingRef = useRef(timing);
   timingRef.current = timing;
 
-  // Cleanup function for timers
   const clearTimers = useCallback(() => {
     const internal = internalRef.current;
     if (internal.checkTimer) {
@@ -194,109 +170,79 @@ export function useStatusReaction({
     }
   }, []);
 
-  // Clear all status emotions (return to default)
   const clearStatusEmotions = useCallback(() => {
     const internal = internalRef.current;
-    internal.currentBase = null;
-    internal.currentOverlay = null;
-    internal.currentBaseStat = null;
-    internal.currentOverlayStat = null;
+    internal.currentEmotion = null;
+    internal.currentSecondaryEmotion = null;
+    internal.currentStat = null;
+    internal.currentSecondaryStat = null;
     internal.currentBodyEffects = null;
-    
+
     setStatusEmotions({
-      baseEmotion: null,
-      overlayEmotion: null,
-      triggeringBaseStat: null,
-      triggeringOverlayStat: null,
+      emotion: null,
+      secondaryEmotion: null,
+      triggeringStat: null,
+      triggeringSecondaryStat: null,
       bodyEffects: null,
     });
   }, []);
 
   /**
    * Apply resolved emotions, respecting animation safety.
-   * 
-   * Each layer (base, overlay) transitions independently:
-   * - If the same emotion is already active on that layer, don't restart
-   * - If a different emotion needs to take over, check animation cycle safety
-   * - Each layer can change without affecting the other
    */
   const applyEmotions = useCallback((resolved: StatusEmotionResult) => {
     const internal = internalRef.current;
     const now = Date.now();
 
-    let baseChanged = false;
-    let overlayChanged = false;
+    let emotionChanged = false;
 
-    // ── Base emotion transition ──
-    if (resolved.baseEmotion !== internal.currentBase) {
-      if (resolved.baseEmotion === null) {
-        // Base condition cleared — check if the triggering stat actually recovered
-        if (internal.currentBaseStat) {
-          const statValue = statsRef.current[internal.currentBaseStat];
+    // ── Primary emotion transition ──
+    if (resolved.emotion !== internal.currentEmotion) {
+      if (resolved.emotion === null) {
+        // Condition cleared — check if the triggering stat actually recovered
+        if (internal.currentStat) {
+          const statValue = statsRef.current[internal.currentStat];
           if (statValue >= SEVERITY_THRESHOLDS.warning) {
-            // Stat recovered, clear base
-            internal.currentBase = null;
-            internal.currentBaseStat = null;
-            baseChanged = true;
+            internal.currentEmotion = null;
+            internal.currentStat = null;
+            internal.currentSecondaryEmotion = null;
+            internal.currentSecondaryStat = null;
+            emotionChanged = true;
           }
-          // Otherwise keep current base (stat hasn't actually recovered)
         } else {
-          internal.currentBase = null;
-          internal.currentBaseStat = null;
-          baseChanged = true;
+          internal.currentEmotion = null;
+          internal.currentStat = null;
+          internal.currentSecondaryEmotion = null;
+          internal.currentSecondaryStat = null;
+          emotionChanged = true;
         }
-      } else if (internal.currentBase === null) {
-        // No current base, activate immediately
-        internal.currentBase = resolved.baseEmotion;
-        internal.currentBaseStat = resolved.triggeringBaseStat;
-        internal.baseStartTime = now;
-        baseChanged = true;
+      } else if (internal.currentEmotion === null) {
+        // No current emotion, activate immediately
+        internal.currentEmotion = resolved.emotion;
+        internal.currentStat = resolved.triggeringStat;
+        internal.currentSecondaryEmotion = resolved.secondaryEmotion;
+        internal.currentSecondaryStat = resolved.triggeringSecondaryStat;
+        internal.emotionStartTime = now;
+        emotionChanged = true;
       } else {
-        // Switching base emotions — check animation safety
-        const elapsed = now - internal.baseStartTime;
-        const cycleDuration = getEmotionCycleDuration(internal.currentBase);
+        // Switching emotions — check animation safety
+        const elapsed = now - internal.emotionStartTime;
+        const cycleDuration = getEmotionCycleDuration(internal.currentEmotion);
         if (elapsed >= cycleDuration) {
-          internal.currentBase = resolved.baseEmotion;
-          internal.currentBaseStat = resolved.triggeringBaseStat;
-          internal.baseStartTime = now;
-          baseChanged = true;
+          internal.currentEmotion = resolved.emotion;
+          internal.currentStat = resolved.triggeringStat;
+          internal.currentSecondaryEmotion = resolved.secondaryEmotion;
+          internal.currentSecondaryStat = resolved.triggeringSecondaryStat;
+          internal.emotionStartTime = now;
+          emotionChanged = true;
         }
-        // else: mid-animation, wait for next check
       }
-    }
-
-    // ── Overlay emotion transition ──
-    if (resolved.overlayEmotion !== internal.currentOverlay) {
-      if (resolved.overlayEmotion === null) {
-        // Overlay condition cleared — check stat recovery
-        if (internal.currentOverlayStat) {
-          const statValue = statsRef.current[internal.currentOverlayStat];
-          if (statValue >= SEVERITY_THRESHOLDS.warning) {
-            internal.currentOverlay = null;
-            internal.currentOverlayStat = null;
-            overlayChanged = true;
-          }
-        } else {
-          internal.currentOverlay = null;
-          internal.currentOverlayStat = null;
-          overlayChanged = true;
-        }
-      } else if (internal.currentOverlay === null) {
-        // No current overlay, activate immediately
-        internal.currentOverlay = resolved.overlayEmotion;
-        internal.currentOverlayStat = resolved.triggeringOverlayStat;
-        internal.overlayStartTime = now;
-        overlayChanged = true;
-      } else {
-        // Switching overlay emotions — check animation safety
-        const elapsed = now - internal.overlayStartTime;
-        const cycleDuration = getEmotionCycleDuration(internal.currentOverlay);
-        if (elapsed >= cycleDuration) {
-          internal.currentOverlay = resolved.overlayEmotion;
-          internal.currentOverlayStat = resolved.triggeringOverlayStat;
-          internal.overlayStartTime = now;
-          overlayChanged = true;
-        }
+    } else {
+      // Primary emotion unchanged, but secondary might have changed
+      if (resolved.secondaryEmotion !== internal.currentSecondaryEmotion) {
+        internal.currentSecondaryEmotion = resolved.secondaryEmotion;
+        internal.currentSecondaryStat = resolved.triggeringSecondaryStat;
+        emotionChanged = true;
       }
     }
 
@@ -306,22 +252,17 @@ export function useStatusReaction({
       internal.currentBodyEffects = resolved.bodyEffects;
     }
 
-    // Only trigger a re-render if something actually changed
-    if (baseChanged || overlayChanged || bodyEffectsChanged) {
+    if (emotionChanged || bodyEffectsChanged) {
       setStatusEmotions({
-        baseEmotion: internal.currentBase,
-        overlayEmotion: internal.currentOverlay,
-        triggeringBaseStat: internal.currentBaseStat,
-        triggeringOverlayStat: internal.currentOverlayStat,
+        emotion: internal.currentEmotion,
+        secondaryEmotion: internal.currentSecondaryEmotion,
+        triggeringStat: internal.currentStat,
+        triggeringSecondaryStat: internal.currentSecondaryStat,
         bodyEffects: internal.currentBodyEffects,
       });
     }
   }, []);
 
-  /**
-   * Check stats and update emotions.
-   * Called periodically by the check loop.
-   */
   const checkStats = useCallback(() => {
     const currentStats = statsRef.current;
     const currentTiming = timingRef.current;
@@ -330,7 +271,6 @@ export function useStatusReaction({
     const resolved = resolveStatusEmotions(currentStats);
     applyEmotions(resolved);
 
-    // Schedule next check
     internal.checkTimer = setTimeout(checkStats, currentTiming.checkInterval);
   }, [applyEmotions]);
 
@@ -342,21 +282,18 @@ export function useStatusReaction({
       return;
     }
 
-    // Initial check — apply immediately
+    // Initial check — apply immediately without animation safety
     const initialResolved = resolveStatusEmotions(statsRef.current);
-    // For initial check, apply directly without animation safety
     const internal = internalRef.current;
-    internal.currentBase = initialResolved.baseEmotion;
-    internal.currentBaseStat = initialResolved.triggeringBaseStat;
-    internal.baseStartTime = Date.now();
-    internal.currentOverlay = initialResolved.overlayEmotion;
-    internal.currentOverlayStat = initialResolved.triggeringOverlayStat;
-    internal.overlayStartTime = Date.now();
+    internal.currentEmotion = initialResolved.emotion;
+    internal.currentStat = initialResolved.triggeringStat;
+    internal.currentSecondaryEmotion = initialResolved.secondaryEmotion;
+    internal.currentSecondaryStat = initialResolved.triggeringSecondaryStat;
+    internal.emotionStartTime = Date.now();
     internal.currentBodyEffects = initialResolved.bodyEffects;
 
     setStatusEmotions(initialResolved);
 
-    // Start the periodic check loop
     internal.checkTimer = setTimeout(checkStats, timingRef.current.checkInterval);
 
     return () => {
@@ -365,27 +302,17 @@ export function useStatusReaction({
   }, [enabled, checkStats, clearTimers, clearStatusEmotions]);
 
   // Watch for stat recovery on persistent emotions
-  // This allows faster clearing when stats improve (don't wait for next check interval)
   useEffect(() => {
     const internal = internalRef.current;
     let changed = false;
 
-    // Check if base emotion's triggering stat has recovered
-    if (internal.currentBase && internal.currentBaseStat) {
-      const statValue = stats[internal.currentBaseStat];
+    if (internal.currentEmotion && internal.currentStat) {
+      const statValue = stats[internal.currentStat];
       if (statValue >= SEVERITY_THRESHOLDS.warning) {
-        internal.currentBase = null;
-        internal.currentBaseStat = null;
-        changed = true;
-      }
-    }
-
-    // Check if overlay emotion's triggering stat has recovered
-    if (internal.currentOverlay && internal.currentOverlayStat) {
-      const statValue = stats[internal.currentOverlayStat];
-      if (statValue >= SEVERITY_THRESHOLDS.warning) {
-        internal.currentOverlay = null;
-        internal.currentOverlayStat = null;
+        internal.currentEmotion = null;
+        internal.currentStat = null;
+        internal.currentSecondaryEmotion = null;
+        internal.currentSecondaryStat = null;
         changed = true;
       }
     }
@@ -399,10 +326,10 @@ export function useStatusReaction({
 
     if (changed) {
       setStatusEmotions({
-        baseEmotion: internal.currentBase,
-        overlayEmotion: internal.currentOverlay,
-        triggeringBaseStat: internal.currentBaseStat,
-        triggeringOverlayStat: internal.currentOverlayStat,
+        emotion: internal.currentEmotion,
+        secondaryEmotion: internal.currentSecondaryEmotion,
+        triggeringStat: internal.currentStat,
+        triggeringSecondaryStat: internal.currentSecondaryStat,
         bodyEffects: internal.currentBodyEffects,
       });
     }
@@ -416,30 +343,28 @@ export function useStatusReaction({
   }, [clearTimers]);
 
   // ── Determine final output ──
-  // Action override replaces the overlay, base emotion persists underneath
   const isOverrideActive = actionOverride !== null && actionOverride !== undefined;
-  
-  const resolvedBase = statusEmotions.baseEmotion ?? getDefaultEmotion();
-  const resolvedOverlay = isOverrideActive
-    ? actionOverride  // action override becomes the overlay
-    : statusEmotions.overlayEmotion;
-  
-  const isStatusReactionActive = statusEmotions.baseEmotion !== null || 
-    (statusEmotions.overlayEmotion !== null && !isOverrideActive);
 
-  // Determine severity from the highest-priority active stat
-  const currentSeverity = statusEmotions.triggeringBaseStat
-    ? getSeverityFromStats(stats, statusEmotions.triggeringBaseStat)
-    : statusEmotions.triggeringOverlayStat
-      ? getSeverityFromStats(stats, statusEmotions.triggeringOverlayStat)
-      : null;
+  const resolvedEmotion = isOverrideActive
+    ? actionOverride
+    : (statusEmotions.emotion ?? getDefaultEmotion());
+
+  const resolvedSecondary = isOverrideActive
+    ? null // Action overrides don't need secondary merging
+    : statusEmotions.secondaryEmotion;
+
+  const isStatusReactionActive = statusEmotions.emotion !== null && !isOverrideActive;
+
+  const currentSeverity = statusEmotions.triggeringStat
+    ? getSeverityFromStats(stats, statusEmotions.triggeringStat)
+    : null;
 
   return {
-    baseEmotion: resolvedBase,
-    overlayEmotion: resolvedOverlay,
+    emotion: resolvedEmotion,
+    secondaryEmotion: resolvedSecondary,
     isStatusReactionActive,
-    triggeringBaseStat: statusEmotions.triggeringBaseStat,
-    triggeringOverlayStat: isOverrideActive ? null : statusEmotions.triggeringOverlayStat,
+    triggeringStat: statusEmotions.triggeringStat,
+    triggeringSecondaryStat: isOverrideActive ? null : statusEmotions.triggeringSecondaryStat,
     currentSeverity,
     isOverrideActive,
     bodyEffects: statusEmotions.bodyEffects,
@@ -448,9 +373,6 @@ export function useStatusReaction({
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
-/**
- * Get severity for a specific stat from the current stats.
- */
 function getSeverityFromStats(stats: BlobbiStats, stat: ReactiveStat): StatSeverity {
   const value = stats[stat];
   if (value < SEVERITY_THRESHOLDS.critical) return 'critical';

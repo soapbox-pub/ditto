@@ -215,7 +215,7 @@ export function BlobbiCompanionLayer() {
   }, [closeMenu]);
   
   // Status-based emotion reactions for the companion
-  // Uses the same two-layer system as the main BlobbiPage
+  // Uses the same part-based recipe system as the main BlobbiPage
   const isSleeping = companion?.state === 'sleeping';
   const companionStats = useMemo(() => companion?.stats ?? {
     hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100,
@@ -223,7 +223,7 @@ export function BlobbiCompanionLayer() {
   
   const [companionActionOverride, setCompanionActionOverride] = useState<BlobbiEmotion | null>(null);
   
-  const { baseEmotion: companionBaseEmotion, overlayEmotion: companionOverlayEmotion, bodyEffects: companionBodyEffects } = useStatusReaction({
+  const { emotion: companionEmotion, secondaryEmotion: companionSecondaryEmotion, bodyEffects: companionBodyEffects } = useStatusReaction({
     stats: companionStats,
     enabled: isVisible && !isSleeping && companion?.stage !== 'egg',
     actionOverride: companionActionOverride,
@@ -241,9 +241,9 @@ export function BlobbiCompanionLayer() {
     return originalHandleItemUse(item);
   }, [originalHandleItemUse]);
   
-  // Compute the emotion prop: overlay if present, otherwise base
-  const companionEmotionProp = companionOverlayEmotion ?? companionBaseEmotion;
-  const companionBaseEmotionProp = companionBaseEmotion !== 'neutral' ? companionBaseEmotion : undefined;
+  // Pass resolved emotion and secondary for recipe-level merging
+  const companionEmotionProp = companionEmotion;
+  const companionSecondaryEmotionProp = companionSecondaryEmotion;
   
   // Don't render anything if not visible
   if (!isVisible || !companion) {
@@ -266,8 +266,8 @@ export function BlobbiCompanionLayer() {
     onUpdateDrag: updateDrag,
     onEndDrag: endDrag,
     onClick: handleCompanionClick,
-    baseEmotion: companionBaseEmotionProp,
     emotion: companionEmotionProp,
+    secondaryEmotion: companionSecondaryEmotionProp,
     bodyEffects: companionBodyEffects ?? undefined,
     onPositionUpdate: handlePositionUpdate,
   };

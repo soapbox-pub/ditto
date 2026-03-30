@@ -16,7 +16,8 @@
  * - eye-animation.ts: SVG transformation for eye animation
  * - useBlobbiEyes.ts: Runtime eye animation hook
  * - useExternalEyeOffset.ts: External eye offset control
- * - emotions.ts: Emotion overlay system
+ * - recipe.ts: Part-based visual recipe system (core architecture)
+ * - emotions.ts: Public API for emotion presets (delegates to recipe.ts)
  * - status-reactions.ts: Status-based emotion resolution
  */
 

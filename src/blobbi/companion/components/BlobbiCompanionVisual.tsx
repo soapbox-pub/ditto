@@ -35,10 +35,10 @@ interface BlobbiCompanionVisualProps {
   isOnGround?: boolean;
   /** Distance from ground in pixels (for shadow fade, 0 = on ground) */
   distanceFromGround?: number;
-  /** Base emotion for persistent face state (boring, dirty, dizzy, hungry) */
-  baseEmotion?: BlobbiEmotion;
-  /** Overlay emotion (sleepy, action override, etc.) */
+  /** Primary emotion for face expression */
   emotion?: BlobbiEmotion;
+  /** Secondary emotion for recipe-level merging (e.g. boring eyebrows when sleepy) */
+  secondaryEmotion?: BlobbiEmotion | null;
   /** Body-level visual effects (dirt marks, stink clouds, etc.) */
   bodyEffects?: BodyEffectsSpec;
   /** Additional class names */
@@ -59,8 +59,8 @@ export function BlobbiCompanionVisual({
   floatOffset = { x: 0, y: 0, rotation: 0 },
   isOnGround = true,
   distanceFromGround = 0,
-  baseEmotion: baseEmotionProp,
   emotion: emotionProp,
+  secondaryEmotion: secondaryEmotionProp,
   bodyEffects: bodyEffectsProp,
   className,
   debugMode = false,
@@ -74,8 +74,8 @@ export function BlobbiCompanionVisual({
   const hasDevOverride = devEmotion !== 'neutral';
   
   // Final emotions: dev override > props from status reaction system
-  const effectiveBaseEmotion = hasDevOverride ? undefined : baseEmotionProp;
   const effectiveEmotion = hasDevOverride ? devEmotion : (emotionProp ?? 'neutral');
+  const effectiveSecondaryEmotion = hasDevOverride ? undefined : secondaryEmotionProp;
   const effectiveBodyEffects = hasDevOverride ? undefined : bodyEffectsProp;
   
   // Eye offset is now passed directly to the visual components via externalEyeOffset prop
@@ -223,7 +223,7 @@ export function BlobbiCompanionVisual({
             lookMode="forward"
             externalEyeOffset={eyeOffset}
             emotion={effectiveEmotion}
-            baseEmotion={effectiveBaseEmotion}
+            secondaryEmotion={effectiveSecondaryEmotion}
             bodyEffects={effectiveBodyEffects}
             className="size-full"
           />
@@ -235,7 +235,7 @@ export function BlobbiCompanionVisual({
             lookMode="forward"
             externalEyeOffset={eyeOffset}
             emotion={effectiveEmotion}
-            baseEmotion={effectiveBaseEmotion}
+            secondaryEmotion={effectiveSecondaryEmotion}
             bodyEffects={effectiveBodyEffects}
             className="size-full"
           />
