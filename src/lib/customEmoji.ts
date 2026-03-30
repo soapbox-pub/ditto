@@ -44,9 +44,23 @@ export interface ResolvedEmoji {
 }
 
 /**
- * Resolves a reaction emoji from a kind 7 event into a ResolvedEmoji.
+ * Checks whether a kind 7 reaction event is valid.
+ * Custom emoji reactions (`:shortcode:` content) are invalid without a matching `emoji` tag.
  */
-export function resolveReactionEmoji(event: NostrEvent): ResolvedEmoji {
+export function isValidReaction(event: NostrEvent): boolean {
+  const content = event.content.trim();
+  const emoji = (content === '+' || content === '') ? '+' : content;
+  if (isCustomEmoji(emoji)) {
+    return getCustomEmojiUrl(emoji, event.tags) !== undefined;
+  }
+  return true;
+}
+
+/**
+ * Resolves a reaction emoji from a kind 7 event into a ResolvedEmoji.
+ * Returns `undefined` for malformed custom emoji reactions (missing emoji tag).
+ */
+export function resolveReactionEmoji(event: NostrEvent): ResolvedEmoji | undefined {
   const content = event.content.trim();
   const emoji = (content === '+' || content === '') ? '👍' : content === '-' ? '👎' : content;
 
@@ -55,6 +69,8 @@ export function resolveReactionEmoji(event: NostrEvent): ResolvedEmoji {
     if (url) {
       return { content: emoji, url, name: emoji.slice(1, -1) };
     }
+    // Malformed: custom emoji shortcode without a matching emoji tag
+    return undefined;
   }
 
   return { content: emoji };

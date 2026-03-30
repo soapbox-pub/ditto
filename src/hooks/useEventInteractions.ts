@@ -162,7 +162,10 @@ export function useEventInteractions(eventId: string | undefined) {
           case 7: {
             const rawEmoji = e.content.trim();
             const emoji = (rawEmoji === '+' || rawEmoji === '') ? '👍' : rawEmoji;
-            const emojiUrl = isCustomEmoji(emoji) ? getCustomEmojiUrl(emoji, e.tags) : undefined;
+            const isCustom = isCustomEmoji(emoji);
+            const emojiUrl = isCustom ? getCustomEmojiUrl(emoji, e.tags) : undefined;
+            // Skip malformed custom emoji reactions (shortcode without emoji tag)
+            if (isCustom && !emojiUrl) break;
             reactions.push({
               eventId: e.id,
               pubkey: e.pubkey,

@@ -56,7 +56,12 @@ export function ReactionEmoji({ content, tags, className }: ReactionEmojiProps) 
     }
   }
 
-  // Unicode emoji or fallback for unresolved custom emoji
+  // Malformed custom emoji (shortcode without emoji tag) — render nothing
+  if (isCustomEmoji(emoji)) {
+    return null;
+  }
+
+  // Unicode emoji
   return <span className={className}>{emoji}</span>;
 }
 
