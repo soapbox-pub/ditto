@@ -3,6 +3,8 @@ import { useSeoMeta } from '@unhead/react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import { Bot, Send, Trash2, Palette, Type } from 'lucide-react';
+import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools';
+import { useNostr } from '@nostrify/react';
 
 import { PageHeader } from '@/components/PageHeader';
 import { useShakespeare, type ChatMessage, type Model, type ChatCompletionTool } from '@/hooks/useShakespeare';
@@ -22,6 +24,7 @@ import { DorkThinking } from '@/components/DorkThinking';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
+import type { NostrEvent } from '@nostrify/nostrify';
 import type { ThemeConfig } from '@/themes';
 
 // ─── Tool Definitions ───
@@ -166,6 +169,8 @@ interface DisplayMessage {
   content: string;
   timestamp: Date;
   toolCalls?: ToolCall[];
+  /** A spell event published by the create_spell tool, to be rendered inline. */
+  spellEvent?: NostrEvent;
 }
 
 interface ToolCall {
@@ -183,20 +188,69 @@ function isValidHsl(value: unknown): value is string {
   return /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/.test(value.trim());
 }
 
+/** Build the kind:777 tags array from create_spell tool arguments. */
+function buildSpellTags(args: Record<string, unknown>): string[][] {
+  const tags: string[][] = [];
+
+  if (typeof args.name === 'string') tags.push(['name', args.name]);
+
+  const cmd = typeof args.cmd === 'string' ? args.cmd : 'REQ';
+  tags.push(['cmd', cmd]);
+
+  if (Array.isArray(args.kinds)) {
+    for (const k of args.kinds) {
+      if (typeof k === 'number') tags.push(['k', String(k)]);
+    }
+  }
+
+  if (Array.isArray(args.authors)) {
+    tags.push(['authors', ...(args.authors as string[])]);
+  }
+
+  if (Array.isArray(args.tag_filters)) {
+    for (const tf of args.tag_filters as Array<{ letter: string; values: string[] }>) {
+      if (tf.letter && Array.isArray(tf.values)) {
+        tags.push(['tag', tf.letter, ...tf.values]);
+      }
+    }
+  }
+
+  if (typeof args.since === 'string') tags.push(['since', args.since]);
+  if (typeof args.until === 'string') tags.push(['until', args.until]);
+  if (typeof args.limit === 'number') tags.push(['limit', String(args.limit)]);
+  if (typeof args.search === 'string') tags.push(['search', args.search]);
+
+  if (Array.isArray(args.relays) && args.relays.length > 0) {
+    tags.push(['relays', ...(args.relays as string[])]);
+  }
+
+  tags.push(['alt', `Spell: ${args.name ?? 'unnamed'}`]);
+
+  return tags;
+}
+
+interface ToolExecutorResult {
+  /** JSON string returned to the AI as the tool result. */
+  result: string;
+  /** The published spell event, if this was a create_spell call. */
+  spellEvent?: NostrEvent;
+}
+
 function useToolExecutor() {
   const { applyCustomTheme } = useTheme();
+  const { nostr } = useNostr();
 
-  const executeToolCall = useCallback((name: string, args: Record<string, unknown>): string => {
+  const executeToolCall = useCallback(async (name: string, args: Record<string, unknown>): Promise<ToolExecutorResult> => {
     switch (name) {
       case 'set_theme': {
         const { background, text, primary, font, background_url, background_mode } = args;
 
         // Validate required color values
         if (!isValidHsl(background) || !isValidHsl(text) || !isValidHsl(primary)) {
-          return JSON.stringify({
+          return { result: JSON.stringify({
             error: 'Invalid HSL color values. Each must be a string like "228 20% 10%".',
             received: { background, text, primary },
-          });
+          }) };
         }
 
         // Build theme config
@@ -214,9 +268,9 @@ function useToolExecutor() {
           if (bundled) {
             themeConfig.font = { family: bundled.family };
           } else {
-            return JSON.stringify({
+            return { result: JSON.stringify({
               error: `Unknown font "${font}". Available fonts: ${AVAILABLE_FONTS}`,
-            });
+            }) };
           }
         }
 
@@ -234,19 +288,70 @@ function useToolExecutor() {
         applyCustomTheme(themeConfig);
 
         // Build result summary
-        const result: Record<string, unknown> = {
+        const resultData: Record<string, unknown> = {
           success: true,
           colors: { background, text, primary },
         };
-        if (themeConfig.font) result.font = themeConfig.font.family;
-        if (themeConfig.background) result.background = { url: themeConfig.background.url, mode: themeConfig.background.mode };
+        if (themeConfig.font) resultData.font = themeConfig.font.family;
+        if (themeConfig.background) resultData.background = { url: themeConfig.background.url, mode: themeConfig.background.mode };
 
-        return JSON.stringify(result);
+        return { result: JSON.stringify(resultData) };
       }
+
+      case 'create_spell': {
+        try {
+          if (typeof args.name !== 'string' || !args.name.trim()) {
+            return { result: JSON.stringify({ error: 'A spell name is required.' }) };
+          }
+
+          const tags = buildSpellTags(args);
+          const content = typeof args.description === 'string' ? args.description : '';
+
+          // Generate ephemeral keypair
+          const sk = generateSecretKey();
+          const pubkey = getPublicKey(sk);
+
+          // Finalize and sign with ephemeral key
+          const spellEvent = finalizeEvent({
+            kind: 777,
+            content,
+            tags,
+            created_at: Math.floor(Date.now() / 1000),
+          }, sk) as NostrEvent;
+
+          // Publish a minimal kind:0 profile so the ephemeral key has an identity
+          const profileEvent = finalizeEvent({
+            kind: 0,
+            content: JSON.stringify({ name: 'Dork Spellcaster', about: 'Spells created by Dork AI' }),
+            tags: [],
+            created_at: Math.floor(Date.now() / 1000),
+          }, sk) as NostrEvent;
+
+          await Promise.all([
+            nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }),
+            nostr.event(spellEvent, { signal: AbortSignal.timeout(5000) }),
+          ]);
+
+          return {
+            result: JSON.stringify({
+              success: true,
+              event_id: spellEvent.id,
+              pubkey,
+              name: args.name,
+            }),
+            spellEvent,
+          };
+        } catch (err) {
+          return { result: JSON.stringify({
+            error: `Failed to publish spell: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          }) };
+        }
+      }
+
       default:
-        return JSON.stringify({ error: `Unknown tool: ${name}` });
+        return { result: JSON.stringify({ error: `Unknown tool: ${name}` }) };
     }
-  }, [applyCustomTheme]);
+  }, [applyCustomTheme, nostr]);
 
   return { executeToolCall };
 }
@@ -383,7 +488,10 @@ export function AIChatPage() {
 
       if (assistantMsg.tool_calls && assistantMsg.tool_calls.length > 0) {
         // Execute tool calls
-        const toolCalls: ToolCall[] = assistantMsg.tool_calls.map((tc) => {
+        let spellEvent: NostrEvent | undefined;
+        const toolCalls: ToolCall[] = [];
+
+        for (const tc of assistantMsg.tool_calls) {
           let args: Record<string, unknown> = {};
           try {
             args = JSON.parse(tc.function.arguments);
@@ -391,15 +499,19 @@ export function AIChatPage() {
             // If parsing fails, pass empty args
           }
 
-          const result = executeToolCall(tc.function.name, args);
+          const execResult = await executeToolCall(tc.function.name, args);
 
-          return {
+          if (execResult.spellEvent) {
+            spellEvent = execResult.spellEvent;
+          }
+
+          toolCalls.push({
             id: tc.id,
             name: tc.function.name,
             arguments: args,
-            result,
-          };
-        });
+            result: execResult.result,
+          });
+        }
 
         // Add assistant message with tool calls noted
         const toolMsg: DisplayMessage = {
@@ -408,6 +520,7 @@ export function AIChatPage() {
            content: assistantMsg.content || '',
           timestamp: new Date(),
           toolCalls,
+          spellEvent,
         };
         const messagesWithTool = [...newMessages, toolMsg];
         setMessages(messagesWithTool);
