@@ -98,7 +98,7 @@ function encodeEventNip19(event: NostrEvent): string {
       return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
     }
   }
-  return nip19.neventEncode({ id: event.id, author: event.pubkey });
+  return nip19.neventEncode({ id: event.id, author: event.pubkey, kind: event.kind });
 }
 
 interface EventJsonDialogProps {

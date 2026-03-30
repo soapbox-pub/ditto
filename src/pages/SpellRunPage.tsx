@@ -95,7 +95,7 @@ export function SpellRunPage() {
   // Sidebar integration
   const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
   const nostrUri = spellEvent
-    ? `nostr:${nip19.neventEncode({ id: spellEvent.id, author: spellEvent.pubkey })}`
+    ? `nostr:${nip19.neventEncode({ id: spellEvent.id, author: spellEvent.pubkey, kind: spellEvent.kind })}`
     : '';
   const isInSidebar = nostrUri ? orderedItems.includes(nostrUri) : false;
 
