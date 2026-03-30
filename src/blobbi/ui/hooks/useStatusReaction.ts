@@ -71,10 +71,14 @@ export interface StatusReactionState {
  * Used to determine when it's safe to switch reactions without cutting animations.
  */
 const LABEL_CYCLE_DURATIONS: Record<string, number> = {
+  // Status reaction labels (from STAT_LABEL_MAP)
   sleepy: 8000,
-  sad: 6000,
-  dizzy: 2000,
+  sick: 4000,
   hungry: 4000,
+  dirty: 3000,
+  sad: 6000,
+  // Action override / emotion preset labels
+  dizzy: 2000,
   boring: 3000,
   angry: 2000,
   surprised: 1000,

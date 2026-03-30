@@ -1,25 +1,42 @@
 /**
- * Status-Based Reaction System for Blobbi
+ * Status-Based Reaction System for Blobbi — Part-Priority Architecture
  *
- * Resolves current Blobbi stats directly into a final BlobbiVisualRecipe.
- * The resolver owns the full pipeline from stats → recipe. Named emotions
- * are used internally as preset lookup keys, but the runtime output is a
- * single resolved recipe — not an emotion name.
+ * Resolves current Blobbi stats directly into a final BlobbiVisualRecipe
+ * by picking each facial/body part independently based on priority rules.
  *
- * Design principles:
- *   - Priority order determines which stat "wins" for face expression
- *   - When multiple stats are low, their recipes are merged internally
- *   - Body effects (dirty) are folded directly into the recipe's bodyEffects
- *   - The output is a single, fully-resolved recipe — no secondary outputs
- *   - Named emotions are only used internally as lookup keys for presets
- *   - Consumers receive one recipe and pass it to applyVisualRecipe()
- *     which handles all rendering including body effects — no separate
- *     body effects channel needed
+ * Instead of selecting a single "winning" emotion preset and applying it
+ * wholesale, the resolver asks five independent questions:
+ *
+ *   1. Which stat should own the **eyes** right now?
+ *   2. Which stat should own the **mouth**?
+ *   3. Which stat should own the **eyebrows**?
+ *   4. Which stats contribute **extras** (drool, tears, Zzz)?
+ *   5. Which stats contribute **bodyEffects** (dirt, stink, anger)?
+ *
+ * Each part has its own priority order. Low stats contribute their parts
+ * according to these priorities, and the final recipe is composed by
+ * picking the highest-priority contributor for each slot. Extras and
+ * bodyEffects are additive — multiple stats can contribute simultaneously.
+ *
+ * This produces natural, layered expressions when multiple stats are low.
+ * Named emotion presets (EMOTION_RECIPES) are still used as the source of
+ * part definitions — the part-priority system just picks *which* preset
+ * contributes each part, rather than using one preset for everything.
+ *
+ * Consumers receive one final BlobbiVisualRecipe and pass it to
+ * applyVisualRecipe(). No separate body effects channel is needed.
  */
 
-import type { BlobbiEmotion } from './emotion-types';
 import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
-import { resolveVisualRecipe, mergeVisualRecipes, type BlobbiVisualRecipe } from './recipe';
+import type { BlobbiEmotion } from './emotion-types';
+import type {
+  BlobbiVisualRecipe,
+  EyeRecipe,
+  MouthRecipe,
+  EyebrowRecipe,
+  BodyEffectsRecipe,
+  ExtrasRecipe,
+} from './recipe';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,7 +52,8 @@ export type StatSeverity = 'normal' | 'warning' | 'high' | 'critical';
 export type ReactiveStat = keyof BlobbiStats;
 
 /**
- * Configuration for how a stat maps to reactions.
+ * Configuration for how a stat maps to reactions (legacy).
+ * Kept for backward compatibility with analyzeAllStats/analyzeStat.
  */
 export interface StatReactionConfig {
   /** The stat this config applies to */
@@ -98,12 +116,9 @@ export interface StatusReactionResult {
  * Result of resolving stats into a final visual recipe.
  *
  * The recipe is fully resolved — no further merging is needed by consumers.
- * Body effects from hygiene are folded directly into recipe.bodyEffects.
+ * Body effects are folded directly into recipe.bodyEffects.
  * Consumers pass this recipe to applyVisualRecipe() which handles all
- * rendering including body effects. No separate body effects channel is needed.
- *
- * Metadata (triggeringStat, label) is provided for UI display and
- * animation-safety decisions in the hook layer.
+ * rendering. No separate body effects channel is needed.
  */
 export interface StatusRecipeResult {
   /** The fully resolved visual recipe (empty object = neutral) */
@@ -141,61 +156,29 @@ export const TRIGGER_PROBABILITIES: Record<StatSeverity, number> = {
 };
 
 /**
- * Stat reaction configurations.
- * Priority order: energy > health > hunger > hygiene > happiness
- * Lower priority number = checked first (wins ties).
- *
- * Emotion mapping:
- *   - sleepy: low energy (full recipe with eye blink + breathing mouth + Zzz)
- *   - boring: low-energy, unamused state (generic "not feeling good" face)
- *   - dizzy: critical health state only
- *   - hungry: hunger-specific face with drool and food icon
- *
- * NOTE: "dirty" is NOT a face emotion. Hygiene maps to 'boring' for
- * the face. Dirty body effects (dirt marks, stink clouds) are folded
- * directly into the recipe's bodyEffects by resolveStatusRecipe().
+ * Stat reaction configurations (legacy format, kept for backward compat).
+ * Used by analyzeAllStats/analyzeStat.
  */
 export const STAT_REACTION_CONFIGS: StatReactionConfig[] = [
-  {
-    stat: 'energy',
-    priority: 1,
-    normalReaction: 'sleepy',
-  },
-  {
-    stat: 'health',
-    priority: 2,
-    normalReaction: 'boring',
-    criticalReaction: 'dizzy',
-  },
-  {
-    stat: 'hunger',
-    priority: 3,
-    normalReaction: 'hungry',
-  },
-  {
-    stat: 'hygiene',
-    priority: 4,
-    normalReaction: 'boring',
-  },
-  {
-    stat: 'happiness',
-    priority: 5,
-    normalReaction: 'boring',
-  },
+  { stat: 'energy', priority: 1, normalReaction: 'sleepy' },
+  { stat: 'health', priority: 2, normalReaction: 'boring', criticalReaction: 'dizzy' },
+  { stat: 'hunger', priority: 3, normalReaction: 'hungry' },
+  { stat: 'hygiene', priority: 4, normalReaction: 'boring' },
+  { stat: 'happiness', priority: 5, normalReaction: 'boring' },
 ];
 
 /**
  * Default timing configuration.
  */
 export const DEFAULT_TIMING: StatusReactionTiming = {
-  checkInterval: 5000,      // Check every 5 seconds
-  reactionDuration: 4000,   // Reaction stays visible for 4 seconds
-  baseCooldown: 8000,       // Base 8 second cooldown
+  checkInterval: 5000,
+  reactionDuration: 4000,
+  baseCooldown: 8000,
   cooldownMultipliers: {
-    normal: 2.0,    // Longest cooldown (not really used since normal doesn't trigger)
-    warning: 1.5,   // Longer cooldown
-    high: 1.0,      // Standard cooldown
-    critical: 0.5,  // Shortest cooldown (more frequent reactions)
+    normal: 2.0,
+    warning: 1.5,
+    high: 1.0,
+    critical: 0.5,
   },
 };
 
@@ -238,8 +221,6 @@ export function analyzeStat(
 ): StatAnalysis {
   const severity = getSeverity(value);
   const triggerProbability = getTriggerProbability(severity);
-
-  // Choose between normal and critical reaction based on severity
   const reaction = severity === 'critical' && config.criticalReaction
     ? config.criticalReaction
     : config.normalReaction;
@@ -264,14 +245,11 @@ export function analyzeAllStats(stats: BlobbiStats): StatAnalysis[] {
   for (const config of STAT_REACTION_CONFIGS) {
     const value = stats[config.stat];
     const analysis = analyzeStat(config.stat, value, config);
-
-    // Only include if severity is not normal
     if (analysis.severity !== 'normal') {
       analyses.push(analysis);
     }
   }
 
-  // Sort by priority (lower number = higher priority)
   return analyses.sort((a, b) => a.priority - b.priority);
 }
 
@@ -279,11 +257,6 @@ export function analyzeAllStats(stats: BlobbiStats): StatAnalysis[] {
  * Resolve the best reaction to show based on current stats.
  *
  * @deprecated Use `resolveStatusRecipe()` instead.
- *
- * @param stats - Current Blobbi stats
- * @param forceCheck - If true, bypasses probability check
- * @param timing - Timing configuration
- * @returns The reaction result
  */
 export function resolveStatusReaction(
   stats: BlobbiStats,
@@ -329,35 +302,347 @@ export function getDefaultEmotion(): BlobbiEmotion {
   return 'neutral';
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Part-Priority Resolution System
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 /**
- * Resolve current stats directly into a final visual recipe.
+ * What a single low stat contributes to each recipe part.
+ *
+ * Each stat defines its contributions per severity tier. The resolver
+ * iterates over low stats and uses the part-priority rules below to
+ * decide which stat's contribution wins for each slot. Extras and
+ * bodyEffects are additive (all contributors are merged).
+ */
+interface StatPartContributions {
+  eyes?: EyeRecipe;
+  mouth?: MouthRecipe;
+  eyebrows?: EyebrowRecipe;
+  extras?: ExtrasRecipe;
+  bodyEffects?: BodyEffectsRecipe;
+}
+
+/**
+ * Maps a stat + severity to the parts it contributes.
+ *
+ * Returns undefined if the stat at this severity contributes nothing
+ * (i.e. the stat is normal or doesn't affect that severity tier).
+ */
+type PartContributionResolver = (severity: StatSeverity) => StatPartContributions | undefined;
+
+// ─── Per-Stat Part Definitions ────────────────────────────────────────────────
+//
+// Each stat defines what it contributes to each facial/body area at each
+// severity level. Parts left undefined are simply not contributed — another
+// stat can fill them in.
+
+const ENERGY_PARTS: PartContributionResolver = (severity) => {
+  if (severity === 'normal') return undefined;
+  return {
+    // Sleepy blink — the hallmark of low energy
+    eyes: { sleepyBlink: { cycleDuration: severity === 'critical' ? 6 : 8 } },
+    // Sleepy breathing mouth
+    mouth: { sleepyMouth: true },
+    // Low energy doesn't own eyebrows — other stats can fill them in.
+    // Zzz floaters for sleepiness
+    extras: {
+      // No Zzz at warning — just droopy eyes. Zzz at high/critical.
+      ...(severity !== 'warning' ? {} : {}),
+    },
+  };
+};
+
+const HEALTH_PARTS: PartContributionResolver = (severity) => {
+  if (severity === 'normal') return undefined;
+
+  if (severity === 'critical') {
+    // Critical health → dizzy spirals + open shocked mouth
+    return {
+      eyes: { dizzySpirals: { rotationDuration: 2 } },
+      mouth: { roundMouth: { rx: 4, ry: 5, filled: true } },
+      eyebrows: {
+        config: { angle: -15, offsetY: -10, strokeWidth: 1.5, color: '#374151' },
+      },
+    };
+  }
+
+  // Warning / high → weak, slightly sad face
+  return {
+    eyes: severity === 'high'
+      ? { wateryEyes: { includeWaterFill: false } }
+      : undefined,
+    mouth: { sadMouth: true },
+    eyebrows: {
+      config: { angle: -12, offsetY: -10, strokeWidth: 1.3, color: '#4b5563' },
+    },
+  };
+};
+
+const HUNGER_PARTS: PartContributionResolver = (severity) => {
+  if (severity === 'normal') return undefined;
+
+  return {
+    // Hungry eyes — watery without full water fill
+    eyes: { wateryEyes: { includeWaterFill: false } },
+    // Droopy mouth — more droopy as severity increases
+    mouth: {
+      droopyMouth: {
+        widthScale: severity === 'critical' ? 0.8 : 0.85,
+        curveScale: severity === 'critical' ? 0.7 : 0.6,
+      },
+    },
+    // Worried / pleading eyebrows
+    eyebrows: {
+      config: { angle: -15, offsetY: -10, strokeWidth: 1.5, color: '#374151' },
+    },
+    // Drool + food icon — hunger's signature extras
+    extras: {
+      drool: { enabled: true, side: 'right' as const },
+      foodIcon: { enabled: true, type: 'utensils' as const },
+    },
+  };
+};
+
+const HYGIENE_PARTS: PartContributionResolver = (severity) => {
+  if (severity === 'normal') return undefined;
+
+  return {
+    // Hygiene doesn't strongly own eyes — it contributes a tired/annoyed look
+    // only at high/critical, as a fallback if nothing else claims eyes
+    eyes: undefined,
+    // Slight droopy / bored mouth
+    mouth: { droopyMouth: { widthScale: 0.9, curveScale: 0.4 } },
+    // Flat, unamused eyebrows
+    eyebrows: {
+      config: { angle: 0, offsetY: -9, strokeWidth: 1.3, color: '#4b5563' },
+    },
+    // Dirty body effects — the main visual signal for low hygiene
+    bodyEffects: {
+      dirtMarks: {
+        enabled: true,
+        count: severity === 'critical' ? 5 : severity === 'high' ? 4 : 3,
+      },
+      stinkClouds: {
+        enabled: true,
+        count: severity === 'critical' ? 4 : severity === 'high' ? 3 : 2,
+      },
+    },
+  };
+};
+
+const HAPPINESS_PARTS: PartContributionResolver = (severity) => {
+  if (severity === 'normal') return undefined;
+
+  return {
+    // Watery eyes — but only include full water fill at critical (proper crying)
+    eyes: { wateryEyes: { includeWaterFill: severity === 'critical' } },
+    // Sad mouth
+    mouth: { sadMouth: true },
+    // Slightly lowered, worried eyebrows
+    eyebrows: {
+      config: {
+        angle: severity === 'critical' ? -18 : -12,
+        offsetY: -10,
+        strokeWidth: 1.3,
+        color: '#4b5563',
+      },
+    },
+    // Tears only when very unhappy (high or critical)
+    extras: severity !== 'warning'
+      ? {
+        tears: {
+          enabled: true,
+          eye: severity === 'critical' ? 'both' as const : 'alternating' as const,
+          duration: severity === 'critical' ? 4 : 6,
+          pauseBetween: severity === 'critical' ? 1 : 3,
+        },
+      }
+      : undefined,
+  };
+};
+
+/**
+ * Registry mapping each reactive stat to its part contribution resolver.
+ */
+const STAT_PART_RESOLVERS: Record<ReactiveStat, PartContributionResolver> = {
+  energy: ENERGY_PARTS,
+  health: HEALTH_PARTS,
+  hunger: HUNGER_PARTS,
+  hygiene: HYGIENE_PARTS,
+  happiness: HAPPINESS_PARTS,
+};
+
+// ─── Part Priority Rules ──────────────────────────────────────────────────────
+//
+// For exclusive parts (eyes, mouth, eyebrows), the stat that appears first
+// in the priority list wins that slot. Lower index = higher priority.
+//
+// The priority order can differ per part — e.g. energy dominates eyes
+// (sleepy blink) but hunger dominates mouth (droopy + drool).
+
+/**
+ * Eyes priority: which stat's eye contribution wins when multiple are low.
+ *
+ * 1. health (critical only → dizzy spirals, highest urgency)
+ * 2. energy (sleepy blink)
+ * 3. happiness (watery/sad eyes)
+ * 4. hunger (watery eyes, lower priority than sadness)
+ * 5. hygiene (no strong eye contribution)
+ */
+const EYES_PRIORITY: ReactiveStat[] = ['health', 'energy', 'happiness', 'hunger', 'hygiene'];
+
+/**
+ * Mouth priority: which stat's mouth contribution wins.
+ *
+ * 1. energy (sleepy breathing mouth)
+ * 2. health (sad mouth or round mouth if critical)
+ * 3. happiness (sad mouth)
+ * 4. hunger (droopy mouth)
+ * 5. hygiene (boring droopy)
+ */
+const MOUTH_PRIORITY: ReactiveStat[] = ['energy', 'health', 'happiness', 'hunger', 'hygiene'];
+
+/**
+ * Eyebrows priority: which stat's eyebrow contribution wins.
+ *
+ * 1. health (worried / intense at critical)
+ * 2. hunger (worried / pleading)
+ * 3. happiness (sad / lowered)
+ * 4. hygiene (flat / bored)
+ * 5. energy (no strong eyebrow opinion — sleepy doesn't define eyebrows)
+ */
+const EYEBROW_PRIORITY: ReactiveStat[] = ['health', 'hunger', 'happiness', 'hygiene', 'energy'];
+
+// ─── Part-Priority Composer ───────────────────────────────────────────────────
+
+/**
+ * Given a map of stat → contributions (from all low stats), pick the
+ * highest-priority contributor for an exclusive part.
+ */
+function pickPart<K extends keyof StatPartContributions>(
+  contributions: Map<ReactiveStat, StatPartContributions>,
+  priorityOrder: ReactiveStat[],
+  part: K,
+): StatPartContributions[K] | undefined {
+  for (const stat of priorityOrder) {
+    const c = contributions.get(stat);
+    if (c && c[part] !== undefined) {
+      return c[part];
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Merge all extras from every contributing stat additively.
+ * Multiple stats can contribute drool, tears, food icons, etc. simultaneously.
+ */
+function mergeAllExtras(
+  contributions: Map<ReactiveStat, StatPartContributions>,
+): ExtrasRecipe | undefined {
+  let merged: ExtrasRecipe | undefined;
+
+  for (const c of contributions.values()) {
+    if (c.extras) {
+      merged = merged ? { ...merged, ...c.extras } : { ...c.extras };
+    }
+  }
+
+  return merged;
+}
+
+/**
+ * Merge all body effects from every contributing stat additively.
+ * Dirt marks + stink clouds can coexist with anger-rise, etc.
+ */
+function mergeAllBodyEffects(
+  contributions: Map<ReactiveStat, StatPartContributions>,
+): BodyEffectsRecipe | undefined {
+  let merged: BodyEffectsRecipe | undefined;
+
+  for (const c of contributions.values()) {
+    if (c.bodyEffects) {
+      merged = merged ? { ...merged, ...c.bodyEffects } : { ...c.bodyEffects };
+    }
+  }
+
+  return merged;
+}
+
+/**
+ * Build a human-readable label from the set of contributing stats.
+ * For single stats it's just the stat name. For multiple, they're joined
+ * in priority order (energy > health > hunger > hygiene > happiness).
+ */
+function buildLabel(lowStats: Map<ReactiveStat, StatSeverity>): string {
+  const LABEL_ORDER: ReactiveStat[] = ['energy', 'health', 'hunger', 'hygiene', 'happiness'];
+  const parts: string[] = [];
+  for (const stat of LABEL_ORDER) {
+    const sev = lowStats.get(stat);
+    if (sev) {
+      parts.push(STAT_LABEL_MAP[stat]);
+    }
+  }
+  return parts.length > 0 ? parts.join('-') : 'neutral';
+}
+
+/** Stat → short label for recipe label composition */
+const STAT_LABEL_MAP: Record<ReactiveStat, string> = {
+  energy: 'sleepy',
+  health: 'sick',
+  hunger: 'hungry',
+  hygiene: 'dirty',
+  happiness: 'sad',
+};
+
+// ─── Main Resolver ────────────────────────────────────────────────────────────
+
+/**
+ * Resolve current stats into a final visual recipe using part-priority
+ * composition.
  *
  * This is the single entry point for the stats → recipe pipeline.
- * All recipe merging happens here — consumers receive a final recipe
- * that can be passed straight to applyVisualRecipe().
+ * Consumers receive one fully-resolved recipe to pass to applyVisualRecipe().
  *
- * Resolution logic:
- *   1. Analyze all stats, keep those below the normal threshold
- *   2. The highest-priority stat determines the primary emotion preset
- *   3. If energy is low AND another stat also triggers, merge sleepy's
- *      recipe with the other stat's recipe (sleepy parts take precedence)
- *   4. Hygiene triggers dirty body effects folded into the recipe
- *   5. Return the fully-resolved recipe + metadata
+ * Algorithm:
+ *   1. For each stat, compute severity. Skip stats at 'normal'.
+ *   2. For each low stat, resolve its part contributions via STAT_PART_RESOLVERS.
+ *   3. For exclusive parts (eyes, mouth, eyebrows), pick the highest-priority
+ *      contributor using the per-part priority lists.
+ *   4. For additive parts (extras, bodyEffects), merge all contributors.
+ *   5. Assemble the final recipe + metadata.
  *
- * Example scenarios:
- *   - Only energy low → sleepy recipe
- *   - Only hygiene low → boring recipe + dirty bodyEffects
- *   - Energy + hygiene low → sleepy eyes/mouth merged with boring eyebrows + dirty bodyEffects
- *   - Energy + hunger low → sleepy eyes/mouth merged with hungry eyebrows/extras
- *
- * @param stats - Current Blobbi stats
- * @returns Fully resolved recipe, label, triggering stat, and body effects
+ * Example compositions:
+ *   - hunger + hygiene → hungry eyes, droopy mouth, worried eyebrows,
+ *     drool + food icon extras, dirt + stink bodyEffects
+ *   - energy + hunger → sleepy eyes, sleepy mouth, hungry eyebrows,
+ *     drool + food icon extras
+ *   - energy + health(critical) → dizzy eyes (health critical > sleepy),
+ *     sleepy mouth, health eyebrows, no hunger extras
+ *   - all stats low → eyes from highest-priority contributor,
+ *     additive extras (drool + tears + Zzz), dirt bodyEffects
  */
 export function resolveStatusRecipe(stats: BlobbiStats): StatusRecipeResult {
-  const analyses = analyzeAllStats(stats);
+  // 1. Compute severity for each stat
+  const lowStats = new Map<ReactiveStat, StatSeverity>();
+  const contributions = new Map<ReactiveStat, StatPartContributions>();
 
-  // No stats are low enough to trigger → neutral
-  if (analyses.length === 0) {
+  for (const config of STAT_REACTION_CONFIGS) {
+    const severity = getSeverity(stats[config.stat]);
+    if (severity === 'normal') continue;
+
+    lowStats.set(config.stat, severity);
+
+    // 2. Resolve part contributions for this stat at this severity
+    const resolver = STAT_PART_RESOLVERS[config.stat];
+    const parts = resolver(severity);
+    if (parts) {
+      contributions.set(config.stat, parts);
+    }
+  }
+
+  // No low stats → neutral
+  if (lowStats.size === 0) {
     return {
       recipe: {},
       label: 'neutral',
@@ -366,49 +651,42 @@ export function resolveStatusRecipe(stats: BlobbiStats): StatusRecipeResult {
     };
   }
 
-  const winner = analyses[0];
+  // 3. Pick exclusive parts by priority
+  const eyes = pickPart(contributions, EYES_PRIORITY, 'eyes');
+  const mouth = pickPart(contributions, MOUTH_PRIORITY, 'mouth');
+  const eyebrows = pickPart(contributions, EYEBROW_PRIORITY, 'eyebrows');
 
-  // Check if sleepy needs to be merged with another face emotion
-  const sleepyAnalysis = analyses.find(a => a.reaction === 'sleepy');
-  const nonSleepyAnalyses = analyses.filter(a => a.reaction !== 'sleepy');
+  // 4. Merge additive parts from all contributors
+  const extras = mergeAllExtras(contributions);
+  const bodyEffects = mergeAllBodyEffects(contributions);
 
-  let recipe: BlobbiVisualRecipe;
-  let label: string;
+  // 5. Assemble
+  const recipe: BlobbiVisualRecipe = {};
+  if (eyes) recipe.eyes = eyes;
+  if (mouth) recipe.mouth = mouth;
+  if (eyebrows) recipe.eyebrows = eyebrows;
+  if (extras) recipe.extras = extras;
+  if (bodyEffects) recipe.bodyEffects = bodyEffects;
 
-  if (sleepyAnalysis && nonSleepyAnalyses.length > 0) {
-    // Both sleepy and another face emotion — merge them.
-    // Sleepy recipe takes precedence (it defines eyes + mouth).
-    // The secondary fills in parts sleepy doesn't define (eyebrows, extras).
-    const sleepyRecipe = resolveVisualRecipe(sleepyAnalysis.reaction);
-    const secondaryRecipe = resolveVisualRecipe(nonSleepyAnalyses[0].reaction);
-    recipe = mergeVisualRecipes(secondaryRecipe, sleepyRecipe);
-    label = `${nonSleepyAnalyses[0].reaction}-${sleepyAnalysis.reaction}`;
-  } else {
-    // Single winner takes all
-    recipe = resolveVisualRecipe(winner.reaction);
-    label = winner.reaction;
-  }
+  const label = buildLabel(lowStats);
 
-  // Hygiene triggers dirty body effects — fold directly into the recipe.
-  // This is the only place dirty body effects are added. Consumers receive
-  // a single recipe that applyVisualRecipe() renders in full.
-  const hygieneAnalysis = analyses.find(a => a.stat === 'hygiene');
-  if (hygieneAnalysis) {
-    recipe = {
-      ...recipe,
-      bodyEffects: {
-        ...recipe.bodyEffects,
-        dirtMarks: { enabled: true, count: 3 },
-        stinkClouds: { enabled: true, count: 3 },
-      },
-    };
+  // Triggering stat = highest-priority low stat (first in STAT_REACTION_CONFIGS order)
+  let triggeringStat: ReactiveStat | null = null;
+  let triggeringSeverity: StatSeverity | null = null;
+  for (const config of STAT_REACTION_CONFIGS) {
+    const sev = lowStats.get(config.stat);
+    if (sev) {
+      triggeringStat = config.stat;
+      triggeringSeverity = sev;
+      break;
+    }
   }
 
   return {
     recipe,
     label,
-    triggeringStat: winner.stat,
-    severity: winner.severity,
+    triggeringStat,
+    severity: triggeringSeverity,
   };
 }
 
