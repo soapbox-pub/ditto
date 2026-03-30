@@ -15,6 +15,45 @@ import { sanitizeSvg } from '@/lib/sanitizeSvg';
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 4;
 const BASE_SIZE_CQW = 14;
+/** Inward buffer (%) so sticker centers can't reach the very edge of the card. */
+const EDGE_BUFFER = 5;
+
+/** Aspect ratio of the letter card (width / height). */
+const CARD_ASPECT = 5 / 4;
+
+/**
+ * Compute an edge-proximity scale factor so stickers shrink as their center
+ * approaches any edge of the card.  The sticker's nominal half-size (in %)
+ * is compared against the distance from the center to the nearest edge;
+ * when the distance is less than the half-size the sticker shrinks
+ * proportionally so it always fits within the card boundary.
+ *
+ * Returns a multiplier in (0, 1] that should be applied on top of the
+ * sticker's own `scale` value.
+ */
+function edgeScale(x: number, y: number, baseScale: number): number {
+  // Half-size of the sticker in percentage of container width
+  const halfW = (BASE_SIZE_CQW * baseScale) / 2; // in cqw, which == % of width
+  // Container height in cqw units = 100 / aspectRatio
+  const containerHeightCqw = 100 / CARD_ASPECT; // 80 for 5:4
+  // Half-size as % of container height
+  const halfH = (BASE_SIZE_CQW * baseScale) / 2 / containerHeightCqw * 100;
+
+  // Distance from center to each edge (in %)
+  const dLeft = x;
+  const dRight = 100 - x;
+  const dTop = y;
+  const dBottom = 100 - y;
+
+  // How much room we need vs how much we have, per axis
+  const fitX = Math.min(dLeft, dRight) / halfW;
+  const fitY = Math.min(dTop, dBottom) / halfH;
+
+  // Take the tightest constraint, clamp to (0, 1]
+  const fit = Math.min(fitX, fitY, 1);
+  // Floor at a tiny size so stickers don't vanish completely
+  return Math.max(fit, 0.15);
+}
 
 function isSafeUrl(url: string): boolean {
   try {
@@ -48,7 +87,8 @@ function StickerMedia({ sticker, sizeCqw, className }: { sticker: LetterSticker;
 
 function StaticSticker({ sticker }: { sticker: LetterSticker }) {
   const s = sticker.scale ?? 1;
-  const sizeCqw = `${BASE_SIZE_CQW * s}cqw`;
+  const es = edgeScale(sticker.x, sticker.y, s);
+  const sizeCqw = `${BASE_SIZE_CQW * s * es}cqw`;
 
   return (
     <div
@@ -85,7 +125,8 @@ function EditableSticker({
   containerRef,
 }: EditableStickerProps) {
   const s = sticker.scale ?? 1;
-  const sizeCqw = `${BASE_SIZE_CQW * s}cqw`;
+  const es = edgeScale(sticker.x, sticker.y, s);
+  const sizeCqw = `${BASE_SIZE_CQW * s * es}cqw`;
 
   const dragging = useRef(false);
   const hasMoved = useRef(false);
@@ -95,8 +136,8 @@ function EditableSticker({
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return { x: sticker.x, y: sticker.y };
     return {
-      x: Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)),
-      y: Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100)),
+      x: Math.max(EDGE_BUFFER, Math.min(100 - EDGE_BUFFER, ((clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(EDGE_BUFFER, Math.min(100 - EDGE_BUFFER, ((clientY - rect.top) / rect.height) * 100)),
     };
   }, [containerRef, sticker.x, sticker.y]);
 
@@ -193,7 +234,7 @@ function EditableSticker({
 
   return (
     <div
-      className={`absolute select-none ${isDragging ? 'cursor-grabbing' : selected ? 'cursor-grab' : 'cursor-pointer'}`}
+      className={`absolute select-none pointer-events-auto ${isDragging ? 'cursor-grabbing' : selected ? 'cursor-grab' : 'cursor-pointer'}`}
       style={{
         left: `${sticker.x}%`,
         top: `${sticker.y}%`,

@@ -289,7 +289,13 @@ export function LetterEditor({
               </div>
             </div>
           </StationeryBackground>
-          {cardOverlay}
+          {cardOverlay && (
+            <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none" style={{ zIndex: 20 }}>
+              <div className="relative w-full h-full">
+                {cardOverlay}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

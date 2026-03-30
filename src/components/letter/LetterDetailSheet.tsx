@@ -303,7 +303,11 @@ export function LetterDetailSheet({ letter, onClose }: LetterDetailSheetProps) {
             </StationeryBackground>
 
             {content?.stickers && content.stickers.length > 0 && (
-              <LetterStickers stickers={content.stickers} />
+              <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none" style={{ zIndex: 20 }}>
+                <div className="relative w-full h-full">
+                  <LetterStickers stickers={content.stickers} />
+                </div>
+              </div>
             )}
           </div>
 
