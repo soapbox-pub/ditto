@@ -335,20 +335,28 @@ type PartContributionResolver = (severity: StatSeverity) => StatPartContribution
 // Each stat defines what it contributes to each facial/body area at each
 // severity level. Parts left undefined are simply not contributed — another
 // stat can fill them in.
+//
+// Design philosophy:
+//   - Each stat has a distinct "personality" in how it affects the face
+//   - Hunger = pleading, needy, hopeful (not just sad)
+//   - Energy = drowsy, fading, relaxed tiredness
+//   - Health = weak, unwell (mild) → disoriented (critical)
+//   - Hygiene = uncomfortable, irritated, "I feel gross"
+//   - Happiness = genuine emotional sadness, building to tears
 
 const ENERGY_PARTS: PartContributionResolver = (severity) => {
   if (severity === 'normal') return undefined;
+
+  // Sleepiness is a relaxed, fading state — not distressed
   return {
-    // Sleepy blink — the hallmark of low energy
+    // Sleepy blink — heavy-lidded, drowsy closing eyes
     eyes: { sleepyBlink: { cycleDuration: severity === 'critical' ? 6 : 8 } },
-    // Sleepy breathing mouth
+    // Sleepy breathing mouth — soft, relaxed
     mouth: { sleepyMouth: true },
-    // Low energy doesn't own eyebrows — other stats can fill them in.
-    // Zzz floaters for sleepiness
-    extras: {
-      // No Zzz at warning — just droopy eyes. Zzz at high/critical.
-      ...(severity !== 'warning' ? {} : {}),
-    },
+    // Low energy doesn't own eyebrows — it's a relaxed state.
+    // Other stats (hunger, sadness) can add their worried brows on top.
+    eyebrows: undefined,
+    // No extras — sleepiness is subtle, communicated through eyes/mouth
   };
 };
 
@@ -356,24 +364,35 @@ const HEALTH_PARTS: PartContributionResolver = (severity) => {
   if (severity === 'normal') return undefined;
 
   if (severity === 'critical') {
-    // Critical health → dizzy spirals + open shocked mouth
+    // Critical health → severely unwell, disoriented
+    // Dizzy spirals, dazed open mouth, distressed brows
     return {
       eyes: { dizzySpirals: { rotationDuration: 2 } },
       mouth: { roundMouth: { rx: 4, ry: 5, filled: true } },
       eyebrows: {
-        config: { angle: -15, offsetY: -10, strokeWidth: 1.5, color: '#374151' },
+        // Raised/worried (distress)
+        config: { angle: -14, offsetY: -11, strokeWidth: 1.4, color: '#6b7280', curve: 0.2 },
       },
     };
   }
 
-  // Warning / high → weak, slightly sad face
+  // Warning / high → weak, unwell (distinct from sadness)
+  // Dull expression, weak frown — "I don't feel good"
   return {
+    // Dull, unfocused eyes at high severity
     eyes: severity === 'high'
       ? { wateryEyes: { includeWaterFill: false } }
       : undefined,
+    // Weak, slight frown
     mouth: { sadMouth: true },
+    // Lowered, weak brows — not intensely worried, just weak
     eyebrows: {
-      config: { angle: -12, offsetY: -10, strokeWidth: 1.3, color: '#4b5563' },
+      config: {
+        angle: severity === 'high' ? -10 : -6,
+        offsetY: -9,
+        strokeWidth: 1.2,
+        color: '#9ca3af',
+      },
     },
   };
 };
@@ -381,19 +400,29 @@ const HEALTH_PARTS: PartContributionResolver = (severity) => {
 const HUNGER_PARTS: PartContributionResolver = (severity) => {
   if (severity === 'normal') return undefined;
 
+  // Hunger is pleading and hopeful, not sad — "please feed me!"
+  // The expression should evoke nurturing instincts, not pity
   return {
-    // Hungry eyes — watery without full water fill
+    // Shiny, hopeful eyes (glistening but not sad-watery)
     eyes: { wateryEyes: { includeWaterFill: false } },
-    // Droopy mouth — more droopy as severity increases
+    // Open, anticipating mouth — "ooh, food?" (not droopy/sad)
+    // More open at higher severity
     mouth: {
-      droopyMouth: {
-        widthScale: severity === 'critical' ? 0.8 : 0.85,
-        curveScale: severity === 'critical' ? 0.7 : 0.6,
+      roundMouth: {
+        rx: severity === 'critical' ? 3.5 : 3,
+        ry: severity === 'critical' ? 4.5 : 4,
+        filled: true,
       },
     },
-    // Worried / pleading eyebrows
+    // Pleading eyebrows — inner corners raised, hopeful expression
     eyebrows: {
-      config: { angle: -15, offsetY: -10, strokeWidth: 1.5, color: '#374151' },
+      config: {
+        angle: severity === 'critical' ? -14 : -12,
+        offsetY: -10,
+        strokeWidth: 1.3,
+        color: '#6b7280',
+        curve: 0.1,
+      },
     },
     // Drool + food icon — hunger's signature extras
     extras: {
@@ -406,15 +435,26 @@ const HUNGER_PARTS: PartContributionResolver = (severity) => {
 const HYGIENE_PARTS: PartContributionResolver = (severity) => {
   if (severity === 'normal') return undefined;
 
+  // Low hygiene = uncomfortable, irritated — "I feel gross"
+  // Not sad or tired, but physically uncomfortable
   return {
-    // Hygiene doesn't strongly own eyes — it contributes a tired/annoyed look
-    // only at high/critical, as a fallback if nothing else claims eyes
+    // Hygiene doesn't strongly own eyes — discomfort shows in brows/mouth
     eyes: undefined,
-    // Slight droopy / bored mouth
-    mouth: { droopyMouth: { widthScale: 0.9, curveScale: 0.4 } },
-    // Flat, unamused eyebrows
+    // Grimace / uncomfortable flat mouth (distinct from sad frown)
+    mouth: {
+      droopyMouth: {
+        widthScale: severity === 'critical' ? 0.8 : 0.85,
+        curveScale: severity === 'critical' ? 0.2 : 0.25,
+      },
+    },
+    // Slightly furrowed brows — mild annoyance/discomfort
     eyebrows: {
-      config: { angle: 0, offsetY: -9, strokeWidth: 1.3, color: '#4b5563' },
+      config: {
+        angle: severity === 'critical' ? 10 : 8,
+        offsetY: -9,
+        strokeWidth: 1.3,
+        color: '#6b7280',
+      },
     },
     // Dirty body effects — the main visual signal for low hygiene
     bodyEffects: {
@@ -433,21 +473,24 @@ const HYGIENE_PARTS: PartContributionResolver = (severity) => {
 const HAPPINESS_PARTS: PartContributionResolver = (severity) => {
   if (severity === 'normal') return undefined;
 
+  // Sadness is emotional — watery eyes building to tears, genuine frown
+  // This is distinct from hunger (hopeful) and health (weak)
   return {
-    // Watery eyes — but only include full water fill at critical (proper crying)
+    // Watery eyes — glistening at warning/high, full water fill at critical
     eyes: { wateryEyes: { includeWaterFill: severity === 'critical' } },
-    // Sad mouth
+    // Genuine sad frown
     mouth: { sadMouth: true },
-    // Slightly lowered, worried eyebrows
+    // Worried/sad eyebrows — inner corners raised with slight curve
     eyebrows: {
       config: {
-        angle: severity === 'critical' ? -18 : -12,
+        angle: severity === 'critical' ? -18 : severity === 'high' ? -15 : -12,
         offsetY: -10,
-        strokeWidth: 1.3,
+        strokeWidth: 1.4,
         color: '#4b5563',
+        curve: 0.15,
       },
     },
-    // Tears only when very unhappy (high or critical)
+    // Tears only when genuinely unhappy (high or critical)
     extras: severity !== 'warning'
       ? {
         tears: {

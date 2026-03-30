@@ -179,111 +179,169 @@ export interface BlobbiVisualRecipe {
 /**
  * Named emotion presets as part-based visual recipes.
  *
- * Each entry describes the complete visual recipe for a named emotion.
- * The base Blobbi expression (neutral) is visually "happy" with a smiling mouth,
+ * These presets define how Blobbi looks in different emotional/status states.
+ * Each preset creates a distinct, recognizable expression that feels pet-like.
+ *
+ * The base Blobbi SVG (neutral) is visually content with a gentle smile,
  * so 'neutral' maps to an empty recipe (no modifications).
+ *
+ * Design principles:
+ *   - Each preset should feel distinct and immediately readable
+ *   - Status states (hungry, sleepy, sad) should evoke empathy
+ *   - Interaction states (excited, surprised) should feel reactive
+ *   - Expressions should work well alone and in combinations
  */
 export const EMOTION_RECIPES: Record<BlobbiEmotion, BlobbiVisualRecipe> = {
+  // ── Neutral ─────────────────────────────────────────────────────────────────
+  // Base state: content, at ease. The SVG's default smile is the expression.
   neutral: {},
 
+  // ── Sad ─────────────────────────────────────────────────────────────────────
+  // Emotional sadness: watery eyes, downturned mouth, worried brows.
+  // This is pure sadness (from low happiness), not hunger or tiredness.
   sad: {
     eyes: { wateryEyes: { includeWaterFill: true } },
     mouth: { sadMouth: true },
     eyebrows: {
-      config: { angle: -15, offsetY: -10, strokeWidth: 1.5, color: '#374151' },
+      // Inner corners raised (worried/sad), slight curve
+      config: { angle: -18, offsetY: -10, strokeWidth: 1.4, color: '#4b5563', curve: 0.15 },
     },
     extras: {
       tears: { enabled: true, eye: 'alternating', duration: 6, pauseBetween: 3 },
     },
   },
 
+  // ── Boring ──────────────────────────────────────────────────────────────────
+  // Generic low-energy, unamused state. Used as fallback when no specific
+  // status applies. Flat expression, slightly droopy.
   boring: {
-    mouth: { droopyMouth: { widthScale: 0.9, curveScale: 0.4 } },
+    mouth: { droopyMouth: { widthScale: 0.9, curveScale: 0.35 } },
     eyebrows: {
-      config: { angle: 0, offsetY: -9, strokeWidth: 1.3, color: '#4b5563' },
+      // Flat, low-effort brows
+      config: { angle: 0, offsetY: -8, strokeWidth: 1.2, color: '#6b7280' },
     },
   },
 
+  // ── Dirty ───────────────────────────────────────────────────────────────────
+  // Body decorator for low hygiene. Face shows mild discomfort/irritation.
+  // The grimace and slightly furrowed brows say "I feel gross".
   dirty: {
-    // Body-only decorator. No face modifications.
+    mouth: { droopyMouth: { widthScale: 0.85, curveScale: 0.25 } },
+    eyebrows: {
+      // Slightly furrowed (uncomfortable/annoyed)
+      config: { angle: 8, offsetY: -9, strokeWidth: 1.3, color: '#6b7280' },
+    },
     bodyEffects: {
       dirtMarks: { enabled: true, count: 3 },
       stinkClouds: { enabled: true, count: 3 },
     },
   },
 
-  happy: {
-    // The base expression is already a smile; this amplifies it slightly.
-    // (mouthCurve: 1.2 was the old config — no mouth replacement needed
-    //  because the base mouth is already happy. Keeping empty mouth recipe.)
-  },
+  // ── Happy ───────────────────────────────────────────────────────────────────
+  // Content and pleased. The base SVG smile suffices; this is mostly a no-op.
+  // Used as override during positive actions.
+  happy: {},
 
+  // ── Angry ───────────────────────────────────────────────────────────────────
+  // Frustrated, upset. Intense frown, sharp angled brows, flushed body.
   angry: {
     mouth: { sadMouth: true },
     eyebrows: {
-      config: { angle: 20, offsetY: -10, strokeWidth: 2.5, color: '#1f2937' },
+      // Angled down toward center (classic angry brows)
+      config: { angle: 22, offsetY: -9, strokeWidth: 2.2, color: '#374151' },
     },
     bodyEffects: {
       angerRise: { color: '#ef4444', duration: 2 },
     },
   },
 
+  // ── Surprised ───────────────────────────────────────────────────────────────
+  // Startled, caught off guard. Wide open mouth, raised arched brows.
   surprised: {
     mouth: { roundMouth: { rx: 5, ry: 6, filled: true } },
     eyebrows: {
-      config: { angle: -12, offsetY: -12, strokeWidth: 1.5, color: '#374151', curve: 0.3 },
+      // High arched (classic surprise)
+      config: { angle: -15, offsetY: -13, strokeWidth: 1.4, color: '#4b5563', curve: 0.35 },
     },
   },
 
+  // ── Sleepy ──────────────────────────────────────────────────────────────────
+  // Drowsy, fading, needs rest. Heavy-lidded blinking eyes, soft breathing mouth.
+  // Distinct from boring — this is genuine tiredness, not disinterest.
   sleepy: {
     eyes: { sleepyBlink: { cycleDuration: 8 } },
     mouth: { sleepyMouth: true },
+    // No eyebrows — sleepy is a relaxed state, other stats can add brows
   },
 
+  // ── Curious ─────────────────────────────────────────────────────────────────
+  // Intrigued, investigating. Small "o" mouth, asymmetric raised brow.
   curious: {
     mouth: { roundMouth: { rx: 3, ry: 3.5, filled: true } },
     eyebrows: {
       config: {
-        angle: -8, offsetY: -11, strokeWidth: 1.3, color: '#4b5563', curve: 0.15,
-        rightEyeOverride: { angle: -14, offsetY: -12.5, curve: 0.25 },
+        angle: -10, offsetY: -11, strokeWidth: 1.3, color: '#4b5563', curve: 0.2,
+        // One brow raised higher (quizzical look)
+        rightEyeOverride: { angle: -16, offsetY: -13, curve: 0.3 },
       },
     },
   },
 
+  // ── Dizzy ───────────────────────────────────────────────────────────────────
+  // Severely unwell, disoriented. Spiral eyes, dazed open mouth.
+  // Only used at critical health — this is an urgent state.
   dizzy: {
     eyes: { dizzySpirals: { rotationDuration: 2 } },
     mouth: { roundMouth: { rx: 4, ry: 5, filled: true } },
+    eyebrows: {
+      // Raised/worried (distress)
+      config: { angle: -12, offsetY: -11, strokeWidth: 1.3, color: '#6b7280', curve: 0.2 },
+    },
   },
 
+  // ── Excited ─────────────────────────────────────────────────────────────────
+  // Thrilled, energized. Sparkling star eyes, big wide smile.
+  // Used during play and joyful activities.
   excited: {
     eyes: { starEyes: { points: 5, color: '#fbbf24', scale: 0.9 } },
     mouth: { bigSmile: { widthScale: 1.3, curveScale: 1.4 } },
   },
 
+  // ── ExcitedB ────────────────────────────────────────────────────────────────
+  // Alternate excited: star eyes with "ooh!" open mouth.
   excitedB: {
     eyes: { starEyes: { points: 5, color: '#fbbf24', scale: 0.9 } },
     mouth: { roundMouth: { rx: 3.5, ry: 4, filled: true } },
   },
 
+  // ── Mischievous ─────────────────────────────────────────────────────────────
+  // Playfully scheming. Angled brows with bounce animation, smug smirk.
   mischievous: {
     eyebrows: {
-      config: { angle: 20, offsetY: -10, strokeWidth: 2.5, color: '#1f2937' },
+      config: { angle: 18, offsetY: -10, strokeWidth: 2, color: '#374151' },
       animated: { enabled: true, bounceDuration: 0.6, bounceAmount: 2.5 },
     },
     mouth: { smallSmile: { scale: 0.7 } },
   },
 
+  // ── Adoring ─────────────────────────────────────────────────────────────────
+  // Affectionate, looking lovingly. Shiny glistening eyes, soft expression.
   adoring: {
     eyes: { wateryEyes: { includeWaterFill: false } },
-    mouth: { roundMouth: { rx: 3, ry: 3.5, filled: true } },
+    mouth: { roundMouth: { rx: 2.5, ry: 3, filled: true } },
   },
 
+  // ── Hungry ──────────────────────────────────────────────────────────────────
+  // Pleading, needy, hopeful for food. Shiny hopeful eyes (not sad-watery),
+  // slightly open anticipating mouth, pleading brows, drool + food icon.
+  // The expression should evoke "please feed me" not "I'm sad".
   hungry: {
     eyes: { wateryEyes: { includeWaterFill: false } },
     eyebrows: {
-      config: { angle: -15, offsetY: -10, strokeWidth: 1.5, color: '#374151' },
+      // Inner corners raised (pleading/hopeful), softer than sad
+      config: { angle: -12, offsetY: -10, strokeWidth: 1.3, color: '#6b7280', curve: 0.1 },
     },
-    mouth: { droopyMouth: { widthScale: 0.85, curveScale: 0.6 } },
+    mouth: { roundMouth: { rx: 3, ry: 4, filled: true } },
     extras: {
       drool: { enabled: true, side: 'right' },
       foodIcon: { enabled: true, type: 'utensils' },
