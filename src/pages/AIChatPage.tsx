@@ -799,9 +799,9 @@ export function AIChatPage() {
   }
 
   return (
-    <main className="flex h-full min-h-0 flex-col overflow-hidden bg-secondary/50 sidebar:h-dvh">
+    <main className="flex flex-col ai-chat-height sidebar:h-dvh overflow-hidden bg-secondary/50">
       {/* Header */}
-      <div className="shrink-0 px-4 py-2.5 flex flex-col gap-2 sidebar:flex-row sidebar:items-center sidebar:justify-between sidebar:gap-3">
+      <div className="shrink-0 px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
         <PageHeader title="AI Chat" icon={<Bot className="size-5" />} className="px-0 mt-0 mb-0" />
 
         <div className="flex items-center gap-2">
