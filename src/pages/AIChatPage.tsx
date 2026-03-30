@@ -74,6 +74,88 @@ For backgrounds, provide a URL to a publicly accessible image. Choose images tha
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'create_spell',
+      description: `Create a Nostr spell — a saved query that acts as a custom feed. The spell is published as a kind:777 event and can be added to the sidebar for quick access.
+
+Spells define a Nostr relay filter with optional runtime variables that resolve when executed:
+- "$me" expands to the logged-in user's pubkey
+- "$contacts" expands to the user's follow list (kind:3 contacts)
+
+Timestamps can be relative durations subtracted from now: "7d" (7 days ago), "2w" (2 weeks), "1mo" (1 month), "1y" (1 year), "24h" (24 hours), or "now" for the current time.
+
+Examples:
+- "friends talking about bitcoin" → authors: ["$contacts"], tag_filters: [{letter: "t", values: ["bitcoin"]}]
+- "my mass deletions" → authors: ["$me"], kinds: [5]
+- "popular zap receipts this week" → kinds: [9735], since: "7d"
+- "photos from people I follow" → authors: ["$contacts"], kinds: [20]
+- "articles mentioning nostr" → kinds: [30023], search: "nostr"`,
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Short human-readable name for the spell (e.g. "fren bitcoin", "my mass deletions").',
+          },
+          description: {
+            type: 'string',
+            description: 'Optional longer description of what the spell does.',
+          },
+          cmd: {
+            type: 'string',
+            description: 'Command type. "REQ" returns matching events as a feed (default). "COUNT" returns just the count of matches.',
+            enum: ['REQ', 'COUNT'],
+          },
+          kinds: {
+            type: 'array',
+            items: { type: 'number' },
+            description: 'Event kind numbers to filter (e.g. [1] for text notes, [20] for photos, [30023] for articles, [9735] for zap receipts).',
+          },
+          authors: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Author filter. Use "$me" for the logged-in user, "$contacts" for their follow list, or hex pubkeys.',
+          },
+          tag_filters: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                letter: { type: 'string', description: 'Single-letter tag name (e.g. "t" for hashtags, "e" for event references, "p" for pubkey references).' },
+                values: { type: 'array', items: { type: 'string' }, description: 'Tag values to match. Supports "$me" and "$contacts" variables.' },
+              },
+              required: ['letter', 'values'],
+            },
+            description: 'Tag-based filters. Each entry becomes a #<letter> filter in the Nostr query.',
+          },
+          since: {
+            type: 'string',
+            description: 'Only include events after this time. Accepts relative durations ("7d", "2w", "1mo", "1y", "24h") or "now".',
+          },
+          until: {
+            type: 'string',
+            description: 'Only include events before this time. Same format as since.',
+          },
+          limit: {
+            type: 'number',
+            description: 'Maximum number of results to return.',
+          },
+          search: {
+            type: 'string',
+            description: 'Full-text search query (NIP-50). Filters events by content text.',
+          },
+          relays: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Specific relay WebSocket URLs to query (e.g. ["wss://relay.damus.io"]). If omitted, uses the user\'s default relays.',
+          },
+        },
+        required: ['name'],
+      },
+    },
+  },
 ];
 
 // ─── Message Types ───
