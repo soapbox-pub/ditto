@@ -191,6 +191,8 @@ interface DisplayMessage {
   content: string;
   timestamp: Date;
   toolCalls?: ToolCall[];
+  /** For tool_result messages: the tool_call_id this result corresponds to. */
+  toolCallId?: string;
   /** A Nostr event published by a tool, rendered inline in the chat. */
   nostrEvent?: NostrEvent;
 }
@@ -649,8 +651,27 @@ export function AIChatPage() {
     const apiMessages: ChatMessage[] = [SYSTEM_PROMPT];
 
     for (const msg of displayMsgs) {
-      if (msg.role === 'tool_result') continue; // Tool results are internal
-      apiMessages.push({ role: msg.role as 'user' | 'assistant' | 'system', content: msg.content });
+      if (msg.role === 'tool_result') {
+        // Convert display tool results to proper OpenAI tool messages
+        apiMessages.push({
+          role: 'tool',
+          content: msg.content,
+          tool_call_id: msg.toolCallId,
+        });
+      } else if (msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0) {
+        // Assistant message with tool calls — include the tool_calls array
+        apiMessages.push({
+          role: 'assistant',
+          content: msg.content || null,
+          tool_calls: msg.toolCalls.map((tc) => ({
+            id: tc.id,
+            type: 'function' as const,
+            function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+          })),
+        });
+      } else {
+        apiMessages.push({ role: msg.role as 'user' | 'assistant' | 'system', content: msg.content });
+      }
     }
 
     return apiMessages;
@@ -737,27 +758,21 @@ export function AIChatPage() {
           toolCalls,
           nostrEvent,
         };
-        currentMessages = [...currentMessages, toolMsg];
+
+        // Add tool result display messages (hidden in UI, used by buildApiMessages)
+        const toolResultMsgs: DisplayMessage[] = toolCalls.map((tc) => ({
+          id: crypto.randomUUID(),
+          role: 'tool_result' as const,
+          content: tc.result ?? '',
+          toolCallId: tc.id,
+          timestamp: new Date(),
+        }));
+
+        currentMessages = [...currentMessages, toolMsg, ...toolResultMsgs];
         setMessages(currentMessages);
 
-        // Build follow-up messages with tool results for the next round
+        // Rebuild API messages — buildApiMessages now handles the full tool protocol
         apiMessages = buildApiMessages(currentMessages);
-
-        // Add the assistant message that contained tool_calls
-        apiMessages.push({
-          role: 'assistant',
-          content: assistantMsg.content || '',
-        });
-
-        // Add tool results
-        for (const tc of toolCalls) {
-          apiMessages.push({
-            role: 'user' as const,
-            content: `[Tool "${tc.name}" returned: ${tc.result}]`,
-          });
-        }
-
-        // Loop continues — next iteration sends follow-up with tools available
       }
     } catch (err) {
       console.error('Chat error:', err);
@@ -851,7 +866,7 @@ export function AIChatPage() {
           {messages.length === 0 ? (
             <EmptyState />
           ) : (
-            messages.map((msg) => (
+            messages.filter((msg) => msg.role !== 'tool_result').map((msg) => (
               <MessageBubble key={msg.id} message={msg} />
             ))
           )}
