@@ -12,7 +12,7 @@
 
 import { useMemo } from 'react';
 
-import { BlobbiEggVisual, type BlobbiEggSize } from './BlobbiEggVisual';
+import { BlobbiEggVisual, type BlobbiEggSize, type EggStatusEffects } from './BlobbiEggVisual';
 import { BlobbiBabyVisual } from './BlobbiBabyVisual';
 import { BlobbiAdultVisual } from './BlobbiAdultVisual';
 import { FloatingMusicNotes } from './FloatingMusicNotes';
@@ -90,6 +90,17 @@ export function BlobbiStageVisual({
   const containerClass = SIZE_CONFIG[size];
 
   if (stage === 'egg') {
+    // Derive egg status effects from the recipe
+    // Eggs don't have faces, so we translate recipe parts to egg-specific effects
+    const eggStatusEffects: EggStatusEffects | undefined = recipe ? {
+      // Dirty: hygiene-related body effects
+      dirty: Boolean(recipe.bodyEffects?.dirtMarks?.enabled || recipe.bodyEffects?.stinkClouds?.enabled),
+      // Sick: health-critical dizzy eyes → floating spirals for egg
+      sick: Boolean(recipe.eyes?.dizzySpirals),
+      // Happy: positive reaction or explicit happy state (not sad/crying)
+      happy: effectiveReaction === 'happy' && !recipe.extras?.tears?.enabled,
+    } : undefined;
+
     return (
       <div className={cn('relative', containerClass, className)}>
         <BlobbiEggVisual
@@ -97,6 +108,7 @@ export function BlobbiStageVisual({
           size={size as BlobbiEggSize}
           animated={animated}
           reaction={effectiveReaction}
+          statusEffects={eggStatusEffects}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />

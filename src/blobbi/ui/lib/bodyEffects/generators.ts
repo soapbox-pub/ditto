@@ -66,39 +66,55 @@ function estimatePathBounds(pathD: string): { minY: number; maxY: number } {
 // ─── Dirt Marks ───────────────────────────────────────────────────────────────
 
 /**
- * Generate dirt marks/scratches on the lower body.
+ * Generate dirt marks/scratches on the body.
+ *
+ * Positions are constrained to the Blobbi body silhouette:
+ *   - Horizontally: centered around x=50, within ~38-62 range
+ *   - Vertically: spread across mid-to-lower body (y: 55-78)
+ *   - Higher count adds marks to upper and side areas
+ *
+ * The Blobbi body in SVG coordinates is roughly:
+ *   - Center: x=50
+ *   - Width: ~30 units wide at widest point
+ *   - Body spans roughly y: 25-85
  */
 export function generateDirtMarks(config: DirtMarksConfig): string {
   if (!config.enabled) return '';
-  
+
   const count = config.count ?? 3;
   const marks: string[] = [];
-  
+
+  // Positions constrained to body area, ordered by visibility priority
+  // Each mark is placed within the body silhouette
   const positions = [
-    { x: 35, y: 75, angle: 15, length: 4 },
-    { x: 55, y: 80, angle: -10, length: 3.5 },
-    { x: 45, y: 72, angle: 5, length: 3 },
+    // Primary marks - lower body, well within silhouette
+    { x: 42, y: 72, angle: 12, length: 3.5 },   // left-center, low
+    { x: 56, y: 68, angle: -8, length: 3 },     // right-center, mid-low
+    { x: 48, y: 62, angle: 5, length: 2.8 },    // center, mid
+    // Additional marks for higher counts - spread across body
+    { x: 52, y: 78, angle: -5, length: 2.5 },   // center, very low
+    { x: 44, y: 55, angle: 15, length: 2.5 },   // left, upper-mid
   ].slice(0, count);
-  
+
   positions.forEach((pos, i) => {
     const startX = pos.x;
     const startY = pos.y;
     const endX = startX + pos.length * Math.cos((pos.angle * Math.PI) / 180);
     const endY = startY + pos.length * Math.sin((pos.angle * Math.PI) / 180);
-    const controlX = (startX + endX) / 2 + 1;
-    const controlY = (startY + endY) / 2 - 0.5;
-    
+    const controlX = (startX + endX) / 2 + 0.8;
+    const controlY = (startY + endY) / 2 - 0.3;
+
     marks.push(`<path
       class="blobbi-dirt-mark blobbi-dirt-mark-${i}"
       d="M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}"
       stroke="#78716c"
-      stroke-width="1.5"
+      stroke-width="1.3"
       stroke-linecap="round"
       fill="none"
-      opacity="0.6"
+      opacity="0.55"
     />`);
   });
-  
+
   return marks.join('\n');
 }
 
@@ -106,17 +122,23 @@ export function generateDirtMarks(config: DirtMarksConfig): string {
 
 /**
  * Generate animated stink cloud puffs below the Blobbi.
+ *
+ * Positions are centered below the body:
+ *   - Horizontally: spread around center (x: 42-58)
+ *   - Vertically: just below body bottom (y: 86-90)
  */
 export function generateStinkClouds(config: StinkCloudsConfig): string {
   if (!config.enabled) return '';
-  
+
   const count = config.count ?? 3;
   const clouds: string[] = [];
-  
+
+  // Centered positions below the body
   const positions = [
-    { x: 38, y: 88, delay: 0 },
-    { x: 50, y: 90, delay: 0.8 },
-    { x: 62, y: 87, delay: 1.6 },
+    { x: 44, y: 87, delay: 0 },
+    { x: 50, y: 89, delay: 0.8 },
+    { x: 56, y: 86, delay: 1.6 },
+    { x: 47, y: 88, delay: 2.2 },  // extra for count=4+
   ].slice(0, count);
   
   positions.forEach((pos, i) => {

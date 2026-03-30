@@ -12,6 +12,19 @@ import { cn } from '../lib/cn';
  */
 export type EggReactionState = 'idle' | 'listening' | 'swaying' | 'singing' | 'happy';
 
+/**
+ * Status effects for egg-stage visual feedback.
+ * These are simpler than adult/baby expressions since eggs don't have faces.
+ */
+export interface EggStatusEffects {
+  /** Dirty state: shows sweat droplet and dust underneath */
+  dirty?: boolean;
+  /** Health state: shows floating dizzy spirals around egg */
+  sick?: boolean;
+  /** Happy state: shows subtle sparkles around egg */
+  happy?: boolean;
+}
+
 interface EggGraphicProps {
   blobbi?: EggVisualBlobbi; // Visual blobbi object for visual properties
   sizeVariant?: 'tiny' | 'small' | 'medium' | 'large'; // Internal scaling only, NOT layout size
@@ -21,6 +34,8 @@ interface EggGraphicProps {
   cracking?: boolean;
   warmth?: number; // 0-100, affects the glow (fallback if no blobbi)
   forceInlineSvg?: boolean; // New prop to guarantee inline SVG
+  /** Status effects for egg-stage visual feedback */
+  statusEffects?: EggStatusEffects;
 }
 
 // Legacy fallback function for special marks (kept for compatibility)
@@ -64,6 +79,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
   cracking = false,
   warmth = 50,
   forceInlineSvg: _forceInlineSvg = false,
+  statusEffects,
 }) => {
   // sizeVariant controls ONLY internal scaling/details, NOT layout dimensions
   // Parent container controls actual rendered width/height via slot
@@ -655,6 +671,197 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
                 animationDuration: '3s',
               }}
             />
+          </>
+        )}
+
+        {/* ── Status Effects ─────────────────────────────────────────────── */}
+
+        {/* Dirty effect: sweat droplet + dust underneath */}
+        {statusEffects?.dirty && (
+          <>
+            {/* Sweat droplet - upper left of egg */}
+            <div
+              className="absolute animate-egg-sweat-drop"
+              style={{
+                top: '15%',
+                left: '8%',
+                width: '0.6em',
+                height: '0.9em',
+                background: 'linear-gradient(180deg, rgba(147, 197, 253, 0.9) 0%, rgba(59, 130, 246, 0.7) 100%)',
+                borderRadius: '50% 50% 50% 50% / 30% 30% 70% 70%',
+                zIndex: 20,
+              }}
+            />
+            {/* Dust particles underneath */}
+            <div
+              className="absolute animate-egg-dust"
+              style={{
+                bottom: '-5%',
+                left: '25%',
+                width: '50%',
+                height: '0.4em',
+                display: 'flex',
+                justifyContent: 'space-around',
+                zIndex: 5,
+              }}
+            >
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: '0.3em',
+                    height: '0.3em',
+                    background: 'rgba(120, 113, 108, 0.5)',
+                    borderRadius: '50%',
+                    animationDelay: `${i * 0.3}s`,
+                  }}
+                  className="animate-egg-dust-particle"
+                />
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Sick effect: floating dizzy spirals around egg */}
+        {statusEffects?.sick && (
+          <>
+            {/* Spiral 1 - top right */}
+            <svg
+              className="absolute animate-egg-spiral"
+              style={{
+                top: '5%',
+                right: '5%',
+                width: '1em',
+                height: '1em',
+                zIndex: 20,
+              }}
+              viewBox="0 0 20 20"
+            >
+              <path
+                d="M10 2 Q15 5 12 10 Q9 15 10 18"
+                stroke="rgba(147, 51, 234, 0.6)"
+                strokeWidth="1.5"
+                fill="none"
+                strokeLinecap="round"
+              />
+              <path
+                d="M10 4 Q13 6 11 10 Q9 14 10 16"
+                stroke="rgba(147, 51, 234, 0.4)"
+                strokeWidth="1"
+                fill="none"
+                strokeLinecap="round"
+              />
+            </svg>
+            {/* Spiral 2 - left side */}
+            <svg
+              className="absolute animate-egg-spiral"
+              style={{
+                top: '30%',
+                left: '0%',
+                width: '0.8em',
+                height: '0.8em',
+                zIndex: 20,
+                animationDelay: '0.5s',
+              }}
+              viewBox="0 0 20 20"
+            >
+              <path
+                d="M10 2 Q15 5 12 10 Q9 15 10 18"
+                stroke="rgba(147, 51, 234, 0.5)"
+                strokeWidth="1.5"
+                fill="none"
+                strokeLinecap="round"
+              />
+            </svg>
+            {/* Spiral 3 - bottom right */}
+            <svg
+              className="absolute animate-egg-spiral"
+              style={{
+                bottom: '20%',
+                right: '0%',
+                width: '0.7em',
+                height: '0.7em',
+                zIndex: 20,
+                animationDelay: '1s',
+              }}
+              viewBox="0 0 20 20"
+            >
+              <path
+                d="M10 2 Q15 5 12 10 Q9 15 10 18"
+                stroke="rgba(147, 51, 234, 0.5)"
+                strokeWidth="1.5"
+                fill="none"
+                strokeLinecap="round"
+              />
+            </svg>
+          </>
+        )}
+
+        {/* Happy effect: subtle sparkles around egg */}
+        {statusEffects?.happy && (
+          <>
+            {/* Sparkle 1 - top */}
+            <div
+              className="absolute animate-egg-sparkle"
+              style={{
+                top: '5%',
+                left: '45%',
+                width: '0.5em',
+                height: '0.5em',
+                zIndex: 20,
+              }}
+            >
+              <svg viewBox="0 0 20 20" className="w-full h-full">
+                <path
+                  d="M10 0 L10 20 M0 10 L20 10 M3 3 L17 17 M17 3 L3 17"
+                  stroke="rgba(251, 191, 36, 0.8)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            {/* Sparkle 2 - right */}
+            <div
+              className="absolute animate-egg-sparkle"
+              style={{
+                top: '25%',
+                right: '0%',
+                width: '0.4em',
+                height: '0.4em',
+                zIndex: 20,
+                animationDelay: '0.4s',
+              }}
+            >
+              <svg viewBox="0 0 20 20" className="w-full h-full">
+                <path
+                  d="M10 0 L10 20 M0 10 L20 10"
+                  stroke="rgba(251, 191, 36, 0.7)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            {/* Sparkle 3 - left */}
+            <div
+              className="absolute animate-egg-sparkle"
+              style={{
+                top: '40%',
+                left: '0%',
+                width: '0.35em',
+                height: '0.35em',
+                zIndex: 20,
+                animationDelay: '0.8s',
+              }}
+            >
+              <svg viewBox="0 0 20 20" className="w-full h-full">
+                <path
+                  d="M10 0 L10 20 M0 10 L20 10"
+                  stroke="rgba(251, 191, 36, 0.6)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
           </>
         )}
       </div>

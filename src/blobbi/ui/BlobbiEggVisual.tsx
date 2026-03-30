@@ -13,7 +13,7 @@
 
 import { useMemo } from 'react';
 
-import { EggGraphic, type EggReactionState } from '@/blobbi/egg';
+import { EggGraphic, type EggReactionState, type EggStatusEffects } from '@/blobbi/egg';
 import { toEggGraphicVisualBlobbi } from '@/blobbi/core/lib/blobbi-egg-adapter';
 import { cn } from '@/lib/utils';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
@@ -23,7 +23,7 @@ import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 export type BlobbiEggSize = 'sm' | 'md' | 'lg';
 
 // Re-export for convenience
-export type { EggReactionState } from '@/blobbi/egg';
+export type { EggReactionState, EggStatusEffects } from '@/blobbi/egg';
 
 export interface BlobbiEggVisualProps {
   /** The Blobbi companion data from parseBlobbiEvent */
@@ -34,6 +34,8 @@ export interface BlobbiEggVisualProps {
   animated?: boolean;
   /** Reaction state for music/sing animations */
   reaction?: EggReactionState;
+  /** Status effects for egg visual feedback (dirty, sick, happy) */
+  statusEffects?: EggStatusEffects;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -67,6 +69,7 @@ export function BlobbiEggVisual({
   size = 'md',
   animated = false,
   reaction = 'idle',
+  statusEffects,
   className,
 }: BlobbiEggVisualProps) {
   // Memoize adapter output to avoid unnecessary re-renders
@@ -99,6 +102,7 @@ export function BlobbiEggVisual({
         sizeVariant={config.sizeVariant}
         animated={animated && !isSleeping}
         reaction={effectiveReaction}
+        statusEffects={isSleeping ? undefined : statusEffects}
       />
     </div>
   );
