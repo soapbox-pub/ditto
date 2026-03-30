@@ -104,8 +104,11 @@ export function BlobbiCompanionVisual({
     return transforms.length > 0 ? transforms.join(' ') : undefined;
   }, [floatOffset]);
   
-  // Determine reaction state
-  const reaction = isDragging ? 'happy' : isWalking ? 'idle' : 'idle';
+  // Determine reaction state for CSS animations
+  // - happy: when being dragged (Blobbi enjoys interaction)
+  // - swaying: when walking (natural movement animation)
+  // - idle: default state
+  const reaction = isDragging ? 'happy' : isWalking ? 'swaying' : 'idle';
   
   // Shadow visibility and appearance based on ground proximity
   // Shadow should only appear when Blobbi is on or very near the ground
