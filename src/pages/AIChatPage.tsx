@@ -83,6 +83,25 @@ For backgrounds, provide a URL to a publicly accessible image. Choose images tha
   {
     type: 'function' as const,
     function: {
+      name: 'search_users',
+      description: `Search for Nostr users by name. Returns matching profiles with their pubkeys, display names, NIP-05 identifiers, and bios. Use this when you need to resolve a person's name to their Nostr pubkey — for example, when creating a spell that targets a specific author.
+
+The search checks the user's follow list first (contacts), then falls back to a broader relay search. Results from contacts are prioritized since they're more likely to be the person the user means.`,
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The name or display name to search for (e.g. "Derek Ross", "fiatjaf", "jb55").',
+          },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
       name: 'create_spell',
       description: `Create a Nostr spell — a saved query that acts as a custom feed. The spell is published as a kind:777 event and can be added to the sidebar for quick access.
 
@@ -242,6 +261,7 @@ interface ToolExecutorResult {
 function useToolExecutor() {
   const { applyCustomTheme } = useTheme();
   const { nostr } = useNostr();
+  const { user } = useCurrentUser();
 
   const executeToolCall = useCallback(async (name: string, args: Record<string, unknown>): Promise<ToolExecutorResult> => {
     switch (name) {
@@ -301,6 +321,114 @@ function useToolExecutor() {
         return { result: JSON.stringify(resultData) };
       }
 
+      case 'search_users': {
+        try {
+          const query = typeof args.query === 'string' ? args.query.trim().toLowerCase() : '';
+          if (!query) {
+            return { result: JSON.stringify({ error: 'A search query is required.' }) };
+          }
+
+          interface ProfileMatch {
+            pubkey: string;
+            name?: string;
+            display_name?: string;
+            nip05?: string;
+            about?: string;
+            source: 'contacts' | 'relay';
+          }
+
+          const matches: ProfileMatch[] = [];
+
+          // Phase 1: Search user's contacts
+          if (user) {
+            const contactEvents = await nostr.query(
+              [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
+              { signal: AbortSignal.timeout(5000) },
+            );
+
+            const contactPubkeys = contactEvents[0]?.tags
+              .filter(([t]) => t === 'p')
+              .map(([, pk]) => pk) ?? [];
+
+            if (contactPubkeys.length > 0) {
+              // Fetch metadata for contacts in batches
+              const batchSize = 100;
+              for (let i = 0; i < contactPubkeys.length && matches.length < 5; i += batchSize) {
+                const batch = contactPubkeys.slice(i, i + batchSize);
+                const metaEvents = await nostr.query(
+                  [{ kinds: [0], authors: batch }],
+                  { signal: AbortSignal.timeout(8000) },
+                );
+
+                for (const event of metaEvents) {
+                  try {
+                    const meta = JSON.parse(event.content);
+                    const name = (meta.name || '').toLowerCase();
+                    const displayName = (meta.display_name || '').toLowerCase();
+                    const nip05 = (meta.nip05 || '').toLowerCase();
+
+                    if (name.includes(query) || displayName.includes(query) || nip05.includes(query)) {
+                      matches.push({
+                        pubkey: event.pubkey,
+                        name: meta.name,
+                        display_name: meta.display_name,
+                        nip05: meta.nip05,
+                        about: meta.about ? meta.about.slice(0, 100) : undefined,
+                        source: 'contacts',
+                      });
+                    }
+                  } catch {
+                    // Skip events with invalid metadata JSON
+                  }
+                }
+              }
+            }
+          }
+
+          // Phase 2: NIP-50 relay search (if contacts didn't yield enough results)
+          if (matches.length < 3) {
+            try {
+              const searchEvents = await nostr.query(
+                [{ kinds: [0], search: args.query as string, limit: 10 }],
+                { signal: AbortSignal.timeout(8000) },
+              );
+
+              const existingPubkeys = new Set(matches.map((m) => m.pubkey));
+
+              for (const event of searchEvents) {
+                if (existingPubkeys.has(event.pubkey)) continue;
+                try {
+                  const meta = JSON.parse(event.content);
+                  matches.push({
+                    pubkey: event.pubkey,
+                    name: meta.name,
+                    display_name: meta.display_name,
+                    nip05: meta.nip05,
+                    about: meta.about ? meta.about.slice(0, 100) : undefined,
+                    source: 'relay',
+                  });
+                } catch {
+                  // Skip events with invalid metadata JSON
+                }
+              }
+            } catch {
+              // NIP-50 search may not be supported by all relays
+            }
+          }
+
+          // Return top 5
+          const results = matches.slice(0, 5);
+
+          if (results.length === 0) {
+            return { result: JSON.stringify({ matches: [], message: `No users found matching "${args.query}". The user may need to provide an npub or NIP-05 address.` }) };
+          }
+
+          return { result: JSON.stringify({ matches: results }) };
+        } catch (err) {
+          return { result: JSON.stringify({ error: `Search failed: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
+        }
+      }
+
       case 'create_spell': {
         try {
           if (typeof args.name !== 'string' || !args.name.trim()) {
@@ -354,7 +482,7 @@ function useToolExecutor() {
       default:
         return { result: JSON.stringify({ error: `Unknown tool: ${name}` }) };
     }
-  }, [applyCustomTheme, nostr]);
+  }, [applyCustomTheme, nostr, user]);
 
   return { executeToolCall };
 }
@@ -411,6 +539,8 @@ You also have a create_spell tool that creates Nostr spells (NIP-A7) — saved q
 - "what I've been posting lately" → authors: ["$me"], kinds: [1], since: "30d"
 
 Keep spell names short and descriptive (2-4 words). When you create a spell, briefly explain what it will show.
+
+You also have a search_users tool for resolving names to Nostr pubkeys. When a user mentions a specific person by name (e.g. "Derek Ross", "fiatjaf"), use search_users to find their pubkey before creating a spell that references them. The search checks the user's contacts first, then does a broader relay search. If multiple matches are found, ask the user to confirm which one they meant. Use the hex pubkey from the results directly in the spell's authors array.
 
 Be concise and friendly. When you use a tool, briefly describe what you created.`,
 };
@@ -546,18 +676,32 @@ export function AIChatPage() {
     setIsStreaming(true);
 
     try {
-      // Build API messages
-      const apiMessages = buildApiMessages(newMessages);
+      const MAX_TOOL_ROUNDS = 10;
+      let apiMessages = buildApiMessages(newMessages);
+      let currentMessages = newMessages;
 
-      // Send with tools
-      const response = await sendChatMessage(apiMessages, selectedModel, {
-        tools: TOOLS,
-      });
+      for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+        // Send with tools
+        const response = await sendChatMessage(apiMessages, selectedModel, {
+          tools: TOOLS,
+        });
 
-      const choice = response.choices[0];
-      const assistantMsg = choice.message;
+        const choice = response.choices[0];
+        const assistantMsg = choice.message;
 
-      if (assistantMsg.tool_calls && assistantMsg.tool_calls.length > 0) {
+        if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
+          // No tool calls — final text response, done
+          const content = typeof assistantMsg.content === 'string' ? assistantMsg.content : '';
+          const assistantMessage: DisplayMessage = {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content,
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, assistantMessage]);
+          break;
+        }
+
         // Execute tool calls
         let nostrEvent: NostrEvent | undefined;
         const toolCalls: ToolCall[] = [];
@@ -584,7 +728,7 @@ export function AIChatPage() {
           });
         }
 
-        // Add assistant message with tool calls noted
+        // Add assistant message with tool calls to display
         const toolMsg: DisplayMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
@@ -593,49 +737,27 @@ export function AIChatPage() {
           toolCalls,
           nostrEvent,
         };
-        const messagesWithTool = [...newMessages, toolMsg];
-        setMessages(messagesWithTool);
+        currentMessages = [...currentMessages, toolMsg];
+        setMessages(currentMessages);
 
-        // Build follow-up messages including tool results
-        const followUpMessages: ChatMessage[] = buildApiMessages(newMessages);
+        // Build follow-up messages with tool results for the next round
+        apiMessages = buildApiMessages(currentMessages);
 
-        // Add the assistant message with tool_calls
-        followUpMessages.push({
+        // Add the assistant message that contained tool_calls
+        apiMessages.push({
           role: 'assistant',
           content: assistantMsg.content || '',
         });
 
         // Add tool results
         for (const tc of toolCalls) {
-          followUpMessages.push({
+          apiMessages.push({
             role: 'user' as const,
             content: `[Tool "${tc.name}" returned: ${tc.result}]`,
           });
         }
 
-        // Get follow-up response from AI
-        const followUp = await sendChatMessage(followUpMessages, selectedModel);
-        const followUpContent = followUp.choices[0]?.message?.content;
-
-        if (followUpContent) {
-          const followUpMsg: DisplayMessage = {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            content: typeof followUpContent === 'string' ? followUpContent : '',
-            timestamp: new Date(),
-          };
-          setMessages((prev) => [...prev, followUpMsg]);
-        }
-      } else {
-        // Normal response without tool calls
-        const content = typeof assistantMsg.content === 'string' ? assistantMsg.content : '';
-        const assistantMessage: DisplayMessage = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
+        // Loop continues — next iteration sends follow-up with tools available
       }
     } catch (err) {
       console.error('Chat error:', err);
