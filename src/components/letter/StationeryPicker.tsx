@@ -259,15 +259,23 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
   const hasEmoji = !!resolved?.emoji;
   const isColorMoment = selected?.event?.kind === COLOR_MOMENT_KIND;
   const isTheme = selected?.event?.kind === THEME_KIND;
-  const isSingleColor = isColorMoment && selected?.colors !== undefined && selected.colors.length === 0;
+
+  // Remember the last color moment event so we can restore it when toggling off flat mode
+  const lastColorMomentRef = useRef<NostrEvent | undefined>(undefined);
+  if (isColorMoment && selected?.event) lastColorMomentRef.current = selected.event;
+
+  // Flat mode = color moment was selected but event has been stripped (only color remains)
+  const isFlatMode = !!(selected && !selected.event && lastColorMomentRef.current);
 
   const toggleSingleColor = () => {
-    if (!selected || !isColorMoment) return;
-    if (isSingleColor) {
-      const { colors: _, ...rest } = selected;
+    if (!selected) return;
+    if (isFlatMode && lastColorMomentRef.current) {
+      // Restore: put the event back
+      onSelect({ ...selected, event: lastColorMomentRef.current });
+    } else if (isColorMoment && selected.event) {
+      // Flatten: strip the event, keep only color
+      const { event: _, ...rest } = selected;
       onSelect(rest as Stationery);
-    } else {
-      onSelect({ ...selected, colors: [] });
     }
   };
 
@@ -359,7 +367,7 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
         {tab === 'themes' && <ThemesGrid key={scope} selectedStationery={selected} onSelect={onSelect} authors={scopedAuthors} />}
       </div>
 
-      {((hasEmoji && !isTheme) || isColorMoment) && (
+      {((hasEmoji && !isTheme) || isColorMoment || isFlatMode) && (
         <div className="flex items-center gap-4 px-1 pt-1">
           {hasEmoji && !isTheme && (
             <label className="flex items-center gap-1.5">
@@ -367,9 +375,9 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
               <span className="text-sm text-muted-foreground font-medium">emblem</span>
             </label>
           )}
-          {isColorMoment && (
+          {(isColorMoment || isFlatMode) && (
             <label className="flex items-center gap-1.5">
-              <Switch checked={isSingleColor} onCheckedChange={toggleSingleColor} />
+              <Switch checked={isFlatMode} onCheckedChange={toggleSingleColor} />
               <span className="text-sm text-muted-foreground font-medium">flat</span>
             </label>
           )}

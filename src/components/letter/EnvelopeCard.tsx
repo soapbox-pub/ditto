@@ -20,20 +20,23 @@
  * Label: name left-aligned, shorthand time right-aligned.
  */
 
-import { useMemo } from 'react';
-import { Clock } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Clock, MoreHorizontal } from 'lucide-react';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useDecryptLetter } from '@/hooks/useLetters';
 import { genUserName } from '@/lib/genUserName';
 import { resolveStationery, DEFAULT_STATIONERY_COLOR, type Letter } from '@/lib/letterTypes';
 import { hexLuminance, darkenHex, lightenHex, blendHex } from '@/lib/colorUtils';
 import { StationeryBackground } from './StationeryBackground';
+import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 
 interface EnvelopeCardProps {
   letter: Letter;
   mode: 'inbox' | 'sent';
   index: number;
   onClick: () => void;
+  /** Hide name/timestamp label — used in notification context. */
+  minimal?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,10 +85,11 @@ function shortTimeAgo(ts: number): string {
 const V_PCT = 65;
 const FLAP_Y_PCT = 15;
 
-export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps) {
+export function EnvelopeCard({ letter, mode, index, onClick, minimal }: EnvelopeCardProps) {
   const otherPubkey = mode === 'inbox' ? letter.sender : letter.recipient;
   const author = useAuthor(otherPubkey);
   const { data: decrypted } = useDecryptLetter(letter);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   const displayName = author.data?.metadata?.name || genUserName(otherPubkey);
   const avatar = author.data?.metadata?.picture;
@@ -100,6 +104,7 @@ export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps
   const flapClip = `polygon(0% 0%, 100% 0%, 100% ${FLAP_Y_PCT}%, 50% ${V_PCT}%, 0% ${FLAP_Y_PCT}%)`;
 
   return (
+    <>
     <button
       onClick={onClick}
       className="envelope-card group outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl w-full"
@@ -170,24 +175,26 @@ export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps
         </svg>
 
         {/* Layer 4: Name + time inside the envelope bottom */}
-        <div
-          className="absolute left-0 right-0 bottom-0 flex flex-col items-start px-2.5 pb-1.5 pt-0.5"
-          style={{ zIndex: 3 }}
-        >
-          <span
-            className="flex items-center gap-0.5 text-[9px] font-medium leading-tight"
-            style={{ color: C.textMuted }}
+        {!minimal && (
+          <div
+            className="absolute left-0 right-0 bottom-0 flex flex-col items-start px-2.5 pb-1.5 pt-0.5"
+            style={{ zIndex: 3 }}
           >
-            <Clock className="w-2 h-2" />
-            {timeStr}
-          </span>
-          <span
-            className="text-[11px] font-semibold truncate leading-tight max-w-full"
-            style={{ color: C.text }}
-          >
-            {displayName}
-          </span>
-        </div>
+            <span
+              className="flex items-center gap-0.5 text-[9px] font-medium leading-tight"
+              style={{ color: C.textMuted }}
+            >
+              <Clock className="w-2 h-2" />
+              {timeStr}
+            </span>
+            <span
+              className="text-[11px] font-semibold truncate leading-tight max-w-full"
+              style={{ color: C.text }}
+            >
+              {displayName}
+            </span>
+          </div>
+        )}
 
         {/* Layer 3: Avatar wax seal — positioned above V vertex */}
         <div
@@ -225,8 +232,29 @@ export function EnvelopeCard({ letter, mode, index, onClick }: EnvelopeCardProps
             )}
           </div>
         </div>
+
+        {/* Layer 5: Overflow menu trigger — lower right corner */}
+        <div
+          className="absolute bottom-1.5 right-1.5"
+          style={{ zIndex: 20 }}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
+            className="p-1 rounded-full transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+            style={{
+              background: `${C.body}cc`,
+              color: C.textMuted,
+            }}
+            title="More options"
+          >
+            <MoreHorizontal className="w-3.5 h-3.5" strokeWidth={2.5} />
+          </button>
+        </div>
       </div>
 
     </button>
+
+    <NoteMoreMenu event={letter.event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+    </>
   );
 }

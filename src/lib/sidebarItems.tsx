@@ -239,7 +239,6 @@ export function itemPath(
  */
 export function searchSidebarItems(
   query: string,
-  isLoggedIn: boolean,
 ): SidebarItemDef[] {
   const q = query.trim().toLowerCase();
   if (q.length === 0) return [];
@@ -248,7 +247,6 @@ export function searchSidebarItems(
   const wordMatches: SidebarItemDef[] = [];
 
   for (const item of SIDEBAR_ITEMS) {
-    if (item.requiresAuth && !isLoggedIn) continue;
     const label = item.label.toLowerCase();
     if (label.startsWith(q)) {
       prefixMatches.push(item);

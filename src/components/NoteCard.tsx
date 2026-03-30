@@ -112,6 +112,8 @@ interface NoteCardProps {
   threadedLast?: boolean;
   /** If true, briefly highlight this card (e.g. newly loaded post). */
   highlight?: boolean;
+  /** If true, suppress the kind-derived action header (e.g. "created a badge"). Used when the parent already provides context. */
+  hideKindHeader?: boolean;
 }
 
 /** Gets a tag value by name. */
@@ -183,6 +185,7 @@ export const NoteCard = memo(function NoteCard({
   threaded,
   threadedLast,
   highlight,
+  hideKindHeader,
 }: NoteCardProps) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
@@ -1034,7 +1037,7 @@ export const NoteCard = memo(function NoteCard({
   // ── Threaded layout (with or without connector line) ──
   if (threaded || threadedLast) {
     // Kind action header (e.g. "updated their badges") — same logic as normal layout
-    const threadedKindHeader = !repostedBy && KIND_HEADER_MAP[event.kind]
+    const threadedKindHeader = !repostedBy && !hideKindHeader && KIND_HEADER_MAP[event.kind]
       ? (() => {
           const cfg = KIND_HEADER_MAP[event.kind];
           const isLive = event.kind === 30311 && getEffectiveStreamStatus(event) === "live";
@@ -1123,7 +1126,7 @@ export const NoteCard = memo(function NoteCard({
           action="reposted"
         />
       ) : (
-        KIND_HEADER_MAP[event.kind] &&
+        !hideKindHeader && KIND_HEADER_MAP[event.kind] &&
         (() => {
           const cfg = KIND_HEADER_MAP[event.kind];
           const isLive =

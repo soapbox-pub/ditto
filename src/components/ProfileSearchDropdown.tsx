@@ -23,7 +23,6 @@ import { useWikipediaSearch, type WikipediaSearchResult } from '@/hooks/useWikip
 import { useArchiveSearch, type ArchiveSearchResult } from '@/hooks/useArchiveSearch';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
 
 interface ProfileSearchDropdownProps {
@@ -56,7 +55,6 @@ export function ProfileSearchDropdown({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const { user } = useCurrentUser();
   const { data: rawProfiles, isFetching, followedPubkeys } = useSearchProfiles(query);
 
   // Wikipedia & Archive search (async, debounced by their hooks at >=2 chars)
@@ -72,7 +70,7 @@ export function ProfileSearchDropdown({
   const countryMatch = hideCountry ? null : countryMatchRaw;
 
   // Nav item suggestions (local, synchronous)
-  const navItems = useMemo(() => searchSidebarItems(query, !!user), [query, user]);
+  const navItems = useMemo(() => searchSidebarItems(query), [query]);
 
   // URL detection — show "Comment on" option when query is a full URL
   const queryIsUrl = useMemo(() => isFullUrl(query), [query]);

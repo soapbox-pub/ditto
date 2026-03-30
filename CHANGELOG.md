@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.2.3] - 2026-03-30
+
+### Added
+- Letters now have an overflow menu, reply button, and a grid layout for browsing
+- Independent feed toggles for comments and generic reposts in content settings
+- Sidebar items are now visible to logged-out users so newcomers can explore everything
+
+### Changed
+- Compose textarea expands smoothly as you type instead of snapping to a new height
+- Blobbi stickers auto-shrink near card edges and clip cleanly at rounded boundaries
+
+### Fixed
+- Feed gaps when replies are disabled no longer cause missing posts
+- Avatar shape no longer flashes on load
+- Top bar arc no longer flickers during navigation transitions
+- Letter drawing-only sends, sticker drag bounds, and theme event preservation
+- Notification rendering for badges and letters
+- Duplicate React keys in content settings
+- Layout rendering warning when switching views
+
 ## [2.2.2] - 2026-03-29
 
 ### Added

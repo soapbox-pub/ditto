@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { useNavigate } from 'react-router-dom';
-import { PenLine, Settings, Loader2 } from 'lucide-react';
+import { Settings, Loader2 } from 'lucide-react';
 import { MailboxIcon } from '@/components/icons/MailboxIcon';
+import { InkPenIcon } from '@/components/icons/InkPenIcon';
 import { Button } from '@/components/ui/button';
 import { FabButton } from '@/components/FabButton';
 
@@ -44,6 +45,7 @@ export function LettersPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('inbox');
   const [composing, setComposing] = useState(false);
+  const [replyToNpub, setReplyToNpub] = useState<string | undefined>(undefined);
   const [selectedLetter, setSelectedLetter] = useState<Letter | null>(null);
 
   useLayoutOptions({ showFAB: false, hasSubHeader: !!user, noOverscroll: composing });
@@ -99,7 +101,8 @@ export function LettersPage() {
     >
       {composing && (
         <ComposeLetterSheet
-          onClose={() => setComposing(false)}
+          onClose={() => { setComposing(false); setReplyToNpub(undefined); }}
+          toPubkey={replyToNpub}
         />
       )}
       <PageHeader title="Letters" icon={<MailboxIcon className="size-5" />} backTo="/" alwaysShowBack>
@@ -122,8 +125,8 @@ export function LettersPage() {
       {/* Envelope grid */}
       <div className="px-4 py-3">
         {isLoading && (
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sidebar:grid-cols-3">
-            {Array.from({ length: 9 }).map((_, i) => (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sidebar:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
               <EnvelopeSkeleton key={i} index={i} />
             ))}
           </div>
@@ -152,7 +155,7 @@ export function LettersPage() {
 
         {!isLoading && activeLetters && activeLetters.length > 0 && (
           <>
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sidebar:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sidebar:grid-cols-4">
               {activeLetters.map((letter, i) => (
                 <EnvelopeCard
                   key={letter.event.id}
@@ -185,16 +188,22 @@ export function LettersPage() {
       <LetterDetailSheet
         letter={selectedLetter}
         onClose={() => setSelectedLetter(null)}
+        onReply={(npub) => {
+          setSelectedLetter(null);
+          setReplyToNpub(npub);
+          setComposing(true);
+        }}
       />
 
       {/* Compose FAB */}
       <div className="fixed bottom-fab right-6 z-30 sidebar:hidden">
-        <FabButton onClick={() => setComposing(true)} icon={<PenLine size={18} strokeWidth={3} />} title="Write a letter" />
+            <FabButton onClick={() => setComposing(true)} icon={<InkPenIcon style={{ width: 18, height: 18 }} strokeWidth={2.5} />} title="Write a letter" />
       </div>
       <div className="hidden sidebar:block sticky bottom-6 z-30 pointer-events-none">
         <div className="flex justify-end pr-4">
           <div className="pointer-events-auto">
-            <FabButton onClick={() => setComposing(true)} icon={<PenLine size={18} strokeWidth={3} />} title="Write a letter" />
+        <FabButton onClick={() => setComposing(true)} icon={<InkPenIcon style={{ width: 18, height: 18 }} strokeWidth={2.5} />} title="Write a letter" />
+
           </div>
         </div>
       </div>

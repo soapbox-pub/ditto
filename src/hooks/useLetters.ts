@@ -193,7 +193,7 @@ export function useDecryptLetter(letter: Letter | undefined) {
       try {
         const decrypted = await user.signer.nip44.decrypt(otherPubkey, letter.event.content);
         const parsed = JSON.parse(decrypted) as LetterContent;
-        if (!parsed.body) return null;
+        if (!parsed.body && (!parsed.stickers || parsed.stickers.length === 0)) return null;
 
         return {
           content: parsed,

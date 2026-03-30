@@ -20,7 +20,7 @@ import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { getSidebarItem, isItemActive } from '@/lib/sidebarItems';
+import { isItemActive } from '@/lib/sidebarItems';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStatus } from '@/hooks/useUserStatus';
@@ -86,19 +86,15 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const hasBgImage = Object.keys(bgStyle).length > 0;
 
   const visibleItems = useMemo(() => {
-    const filtered = user ? orderedItems : orderedItems.filter((id) => !getSidebarItem(id)?.requiresAuth);
     // Remove dividers that have no real items above them (at the top or right after another divider).
-    return filtered.filter((id, i) => {
+    return orderedItems.filter((id, i) => {
       if (id !== 'divider') return true;
-      const prevNonDivider = filtered.slice(0, i).some((prev) => prev !== 'divider');
+      const prevNonDivider = orderedItems.slice(0, i).some((prev) => prev !== 'divider');
       return prevNonDivider;
     });
-  }, [orderedItems, user]);
+  }, [orderedItems]);
 
-  const visibleHiddenItems = useMemo(() => {
-    if (user) return hiddenItems;
-    return hiddenItems.filter((item) => !getSidebarItem(item.id)?.requiresAuth);
-  }, [hiddenItems, user]);
+  const visibleHiddenItems = hiddenItems;
 
   const handleClose = () => { onOpenChange(false); setMoreMenuOpen(false); };
   const handleLogout = async () => { await logout(); handleClose(); navigate('/'); };

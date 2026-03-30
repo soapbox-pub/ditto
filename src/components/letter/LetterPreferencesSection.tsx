@@ -12,14 +12,12 @@ import {
   FONT_OPTIONS,
   type Stationery,
   type FrameStyle,
-  type SerializableStationery,
 } from '@/lib/letterTypes';
 import { LetterEditor, type BaseOverlay } from './LetterEditor';
 
-/** Strip the non-serializable `event` field before persisting */
-function toSerializable(s: Stationery): SerializableStationery {
-  const { event: _, ...rest } = s;
-  return rest;
+/** Convert to serializable form for persisting. NostrEvent is plain JSON, so no stripping needed. */
+function toSerializable(s: Stationery): Stationery {
+  return s;
 }
 
 export function LetterPreferencesSection() {

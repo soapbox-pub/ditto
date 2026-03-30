@@ -100,6 +100,15 @@ function groupKey(item: NotificationItem): string {
   const refId = item.referencedEvent?.id ?? getReferencedEventId(event);
 
   if ((event.kind === 7 || event.kind === 6 || event.kind === 16 || event.kind === 9735) && refId) {
+    // Profile reactions (kind 7 on kind 0) are standalone — users can react
+    // to a profile multiple times, so each reaction gets its own notification.
+    const isProfileReaction = event.kind === 7 && (
+      item.referencedEvent?.kind === 0
+      || event.tags.some(([name, value]) => name === 'k' && value === '0')
+    );
+    if (isProfileReaction) {
+      return event.id;
+    }
     // Use a canonical kind bucket so kind-6 and kind-16 reposts merge together
     const bucket = event.kind === 6 || event.kind === 16 ? 'repost' : String(event.kind);
     return `${bucket}:${refId}`;

@@ -12,6 +12,13 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
 
+/**
+ * Over-fetch multiplier: when client-side reply filtering is active, we ask
+ * the relay for more events than `PAGE_SIZE` to compensate for events that
+ * will be discarded. This prevents large time gaps in the visible feed.
+ */
+const OVER_FETCH_MULTIPLIER = 3;
+
 // Re-export FeedItem for backwards compatibility
 export type { FeedItem };
 
@@ -20,6 +27,8 @@ interface FeedPage {
   items: FeedItem[];
   /** The oldest timestamp from the raw relay query (before deduplication) for pagination. */
   oldestQueryTimestamp: number;
+  /** Number of valid events returned by the relay (before client-side filtering). */
+  rawCount: number;
 }
 
 interface UseFeedOptions {
@@ -91,7 +100,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
 
       if (tab === 'communities' && communityPubkeys.length > 0) {
         // Communities feed — posts from community members with NIP-05 verification
-        const filter: Record<string, unknown> = { kinds: allKinds, authors: communityPubkeys, limit: PAGE_SIZE, ...tagFilters };
+        const fetchLimit = !feedSettings.followsFeedShowReplies ? PAGE_SIZE * OVER_FETCH_MULTIPLIER : PAGE_SIZE;
+        const filter: Record<string, unknown> = { kinds: allKinds, authors: communityPubkeys, limit: fetchLimit, ...tagFilters };
         if (pageParam) {
           filter.until = pageParam;
         }
@@ -227,12 +237,13 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         // when NoteCard components mount.
         cacheEvents(dedupedItems);
 
-        return { items: dedupedItems, oldestQueryTimestamp };
+        return { items: dedupedItems, oldestQueryTimestamp, rawCount: validFilteredEvents.length };
       } else if (tab === 'follows' && user && followList !== undefined) {
         // Follows feed — posts, reposts, and extra kinds from people you follow
         // If followList is empty, just query own posts
         const authors = followList.length > 0 ? [...followList, user.pubkey] : [user.pubkey];
-        const filter: Record<string, unknown> = { kinds: allKinds, authors, limit: PAGE_SIZE, ...tagFilters };
+        const fetchLimit = !feedSettings.followsFeedShowReplies ? PAGE_SIZE * OVER_FETCH_MULTIPLIER : PAGE_SIZE;
+        const filter: Record<string, unknown> = { kinds: allKinds, authors, limit: fetchLimit, ...tagFilters };
         if (pageParam) {
           filter.until = pageParam;
         }
@@ -309,7 +320,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         // Seed event cache so embedded note previews resolve instantly.
         cacheEvents(dedupedItems);
 
-        return { items: dedupedItems, oldestQueryTimestamp };
+        return { items: dedupedItems, oldestQueryTimestamp, rawCount: validEvents.length };
       } else {
         // Global feed — all enabled kinds except reposts (too noisy without author filter)
         const globalKinds = allKinds.filter((k) => !isRepostKind(k));
@@ -338,13 +349,14 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         // Seed event cache so embedded note previews resolve instantly.
         cacheEvents(items);
 
-        return { items, oldestQueryTimestamp };
+        return { items, oldestQueryTimestamp, rawCount: validEvents.length };
       }
     },
     getNextPageParam: (lastPage) => {
-      if (lastPage.items.length === 0) return undefined;
-      // Use the oldest timestamp from the raw relay query (before deduplication) minus 1
-      // This ensures we don't skip events when deduplication reduces the page size
+      // Use rawCount (pre-filter) to decide if there are more events on the relay.
+      // Reply filtering may discard all items from a page, but that doesn't mean
+      // the relay is exhausted.
+      if (lastPage.rawCount === 0) return undefined;
       return lastPage.oldestQueryTimestamp - 1;
     },
     initialPageParam: undefined as number | undefined,

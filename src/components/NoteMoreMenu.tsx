@@ -177,8 +177,9 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const mentionContent = `nostr:${nip19.npubEncode(event.pubkey)} `;
 
   const handleDelete = () => {
+    const dTag = event.tags.find(([name]) => name === 'd')?.[1];
     deleteEvent(
-      { eventId: event.id, eventKind: event.kind },
+      { eventId: event.id, eventKind: event.kind, eventPubkey: event.pubkey, eventDTag: dTag },
       {
         onSuccess: () => {
           setDeleteConfirmOpen(false);
@@ -396,7 +397,11 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
                 <span className="text-muted-foreground shrink-0 text-xs">{timeAgo(event.created_at)}</span>
               </div>
               <div className="mt-0.5 text-sm text-muted-foreground line-clamp-3 max-h-[4.5em] overflow-hidden">
-                <NoteContent event={event} className="text-sm leading-relaxed" disableEmbeds />
+                {/^[A-Za-z0-9+/=_-]{20,}$/.test(event.content.trim()) ? (
+                  <span className="italic">Encrypted content</span>
+                ) : (
+                  <NoteContent event={event} className="text-sm leading-relaxed" disableEmbeds />
+                )}
               </div>
             </div>
           </div>

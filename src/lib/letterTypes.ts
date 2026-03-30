@@ -29,7 +29,8 @@ export interface LetterSticker {
 }
 
 export interface LetterContent {
-  body: string;
+  /** Main letter text. Optional — a letter must have either a non-empty body or at least one sticker. */
+  body?: string;
   closing?: string;
   signature?: string;
   /** Stickers placed on the letter card — stored in encrypted content for privacy */
@@ -53,8 +54,7 @@ export interface Stationery {
   emoji?: string;
   /** Emoji display mode: 'tile' (faint repeating pattern) or 'emblem' (single large centered glyph). */
   emojiMode?: 'tile' | 'emblem';
-  /** Palette colors override. Empty array = "flat" mode (suppress palette). */
-  colors?: string[];
+
   /** CSS font-family string (e.g. "Caveat, cursive"). Set from the sender's font choice. */
   fontFamily?: string;
   /** Frame style ID. */
@@ -110,14 +110,9 @@ export function resolveStationery(s: Stationery): ResolvedStationery {
   const event = s.event;
 
   if (event?.kind === COLOR_MOMENT_KIND) {
-    // Colors override: empty array = flat mode, undefined = read from event
-    if (s.colors !== undefined) {
-      base.colors = s.colors.length > 0 ? s.colors : undefined;
-    } else {
-      const hexRe = /^#[0-9A-Fa-f]{6}$/;
-      const eventColors = event.tags.filter(([n]) => n === 'c').map(([, c]) => c).filter((c) => hexRe.test(c));
-      if (eventColors.length >= 2) base.colors = eventColors;
-    }
+    const hexRe = /^#[0-9A-Fa-f]{6}$/;
+    const eventColors = event.tags.filter(([n]) => n === 'c').map(([, c]) => c).filter((c) => hexRe.test(c));
+    if (eventColors.length >= 2) base.colors = eventColors;
     base.layout = s.layout ?? event.tags.find(([n]) => n === 'layout')?.[1];
     if (!base.emoji) {
       const raw = event.content?.trim();
@@ -150,7 +145,6 @@ export function resolveStationery(s: Stationery): ResolvedStationery {
   // No event or unknown kind — use legacy flat fallbacks (old letters, presets)
   base.textColor = s.textColor;
   base.primaryColor = s.primaryColor;
-  base.colors = s.colors;
   base.layout = s.layout;
   base.imageUrl = s.imageUrl;
   base.imageMode = s.imageMode ?? 'cover';
@@ -247,9 +241,10 @@ export const FONT_OPTIONS = [
 ];
 
 /**
- * Serializable stationery for localStorage persistence (no raw NostrEvent).
+ * Serializable stationery for localStorage persistence.
+ * NostrEvent is a plain JSON object, so it serializes fine.
  */
-export type SerializableStationery = Omit<Stationery, 'event'>;
+export type SerializableStationery = Stationery;
 
 /**
  * User's default letter preferences — persisted per-pubkey in settings.

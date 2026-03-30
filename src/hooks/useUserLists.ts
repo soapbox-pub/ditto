@@ -356,12 +356,14 @@ export function useUserLists() {
         tags: [['d', listId]],
       } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
 
-      // Step 2: Publish the kind 5 deletion event
+      // Step 2: Publish the kind 5 deletion event with both 'e' and 'a' tags
+      // so it works on relays that only support e-tag deletion as well as
+      // relays that support a-tag deletion.
       const coordTag = `30000:${user.pubkey}:${listId}`;
       await publishEvent({
         kind: 5,
         content: 'Deleted list',
-        tags: [['a', coordTag], ['k', '30000']],
+        tags: [['e', list.event.id], ['a', coordTag], ['k', '30000']],
       } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
 
       return { listId };

@@ -14,7 +14,9 @@ import { sanitizeSvg } from '@/lib/sanitizeSvg';
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 4;
-const BASE_SIZE_CQW = 14;
+const BASE_SIZE_CQW = 14; // cqw — base sticker size at scale=1, scales with card width
+/** Inward buffer (%) so sticker centers can't reach the very edge of the card. */
+const EDGE_BUFFER = 5;
 
 function isSafeUrl(url: string): boolean {
   try {
@@ -28,7 +30,7 @@ function StickerMedia({ sticker, sizeCqw, className }: { sticker: LetterSticker;
   if (sticker.svg) {
     return (
       <div
-        style={{ width: sizeCqw, height: sizeCqw }}
+        style={{ width: sizeCqw, height: sizeCqw, maxWidth: 'none' }}
         className={`sticker-svg-wrap ${className ?? ''}`}
         dangerouslySetInnerHTML={{ __html: sanitizeSvg(sticker.svg) }}
       />
@@ -39,7 +41,7 @@ function StickerMedia({ sticker, sizeCqw, className }: { sticker: LetterSticker;
     <img
       src={sticker.url}
       alt={sticker.shortcode}
-      style={{ width: sizeCqw, height: sizeCqw }}
+      style={{ width: sizeCqw, height: sizeCqw, maxWidth: 'none' }}
       className={className}
       draggable={false}
     />
@@ -95,8 +97,8 @@ function EditableSticker({
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return { x: sticker.x, y: sticker.y };
     return {
-      x: Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)),
-      y: Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100)),
+      x: Math.max(EDGE_BUFFER, Math.min(100 - EDGE_BUFFER, ((clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(EDGE_BUFFER, Math.min(100 - EDGE_BUFFER, ((clientY - rect.top) / rect.height) * 100)),
     };
   }, [containerRef, sticker.x, sticker.y]);
 
@@ -193,7 +195,7 @@ function EditableSticker({
 
   return (
     <div
-      className={`absolute select-none ${isDragging ? 'cursor-grabbing' : selected ? 'cursor-grab' : 'cursor-pointer'}`}
+      className={`absolute select-none pointer-events-auto ${isDragging ? 'cursor-grabbing' : selected ? 'cursor-grab' : 'cursor-pointer'}`}
       style={{
         left: `${sticker.x}%`,
         top: `${sticker.y}%`,
