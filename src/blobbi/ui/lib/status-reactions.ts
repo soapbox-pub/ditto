@@ -1,28 +1,22 @@
 /**
  * Status-Based Reaction System for Blobbi
  *
- * Determines which visual recipe Blobbi should display based on current stats.
- * Uses a priority-based system with severity levels and probabilistic selection.
- *
- * The system resolves stats into a single emotion + optional body effects.
- * There is no separate "base" or "overlay" layer — each stat condition maps
- * to one named emotion, and body effects are resolved independently.
- *
- * When multiple stats are low simultaneously (e.g. energy + hygiene), the
- * system merges their visual recipes at the recipe level rather than stacking
- * emotions sequentially. This is handled by resolveStatusEmotions().
+ * Resolves current Blobbi stats directly into a final BlobbiVisualRecipe.
+ * The resolver owns the full pipeline from stats → recipe, with no
+ * intermediate "emotion name" step in the runtime path.
  *
  * Design principles:
  *   - Priority order determines which stat "wins" for face expression
- *   - Severity levels affect how often reactions appear
- *   - Probabilistic triggering prevents constant flickering
- *   - Body effects (dirty) are independent of face emotions
- *   - Sleepy is a full emotion with its own complete recipe, not an overlay
+ *   - When multiple stats are low, their recipes are merged internally
+ *   - Body effects (dirty) are folded into the recipe
+ *   - The output is a single, fully-resolved recipe — no secondary emotions
+ *   - Named emotions are only used internally as lookup keys for presets
  */
 
-import type { BlobbiEmotion } from './emotions';
+import type { BlobbiEmotion } from './emotion-types';
 import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
 import type { BodyEffectsSpec } from './bodyEffects';
+import { resolveVisualRecipe, mergeVisualRecipes, type BlobbiVisualRecipe } from './recipe';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -98,26 +92,23 @@ export interface StatusReactionResult {
 }
 
 /**
- * Result of resolving emotions from current stats.
+ * Result of resolving stats into a final visual recipe.
  *
- * The system resolves a single face emotion and independent body effects.
- * When multiple stats are low, priority determines which face emotion wins.
- * If both a face-affecting stat and energy are low simultaneously, the
- * emotions are merged at the recipe level by the consumer.
+ * The recipe is fully resolved — no further merging is needed by consumers.
+ * Body effects from hygiene are folded directly into the recipe.
+ * Metadata (triggeringStat, label) is provided for UI display and
+ * animation-safety decisions in the hook layer.
  */
-export interface StatusEmotionResult {
-  /** Primary face emotion (null = neutral/default). When energy is also low,
-   *  this is the "lossy" face state and sleepy is provided as secondaryEmotion. */
-  emotion: BlobbiEmotion | null;
-  /** Secondary emotion to merge with the primary (only set when energy is low
-   *  AND another stat is also producing a face emotion). The consumer should
-   *  use mergeVisualRecipes() to combine these. */
-  secondaryEmotion: BlobbiEmotion | null;
-  /** The stat that triggered the primary emotion */
+export interface StatusRecipeResult {
+  /** The fully resolved visual recipe (empty object = neutral) */
+  recipe: BlobbiVisualRecipe;
+  /** Human-readable label for the resolved state (for CSS classes, debugging) */
+  label: string;
+  /** The highest-priority stat that contributed to this recipe */
   triggeringStat: ReactiveStat | null;
-  /** The stat that triggered the secondary emotion */
-  triggeringSecondaryStat: ReactiveStat | null;
-  /** Body effects to apply (independent of face emotions) */
+  /** Severity of the triggering stat */
+  severity: StatSeverity | null;
+  /** Body effects spec for external consumers that apply body effects separately */
   bodyEffects: BodyEffectsSpec | null;
 }
 
@@ -335,77 +326,87 @@ export function getDefaultEmotion(): BlobbiEmotion {
 }
 
 /**
- * Resolve status emotions from current stats.
+ * Resolve current stats directly into a final visual recipe.
  *
- * Returns a primary emotion, an optional secondary emotion (for merging),
- * and independent body effects.
+ * This is the single entry point for the stats → recipe pipeline.
+ * All recipe merging happens here — consumers receive a final recipe
+ * that can be passed straight to applyVisualRecipe().
  *
- * When multiple stats are low:
- *   - The highest-priority stat determines the primary emotion
- *   - If energy is low AND another stat also triggers, sleepy becomes
- *     the secondary emotion (to be merged at the recipe level)
- *   - Body effects (dirty) are resolved independently from face emotions
+ * Resolution logic:
+ *   1. Analyze all stats, keep those below the normal threshold
+ *   2. The highest-priority stat determines the primary emotion preset
+ *   3. If energy is low AND another stat also triggers, merge sleepy's
+ *      recipe with the other stat's recipe (sleepy parts take precedence)
+ *   4. Hygiene triggers dirty body effects folded into the recipe
+ *   5. Return the fully-resolved recipe + metadata
  *
  * Example scenarios:
- *   - Only energy low → emotion: 'sleepy', secondary: null
- *   - Only hygiene low → emotion: 'boring', bodyEffects: dirty
- *   - Energy + hygiene low → emotion: 'sleepy', secondary: 'boring', bodyEffects: dirty
- *   - Energy + hunger low → emotion: 'sleepy', secondary: 'hungry'
+ *   - Only energy low → sleepy recipe
+ *   - Only hygiene low → boring recipe + dirty bodyEffects
+ *   - Energy + hygiene low → sleepy eyes/mouth merged with boring eyebrows + dirty bodyEffects
+ *   - Energy + hunger low → sleepy eyes/mouth merged with hungry eyebrows/extras
  *
  * @param stats - Current Blobbi stats
- * @returns Primary emotion, optional secondary, and body effects
+ * @returns Fully resolved recipe, label, triggering stat, and body effects
  */
-export function resolveStatusEmotions(stats: BlobbiStats): StatusEmotionResult {
+export function resolveStatusRecipe(stats: BlobbiStats): StatusRecipeResult {
   const analyses = analyzeAllStats(stats);
 
-  // Resolve body effects independently from face emotions.
-  // Hygiene triggers dirty body effects regardless of which face emotion wins.
+  // Hygiene triggers dirty body effects independently of face emotions.
   const hygieneAnalysis = analyses.find(a => a.stat === 'hygiene');
   const bodyEffects: BodyEffectsSpec | null = hygieneAnalysis
     ? { dirtyMarks: { enabled: true, count: 3 }, stinkClouds: { enabled: true, count: 3 } }
     : null;
 
-  // No stats are low enough to trigger
+  // No stats are low enough to trigger → neutral
   if (analyses.length === 0) {
     return {
-      emotion: null,
-      secondaryEmotion: null,
+      recipe: {},
+      label: 'neutral',
       triggeringStat: null,
-      triggeringSecondaryStat: null,
+      severity: null,
       bodyEffects: null,
     };
   }
 
-  // The highest-priority analysis wins as primary emotion
   const winner = analyses[0];
 
-  // Check if there's a sleepy analysis AND a separate face-affecting stat
+  // Check if sleepy needs to be merged with another face emotion
   const sleepyAnalysis = analyses.find(a => a.reaction === 'sleepy');
   const nonSleepyAnalyses = analyses.filter(a => a.reaction !== 'sleepy');
 
-  let primaryEmotion: BlobbiEmotion;
-  let primaryStat: ReactiveStat;
-  let secondaryEmotion: BlobbiEmotion | null = null;
-  let secondaryStat: ReactiveStat | null = null;
+  let recipe: BlobbiVisualRecipe;
+  let label: string;
 
   if (sleepyAnalysis && nonSleepyAnalyses.length > 0) {
-    // Both sleepy and another face emotion are active.
-    // Sleepy wins as primary (highest priority), the other is secondary for merging.
-    primaryEmotion = sleepyAnalysis.reaction;
-    primaryStat = sleepyAnalysis.stat;
-    secondaryEmotion = nonSleepyAnalyses[0].reaction;
-    secondaryStat = nonSleepyAnalyses[0].stat;
+    // Both sleepy and another face emotion — merge them.
+    // Sleepy recipe takes precedence (it defines eyes + mouth).
+    // The secondary fills in parts sleepy doesn't define (eyebrows, extras).
+    const sleepyRecipe = resolveVisualRecipe(sleepyAnalysis.reaction);
+    const secondaryRecipe = resolveVisualRecipe(nonSleepyAnalyses[0].reaction);
+    recipe = mergeVisualRecipes(secondaryRecipe, sleepyRecipe);
+    label = `${nonSleepyAnalyses[0].reaction}-${sleepyAnalysis.reaction}`;
   } else {
     // Single winner takes all
-    primaryEmotion = winner.reaction;
-    primaryStat = winner.stat;
+    recipe = resolveVisualRecipe(winner.reaction);
+    label = winner.reaction;
+  }
+
+  // Fold dirty body effects into the recipe
+  if (bodyEffects) {
+    recipe = {
+      ...recipe,
+      bodyEffects: recipe.bodyEffects
+        ? { ...recipe.bodyEffects, ...bodyEffects }
+        : { dirtMarks: bodyEffects.dirtyMarks, stinkClouds: bodyEffects.stinkClouds },
+    };
   }
 
   return {
-    emotion: primaryEmotion,
-    secondaryEmotion,
-    triggeringStat: primaryStat,
-    triggeringSecondaryStat: secondaryStat,
+    recipe,
+    label,
+    triggeringStat: winner.stat,
+    severity: winner.severity,
     bodyEffects,
   };
 }

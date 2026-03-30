@@ -28,7 +28,8 @@ import {
 } from '../utils/animation';
 import { BlobbiCompanionVisual } from './BlobbiCompanionVisual';
 import { useClickDetection } from '../interaction';
-import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
+import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
+import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BodyEffectsSpec } from '@/blobbi/ui/lib/bodyEffects';
 
 interface BlobbiCompanionProps {
@@ -60,10 +61,12 @@ interface BlobbiCompanionProps {
   onEndDrag: () => void;
   /** Click callback (when interaction is a click, not a drag) */
   onClick?: () => void;
-  /** Primary emotion for face expression */
+  /** Pre-resolved visual recipe. Takes precedence over `emotion`. */
+  recipe?: BlobbiVisualRecipe;
+  /** Label for the recipe (CSS class names). */
+  recipeLabel?: string;
+  /** Named emotion preset (convenience). Ignored when `recipe` is provided. */
   emotion?: BlobbiEmotion;
-  /** Secondary emotion for recipe-level merging (e.g. boring eyebrows when sleepy) */
-  secondaryEmotion?: BlobbiEmotion | null;
   /** Body-level visual effects (dirt marks, stink clouds, etc.) */
   bodyEffects?: BodyEffectsSpec;
   /** Callback to report rendered position (including animations) */
@@ -87,8 +90,9 @@ export function BlobbiCompanion({
   onUpdateDrag,
   onEndDrag,
   onClick,
+  recipe,
+  recipeLabel,
   emotion,
-  secondaryEmotion,
   bodyEffects,
   onPositionUpdate,
   debugMode = false,
@@ -327,8 +331,9 @@ export function BlobbiCompanion({
         floatOffset={floatOffset}
         isOnGround={isOnGround}
         distanceFromGround={distanceFromGround}
+        recipe={recipe}
+        recipeLabel={recipeLabel}
         emotion={emotion}
-        secondaryEmotion={secondaryEmotion}
         bodyEffects={bodyEffects}
         debugMode={debugMode}
       />

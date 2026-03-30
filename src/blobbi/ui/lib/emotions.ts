@@ -16,7 +16,6 @@
  *
  * Visual recipe pipeline (recipe.ts):
  *   - resolveVisualRecipe()  — named emotion → part-based recipe
- *   - mergeVisualRecipes()   — combine two recipes (part-level merge)
  *   - applyVisualRecipe()    — apply resolved recipe to SVG
  */
 
@@ -24,7 +23,6 @@
 
 import {
   resolveVisualRecipe,
-  mergeVisualRecipes,
   applyVisualRecipe,
   EMOTION_RECIPES,
 } from './recipe';
@@ -32,7 +30,6 @@ import {
 // Re-export recipe types and functions for consumers
 export {
   resolveVisualRecipe,
-  mergeVisualRecipes,
   applyVisualRecipe,
   EMOTION_RECIPES,
 };
@@ -48,16 +45,10 @@ export type {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-/**
- * Available emotion states for Blobbies.
- * Each emotion is a named preset that resolves into a part-based visual recipe.
- */
-export type BlobbiEmotion = 'neutral' | 'sad' | 'boring' | 'dirty' | 'happy' | 'angry' | 'surprised' | 'sleepy' | 'curious' | 'dizzy' | 'excited' | 'excitedB' | 'mischievous' | 'adoring' | 'hungry';
-
-/**
- * Blobbi variant for variant-specific adjustments.
- */
-export type BlobbiVariant = 'baby' | 'adult';
+// Canonical type definitions live in emotion-types.ts (no runtime deps).
+// Re-exported here so existing consumers keep working.
+export type { BlobbiEmotion, BlobbiVariant } from './emotion-types';
+import type { BlobbiEmotion, BlobbiVariant } from './emotion-types';
 
 // Re-export subsystem types needed by external consumers
 export type { EyePosition } from './eyes';
@@ -92,39 +83,6 @@ export function applyEmotion(
 
   const recipe = resolveVisualRecipe(emotion);
   return applyVisualRecipe(svgText, recipe, emotion, variant, form, instanceId);
-}
-
-/**
- * Apply a merged emotion to SVG content.
- *
- * Resolves two named emotions, merges them into a single recipe
- * (overlay parts take precedence), then applies the result.
- *
- * This replaces the old two-pass applyEmotion() pattern where
- * base and overlay emotions were applied sequentially.
- *
- * @param svgText - The base SVG content
- * @param baseEmotion - The persistent face emotion (e.g. 'boring')
- * @param overlayEmotion - The animation overlay (e.g. 'sleepy')
- * @param variant - 'baby' or 'adult'
- * @param form - Adult form name (optional)
- * @param instanceId - Unique ID for stable SVG element IDs
- * @returns Modified SVG with merged recipe applied
- */
-export function applyMergedEmotion(
-  svgText: string,
-  baseEmotion: BlobbiEmotion,
-  overlayEmotion: BlobbiEmotion,
-  variant: BlobbiVariant = 'adult',
-  form?: string,
-  instanceId?: string,
-): string {
-  const baseRecipe = resolveVisualRecipe(baseEmotion);
-  const overlayRecipe = resolveVisualRecipe(overlayEmotion);
-  const merged = mergeVisualRecipes(baseRecipe, overlayRecipe);
-
-  const emotionName = `${baseEmotion}-${overlayEmotion}`;
-  return applyVisualRecipe(svgText, merged, emotionName, variant, form, instanceId);
 }
 
 // ─── Public Utilities ─────────────────────────────────────────────────────────

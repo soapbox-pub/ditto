@@ -6,10 +6,10 @@
  * Supports multiple adult evolution forms.
  * Eyes always track the mouse cursor in real-time.
  *
- * Emotion rendering uses the part-based visual recipe system:
- *   - A single `emotion` prop resolves into a visual recipe
- *   - An optional `secondaryEmotion` is merged at the recipe level
- *   - Body effects are applied independently
+ * Accepts either:
+ *   - `recipe` + `recipeLabel`: a pre-resolved visual recipe (recipe-first path)
+ *   - `emotion`: a named emotion preset (convenience path, resolved internally)
+ * Body effects are applied independently.
  */
 
 import { useMemo, useRef } from 'react';
@@ -19,12 +19,8 @@ import { cn } from '@/lib/utils';
 import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
 
 import { addEyeAnimation } from './lib/eye-animation';
-import {
-  type BlobbiEmotion,
-  resolveVisualRecipe,
-  mergeVisualRecipes,
-  applyVisualRecipe,
-} from './lib/emotions';
+import { resolveVisualRecipe, applyVisualRecipe, type BlobbiVisualRecipe } from './lib/recipe';
+import type { BlobbiEmotion } from './lib/emotion-types';
 import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
 import { useBlobbiEyes, type BlobbiLookMode } from './lib/useBlobbiEyes';
 import { useExternalEyeOffset } from './lib/useExternalEyeOffset';
@@ -53,25 +49,26 @@ export interface BlobbiAdultVisualProps {
   /** 
    * External eye offset from companion system.
    * When provided, bypasses internal mouse tracking and uses this offset directly.
-   * Values should be -1 to 1, will be converted to pixel movement.
    */
   externalEyeOffset?: ExternalEyeOffset;
   /** 
-   * Emotional state to display.
-   * Resolves into a part-based visual recipe and applies all parts.
+   * Pre-resolved visual recipe. When provided, takes precedence over `emotion`.
+   * This is the recipe-first rendering path used by useStatusReaction.
+   */
+  recipe?: BlobbiVisualRecipe;
+  /**
+   * Label for the recipe (used in CSS class names). Required when `recipe` is provided.
+   */
+  recipeLabel?: string;
+  /** 
+   * Named emotion preset (convenience path).
+   * Ignored when `recipe` is provided.
    * Default: 'neutral' (no modifications)
    */
   emotion?: BlobbiEmotion;
   /**
-   * Secondary emotion for recipe-level merging.
-   * When provided, both emotions are resolved into recipes and merged
-   * (secondary provides parts not already defined by the primary).
-   * Example: emotion='sleepy', secondaryEmotion='boring' → sleepy eyes/mouth + boring eyebrows
-   */
-  secondaryEmotion?: BlobbiEmotion | null;
-  /**
    * Body-level visual effects (dirt marks, stink clouds, etc.).
-   * Applied independently of face emotions — can combine with any face state.
+   * Applied independently of face recipes.
    */
   bodyEffects?: BodyEffectsSpec;
   /** Additional CSS classes for the container */
@@ -80,24 +77,12 @@ export interface BlobbiAdultVisualProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-/**
- * Renders an adult Blobbi using inline SVG.
- *
- * - Resolves the correct form from blobbi data (evolutionForm or seed-derived)
- * - Selects the correct SVG variant (awake or sleeping) based on state
- * - Applies color customization from Blobbi traits
- * - Resolves emotions into part-based visual recipes
- * - Eyes always track the mouse cursor (instant, real-time)
- * - Renders safely using dangerouslySetInnerHTML
- */
-export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, emotion = 'neutral', secondaryEmotion, bodyEffects, className }: BlobbiAdultVisualProps) {
+export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, recipe: recipeProp, recipeLabel, emotion = 'neutral', bodyEffects, className }: BlobbiAdultVisualProps) {
   const isSleeping = isBlobbiSleeping(blobbi);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Disable reactions when sleeping
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
-  // Eye animation hook - handles DOM manipulation internally
   useBlobbiEyes(containerRef, {
     isSleeping,
     maxMovement: 2.5,
@@ -106,7 +91,6 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
     disableTracking: !!externalEyeOffset,
   });
 
-  // External eye offset control
   useExternalEyeOffset({
     containerRef,
     externalEyeOffset,
@@ -114,7 +98,6 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
     variant: 'adult',
   });
 
-  // Memoize the customized SVG to avoid unnecessary processing
   const customizedSvg = useMemo(() => {
     const { form, svg } = resolveAdultSvgWithForm(blobbi, { isSleeping });
     const colorizedSvg = customizeAdultSvgFromBlobbi(svg, form, blobbi, isSleeping);
@@ -122,24 +105,15 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
     if (!isSleeping) {
       let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId: blobbi.id });
 
-      // Apply emotion as a resolved visual recipe
-      if (emotion !== 'neutral') {
-        let recipe = resolveVisualRecipe(emotion);
-
-        // If there's a secondary emotion, merge recipes (secondary fills gaps)
-        if (secondaryEmotion && secondaryEmotion !== 'neutral') {
-          const secondaryRecipe = resolveVisualRecipe(secondaryEmotion);
-          // Primary emotion takes precedence; secondary fills missing parts
-          recipe = mergeVisualRecipes(secondaryRecipe, recipe);
-        }
-
-        const emotionName = secondaryEmotion
-          ? `${secondaryEmotion}-${emotion}`
-          : emotion;
-        animatedSvg = applyVisualRecipe(animatedSvg, recipe, emotionName, 'adult', form, blobbi.id);
+      // Recipe-first path: use pre-resolved recipe if provided
+      if (recipeProp) {
+        animatedSvg = applyVisualRecipe(animatedSvg, recipeProp, recipeLabel ?? 'status', 'adult', form, blobbi.id);
+      } else if (emotion !== 'neutral') {
+        // Convenience path: resolve named emotion preset
+        const resolved = resolveVisualRecipe(emotion);
+        animatedSvg = applyVisualRecipe(animatedSvg, resolved, emotion, 'adult', form, blobbi.id);
       }
 
-      // Apply body effects (independent of face emotions)
       if (bodyEffects) {
         animatedSvg = applyBodyEffects(animatedSvg, { ...bodyEffects, idPrefix: bodyEffects.idPrefix ?? blobbi.id });
       }
@@ -148,7 +122,7 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
     }
 
     return colorizedSvg;
-  }, [blobbi, isSleeping, emotion, secondaryEmotion, bodyEffects]);
+  }, [blobbi, isSleeping, recipeProp, recipeLabel, emotion, bodyEffects]);
 
   const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
 

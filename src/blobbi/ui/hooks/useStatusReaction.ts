@@ -1,17 +1,15 @@
 /**
  * useStatusReaction Hook
  *
- * Manages automatic status-based reactions for Blobbi using the
- * part-based visual recipe model.
+ * Manages automatic status-based reactions for Blobbi.
+ * Resolves stats directly into a final BlobbiVisualRecipe that can be
+ * passed straight to the rendering pipeline — no emotion-name intermediaries.
  *
- * The hook resolves stats into:
- *   - A primary emotion (the highest-priority face expression)
- *   - An optional secondary emotion (for recipe-level merging)
- *   - Independent body effects (dirty marks, stink clouds)
- *
- * When both energy and another stat are low, the system provides both
- * emotions so the consumer can merge their visual recipes. This replaces
- * the old base/overlay stacking model with proper recipe-level composition.
+ * The hook's output is recipe-first:
+ *   - `recipe`: the fully resolved visual recipe (empty = neutral)
+ *   - `recipeLabel`: human-readable label for debugging / CSS class naming
+ *   - metadata: triggeringStat, severity, isOverrideActive
+ *   - `bodyEffects`: extracted for consumers that apply body effects separately
  *
  * Features:
  *   - Periodic stat checks with configurable intervals
@@ -21,18 +19,18 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import type { BlobbiEmotion } from '../lib/emotions';
+import type { BlobbiEmotion } from '../lib/emotion-types';
 import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
 import {
-  resolveStatusEmotions,
-  getDefaultEmotion,
+  resolveStatusRecipe,
   DEFAULT_TIMING,
   SEVERITY_THRESHOLDS,
   type StatusReactionTiming,
   type ReactiveStat,
   type StatSeverity,
-  type StatusEmotionResult,
+  type StatusRecipeResult,
 } from '../lib/status-reactions';
+import { resolveVisualRecipe, type BlobbiVisualRecipe } from '../lib/recipe';
 import type { BodyEffectsSpec } from '../lib/bodyEffects';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -49,31 +47,29 @@ export interface UseStatusReactionOptions {
 }
 
 export interface StatusReactionState {
-  /** Primary emotion (face expression from the highest-priority stat) */
-  emotion: BlobbiEmotion;
-  /** Secondary emotion for recipe merging (e.g. boring when sleepy is primary) */
-  secondaryEmotion: BlobbiEmotion | null;
+  /** The fully resolved visual recipe to render */
+  recipe: BlobbiVisualRecipe;
+  /** Human-readable label for the recipe (for CSS classes, debugging) */
+  recipeLabel: string;
   /** Whether any status reaction is actively showing */
   isStatusReactionActive: boolean;
-  /** The stat that triggered the primary emotion (if any) */
+  /** The stat that triggered the current recipe (if any) */
   triggeringStat: ReactiveStat | null;
-  /** The stat that triggered the secondary emotion (if any) */
-  triggeringSecondaryStat: ReactiveStat | null;
   /** Severity of the highest-priority active reaction */
   currentSeverity: StatSeverity | null;
   /** Whether an action override is active */
   isOverrideActive: boolean;
-  /** Body effects to apply (independent of face emotions, e.g. dirty) */
+  /** Body effects spec (also folded into recipe, but exposed for separate application) */
   bodyEffects: BodyEffectsSpec | null;
 }
 
-// ─── Emotion Cycle Durations ──────────────────────────────────────────────────
+// ─── Animation Cycle Durations ────────────────────────────────────────────────
 
 /**
- * Minimum animation cycle durations for each emotion.
+ * Minimum animation cycle durations keyed by recipe label.
  * Used to determine when it's safe to switch reactions without cutting animations.
  */
-const EMOTION_CYCLE_DURATIONS: Partial<Record<BlobbiEmotion, number>> = {
+const LABEL_CYCLE_DURATIONS: Record<string, number> = {
   sleepy: 8000,
   sad: 6000,
   dizzy: 2000,
@@ -87,42 +83,34 @@ const EMOTION_CYCLE_DURATIONS: Partial<Record<BlobbiEmotion, number>> = {
   mischievous: 1500,
 };
 
-function getEmotionCycleDuration(emotion: BlobbiEmotion): number {
-  return EMOTION_CYCLE_DURATIONS[emotion] ?? 2000;
+function getRecipeCycleDuration(label: string): number {
+  // For merged labels like "boring-sleepy", use the longest duration
+  for (const [key, duration] of Object.entries(LABEL_CYCLE_DURATIONS)) {
+    if (label.includes(key)) {
+      return duration;
+    }
+  }
+  return 2000;
 }
 
 // ─── Internal State ───────────────────────────────────────────────────────────
 
 interface InternalState {
   checkTimer: ReturnType<typeof setTimeout> | null;
-  emotionStartTime: number;
-  currentEmotion: BlobbiEmotion | null;
-  currentSecondaryStat: ReactiveStat | null;
-  currentSecondaryEmotion: BlobbiEmotion | null;
-  currentStat: ReactiveStat | null;
-  currentBodyEffects: BodyEffectsSpec | null;
+  recipeStartTime: number;
+  current: StatusRecipeResult;
 }
+
+const NEUTRAL_RESULT: StatusRecipeResult = {
+  recipe: {},
+  label: 'neutral',
+  triggeringStat: null,
+  severity: null,
+  bodyEffects: null,
+};
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-/**
- * Hook for managing automatic status-based reactions.
- *
- * @example
- * ```tsx
- * const { emotion, secondaryEmotion, bodyEffects } = useStatusReaction({
- *   stats: companion.stats,
- *   enabled: !isSleeping,
- *   actionOverride: activeActionEmotion,
- * });
- *
- * <BlobbiStageVisual
- *   emotion={emotion}
- *   secondaryEmotion={secondaryEmotion}
- *   bodyEffects={bodyEffects}
- * />
- * ```
- */
 export function useStatusReaction({
   stats,
   enabled = true,
@@ -138,22 +126,12 @@ export function useStatusReaction({
     },
   }), [timingOverride]);
 
-  const [statusEmotions, setStatusEmotions] = useState<StatusEmotionResult>({
-    emotion: null,
-    secondaryEmotion: null,
-    triggeringStat: null,
-    triggeringSecondaryStat: null,
-    bodyEffects: null,
-  });
+  const [currentResult, setCurrentResult] = useState<StatusRecipeResult>(NEUTRAL_RESULT);
 
   const internalRef = useRef<InternalState>({
     checkTimer: null,
-    emotionStartTime: 0,
-    currentEmotion: null,
-    currentSecondaryEmotion: null,
-    currentStat: null,
-    currentSecondaryStat: null,
-    currentBodyEffects: null,
+    recipeStartTime: 0,
+    current: NEUTRAL_RESULT,
   });
 
   const statsRef = useRef(stats);
@@ -170,97 +148,64 @@ export function useStatusReaction({
     }
   }, []);
 
-  const clearStatusEmotions = useCallback(() => {
-    const internal = internalRef.current;
-    internal.currentEmotion = null;
-    internal.currentSecondaryEmotion = null;
-    internal.currentStat = null;
-    internal.currentSecondaryStat = null;
-    internal.currentBodyEffects = null;
-
-    setStatusEmotions({
-      emotion: null,
-      secondaryEmotion: null,
-      triggeringStat: null,
-      triggeringSecondaryStat: null,
-      bodyEffects: null,
-    });
+  const clearState = useCallback(() => {
+    internalRef.current.current = NEUTRAL_RESULT;
+    setCurrentResult(NEUTRAL_RESULT);
   }, []);
 
   /**
-   * Apply resolved emotions, respecting animation safety.
+   * Apply a resolved recipe, respecting animation safety.
    */
-  const applyEmotions = useCallback((resolved: StatusEmotionResult) => {
+  const applyResult = useCallback((resolved: StatusRecipeResult) => {
     const internal = internalRef.current;
     const now = Date.now();
+    const prev = internal.current;
 
-    let emotionChanged = false;
+    // Same label → no visual change needed (body effects may update independently)
+    if (resolved.label === prev.label) {
+      // But body effects can change independently
+      if (resolved.bodyEffects !== prev.bodyEffects) {
+        internal.current = resolved;
+        setCurrentResult(resolved);
+      }
+      return;
+    }
 
-    // ── Primary emotion transition ──
-    if (resolved.emotion !== internal.currentEmotion) {
-      if (resolved.emotion === null) {
-        // Condition cleared — check if the triggering stat actually recovered
-        if (internal.currentStat) {
-          const statValue = statsRef.current[internal.currentStat];
-          if (statValue >= SEVERITY_THRESHOLDS.warning) {
-            internal.currentEmotion = null;
-            internal.currentStat = null;
-            internal.currentSecondaryEmotion = null;
-            internal.currentSecondaryStat = null;
-            emotionChanged = true;
-          }
-        } else {
-          internal.currentEmotion = null;
-          internal.currentStat = null;
-          internal.currentSecondaryEmotion = null;
-          internal.currentSecondaryStat = null;
-          emotionChanged = true;
+    // Transitioning to neutral (all stats recovered)
+    if (resolved.label === 'neutral') {
+      if (prev.triggeringStat) {
+        const statValue = statsRef.current[prev.triggeringStat];
+        if (statValue >= SEVERITY_THRESHOLDS.warning) {
+          internal.current = resolved;
+          internal.recipeStartTime = now;
+          setCurrentResult(resolved);
         }
-      } else if (internal.currentEmotion === null) {
-        // No current emotion, activate immediately
-        internal.currentEmotion = resolved.emotion;
-        internal.currentStat = resolved.triggeringStat;
-        internal.currentSecondaryEmotion = resolved.secondaryEmotion;
-        internal.currentSecondaryStat = resolved.triggeringSecondaryStat;
-        internal.emotionStartTime = now;
-        emotionChanged = true;
+        // else: stat hasn't actually recovered, keep current
       } else {
-        // Switching emotions — check animation safety
-        const elapsed = now - internal.emotionStartTime;
-        const cycleDuration = getEmotionCycleDuration(internal.currentEmotion);
-        if (elapsed >= cycleDuration) {
-          internal.currentEmotion = resolved.emotion;
-          internal.currentStat = resolved.triggeringStat;
-          internal.currentSecondaryEmotion = resolved.secondaryEmotion;
-          internal.currentSecondaryStat = resolved.triggeringSecondaryStat;
-          internal.emotionStartTime = now;
-          emotionChanged = true;
-        }
+        internal.current = resolved;
+        internal.recipeStartTime = now;
+        setCurrentResult(resolved);
       }
-    } else {
-      // Primary emotion unchanged, but secondary might have changed
-      if (resolved.secondaryEmotion !== internal.currentSecondaryEmotion) {
-        internal.currentSecondaryEmotion = resolved.secondaryEmotion;
-        internal.currentSecondaryStat = resolved.triggeringSecondaryStat;
-        emotionChanged = true;
-      }
+      return;
     }
 
-    // Body effects update immediately (no animation safety needed)
-    const bodyEffectsChanged = resolved.bodyEffects !== internal.currentBodyEffects;
-    if (bodyEffectsChanged) {
-      internal.currentBodyEffects = resolved.bodyEffects;
+    // Transitioning from neutral → activate immediately
+    if (prev.label === 'neutral') {
+      internal.current = resolved;
+      internal.recipeStartTime = now;
+      setCurrentResult(resolved);
+      return;
     }
 
-    if (emotionChanged || bodyEffectsChanged) {
-      setStatusEmotions({
-        emotion: internal.currentEmotion,
-        secondaryEmotion: internal.currentSecondaryEmotion,
-        triggeringStat: internal.currentStat,
-        triggeringSecondaryStat: internal.currentSecondaryStat,
-        bodyEffects: internal.currentBodyEffects,
-      });
+    // Switching between non-neutral recipes — check animation safety
+    const elapsed = now - internal.recipeStartTime;
+    const cycleDuration = getRecipeCycleDuration(prev.label);
+    if (elapsed >= cycleDuration) {
+      internal.current = resolved;
+      internal.recipeStartTime = now;
+      setCurrentResult(resolved);
     }
+    // else: mid-animation, wait for next check
   }, []);
 
   const checkStats = useCallback(() => {
@@ -268,70 +213,53 @@ export function useStatusReaction({
     const currentTiming = timingRef.current;
     const internal = internalRef.current;
 
-    const resolved = resolveStatusEmotions(currentStats);
-    applyEmotions(resolved);
+    const resolved = resolveStatusRecipe(currentStats);
+    applyResult(resolved);
 
     internal.checkTimer = setTimeout(checkStats, currentTiming.checkInterval);
-  }, [applyEmotions]);
+  }, [applyResult]);
 
   // Start/stop the check loop based on enabled state
   useEffect(() => {
     if (!enabled) {
       clearTimers();
-      clearStatusEmotions();
+      clearState();
       return;
     }
 
-    // Initial check — apply immediately without animation safety
-    const initialResolved = resolveStatusEmotions(statsRef.current);
+    // Initial check — apply immediately
+    const initial = resolveStatusRecipe(statsRef.current);
     const internal = internalRef.current;
-    internal.currentEmotion = initialResolved.emotion;
-    internal.currentStat = initialResolved.triggeringStat;
-    internal.currentSecondaryEmotion = initialResolved.secondaryEmotion;
-    internal.currentSecondaryStat = initialResolved.triggeringSecondaryStat;
-    internal.emotionStartTime = Date.now();
-    internal.currentBodyEffects = initialResolved.bodyEffects;
-
-    setStatusEmotions(initialResolved);
+    internal.current = initial;
+    internal.recipeStartTime = Date.now();
+    setCurrentResult(initial);
 
     internal.checkTimer = setTimeout(checkStats, timingRef.current.checkInterval);
 
     return () => {
       clearTimers();
     };
-  }, [enabled, checkStats, clearTimers, clearStatusEmotions]);
+  }, [enabled, checkStats, clearTimers, clearState]);
 
-  // Watch for stat recovery on persistent emotions
+  // Watch for stat recovery on persistent recipes
   useEffect(() => {
     const internal = internalRef.current;
-    let changed = false;
+    const prev = internal.current;
 
-    if (internal.currentEmotion && internal.currentStat) {
-      const statValue = stats[internal.currentStat];
+    if (prev.triggeringStat && prev.label !== 'neutral') {
+      const statValue = stats[prev.triggeringStat];
       if (statValue >= SEVERITY_THRESHOLDS.warning) {
-        internal.currentEmotion = null;
-        internal.currentStat = null;
-        internal.currentSecondaryEmotion = null;
-        internal.currentSecondaryStat = null;
-        changed = true;
+        internal.current = NEUTRAL_RESULT;
+        setCurrentResult(NEUTRAL_RESULT);
+        return;
       }
     }
 
-    // Also re-resolve body effects on stat change
-    const freshResolved = resolveStatusEmotions(stats);
-    if (freshResolved.bodyEffects !== internal.currentBodyEffects) {
-      internal.currentBodyEffects = freshResolved.bodyEffects;
-      changed = true;
-    }
-
-    if (changed) {
-      setStatusEmotions({
-        emotion: internal.currentEmotion,
-        secondaryEmotion: internal.currentSecondaryEmotion,
-        triggeringStat: internal.currentStat,
-        triggeringSecondaryStat: internal.currentSecondaryStat,
-        bodyEffects: internal.currentBodyEffects,
-      });
+    // Re-resolve body effects on stat change (they update immediately)
+    const fresh = resolveStatusRecipe(stats);
+    if (fresh.bodyEffects !== prev.bodyEffects) {
+      internal.current = { ...prev, bodyEffects: fresh.bodyEffects };
+      setCurrentResult(internal.current);
     }
   }, [stats]);
 
@@ -345,38 +273,26 @@ export function useStatusReaction({
   // ── Determine final output ──
   const isOverrideActive = actionOverride !== null && actionOverride !== undefined;
 
-  const resolvedEmotion = isOverrideActive
-    ? actionOverride
-    : (statusEmotions.emotion ?? getDefaultEmotion());
+  let finalRecipe: BlobbiVisualRecipe;
+  let finalLabel: string;
 
-  const resolvedSecondary = isOverrideActive
-    ? null // Action overrides don't need secondary merging
-    : statusEmotions.secondaryEmotion;
+  if (isOverrideActive) {
+    finalRecipe = resolveVisualRecipe(actionOverride);
+    finalLabel = actionOverride;
+  } else {
+    finalRecipe = currentResult.recipe;
+    finalLabel = currentResult.label;
+  }
 
-  const isStatusReactionActive = statusEmotions.emotion !== null && !isOverrideActive;
-
-  const currentSeverity = statusEmotions.triggeringStat
-    ? getSeverityFromStats(stats, statusEmotions.triggeringStat)
-    : null;
+  const isStatusReactionActive = currentResult.label !== 'neutral' && !isOverrideActive;
 
   return {
-    emotion: resolvedEmotion,
-    secondaryEmotion: resolvedSecondary,
+    recipe: finalRecipe,
+    recipeLabel: finalLabel,
     isStatusReactionActive,
-    triggeringStat: statusEmotions.triggeringStat,
-    triggeringSecondaryStat: isOverrideActive ? null : statusEmotions.triggeringSecondaryStat,
-    currentSeverity,
+    triggeringStat: currentResult.triggeringStat,
+    currentSeverity: currentResult.severity,
     isOverrideActive,
-    bodyEffects: statusEmotions.bodyEffects,
+    bodyEffects: currentResult.bodyEffects,
   };
-}
-
-// ─── Helper Functions ─────────────────────────────────────────────────────────
-
-function getSeverityFromStats(stats: BlobbiStats, stat: ReactiveStat): StatSeverity {
-  const value = stats[stat];
-  if (value < SEVERITY_THRESHOLDS.critical) return 'critical';
-  if (value < SEVERITY_THRESHOLDS.high) return 'high';
-  if (value < SEVERITY_THRESHOLDS.warning) return 'warning';
-  return 'normal';
 }

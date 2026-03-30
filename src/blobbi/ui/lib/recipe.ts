@@ -72,7 +72,7 @@ import {
   type StinkCloudsConfig,
 } from './bodyEffects';
 
-import type { BlobbiEmotion, BlobbiVariant } from './emotions';
+import type { BlobbiEmotion, BlobbiVariant } from './emotion-types';
 
 // ─── Recipe Types ─────────────────────────────────────────────────────────────
 

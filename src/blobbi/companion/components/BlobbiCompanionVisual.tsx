@@ -11,7 +11,8 @@ import { BlobbiBabyVisual } from '@/blobbi/ui/BlobbiBabyVisual';
 import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
 import { companionDataToBlobbi } from '@/blobbi/ui/lib/adapters';
 import { useEffectiveEmotion } from '@/blobbi/dev/EmotionDevContext';
-import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
+import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
+import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BodyEffectsSpec } from '@/blobbi/ui/lib/bodyEffects';
 import { cn } from '@/lib/utils';
 import type { CompanionData, EyeOffset, CompanionDirection } from '../types/companion.types';
@@ -35,10 +36,12 @@ interface BlobbiCompanionVisualProps {
   isOnGround?: boolean;
   /** Distance from ground in pixels (for shadow fade, 0 = on ground) */
   distanceFromGround?: number;
-  /** Primary emotion for face expression */
+  /** Pre-resolved visual recipe. Takes precedence over `emotion`. */
+  recipe?: BlobbiVisualRecipe;
+  /** Label for the recipe (CSS class names). */
+  recipeLabel?: string;
+  /** Named emotion preset (convenience). Ignored when `recipe` is provided. */
   emotion?: BlobbiEmotion;
-  /** Secondary emotion for recipe-level merging (e.g. boring eyebrows when sleepy) */
-  secondaryEmotion?: BlobbiEmotion | null;
   /** Body-level visual effects (dirt marks, stink clouds, etc.) */
   bodyEffects?: BodyEffectsSpec;
   /** Additional class names */
@@ -59,8 +62,9 @@ export function BlobbiCompanionVisual({
   floatOffset = { x: 0, y: 0, rotation: 0 },
   isOnGround = true,
   distanceFromGround = 0,
+  recipe: recipeProp,
+  recipeLabel: recipeLabelProp,
   emotion: emotionProp,
-  secondaryEmotion: secondaryEmotionProp,
   bodyEffects: bodyEffectsProp,
   className,
   debugMode = false,
@@ -73,9 +77,10 @@ export function BlobbiCompanionVisual({
   const devEmotion = useEffectiveEmotion();
   const hasDevOverride = devEmotion !== 'neutral';
   
-  // Final emotions: dev override > props from status reaction system
+  // Final rendering: dev override > props from status reaction system
+  const effectiveRecipe = hasDevOverride ? undefined : recipeProp;
+  const effectiveRecipeLabel = hasDevOverride ? undefined : recipeLabelProp;
   const effectiveEmotion = hasDevOverride ? devEmotion : (emotionProp ?? 'neutral');
-  const effectiveSecondaryEmotion = hasDevOverride ? undefined : secondaryEmotionProp;
   const effectiveBodyEffects = hasDevOverride ? undefined : bodyEffectsProp;
   
   // Eye offset is now passed directly to the visual components via externalEyeOffset prop
@@ -222,8 +227,9 @@ export function BlobbiCompanionVisual({
             reaction={reaction}
             lookMode="forward"
             externalEyeOffset={eyeOffset}
+            recipe={effectiveRecipe}
+            recipeLabel={effectiveRecipeLabel}
             emotion={effectiveEmotion}
-            secondaryEmotion={effectiveSecondaryEmotion}
             bodyEffects={effectiveBodyEffects}
             className="size-full"
           />
@@ -234,8 +240,9 @@ export function BlobbiCompanionVisual({
             reaction={reaction}
             lookMode="forward"
             externalEyeOffset={eyeOffset}
+            recipe={effectiveRecipe}
+            recipeLabel={effectiveRecipeLabel}
             emotion={effectiveEmotion}
-            secondaryEmotion={effectiveSecondaryEmotion}
             bodyEffects={effectiveBodyEffects}
             className="size-full"
           />

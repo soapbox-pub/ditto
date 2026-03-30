@@ -223,7 +223,7 @@ export function BlobbiCompanionLayer() {
   
   const [companionActionOverride, setCompanionActionOverride] = useState<BlobbiEmotion | null>(null);
   
-  const { emotion: companionEmotion, secondaryEmotion: companionSecondaryEmotion, bodyEffects: companionBodyEffects } = useStatusReaction({
+  const { recipe: companionRecipe, recipeLabel: companionRecipeLabel, bodyEffects: companionBodyEffects } = useStatusReaction({
     stats: companionStats,
     enabled: isVisible && !isSleeping && companion?.stage !== 'egg',
     actionOverride: companionActionOverride,
@@ -241,9 +241,9 @@ export function BlobbiCompanionLayer() {
     return originalHandleItemUse(item);
   }, [originalHandleItemUse]);
   
-  // Pass resolved emotion and secondary for recipe-level merging
-  const companionEmotionProp = companionEmotion;
-  const companionSecondaryEmotionProp = companionSecondaryEmotion;
+  // Pass resolved recipe directly to companion components
+  const companionRecipeProp = companionRecipe;
+  const companionRecipeLabelProp = companionRecipeLabel;
   
   // Don't render anything if not visible
   if (!isVisible || !companion) {
@@ -266,8 +266,8 @@ export function BlobbiCompanionLayer() {
     onUpdateDrag: updateDrag,
     onEndDrag: endDrag,
     onClick: handleCompanionClick,
-    emotion: companionEmotionProp,
-    secondaryEmotion: companionSecondaryEmotionProp,
+    recipe: companionRecipeProp,
+    recipeLabel: companionRecipeLabelProp,
     bodyEffects: companionBodyEffects ?? undefined,
     onPositionUpdate: handlePositionUpdate,
   };

@@ -878,16 +878,15 @@ function BlobbiDashboard({
     energy: projectedState?.stats.energy ?? companion.stats.energy ?? 100,
   }), [projectedState, companion.stats]);
   
-  const { emotion: statusEmotion, secondaryEmotion: statusSecondaryEmotion, bodyEffects: statusBodyEffects } = useStatusReaction({
+  const { recipe: statusRecipe, recipeLabel: statusRecipeLabel, bodyEffects: statusBodyEffects } = useStatusReaction({
     stats: currentStats,
     enabled: !isSleeping && !isEgg, // Disable when sleeping or egg stage
     actionOverride: actionOverrideEmotion,
   });
   
-  // Final emotion: dev override > status reaction system
+  // Final recipe: dev override uses named emotion; status system uses resolved recipe
   const hasDevOverride = isLocalhostDev() && devEmotionOverride !== 'neutral';
-  const effectiveEmotion: BlobbiEmotion = hasDevOverride ? devEmotionOverride : statusEmotion;
-  const effectiveSecondaryEmotion: BlobbiEmotion | null = hasDevOverride ? null : statusSecondaryEmotion;
+  const effectiveEmotion: BlobbiEmotion = hasDevOverride ? devEmotionOverride : 'neutral';
   
   // Adoption flow modal state
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
@@ -1424,8 +1423,9 @@ function BlobbiDashboard({
               size="lg"
               animated={!isSleeping}
               reaction={blobbiReaction}
+              recipe={hasDevOverride ? undefined : statusRecipe}
+              recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
               emotion={effectiveEmotion}
-              secondaryEmotion={hasDevOverride ? undefined : effectiveSecondaryEmotion}
               bodyEffects={hasDevOverride ? undefined : (statusBodyEffects ?? undefined)}
               className="size-48 sm:size-56"
             />
