@@ -787,7 +787,9 @@ export function applyVisualRecipe(
 
   // ── Body effects (from bodyEffects/ module) ──
   if (recipe.bodyEffects) {
-    const bodySpec: BodyEffectsSpec = {};
+    const bodySpec: BodyEffectsSpec = {
+      variant, // Pass variant for coordinate scaling
+    };
     if (recipe.bodyEffects.dirtMarks?.enabled) {
       bodySpec.dirtyMarks = recipe.bodyEffects.dirtMarks;
     }

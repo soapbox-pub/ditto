@@ -38,6 +38,32 @@ interface EggGraphicProps {
   statusEffects?: EggStatusEffects;
 }
 
+/**
+ * Create a spiral path for sick/dizzy effects.
+ * Generates a true Archimedean spiral that starts from center and winds outward.
+ * Based on the spiral algorithm from eyes/effects.ts.
+ */
+function createEggSpiralPath(cx: number, cy: number, radius: number): string {
+  const points: string[] = [];
+  const turns = 2; // Number of complete rotations
+  const steps = 40; // Smoothness of the spiral
+
+  for (let i = 0; i <= steps; i++) {
+    const angle = (i / steps) * turns * 2 * Math.PI;
+    const r = (i / steps) * radius;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+
+    if (i === 0) {
+      points.push(`M ${x.toFixed(2)} ${y.toFixed(2)}`);
+    } else {
+      points.push(`L ${x.toFixed(2)} ${y.toFixed(2)}`);
+    }
+  }
+
+  return points.join(' ');
+}
+
 // Legacy fallback function for special marks (kept for compatibility)
 const renderLegacySpecialMark = (specialMark: string) => {
   console.warn(
@@ -676,7 +702,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
 
         {/* ── Status Effects ─────────────────────────────────────────────── */}
 
-        {/* Dirty effect: sweat droplet + dust underneath */}
+        {/* Dirty effect: sweat droplet + dust particles (front + back layers) */}
         {statusEffects?.dirty && (
           <>
             {/* Sweat droplet - upper left of egg */}
@@ -692,7 +718,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
                 zIndex: 20,
               }}
             />
-            {/* Dust particles underneath */}
+            {/* Dust particles underneath (back layer) */}
             <div
               className="absolute animate-egg-dust"
               style={{
@@ -711,13 +737,65 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
                   style={{
                     width: '0.3em',
                     height: '0.3em',
-                    background: 'rgba(120, 113, 108, 0.5)',
+                    background: 'rgba(87, 83, 78, 0.7)', // Stronger brown color
                     borderRadius: '50%',
                     animationDelay: `${i * 0.3}s`,
                   }}
                   className="animate-egg-dust-particle"
                 />
               ))}
+            </div>
+            {/* Front-layer dust particles - floating in front of egg */}
+            <div
+              className="absolute"
+              style={{
+                top: '60%',
+                left: '15%',
+                width: '70%',
+                height: '30%',
+                pointerEvents: 'none',
+                zIndex: 25, // In front of egg
+              }}
+            >
+              {/* Front dust particle 1 - lower left */}
+              <div
+                className="absolute animate-egg-dust-particle"
+                style={{
+                  bottom: '10%',
+                  left: '5%',
+                  width: '0.25em',
+                  height: '0.25em',
+                  background: 'rgba(68, 64, 60, 0.75)', // Darker, more visible
+                  borderRadius: '50%',
+                  animationDelay: '0.1s',
+                }}
+              />
+              {/* Front dust particle 2 - center */}
+              <div
+                className="absolute animate-egg-dust-particle"
+                style={{
+                  bottom: '25%',
+                  left: '45%',
+                  width: '0.2em',
+                  height: '0.2em',
+                  background: 'rgba(87, 83, 78, 0.7)',
+                  borderRadius: '50%',
+                  animationDelay: '0.5s',
+                }}
+              />
+              {/* Front dust particle 3 - lower right */}
+              <div
+                className="absolute animate-egg-dust-particle"
+                style={{
+                  bottom: '5%',
+                  right: '10%',
+                  width: '0.22em',
+                  height: '0.22em',
+                  background: 'rgba(68, 64, 60, 0.7)',
+                  borderRadius: '50%',
+                  animationDelay: '0.8s',
+                }}
+              />
             </div>
           </>
         )}
@@ -738,16 +816,9 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
               viewBox="0 0 20 20"
             >
               <path
-                d="M10 2 Q15 5 12 10 Q9 15 10 18"
-                stroke="rgba(147, 51, 234, 0.6)"
+                d={createEggSpiralPath(10, 10, 8)}
+                stroke="rgba(147, 51, 234, 0.7)"
                 strokeWidth="1.5"
-                fill="none"
-                strokeLinecap="round"
-              />
-              <path
-                d="M10 4 Q13 6 11 10 Q9 14 10 16"
-                stroke="rgba(147, 51, 234, 0.4)"
-                strokeWidth="1"
                 fill="none"
                 strokeLinecap="round"
               />
@@ -766,8 +837,8 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
               viewBox="0 0 20 20"
             >
               <path
-                d="M10 2 Q15 5 12 10 Q9 15 10 18"
-                stroke="rgba(147, 51, 234, 0.5)"
+                d={createEggSpiralPath(10, 10, 8)}
+                stroke="rgba(147, 51, 234, 0.6)"
                 strokeWidth="1.5"
                 fill="none"
                 strokeLinecap="round"
@@ -787,8 +858,8 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
               viewBox="0 0 20 20"
             >
               <path
-                d="M10 2 Q15 5 12 10 Q9 15 10 18"
-                stroke="rgba(147, 51, 234, 0.5)"
+                d={createEggSpiralPath(10, 10, 8)}
+                stroke="rgba(147, 51, 234, 0.6)"
                 strokeWidth="1.5"
                 fill="none"
                 strokeLinecap="round"

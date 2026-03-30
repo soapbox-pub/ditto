@@ -8,6 +8,7 @@
 import type { BodyEffectsSpec } from './types';
 import {
   generateDirtMarks,
+  generateDustParticles,
   generateStinkClouds,
   detectBodyPath,
   generateAngerRiseEffect,
@@ -31,16 +32,21 @@ export function applyBodyEffects(svgText: string, spec: BodyEffectsSpec): string
   // Generate a unique ID suffix for this application (used by anger-rise)
   // This prevents ID collisions when multiple Blobbis render on the same page
   const idSuffix = spec.idPrefix ?? Math.random().toString(36).slice(2, 8);
+  const variant = spec.variant ?? 'adult';
   
-  // Dirt marks
+  // Dirt marks + dust particles
   if (spec.dirtyMarks?.enabled) {
-    const markup = generateDirtMarks(spec.dirtyMarks);
-    if (markup) overlays.push(markup);
+    const dirtMarkup = generateDirtMarks({ ...spec.dirtyMarks, variant });
+    if (dirtMarkup) overlays.push(dirtMarkup);
+    
+    // Add dust particles (includes both back and front layers)
+    const dustMarkup = generateDustParticles({ ...spec.dirtyMarks, variant });
+    if (dustMarkup) overlays.push(dustMarkup);
   }
   
   // Stink clouds
   if (spec.stinkClouds?.enabled) {
-    const markup = generateStinkClouds(spec.stinkClouds);
+    const markup = generateStinkClouds({ ...spec.stinkClouds, variant });
     if (markup) overlays.push(markup);
   }
   

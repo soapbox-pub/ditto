@@ -5,6 +5,16 @@
  * independently of face emotions. They can stack with any face state.
  */
 
+// ─── Variant Type ─────────────────────────────────────────────────────────────
+
+/**
+ * Blobbi life stage variant.
+ * Different variants have different SVG coordinate systems:
+ *   - baby:  100x100 viewBox
+ *   - adult: 200x200 viewBox
+ */
+export type BlobbiVariant = 'baby' | 'adult';
+
 // ─── Body Effect Types ────────────────────────────────────────────────────────
 
 /**
@@ -15,6 +25,8 @@ export interface DirtMarksConfig {
   enabled: boolean;
   /** Number of dirt marks (default: 3) */
   count?: number;
+  /** Blobbi variant for coordinate scaling (default: 'adult') */
+  variant?: BlobbiVariant;
 }
 
 /**
@@ -25,6 +37,8 @@ export interface StinkCloudsConfig {
   enabled: boolean;
   /** Number of cloud puffs (default: 3) */
   count?: number;
+  /** Blobbi variant for coordinate scaling (default: 'adult') */
+  variant?: BlobbiVariant;
 }
 
 /**
@@ -57,6 +71,11 @@ export interface BodyEffectsSpec {
    * If not provided, a random suffix is generated.
    */
   idPrefix?: string;
+  /**
+   * Blobbi variant for coordinate scaling.
+   * Different variants have different SVG coordinate systems.
+   */
+  variant?: BlobbiVariant;
 }
 
 /**

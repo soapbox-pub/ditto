@@ -11,6 +11,7 @@
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type {
+  BlobbiVariant,
   DirtMarksConfig,
   StinkCloudsConfig,
   BodyEffectConfig,
@@ -26,6 +27,7 @@ export { applyBodyEffects } from './apply';
 
 export {
   generateDirtMarks,
+  generateDustParticles,
   generateStinkClouds,
   detectBodyPath,
   generateAngerRiseEffect,

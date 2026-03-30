@@ -3,6 +3,10 @@
  * 
  * Pure functions that generate SVG markup for body-level visual effects.
  * Each generator returns SVG strings — no DOM manipulation.
+ * 
+ * Coordinate systems by variant:
+ *   - Baby:  100x100 viewBox, body roughly x: 25-75, y: 15-88
+ *   - Adult: 200x200 viewBox, body varies by form but center ~100, width ~70
  */
 
 import type {
@@ -66,49 +70,71 @@ function estimatePathBounds(pathD: string): { minY: number; maxY: number } {
 // ─── Dirt Marks ───────────────────────────────────────────────────────────────
 
 /**
+ * Dirt mark positions for baby variant (100x100 viewBox).
+ * Baby body path: roughly x: 25-75, y: 15-88, center at x=50
+ */
+const BABY_DIRT_POSITIONS = [
+  // Primary marks - well within the droplet body silhouette
+  { x: 40, y: 60, angle: 12, length: 3 },    // left-center
+  { x: 55, y: 55, angle: -8, length: 2.5 },  // right-center
+  { x: 48, y: 50, angle: 5, length: 2.5 },   // center, mid
+  // Additional marks for higher counts
+  { x: 52, y: 68, angle: -5, length: 2 },    // center, lower
+  { x: 42, y: 45, angle: 15, length: 2 },    // left, upper-mid
+];
+
+/**
+ * Dirt mark positions for adult variant (200x200 viewBox).
+ * Adult body varies by form, but generally centered around x=100.
+ * Using conservative positions that work across most forms.
+ */
+const ADULT_DIRT_POSITIONS = [
+  // Primary marks - centered in the main body area
+  { x: 88, y: 95, angle: 12, length: 5 },    // left of center
+  { x: 108, y: 90, angle: -8, length: 4.5 }, // right of center
+  { x: 98, y: 85, angle: 5, length: 4 },     // center
+  // Additional marks for higher counts
+  { x: 102, y: 100, angle: -5, length: 3.5 }, // center, lower
+  { x: 92, y: 80, angle: 15, length: 3.5 },   // left, upper-mid
+];
+
+/**
  * Generate dirt marks/scratches on the body.
  *
  * Positions are constrained to the Blobbi body silhouette:
- *   - Horizontally: centered around x=50, within ~38-62 range
- *   - Vertically: spread across mid-to-lower body (y: 55-78)
- *   - Higher count adds marks to upper and side areas
+ *   - Baby (100x100): centered around x=50, within ~38-62 range
+ *   - Adult (200x200): centered around x=100, scaled appropriately
  *
- * The Blobbi body in SVG coordinates is roughly:
- *   - Center: x=50
- *   - Width: ~30 units wide at widest point
- *   - Body spans roughly y: 25-85
+ * @param config - Dirt marks configuration including variant
+ * @returns SVG markup for dirt marks
  */
 export function generateDirtMarks(config: DirtMarksConfig): string {
   if (!config.enabled) return '';
 
   const count = config.count ?? 3;
+  const variant = config.variant ?? 'adult';
   const marks: string[] = [];
 
-  // Positions constrained to body area, ordered by visibility priority
-  // Each mark is placed within the body silhouette
-  const positions = [
-    // Primary marks - lower body, well within silhouette
-    { x: 42, y: 72, angle: 12, length: 3.5 },   // left-center, low
-    { x: 56, y: 68, angle: -8, length: 3 },     // right-center, mid-low
-    { x: 48, y: 62, angle: 5, length: 2.8 },    // center, mid
-    // Additional marks for higher counts - spread across body
-    { x: 52, y: 78, angle: -5, length: 2.5 },   // center, very low
-    { x: 44, y: 55, angle: 15, length: 2.5 },   // left, upper-mid
-  ].slice(0, count);
+  // Select positions based on variant
+  const basePositions = variant === 'baby' ? BABY_DIRT_POSITIONS : ADULT_DIRT_POSITIONS;
+  const positions = basePositions.slice(0, count);
+
+  // Scale factors for stroke width based on viewBox
+  const strokeWidth = variant === 'baby' ? 1.3 : 2;
 
   positions.forEach((pos, i) => {
     const startX = pos.x;
     const startY = pos.y;
     const endX = startX + pos.length * Math.cos((pos.angle * Math.PI) / 180);
     const endY = startY + pos.length * Math.sin((pos.angle * Math.PI) / 180);
-    const controlX = (startX + endX) / 2 + 0.8;
-    const controlY = (startY + endY) / 2 - 0.3;
+    const controlX = (startX + endX) / 2 + (variant === 'baby' ? 0.8 : 1.5);
+    const controlY = (startY + endY) / 2 - (variant === 'baby' ? 0.3 : 0.5);
 
     marks.push(`<path
       class="blobbi-dirt-mark blobbi-dirt-mark-${i}"
       d="M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}"
       stroke="#78716c"
-      stroke-width="1.3"
+      stroke-width="${strokeWidth}"
       stroke-linecap="round"
       fill="none"
       opacity="0.55"
@@ -118,47 +144,184 @@ export function generateDirtMarks(config: DirtMarksConfig): string {
   return marks.join('\n');
 }
 
+// ─── Dust Particles ───────────────────────────────────────────────────────────
+
+/**
+ * Dust particle positions for baby variant (100x100 viewBox).
+ * Front-layer particles are positioned in front of the body for stronger dirty read.
+ */
+const BABY_DUST_POSITIONS = {
+  // Back layer - below the body
+  back: [
+    { x: 40, y: 90, r: 1.5, delay: 0 },
+    { x: 50, y: 92, r: 1.2, delay: 0.3 },
+    { x: 58, y: 89, r: 1.3, delay: 0.6 },
+  ],
+  // Front layer - floating in front of body
+  front: [
+    { x: 38, y: 70, r: 1.2, delay: 0.1 },
+    { x: 58, y: 65, r: 1.0, delay: 0.4 },
+    { x: 48, y: 75, r: 0.9, delay: 0.7 },
+  ],
+};
+
+/**
+ * Dust particle positions for adult variant (200x200 viewBox).
+ */
+const ADULT_DUST_POSITIONS = {
+  // Back layer - below the body
+  back: [
+    { x: 85, y: 180, r: 2.5, delay: 0 },
+    { x: 100, y: 183, r: 2.2, delay: 0.3 },
+    { x: 115, y: 178, r: 2.3, delay: 0.6 },
+  ],
+  // Front layer - floating in front of body
+  front: [
+    { x: 82, y: 105, r: 2.0, delay: 0.1 },
+    { x: 115, y: 95, r: 1.8, delay: 0.4 },
+    { x: 98, y: 110, r: 1.6, delay: 0.7 },
+  ],
+};
+
+/**
+ * Generate animated dust particles around the Blobbi.
+ * Creates both back-layer (below body) and front-layer (in front of body) particles
+ * for a stronger "dirty" visual effect.
+ *
+ * @param config - Dirt marks configuration (reused for dust)
+ * @returns SVG markup for dust particles
+ */
+export function generateDustParticles(config: DirtMarksConfig): string {
+  if (!config.enabled) return '';
+
+  const variant = config.variant ?? 'adult';
+  const particles: string[] = [];
+
+  const positions = variant === 'baby' ? BABY_DUST_POSITIONS : ADULT_DUST_POSITIONS;
+
+  // Generate back layer particles
+  positions.back.forEach((pos, i) => {
+    particles.push(`<circle
+      class="blobbi-dust-particle blobbi-dust-back-${i}"
+      cx="${pos.x}"
+      cy="${pos.y}"
+      r="${pos.r}"
+      fill="#57534e"
+      opacity="0.6"
+    >
+      <animate
+        attributeName="opacity"
+        values="0.6;0.3;0.6"
+        dur="2s"
+        begin="${pos.delay}s"
+        repeatCount="indefinite"
+      />
+      <animate
+        attributeName="cy"
+        values="${pos.y};${pos.y - 2};${pos.y}"
+        dur="2s"
+        begin="${pos.delay}s"
+        repeatCount="indefinite"
+      />
+    </circle>`);
+  });
+
+  // Generate front layer particles with slightly stronger opacity
+  positions.front.forEach((pos, i) => {
+    particles.push(`<circle
+      class="blobbi-dust-particle blobbi-dust-front-${i}"
+      cx="${pos.x}"
+      cy="${pos.y}"
+      r="${pos.r}"
+      fill="#44403c"
+      opacity="0.7"
+    >
+      <animate
+        attributeName="opacity"
+        values="0.7;0.4;0.7"
+        dur="2.5s"
+        begin="${pos.delay}s"
+        repeatCount="indefinite"
+      />
+      <animate
+        attributeName="cy"
+        values="${pos.y};${pos.y - 3};${pos.y}"
+        dur="2.5s"
+        begin="${pos.delay}s"
+        repeatCount="indefinite"
+      />
+    </circle>`);
+  });
+
+  return particles.join('\n');
+}
+
 // ─── Stink Clouds ─────────────────────────────────────────────────────────────
+
+/**
+ * Stink cloud positions for baby variant (100x100 viewBox).
+ */
+const BABY_STINK_POSITIONS = [
+  { x: 44, y: 87, delay: 0 },
+  { x: 50, y: 89, delay: 0.8 },
+  { x: 56, y: 86, delay: 1.6 },
+  { x: 47, y: 88, delay: 2.2 },
+];
+
+/**
+ * Stink cloud positions for adult variant (200x200 viewBox).
+ */
+const ADULT_STINK_POSITIONS = [
+  { x: 88, y: 175, delay: 0 },
+  { x: 100, y: 178, delay: 0.8 },
+  { x: 112, y: 173, delay: 1.6 },
+  { x: 95, y: 176, delay: 2.2 },
+];
 
 /**
  * Generate animated stink cloud puffs below the Blobbi.
  *
  * Positions are centered below the body:
- *   - Horizontally: spread around center (x: 42-58)
- *   - Vertically: just below body bottom (y: 86-90)
+ *   - Baby (100x100): spread around x=50, y: 86-90
+ *   - Adult (200x200): spread around x=100, y: 173-178
+ *
+ * @param config - Stink clouds configuration including variant
+ * @returns SVG markup for stink clouds
  */
 export function generateStinkClouds(config: StinkCloudsConfig): string {
   if (!config.enabled) return '';
 
   const count = config.count ?? 3;
+  const variant = config.variant ?? 'adult';
   const clouds: string[] = [];
 
-  // Centered positions below the body
-  const positions = [
-    { x: 44, y: 87, delay: 0 },
-    { x: 50, y: 89, delay: 0.8 },
-    { x: 56, y: 86, delay: 1.6 },
-    { x: 47, y: 88, delay: 2.2 },  // extra for count=4+
-  ].slice(0, count);
+  // Select positions based on variant
+  const basePositions = variant === 'baby' ? BABY_STINK_POSITIONS : ADULT_STINK_POSITIONS;
+  const positions = basePositions.slice(0, count);
+  
+  // Scale factors based on viewBox
+  const scale = variant === 'baby' ? 1 : 2;
+  const floatDistance = variant === 'baby' ? 12 : 24;
   
   positions.forEach((pos, i) => {
     const startX = pos.x;
     const startY = pos.y;
+    const s = scale; // shorthand for cleaner path math
     
     clouds.push(`<g class="blobbi-stink-cloud blobbi-stink-cloud-${i}" opacity="0">
       <path
         d="M ${startX} ${startY} 
-           Q ${startX - 1.5} ${startY - 1} ${startX - 2} ${startY - 2}
-           Q ${startX - 1} ${startY - 3} ${startX} ${startY - 2.5}
-           Q ${startX + 1} ${startY - 3} ${startX + 2} ${startY - 2}
-           Q ${startX + 1.5} ${startY - 1} ${startX} ${startY}"
+           Q ${startX - 1.5 * s} ${startY - 1 * s} ${startX - 2 * s} ${startY - 2 * s}
+           Q ${startX - 1 * s} ${startY - 3 * s} ${startX} ${startY - 2.5 * s}
+           Q ${startX + 1 * s} ${startY - 3 * s} ${startX + 2 * s} ${startY - 2 * s}
+           Q ${startX + 1.5 * s} ${startY - 1 * s} ${startX} ${startY}"
         fill="#9ca3af"
         opacity="0.5"
       />
       <animateTransform
         attributeName="transform"
         type="translate"
-        values="0 0; 0 -12"
+        values="0 0; 0 -${floatDistance}"
         dur="3s"
         begin="${pos.delay}s"
         repeatCount="indefinite"
