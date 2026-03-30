@@ -808,6 +808,7 @@ function CreatedBadgeRow({
         kind: 5,
         content: "",
         tags: [
+          ["e", badge.event.id],
           [
             "a",
             `${BADGE_DEFINITION_KIND}:${badge.event.pubkey}:${badge.badge.identifier}`,

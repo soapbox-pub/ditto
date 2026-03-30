@@ -177,8 +177,9 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const mentionContent = `nostr:${nip19.npubEncode(event.pubkey)} `;
 
   const handleDelete = () => {
+    const dTag = event.tags.find(([name]) => name === 'd')?.[1];
     deleteEvent(
-      { eventId: event.id, eventKind: event.kind },
+      { eventId: event.id, eventKind: event.kind, eventPubkey: event.pubkey, eventDTag: dTag },
       {
         onSuccess: () => {
           setDeleteConfirmOpen(false);
