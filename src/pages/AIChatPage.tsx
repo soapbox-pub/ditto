@@ -799,16 +799,16 @@ export function AIChatPage() {
   }
 
   return (
-    <main className="flex flex-col ai-chat-height sidebar:h-dvh overflow-hidden bg-secondary/50">
+    <main className="flex h-full min-h-0 flex-col overflow-hidden bg-secondary/50 sidebar:h-dvh">
       {/* Header */}
-      <div className="shrink-0 px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
+      <div className="shrink-0 px-4 py-2.5 flex flex-col gap-2 sidebar:flex-row sidebar:items-center sidebar:justify-between sidebar:gap-3">
         <PageHeader title="AI Chat" icon={<Bot className="size-5" />} className="px-0 mt-0 mb-0" />
 
         <div className="flex items-center gap-2">
           <CreditsBadge getCredits={getCredits} />
           {/* Model selector */}
           <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
-            <SelectTrigger className="w-full sidebar:w-44 h-8 text-base md:text-xs">
+            <SelectTrigger className="h-8 w-full text-base md:text-xs sidebar:w-44">
               <SelectValue placeholder={modelsLoading ? 'Loading models...' : 'Select model'} />
             </SelectTrigger>
             <SelectContent>
@@ -845,8 +845,9 @@ export function AIChatPage() {
       </div>
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1" ref={scrollRef}>
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <ScrollArea className="min-h-0 flex-1" ref={scrollRef}>
+        <div className="mx-auto flex min-h-full max-w-2xl flex-col justify-end px-4 py-4">
+          <div className="space-y-6">
           {messages.length === 0 ? (
             <EmptyState />
           ) : (
@@ -868,11 +869,12 @@ export function AIChatPage() {
           )}
 
           <div ref={messagesEndRef} />
+          </div>
         </div>
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="shrink-0 p-4">
+      <div className="shrink-0 px-4 pb-[calc(1rem+var(--bottom-nav-height)+env(safe-area-inset-bottom,0px))] pt-3 sidebar:p-4">
         <div className="max-w-2xl mx-auto flex items-end gap-2">
           <Textarea
             ref={textareaRef}
