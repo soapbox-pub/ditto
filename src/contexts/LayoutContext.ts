@@ -170,7 +170,6 @@ export function useLayoutOptions(options: LayoutOptions): void {
   });
 
   // Unmount-only cleanup — deferred so incoming pages can overwrite first.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     return () => {
       const snapshot = prev.current;
