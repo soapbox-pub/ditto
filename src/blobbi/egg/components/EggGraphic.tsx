@@ -702,15 +702,20 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
 
         {/* ── Status Effects ─────────────────────────────────────────────── */}
 
-        {/* Dirty effect: sweat droplet + dust particles (front + back layers) */}
+        {/* Dirty effect: sweat droplet + dust at lower shell edges
+            Placement rules for egg:
+            - Sweat droplet stays at upper-left (outside egg, not on face)
+            - Dust particles only at lower outer shell edges
+            - Avoid center-front placement entirely
+        */}
         {statusEffects?.dirty && (
           <>
-            {/* Sweat droplet - upper left of egg */}
+            {/* Sweat droplet - upper left outside egg shell */}
             <div
               className="absolute animate-egg-sweat-drop"
               style={{
                 top: '15%',
-                left: '8%',
+                left: '5%',
                 width: '0.6em',
                 height: '0.9em',
                 background: 'linear-gradient(180deg, rgba(147, 197, 253, 0.9) 0%, rgba(59, 130, 246, 0.7) 100%)',
@@ -718,85 +723,84 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
                 zIndex: 20,
               }}
             />
-            {/* Dust particles underneath (back layer) */}
+            {/* Dust particles underneath (back layer) - at lower edges */}
             <div
               className="absolute animate-egg-dust"
               style={{
                 bottom: '-5%',
-                left: '25%',
-                width: '50%',
+                left: '20%',
+                width: '60%',
                 height: '0.4em',
                 display: 'flex',
-                justifyContent: 'space-around',
+                justifyContent: 'space-between',
                 zIndex: 5,
               }}
             >
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: '0.3em',
-                    height: '0.3em',
-                    background: 'rgba(87, 83, 78, 0.7)', // Stronger brown color
-                    borderRadius: '50%',
-                    animationDelay: `${i * 0.3}s`,
-                  }}
-                  className="animate-egg-dust-particle"
-                />
-              ))}
-            </div>
-            {/* Front-layer dust particles - floating in front of egg */}
-            <div
-              className="absolute"
-              style={{
-                top: '60%',
-                left: '15%',
-                width: '70%',
-                height: '30%',
-                pointerEvents: 'none',
-                zIndex: 25, // In front of egg
-              }}
-            >
-              {/* Front dust particle 1 - lower left */}
+              {/* Left edge particle */}
               <div
-                className="absolute animate-egg-dust-particle"
                 style={{
-                  bottom: '10%',
-                  left: '5%',
-                  width: '0.25em',
-                  height: '0.25em',
-                  background: 'rgba(68, 64, 60, 0.75)', // Darker, more visible
-                  borderRadius: '50%',
-                  animationDelay: '0.1s',
-                }}
-              />
-              {/* Front dust particle 2 - center */}
-              <div
-                className="absolute animate-egg-dust-particle"
-                style={{
-                  bottom: '25%',
-                  left: '45%',
-                  width: '0.2em',
-                  height: '0.2em',
+                  width: '0.3em',
+                  height: '0.3em',
                   background: 'rgba(87, 83, 78, 0.7)',
                   borderRadius: '50%',
-                  animationDelay: '0.5s',
                 }}
+                className="animate-egg-dust-particle"
               />
-              {/* Front dust particle 3 - lower right */}
+              {/* Right edge particle */}
               <div
-                className="absolute animate-egg-dust-particle"
                 style={{
-                  bottom: '5%',
-                  right: '10%',
-                  width: '0.22em',
-                  height: '0.22em',
-                  background: 'rgba(68, 64, 60, 0.7)',
+                  width: '0.28em',
+                  height: '0.28em',
+                  background: 'rgba(87, 83, 78, 0.65)',
                   borderRadius: '50%',
-                  animationDelay: '0.8s',
+                  animationDelay: '0.4s',
                 }}
+                className="animate-egg-dust-particle"
               />
             </div>
+            {/* Front-layer dust - ONLY at lower-left and lower-right edges */}
+            {/* Lower-left edge particle */}
+            <div
+              className="absolute animate-egg-dust-particle"
+              style={{
+                bottom: '12%',
+                left: '8%',
+                width: '0.22em',
+                height: '0.22em',
+                background: 'rgba(68, 64, 60, 0.7)',
+                borderRadius: '50%',
+                zIndex: 25,
+                animationDelay: '0.1s',
+              }}
+            />
+            {/* Lower-right edge particle */}
+            <div
+              className="absolute animate-egg-dust-particle"
+              style={{
+                bottom: '15%',
+                right: '6%',
+                width: '0.2em',
+                height: '0.2em',
+                background: 'rgba(68, 64, 60, 0.65)',
+                borderRadius: '50%',
+                zIndex: 25,
+                animationDelay: '0.5s',
+              }}
+            />
+            {/* Very bottom left particle */}
+            <div
+              className="absolute animate-egg-dust-particle"
+              style={{
+                bottom: '5%',
+                left: '15%',
+                width: '0.18em',
+                height: '0.18em',
+                background: 'rgba(87, 83, 78, 0.6)',
+                borderRadius: '50%',
+                zIndex: 25,
+                animationDelay: '0.8s',
+              }}
+            />
           </>
         )}
 

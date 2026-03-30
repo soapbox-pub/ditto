@@ -70,40 +70,62 @@ function estimatePathBounds(pathD: string): { minY: number; maxY: number } {
 // ─── Dirt Marks ───────────────────────────────────────────────────────────────
 
 /**
+ * Protected facial zones (where dirt marks should NEVER appear):
+ *   - Eyes, mouth, eyebrows
+ *   - Tears, saliva/drool, blush marks
+ *   - Sparkles and other facial extras
+ *   - Upper-center body area where face elements live
+ *
+ * Preferred dirt placement zones:
+ *   - Lower-left edge of body silhouette
+ *   - Lower-right edge of body silhouette
+ *   - Bottom edge (below face region)
+ *   - Side contours in lower half of body
+ *
+ * Baby (100x100 viewBox):
+ *   - Face region: x: 30-70, y: 35-70 (AVOID)
+ *   - Safe lower edges: y > 72, prefer x < 35 or x > 65
+ *
+ * Adult (200x200 viewBox):
+ *   - Face region: x: 80-120, y: 70-115 (AVOID)
+ *   - Safe lower edges: y > 120, prefer x < 85 or x > 115
+ */
+
+/**
  * Dirt mark positions for baby variant (100x100 viewBox).
- * Baby body path: roughly x: 25-75, y: 15-88, center at x=50
+ * Positioned at lower-left and lower-right edges, avoiding face region.
  */
 const BABY_DIRT_POSITIONS = [
-  // Primary marks - well within the droplet body silhouette
-  { x: 40, y: 60, angle: 12, length: 3 },    // left-center
-  { x: 55, y: 55, angle: -8, length: 2.5 },  // right-center
-  { x: 48, y: 50, angle: 5, length: 2.5 },   // center, mid
-  // Additional marks for higher counts
-  { x: 52, y: 68, angle: -5, length: 2 },    // center, lower
-  { x: 42, y: 45, angle: 15, length: 2 },    // left, upper-mid
+  // Primary marks - lower side edges, well below face
+  { x: 30, y: 76, angle: 25, length: 2.5 },   // lower-left edge
+  { x: 68, y: 74, angle: -20, length: 2.5 },  // lower-right edge
+  { x: 32, y: 82, angle: 15, length: 2 },     // very low left
+  // Additional marks for higher counts - still at edges
+  { x: 66, y: 80, angle: -15, length: 2 },    // very low right
+  { x: 50, y: 84, angle: 5, length: 2 },      // bottom center (safe - well below face)
 ];
 
 /**
  * Dirt mark positions for adult variant (200x200 viewBox).
- * Adult body varies by form, but generally centered around x=100.
- * Using conservative positions that work across most forms.
+ * Positioned at lower side edges, avoiding face region entirely.
  */
 const ADULT_DIRT_POSITIONS = [
-  // Primary marks - centered in the main body area
-  { x: 88, y: 95, angle: 12, length: 5 },    // left of center
-  { x: 108, y: 90, angle: -8, length: 4.5 }, // right of center
-  { x: 98, y: 85, angle: 5, length: 4 },     // center
+  // Primary marks - lower side edges
+  { x: 78, y: 125, angle: 30, length: 4 },    // lower-left side
+  { x: 122, y: 122, angle: -25, length: 4 },  // lower-right side
+  { x: 80, y: 138, angle: 20, length: 3.5 },  // very low left
   // Additional marks for higher counts
-  { x: 102, y: 100, angle: -5, length: 3.5 }, // center, lower
-  { x: 92, y: 80, angle: 15, length: 3.5 },   // left, upper-mid
+  { x: 120, y: 135, angle: -20, length: 3.5 }, // very low right
+  { x: 100, y: 145, angle: 5, length: 3 },    // bottom center (safe - well below face)
 ];
 
 /**
  * Generate dirt marks/scratches on the body.
  *
- * Positions are constrained to the Blobbi body silhouette:
- *   - Baby (100x100): centered around x=50, within ~38-62 range
- *   - Adult (200x200): centered around x=100, scaled appropriately
+ * Placement rules:
+ *   - AVOID face region (eyes, mouth, eyebrows, tears, drool, blush, sparkles)
+ *   - PREFER lower-left and lower-right edges of body silhouette
+ *   - Bottom edge placement is safe (well below face elements)
  *
  * @param config - Dirt marks configuration including variant
  * @returns SVG markup for dirt marks
@@ -148,38 +170,39 @@ export function generateDirtMarks(config: DirtMarksConfig): string {
 
 /**
  * Dust particle positions for baby variant (100x100 viewBox).
- * Front-layer particles are positioned in front of the body for stronger dirty read.
+ * All particles positioned at lower edges, avoiding face region.
  */
 const BABY_DUST_POSITIONS = {
   // Back layer - below the body
   back: [
-    { x: 40, y: 90, r: 1.5, delay: 0 },
+    { x: 35, y: 90, r: 1.5, delay: 0 },
     { x: 50, y: 92, r: 1.2, delay: 0.3 },
-    { x: 58, y: 89, r: 1.3, delay: 0.6 },
+    { x: 65, y: 89, r: 1.3, delay: 0.6 },
   ],
-  // Front layer - floating in front of body
+  // Front layer - at lower side edges, NOT in face region
   front: [
-    { x: 38, y: 70, r: 1.2, delay: 0.1 },
-    { x: 58, y: 65, r: 1.0, delay: 0.4 },
-    { x: 48, y: 75, r: 0.9, delay: 0.7 },
+    { x: 28, y: 78, r: 1.0, delay: 0.1 },   // lower-left edge
+    { x: 70, y: 76, r: 0.9, delay: 0.4 },   // lower-right edge
+    { x: 32, y: 84, r: 0.8, delay: 0.7 },   // very low left
   ],
 };
 
 /**
  * Dust particle positions for adult variant (200x200 viewBox).
+ * All particles positioned at lower edges, avoiding face region.
  */
 const ADULT_DUST_POSITIONS = {
   // Back layer - below the body
   back: [
-    { x: 85, y: 180, r: 2.5, delay: 0 },
-    { x: 100, y: 183, r: 2.2, delay: 0.3 },
-    { x: 115, y: 178, r: 2.3, delay: 0.6 },
+    { x: 80, y: 175, r: 2.5, delay: 0 },
+    { x: 100, y: 180, r: 2.2, delay: 0.3 },
+    { x: 120, y: 173, r: 2.3, delay: 0.6 },
   ],
-  // Front layer - floating in front of body
+  // Front layer - at lower side edges, NOT in face region
   front: [
-    { x: 82, y: 105, r: 2.0, delay: 0.1 },
-    { x: 115, y: 95, r: 1.8, delay: 0.4 },
-    { x: 98, y: 110, r: 1.6, delay: 0.7 },
+    { x: 75, y: 130, r: 1.8, delay: 0.1 },   // lower-left side
+    { x: 125, y: 128, r: 1.6, delay: 0.4 },  // lower-right side
+    { x: 78, y: 142, r: 1.4, delay: 0.7 },   // very low left
   ],
 };
 
