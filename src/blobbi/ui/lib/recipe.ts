@@ -12,16 +12,25 @@
  *   - bodyEffects: dirt marks, stink clouds, anger-rise color overlay
  *   - extras:      tears, drool, food icons, Zzz, sparkles
  *
- * Named emotions (e.g. 'sleepy', 'hungry') are **presets** that resolve
- * into recipes. The status reaction system (status-reactions.ts) composes
- * presets and folds in body effects to produce a single final recipe.
- * The rendering pipeline applies each part independently through its subsystem.
+ * Two pathways produce recipes:
+ *
+ *   1. **Named emotion presets** (EMOTION_RECIPES): Static recipes looked up
+ *      by name (e.g. 'excited', 'surprised'). Used for action overrides and
+ *      direct emotion setting. Resolved via resolveVisualRecipe().
+ *
+ *   2. **Status-driven composition** (status-reactions.ts): Builds recipes
+ *      dynamically from current stats using part-priority rules. Each low
+ *      stat contributes parts, and the resolver picks winners per-part.
+ *      This is the primary pathway for ongoing Blobbi expressions.
+ *
+ * The rendering pipeline (applyVisualRecipe) applies each part independently
+ * through its subsystem, regardless of which pathway produced the recipe.
  *
  * Key concepts:
  *   - BlobbiVisualRecipe: the central type describing all visual parts
- *   - EMOTION_RECIPES: named emotion presets as part-based recipes
+ *   - EMOTION_RECIPES: named emotion presets for actions and overrides
  *   - resolveVisualRecipe(): resolves a named emotion preset into a recipe
- *   - mergeVisualRecipes(): merges two recipes (for sleepy + boring → combined)
+ *   - mergeVisualRecipes(): merges two recipes (overlay takes precedence)
  *   - applyVisualRecipe(): orchestrates subsystem calls from a resolved recipe
  */
 
@@ -186,6 +195,18 @@ export interface BlobbiVisualRecipe {
  * The base Blobbi SVG (neutral) is visually content with a gentle smile,
  * so 'neutral' maps to an empty recipe (no modifications).
  *
+ * **Relationship to status-driven expressions:**
+ * Status-reactions.ts builds recipes dynamically from stats with severity
+ * escalation (warning → high → critical). These presets serve as canonical
+ * reference points and are used for:
+ *   - Action overrides (feeding → 'happy', playing → 'excited')
+ *   - Direct emotion setting in dev tools
+ *   - Fallback when specific status logic isn't needed
+ *
+ * Status-related presets (hungry, sleepy, dirty, sad, dizzy) are aligned
+ * with their status-driven "high" or "critical" severity equivalents so
+ * the visual language stays consistent.
+ *
  * Design principles:
  *   - Each preset should feel distinct and immediately readable
  *   - Status states (hungry, sleepy, sad) should evoke empathy
@@ -226,14 +247,15 @@ export const EMOTION_RECIPES: Record<BlobbiEmotion, BlobbiVisualRecipe> = {
   // ── Dirty ───────────────────────────────────────────────────────────────────
   // Body decorator for low hygiene. Face shows mild discomfort/irritation.
   // The grimace and slightly furrowed brows say "I feel gross".
+  // Matches the "high" severity hygiene expression from status-reactions.
   dirty: {
-    mouth: { droopyMouth: { widthScale: 0.85, curveScale: 0.25 } },
+    mouth: { droopyMouth: { widthScale: 0.8, curveScale: 0.2 } },
     eyebrows: {
-      // Slightly furrowed (uncomfortable/annoyed)
-      config: { angle: 8, offsetY: -9, strokeWidth: 1.3, color: '#6b7280' },
+      // Furrowed (uncomfortable/annoyed), matches high severity
+      config: { angle: 10, offsetY: -9, strokeWidth: 1.3, color: '#6b7280' },
     },
     bodyEffects: {
-      dirtMarks: { enabled: true, count: 3 },
+      dirtMarks: { enabled: true, count: 4 },
       stinkClouds: { enabled: true, count: 3 },
     },
   },
@@ -334,15 +356,16 @@ export const EMOTION_RECIPES: Record<BlobbiEmotion, BlobbiVisualRecipe> = {
 
   // ── Hungry ──────────────────────────────────────────────────────────────────
   // Pleading, needy, hopeful for food. Shiny hopeful eyes (not sad-watery),
-  // slightly open anticipating mouth, pleading brows, drool + food icon.
-  // The expression should evoke "please feed me" not "I'm sad".
+  // open anticipating mouth, pleading brows, drool + food icon.
+  // Matches the "high" severity hunger expression from status-reactions.
+  // The expression evokes "please feed me" not "I'm sad".
   hungry: {
     eyes: { wateryEyes: { includeWaterFill: false } },
     eyebrows: {
-      // Inner corners raised (pleading/hopeful), softer than sad
-      config: { angle: -12, offsetY: -10, strokeWidth: 1.3, color: '#6b7280', curve: 0.1 },
+      // Inner corners raised (pleading/hopeful), matches high severity
+      config: { angle: -14, offsetY: -10, strokeWidth: 1.3, color: '#6b7280', curve: 0.15 },
     },
-    mouth: { roundMouth: { rx: 3, ry: 4, filled: true } },
+    mouth: { roundMouth: { rx: 3.5, ry: 4.5, filled: true } },
     extras: {
       drool: { enabled: true, side: 'right' },
       foodIcon: { enabled: true, type: 'utensils' },

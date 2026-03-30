@@ -346,15 +346,17 @@ type PartContributionResolver = (severity: StatSeverity) => StatPartContribution
 
 /**
  * Energy severity escalation:
- *   warning  → sleepy (slow blinks, soft breathing)
- *   high     → heavier sleepy (slower blinks, deeper breathing)
- *   critical → very drowsy (even slower, struggling to stay awake)
+ *   warning  → sleepy (gentle blinks, soft breathing)
+ *   high     → heavier sleepy (heavier-lidded blinks)
+ *   critical → very drowsy (eyes barely open, struggling to stay awake)
+ *
+ * Lower cycleDuration = more time with eyes closed per cycle = drowsier feel.
  */
 const ENERGY_PARTS: PartContributionResolver = (severity) => {
   if (severity === 'normal') return undefined;
 
-  // Sleepiness is a relaxed, fading state — not distressed
-  // Cycle duration decreases (slower blinks) as severity increases
+  // Sleepiness is a relaxed, fading state — not distressed.
+  // Lower cycle duration = more closed time = heavier eyelids.
   const cycleDuration = severity === 'critical' ? 5 : severity === 'high' ? 6 : 8;
 
   return {
@@ -459,7 +461,10 @@ const HUNGER_PARTS: PartContributionResolver = (severity) => {
         curve: eyebrowCurve,
       },
     },
-    // Drool + food icon — hunger's signature extras
+    // Drool + food icon — hunger's signature extras.
+    // Drool is semantically hunger-driven (salivating for food) and is
+    // intentionally not contributed by other stats. The drool anchor system
+    // in recipe.ts handles positioning based on the final mouth shape.
     extras: {
       drool: { enabled: true, side: 'right' as const },
       foodIcon: { enabled: true, type: 'utensils' as const },
@@ -593,10 +598,10 @@ const EYES_PRIORITY: ReactiveStat[] = ['health', 'energy', 'happiness', 'hunger'
  * Mouth priority: which stat's mouth contribution wins.
  *
  * 1. energy (sleepy breathing mouth)
- * 2. health (sad mouth or round mouth if critical)
+ * 2. health (sad mouth, or round mouth if critical)
  * 3. happiness (sad mouth)
- * 4. hunger (droopy mouth)
- * 5. hygiene (boring droopy)
+ * 4. hunger (round mouth at warning/high, droopy at critical)
+ * 5. hygiene (grimace/droopy)
  */
 const MOUTH_PRIORITY: ReactiveStat[] = ['energy', 'health', 'happiness', 'hunger', 'hygiene'];
 
@@ -711,14 +716,16 @@ const STAT_LABEL_MAP: Record<ReactiveStat, string> = {
  *   5. Assemble the final recipe + metadata.
  *
  * Example compositions:
- *   - hunger + hygiene → hungry eyes, droopy mouth, worried eyebrows,
- *     drool + food icon extras, dirt + stink bodyEffects
- *   - energy + hunger → sleepy eyes, sleepy mouth, hungry eyebrows,
+ *   - hunger only → hopeful watery eyes, round "ooh" mouth, pleading brows,
  *     drool + food icon extras
- *   - energy + health(critical) → dizzy eyes (health critical > sleepy),
- *     sleepy mouth, health eyebrows, no hunger extras
+ *   - hunger + hygiene → hungry eyes, hungry mouth (hunger > hygiene),
+ *     hungry brows (hunger > hygiene), drool + food, dirt + stink
+ *   - energy + hunger → sleepy eyes, sleepy mouth, hungry brows,
+ *     drool + food icon extras (additive)
+ *   - health(critical) + anything → dizzy eyes dominate, sleepy mouth if
+ *     energy also low, health brows, whatever extras each stat contributes
  *   - all stats low → eyes from highest-priority contributor,
- *     additive extras (drool + tears + Zzz), dirt bodyEffects
+ *     additive extras (drool + tears), dirt + stink bodyEffects
  */
 export function resolveStatusRecipe(stats: BlobbiStats): StatusRecipeResult {
   // 1. Compute severity for each stat
