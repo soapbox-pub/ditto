@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
@@ -11,13 +11,14 @@ import { PageHeader } from '@/components/PageHeader';
 import { SpellContent } from '@/components/SpellContent';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
+import { isNostrUri, nostrUriToNip19, safeDecodeEventId } from '@/lib/sidebarItems';
 import { resolveSpell } from '@/lib/spellEngine';
 import NotFound from './NotFound';
 
@@ -92,21 +93,33 @@ export function SpellRunPage() {
 
   const spellName = spellEvent?.tags.find(([t]) => t === 'name')?.[1];
 
-  // Sidebar integration
+  // Sidebar integration — compare by decoded event ID to handle different nevent encodings
   const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
-  const nostrUri = spellEvent
-    ? `nostr:${nip19.neventEncode({ id: spellEvent.id, author: spellEvent.pubkey, kind: spellEvent.kind })}`
-    : '';
-  const isInSidebar = nostrUri ? orderedItems.includes(nostrUri) : false;
+  const { toast } = useToast();
 
-  const handleToggleSidebar = () => {
-    if (!nostrUri) return;
-    if (isInSidebar) {
-      removeFromSidebar(nostrUri);
+  /** Find the existing sidebar entry that references this event (if any), by decoded event ID. */
+  const matchingSidebarItem = useMemo(() => {
+    if (!spellEvent) return undefined;
+    return orderedItems.find((item) => {
+      if (!isNostrUri(item)) return false;
+      const itemEventId = safeDecodeEventId(nostrUriToNip19(item));
+      return itemEventId === spellEvent.id;
+    });
+  }, [orderedItems, spellEvent]);
+
+  const isInSidebar = !!matchingSidebarItem;
+
+  const handleToggleSidebar = useCallback(() => {
+    if (!spellEvent) return;
+    if (isInSidebar && matchingSidebarItem) {
+      removeFromSidebar(matchingSidebarItem);
+      toast({ title: 'Removed from sidebar' });
     } else {
+      const nostrUri = `nostr:${nip19.neventEncode({ id: spellEvent.id, author: spellEvent.pubkey, kind: spellEvent.kind })}`;
       addToSidebar(nostrUri);
+      toast({ title: 'Added to sidebar' });
     }
-  };
+  }, [spellEvent, isInSidebar, matchingSidebarItem, addToSidebar, removeFromSidebar, toast]);
 
   useSeoMeta({
     title: spellName ? `${spellName} | Spell Results` : 'Spell Results',
@@ -135,15 +148,18 @@ export function SpellRunPage() {
           <div className="flex-1 min-w-0">
             <SpellContent event={spellEvent} />
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0 size-8"
+          <button
+            className="shrink-0 size-8 flex items-center justify-center group"
             onClick={handleToggleSidebar}
             title={isInSidebar ? 'Remove from sidebar' : 'Add to sidebar'}
           >
-            <Star className={cn('size-4', isInSidebar ? 'fill-primary text-primary' : 'text-muted-foreground')} />
-          </Button>
+            <Star className={cn(
+              'size-4 transition-colors',
+              isInSidebar
+                ? 'fill-primary text-primary'
+                : 'text-muted-foreground group-hover:fill-primary group-hover:text-primary',
+            )} />
+          </button>
         </div>
       )}
 

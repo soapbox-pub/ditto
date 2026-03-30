@@ -310,7 +310,7 @@ export function isItemActive(
 }
 
 /** Safely decode a NIP-19 identifier and extract its event ID, or null on failure. */
-function safeDecodeEventId(bech32: string): string | null {
+export function safeDecodeEventId(bech32: string): string | null {
   try {
     const decoded = nip19.decode(bech32);
     switch (decoded.type) {
