@@ -72,10 +72,16 @@ export const EYE_CLASSES = {
   blinkRight: 'blobbi-blink-right',
   blink: 'blobbi-blink',
 
-  // Eye tracking groups (inner layer - controls eye movement)
+  // Eye animation groups (middle layer - CSS animations like sleepy wake-glance)
   eyeLeft: 'blobbi-eye-left',
   eyeRight: 'blobbi-eye-right',
   eye: 'blobbi-eye',
+
+  // Eye gaze groups (innermost layer - JS-controlled translate for gaze tracking)
+  // Nested inside .blobbi-eye so CSS animations and gaze transforms don't conflict
+  gazeLeft: 'blobbi-eye-gaze-left',
+  gazeRight: 'blobbi-eye-gaze-right',
+  gaze: 'blobbi-eye-gaze',
 
   // Eyelid elements (behind eye, visible when closed)
   eyelidLeft: 'blobbi-eyelid-left',

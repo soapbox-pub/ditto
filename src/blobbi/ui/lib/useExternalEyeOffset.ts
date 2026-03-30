@@ -7,7 +7,7 @@
  *
  * This hook:
  * - Runs a RAF loop to continuously apply eye offset
- * - Queries the DOM for blobbi-eye-left and blobbi-eye-right elements
+ * - Queries the DOM for blobbi-eye-gaze-left and blobbi-eye-gaze-right elements
  * - Converts -1 to 1 offset to pixel movement
  * - Applies asymmetric vertical movement (up stronger than down)
  *
@@ -16,7 +16,11 @@
  * - SVG content can change due to emotion recipes
  * - A useEffect that only runs on prop change can miss DOM updates
  *
- * Previously this was a simple useEffect, but that caused stuck eyes when idle.
+ * Eye Structure (nested groups):
+ * - .blobbi-eye (outer) - CSS animations like sleepy wake-glance
+ * - .blobbi-eye-gaze (inner) - JS-controlled gaze transforms
+ *
+ * This separation allows CSS animations and gaze tracking to work together.
  */
 
 import { useEffect, useRef } from 'react';
@@ -88,11 +92,14 @@ export function useExternalEyeOffset({
         return;
       }
       
-      const eyeElements = containerRef.current.querySelectorAll<SVGGElement>(
-        `.${EYE_CLASSES.eyeLeft}, .${EYE_CLASSES.eyeRight}`
+      // Target the inner gaze groups, not the outer eye groups.
+      // This allows CSS animations (like sleepy wake-glance) to run on .blobbi-eye
+      // while we control gaze position on the nested .blobbi-eye-gaze elements.
+      const gazeElements = containerRef.current.querySelectorAll<SVGGElement>(
+        `.${EYE_CLASSES.gazeLeft}, .${EYE_CLASSES.gazeRight}`
       );
       
-      if (eyeElements.length > 0) {
+      if (gazeElements.length > 0) {
         // Convert -1 to 1 offset to pixel movement
         const x = offset.x * maxMovementX;
 
@@ -106,20 +113,7 @@ export function useExternalEyeOffset({
 
         const transform = `translate(${x} ${y})`;
         
-        eyeElements.forEach((el) => {
-          // Check for CSS animations that use transform (like sleepy wake-up glance).
-          // Since we're in external gaze mode, we need to take control of the transform.
-          // We disable the animation and apply our transform instead.
-          const computedStyle = getComputedStyle(el);
-          const animationName = computedStyle.animationName;
-          
-          if (animationName && animationName !== 'none') {
-            // Disable the CSS animation so we can control the transform.
-            // This allows sleepy's eyelid clip-path animation to still run
-            // while we control eye position for gaze tracking.
-            el.style.animation = 'none';
-          }
-          
+        gazeElements.forEach((el) => {
           el.setAttribute('transform', transform);
         });
       }

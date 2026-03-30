@@ -401,24 +401,30 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
 
     const first = sorted[0];
 
-    // Build the tracking group content (pupil + highlights only)
-    const trackingElements = [group.pupil, ...group.highlights].sort((a, b) => a.index - b.index);
-    const trackingContent = trackingElements.map((el) => el.match).join('\n      ');
+    // Build the gaze group content (pupil + highlights only)
+    const gazeElements = [group.pupil, ...group.highlights].sort((a, b) => a.index - b.index);
+    const gazeContent = gazeElements.map((el) => el.match).join('\n        ');
 
-    // Build the inner tracking group
-    const trackingGroup = `<g class="blobbi-eye blobbi-eye-${group.side}" style="transform-box: fill-box; transform-origin: center;">
-      ${trackingContent}
+    // Build the inner gaze group (receives JS gaze transforms - translate)
+    const gazeGroup = `<g class="${EYE_CLASSES.gaze} ${EYE_CLASSES.gaze}-${group.side}">
+        ${gazeContent}
+      </g>`;
+
+    // Build the eye animation group (receives CSS animations like sleepy wake-glance)
+    // The gaze group is nested inside so CSS animations and gaze transforms don't conflict
+    const eyeGroup = `<g class="${EYE_CLASSES.eye} ${EYE_CLASSES.eye}-${group.side}" style="transform-box: fill-box; transform-origin: center;">
+      ${gazeGroup}
     </g>`;
 
     // Build the outer blink group
     let blinkContent: string;
     if (group.eyeWhite) {
-      // Eye white goes outside tracking group, inside blink group
+      // Eye white goes outside eye group, inside blink group
       blinkContent = `${group.eyeWhite.match}
-    ${trackingGroup}`;
+    ${eyeGroup}`;
     } else {
-      // No eye white found, just wrap tracking group
-      blinkContent = trackingGroup;
+      // No eye white found, just wrap eye group
+      blinkContent = eyeGroup;
     }
 
     // Calculate eye bounds for clip-path blink animation
