@@ -124,6 +124,7 @@ const hardcodedConfig: AppConfig = {
     "profile",
     "themes",
     "badges",
+    "blobbi",
     "theme",
     "settings",
     "help",
