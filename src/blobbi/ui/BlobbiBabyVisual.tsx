@@ -88,6 +88,7 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
     if (!isSleeping) {
       let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId: blobbi.id });
 
+      // Recipe-first path: applyVisualRecipe() handles body effects in the recipe.
       if (recipeProp) {
         animatedSvg = applyVisualRecipe(animatedSvg, recipeProp, recipeLabel ?? 'status', 'baby', undefined, blobbi.id);
       } else if (emotion !== 'neutral') {
@@ -95,7 +96,8 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
         animatedSvg = applyVisualRecipe(animatedSvg, resolved, emotion, 'baby', undefined, blobbi.id);
       }
 
-      if (bodyEffects) {
+      // Manual body effects prop — only when no recipe was provided.
+      if (bodyEffects && !recipeProp) {
         animatedSvg = applyBodyEffects(animatedSvg, { ...bodyEffects, idPrefix: bodyEffects.idPrefix ?? blobbi.id });
       }
 

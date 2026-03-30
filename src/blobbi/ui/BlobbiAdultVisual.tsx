@@ -112,7 +112,9 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
     if (!isSleeping) {
       let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId: blobbi.id });
 
-      // Recipe-first path: use pre-resolved recipe if provided
+      // Recipe-first path: use pre-resolved recipe if provided.
+      // applyVisualRecipe() handles everything including body effects
+      // embedded in the recipe, so no separate applyBodyEffects() needed.
       if (recipeProp) {
         animatedSvg = applyVisualRecipe(animatedSvg, recipeProp, recipeLabel ?? 'status', 'adult', form, blobbi.id);
       } else if (emotion !== 'neutral') {
@@ -121,7 +123,9 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
         animatedSvg = applyVisualRecipe(animatedSvg, resolved, emotion, 'adult', form, blobbi.id);
       }
 
-      if (bodyEffects) {
+      // Manual body effects prop — only applied when no recipe was provided,
+      // since applyVisualRecipe() already applies recipe.bodyEffects.
+      if (bodyEffects && !recipeProp) {
         animatedSvg = applyBodyEffects(animatedSvg, { ...bodyEffects, idPrefix: bodyEffects.idPrefix ?? blobbi.id });
       }
 

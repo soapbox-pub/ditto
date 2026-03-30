@@ -1,9 +1,9 @@
 /**
  * useStatusReaction Hook
  *
- * Manages automatic status-based reactions for Blobbi.
- * Resolves stats directly into a final BlobbiVisualRecipe that can be
- * passed straight to the rendering pipeline — no emotion-name intermediaries.
+ * Manages automatic status-based visual reactions for Blobbi.
+ * Resolves stats into a final BlobbiVisualRecipe that can be passed
+ * straight to applyVisualRecipe() for rendering.
  *
  * The hook's output is recipe-first:
  *   - `recipe`: the fully resolved visual recipe (includes body effects)

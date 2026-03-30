@@ -2,8 +2,9 @@
  * Status-Based Reaction System for Blobbi
  *
  * Resolves current Blobbi stats directly into a final BlobbiVisualRecipe.
- * The resolver owns the full pipeline from stats → recipe, with no
- * intermediate "emotion name" step in the runtime path.
+ * The resolver owns the full pipeline from stats → recipe. Named emotions
+ * are used internally as preset lookup keys, but the runtime output is a
+ * single resolved recipe — not an emotion name.
  *
  * Design principles:
  *   - Priority order determines which stat "wins" for face expression

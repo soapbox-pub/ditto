@@ -1,9 +1,10 @@
 /**
  * Blobbi Visual Recipe System
  *
- * This module defines the part-based visual recipe architecture. Instead of
- * thinking in terms of monolithic emotions or emotion stacking (base + overlay),
- * each emotion resolves into a **visual recipe** composed of independent parts:
+ * This module defines the part-based visual recipe architecture. Every
+ * visual state — whether derived from named emotion presets or resolved
+ * from Blobbi stats — is represented as a **BlobbiVisualRecipe** composed
+ * of independent parts:
  *
  *   - eyes:        pupil modifications, star eyes, dizzy spirals, sleepy blink
  *   - mouth:       curve overrides, round, sad, droopy, big smile, small smile
@@ -11,13 +12,15 @@
  *   - bodyEffects: dirt marks, stink clouds, anger-rise color overlay
  *   - extras:      tears, drool, food icons, Zzz, sparkles
  *
- * Named emotions are just **presets** that resolve into part-based recipes.
+ * Named emotions (e.g. 'sleepy', 'hungry') are **presets** that resolve
+ * into recipes. The status reaction system (status-reactions.ts) composes
+ * presets and folds in body effects to produce a single final recipe.
  * The rendering pipeline applies each part independently through its subsystem.
  *
  * Key concepts:
  *   - BlobbiVisualRecipe: the central type describing all visual parts
  *   - EMOTION_RECIPES: named emotion presets as part-based recipes
- *   - resolveVisualRecipe(): resolves a named emotion into a recipe
+ *   - resolveVisualRecipe(): resolves a named emotion preset into a recipe
  *   - mergeVisualRecipes(): merges two recipes (for sleepy + boring → combined)
  *   - applyVisualRecipe(): orchestrates subsystem calls from a resolved recipe
  */
@@ -66,7 +69,6 @@ import {
 // Body Effects
 import {
   applyBodyEffects,
-  type BodyEffectConfig,
   type BodyEffectsSpec,
   type DirtMarksConfig,
   type StinkCloudsConfig,
@@ -557,7 +559,8 @@ function applySleepyAnimation(
  *
  * @param svgText - The base SVG content (after eye animation wrappers)
  * @param recipe - The resolved visual recipe to apply
- * @param emotionName - The emotion name (for CSS class naming)
+ * @param recipeLabel - Human-readable label for the recipe (used in SVG
+ *   class names for CSS targeting, e.g. 'sleepy', 'hungry-sleepy', 'status')
  * @param variant - 'baby' or 'adult' for variant-specific adjustments
  * @param form - Adult form name (optional)
  * @param instanceId - Unique ID for stable SVG element IDs
@@ -566,7 +569,7 @@ function applySleepyAnimation(
 export function applyVisualRecipe(
   svgText: string,
   recipe: BlobbiVisualRecipe,
-  emotionName: string,
+  recipeLabel: string,
   variant: BlobbiVariant = 'adult',
   form?: string,
   instanceId?: string,
@@ -689,8 +692,8 @@ export function applyVisualRecipe(
   // ── Insert overlays ──
   if (overlays.length > 0) {
     const overlayGroup = `
-  <!-- Visual recipe overlays: ${emotionName} -->
-  <g class="blobbi-emotion blobbi-emotion-${emotionName}">
+  <!-- Visual recipe overlays: ${recipeLabel} -->
+  <g class="blobbi-recipe blobbi-recipe-${recipeLabel}">
     ${overlays.join('\n    ')}
   </g>`;
     svgText = svgText.replace('</svg>', overlayGroup + '\n</svg>');
