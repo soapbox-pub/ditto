@@ -15,6 +15,10 @@ export type {
   BlobbiVariant,
 } from './types';
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+export { EYEBROW_CLASSES, FORM_EYEBROW_OFFSETS } from './generators';
+
 // ─── Generators ───────────────────────────────────────────────────────────────
 
 export { generateEyebrows, applyAnimatedEyebrows } from './generators';

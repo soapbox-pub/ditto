@@ -7,14 +7,47 @@
 
 import type { EyePosition, BlobbiVariant, EyebrowConfig, AnimatedEyebrowsConfig } from './types';
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/**
+ * CSS class names used by the eyebrow system.
+ */
+export const EYEBROW_CLASSES = {
+  /** Wrapper group with rotation transform */
+  group: 'blobbi-eyebrow-group',
+  /** Left eyebrow group */
+  groupLeft: 'blobbi-eyebrow-group-left',
+  /** Right eyebrow group */
+  groupRight: 'blobbi-eyebrow-group-right',
+  /** The eyebrow path element (CSS animates translateY on this) */
+  eyebrow: 'blobbi-eyebrow',
+  /** Left eyebrow path */
+  eyebrowLeft: 'blobbi-eyebrow-left',
+  /** Right eyebrow path */
+  eyebrowRight: 'blobbi-eyebrow-right',
+  /** Applied to SVG root when animated eyebrows are enabled */
+  animated: 'blobbi-animated-brows',
+  /** Keyframe animation name */
+  bounceKeyframe: 'blobbi-eyebrow-bounce',
+} as const;
+
+/**
+ * Form-specific vertical offset adjustments for adult Blobbi forms.
+ * Forms with larger eyes need eyebrows positioned higher.
+ */
+export const FORM_EYEBROW_OFFSETS: Record<string, number> = {
+  owli: -12,
+  froggi: -10,
+};
+
 // ─── Eyebrow Generation ───────────────────────────────────────────────────────
 
 /**
  * Generate eyebrow SVG elements.
  * 
  * Structure:
- *   <g transform="rotate(...)">        <!-- handles tilt/inclination -->
- *     <path class="blobbi-eyebrow" />   <!-- CSS animates translateY on this -->
+ *   <g class="blobbi-eyebrow-group" transform="rotate(...)">
+ *     <path class="blobbi-eyebrow" />  <!-- CSS animates translateY on this -->
  *   </g>
  * 
  * @param eyes - Eye positions
@@ -32,12 +65,8 @@ export function generateEyebrows(
   let variantOffsetAdjustment = variant === 'baby' ? -2 : 0;
   
   // Form-specific adjustments for adult forms with larger eyes
-  if (variant === 'adult' && form) {
-    if (form === 'owli') {
-      variantOffsetAdjustment = -12;
-    } else if (form === 'froggi') {
-      variantOffsetAdjustment = -10;
-    }
+  if (variant === 'adult' && form && form in FORM_EYEBROW_OFFSETS) {
+    variantOffsetAdjustment = FORM_EYEBROW_OFFSETS[form];
   }
   
   return eyes.map(eye => {
@@ -67,9 +96,12 @@ export function generateEyebrows(
       pathD = `M ${startX} ${browY} L ${endX} ${browY}`;
     }
     
-    return `<g class="blobbi-eyebrow-group blobbi-eyebrow-group-${eye.side}" transform="rotate(${angle} ${eye.cx} ${browY})">
+    const sideClass = eye.side === 'left' ? EYEBROW_CLASSES.groupLeft : EYEBROW_CLASSES.groupRight;
+    const eyebrowSideClass = eye.side === 'left' ? EYEBROW_CLASSES.eyebrowLeft : EYEBROW_CLASSES.eyebrowRight;
+    
+    return `<g class="${EYEBROW_CLASSES.group} ${sideClass}" transform="rotate(${angle} ${eye.cx} ${browY})">
       <path 
-        class="blobbi-eyebrow blobbi-eyebrow-${eye.side}"
+        class="${EYEBROW_CLASSES.eyebrow} ${eyebrowSideClass}"
         d="${pathD}" 
         stroke="${effectiveColor}" 
         stroke-width="${effectiveStrokeWidth}" 
@@ -91,13 +123,13 @@ function generateAnimatedEyebrowStyles(config: AnimatedEyebrowsConfig): string {
   
   return `
   <style type="text/css">
-    @keyframes eyebrow-bounce {
+    @keyframes ${EYEBROW_CLASSES.bounceKeyframe} {
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(-${amount}px); }
     }
     
-    .blobbi-animated-brows .blobbi-eyebrow {
-      animation: eyebrow-bounce ${dur}s ease-in-out infinite;
+    .${EYEBROW_CLASSES.animated} .${EYEBROW_CLASSES.eyebrow} {
+      animation: ${EYEBROW_CLASSES.bounceKeyframe} ${dur}s ease-in-out infinite;
     }
   </style>`;
 }
@@ -110,11 +142,11 @@ export function applyAnimatedEyebrows(svgText: string, config: AnimatedEyebrowsC
   // Add class to SVG root
   svgText = svgText.replace(/<svg([^>]*)>/, (match, attrs) => {
     if (attrs.includes('class="')) {
-      return match.replace(/class="([^"]*)"/, 'class="$1 blobbi-animated-brows"');
+      return match.replace(/class="([^"]*)"/, `class="$1 ${EYEBROW_CLASSES.animated}"`);
     } else if (attrs.includes("class='")) {
-      return match.replace(/class='([^']*)'/, "class='$1 blobbi-animated-brows'");
+      return match.replace(/class='([^']*)'/, `class='$1 ${EYEBROW_CLASSES.animated}'`);
     } else {
-      return `<svg${attrs} class="blobbi-animated-brows">`;
+      return `<svg${attrs} class="${EYEBROW_CLASSES.animated}">`;
     }
   });
   
