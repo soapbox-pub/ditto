@@ -60,11 +60,9 @@ import {
 
 // Body Effects
 import {
-  detectBodyPath,
-  generateAngerRiseEffect,
-  generateDirtMarks,
-  generateStinkClouds,
+  applyBodyEffects,
   type BodyEffectConfig,
+  type BodyEffectsSpec,
   type DirtMarksConfig,
   type StinkCloudsConfig,
 } from './bodyEffects';
@@ -503,25 +501,6 @@ export function applyEmotion(
     overlays.push(generateTears(eyes, config.tears, seed));
   }
   
-  // ── Body effect: anger rise (from bodyEffects/ module) ──
-  if (config.bodyEffect) {
-    const bodyPath = detectBodyPath(svgText);
-    if (bodyPath) {
-      const effect = generateAngerRiseEffect(bodyPath, config.bodyEffect);
-      if (svgText.includes('<defs>')) {
-        svgText = svgText.replace('<defs>', '<defs>' + effect.defs);
-      } else {
-        svgText = svgText.replace(/(<svg[^>]*>)/, `$1\n  <defs>${effect.defs}\n  </defs>`);
-      }
-      const bodyPathRegex = /<path[^>]*d="[^"]*"[^>]*fill="url\(#[^"]*[Bb]ody[^"]*\)"[^>]*\/>/;
-      const bodyPathMatch = svgText.match(bodyPathRegex);
-      if (bodyPathMatch && bodyPathMatch.index !== undefined) {
-        const insertPos = bodyPathMatch.index + bodyPathMatch[0].length;
-        svgText = svgText.slice(0, insertPos) + effect.overlay + svgText.slice(insertPos);
-      }
-    }
-  }
-  
   // ── Sleepy animation (cross-cutting overlay) ──
   if (config.sleepyAnimation?.enabled) {
     svgText = applySleepyAnimation(svgText, eyes, mouthAnchor, config.sleepyAnimation);
@@ -582,16 +561,6 @@ export function applyEmotion(
     overlays.push(generateFoodIcon(config.foodIcon));
   }
   
-  // ── Dirt marks (from bodyEffects/ module) ──
-  if (config.dirtMarks?.enabled) {
-    overlays.push(generateDirtMarks(config.dirtMarks));
-  }
-  
-  // ── Stink clouds (from bodyEffects/ module) ──
-  if (config.stinkClouds?.enabled) {
-    overlays.push(generateStinkClouds(config.stinkClouds));
-  }
-  
   // ── Insert overlays ──
   if (overlays.length > 0) {
     const overlayGroup = `
@@ -600,6 +569,27 @@ export function applyEmotion(
     ${overlays.join('\n    ')}
   </g>`;
     svgText = svgText.replace('</svg>', overlayGroup + '\n</svg>');
+  }
+  
+  // ── Body effects (delegated to bodyEffects/ module) ──
+  // Build BodyEffectsSpec from emotion config and apply in one call
+  const bodySpec: BodyEffectsSpec = {};
+  if (config.dirtMarks?.enabled) {
+    bodySpec.dirtyMarks = config.dirtMarks;
+  }
+  if (config.stinkClouds?.enabled) {
+    bodySpec.stinkClouds = config.stinkClouds;
+  }
+  if (config.bodyEffect?.type === 'anger-rise') {
+    bodySpec.angerRise = {
+      color: config.bodyEffect.color,
+      duration: config.bodyEffect.duration,
+    };
+  }
+  
+  // Only apply if we have body effects to apply
+  if (bodySpec.dirtyMarks || bodySpec.stinkClouds || bodySpec.angerRise) {
+    svgText = applyBodyEffects(svgText, bodySpec);
   }
   
   return svgText;

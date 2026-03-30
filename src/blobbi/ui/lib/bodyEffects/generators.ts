@@ -160,16 +160,23 @@ export function generateStinkClouds(config: StinkCloudsConfig): string {
 /**
  * Generate the anger-rise body effect.
  * Creates a colored overlay that animates from bottom to top inside the body shape.
+ * 
+ * @param bodyPath - Detected body path info
+ * @param config - Effect configuration (color, duration)
+ * @param idSuffix - Unique suffix for clip/gradient IDs (prevents collisions when multiple Blobbis render)
  */
 export function generateAngerRiseEffect(
   bodyPath: BodyPathInfo,
   config: BodyEffectConfig,
+  idSuffix?: string,
 ): { defs: string; overlay: string } {
   const { pathD, minY, maxY } = bodyPath;
   const bodyHeight = maxY - minY;
   
-  const clipId = 'blobbi-anger-clip';
-  const gradientId = 'blobbi-anger-gradient';
+  // Generate unique IDs to avoid collisions when multiple Blobbis are on the same page
+  const suffix = idSuffix ?? Math.random().toString(36).slice(2, 8);
+  const clipId = `blobbi-anger-clip-${suffix}`;
+  const gradientId = `blobbi-anger-gradient-${suffix}`;
   
   const defs = `
     <clipPath id="${clipId}">

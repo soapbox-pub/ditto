@@ -51,6 +51,12 @@ export interface BodyEffectsSpec {
   stinkClouds?: StinkCloudsConfig;
   /** Anger-rise color overlay inside body */
   angerRise?: { color: string; duration: number };
+  /** 
+   * Unique ID prefix for SVG defs (clip paths, gradients).
+   * Required when multiple Blobbis render on the same page to avoid ID collisions.
+   * If not provided, a random suffix is generated.
+   */
+  idPrefix?: string;
 }
 
 /**
