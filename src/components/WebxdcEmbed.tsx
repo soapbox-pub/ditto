@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, forwardRef } from 'react';
-import { Blocks, Play, Maximize2, Minimize2, RotateCcw, X, Gamepad2 } from 'lucide-react';
+import { Blocks, Maximize2, Minimize2, RotateCcw, X, Gamepad2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Webxdc, type WebxdcHandle } from '@/components/Webxdc';
+import { GameBoyCartridge } from '@/components/GameBoyCartridge';
 import { GameControls } from '@/components/GameControls';
 import { useWebxdc } from '@/hooks/useWebxdc';
 import { cn } from '@/lib/utils';
@@ -58,34 +59,18 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
   if (!launched) {
     return (
       <div
-        className={cn(
-          'mt-3 rounded-2xl border border-border bg-secondary/30 overflow-hidden',
-          className,
-        )}
+        className={cn('mt-3 py-6 px-4', className)}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex flex-col items-center justify-center gap-4 py-8 px-6">
-          {icon ? (
-            <img
-              src={icon}
-              alt={name ?? 'Webxdc App'}
-              className="size-14 rounded-2xl object-cover"
-            />
-          ) : (
-            <div className="flex items-center justify-center size-14 rounded-2xl bg-primary/10">
-              <Blocks className="size-7 text-primary" />
-            </div>
-          )}
-          <p className="text-sm font-medium">{name ?? 'Webxdc App'}</p>
-          <Button
-            size="sm"
-            onClick={() => setLaunched(true)}
-            className="rounded-full gap-2"
-          >
-            <Play className="size-4" />
-            Launch App
-          </Button>
-        </div>
+        <GameBoyCartridge
+          icon={icon}
+          name={name ?? 'Webxdc App'}
+          seed={uuid ?? url}
+          onClick={() => setLaunched(true)}
+        />
+        <p className="mt-3 text-center text-xs text-muted-foreground select-none">
+          Click cartridge to launch
+        </p>
       </div>
     );
   }
