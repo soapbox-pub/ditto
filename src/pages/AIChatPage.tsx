@@ -177,7 +177,7 @@ function EmptyState({ onSuggestion }: { onSuggestion: (text: string) => void }) 
   const greeting = useMemo(() => DORK_GREETINGS[Math.floor(Math.random() * DORK_GREETINGS.length)], []);
 
   return (
-    <div className="flex flex-col items-center justify-center py-20 gap-4 text-center select-none animate-in fade-in duration-500">
+    <div className="flex flex-col items-center justify-center py-12 gap-4 text-center select-none animate-in fade-in duration-500">
       <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
       <p className="text-sm text-muted-foreground">{greeting}</p>
       <div className="flex flex-col gap-2 w-full max-w-sm mt-2">
