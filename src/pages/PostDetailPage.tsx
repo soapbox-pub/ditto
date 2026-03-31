@@ -75,6 +75,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
+import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { VanishEventContent } from "@/components/VanishEventContent";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
@@ -135,6 +136,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === VANISH_KIND) return "Request to Vanish";
   if (kind === 20) return "Photo";
   if (kind === 4) return "Encrypted Message";
+  if (kind === 8211) return "Letter";
   if (kind === 6 || kind === 16) return "Repost";
   if (kind === 7) return "Reaction";
   if (kind === 9735) return "Zap";
@@ -995,6 +997,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
   const isEncryptedDM = event.kind === 4;
+  const isLetter = event.kind === 8211;
   const isVanish = event.kind === VANISH_KIND;
   const isZap = event.kind === 9735;
   const isProfile = event.kind === 0;
@@ -1020,6 +1023,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isDevKind &&
     !isZapstoreApp &&
     !isEncryptedDM &&
+    !isLetter &&
     !isVanish &&
     !isZap &&
     !isProfile;
@@ -2031,6 +2035,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <ZapstoreAppContent event={event} />
             ) : isEncryptedDM ? (
               <EncryptedMessageContent event={event} />
+            ) : isLetter ? (
+              <EncryptedLetterContent event={event} />
             ) : isVine ||
               isPoll ||
               isGeocache ||

@@ -69,6 +69,7 @@ import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
+import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { VanishCardCompact } from "@/components/VanishEventContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -301,6 +302,7 @@ export const NoteCard = memo(function NoteCard({
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
   const isEncryptedDM = event.kind === 4;
+  const isLetter = event.kind === 8211;
   const isVanish = event.kind === 62;
   const isZap = event.kind === 9735;
   const isProfile = event.kind === 0;
@@ -329,6 +331,7 @@ export const NoteCard = memo(function NoteCard({
     !isDevKind &&
     !isZapstoreApp &&
     !isEncryptedDM &&
+    !isLetter &&
     !isVanish &&
     !isZap &&
     !isProfile;
@@ -524,6 +527,8 @@ export const NoteCard = memo(function NoteCard({
           <ZapstoreAppContent event={event} compact />
         ) : isEncryptedDM ? (
           <EncryptedMessageContent event={event} compact />
+        ) : isLetter ? (
+          <EncryptedLetterContent event={event} compact />
         ) : isProfile ? (
           <ProfileCardContent event={event} />
         ) : (
@@ -1913,6 +1918,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: Mail,
     action: "sent an",
     noun: "encrypted message",
+  },
+  8211: {
+    icon: Mail,
+    action: "sent a",
+    noun: "letter",
+    nounRoute: "/letters",
   },
   37516: {
     icon: ChestIcon,
