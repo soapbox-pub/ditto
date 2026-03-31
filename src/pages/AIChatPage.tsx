@@ -34,7 +34,7 @@ export function AIChatPage() {
   } = useAIChatSession();
 
   useSeoMeta({
-    title: `AI Chat | ${config.appName}`,
+    title: `Dork | ${config.appName}`,
     description: 'Chat with AI assistant',
   });
 
@@ -49,7 +49,7 @@ export function AIChatPage() {
           <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Bot className="size-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">AI Chat</h1>
+          <h1 className="text-2xl font-bold">Dork</h1>
           <p className="text-muted-foreground">Log in with your Nostr account to start chatting with AI.</p>
           <LoginArea className="mt-2" />
         </div>
@@ -60,7 +60,7 @@ export function AIChatPage() {
   return (
     <main className="flex flex-col overflow-hidden ai-chat-height sidebar:h-dvh bg-secondary/50">
       {/* Header */}
-      <PageHeader title="AI Chat" icon={<Bot className="size-5" />} className="shrink-0 py-3">
+      <PageHeader title="Dork" icon={<Bot className="size-5" />} className="shrink-0 py-3">
         <div className="flex items-center gap-2">
           <CreditsBadge getCredits={getCredits} />
           <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
