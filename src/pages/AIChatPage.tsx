@@ -60,15 +60,12 @@ export function AIChatPage() {
   return (
     <main className="flex flex-col overflow-hidden ai-chat-height sidebar:h-dvh bg-secondary/50">
       {/* Header */}
-      <div className="shrink-0 px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
-        <PageHeader title="AI Chat" icon={<Bot className="size-5" />} className="px-0 mt-0 mb-0" />
-
+      <PageHeader title="AI Chat" icon={<Bot className="size-5" />} className="shrink-0 py-3">
         <div className="flex items-center gap-2">
           <CreditsBadge getCredits={getCredits} />
-          {/* Model selector */}
           <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
-            <SelectTrigger className="h-8 w-full text-base md:text-xs sidebar:w-44">
-              <SelectValue placeholder={modelsLoading ? 'Loading models...' : 'Select model'} />
+            <SelectTrigger className="h-8 min-w-0 text-base md:text-xs">
+              <SelectValue placeholder={modelsLoading ? 'Loading...' : 'Select model'} />
             </SelectTrigger>
             <SelectContent>
               {models.map((model) => {
@@ -89,11 +86,10 @@ export function AIChatPage() {
               })}
             </SelectContent>
           </Select>
-
           <Button
             variant="ghost"
             size="icon"
-            className="size-8"
+            className="size-8 shrink-0"
             onClick={handleClear}
             disabled={messages.length === 0}
             title="Clear conversation"
@@ -101,7 +97,7 @@ export function AIChatPage() {
             <Trash2 className="size-4" />
           </Button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Messages Area */}
       <ScrollArea className="flex-1">
