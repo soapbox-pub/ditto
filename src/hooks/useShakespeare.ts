@@ -187,7 +187,8 @@ export function useShakespeare() {
   const sendChatMessage = useCallback(async (
     messages: ChatMessage[], 
     model: string = 'shakespeare',
-    options?: Partial<ChatCompletionRequest>
+    options?: Partial<ChatCompletionRequest>,
+    signal?: AbortSignal,
   ): Promise<ChatCompletionResponse> => {
     if (!user) {
       throw new Error('User must be logged in to use AI features');
@@ -217,6 +218,7 @@ export function useShakespeare() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
+        signal,
       });
 
       await handleAPIError(response);

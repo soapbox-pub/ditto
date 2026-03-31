@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useShakespeare, type ChatMessage, type Model } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAIChatTools } from '@/hooks/useAIChatTools';
@@ -51,6 +51,7 @@ export function useAIChatSession() {
   const [modelsLoading, setModelsLoading] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Persist messages to localStorage
   useEffect(() => {
@@ -129,6 +130,9 @@ export function useAIChatSession() {
     clearError();
     setInput('');
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const userMessage: DisplayMessage = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -146,9 +150,11 @@ export function useAIChatSession() {
       let currentMessages = newMessages;
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+        if (controller.signal.aborted) break;
+
         const response = await sendChatMessage(apiMessages, selectedModel, {
           tools: TOOLS,
-        } as Partial<Record<string, unknown>>);
+        } as Partial<Record<string, unknown>>, controller.signal);
 
         const choice = response.choices[0];
         const assistantMsg = choice.message;
@@ -179,6 +185,8 @@ export function useAIChatSession() {
         const toolCalls: ToolCall[] = [];
 
         for (const tc of rawMessage.tool_calls) {
+          if (controller.signal.aborted) break;
+
           let args: Record<string, unknown> = {};
           try {
             args = JSON.parse(tc.function.arguments);
@@ -199,6 +207,8 @@ export function useAIChatSession() {
             result: execResult.result,
           });
         }
+
+        if (controller.signal.aborted) break;
 
         // Add assistant message with tool calls to display
         const toolMsg: DisplayMessage = {
@@ -226,11 +236,19 @@ export function useAIChatSession() {
         apiMessages = buildApiMessages(currentMessages);
       }
     } catch (err) {
+      // Silently handle user-initiated abort
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       console.error('Chat error:', err);
     } finally {
+      abortRef.current = null;
       setIsStreaming(false);
     }
   }, [input, selectedModel, isStreaming, messages, buildApiMessages, sendChatMessage, executeToolCall, clearError]);
+
+  // Stop an in-flight generation
+  const handleStop = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
   // Handle keyboard shortcuts
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -263,6 +281,7 @@ export function useAIChatSession() {
 
     // Actions
     handleSend,
+    handleStop,
     handleKeyDown,
     handleClear,
     getCredits,

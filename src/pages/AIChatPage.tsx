@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Bot, Send, Trash2, Palette, Type } from 'lucide-react';
+import { Bot, Send, Square, Trash2, Palette, Type } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { NoteCard } from '@/components/NoteCard';
@@ -30,7 +30,7 @@ export function AIChatPage() {
     messages, input, setInput, isStreaming,
     models, selectedModel, setSelectedModel, modelsLoading,
     apiLoading, apiError, messagesEndRef,
-    handleSend, handleKeyDown, handleClear, getCredits,
+    handleSend, handleStop, handleKeyDown, handleClear, getCredits,
   } = useAIChatSession();
 
   useSeoMeta({
@@ -142,14 +142,25 @@ export function AIChatPage() {
             className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
             rows={1}
           />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || !selectedModel || isStreaming}
-            size="icon"
-            className="size-11 shrink-0 rounded-xl"
-          >
-            <Send className="size-4" />
-          </Button>
+          {isStreaming ? (
+            <Button
+              onClick={handleStop}
+              variant="ghost"
+              size="icon"
+              className="size-11 shrink-0 rounded-full bg-foreground/10 hover:bg-foreground/20 [&_svg]:fill-foreground"
+            >
+              <Square className="size-3.5" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSend}
+              disabled={!input.trim() || !selectedModel}
+              size="icon"
+              className="size-11 shrink-0 rounded-xl"
+            >
+              <Send className="size-4" />
+            </Button>
+          )}
         </div>
       </div>
     </main>
@@ -217,7 +228,10 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
           {isUser ? (
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
           ) : (
-            <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs [--tw-prose-links:hsl(var(--primary))]">
+            <div
+              className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs"
+              style={{ '--tw-prose-links': 'hsl(var(--primary))' } as React.CSSProperties}
+            >
               <Markdown rehypePlugins={[rehypeSanitize]}>
                 {message.content}
               </Markdown>
