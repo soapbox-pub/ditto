@@ -169,8 +169,8 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
           </p>
         )}
 
-        {/* Stats row */}
-        <div className="flex items-center gap-3 mt-4 flex-wrap">
+        {/* Stats + Award to row */}
+        <div className="flex items-center justify-between gap-3 mt-4">
           {awardsQuery.isLoading ? (
             <Skeleton className="h-4 w-24" />
           ) : awardedPubkeys.length > 0 ? (
@@ -184,11 +184,21 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
               No awards yet
             </span>
           )}
+          {isIssuer && (
+            <Button
+              variant="default"
+              className="rounded-full px-5 h-9 text-sm font-medium gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 border border-transparent"
+              onClick={() => setAwardDialogOpen(true)}
+            >
+              <Gift className="size-3.5" />
+              Award to…
+            </Button>
+          )}
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2 mt-3">
-          {pendingForUser && (
+        {/* Accept Badge action */}
+        {pendingForUser && (
+          <div className="mt-3">
             <Button
               variant="default"
               size="sm"
@@ -203,14 +213,8 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
               <Check className="size-4 mr-1.5" />
               Accept Badge
             </Button>
-          )}
-          {isIssuer && (
-            <Button variant="outline" size="sm" onClick={() => setAwardDialogOpen(true)}>
-              <Gift className="size-4 mr-1.5" />
-              Award to…
-            </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Action bar — matches PostDetailPage style */}

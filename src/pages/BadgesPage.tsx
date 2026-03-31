@@ -699,7 +699,7 @@ function AcceptedBadgeRow({
         </span>
         <IssuerName pubkey={ref_.pubkey} />
       </div>
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+      <div className="flex items-center gap-0.5 sidebar:opacity-0 sidebar:group-hover:opacity-100 transition-opacity shrink-0">
         <Button
           variant="ghost"
           size="icon"
@@ -724,11 +724,11 @@ function AcceptedBadgeRow({
       <Button
         variant="ghost"
         size="icon"
-        className="size-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all shrink-0"
+        className="size-7 text-muted-foreground hover:text-destructive sidebar:opacity-0 sidebar:group-hover:opacity-100 transition-all shrink-0"
         onClick={onRemove}
         aria-label="Remove badge"
       >
-        <X className="size-4" />
+        <Trash2 className="size-4" />
       </Button>
     </div>
   );
