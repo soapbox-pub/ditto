@@ -5,10 +5,12 @@
  *
  * Architecture:
  * - Outer shell: handles per-frame updates (float, shadow, drag state) — rerenders freely
+ * - Float wrapper: owns translateY alignment + JS float offset (inline transform)
+ * - Sway wrapper: owns CSS rotation animation only (animate-blobbi-sway)
+ *   Kept separate from float wrapper so CSS @keyframes don't override the
+ *   inline translateY, which would make Blobbi float above the ground.
  * - Inner MemoizedBlobbiVisual: renders the actual SVG — only rerenders when visual inputs change
  * - Eye gaze is driven imperatively via ref (no React rerenders for gaze)
- * - Reaction CSS classes (sway/bounce) applied on the outer float wrapper,
- *   NOT on the SVG container, to keep the SVG DOM node stable.
  */
 
 import { useMemo, memo, type RefObject } from 'react';
@@ -215,12 +217,17 @@ export function BlobbiCompanionVisual({
         />
       )}
 
-      {/* Float + reaction wrapper */}
+      {/*
+        Float wrapper — owns translateY alignment + JS float offset.
+        This is a separate element from the sway wrapper below so that
+        the CSS animation on the sway wrapper does not override the
+        inline transform here. (CSS @keyframes replace the entire
+        `transform` property while active, which would drop the
+        translateY alignment shift and cause Blobbi to float above
+        the ground during walking.)
+      */}
       <div
-        className={cn(
-          'size-full',
-          (reaction === 'swaying' || reaction === 'happy') && 'animate-blobbi-sway',
-        )}
+        className="size-full"
         style={{
           transform: [
             `translateY(${size * 0.12}px)`,
@@ -231,17 +238,26 @@ export function BlobbiCompanionVisual({
           ...(debugMode ? { outline: '2px dashed magenta' } : {}),
         }}
       >
-        {(companion.stage === 'baby' || companion.stage === 'adult') && (
-          <MemoizedBlobbiVisual
-            stage={companion.stage}
-            blobbi={blobbi}
-            eyeOffsetRef={eyeOffsetRef}
-            recipe={effectiveRecipe}
-            recipeLabel={effectiveRecipeLabel}
-            emotion={effectiveEmotion}
-            bodyEffects={effectiveBodyEffects}
-          />
-        )}
+        {/* Sway wrapper — CSS rotation only, no positioning transforms */}
+        <div
+          className={cn(
+            'size-full',
+            (reaction === 'swaying' || reaction === 'happy') && 'animate-blobbi-sway',
+          )}
+          style={{ transformOrigin: 'center bottom' }}
+        >
+          {(companion.stage === 'baby' || companion.stage === 'adult') && (
+            <MemoizedBlobbiVisual
+              stage={companion.stage}
+              blobbi={blobbi}
+              eyeOffsetRef={eyeOffsetRef}
+              recipe={effectiveRecipe}
+              recipeLabel={effectiveRecipeLabel}
+              emotion={effectiveEmotion}
+              bodyEffects={effectiveBodyEffects}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
