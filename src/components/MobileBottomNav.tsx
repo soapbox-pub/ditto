@@ -4,7 +4,6 @@ import { Bell, Home, Search, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
-import { selectionChanged } from '@/lib/haptics';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
@@ -14,6 +13,7 @@ import { useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { getSidebarItem } from '@/lib/sidebarItems';
 import { ArcBackground, ARC_UP_OVERHANG_PX } from '@/components/ArcBackground';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
+import { MobileDorkSheet } from '@/components/AIChat/MobileDorkSheet';
 
 /** Transform style applied when the bottom nav is hidden (scrolled away). */
 const hiddenStyle: React.CSSProperties = {
@@ -35,11 +35,16 @@ export function MobileBottomNav() {
   const homePath = homeItem?.path;
 
   const [searchOpen, setSearchOpen] = useState(false);
+  const [dorkMode, setDorkMode] = useState(false);
 
   const handleSearchClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    selectionChanged();
     setSearchOpen((v) => !v);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setSearchOpen(false);
+    setDorkMode(false);
   }, []);
 
   // Hide the nav when search sheet is open so it doesn't compete for space
@@ -50,7 +55,17 @@ export function MobileBottomNav() {
 
   return (
     <>
-      <MobileSearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
+      {/* Shared backdrop for both sheets */}
+      {searchOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 sidebar:hidden animate-in fade-in-0 duration-150"
+          onClick={handleClose}
+        />
+      )}
+
+      {/* Both sheets stay mounted when open to preserve state; hidden prop toggles visibility */}
+      {searchOpen && <MobileSearchSheet hidden={dorkMode} onClose={handleClose} onDorkToggle={() => setDorkMode(true)} />}
+      {searchOpen && <MobileDorkSheet hidden={!dorkMode} onClose={handleClose} onSearchToggle={() => setDorkMode(false)} />}
 
       <nav
         className={cn(
@@ -67,7 +82,7 @@ export function MobileBottomNav() {
           {/* Home */}
           <Link
             to="/"
-            onClick={() => { selectionChanged(); setSearchOpen(false); }}
+            onClick={handleClose}
             className={cn(
               'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
               (location.pathname === '/' || location.pathname === homePath) ? 'text-primary' : 'text-muted-foreground',
@@ -93,7 +108,7 @@ export function MobileBottomNav() {
           {user && (
             <Link
               to="/notifications"
-              onClick={() => { selectionChanged(); setSearchOpen(false); }}
+              onClick={handleClose}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
                 location.pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground',
@@ -113,7 +128,7 @@ export function MobileBottomNav() {
           {user ? (
             <Link
               to={profileUrl}
-              onClick={() => { selectionChanged(); setSearchOpen(false); }}
+              onClick={handleClose}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
                 isOnProfile ? 'text-primary' : 'text-muted-foreground',

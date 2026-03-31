@@ -24,11 +24,12 @@ import { searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 
 interface MobileSearchSheetProps {
-  open: boolean;
+  hidden: boolean;
   onClose: () => void;
+  onDorkToggle: () => void;
 }
 
-export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
+export function MobileSearchSheet({ hidden, onClose, onDorkToggle }: MobileSearchSheetProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
@@ -125,15 +126,11 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
 
   // Focus input when opened
   useEffect(() => {
-    if (open) {
-      // Small delay to let the animation settle and keyboard to appear
+    if (!hidden) {
       const t = setTimeout(() => inputRef.current?.focus(), 80);
       return () => clearTimeout(t);
-    } else {
-      setQuery('');
-      setSelectedIndex(-1);
     }
-  }, [open]);
+  }, [hidden]);
 
   // Reset selected index when results change
   useEffect(() => {
@@ -236,8 +233,6 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
 
   const hasResults = query.trim().length > 0 && (navItemCount > 0 || hasIdentifier || hasUrlComment || hasCountry || hasWikipedia || hasArchive || (profiles && profiles.length > 0));
 
-  if (!open) return null;
-
   return (
     <>
       {/* Backdrop */}
@@ -247,7 +242,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
       />
 
       {/* Bottom sheet — sits at the bottom of the screen with safe area clearance */}
-      <div className="fixed left-0 right-0 bottom-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 pb-6">
+      <div className={cn('fixed left-0 right-0 bottom-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 pb-6', hidden && 'hidden')}>
 
         {/* Results list — reversed so closest to input = most relevant */}
         {hasResults && (
@@ -343,11 +338,20 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
               autoCapitalize="off"
               spellCheck={false}
             />
+            {query.length > 0 && (
+              <button
+                onClick={() => setQuery('')}
+                className="size-5 shrink-0 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+              >
+                <X strokeWidth={4} className="size-3" />
+              </button>
+            )}
             <button
-              onClick={handleClose}
-              className="size-5 shrink-0 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+              onClick={onDorkToggle}
+              className="shrink-0 font-mono text-xs text-muted-foreground hover:text-muted-foreground/80 transition-colors"
+              onMouseDown={(e) => e.preventDefault()}
             >
-              <X strokeWidth={4} className="size-3" />
+              {'<[o_o]>'}
             </button>
           </div>
         </div>
