@@ -200,7 +200,6 @@ function EmptyState() {
     <div className="flex flex-col items-center justify-center py-20 gap-8 text-center select-none animate-in fade-in duration-500">
       <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
       <div className="space-y-2">
-        <h2 className="text-base font-semibold tracking-tight text-foreground">Dork AI</h2>
         <p className="text-sm text-muted-foreground">{greeting}</p>
       </div>
     </div>
