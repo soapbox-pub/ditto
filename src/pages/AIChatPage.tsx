@@ -212,27 +212,30 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
   return (
     <div className={cn('flex items-start', isUser && 'justify-end')}>
       <div className={cn('flex flex-col gap-1 max-w-[85%] min-w-0', isUser && 'items-end')}>
-        <div
-          className={cn(
-            'rounded-2xl px-4 py-2.5 text-sm',
-            isUser
-              ? 'bg-primary text-primary-foreground rounded-tr-md'
-              : 'bg-secondary/60 border border-border rounded-tl-md',
-          )}
-        >
-          {isUser ? (
-            <p className="whitespace-pre-wrap break-words">{message.content}</p>
-          ) : (
-            <div
-              className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs"
-              style={{ '--tw-prose-links': 'hsl(var(--primary))' } as React.CSSProperties}
-            >
-              <Markdown rehypePlugins={[rehypeSanitize]}>
-                {message.content}
-              </Markdown>
-            </div>
-          )}
-        </div>
+        {/* Hide the bubble entirely when the assistant message is empty (tool-only turn) */}
+        {(isUser || message.content.trim()) && (
+          <div
+            className={cn(
+              'rounded-2xl px-4 py-2.5 text-sm',
+              isUser
+                ? 'bg-primary text-primary-foreground rounded-tr-md'
+                : 'bg-secondary/60 border border-border rounded-tl-md',
+            )}
+          >
+            {isUser ? (
+              <p className="whitespace-pre-wrap break-words">{message.content}</p>
+            ) : (
+              <div
+                className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs"
+                style={{ '--tw-prose-links': 'hsl(var(--primary))' } as React.CSSProperties}
+              >
+                <Markdown rehypePlugins={[rehypeSanitize]}>
+                  {message.content}
+                </Markdown>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Inline Nostr event (e.g. a spell created by a tool) */}
         {message.nostrEvent && (
