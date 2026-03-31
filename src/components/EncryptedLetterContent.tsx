@@ -37,46 +37,26 @@ import { cn } from '@/lib/utils';
 // Nushu character conversion
 // ---------------------------------------------------------------------------
 
-/**
- * A curated subset of simpler, more elegant Nushu characters.
- * These have fewer strokes and read as graceful, flowing script —
- * beautiful but unreadable.
- */
-const NUSHU_CHARS = [
-  '\u{1B170}', '\u{1B171}', '\u{1B172}', '\u{1B174}', '\u{1B177}',
-  '\u{1B17A}', '\u{1B17D}', '\u{1B180}', '\u{1B183}', '\u{1B186}',
-  '\u{1B189}', '\u{1B18C}', '\u{1B190}', '\u{1B194}', '\u{1B198}',
-  '\u{1B19C}', '\u{1B1A0}', '\u{1B1A4}', '\u{1B1A8}', '\u{1B1AC}',
-  '\u{1B1B0}', '\u{1B1B4}', '\u{1B1B8}', '\u{1B1BC}', '\u{1B1C0}',
-  '\u{1B1C4}', '\u{1B1C8}', '\u{1B1CC}', '\u{1B1D0}', '\u{1B1D4}',
-  '\u{1B1D8}', '\u{1B1DC}', '\u{1B1E0}', '\u{1B1E4}', '\u{1B1E8}',
-  '\u{1B1EC}', '\u{1B1F0}', '\u{1B1F4}', '\u{1B1F8}', '\u{1B1FC}',
-];
+/** The standard base64 alphabet. */
+const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+/** First 64 Nushu characters (U+1B170 – U+1B1AF), one per base64 symbol. */
+const NUSHU_64 = Array.from({ length: 64 }, (_, i) => String.fromCodePoint(0x1B170 + i));
+
+/** Map from base64 character to its Nushu equivalent. */
+const B64_TO_NUSHU = new Map(B64.split('').map((ch, i) => [ch, NUSHU_64[i]]));
 
 /**
- * Convert ciphertext into a sparse, elegant Nushu representation.
- * Uses byte values to pick from the curated character set.
- * Characters are spaced out rather than dense.
+ * Re-encode base64 ciphertext as Nushu script characters.
+ * Each base64 character maps 1:1 to a Nushu codepoint, preserving the
+ * same information density. Padding ('=') and whitespace are stripped.
  */
 function ciphertextToNushu(ciphertext: string, maxChars = 36): string {
-  let bytes: Uint8Array;
-  try {
-    const binary = atob(ciphertext.replace(/\s/g, ''));
-    bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-  } catch {
-    bytes = new Uint8Array(ciphertext.length);
-    for (let i = 0; i < ciphertext.length; i++) {
-      bytes[i] = ciphertext.charCodeAt(i) & 0xFF;
-    }
-  }
-
+  const clean = ciphertext.replace(/[\s=]/g, '');
   const chars: string[] = [];
-  const step = Math.max(1, Math.floor(bytes.length / maxChars));
-  for (let i = 0; i < bytes.length && chars.length < maxChars; i += step) {
-    chars.push(NUSHU_CHARS[bytes[i] % NUSHU_CHARS.length]);
+  const step = Math.max(1, Math.floor(clean.length / maxChars));
+  for (let i = 0; i < clean.length && chars.length < maxChars; i += step) {
+    chars.push(B64_TO_NUSHU.get(clean[i]) ?? NUSHU_64[0]);
   }
   return chars.join('\u2009'); // thin space between characters
 }
