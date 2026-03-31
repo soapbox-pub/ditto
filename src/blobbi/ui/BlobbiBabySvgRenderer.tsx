@@ -66,7 +66,6 @@ export function BlobbiBabySvgRenderer({
   bodyEffects,
   className,
 }: BlobbiBabySvgRendererProps) {
-
   const customizedSvg = useMemo(() => {
     debugBlobbi('svg-rebuild', 'baby customizedSvg rebuild');
 

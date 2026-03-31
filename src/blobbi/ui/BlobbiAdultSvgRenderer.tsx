@@ -70,7 +70,6 @@ export function BlobbiAdultSvgRenderer({
   bodyEffects,
   className,
 }: BlobbiAdultSvgRendererProps) {
-
   const customizedSvg = useMemo(() => {
     debugBlobbi('svg-rebuild', 'adult customizedSvg rebuild');
 

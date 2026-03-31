@@ -70,23 +70,18 @@ export function useExternalEyeOffset({
   isSleeping,
   variant,
 }: UseExternalEyeOffsetOptions): void {
-  // Use ref to store latest offset for RAF loop to read.
-  // When externalEyeOffsetRef is provided, the RAF loop reads from it directly.
-  // When only externalEyeOffset (value) is provided, we sync it to a local ref.
+  // Offset source: prefer shared ref (companion mode), fall back to local ref (page mode).
   const localOffsetRef = useRef(externalEyeOffset);
   const animationRef = useRef<number | null>(null);
-  
-  // The ref the RAF loop reads from: prefer the shared ref, fall back to local
   const activeOffsetRef = externalEyeOffsetRef ?? localOffsetRef;
-  
-  // Keep local ref updated with latest value (only used when ref prop not provided)
+
+  // Sync value prop to local ref (page mode only)
   useEffect(() => {
     if (!externalEyeOffsetRef) {
       localOffsetRef.current = externalEyeOffset;
     }
   }, [externalEyeOffset, externalEyeOffsetRef]);
-  
-  // Determine if the hook is "enabled" — using a ref-stable check
+
   const isEnabled = !!(externalEyeOffset || externalEyeOffsetRef);
   
   // RAF loop for continuous eye offset application
