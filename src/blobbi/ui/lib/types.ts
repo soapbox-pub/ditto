@@ -11,6 +11,21 @@
  * eliminating duplicate definitions across the codebase.
  */
 
+// ─── Render Mode ──────────────────────────────────────────────────────────────
+
+/**
+ * Controls how the Blobbi visual is rendered.
+ *
+ * - 'page': Default. Runs eye tracking hooks internally, applies reaction
+ *   CSS classes on the SVG container. Used by BlobbiStageVisual / BlobbiPage.
+ *
+ * - 'companion': Optimized for the floating companion runtime. Disables
+ *   internal mouse tracking (gaze driven by ref), suppresses reaction CSS
+ *   classes on the SVG container (applied by outer wrapper instead) to
+ *   keep the dangerouslySetInnerHTML node stable.
+ */
+export type BlobbiRenderMode = 'page' | 'companion';
+
 // ─── Eye Tracking Types ───────────────────────────────────────────────────────
 
 /**

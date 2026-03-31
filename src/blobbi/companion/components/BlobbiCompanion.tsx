@@ -79,11 +79,6 @@ interface BlobbiCompanionProps {
   debugMode?: boolean;
 }
 
-// ─── DEBUG: Render frequency tracking ─────────────────────────────────────────
-const _companionRenderCount = { current: 0 };
-const _companionLastLogTime = { current: 0 };
-// ──────────────────────────────────────────────────────────────────────────────
-
 export function BlobbiCompanion({
   companion,
   state,
@@ -110,16 +105,6 @@ export function BlobbiCompanion({
   const containerRef = useRef<HTMLDivElement>(null);
   const [animationTime, setAnimationTime] = useState(0);
 
-  // ─── DEBUG: Log render frequency (once per second summary) ─────────────
-  _companionRenderCount.current++;
-  const now = performance.now();
-  if (now - _companionLastLogTime.current > 2000) {
-    console.log(`[BlobbiCompanion] ${_companionRenderCount.current} renders in last 2s`);
-    _companionRenderCount.current = 0;
-    _companionLastLogTime.current = now;
-  }
-  // ─────────────────────────────────────────────────────────────────────────
-  
   // Click detection - distinguishes click from drag
   const clickDetection = useClickDetection({
     onClick,
