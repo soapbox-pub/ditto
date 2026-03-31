@@ -82,10 +82,21 @@ export function SpellRunPage() {
         ? nostr.group(resolvedFilter.relays)
         : nostr;
 
-      return store.query(
+      const events = await store.query(
         [resolvedFilter.filter],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]) },
       );
+
+      // Deduplicate (group queries can return the same event from multiple relays)
+      const seen = new Set<string>();
+      const unique = events.filter((e) => {
+        if (seen.has(e.id)) return false;
+        seen.add(e.id);
+        return true;
+      });
+
+      // Sort newest first — relay responses aren't guaranteed to be ordered
+      return unique.sort((a, b) => b.created_at - a.created_at);
     },
     enabled: !!resolvedFilter,
     staleTime: 60 * 1000,
