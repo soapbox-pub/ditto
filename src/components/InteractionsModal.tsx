@@ -313,11 +313,11 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(zap.senderPubkey);
-  const npub = useMemo(() => nip19.npubEncode(zap.senderPubkey), [zap.senderPubkey]);
+  const nevent = useMemo(() => nip19.neventEncode({ id: zap.eventId, author: zap.senderPubkey }), [zap.eventId, zap.senderPubkey]);
 
   return (
     <Link
-      to={`/${npub}`}
+      to={`/${nevent}`}
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
       <Avatar shape={avatarShape} className="size-10 shrink-0">
@@ -348,6 +348,8 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
         <Zap className="size-3.5 fill-amber-500" />
         <span className="text-xs font-bold tabular-nums">{formatNumber(zap.amountSats)}</span>
       </div>
+
+      <ChevronRight className="size-4 text-muted-foreground shrink-0" />
     </Link>
   );
 }

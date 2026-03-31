@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.2.5] - 2026-03-30
+
+### Fixed
+- Crash when dragging profile tabs to reorder them
+
+## [2.2.4] - 2026-03-30
+
+### Changed
+- Profiles now have an emoji reaction button instead of a zap button -- express yourself with any emoji or custom emoji right on someone's profile
+- Zap moved to the profile overflow menu so it's still one tap away
+
+### Fixed
+- Crash on the notifications page caused by malformed badge award tags
+- Deleting a badge now also deletes all awards you issued for it
+- Custom emoji reactions missing their image tag no longer render as broken shortcodes
+- Deletion requests for addressable events now include both `e` and `a` tags for broader relay compatibility
+- Profile reactions no longer collapse into a single grouped notification
+- Oversized reaction emoji in comment context headers
+
 ## [2.2.3] - 2026-03-30
 
 ### Added

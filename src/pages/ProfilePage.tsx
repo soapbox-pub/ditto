@@ -472,14 +472,17 @@ function SortableTabChip({
   const chipRef = useRef<HTMLDivElement>(null);
   const { onActive } = useSubHeaderBarHover();
 
-  // Report active slice to SubHeaderBar so the arc indicator renders instead of a flat bar
+  // Report active slice to SubHeaderBar so the arc indicator renders instead of a flat bar.
+  // NOTE: intentionally excludes `transform` from deps — including it causes an infinite
+  // re-render loop (React error #185) because each onActive call re-renders SubHeaderBar,
+  // which re-renders this component, producing a new transform ref, re-triggering this effect.
   useLayoutEffect(() => {
     if (!active) return;
     const el = chipRef.current;
     if (!el) return;
     onActive({ left: el.offsetLeft, width: el.offsetWidth });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, transform]);
+  }, [active]);
 
   return (
     <div
