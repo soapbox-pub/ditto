@@ -10,7 +10,7 @@ import type { DisplayMessage, ToolCall } from '@/lib/aiChatTools';
 
 // ─── Dork Thinking Animation ───
 
-const DORK_ANIMATION = [
+export const DORK_ANIMATION = [
   '<[o_o]>',
   '>[-_-]<',
   '<[0_0]>',

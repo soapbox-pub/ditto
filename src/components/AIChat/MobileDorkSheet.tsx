@@ -1,7 +1,7 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Search } from 'lucide-react';
 
-import { MessageBubble, DorkThinking } from '@/components/AIChat/AIChatComponents';
+import { MessageBubble, DorkThinking, DORK_ANIMATION } from '@/components/AIChat/AIChatComponents';
 import { useAIChatSession } from '@/hooks/useAIChatSession';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +19,16 @@ export function MobileDorkSheet({ hidden, onClose, onToggleDork }: MobileDorkShe
   } = useAIChatSession();
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const [animFrame, setAnimFrame] = useState(0);
+
+  // Animate the toggle button when streaming
+  useEffect(() => {
+    if (!isStreaming) { setAnimFrame(0); return; }
+    const interval = setInterval(() => {
+      setAnimFrame((f) => (f + 1) % DORK_ANIMATION.length);
+    }, 100);
+    return () => clearInterval(interval);
+  }, [isStreaming]);
 
   // Focus input when shown
   useEffect(() => {
@@ -67,20 +77,7 @@ export function MobileDorkSheet({ hidden, onClose, onToggleDork }: MobileDorkShe
       {/* Input bar — pinned to bottom-mobile-nav position */}
       <div className="flex items-center px-6 py-3 bottom-mobile-nav fixed left-0 right-0 z-[49]">
         <div className="flex items-center gap-2 flex-1 bg-secondary rounded-full px-4 py-2.5">
-          {isStreaming ? (
-            <svg
-              className="size-4 shrink-0 text-muted-foreground"
-              style={{ animation: 'spin 1s linear infinite' }}
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-          ) : (
-            <Search strokeWidth={4} className="size-4 shrink-0 text-muted-foreground" />
-          )}
+          <Search strokeWidth={4} className="size-4 shrink-0 text-muted-foreground" />
           <input
             ref={inputRef}
             value={input}
@@ -99,7 +96,7 @@ export function MobileDorkSheet({ hidden, onClose, onToggleDork }: MobileDorkShe
             className="shrink-0 font-mono text-xs text-primary transition-colors"
             onMouseDown={(e) => e.preventDefault()}
           >
-            {'<[o_o]>'}
+            {isStreaming ? DORK_ANIMATION[animFrame] : '<[o_o]>'}
           </button>
         </div>
       </div>
