@@ -68,8 +68,8 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
           seed={uuid ?? url}
           onClick={() => setLaunched(true)}
         />
-        <p className="mt-3 text-center text-xs text-muted-foreground select-none">
-          Click cartridge to launch
+        <p className="mt-2 text-center text-[11px] text-muted-foreground/60 select-none tracking-wide">
+          Tap to launch
         </p>
       </div>
     );
