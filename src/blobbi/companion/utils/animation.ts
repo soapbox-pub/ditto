@@ -44,13 +44,12 @@ export function calculateFloatAnimation(time: number, isMoving: boolean): FloatO
     // Multiple frequencies create a bouncy, charming walk
     const t = time / 1000; // Convert to seconds for easier frequency tuning
     
-    // Primary bob - quick rhythmic bounce (about 2 bounces per second)
-    const primaryBob = Math.sin(t * 12) * 3;
-    // Secondary bob - slower wave that adds variation
-    const secondaryBob = Math.sin(t * 5 + 0.5) * 1.5;
-    // Slight lift during walk - don't stay on ground
-    const baseLift = -2;
-    const yOffset = baseLift + primaryBob * 0.5 + secondaryBob * 0.3;
+    // Vertical bob oscillates symmetrically around zero so Blobbi's base
+    // stays anchored to the ground line. The original baseLift = -2 was
+    // removed because it biased the offset permanently upward.
+    const primaryBob = Math.sin(t * 12) * 2;     // Reduced from *3: less vertical energy
+    const secondaryBob = Math.sin(t * 5 + 0.5) * 1;
+    const yOffset = primaryBob * 0.4 + secondaryBob * 0.25;
     
     // Horizontal sway - playful side-to-side motion
     const primarySway = Math.sin(t * 6) * 2;
