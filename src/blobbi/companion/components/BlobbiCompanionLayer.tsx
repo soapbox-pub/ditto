@@ -34,6 +34,7 @@ import {
   type CompanionItem,
   type ItemLandedData,
 } from '../interaction';
+import { useBlobbiSleepToggle } from '../interaction/useBlobbiSleepToggle';
 import type { Position } from '../types/companion.types';
 
 /** Set to true to show debug ground-contact lines. */
@@ -125,8 +126,10 @@ export function BlobbiCompanionLayer() {
     useItem: contextUseItem,
     canUseItems,
     isItemOnCooldown,
-    toggleSleep,
   } = useBlobbiActions();
+
+  // Standalone sleep/wake toggle — works without BlobbiPage mounted
+  const { toggleSleep } = useBlobbiSleepToggle();
 
   // ── Item use with emotion override ─────────────────────────────────────────
 
@@ -185,12 +188,6 @@ export function BlobbiCompanionLayer() {
   // ── Sleep action (direct, not item-based) ───────────────────────────────────
 
   const handleSleepAction = useCallback(async () => {
-    if (!toggleSleep) {
-      if (import.meta.env.DEV) {
-        console.warn('[CompanionLayer] toggleSleep not registered');
-      }
-      return;
-    }
     closeMenu();
     try {
       await toggleSleep();

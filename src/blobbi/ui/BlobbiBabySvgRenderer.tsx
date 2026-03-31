@@ -26,6 +26,7 @@ import { addEyeAnimation } from './lib/eye-animation';
 import { resolveVisualRecipe, applyVisualRecipe, type BlobbiVisualRecipe } from './lib/recipe';
 import type { BlobbiEmotion } from './lib/emotion-types';
 import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
+import { applySleepingAnimation } from './lib/sleeping-animation';
 import { debugBlobbi } from './lib/debug';
 import type { Blobbi } from '@/blobbi/core/types/blobbi';
 
@@ -89,7 +90,7 @@ export function BlobbiBabySvgRenderer({
       return animatedSvg;
     }
 
-    return colorizedSvg;
+    return applySleepingAnimation(colorizedSvg);
   }, [blobbi, isSleeping, recipeProp, recipeLabel, emotion, bodyEffects]);
 
   const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);

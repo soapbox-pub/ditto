@@ -6,6 +6,7 @@
  */
 
 import type { BlobbiVisualTraits, BlobbiStats } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiState } from '@/blobbi/core/types/blobbi';
 
 // ─── Companion State Machine ──────────────────────────────────────────────────
 
@@ -179,7 +180,7 @@ export interface CompanionData {
   /** Current stats for status-based visual reactions */
   stats: BlobbiStats;
   /** Current companion state (e.g., 'sleeping') */
-  state?: string;
+  state?: BlobbiState;
   /** Adult evolution form type (e.g., 'catti', 'pupp', 'buni') - only for adults */
   adultType?: string;
   /** Deterministic seed for deriving traits */

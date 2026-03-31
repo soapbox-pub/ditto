@@ -38,12 +38,6 @@ export type UseItemFunction = (
 ) => Promise<UseItemResult>;
 
 /**
- * Function signature for toggling sleep/wake state.
- * Returns a promise that resolves when the state change is published.
- */
-export type ToggleSleepFunction = () => Promise<void>;
-
-/**
  * Context value for Blobbi actions (consumer side).
  */
 export interface BlobbiActionsContextValue {
@@ -64,12 +58,6 @@ export interface BlobbiActionsContextValue {
 
   /** Clear cooldown for an item */
   clearItemCooldown: (itemId: string) => void;
-
-  /**
-   * Toggle sleep/wake state on the current companion.
-   * Only available when BlobbiPage has registered its handler.
-   */
-  toggleSleep: ToggleSleepFunction | null;
 }
 
 /**
@@ -82,8 +70,6 @@ export interface BlobbiActionsContextInternal {
   canUseItemsRegisteredRef: React.MutableRefObject<boolean>;
   /** Whether an item is currently being used (via registration) */
   isUsingItemRegisteredRef: React.MutableRefObject<boolean>;
-  /** Registered sleep/wake toggle function (from BlobbiPage) */
-  toggleSleepRef: React.MutableRefObject<ToggleSleepFunction | null>;
   /** Force update consumers (called sparingly) */
   notifyUpdate: () => void;
   /** Subscribe to updates */
@@ -114,8 +100,6 @@ export function BlobbiActionsProvider({ children }: BlobbiActionsProviderProps) 
   const registerRef = useRef<UseItemFunction | null>(null);
   const canUseItemsRegisteredRef = useRef<boolean>(false);
   const isUsingItemRegisteredRef = useRef<boolean>(false);
-  const toggleSleepRef = useRef<ToggleSleepFunction | null>(null);
-
   // Subscribers for manual notification
   const subscribersRef = useRef<Set<() => void>>(new Set());
 
@@ -135,7 +119,6 @@ export function BlobbiActionsProvider({ children }: BlobbiActionsProviderProps) 
     registerRef,
     canUseItemsRegisteredRef,
     isUsingItemRegisteredRef,
-    toggleSleepRef,
     notifyUpdate,
     subscribe,
   }), [notifyUpdate, subscribe]);

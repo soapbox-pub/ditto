@@ -58,7 +58,6 @@ export {
 export type {
   UseItemResult as ContextUseItemResult,
   UseItemFunction,
-  ToggleSleepFunction,
   BlobbiActionsContextValue,
 } from './BlobbiActionsContext';
 
