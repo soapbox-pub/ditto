@@ -120,7 +120,22 @@ export function useAIChatSession() {
   // Handle sending a message. Pass `override` to send arbitrary text (e.g. suggestion chips).
   const handleSend = useCallback(async (override?: string) => {
     const trimmed = (override ?? input).trim();
-    if (!trimmed || !selectedModel || isStreaming) return;
+    if (!trimmed || isStreaming) return;
+
+    // Slash commands — handled locally, never sent to the API
+    if (trimmed.startsWith('/')) {
+      const cmd = trimmed.toLowerCase();
+      if (cmd === '/new' || cmd === '/clear') {
+        handleClear();
+        setInput('');
+        return;
+      }
+      // Unknown command — ignore silently
+      setInput('');
+      return;
+    }
+
+    if (!selectedModel) return;
 
     clearError();
     setInput('');
