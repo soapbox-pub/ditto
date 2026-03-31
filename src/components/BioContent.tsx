@@ -19,7 +19,7 @@ type BioToken =
  */
 function tokenizeBio(text: string): BioToken[] {
   // Match: URLs (http/https) | hashtags (#word)
-  const regex = /(https?:\/\/[^\s]+)|(#\w+)/g;
+  const regex = /(https?:\/\/[^\s]+)|(#[\p{L}\p{N}_]+)/gu;
 
   const result: BioToken[] = [];
   let lastIndex = 0;
