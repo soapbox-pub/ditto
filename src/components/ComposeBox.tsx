@@ -1086,6 +1086,7 @@ export function ComposeBox({
               ref={textareaRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              onPointerDown={expand}
               onFocus={expand}
               onPaste={handlePaste}
               placeholder={mode === 'poll' ? 'Ask a question…' : placeholder}
