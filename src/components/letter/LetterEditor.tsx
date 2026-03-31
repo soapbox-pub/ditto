@@ -17,6 +17,7 @@ import {
   type Stationery,
   type FrameStyle,
 } from '@/lib/letterTypes';
+import { loadBundledFont } from '@/lib/fonts';
 import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { StationeryPicker } from './StationeryPicker';
@@ -143,6 +144,23 @@ export function LetterEditor({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // Load the currently-selected font on mount/change so the card preview renders correctly.
+  useEffect(() => {
+    const primary = selectedFont.family.split(',')[0].trim();
+    loadBundledFont(primary);
+  }, [selectedFont.family]);
+
+  // Pre-load all letter fonts when the font picker opens so the buttons
+  // render in their actual typefaces rather than the system fallback.
+  useEffect(() => {
+    if (overlay !== 'font') return;
+    const primaryNames = [
+      'Fredoka', 'Nunito', 'Playfair Display', 'Caveat', 'Pacifico',
+      'Pirata One', 'Permanent Marker', 'Special Elite', 'Creepster', 'Silkscreen',
+    ];
+    primaryNames.forEach((name) => loadBundledFont(name));
+  }, [overlay]);
 
   const { text: stationeryTextColor, line: stationeryLineColor, fontFamily: themeFont } = useStationeryColors(stationery);
   const resolvedFontFamily = resolveFont(selectedFont.family, themeFont);
