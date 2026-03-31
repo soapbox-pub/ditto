@@ -29,6 +29,8 @@ const HomePage = lazy(() => import("./pages/HomePage").then(m => ({ default: m.H
 const AdvancedSettingsPage = lazy(() => import("./pages/AdvancedSettingsPage").then(m => ({ default: m.AdvancedSettingsPage })));
 const AIChatPage = lazy(() => import("./pages/AIChatPage").then(m => ({ default: m.AIChatPage })));
 const ArchivePage = lazy(() => import("./pages/ArchivePage").then(m => ({ default: m.ArchivePage })));
+const ArticleDraftsPage = lazy(() => import("./pages/ArticleDraftsPage").then(m => ({ default: m.ArticleDraftsPage })));
+const ArticleEditorPage = lazy(() => import("./pages/ArticleEditorPage").then(m => ({ default: m.ArticleEditorPage })));
 const BadgesPage = lazy(() => import("./pages/BadgesPage").then(m => ({ default: m.BadgesPage })));
 const BlobbiPage = lazy(() => import("./pages/BlobbiPage").then(m => ({ default: m.BlobbiPage })));
 const BlueskyPage = lazy(() => import("./pages/BlueskyPage").then(m => ({ default: m.BlueskyPage })));
@@ -184,6 +186,9 @@ export function AppRouter() {
               }
             />
             <Route path="/webxdc" element={<WebxdcFeedPage />} />
+            <Route path="/articles/new" element={<ArticleEditorPage />} />
+            <Route path="/articles/edit/:naddr" element={<ArticleEditorPage />} />
+            <Route path="/articles/drafts" element={<ArticleDraftsPage />} />
             <Route
               path="/articles"
               element={
@@ -191,6 +196,7 @@ export function AppRouter() {
                   kind={articlesDef.kind}
                   title={articlesDef.label}
                   icon={sidebarItemIcon("articles", "size-5")}
+                  fabHref="/articles/new"
                 />
               }
             />
