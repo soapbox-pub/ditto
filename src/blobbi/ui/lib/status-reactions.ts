@@ -417,11 +417,19 @@ const HEALTH_PARTS: PartContributionResolver = (severity) => {
 
 /**
  * Hunger severity escalation:
- *   warning  → hopeful/asking (bright eyes, small anticipating mouth)
- *   high     → needy (bigger pleading eyes, more open mouth, worried brows)
+ *   warning  → hopeful/asking (bright eyes, soft smile, gentle brows)
+ *   high     → needy (bigger pleading eyes, slightly smaller smile, worried brows)
  *   critical → weak/desperate (droopy desperate mouth, very worried brows)
  *
  * The progression goes from "ooh, food?" to "please..." to "I'm so hungry..."
+ *
+ * Mouth behavior:
+ *   Hunger alone should NOT produce a round "O" mouth — that reads as
+ *   surprise, not hunger. Instead we use a soft smile (the Blobbi's natural
+ *   expression, slightly scaled down) which pairs naturally with hopeful
+ *   eyes and drool. The round mouth only appears if another stat with
+ *   higher mouth priority (e.g. health-critical) contributes it.
+ *   At critical hunger the mouth shifts to a droopy/pleading shape.
  */
 const HUNGER_PARTS: PartContributionResolver = (severity) => {
   if (severity === 'normal') return undefined;
@@ -430,19 +438,19 @@ const HUNGER_PARTS: PartContributionResolver = (severity) => {
   const eyes: EyeRecipe = { wateryEyes: { includeWaterFill: false } };
 
   // Mouth changes with severity:
-  //   warning  → small round "ooh" (hopeful anticipation)
-  //   high     → bigger round (more eager/needy)
+  //   warning  → soft smile (hopeful, natural — pairs with drool)
+  //   high     → slightly smaller soft smile (still hopeful but needier)
   //   critical → droopy/pleading (weak, desperate)
   let mouth: MouthRecipe;
   if (severity === 'critical') {
     // Desperate — droopy, weak, pleading
     mouth = { droopyMouth: { widthScale: 0.85, curveScale: 0.5 } };
   } else if (severity === 'high') {
-    // Needy — bigger anticipating mouth
-    mouth = { roundMouth: { rx: 3.5, ry: 4.5, filled: true } };
+    // Needy — slightly smaller smile, starting to look less content
+    mouth = { smallSmile: { scale: 0.75 } };
   } else {
-    // Warning — hopeful, small "ooh"
-    mouth = { roundMouth: { rx: 2.5, ry: 3, filled: true } };
+    // Warning — hopeful, soft natural smile
+    mouth = { smallSmile: { scale: 0.85 } };
   }
 
   // Eyebrows escalate from hopeful to worried to desperate

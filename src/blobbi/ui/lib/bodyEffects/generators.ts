@@ -550,16 +550,28 @@ interface FlyOrbit {
   delay: number;
 }
 
+/**
+ * Fly orbits for baby variant (100x100 viewBox).
+ * Positioned in the lower third of the body (y: 72-86), well below the
+ * face region (eyes ~y:50, mouth ~y:60). Orbits are small and tight
+ * so flies stay near the dirty lower body / feet area.
+ */
 const BABY_FLY_ORBITS: FlyOrbit[] = [
-  { cx: 60, cy: 40, rx: 6, ry: 4, dur: 2.2, delay: 0 },
-  { cx: 35, cy: 50, rx: 5, ry: 3.5, dur: 2.8, delay: 0.5 },
-  { cx: 50, cy: 35, rx: 4.5, ry: 3, dur: 3.2, delay: 1.0 },
+  { cx: 58, cy: 80, rx: 5, ry: 3, dur: 2.2, delay: 0 },
+  { cx: 38, cy: 78, rx: 4.5, ry: 2.5, dur: 2.8, delay: 0.5 },
+  { cx: 50, cy: 84, rx: 4, ry: 2.5, dur: 3.2, delay: 1.0 },
 ];
 
+/**
+ * Fly orbits for adult variant (200x200 viewBox).
+ * Positioned in the lower third of the body (y: 140-165), well below
+ * the face region (eyes ~y:90-100, mouth ~y:110-120). Small orbit
+ * radii keep flies circling tightly around the grimy lower body.
+ */
 const ADULT_FLY_ORBITS: FlyOrbit[] = [
-  { cx: 130, cy: 75, rx: 12, ry: 8, dur: 2.2, delay: 0 },
-  { cx: 70, cy: 95, rx: 10, ry: 7, dur: 2.8, delay: 0.5 },
-  { cx: 100, cy: 65, rx: 9, ry: 6, dur: 3.2, delay: 1.0 },
+  { cx: 120, cy: 155, rx: 10, ry: 6, dur: 2.2, delay: 0 },
+  { cx: 78, cy: 150, rx: 9, ry: 5, dur: 2.8, delay: 0.5 },
+  { cx: 100, cy: 162, rx: 8, ry: 5, dur: 3.2, delay: 1.0 },
 ];
 
 /**

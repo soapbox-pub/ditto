@@ -360,16 +360,16 @@ export const EMOTION_RECIPES: Record<BlobbiEmotion, BlobbiVisualRecipe> = {
 
   // ── Hungry ──────────────────────────────────────────────────────────────────
   // Pleading, needy, hopeful for food. Shiny hopeful eyes (not sad-watery),
-  // open anticipating mouth, pleading brows, drool + food icon.
+  // soft smile (not round "O" mouth), pleading brows, drool + food icon.
   // Matches the "high" severity hunger expression from status-reactions.
-  // The expression evokes "please feed me" not "I'm sad".
+  // The expression evokes "please feed me" not surprise or shock.
   hungry: {
     eyes: { wateryEyes: { includeWaterFill: false } },
     eyebrows: {
       // Inner corners raised (pleading/hopeful), matches high severity
       config: { angle: -14, offsetY: -10, strokeWidth: 1.3, color: '#6b7280', curve: 0.15 },
     },
-    mouth: { roundMouth: { rx: 3.5, ry: 4.5, filled: true } },
+    mouth: { smallSmile: { scale: 0.75 } },
     extras: {
       drool: { enabled: true, side: 'right' },
       foodIcon: { enabled: true, type: 'utensils' },
