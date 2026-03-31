@@ -20,6 +20,7 @@ export interface ReactionEntry {
 }
 
 export interface ZapEntry {
+  eventId: string;
   senderPubkey: string;
   amountSats: number;
   message: string;
@@ -41,7 +42,7 @@ export interface EventInteractions {
 }
 
 /** Extracts the zap amount in millisatoshis from a kind 9735 zap receipt. */
-function extractZapAmount(event: NostrEvent): number {
+export function extractZapAmount(event: NostrEvent): number {
   const amountTag = event.tags.find(([name]) => name === 'amount');
   if (amountTag?.[1]) {
     const msats = parseInt(amountTag[1], 10);
@@ -87,7 +88,7 @@ function parseBolt11Amount(bolt11: string): number {
 }
 
 /** Extracts the sender pubkey from a kind 9735 zap receipt. */
-function extractZapSender(event: NostrEvent): string {
+export function extractZapSender(event: NostrEvent): string {
   // First check the P tag (uppercase) which NIP-57 specifies for sender pubkey
   const pTag = event.tags.find(([name]) => name === 'P');
   if (pTag?.[1]) return pTag[1];
@@ -107,7 +108,7 @@ function extractZapSender(event: NostrEvent): string {
 }
 
 /** Extracts the zap message from a kind 9735 zap receipt. */
-function extractZapMessage(event: NostrEvent): string {
+export function extractZapMessage(event: NostrEvent): string {
   const descTag = event.tags.find(([name]) => name === 'description');
   if (descTag?.[1]) {
     try {
@@ -180,6 +181,7 @@ export function useEventInteractions(eventId: string | undefined) {
             const senderPubkey = extractZapSender(e);
             if (msats > 0 && senderPubkey) {
               zaps.push({
+                eventId: e.id,
                 senderPubkey,
                 amountSats: Math.floor(msats / 1000),
                 message: extractZapMessage(e),

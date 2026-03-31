@@ -60,6 +60,7 @@ import { NoteMoreMenu } from "@/components/NoteMoreMenu";
 import { PatchCard } from "@/components/PatchCard";
 import { PollContent } from "@/components/PollContent";
 import { ProfileBadgesContent } from "@/components/ProfileBadgesContent";
+import { ProfileCard } from "@/components/ProfileCard";
 import { ProfileHoverCard } from "@/components/ProfileHoverCard";
 const PullRequestCard = lazy(() => import("@/components/PullRequestCard").then(m => ({ default: m.PullRequestCard })));
 import { ReactionButton } from "@/components/ReactionButton";
@@ -86,6 +87,7 @@ import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
 import { canZap } from "@/lib/canZap";
+import { extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
 import { getContentWarning } from "@/lib/contentWarning";
 import { genUserName } from "@/lib/genUserName";
 import { getDisplayName } from "@/lib/getDisplayName";
@@ -98,6 +100,55 @@ import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
+
+/** Compact zap receipt card for use in feeds (kind 9735). */
+function ZapReceiptContent({ event }: { event: NostrEvent }) {
+  const senderPubkey = extractZapSender(event);
+  const amountMsats = extractZapAmount(event);
+  const amountSats = Math.floor(amountMsats / 1000);
+  const message = extractZapMessage(event);
+  const sender = useAuthor(senderPubkey || undefined);
+  const senderMeta = sender.data?.metadata;
+  const senderName = getDisplayName(senderMeta, senderPubkey);
+  const senderShape = getAvatarShape(senderMeta);
+  const senderUrl = useProfileUrl(senderPubkey, senderMeta);
+
+  return (
+    <div className="mt-2 flex flex-col gap-1.5">
+      <div className="flex items-center gap-2 flex-wrap">
+        {senderPubkey && (
+          <Link to={senderUrl} className="flex items-center gap-1.5 min-w-0" onClick={(e) => e.stopPropagation()}>
+            <Avatar shape={senderShape} className="size-5 shrink-0">
+              <AvatarImage src={senderMeta?.picture} alt={senderName} />
+              <AvatarFallback className="bg-primary/20 text-primary text-[9px]">{senderName[0]?.toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <span className="text-sm font-semibold truncate">{senderName}</span>
+          </Link>
+        )}
+        <span className="text-sm text-muted-foreground">zapped</span>
+        {amountSats > 0 && (
+          <span className="text-sm font-semibold text-amber-500">
+            {formatNumber(amountSats)} {amountSats === 1 ? 'sat' : 'sats'}
+          </span>
+        )}
+      </div>
+      {message && (
+        <p className="text-sm text-muted-foreground italic">"{message}"</p>
+      )}
+    </div>
+  );
+}
+
+/** Profile card for use in feeds (kind 0). */
+function ProfileCardContent({ event }: { event: NostrEvent }) {
+  let metadata: Record<string, unknown> = {};
+  try { metadata = JSON.parse(event.content); } catch { /* ignore */ }
+  return (
+    <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+      <ProfileCard pubkey={event.pubkey} metadata={metadata} showNip05={false} />
+    </div>
+  );
+}
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -282,6 +333,8 @@ export const NoteCard = memo(function NoteCard({
   const isZapstoreApp = event.kind === 32267;
   const isEncryptedDM = event.kind === 4;
   const isVanish = event.kind === 62;
+  const isZap = event.kind === 9735;
+  const isProfile = event.kind === 0;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
@@ -307,7 +360,9 @@ export const NoteCard = memo(function NoteCard({
     !isDevKind &&
     !isZapstoreApp &&
     !isEncryptedDM &&
-    !isVanish;
+    !isVanish &&
+    !isZap &&
+    !isProfile;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(
@@ -500,6 +555,10 @@ export const NoteCard = memo(function NoteCard({
           <ZapstoreAppContent event={event} compact />
         ) : isEncryptedDM ? (
           <EncryptedMessageContent event={event} compact />
+        ) : isZap ? (
+          <ZapReceiptContent event={event} />
+        ) : isProfile ? (
+          <ProfileCardContent event={event} />
         ) : (
           <TruncatedNoteContent
             event={event}
@@ -1897,6 +1956,10 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: "deployed an",
     noun: "nsite",
     nounRoute: "/development",
+  },
+  9735: {
+    icon: Zap,
+    action: "zapped",
   },
 };
 

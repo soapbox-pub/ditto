@@ -79,6 +79,7 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { WebxdcEmbed } from "@/components/WebxdcEmbed";
 import { ZapDialog } from "@/components/ZapDialog";
+import { ProfileCard } from "@/components/ProfileCard";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
@@ -136,6 +137,8 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 4) return "Encrypted Message";
   if (kind === 6 || kind === 16) return "Repost";
   if (kind === 7) return "Reaction";
+  if (kind === 9735) return "Zap";
+  if (kind === 0) return "Profile";
   return "Post Details";
 }
 
@@ -154,12 +157,12 @@ import { ProfileHoverCard } from "@/components/ProfileHoverCard";
 import { useAuthor } from "@/hooks/useAuthor";
 import { useComments } from "@/hooks/useComments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useEventInteractions } from "@/hooks/useEventInteractions";
+import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
 import { useMuteList } from "@/hooks/useMuteList";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
 import { toast } from "@/hooks/useToast";
-import { useEventStats } from "@/hooks/useTrending";
+import { useEventStats, type EventStats } from "@/hooks/useTrending";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
 import { extractISBNFromEvent } from "@/lib/bookstr";
 import { canZap } from "@/lib/canZap";
@@ -918,6 +921,179 @@ function BookReviewRating({ event }: { event: NostrEvent }) {
   );
 }
 
+interface ZapDetailCardProps {
+  event: NostrEvent;
+  senderPubkey: string;
+  amountSats: number;
+  zapMessage: string;
+  focusedPostRef: React.RefObject<HTMLElement | null>;
+  moreMenuOpen: boolean;
+  setMoreMenuOpen: (v: boolean) => void;
+  replyOpen: boolean;
+  setReplyOpen: (v: boolean) => void;
+  interactionsOpen: boolean;
+  setInteractionsOpen: (v: boolean) => void;
+  interactionsTab: InteractionTab;
+  stats: EventStats | undefined;
+  repostTotal: number;
+  handleShare: () => void;
+  formatFullDate: (ts: number) => string;
+}
+
+/** Compact activity-style card for kind 9735 (zap receipt) detail view. */
+function ZapDetailCard({
+  event,
+  senderPubkey,
+  amountSats,
+  zapMessage,
+  focusedPostRef,
+  moreMenuOpen,
+  setMoreMenuOpen,
+  replyOpen,
+  setReplyOpen,
+  interactionsOpen,
+  setInteractionsOpen,
+  interactionsTab,
+  stats,
+  repostTotal,
+  handleShare,
+  formatFullDate,
+}: ZapDetailCardProps) {
+  const senderAuthor = useAuthor(senderPubkey || undefined);
+  const senderMetadata = senderAuthor.data?.metadata;
+  const senderAvatarShape = getAvatarShape(senderMetadata);
+  const senderDisplayName = getDisplayName(senderMetadata, senderPubkey);
+  const senderProfileUrl = useProfileUrl(senderPubkey, senderMetadata);
+
+  return (
+    <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+      <div className="flex items-center gap-3">
+        {/* Zap icon bubble */}
+        <div className="flex items-center justify-center size-10 rounded-full bg-amber-500/10 shrink-0">
+          <Zap className="size-5 text-amber-500 fill-amber-500" />
+        </div>
+
+        {/* Sender + "zapped" label + amount + timestamp */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {senderAuthor.isLoading ? (
+            <>
+              <Skeleton className="size-6 rounded-full shrink-0" />
+              <Skeleton className="h-4 w-28" />
+            </>
+          ) : (
+            <>
+              {senderPubkey && (
+                <>
+                  <ProfileHoverCard pubkey={senderPubkey} asChild>
+                    <Link to={senderProfileUrl} className="shrink-0">
+                      <Avatar shape={senderAvatarShape} className="size-6">
+                        <AvatarImage src={senderMetadata?.picture} alt={senderDisplayName} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                          {senderDisplayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                  <ProfileHoverCard pubkey={senderPubkey} asChild>
+                    <Link
+                      to={senderProfileUrl}
+                      className="font-bold text-sm hover:underline truncate"
+                    >
+                      {senderDisplayName}
+                    </Link>
+                  </ProfileHoverCard>
+                </>
+              )}
+              <span className="text-sm text-muted-foreground shrink-0">zapped</span>
+              {amountSats > 0 && (
+                <span className="text-sm font-semibold text-amber-500 shrink-0">
+                  {formatNumber(amountSats)} {amountSats === 1 ? 'sat' : 'sats'}
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                {formatFullDate(event.created_at)}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Zap message (from description tag content) */}
+      {zapMessage && (
+        <p className="mt-2 text-sm text-muted-foreground italic">"{zapMessage}"</p>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex items-center justify-between py-1 mt-2 border-t border-b border-border -mx-4 px-4">
+        <button
+          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+          title="Reply"
+          onClick={() => setReplyOpen(true)}
+        >
+          <MessageCircle className="size-5" />
+          {stats?.replies ? (
+            <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
+          ) : null}
+        </button>
+
+        <RepostMenu event={event}>
+          {(isReposted: boolean) => (
+            <button
+              className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
+              title={isReposted ? "Undo repost" : "Repost"}
+            >
+              <RepostIcon className="size-5" />
+              {repostTotal ? (
+                <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
+              ) : null}
+            </button>
+          )}
+        </RepostMenu>
+
+        <ReactionButton
+          eventId={event.id}
+          eventPubkey={event.pubkey}
+          eventKind={event.kind}
+          reactionCount={stats?.reactions}
+        />
+
+        <button
+          className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
+          title="Share"
+          onClick={handleShare}
+        >
+          <Share2 className="size-5" />
+        </button>
+
+        <button
+          className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+          title="More"
+          onClick={() => setMoreMenuOpen(true)}
+        >
+          <MoreHorizontal className="size-5" />
+        </button>
+      </div>
+
+      <NoteMoreMenu
+        event={event}
+        open={moreMenuOpen}
+        onOpenChange={setMoreMenuOpen}
+      />
+      <ReplyComposeModal
+        event={event}
+        open={replyOpen}
+        onOpenChange={setReplyOpen}
+      />
+      <InteractionsModal
+        eventId={event.id}
+        open={interactionsOpen}
+        onOpenChange={setInteractionsOpen}
+        initialTab={interactionsTab}
+      />
+    </article>
+  );
+}
+
 function PostDetailContent({ event }: { event: NostrEvent }) {
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
@@ -987,6 +1163,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isZapstoreApp = event.kind === 32267;
   const isEncryptedDM = event.kind === 4;
   const isVanish = event.kind === VANISH_KIND;
+  const isZap = event.kind === 9735;
+  const isProfile = event.kind === 0;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
@@ -1009,7 +1187,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isDevKind &&
     !isZapstoreApp &&
     !isEncryptedDM &&
-    !isVanish;
+    !isVanish &&
+    !isZap &&
+    !isProfile;
 
   const videos = useMemo(
     () => (isTextNote ? extractVideoUrls(event.content) : []),
@@ -1253,9 +1433,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     useState<InteractionTab>("reposts");
 
   const parentEventId = useMemo(
-    () => (isTextNote || isReaction || isRepost ? getParentEventId(event) : undefined),
-    [event, isTextNote, isReaction, isRepost],
+    () => (isTextNote || isReaction || isRepost || isZap ? getParentEventId(event) : undefined),
+    [event, isTextNote, isReaction, isRepost, isZap],
   );
+
+  // For kind 9735 zap receipts, extract sender pubkey, amount, and message
+  const zapSenderPubkey = useMemo(() => isZap ? extractZapSender(event) : '', [event, isZap]);
+  const zapAmountSats = useMemo(() => isZap ? Math.floor(extractZapAmount(event) / 1000) : 0, [event, isZap]);
+  const zapMessage = useMemo(() => isZap ? extractZapMessage(event) : '', [event, isZap]);
 
   // For kind 1111 comments on external content, extract the I tag for the parent preview
   const externalIdentifier = useMemo(() => {
@@ -1403,7 +1588,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <div ref={ancestorRef}>
           <AncestorThread
             eventId={parentEventId}
-            collapseAfter={isReaction || isRepost ? 0 : undefined}
+            collapseAfter={isReaction || isRepost || isZap ? 0 : undefined}
           />
         </div>
       )}
@@ -1648,6 +1833,104 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         </article>
       )}
 
+      {/* Kind 9735 — Zap receipt: activity-style card showing sender, amount, and optional message */}
+      {isZap && (
+        <ZapDetailCard
+          event={event}
+          senderPubkey={zapSenderPubkey}
+          amountSats={zapAmountSats}
+          zapMessage={zapMessage}
+          focusedPostRef={focusedPostRef}
+          moreMenuOpen={moreMenuOpen}
+          setMoreMenuOpen={setMoreMenuOpen}
+          replyOpen={replyOpen}
+          setReplyOpen={setReplyOpen}
+          interactionsOpen={interactionsOpen}
+          setInteractionsOpen={setInteractionsOpen}
+          interactionsTab={interactionsTab}
+          stats={stats}
+          repostTotal={repostTotal}
+          handleShare={handleShare}
+          formatFullDate={formatFullDate}
+        />
+      )}
+
+      {/* Kind 0 — Profile: show the ProfileCard directly, no action header */}
+      {isProfile && (() => {
+        let parsedMeta: Record<string, unknown> = {};
+        try { parsedMeta = JSON.parse(event.content); } catch { /* ignore */ }
+        return (
+          <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+            <ProfileCard pubkey={event.pubkey} metadata={parsedMeta} />
+
+            {/* Date row */}
+            <div className="py-2 sidebar:py-2.5 mt-3 text-xs sidebar:text-sm text-muted-foreground">
+              {formatFullDate(event.created_at)}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
+              <button
+                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                title="Reply"
+                onClick={() => setReplyOpen(true)}
+              >
+                <MessageCircle className="size-5" />
+                {stats?.replies ? (
+                  <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
+                ) : null}
+              </button>
+
+              <RepostMenu event={event}>
+                {(isReposted: boolean) => (
+                  <button
+                    className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
+                    title={isReposted ? "Undo repost" : "Repost"}
+                  >
+                    <RepostIcon className="size-5" />
+                    {repostTotal ? (
+                      <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
+                    ) : null}
+                  </button>
+                )}
+              </RepostMenu>
+
+              <ReactionButton
+                eventId={event.id}
+                eventPubkey={event.pubkey}
+                eventKind={event.kind}
+                reactionCount={stats?.reactions}
+              />
+
+              <button
+                className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
+                title="Share"
+                onClick={handleShare}
+              >
+                <Share2 className="size-5" />
+              </button>
+
+              <button
+                className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                title="More"
+                onClick={() => setMoreMenuOpen(true)}
+              >
+                <MoreHorizontal className="size-5" />
+              </button>
+            </div>
+
+            <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+            <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+            <InteractionsModal
+              eventId={event.id}
+              open={interactionsOpen}
+              onOpenChange={setInteractionsOpen}
+              initialTab={interactionsTab}
+            />
+          </article>
+        );
+      })()}
+
       {/* Kind 62 — Request to Vanish: dramatic full-width display, no author row */}
       {isVanish && (
         <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
@@ -1729,7 +2012,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       )}
 
       {/* Main post — expanded Ditto-style view */}
-      {!isReaction && !isRepost && !isVanish && (
+      {!isReaction && !isRepost && !isVanish && !isZap && !isProfile && (
         <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
           {/* Author row */}
           <div className="flex items-center gap-3">

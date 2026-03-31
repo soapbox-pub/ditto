@@ -6,6 +6,7 @@ import {
   Award, BarChart3, BookOpen, Camera, Clapperboard, FileText, Film,
   GitBranch, GitPullRequest, Mail, MapPin, MessageSquare, Mic, Music,
   Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles,
+  Users, Zap,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -79,6 +80,7 @@ function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
  * ("Requests to Vanish", "User Statuses") and must NOT be used directly.
  */
 const KIND_LABELS: Record<number, string> = {
+  0: 'a profile',
   1: 'a post',
   4: 'an encrypted message',
   6: 'a repost',
@@ -122,10 +124,12 @@ const KIND_LABELS: Record<number, string> = {
   37381: 'a Magic deck',
   37516: 'a treasure',
   39089: 'a follow pack',
+  9735: 'a zap',
 };
 
 /** Kind-specific icons — matches sidebar and NoteCard icons. */
 const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: string }>>> = {
+  0: Users,
   1: MessageSquare,
   4: Mail,
   6: RepostIcon,
@@ -161,6 +165,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   7516: ChestIcon,
   39089: PartyPopper,
   3367: Palette,
+  9735: Zap,
 };
 
 /**
