@@ -54,6 +54,7 @@ import { NoteCard } from "@/components/NoteCard";
 import { NoteContent } from "@/components/NoteContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
+import { PostActionBar } from "@/components/PostActionBar";
 import { PatchCard } from "@/components/PatchCard";
 import { PodcastDetailContent } from "@/components/PodcastDetailContent";
 import { PollContent } from "@/components/PollContent";
@@ -2201,78 +2202,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             </div>
           )}
 
-           {/* Action buttons — Ditto style: distributed across full width */}
-          <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
-            {/* Reply */}
-            <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Reply"
-              onClick={() => setReplyOpen(true)}
-            >
-              <MessageCircle className="size-5" />
-              {stats?.replies ? (
-                <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
-              ) : null}
-            </button>
-
-            {/* Repost */}
-            <RepostMenu event={event}>
-              {(isReposted: boolean) => (
-                <button
-                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
-                  title={isReposted ? "Undo repost" : "Reposts"}
-                >
-                  <RepostIcon className="size-5" />
-                  {repostTotal ? (
-                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
-                  ) : null}
-                </button>
-              )}
-            </RepostMenu>
-
-            {/* React */}
-            <ReactionButton
-              eventId={event.id}
-              eventPubkey={event.pubkey}
-              eventKind={event.kind}
-              reactionCount={stats?.reactions}
-            />
-
-            {/* Zap */}
-            {canZapAuthor && (
-              <ZapDialog target={event}>
-                <button
-                  className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-                  title="Zaps"
-                >
-                  <Zap className="size-5" />
-                  {stats?.zapAmount ? (
-                    <span className="text-sm tabular-nums">
-                      {formatNumber(stats.zapAmount)}
-                    </span>
-                  ) : null}
-                </button>
-              </ZapDialog>
-            )}
-
-            {/* Share */}
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
-              title="Share"
-              onClick={handleShare}
-            >
-              <Share2 className="size-5" />
-            </button>
-
-            {/* More */}
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="More"
-              onClick={() => setMoreMenuOpen(true)}
-            >
-              <MoreHorizontal className="size-5" />
-            </button>
-          </div>
+          <PostActionBar
+            event={event}
+            onReply={() => setReplyOpen(true)}
+            onMore={() => setMoreMenuOpen(true)}
+            className="-mx-4 px-4"
+          />
 
           <NoteMoreMenu
             event={event}
