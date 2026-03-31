@@ -33,6 +33,10 @@ import { genUserName } from '@/lib/genUserName';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
+// Noto Sans Nushu — provides glyph coverage for U+1B170-U+1B2FF on all
+// platforms (Android / iOS system fonts don't include this block).
+import '@fontsource/noto-sans-nushu/400.css';
+
 // ---------------------------------------------------------------------------
 // Nushu character conversion
 // ---------------------------------------------------------------------------
@@ -357,7 +361,7 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                       <p
                         className="text-center select-none"
                         style={{
-                          fontFamily: 'serif',
+                          fontFamily: "'Noto Sans Nushu', serif",
                           fontSize: compact ? '1rem' : '1.25rem',
                           color: '#3A2E26',
                           lineHeight: 2.2,
