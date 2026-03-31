@@ -162,7 +162,7 @@ import { useMuteList } from "@/hooks/useMuteList";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
 import { toast } from "@/hooks/useToast";
-import { useEventStats, type EventStats } from "@/hooks/useTrending";
+import { useEventStats } from "@/hooks/useTrending";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
 import { extractISBNFromEvent } from "@/lib/bookstr";
 import { canZap } from "@/lib/canZap";
