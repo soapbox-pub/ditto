@@ -107,6 +107,25 @@ The search checks the user's follow list first (contacts), then falls back to a 
   {
     type: 'function' as const,
     function: {
+      name: 'search_follow_packs',
+      description: `Search for Nostr follow packs by title. Follow packs (kind 39089) are curated lists of people. Use this when the user mentions a follow pack or starter pack by name — for example, "team soapbox pack" or "bitcoin developers pack".
+
+Returns matching packs with their title, description, member count, and the hex pubkeys of all members. Use the returned pubkeys directly in the spell's authors array to create a feed based on the pack's members.`,
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The follow pack title to search for (e.g. "team soapbox", "bitcoin developers", "nostr OGs").',
+          },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
       name: 'create_spell',
       description: `Create a Nostr spell — a saved query that acts as a custom feed. The spell is published as a kind:777 event and can be added to the sidebar for quick access.
 

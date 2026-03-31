@@ -230,6 +230,92 @@ export function useAIChatTools() {
         }
       }
 
+      case 'search_follow_packs': {
+        try {
+          const query = typeof args.query === 'string' ? args.query.trim().toLowerCase() : '';
+          if (!query) {
+            return { result: JSON.stringify({ error: 'A search query is required.' }) };
+          }
+
+          // Search for follow packs by title using NIP-50 full-text search
+          const events = await nostr.query(
+            [{ kinds: [39089], search: args.query as string, limit: 20 }],
+            { signal: AbortSignal.timeout(8000) },
+          );
+
+          // Also try a broader query without search (for relays that don't support NIP-50)
+          let allEvents = [...events];
+          if (events.length < 3) {
+            const broadEvents = await nostr.query(
+              [{ kinds: [39089], limit: 50 }],
+              { signal: AbortSignal.timeout(8000) },
+            );
+            // Deduplicate by event id
+            const seen = new Set(allEvents.map((e) => e.id));
+            for (const e of broadEvents) {
+              if (!seen.has(e.id)) allEvents.push(e);
+            }
+          }
+
+          // Match on title/name tags
+          interface PackMatch {
+            title: string;
+            description?: string;
+            member_count: number;
+            pubkeys: string[];
+            author: string;
+          }
+
+          const matches: PackMatch[] = [];
+
+          for (const event of allEvents) {
+            const title = (event.tags.find(([t]) => t === 'title')?.[1]
+              ?? event.tags.find(([t]) => t === 'name')?.[1]
+              ?? '').trim();
+
+            if (!title) continue;
+
+            // Check if the title matches the query
+            if (!title.toLowerCase().includes(query)) continue;
+
+            const description = event.tags.find(([t]) => t === 'description')?.[1]
+              ?? event.tags.find(([t]) => t === 'summary')?.[1];
+
+            const pubkeys = event.tags
+              .filter(([t]) => t === 'p')
+              .map(([, pk]) => pk);
+
+            if (pubkeys.length === 0) continue;
+
+            matches.push({
+              title,
+              description: description ? description.slice(0, 150) : undefined,
+              member_count: pubkeys.length,
+              pubkeys,
+              author: event.pubkey,
+            });
+          }
+
+          // Sort by relevance: exact match first, then by member count
+          matches.sort((a, b) => {
+            const aExact = a.title.toLowerCase() === query ? 1 : 0;
+            const bExact = b.title.toLowerCase() === query ? 1 : 0;
+            if (aExact !== bExact) return bExact - aExact;
+            return b.member_count - a.member_count;
+          });
+
+          const results = matches.slice(0, 5);
+
+          if (results.length === 0) {
+            return { result: JSON.stringify({ matches: [], message: `No follow packs found matching "${args.query}".` }) };
+          }
+
+          return { result: JSON.stringify({ matches: results }) };
+        } catch (err) {
+          return { result: JSON.stringify({ error: `Search failed: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
+        }
+      }
+
       case 'create_spell': {
         try {
           if (typeof args.name !== 'string' || !args.name.trim()) {
