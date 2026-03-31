@@ -249,6 +249,9 @@ export const EMOTION_RECIPES: Record<BlobbiEmotion, BlobbiVisualRecipe> = {
   // Body decorator for low hygiene. Face shows mild discomfort/irritation.
   // The grimace and slightly furrowed brows say "I feel gross".
   // Matches the "high" severity hygiene expression from status-reactions.
+  //
+  // Dirt layer: muddy smudges + grime spots on lower body (warm brown)
+  // Smell layer: wavy odor wisps in muted green, rising from sides
   dirty: {
     mouth: { droopyMouth: { widthScale: 0.8, curveScale: 0.2 } },
     eyebrows: {
@@ -256,7 +259,7 @@ export const EMOTION_RECIPES: Record<BlobbiEmotion, BlobbiVisualRecipe> = {
       config: { angle: 10, offsetY: -9, strokeWidth: 1.3, color: '#6b7280' },
     },
     bodyEffects: {
-      dirtMarks: { enabled: true, count: 4 },
+      dirtMarks: { enabled: true, count: 4, intensity: 0.65 },
       stinkClouds: { enabled: true, count: 3 },
     },
   },

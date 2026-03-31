@@ -18,29 +18,46 @@ export type BlobbiVariant = 'baby' | 'adult';
 // ─── Body Effect Types ────────────────────────────────────────────────────────
 
 /**
- * Configuration for dirt marks on body.
+ * Configuration for dirt/grime visuals on body.
+ * 
+ * The dirt layer includes:
+ *   - Muddy smudges: soft, irregular blobs that sit on the body surface
+ *   - Grime spots: small darker spots scattered in lower body regions
+ *   - Dusty patches: faint, diffuse areas with slight discoloration
+ *   - Optional mud streaks: short directional marks for heavier dirt
  */
 export interface DirtMarksConfig {
-  /** Enable dirt marks on body */
+  /** Enable dirt/grime visuals on body */
   enabled: boolean;
-  /** Number of dirt marks (default: 3) */
+  /** Number of mud smudges (default: 3). Higher count = dirtier look */
   count?: number;
   /** Blobbi variant for coordinate scaling (default: 'adult') */
   variant?: BlobbiVariant;
   /** Detected body path info for shape-aware placement (adult only) */
   bodyPath?: BodyPathInfo;
+  /** Intensity 0-1 controlling smudge opacity and grime density (default: 0.6) */
+  intensity?: number;
 }
 
 /**
- * Configuration for stink cloud puffs.
+ * Configuration for stink/odor visuals.
+ * 
+ * The smell layer includes:
+ *   - Odor wisps: wavy, rising greenish lines that read as "smell"
+ *   - Stink puffs: soft cloudlets that fade in/out while rising
+ *   - Optional buzzing flies: tiny dots orbiting in small loops
  */
 export interface StinkCloudsConfig {
-  /** Enable stink clouds animation */
+  /** Enable stink/odor animation */
   enabled: boolean;
-  /** Number of cloud puffs (default: 3) */
+  /** Number of odor wisps (default: 3) */
   count?: number;
   /** Blobbi variant for coordinate scaling (default: 'adult') */
   variant?: BlobbiVariant;
+  /** Enable tiny buzzing fly particles (default: false, enabled at high severity) */
+  flies?: boolean;
+  /** Number of flies (default: 2) */
+  flyCount?: number;
 }
 
 /**
@@ -61,9 +78,9 @@ export interface BodyEffectConfig {
  * Multiple effects can be active simultaneously.
  */
 export interface BodyEffectsSpec {
-  /** Dirt marks on the body */
+  /** Dirt/grime marks on the body */
   dirtyMarks?: DirtMarksConfig;
-  /** Stink cloud puffs below the body */
+  /** Stink/odor visuals around the body */
   stinkClouds?: StinkCloudsConfig;
   /** Anger-rise color overlay inside body */
   angerRise?: { color: string; duration: number };

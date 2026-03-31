@@ -474,11 +474,19 @@ const HUNGER_PARTS: PartContributionResolver = (severity) => {
 
 /**
  * Hygiene severity escalation:
- *   warning  → uncomfortable (mild grimace, few dirt marks)
- *   high     → gross (more grimace, more dirt/stink)
- *   critical → very gross (strong grimace, lots of dirt/stink)
+ *   warning  → uncomfortable (mild grimace, light smudges, faint odor wisps)
+ *   high     → gross (more grimace, heavier grime, more wisps)
+ *   critical → very gross (strong grimace, heavy grime, wisps + buzzing flies)
  *
  * Hygiene doesn't claim eyes — it's physical discomfort, not emotional.
+ *
+ * Dirt layer escalation:
+ *   - count: more smudges/grime spots at higher severity
+ *   - intensity: opacity and density increase with severity
+ *
+ * Smell layer escalation:
+ *   - count: more odor wisps at higher severity
+ *   - flies: tiny buzzing flies appear only at critical (classic Tamagotchi cue)
  */
 const HYGIENE_PARTS: PartContributionResolver = (severity) => {
   if (severity === 'normal') return undefined;
@@ -489,6 +497,9 @@ const HYGIENE_PARTS: PartContributionResolver = (severity) => {
 
   // Furrowed brows escalate
   const browAngle = severity === 'critical' ? 12 : severity === 'high' ? 10 : 6;
+
+  // Dirt intensity escalates: subtle at warning, heavy at critical
+  const dirtIntensity = severity === 'critical' ? 0.8 : severity === 'high' ? 0.65 : 0.45;
 
   return {
     // Hygiene doesn't claim eyes — discomfort shows in brows/mouth
@@ -509,10 +520,13 @@ const HYGIENE_PARTS: PartContributionResolver = (severity) => {
       dirtMarks: {
         enabled: true,
         count: severity === 'critical' ? 5 : severity === 'high' ? 4 : 3,
+        intensity: dirtIntensity,
       },
       stinkClouds: {
         enabled: true,
         count: severity === 'critical' ? 4 : severity === 'high' ? 3 : 2,
+        flies: severity === 'critical',
+        flyCount: 2,
       },
     },
   };
