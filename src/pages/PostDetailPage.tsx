@@ -79,7 +79,6 @@ import { VanishEventContent } from "@/components/VanishEventContent";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { WebxdcEmbed } from "@/components/WebxdcEmbed";
-import { ZapDialog } from "@/components/ZapDialog";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { useAppContext } from "@/hooks/useAppContext";
@@ -166,7 +165,6 @@ import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
 import { extractISBNFromEvent } from "@/lib/bookstr";
-import { canZap } from "@/lib/canZap";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { isEventMuted } from "@/lib/muteHelpers";
@@ -1383,9 +1381,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   // Extract client from tags
   const clientTag = event.tags.find(([name]) => name === "client");
-
-  // Check if the current user can zap this event's author
-  const canZapAuthor = user && canZap(metadata);
 
   const openInteractions = (tab: InteractionTab) => {
     setInteractionsTab(tab);
