@@ -1123,9 +1123,9 @@ export const NoteCard = memo(function NoteCard({
             </div>
             <div className={cn("flex-1 min-w-0 flex flex-col justify-center min-h-10", threaded && "pb-3")}>
               {zapActorRow}
+              {zapMessage && <p className="text-xs text-muted-foreground italic mt-1">&ldquo;{zapMessage}&rdquo;</p>}
             </div>
           </div>
-          {zapMessage && <p className="text-xs text-muted-foreground italic pl-[52px]">"{zapMessage}"</p>}
         </article>
       );
     }
@@ -1145,9 +1145,9 @@ export const NoteCard = memo(function NoteCard({
           </div>
           <div className="flex-1 min-w-0 flex flex-col">
             {zapActorRow}
+            {zapMessage && <p className="text-xs text-muted-foreground italic mt-1">&ldquo;{zapMessage}&rdquo;</p>}
           </div>
         </div>
-        {zapMessage && <p className="text-sm text-muted-foreground italic pl-[55px]">"{zapMessage}"</p>}
       </article>
     );
   }
