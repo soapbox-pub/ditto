@@ -343,33 +343,42 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                     transform: isOpen ? 'translateY(-8px)' : 'translateY(20px)',
                   }}
                 >
-                  {/* Inner letter sheet */}
+                  {/* Inner letter sheet — flex column so the notice always stays visible */}
                   <div
-                    className="rounded-lg mx-4 p-5 max-h-[85%] overflow-hidden"
+                    className="rounded-lg mx-4 p-5 max-h-[85%] flex flex-col"
                     style={{
                       background: 'linear-gradient(180deg, #FDFAF5 0%, #F8F0E5 100%)',
                       boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
                       width: 'calc(100% - 2rem)',
                     }}
                   >
-                    {/* Nushu ciphertext */}
-                    <p
-                      className="text-center select-none"
-                      style={{
-                        fontFamily: 'serif',
-                        fontSize: compact ? '1rem' : '1.25rem',
-                        color: '#3A2E26',
-                        lineHeight: 2.2,
-                        letterSpacing: '0.25em',
-                      }}
-                      aria-label="Encrypted content rendered as Nushu script"
-                    >
-                      {nushuText}
-                    </p>
+                    {/* Nushu ciphertext — truncated with fade if it overflows */}
+                    <div className="flex-1 min-h-0 overflow-hidden relative">
+                      <p
+                        className="text-center select-none"
+                        style={{
+                          fontFamily: 'serif',
+                          fontSize: compact ? '1rem' : '1.25rem',
+                          color: '#3A2E26',
+                          lineHeight: 2.2,
+                          letterSpacing: '0.25em',
+                        }}
+                        aria-label="Encrypted content rendered as Nushu script"
+                      >
+                        {nushuText}
+                      </p>
+                      {/* Fade-out mask at the bottom when text overflows */}
+                      <div
+                        className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none"
+                        style={{
+                          background: 'linear-gradient(transparent, #F8F0E5)',
+                        }}
+                      />
+                    </div>
 
                     {/* Decorative rule */}
                     <div
-                      className="mx-auto mt-3"
+                      className="mx-auto mt-2 shrink-0"
                       style={{
                         width: '40%',
                         height: 1,
@@ -377,9 +386,9 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                       }}
                     />
 
-                    {/* Encrypted message notice */}
+                    {/* Encrypted message notice — always visible */}
                     <p
-                      className="flex items-center justify-center gap-1.5 mt-3 text-xs"
+                      className="flex items-center justify-center gap-1.5 mt-2 text-xs shrink-0"
                       style={{ color: '#8B7355' }}
                     >
                       <Lock className="size-3" />
