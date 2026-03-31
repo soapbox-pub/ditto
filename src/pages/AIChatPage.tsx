@@ -103,7 +103,7 @@ export function AIChatPage() {
       <ScrollArea className="flex-1">
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
           {messages.length === 0 ? (
-            <EmptyState />
+            <EmptyState onSuggestion={handleSend} />
           ) : (
             messages.filter((msg) => msg.role !== 'tool_result').map((msg) => (
               <MessageBubble key={msg.id} message={msg} />
@@ -149,7 +149,7 @@ export function AIChatPage() {
             </Button>
           ) : (
             <Button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={!input.trim() || !selectedModel}
               size="icon"
               className="size-11 shrink-0 rounded-xl"
@@ -193,7 +193,12 @@ const DORK_GREETINGS = [
   "Hey, it's Dork! What do you want to do?",
 ];
 
-function EmptyState() {
+const SUGGESTIONS = [
+  'Create a feed of Alex Gleason talking about being Vegan',
+  'Make a feed of the team soapbox follow pack talking about ditto',
+];
+
+function EmptyState({ onSuggestion }: { onSuggestion: (text: string) => void }) {
   const greeting = useMemo(() => DORK_GREETINGS[Math.floor(Math.random() * DORK_GREETINGS.length)], []);
 
   return (
@@ -201,6 +206,17 @@ function EmptyState() {
       <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
       <div className="space-y-2">
         <p className="text-sm text-muted-foreground">{greeting}</p>
+      </div>
+      <div className="flex flex-col gap-2 w-full max-w-sm">
+        {SUGGESTIONS.map((text) => (
+          <button
+            key={text}
+            onClick={() => onSuggestion(text)}
+            className="px-4 py-2.5 rounded-xl border border-border bg-secondary/40 hover:bg-secondary/70 text-sm text-left text-foreground/80 transition-colors"
+          >
+            {text}
+          </button>
+        ))}
       </div>
     </div>
   );

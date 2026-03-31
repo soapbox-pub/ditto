@@ -122,9 +122,9 @@ export function useAIChatSession() {
     return apiMessages;
   }, []);
 
-  // Handle sending a message
-  const handleSend = useCallback(async () => {
-    const trimmed = input.trim();
+  // Handle sending a message. Pass `override` to send arbitrary text (e.g. suggestion chips).
+  const handleSend = useCallback(async (override?: string) => {
+    const trimmed = (override ?? input).trim();
     if (!trimmed || !selectedModel || isStreaming) return;
 
     clearError();
