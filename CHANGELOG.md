@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.2.7] - 2026-03-31
+
+### Fixed
+- Nushu script in encrypted letters now renders correctly on Android and iOS
+
 ## [2.2.6] - 2026-03-31
 
 ### Added
