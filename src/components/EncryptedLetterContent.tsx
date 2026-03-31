@@ -352,8 +352,8 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                       width: 'calc(100% - 2rem)',
                     }}
                   >
-                    {/* Nushu ciphertext — truncated with fade if it overflows */}
-                    <div className="flex-1 min-h-0 overflow-hidden relative">
+                    {/* Nushu ciphertext — scrollable with bottom fade hint */}
+                    <div className="flex-1 min-h-0 overflow-y-auto relative">
                       <p
                         className="text-center select-none"
                         style={{
@@ -367,9 +367,9 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                       >
                         {nushuText}
                       </p>
-                      {/* Fade-out mask at the bottom when text overflows */}
+                      {/* Sticky fade hint at the bottom */}
                       <div
-                        className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none"
+                        className="sticky bottom-0 left-0 right-0 h-8 pointer-events-none"
                         style={{
                           background: 'linear-gradient(transparent, #F8F0E5)',
                         }}
