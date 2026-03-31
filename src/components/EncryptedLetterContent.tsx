@@ -11,18 +11,22 @@
  * Nushu (Unicode U+1B170-U+1B2FF) is a real historical secret women's script
  * from China — visible, beautiful, unreadable. It represents modern encryption
  * as a tangible artifact.
+ *
+ * The envelope uses the same useCardTilt hook as badges for a 3D hover/touch
+ * tilt effect, creating a physical "object you can pick up" feel.
  */
 
 import { useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { Mail } from 'lucide-react';
+import { Lock, Mail } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useCardTilt } from '@/hooks/useCardTilt';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
@@ -30,20 +34,31 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
-// Nushu character conversion — map ciphertext bytes to Nushu Unicode block
+// Nushu character conversion
 // ---------------------------------------------------------------------------
 
-/** Nushu script block: U+1B170 to U+1B2FF (396 characters) */
-const NUSHU_START = 0x1B170;
-const NUSHU_END = 0x1B2FF;
-const NUSHU_RANGE = NUSHU_END - NUSHU_START + 1;
+/**
+ * A curated subset of simpler, more elegant Nushu characters.
+ * These have fewer strokes and read as graceful, flowing script —
+ * beautiful but unreadable.
+ */
+const NUSHU_CHARS = [
+  '\u{1B170}', '\u{1B171}', '\u{1B172}', '\u{1B174}', '\u{1B177}',
+  '\u{1B17A}', '\u{1B17D}', '\u{1B180}', '\u{1B183}', '\u{1B186}',
+  '\u{1B189}', '\u{1B18C}', '\u{1B190}', '\u{1B194}', '\u{1B198}',
+  '\u{1B19C}', '\u{1B1A0}', '\u{1B1A4}', '\u{1B1A8}', '\u{1B1AC}',
+  '\u{1B1B0}', '\u{1B1B4}', '\u{1B1B8}', '\u{1B1BC}', '\u{1B1C0}',
+  '\u{1B1C4}', '\u{1B1C8}', '\u{1B1CC}', '\u{1B1D0}', '\u{1B1D4}',
+  '\u{1B1D8}', '\u{1B1DC}', '\u{1B1E0}', '\u{1B1E4}', '\u{1B1E8}',
+  '\u{1B1EC}', '\u{1B1F0}', '\u{1B1F4}', '\u{1B1F8}', '\u{1B1FC}',
+];
 
 /**
- * Convert base64 ciphertext into Nushu script characters.
- * Each byte maps deterministically to a Nushu codepoint.
+ * Convert ciphertext into a sparse, elegant Nushu representation.
+ * Uses byte values to pick from the curated character set.
+ * Characters are spaced out rather than dense.
  */
-function ciphertextToNushu(ciphertext: string, maxChars = 120): string {
-  // Decode base64 to raw bytes
+function ciphertextToNushu(ciphertext: string, maxChars = 36): string {
   let bytes: Uint8Array;
   try {
     const binary = atob(ciphertext.replace(/\s/g, ''));
@@ -52,7 +67,6 @@ function ciphertextToNushu(ciphertext: string, maxChars = 120): string {
       bytes[i] = binary.charCodeAt(i);
     }
   } catch {
-    // Fallback: hash the raw string character codes
     bytes = new Uint8Array(ciphertext.length);
     for (let i = 0; i < ciphertext.length; i++) {
       bytes[i] = ciphertext.charCodeAt(i) & 0xFF;
@@ -60,15 +74,11 @@ function ciphertextToNushu(ciphertext: string, maxChars = 120): string {
   }
 
   const chars: string[] = [];
-  const limit = Math.min(bytes.length, maxChars);
-  for (let i = 0; i < limit; i++) {
-    // Combine adjacent bytes for more character variety
-    const combined = i + 1 < bytes.length
-      ? (bytes[i] * 256 + bytes[i + 1]) % NUSHU_RANGE
-      : bytes[i] % NUSHU_RANGE;
-    chars.push(String.fromCodePoint(NUSHU_START + combined));
+  const step = Math.max(1, Math.floor(bytes.length / maxChars));
+  for (let i = 0; i < bytes.length && chars.length < maxChars; i += step) {
+    chars.push(NUSHU_CHARS[bytes[i] % NUSHU_CHARS.length]);
   }
-  return chars.join('');
+  return chars.join('\u2009'); // thin space between characters
 }
 
 // ---------------------------------------------------------------------------
@@ -152,17 +162,18 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
   const senderPubkey = event.pubkey;
 
   const nushuText = useMemo(
-    () => ciphertextToNushu(event.content, compact ? 60 : 120),
+    () => ciphertextToNushu(event.content, compact ? 20 : 36),
     [event.content, compact],
   );
 
+  // 3D tilt effect (same as badges)
+  const tilt = useCardTilt(18, 1.03, 800);
+
   const handleClick = useCallback(() => {
     if (compact) {
-      // In compact mode, just flip between back and front
       setState((s) => (s === 'back' ? 'front' : 'back'));
       return;
     }
-    // Full mode: back -> front -> open -> back
     setState((s) => {
       if (s === 'back') return 'front';
       if (s === 'front') return 'open';
@@ -182,238 +193,250 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
   const isOpen = state === 'open';
 
   return (
-    <div className={cn('mt-2', className)}>
-      {/* 3D perspective container */}
-      <div
-        className="cursor-pointer select-none"
-        style={{ perspective: '1200px' }}
-        onClick={handleClick}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleClick();
-          }
-        }}
-        aria-label={
-          state === 'back'
-            ? 'Sealed envelope — click to flip'
-            : state === 'front'
-              ? 'Click to open the envelope'
-              : 'Encrypted letter — click to close'
-        }
-      >
+    <div className={cn('mt-3', className)}>
+      {/* Centered, padded container with max-width */}
+      <div className={cn(
+        'mx-auto',
+        compact ? 'max-w-sm px-2' : 'max-w-md px-4',
+      )}>
+        {/* 3D tilt wrapper */}
         <div
-          className="relative w-full transition-transform duration-700 ease-in-out"
+          ref={tilt.ref}
           style={{
-            transformStyle: 'preserve-3d',
-            transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-            aspectRatio: compact ? '16 / 9' : '4 / 3',
+            ...tilt.style,
+            // Override touch-action so scrolling still works — tilt is a bonus
+            touchAction: 'pan-y',
           }}
+          onPointerDown={tilt.onPointerDown}
+          onPointerMove={tilt.onPointerMove}
+          onPointerUp={tilt.onPointerUp}
+          onPointerLeave={tilt.onPointerLeave}
         >
-          {/* ========================= BACK FACE ========================= */}
+          {/* Click handler — separate from tilt so both work together */}
           <div
-            className="absolute inset-0 rounded-2xl overflow-hidden"
-            style={{ backfaceVisibility: 'hidden' }}
-          >
-            {/* Envelope paper background */}
-            <div
-              className="absolute inset-0"
-              style={{
-                background: 'linear-gradient(145deg, #F5E6D3 0%, #E8D5BF 40%, #D4C4AA 100%)',
-              }}
-            />
-
-            {/* Paper texture overlay */}
-            <div
-              className="absolute inset-0 opacity-[0.03]"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)'/%3E%3C/svg%3E")`,
-              }}
-            />
-
-            {/* V-fold lines */}
-            <svg
-              className="absolute inset-0 w-full h-full"
-              viewBox="0 0 400 300"
-              preserveAspectRatio="none"
-            >
-              {/* Diagonal fold lines from corners to center */}
-              <path d="M0,0 L200,180" stroke="#C4A882" strokeWidth="1" fill="none" opacity="0.3" />
-              <path d="M400,0 L200,180" stroke="#C4A882" strokeWidth="1" fill="none" opacity="0.3" />
-              {/* Bottom fold lines */}
-              <path d="M0,300 L200,180" stroke="#C4A882" strokeWidth="0.8" fill="none" opacity="0.2" />
-              <path d="M400,300 L200,180" stroke="#C4A882" strokeWidth="0.8" fill="none" opacity="0.2" />
-            </svg>
-
-            {/* Wax seal in center */}
-            <div
-              className="absolute left-1/2 -translate-x-1/2"
-              style={{ top: compact ? '45%' : '50%', transform: 'translate(-50%, -50%)' }}
-            >
-              <div
-                className="rounded-full flex items-center justify-center"
-                style={{
-                  width: compact ? 48 : 64,
-                  height: compact ? 48 : 64,
-                  background: 'radial-gradient(ellipse at 35% 30%, #d4524d 0%, #a52422 50%, #7a1a19 100%)',
-                  boxShadow: '0 4px 12px rgba(122, 26, 25, 0.4), inset 0 2px 4px rgba(255,255,255,0.15), inset 0 -2px 4px rgba(0,0,0,0.2)',
-                }}
-              >
-                <SealAvatar pubkey={senderPubkey} />
-              </div>
-            </div>
-
-            {/* Names — sender top-left, recipient bottom-right */}
-            <div className="absolute inset-0 flex flex-col justify-between p-4" style={{ color: '#5C4A3A' }}>
-              <div className="self-start">
-                <NameLabel pubkey={senderPubkey} prefix="From" />
-              </div>
-              {!compact && (
-                <div className="self-end">
-                  <NameLabel pubkey={recipientPubkey} prefix="To" />
-                </div>
-              )}
-            </div>
-
-            {/* Subtle shadow edges */}
-            <div
-              className="absolute inset-0 rounded-2xl pointer-events-none"
-              style={{
-                boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.3), inset 0 -2px 8px rgba(0,0,0,0.08)',
-              }}
-            />
-          </div>
-
-          {/* ========================= FRONT FACE ========================= */}
-          <div
-            className="absolute inset-0 rounded-2xl overflow-hidden"
-            style={{
-              backfaceVisibility: 'hidden',
-              transform: 'rotateY(180deg)',
+            className="cursor-pointer select-none"
+            style={{ perspective: '1200px' }}
+            onClick={handleClick}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick();
+              }
             }}
+            aria-label={
+              state === 'back'
+                ? 'Sealed envelope — click to flip'
+                : state === 'front'
+                  ? 'Click to open the envelope'
+                  : 'Encrypted letter — click to close'
+            }
           >
-            {/* Envelope paper */}
             <div
-              className="absolute inset-0"
+              className="relative w-full transition-transform duration-700 ease-in-out"
               style={{
-                background: 'linear-gradient(145deg, #EDD9C3 0%, #E0CCAF 50%, #D0BC9C 100%)',
-              }}
-            />
-
-            {/* Flap */}
-            <div className="absolute top-0 left-0 right-0" style={{ zIndex: 2 }}>
-              <svg viewBox="0 0 400 120" className="w-full" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="flap-grad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#D4C4AA" />
-                    <stop offset="100%" stopColor="#C4B494" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d={isOpen ? 'M0,0 L200,-80 L400,0 L400,0 L0,0 Z' : 'M0,0 L200,100 L400,0 L400,0 L0,0 Z'}
-                  fill="url(#flap-grad)"
-                  className="transition-all duration-500"
-                />
-                <path
-                  d={isOpen ? 'M0,0 L200,-80 L400,0' : 'M0,0 L200,100 L400,0'}
-                  fill="none"
-                  stroke="#B5A48A"
-                  strokeWidth="1"
-                  opacity="0.4"
-                  className="transition-all duration-500"
-                />
-              </svg>
-            </div>
-
-            {/* Letter content area — slides up when opened */}
-            <div
-              className="absolute inset-0 flex flex-col items-center justify-center transition-all duration-500"
-              style={{
-                zIndex: isOpen ? 3 : 1,
-                opacity: isOpen ? 1 : 0,
-                transform: isOpen ? 'translateY(-8px)' : 'translateY(20px)',
+                transformStyle: 'preserve-3d',
+                transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                aspectRatio: compact ? '16 / 9' : '4 / 3',
               }}
             >
-              {/* Inner letter sheet */}
+              {/* ========================= BACK FACE ========================= */}
               <div
-                className="rounded-lg mx-4 p-4 max-h-[85%] overflow-hidden"
-                style={{
-                  background: 'linear-gradient(180deg, #FDFAF5 0%, #F8F0E5 100%)',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
-                  width: 'calc(100% - 2rem)',
-                }}
+                className="absolute inset-0 rounded-2xl overflow-hidden shadow-lg"
+                style={{ backfaceVisibility: 'hidden' }}
               >
-                {/* Nushu ciphertext */}
-                <p
-                  className="leading-relaxed text-center break-all select-none"
-                  style={{
-                    fontFamily: 'serif',
-                    fontSize: compact ? '0.9rem' : '1.1rem',
-                    color: '#3A2E26',
-                    lineHeight: 1.8,
-                    letterSpacing: '0.15em',
-                  }}
-                  aria-label="Encrypted content rendered as Nushu script"
-                >
-                  {nushuText}
-                </p>
-
-                {/* Decorative rule */}
+                {/* Envelope paper background */}
                 <div
-                  className="mx-auto mt-3"
+                  className="absolute inset-0"
                   style={{
-                    width: '40%',
-                    height: 1,
-                    background: 'linear-gradient(90deg, transparent, #C4A882, transparent)',
+                    background: 'linear-gradient(145deg, #F5E6D3 0%, #E8D5BF 40%, #D4C4AA 100%)',
+                  }}
+                />
+
+                {/* Paper texture overlay */}
+                <div
+                  className="absolute inset-0 opacity-[0.03]"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)'/%3E%3C/svg%3E")`,
+                  }}
+                />
+
+                {/* V-fold lines */}
+                <svg
+                  className="absolute inset-0 w-full h-full"
+                  viewBox="0 0 400 300"
+                  preserveAspectRatio="none"
+                >
+                  <path d="M0,0 L200,180" stroke="#C4A882" strokeWidth="1" fill="none" opacity="0.3" />
+                  <path d="M400,0 L200,180" stroke="#C4A882" strokeWidth="1" fill="none" opacity="0.3" />
+                  <path d="M0,300 L200,180" stroke="#C4A882" strokeWidth="0.8" fill="none" opacity="0.2" />
+                  <path d="M400,300 L200,180" stroke="#C4A882" strokeWidth="0.8" fill="none" opacity="0.2" />
+                </svg>
+
+                {/* Wax seal in center */}
+                <div
+                  className="absolute left-1/2 -translate-x-1/2"
+                  style={{ top: compact ? '45%' : '50%', transform: 'translate(-50%, -50%)' }}
+                >
+                  <div
+                    className="rounded-full flex items-center justify-center"
+                    style={{
+                      width: compact ? 48 : 64,
+                      height: compact ? 48 : 64,
+                      background: 'radial-gradient(ellipse at 35% 30%, #d4524d 0%, #a52422 50%, #7a1a19 100%)',
+                      boxShadow: '0 4px 12px rgba(122, 26, 25, 0.4), inset 0 2px 4px rgba(255,255,255,0.15), inset 0 -2px 4px rgba(0,0,0,0.2)',
+                    }}
+                  >
+                    <SealAvatar pubkey={senderPubkey} />
+                  </div>
+                </div>
+
+                {/* Names — sender top-left, recipient bottom-right */}
+                <div className="absolute inset-0 flex flex-col justify-between p-4" style={{ color: '#5C4A3A' }}>
+                  <div className="self-start">
+                    <NameLabel pubkey={senderPubkey} prefix="From" />
+                  </div>
+                  {!compact && (
+                    <div className="self-end">
+                      <NameLabel pubkey={recipientPubkey} prefix="To" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Subtle shadow edges */}
+                <div
+                  className="absolute inset-0 rounded-2xl pointer-events-none"
+                  style={{
+                    boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.3), inset 0 -2px 8px rgba(0,0,0,0.08)',
+                  }}
+                />
+              </div>
+
+              {/* ========================= FRONT FACE ========================= */}
+              <div
+                className="absolute inset-0 rounded-2xl overflow-hidden shadow-lg"
+                style={{
+                  backfaceVisibility: 'hidden',
+                  transform: 'rotateY(180deg)',
+                }}
+              >
+                {/* Envelope paper */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: 'linear-gradient(145deg, #EDD9C3 0%, #E0CCAF 50%, #D0BC9C 100%)',
+                  }}
+                />
+
+                {/* Flap */}
+                <div className="absolute top-0 left-0 right-0" style={{ zIndex: 2 }}>
+                  <svg viewBox="0 0 400 120" className="w-full" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="flap-grad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#D4C4AA" />
+                        <stop offset="100%" stopColor="#C4B494" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d={isOpen ? 'M0,0 L200,-80 L400,0 L400,0 L0,0 Z' : 'M0,0 L200,100 L400,0 L400,0 L0,0 Z'}
+                      fill="url(#flap-grad)"
+                      className="transition-all duration-500"
+                    />
+                    <path
+                      d={isOpen ? 'M0,0 L200,-80 L400,0' : 'M0,0 L200,100 L400,0'}
+                      fill="none"
+                      stroke="#B5A48A"
+                      strokeWidth="1"
+                      opacity="0.4"
+                      className="transition-all duration-500"
+                    />
+                  </svg>
+                </div>
+
+                {/* Letter content area — slides up when opened */}
+                <div
+                  className="absolute inset-0 flex flex-col items-center justify-center transition-all duration-500"
+                  style={{
+                    zIndex: isOpen ? 3 : 1,
+                    opacity: isOpen ? 1 : 0,
+                    transform: isOpen ? 'translateY(-8px)' : 'translateY(20px)',
+                  }}
+                >
+                  {/* Inner letter sheet */}
+                  <div
+                    className="rounded-lg mx-4 p-5 max-h-[85%] overflow-hidden"
+                    style={{
+                      background: 'linear-gradient(180deg, #FDFAF5 0%, #F8F0E5 100%)',
+                      boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
+                      width: 'calc(100% - 2rem)',
+                    }}
+                  >
+                    {/* Nushu ciphertext */}
+                    <p
+                      className="text-center select-none"
+                      style={{
+                        fontFamily: 'serif',
+                        fontSize: compact ? '1rem' : '1.25rem',
+                        color: '#3A2E26',
+                        lineHeight: 2.2,
+                        letterSpacing: '0.25em',
+                      }}
+                      aria-label="Encrypted content rendered as Nushu script"
+                    >
+                      {nushuText}
+                    </p>
+
+                    {/* Decorative rule */}
+                    <div
+                      className="mx-auto mt-3"
+                      style={{
+                        width: '40%',
+                        height: 1,
+                        background: 'linear-gradient(90deg, transparent, #C4A882, transparent)',
+                      }}
+                    />
+
+                    {/* Encrypted message notice */}
+                    <p
+                      className="flex items-center justify-center gap-1.5 mt-3 text-xs"
+                      style={{ color: '#8B7355' }}
+                    >
+                      <Lock className="size-3" />
+                      This message is encrypted
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sealed state — mail icon only, no text (invite curiosity) */}
+                <div
+                  className="absolute inset-0 flex items-center justify-center transition-opacity duration-300"
+                  style={{
+                    opacity: isOpen ? 0 : 1,
+                    pointerEvents: isOpen ? 'none' : 'auto',
+                    zIndex: 1,
+                  }}
+                >
+                  <div
+                    className="rounded-full p-3"
+                    style={{ background: 'rgba(92, 74, 58, 0.08)' }}
+                  >
+                    <Mail className="size-6 text-[#5C4A3A]/50" />
+                  </div>
+                </div>
+
+                {/* Inner shadow */}
+                <div
+                  className="absolute inset-0 rounded-2xl pointer-events-none"
+                  style={{
+                    boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.2), inset 0 -2px 8px rgba(0,0,0,0.06)',
                   }}
                 />
               </div>
             </div>
-
-            {/* "Sealed" state — shows when not open */}
-            <div
-              className="absolute inset-0 flex flex-col items-center justify-center gap-2 transition-opacity duration-300"
-              style={{
-                opacity: isOpen ? 0 : 1,
-                pointerEvents: isOpen ? 'none' : 'auto',
-                zIndex: 1,
-              }}
-            >
-              <div
-                className="rounded-full p-3"
-                style={{
-                  background: 'rgba(92, 74, 58, 0.08)',
-                }}
-              >
-                <Mail className="size-6 text-[#5C4A3A]/60" />
-              </div>
-              <p
-                className="text-sm font-medium"
-                style={{ color: '#5C4A3A', opacity: 0.6 }}
-              >
-                Tap to open
-              </p>
-            </div>
-
-            {/* Inner shadow */}
-            <div
-              className="absolute inset-0 rounded-2xl pointer-events-none"
-              style={{
-                boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.2), inset 0 -2px 8px rgba(0,0,0,0.06)',
-              }}
-            />
           </div>
         </div>
       </div>
-
-      {/* Hint text */}
-      <p className="text-xs text-muted-foreground text-center mt-2 opacity-60">
-        {state === 'back' && 'Click to flip'}
-        {state === 'front' && 'Click to open'}
-        {state === 'open' && 'Click to close'}
-      </p>
     </div>
   );
 }
@@ -429,7 +452,7 @@ interface EncryptedLetterCompactProps {
 
 /**
  * Minimal inline card for kind 8211 in embedded contexts.
- * Shows sender avatar + "Sent an encrypted letter to [recipient]".
+ * Shows sender avatar + "Sent a letter to [recipient]".
  */
 export function EncryptedLetterCompact({ event, className }: EncryptedLetterCompactProps) {
   const navigate = useNavigate();
