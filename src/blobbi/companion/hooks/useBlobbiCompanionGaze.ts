@@ -51,8 +51,6 @@ interface UseBlobbiCompanionGazeOptions {
 interface UseBlobbiCompanionGazeResult {
   /** Current gaze state */
   gaze: GazeState;
-  /** Smoothed eye offset for rendering (updates every frame via setState — causes rerenders) */
-  eyeOffset: EyeOffset;
   /** Ref-based eye offset for imperative consumers (no rerenders) */
   eyeOffsetRef: React.RefObject<EyeOffset>;
 }
@@ -97,7 +95,8 @@ export function useBlobbiCompanionGaze({
   entryInspectionDirection,
 }: UseBlobbiCompanionGazeOptions): UseBlobbiCompanionGazeResult {
   const [gaze, setGaze] = useState<GazeState>(createInitialGaze);
-  const [eyeOffset, _setEyeOffset] = useState<EyeOffset>({ x: 0, y: 0 });
+  // Eye offset is driven imperatively via ref — no React state needed.
+  // The RAF loop writes to eyeOffsetRef; useExternalEyeOffset reads from it.
   /** Ref-based eye offset for imperative consumers (avoids per-frame React rerenders) */
   const eyeOffsetRef = useRef<EyeOffset>({ x: 0, y: 0 });
   const [mousePosition, setMousePosition] = useState<Position | null>(null);
@@ -384,7 +383,6 @@ export function useBlobbiCompanionGaze({
   
   return {
     gaze,
-    eyeOffset,
     eyeOffsetRef,
   };
 }

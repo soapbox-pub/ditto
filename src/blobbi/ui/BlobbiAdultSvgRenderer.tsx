@@ -21,7 +21,7 @@
  * inside the SVG continue running across parent rerenders.
  */
 
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 
 import { resolveAdultSvgWithForm, customizeAdultSvgFromBlobbi } from '@/blobbi/adult-blobbi';
 import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
@@ -53,8 +53,13 @@ export interface BlobbiAdultSvgRendererProps {
 /**
  * Pure SVG renderer for adult Blobbi.
  *
- * The containerRef is forwarded via the returned div so that parent
- * components can attach eye-tracking hooks to query the SVG DOM.
+ * IMPORTANT: This component must remain a pure rendering leaf. It must NOT:
+ * - Run eye-tracking hooks (those belong in the Visual wrapper)
+ * - Know about render modes or companion runtime
+ * - Apply reaction CSS classes (those belong on an outer wrapper)
+ *
+ * The parent Visual wrapper owns the DOM query boundary (containerRef)
+ * that eye hooks use to find SVG elements via querySelector.
  */
 export function BlobbiAdultSvgRenderer({
   blobbi,
@@ -65,7 +70,6 @@ export function BlobbiAdultSvgRenderer({
   bodyEffects,
   className,
 }: BlobbiAdultSvgRendererProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const customizedSvg = useMemo(() => {
     debugBlobbi('svg-rebuild', 'adult customizedSvg rebuild');
@@ -97,7 +101,6 @@ export function BlobbiAdultSvgRenderer({
 
   return (
     <div
-      ref={containerRef}
       className={className}
       dangerouslySetInnerHTML={{ __html: safeSvg }}
     />

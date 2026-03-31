@@ -17,7 +17,7 @@
  *   - Companion runtime (drag, float, position)
  */
 
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 
 import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
 import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
@@ -48,6 +48,14 @@ export interface BlobbiBabySvgRendererProps {
 
 /**
  * Pure SVG renderer for baby Blobbi.
+ *
+ * IMPORTANT: This component must remain a pure rendering leaf. It must NOT:
+ * - Run eye-tracking hooks (those belong in the Visual wrapper)
+ * - Know about render modes or companion runtime
+ * - Apply reaction CSS classes (those belong on an outer wrapper)
+ *
+ * The parent Visual wrapper owns the DOM query boundary (containerRef)
+ * that eye hooks use to find SVG elements via querySelector.
  */
 export function BlobbiBabySvgRenderer({
   blobbi,
@@ -58,7 +66,6 @@ export function BlobbiBabySvgRenderer({
   bodyEffects,
   className,
 }: BlobbiBabySvgRendererProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const customizedSvg = useMemo(() => {
     debugBlobbi('svg-rebuild', 'baby customizedSvg rebuild');
@@ -90,7 +97,6 @@ export function BlobbiBabySvgRenderer({
 
   return (
     <div
-      ref={containerRef}
       className={className}
       dangerouslySetInnerHTML={{ __html: safeSvg }}
     />

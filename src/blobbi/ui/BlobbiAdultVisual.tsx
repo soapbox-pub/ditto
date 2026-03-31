@@ -32,12 +32,6 @@ import type { Blobbi } from '@/blobbi/core/types/blobbi';
 import { isBlobbiSleeping } from '@/blobbi/core/types/blobbi';
 import { BlobbiAdultSvgRenderer } from './BlobbiAdultSvgRenderer';
 
-// Re-export types for backwards compatibility
-export type { ExternalEyeOffset };
-
-/** @deprecated Use BlobbiReactionState from './lib/types' instead */
-export type AdultReactionState = BlobbiReactionState;
-
 export interface BlobbiAdultVisualProps {
   /** The Blobbi data */
   blobbi: Blobbi;
@@ -80,7 +74,12 @@ export function BlobbiAdultVisual({
   className,
 }: BlobbiAdultVisualProps) {
   const isSleeping = isBlobbiSleeping(blobbi);
+
+  // This ref is the DOM query boundary for eye hooks. useBlobbiEyes and
+  // useExternalEyeOffset use querySelector on this element to find SVG
+  // eye elements rendered by the child SvgRenderer.
   const containerRef = useRef<HTMLDivElement>(null);
+
   const isCompanion = renderMode === 'companion';
 
   const effectiveReaction = isSleeping ? 'idle' : reaction;

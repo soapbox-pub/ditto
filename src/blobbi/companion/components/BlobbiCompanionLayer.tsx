@@ -56,7 +56,6 @@ export function BlobbiCompanionLayer() {
     isVisible,
     state,
     motion,
-    eyeOffset: _eyeOffset,
     eyeOffsetRef,
     isEntering,
     entryProgress,

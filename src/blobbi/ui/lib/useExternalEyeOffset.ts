@@ -39,7 +39,10 @@ import { EYE_CLASSES } from './eyes/types';
 interface UseExternalEyeOffsetOptions {
   /** Reference to the container element containing the Blobbi SVG */
   containerRef: React.RefObject<HTMLDivElement | null>;
-  /** External eye offset value (causes RAF loop restart on change — legacy) */
+  /**
+   * External eye offset as a value prop. Used in page mode (BlobbiStageVisual).
+   * In companion mode, prefer externalEyeOffsetRef instead to avoid rerenders.
+   */
   externalEyeOffset?: ExternalEyeOffset | undefined;
   /** 
    * Ref-based external eye offset (imperative — no RAF restart on change).

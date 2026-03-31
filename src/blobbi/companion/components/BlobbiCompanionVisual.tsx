@@ -11,7 +11,7 @@
  *   NOT on the SVG container, to keep the SVG DOM node stable.
  */
 
-import { useMemo, useRef, memo, type RefObject } from 'react';
+import { useMemo, memo, type RefObject } from 'react';
 
 import { BlobbiBabyVisual } from '@/blobbi/ui/BlobbiBabyVisual';
 import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
@@ -46,9 +46,19 @@ interface BlobbiCompanionVisualProps {
 
 // ─── Memoized Inner Visual ────────────────────────────────────────────────────
 //
-// Renders BlobbiAdultVisual / BlobbiBabyVisual with renderMode="companion".
-// Wrapped in React.memo so it only rerenders when visual content changes.
-// Per-frame props (float, drag, walking, gaze) are excluded.
+// STABILITY CONTRACT:
+// This component is the boundary that protects the SVG DOM subtree from the
+// companion rerender storm (~60 renders/s from motion/float RAF loops).
+// It renders BlobbiAdultVisual / BlobbiBabyVisual with renderMode="companion".
+//
+// It MUST only rerender when actual visual content changes:
+//   blobbi, recipe, recipeLabel, emotion, bodyEffects, stage
+//
+// It MUST NOT receive or depend on per-frame values:
+//   eyeOffset value, floatOffset, isDragging, isWalking, position, animationTime
+//
+// The eyeOffsetRef is a stable React ref — its identity never changes,
+// so it is safe to pass without triggering rerenders.
 
 interface MemoizedBlobbiVisualProps {
   stage: 'baby' | 'adult';
@@ -128,8 +138,6 @@ export function BlobbiCompanionVisual({
   className,
   debugMode = false,
 }: BlobbiCompanionVisualProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
   const blobbi = useMemo(() => companionDataToBlobbi(companion), [companion]);
 
   // DEV ONLY: Get effective emotion from dev context (overrides production emotions)
@@ -167,11 +175,12 @@ export function BlobbiCompanionVisual({
   const shadowOpacity = SHADOW_MAX_OPACITY * groundFadeRatio * floatFadeRatio;
   const shadowScale = 0.9 + 0.1 * groundFadeRatio * floatFadeRatio;
 
-  void direction; // kept for API compatibility
+  // direction is accepted for API completeness but not currently used for rendering
+  // (Blobbi does not flip based on facing direction). Suppress unused warning.
+  void direction;
 
   return (
     <div
-      ref={containerRef}
       className={cn('relative', className)}
       style={{ width: size, height: size }}
     >
