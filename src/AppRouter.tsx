@@ -71,6 +71,7 @@ const WalletSettingsPage = lazy(() => import("./pages/WalletSettingsPage").then(
 const WebxdcFeedPage = lazy(() => import("./pages/WebxdcFeedPage").then(m => ({ default: m.WebxdcFeedPage })));
 const WikipediaPage = lazy(() => import("./pages/WikipediaPage").then(m => ({ default: m.WikipediaPage })));
 const WorldPage = lazy(() => import("./pages/WorldPage").then(m => ({ default: m.WorldPage })));
+const RemoteLoginSuccessPage = lazy(() => import("./pages/RemoteLoginSuccessPage").then(m => ({ default: m.RemoteLoginSuccessPage })));
 
 const pollsDef = getExtraKindDef("polls")!;
 const colorsDef = getExtraKindDef("colors")!;
@@ -251,6 +252,8 @@ export function AppRouter() {
             />
             <Route path="/i/*" element={<ExternalContentPage />} />
 
+            {/* Callback target for remote signers (e.g. Amber, Primal) after NIP-46 approval */}
+            <Route path="/remoteloginsuccess" element={<RemoteLoginSuccessPage />} />
             {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
             <Route path="/:nip19" element={<NIP19Page />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
