@@ -156,7 +156,6 @@ import { Nip05Badge } from "@/components/Nip05Badge";
 import { ProfileHoverCard } from "@/components/ProfileHoverCard";
 import { useAuthor } from "@/hooks/useAuthor";
 import { useComments } from "@/hooks/useComments";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
 import { useMuteList } from "@/hooks/useMuteList";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
@@ -922,7 +921,6 @@ function BookReviewRating({ event }: { event: NostrEvent }) {
 
 
 function PostDetailContent({ event }: { event: NostrEvent }) {
-  const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
   const author = useAuthor(event.pubkey);
