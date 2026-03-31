@@ -198,4 +198,4 @@ publish-zapstore:
     - VERSION="${CI_COMMIT_TAG#v}"
     - sed -i "2i release_source:\ ./${APK_PATH}" zapstore.yaml
     - sed -i "2i version:\ ${VERSION}" zapstore.yaml
-    - zsp publish -y --skip-metadata --skip-preview zapstore.yaml
+    - zsp publish --quiet --skip-metadata --skip-preview zapstore.yaml
