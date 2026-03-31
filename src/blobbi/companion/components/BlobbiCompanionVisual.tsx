@@ -2,10 +2,14 @@
  * BlobbiCompanionVisual
  *
  * Visual component for rendering the companion Blobbi.
- * Supports external eye offset control for custom gaze behavior.
+ *
+ * Architecture:
+ * - Outer shell: handles per-frame updates (float, shadow, drag state) — rerenders freely
+ * - Inner MemoizedBlobbiVisual: renders the actual SVG — only rerenders when visual inputs change
+ * - Eye gaze is driven imperatively via ref (no React rerenders for gaze)
  */
 
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, memo, type RefObject } from 'react';
 
 import { BlobbiBabyVisual } from '@/blobbi/ui/BlobbiBabyVisual';
 import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
@@ -14,6 +18,8 @@ import { useEffectiveEmotion } from '@/blobbi/dev/EmotionDevContext';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BodyEffectsSpec } from '@/blobbi/ui/lib/bodyEffects';
+// BlobbiReactionState not needed — reaction classes applied on outer wrapper, not passed to memoized visual
+import type { Blobbi } from '@/blobbi/core/types/blobbi';
 import { cn } from '@/lib/utils';
 import type { CompanionData, EyeOffset, CompanionDirection } from '../types/companion.types';
 
@@ -22,8 +28,8 @@ interface BlobbiCompanionVisualProps {
   companion: CompanionData;
   /** Size in pixels */
   size: number;
-  /** Eye offset for gaze direction */
-  eyeOffset: EyeOffset;
+  /** Ref-based eye offset for imperative gaze control (no rerenders) */
+  eyeOffsetRef: RefObject<EyeOffset>;
   /** Facing direction (used for gaze, not for flipping) */
   direction: CompanionDirection;
   /** Whether the companion is being dragged */
@@ -53,12 +59,92 @@ interface BlobbiCompanionVisualProps {
   debugMode?: boolean;
 }
 
+// ─── Memoized Inner Visual ────────────────────────────────────────────────────
+//
+// This component renders the actual Blobbi SVG (BlobbiAdultVisual / BlobbiBabyVisual).
+// It is wrapped in React.memo with a custom comparator so it only rerenders when
+// the actual visual inputs change — NOT when per-frame props like floatOffset,
+// isDragging, isWalking, or eyeOffset change.
+//
+// Eye gaze is controlled imperatively: the ref is passed to useExternalEyeOffset
+// inside the visual components, which reads from it in its own RAF loop.
 
+interface MemoizedBlobbiVisualProps {
+  stage: 'baby' | 'adult';
+  blobbi: Blobbi;
+  eyeOffsetRef: RefObject<EyeOffset>;
+  recipe?: BlobbiVisualRecipe;
+  recipeLabel?: string;
+  emotion: BlobbiEmotion;
+  bodyEffects?: BodyEffectsSpec;
+}
+
+/**
+ * Memoized inner visual — renders the actual SVG.
+ * 
+ * Does NOT receive reaction/walking/dragging props.
+ * CSS sway/bounce classes are applied on an outer wrapper in BlobbiCompanionVisual.
+ * This component only rerenders when visual content (recipe, emotion, blobbi data) changes.
+ */
+const MemoizedBlobbiVisual = memo(function MemoizedBlobbiVisual({
+  stage,
+  blobbi,
+  eyeOffsetRef,
+  recipe,
+  recipeLabel,
+  emotion,
+  bodyEffects,
+}: MemoizedBlobbiVisualProps) {
+  if (stage === 'baby') {
+    return (
+      <BlobbiBabyVisual
+        blobbi={blobbi}
+        lookMode="forward"
+        externalEyeOffsetRef={eyeOffsetRef}
+        recipe={recipe}
+        recipeLabel={recipeLabel}
+        emotion={emotion}
+        bodyEffects={bodyEffects}
+        className="size-full"
+      />
+    );
+  }
+
+  return (
+    <BlobbiAdultVisual
+      blobbi={blobbi}
+      lookMode="forward"
+      externalEyeOffsetRef={eyeOffsetRef}
+      recipe={recipe}
+      recipeLabel={recipeLabel}
+      emotion={emotion}
+      bodyEffects={bodyEffects}
+      className="size-full"
+    />
+  );
+}, (prev, next) => {
+  // Custom comparator: only rerender when visual inputs change
+  return (
+    prev.stage === next.stage &&
+    prev.blobbi === next.blobbi &&
+    prev.recipe === next.recipe &&
+    prev.recipeLabel === next.recipeLabel &&
+    prev.emotion === next.emotion &&
+    prev.bodyEffects === next.bodyEffects
+    // eyeOffsetRef is a stable ref — never changes identity
+  );
+});
+
+// ─── DEBUG: Companion prop stability ──────────────────────────────────────────
+const _visualRenderCount = { current: 0 };
+const _visualPrevCompanionRef = { current: null as CompanionData | null };
+const _visualPrevBlobbiRef = { current: null as ReturnType<typeof companionDataToBlobbi> | null };
+// ──────────────────────────────────────────────────────────────────────────────
 
 export function BlobbiCompanionVisual({
   companion,
   size,
-  eyeOffset,
+  eyeOffsetRef,
   direction,
   isDragging,
   isWalking,
@@ -75,6 +161,21 @@ export function BlobbiCompanionVisual({
   const containerRef = useRef<HTMLDivElement>(null);
   
   const blobbi = useMemo(() => companionDataToBlobbi(companion), [companion]);
+
+  // ─── DEBUG: Track companion → blobbi object stability ─────────────────
+  _visualRenderCount.current++;
+  if (_visualRenderCount.current <= 5 || _visualRenderCount.current % 100 === 0) {
+    console.log(`[CompanionVisual] render #${_visualRenderCount.current}`);
+  }
+  if (companion !== _visualPrevCompanionRef.current) {
+    console.log(`%c[CompanionVisual] companion REFERENCE changed (render #${_visualRenderCount.current})`, 'color: #8b5cf6; font-weight: bold');
+    _visualPrevCompanionRef.current = companion;
+  }
+  if (blobbi !== _visualPrevBlobbiRef.current) {
+    console.log(`%c[CompanionVisual] blobbi REFERENCE changed (render #${_visualRenderCount.current}) — this triggers SVG rebuild`, 'color: #ef4444; font-weight: bold');
+    _visualPrevBlobbiRef.current = blobbi;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
   
   // DEV ONLY: Get effective emotion from dev context (overrides production emotions)
   const devEmotion = useEffectiveEmotion();
@@ -85,9 +186,6 @@ export function BlobbiCompanionVisual({
   const effectiveRecipeLabel = hasDevOverride ? undefined : recipeLabelProp;
   const effectiveEmotion = hasDevOverride ? devEmotion : (emotionProp ?? 'neutral');
   const effectiveBodyEffects = hasDevOverride ? undefined : bodyEffectsProp;
-  
-  // Eye offset is now passed directly to the visual components via externalEyeOffset prop
-  // This is more reliable than DOM manipulation which can be overwritten by useBlobbiEyes
   
   // Build transform for floating animation
   // No flipping based on direction - Blobbi always faces the same way
@@ -213,7 +311,13 @@ export function BlobbiCompanionVisual({
         This is applied BEFORE the float transform so the ground position is correct.
       */}
       <div
-        className="size-full"
+        className={cn(
+          'size-full',
+          // Reaction CSS animations applied HERE (outer wrapper), not on the SVG container.
+          // This prevents className changes from triggering dangerouslySetInnerHTML replacement.
+          // Companion reactions: 'swaying' (walking), 'happy' (dragging), 'idle' (default)
+          (reaction === 'swaying' || reaction === 'happy') && 'animate-blobbi-sway',
+        )}
         style={{
           // First apply the SVG alignment correction, then the float animation
           // The 12% shift pushes the SVG down so its visible body bottom aligns with container bottom
@@ -227,30 +331,16 @@ export function BlobbiCompanionVisual({
           ...(debugMode ? { outline: '2px dashed magenta' } : {}),
         }}
       >
-        {companion.stage === 'baby' && (
-          <BlobbiBabyVisual
+        {/* Memoized visual: only rerenders when visual inputs change */}
+        {(companion.stage === 'baby' || companion.stage === 'adult') && (
+          <MemoizedBlobbiVisual
+            stage={companion.stage}
             blobbi={blobbi}
-            reaction={reaction}
-            lookMode="forward"
-            externalEyeOffset={eyeOffset}
+            eyeOffsetRef={eyeOffsetRef}
             recipe={effectiveRecipe}
             recipeLabel={effectiveRecipeLabel}
             emotion={effectiveEmotion}
             bodyEffects={effectiveBodyEffects}
-            className="size-full"
-          />
-        )}
-        {companion.stage === 'adult' && (
-          <BlobbiAdultVisual
-            blobbi={blobbi}
-            reaction={reaction}
-            lookMode="forward"
-            externalEyeOffset={eyeOffset}
-            recipe={effectiveRecipe}
-            recipeLabel={effectiveRecipeLabel}
-            emotion={effectiveEmotion}
-            bodyEffects={effectiveBodyEffects}
-            className="size-full"
           />
         )}
       </div>

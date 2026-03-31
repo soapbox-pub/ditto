@@ -28,6 +28,7 @@ import type { BlobbiEmotion } from '../lib/emotion-types';
 import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
 import {
   resolveStatusRecipe,
+  EMPTY_RECIPE,
   DEFAULT_TIMING,
   type StatusReactionTiming,
   type ReactiveStat,
@@ -112,7 +113,7 @@ interface InternalState {
 }
 
 const NEUTRAL_RESULT: StatusRecipeResult = {
-  recipe: {},
+  recipe: EMPTY_RECIPE,
   label: 'neutral',
   triggeringStat: null,
   severity: null,

@@ -39,8 +39,14 @@ import { EYE_CLASSES } from './eyes/types';
 interface UseExternalEyeOffsetOptions {
   /** Reference to the container element containing the Blobbi SVG */
   containerRef: React.RefObject<HTMLDivElement | null>;
-  /** External eye offset from companion system (or null to disable) */
-  externalEyeOffset: ExternalEyeOffset | undefined;
+  /** External eye offset value (causes RAF loop restart on change — legacy) */
+  externalEyeOffset?: ExternalEyeOffset | undefined;
+  /** 
+   * Ref-based external eye offset (imperative — no RAF restart on change).
+   * Preferred for companion mode where gaze updates every frame.
+   * When provided, takes precedence over externalEyeOffset value.
+   */
+  externalEyeOffsetRef?: React.RefObject<ExternalEyeOffset>;
   /** Whether the Blobbi is sleeping (disables eye offset) */
   isSleeping: boolean;
   /** Blobbi variant for movement scaling */
@@ -57,22 +63,33 @@ interface UseExternalEyeOffsetOptions {
 export function useExternalEyeOffset({
   containerRef,
   externalEyeOffset,
+  externalEyeOffsetRef,
   isSleeping,
   variant,
 }: UseExternalEyeOffsetOptions): void {
-  // Use ref to store latest offset for RAF loop to read
-  const offsetRef = useRef(externalEyeOffset);
+  // Use ref to store latest offset for RAF loop to read.
+  // When externalEyeOffsetRef is provided, the RAF loop reads from it directly.
+  // When only externalEyeOffset (value) is provided, we sync it to a local ref.
+  const localOffsetRef = useRef(externalEyeOffset);
   const animationRef = useRef<number | null>(null);
   
-  // Keep ref updated with latest value
+  // The ref the RAF loop reads from: prefer the shared ref, fall back to local
+  const activeOffsetRef = externalEyeOffsetRef ?? localOffsetRef;
+  
+  // Keep local ref updated with latest value (only used when ref prop not provided)
   useEffect(() => {
-    offsetRef.current = externalEyeOffset;
-  }, [externalEyeOffset]);
+    if (!externalEyeOffsetRef) {
+      localOffsetRef.current = externalEyeOffset;
+    }
+  }, [externalEyeOffset, externalEyeOffsetRef]);
+  
+  // Determine if the hook is "enabled" — using a ref-stable check
+  const isEnabled = !!(externalEyeOffset || externalEyeOffsetRef);
   
   // RAF loop for continuous eye offset application
   useEffect(() => {
     // Don't run loop if disabled
-    if (!externalEyeOffset || isSleeping) {
+    if (!isEnabled || isSleeping) {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
         animationRef.current = null;
@@ -86,7 +103,7 @@ export function useExternalEyeOffset({
     const maxMovementYDown = variant === 'baby' ? BABY_EXTERNAL_EYE_MAX_Y_DOWN : ADULT_EXTERNAL_EYE_MAX_Y_DOWN;
     
     const applyOffset = () => {
-      const offset = offsetRef.current;
+      const offset = activeOffsetRef.current;
       if (!offset || !containerRef.current) {
         animationRef.current = requestAnimationFrame(applyOffset);
         return;
@@ -129,5 +146,6 @@ export function useExternalEyeOffset({
         animationRef.current = null;
       }
     };
-  }, [containerRef, externalEyeOffset, isSleeping, variant]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- activeOffsetRef is stable; isEnabled captures the enabled state
+  }, [containerRef, isEnabled, isSleeping, variant]);
 }

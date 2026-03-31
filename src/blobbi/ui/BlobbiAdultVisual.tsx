@@ -17,7 +17,7 @@
  * fed from useStatusReaction to avoid double-applying body effects.
  */
 
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useEffect, type RefObject } from 'react';
 
 import { resolveAdultSvgWithForm, customizeAdultSvgFromBlobbi } from '@/blobbi/adult-blobbi';
 import { cn } from '@/lib/utils';
@@ -52,10 +52,15 @@ export interface BlobbiAdultVisualProps {
   /** Disable blinking animation (for photo/export mode) */
   disableBlink?: boolean;
   /** 
-   * External eye offset from companion system.
+   * External eye offset from companion system (value-based — causes rerenders).
    * When provided, bypasses internal mouse tracking and uses this offset directly.
    */
   externalEyeOffset?: ExternalEyeOffset;
+  /**
+   * Ref-based external eye offset (imperative — no rerenders).
+   * Preferred for companion mode. When provided, takes precedence over externalEyeOffset.
+   */
+  externalEyeOffsetRef?: RefObject<ExternalEyeOffset>;
   /** 
    * Pre-resolved visual recipe. When provided, takes precedence over `emotion`.
    * This is the recipe-first rendering path used by useStatusReaction.
@@ -84,10 +89,53 @@ export interface BlobbiAdultVisualProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, recipe: recipeProp, recipeLabel, emotion = 'neutral', bodyEffects, className }: BlobbiAdultVisualProps) {
+// ─── DEBUG: Animation lifecycle instrumentation ──────────────────────────────
+const _adultSvgRebuildCount = { current: 0 };
+const _adultSafeSvgCount = { current: 0 };
+const _adultRenderCount = { current: 0 };
+const _adultPrevProps = { current: null as Record<string, unknown> | null };
+// ──────────────────────────────────────────────────────────────────────────────
+
+export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, externalEyeOffsetRef, recipe: recipeProp, recipeLabel, emotion = 'neutral', bodyEffects, className }: BlobbiAdultVisualProps) {
   const isSleeping = isBlobbiSleeping(blobbi);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // ─── DEBUG: Track renders and prop changes ───────────────────────────────
+  _adultRenderCount.current++;
+  const isCompanion = !!(externalEyeOffset || externalEyeOffsetRef);
+  if (isCompanion) {
+    const currentProps: Record<string, unknown> = {
+      blobbiId: blobbi.id,
+      blobbiRef: blobbi,
+      isSleeping,
+      recipeProp,
+      recipeLabel,
+      emotion,
+      bodyEffects,
+    };
+    const prev = _adultPrevProps.current;
+    if (prev) {
+      const changed: string[] = [];
+      for (const key of Object.keys(currentProps)) {
+        if (currentProps[key] !== prev[key]) {
+          changed.push(key);
+        }
+      }
+      if (changed.length > 0) {
+        console.log(`%c[AdultVisual] COMPANION render #${_adultRenderCount.current} — props changed: ${changed.join(', ')}`, 'color: #f59e0b; font-weight: bold');
+        for (const key of changed) {
+          console.log(`  ${key}: `, prev[key], ' → ', currentProps[key]);
+        }
+      }
+    }
+    _adultPrevProps.current = currentProps;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Reaction controls CSS sway/bounce classes. Suppressed when sleeping.
+  // NOTE: In companion mode, these classes are applied on an OUTER wrapper
+  // (BlobbiCompanionVisual) rather than on this component, so this component
+  // can remain a pure SVG renderer that doesn't rerender for walking changes.
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
   useBlobbiEyes(containerRef, {
@@ -95,17 +143,26 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
     maxMovement: 2.5,
     lookMode,
     disableBlink,
-    disableTracking: !!externalEyeOffset,
+    disableTracking: isCompanion,
   });
 
   useExternalEyeOffset({
     containerRef,
     externalEyeOffset,
+    externalEyeOffsetRef,
     isSleeping,
     variant: 'adult',
   });
 
   const customizedSvg = useMemo(() => {
+    // ─── DEBUG: Track SVG rebuilds ──────────────────────────────────────
+    if (isCompanion) {
+      _adultSvgRebuildCount.current++;
+      console.log(`%c[AdultVisual] COMPANION customizedSvg rebuild #${_adultSvgRebuildCount.current}`, 'color: #ef4444; font-weight: bold');
+      console.trace('[AdultVisual] SVG rebuild stack trace');
+    }
+    // ────────────────────────────────────────────────────────────────────
+
     const { form, svg } = resolveAdultSvgWithForm(blobbi, { isSleeping });
     const colorizedSvg = customizeAdultSvgFromBlobbi(svg, form, blobbi, isSleeping);
 
@@ -135,7 +192,39 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
     return colorizedSvg;
   }, [blobbi, isSleeping, recipeProp, recipeLabel, emotion, bodyEffects]);
 
-  const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
+  const safeSvg = useMemo(() => {
+    // ─── DEBUG: Track sanitization rebuilds ──────────────────────────────
+    if (isCompanion) {
+      _adultSafeSvgCount.current++;
+      console.log(`%c[AdultVisual] COMPANION safeSvg rebuild #${_adultSafeSvgCount.current}`, 'color: #ef4444');
+    }
+    // ────────────────────────────────────────────────────────────────────
+    return sanitizeBlobbiSvg(customizedSvg);
+  }, [customizedSvg]);
+
+  // ─── DEBUG: Track DOM node identity (detect remounts vs rerenders) ──────
+  const prevSvgNodeRef = useRef<Element | null>(null);
+  useEffect(() => {
+    if (!isCompanion || !containerRef.current) return;
+    const svgNode = containerRef.current.querySelector('svg');
+    if (svgNode && svgNode !== prevSvgNodeRef.current) {
+      if (prevSvgNodeRef.current === null) {
+        console.log('%c[AdultVisual] COMPANION: SVG node mounted (first time)', 'color: #22c55e');
+      } else {
+        console.log('%c[AdultVisual] COMPANION: SVG DOM NODE REPLACED! (animations killed)', 'color: #ef4444; font-weight: bold; font-size: 14px');
+      }
+      prevSvgNodeRef.current = svgNode;
+      // Check for SMIL animations
+      const animates = svgNode.querySelectorAll('animate, animateTransform');
+      console.log(`  SVG has ${animates.length} SMIL animation elements`);
+    }
+  });
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // In companion mode, reaction CSS classes are applied by the outer wrapper
+  // (BlobbiCompanionVisual) so this div stays className-stable and
+  // dangerouslySetInnerHTML doesn't cause the browser to replace the SVG node.
+  const applyReactionClasses = !isCompanion;
 
   return (
     <div
@@ -143,11 +232,11 @@ export function BlobbiAdultVisual({ blobbi, reaction = 'idle', lookMode = 'follo
       className={cn(
         'relative flex items-center justify-center',
         isSleeping && 'opacity-70',
-        (effectiveReaction === 'listening' ||
+        applyReactionClasses && (effectiveReaction === 'listening' ||
           effectiveReaction === 'swaying' ||
           effectiveReaction === 'happy') &&
           'animate-blobbi-sway',
-        effectiveReaction === 'singing' && 'animate-blobbi-bounce',
+        applyReactionClasses && effectiveReaction === 'singing' && 'animate-blobbi-bounce',
         className
       )}
       dangerouslySetInnerHTML={{ __html: safeSvg }}

@@ -19,6 +19,7 @@ import type {
   Position,
   EntryState,
 } from '../types/companion.types';
+import type { RefObject } from 'react';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { 
   calculateFloatAnimation,
@@ -39,8 +40,8 @@ interface BlobbiCompanionProps {
   state: CompanionState;
   /** Current motion state */
   motion: CompanionMotion;
-  /** Eye offset for gaze */
-  eyeOffset: EyeOffset;
+  /** Ref-based eye offset for imperative gaze control (avoids per-frame rerenders) */
+  eyeOffsetRef: RefObject<EyeOffset>;
   /** Whether entry animation is playing */
   isEntering: boolean;
   /** Entry animation progress (0-1) */
@@ -78,11 +79,16 @@ interface BlobbiCompanionProps {
   debugMode?: boolean;
 }
 
+// ─── DEBUG: Render frequency tracking ─────────────────────────────────────────
+const _companionRenderCount = { current: 0 };
+const _companionLastLogTime = { current: 0 };
+// ──────────────────────────────────────────────────────────────────────────────
+
 export function BlobbiCompanion({
   companion,
   state,
   motion,
-  eyeOffset,
+  eyeOffsetRef,
   isEntering,
   entryProgress: _entryProgress,
   entryState,
@@ -103,6 +109,16 @@ export function BlobbiCompanion({
   const config = DEFAULT_COMPANION_CONFIG;
   const containerRef = useRef<HTMLDivElement>(null);
   const [animationTime, setAnimationTime] = useState(0);
+
+  // ─── DEBUG: Log render frequency (once per second summary) ─────────────
+  _companionRenderCount.current++;
+  const now = performance.now();
+  if (now - _companionLastLogTime.current > 2000) {
+    console.log(`[BlobbiCompanion] ${_companionRenderCount.current} renders in last 2s`);
+    _companionRenderCount.current = 0;
+    _companionLastLogTime.current = now;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
   
   // Click detection - distinguishes click from drag
   const clickDetection = useClickDetection({
@@ -327,7 +343,7 @@ export function BlobbiCompanion({
       <BlobbiCompanionVisual
         companion={companion}
         size={config.size}
-        eyeOffset={eyeOffset}
+        eyeOffsetRef={eyeOffsetRef}
         direction={isEntering ? 'right' : motion.direction}
         isDragging={motion.isDragging}
         isWalking={state === 'walking'}

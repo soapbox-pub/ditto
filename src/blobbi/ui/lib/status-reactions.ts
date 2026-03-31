@@ -732,6 +732,21 @@ const STAT_LABEL_MAP: Record<ReactiveStat, string> = {
  *   - all stats low → eyes from highest-priority contributor,
  *     additive extras (drool + tears), dirt + stink bodyEffects
  */
+/**
+ * Shared stable empty recipe object.
+ * Used for neutral state to avoid creating new {} references on every call,
+ * which would cause downstream React.memo comparators to see false positives.
+ */
+export const EMPTY_RECIPE: BlobbiVisualRecipe = Object.freeze({});
+
+/** Shared stable neutral result to avoid reference churn. */
+const NEUTRAL_STATUS_RESULT: StatusRecipeResult = Object.freeze({
+  recipe: EMPTY_RECIPE,
+  label: 'neutral',
+  triggeringStat: null,
+  severity: null,
+});
+
 export function resolveStatusRecipe(stats: BlobbiStats): StatusRecipeResult {
   // 1. Compute severity for each stat
   const lowStats = new Map<ReactiveStat, StatSeverity>();
@@ -751,14 +766,9 @@ export function resolveStatusRecipe(stats: BlobbiStats): StatusRecipeResult {
     }
   }
 
-  // No low stats → neutral
+  // No low stats → neutral (return stable reference)
   if (lowStats.size === 0) {
-    return {
-      recipe: {},
-      label: 'neutral',
-      triggeringStat: null,
-      severity: null,
-    };
+    return NEUTRAL_STATUS_RESULT;
   }
 
   // 3. Pick exclusive parts by priority

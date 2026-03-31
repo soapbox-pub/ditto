@@ -51,8 +51,10 @@ interface UseBlobbiCompanionGazeOptions {
 interface UseBlobbiCompanionGazeResult {
   /** Current gaze state */
   gaze: GazeState;
-  /** Smoothed eye offset for rendering */
+  /** Smoothed eye offset for rendering (updates every frame via setState — causes rerenders) */
   eyeOffset: EyeOffset;
+  /** Ref-based eye offset for imperative consumers (no rerenders) */
+  eyeOffsetRef: React.RefObject<EyeOffset>;
 }
 
 /**
@@ -95,7 +97,9 @@ export function useBlobbiCompanionGaze({
   entryInspectionDirection,
 }: UseBlobbiCompanionGazeOptions): UseBlobbiCompanionGazeResult {
   const [gaze, setGaze] = useState<GazeState>(createInitialGaze);
-  const [eyeOffset, setEyeOffset] = useState<EyeOffset>({ x: 0, y: 0 });
+  const [eyeOffset, _setEyeOffset] = useState<EyeOffset>({ x: 0, y: 0 });
+  /** Ref-based eye offset for imperative consumers (avoids per-frame React rerenders) */
+  const eyeOffsetRef = useRef<EyeOffset>({ x: 0, y: 0 });
   const [mousePosition, setMousePosition] = useState<Position | null>(null);
   
   // Use refs for values that shouldn't trigger re-renders
@@ -357,10 +361,13 @@ export function useBlobbiCompanionGaze({
                          : currentMode === 'forward' ? 0.12 
                          : 0.06;
       
-      setEyeOffset(prev => ({
-        x: smoothLerp(prev.x, targetOffset.x, smoothFactor),
-        y: smoothLerp(prev.y, targetOffset.y, smoothFactor),
-      }));
+      // Update the ref imperatively (no React rerender) — companion visual reads from this
+      const prevOffset = eyeOffsetRef.current;
+      const newOffset = {
+        x: smoothLerp(prevOffset.x, targetOffset.x, smoothFactor),
+        y: smoothLerp(prevOffset.y, targetOffset.y, smoothFactor),
+      };
+      eyeOffsetRef.current = newOffset;
       
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -378,5 +385,6 @@ export function useBlobbiCompanionGaze({
   return {
     gaze,
     eyeOffset,
+    eyeOffsetRef,
   };
 }

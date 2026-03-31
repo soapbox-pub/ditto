@@ -15,7 +15,7 @@
  * outside the status reaction system.
  */
 
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useEffect, type RefObject } from 'react';
 
 import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
 import { addEyeAnimation } from './lib/eye-animation';
@@ -44,6 +44,8 @@ export interface BlobbiBabyVisualProps {
   lookMode?: BlobbiLookMode;
   disableBlink?: boolean;
   externalEyeOffset?: ExternalEyeOffset;
+  /** Ref-based external eye offset (imperative — no rerenders). Preferred for companion mode. */
+  externalEyeOffsetRef?: RefObject<ExternalEyeOffset>;
   /** Pre-resolved visual recipe. Takes precedence over `emotion`. */
   recipe?: BlobbiVisualRecipe;
   /** Label for the recipe (CSS class names). Required when `recipe` is provided. */
@@ -60,9 +62,48 @@ export interface BlobbiBabyVisualProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, recipe: recipeProp, recipeLabel, emotion = 'neutral', bodyEffects, className }: BlobbiBabyVisualProps) {
+// ─── DEBUG: Animation lifecycle instrumentation ──────────────────────────────
+const _babySvgRebuildCount = { current: 0 };
+const _babySafeSvgCount = { current: 0 };
+const _babyRenderCount = { current: 0 };
+const _babyPrevProps = { current: null as Record<string, unknown> | null };
+// ──────────────────────────────────────────────────────────────────────────────
+
+export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, externalEyeOffsetRef, recipe: recipeProp, recipeLabel, emotion = 'neutral', bodyEffects, className }: BlobbiBabyVisualProps) {
   const isSleeping = isBlobbiSleeping(blobbi);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // ─── DEBUG: Track renders and prop changes ───────────────────────────────
+  _babyRenderCount.current++;
+  const isCompanion = !!(externalEyeOffset || externalEyeOffsetRef);
+  if (isCompanion) {
+    const currentProps: Record<string, unknown> = {
+      blobbiId: blobbi.id,
+      blobbiRef: blobbi,
+      isSleeping,
+      recipeProp,
+      recipeLabel,
+      emotion,
+      bodyEffects,
+    };
+    const prev = _babyPrevProps.current;
+    if (prev) {
+      const changed: string[] = [];
+      for (const key of Object.keys(currentProps)) {
+        if (currentProps[key] !== prev[key]) {
+          changed.push(key);
+        }
+      }
+      if (changed.length > 0) {
+        console.log(`%c[BabyVisual] COMPANION render #${_babyRenderCount.current} — props changed: ${changed.join(', ')}`, 'color: #f59e0b; font-weight: bold');
+        for (const key of changed) {
+          console.log(`  ${key}: `, prev[key], ' → ', currentProps[key]);
+        }
+      }
+    }
+    _babyPrevProps.current = currentProps;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
@@ -71,17 +112,26 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
     maxMovement: 2,
     lookMode,
     disableBlink,
-    disableTracking: !!externalEyeOffset,
+    disableTracking: isCompanion,
   });
 
   useExternalEyeOffset({
     containerRef,
     externalEyeOffset,
+    externalEyeOffsetRef,
     isSleeping,
     variant: 'baby',
   });
 
   const customizedSvg = useMemo(() => {
+    // ─── DEBUG: Track SVG rebuilds ──────────────────────────────────────
+    if (isCompanion) {
+      _babySvgRebuildCount.current++;
+      console.log(`%c[BabyVisual] COMPANION customizedSvg rebuild #${_babySvgRebuildCount.current}`, 'color: #ef4444; font-weight: bold');
+      console.trace('[BabyVisual] SVG rebuild stack trace');
+    }
+    // ────────────────────────────────────────────────────────────────────
+
     const baseSvg = resolveBabySvg(blobbi, { isSleeping });
     const colorizedSvg = customizeBabySvgFromBlobbi(baseSvg, blobbi, isSleeping);
 
@@ -107,7 +157,37 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
     return colorizedSvg;
   }, [blobbi, isSleeping, recipeProp, recipeLabel, emotion, bodyEffects]);
 
-  const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
+  const safeSvg = useMemo(() => {
+    // ─── DEBUG: Track sanitization rebuilds ──────────────────────────────
+    if (isCompanion) {
+      _babySafeSvgCount.current++;
+      console.log(`%c[BabyVisual] COMPANION safeSvg rebuild #${_babySafeSvgCount.current}`, 'color: #ef4444');
+    }
+    // ────────────────────────────────────────────────────────────────────
+    return sanitizeBlobbiSvg(customizedSvg);
+  }, [customizedSvg]);
+
+  // ─── DEBUG: Track DOM node identity (detect remounts vs rerenders) ──────
+  const prevSvgNodeRef = useRef<Element | null>(null);
+  useEffect(() => {
+    if (!isCompanion || !containerRef.current) return;
+    const svgNode = containerRef.current.querySelector('svg');
+    if (svgNode && svgNode !== prevSvgNodeRef.current) {
+      if (prevSvgNodeRef.current === null) {
+        console.log('%c[BabyVisual] COMPANION: SVG node mounted (first time)', 'color: #22c55e');
+      } else {
+        console.log('%c[BabyVisual] COMPANION: SVG DOM NODE REPLACED! (animations killed)', 'color: #ef4444; font-weight: bold; font-size: 14px');
+      }
+      prevSvgNodeRef.current = svgNode;
+      const animates = svgNode.querySelectorAll('animate, animateTransform');
+      console.log(`  SVG has ${animates.length} SMIL animation elements`);
+    }
+  });
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // In companion mode, reaction CSS classes are applied by the outer wrapper
+  // (BlobbiCompanionVisual) so this div stays className-stable.
+  const applyReactionClasses = !isCompanion;
 
   return (
     <div
@@ -115,11 +195,11 @@ export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow
       className={cn(
         'relative flex items-center justify-center',
         isSleeping && 'opacity-70',
-        (effectiveReaction === 'listening' ||
+        applyReactionClasses && (effectiveReaction === 'listening' ||
           effectiveReaction === 'swaying' ||
           effectiveReaction === 'happy') &&
           'animate-blobbi-sway',
-        effectiveReaction === 'singing' && 'animate-blobbi-bounce',
+        applyReactionClasses && effectiveReaction === 'singing' && 'animate-blobbi-bounce',
         className
       )}
       dangerouslySetInnerHTML={{ __html: safeSvg }}

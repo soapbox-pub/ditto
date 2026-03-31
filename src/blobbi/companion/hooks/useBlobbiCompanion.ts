@@ -61,8 +61,10 @@ interface UseBlobbiCompanionResult {
   motion: CompanionMotion;
   /** Current gaze state */
   gaze: GazeState;
-  /** Smoothed eye offset for rendering */
+  /** Smoothed eye offset for rendering (causes rerenders — legacy) */
   eyeOffset: EyeOffset;
+  /** Ref-based eye offset for imperative consumers (no rerenders) */
+  eyeOffsetRef: React.RefObject<EyeOffset>;
   /** Whether entry animation is playing */
   isEntering: boolean;
   /** Entry animation progress (0-1) - legacy, use entryState for detailed control */
@@ -302,7 +304,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   }, [entryJustCompleted, wasResolvedFromStuck, setPosition, groundPosition, acknowledgeCompletion]);
   
   // Gaze management - passes entry inspection direction for eye control during entry
-  const { gaze, eyeOffset } = useBlobbiCompanionGaze({
+  const { gaze, eyeOffset, eyeOffsetRef } = useBlobbiCompanionGaze({
     state: isEntering ? 'idle' : state,
     direction: isEntering ? 'right' : direction,
     companionPosition: motion.position,
@@ -322,6 +324,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     motion,
     gaze,
     eyeOffset,
+    eyeOffsetRef,
     isEntering,
     entryProgress: entryState.progress,
     entryState,
