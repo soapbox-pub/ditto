@@ -67,7 +67,13 @@ export function GameBoyCartridge({ icon, name, seed, className, onClick }: GameB
         className="w-full h-auto drop-shadow-md transition-[filter] duration-200 group-hover:drop-shadow-lg"
       >
         <defs>
-          {/* Top-to-bottom sheen for plastic depth */}
+          {/* Subtle plastic grain texture */}
+          <filter id={`grain-${seed}`} x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" result="noise" />
+            <feColorMatrix type="saturate" values="0" in="noise" result="grey" />
+            <feBlend in="SourceGraphic" in2="grey" mode="overlay" />
+          </filter>
+          {/* Top shadow for depth */}
           <linearGradient id={`topShade-${seed}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="white" stopOpacity="0.12" />
             <stop offset="100%" stopColor="black" stopOpacity="0.06" />
@@ -79,110 +85,77 @@ export function GameBoyCartridge({ icon, name, seed, className, onClick }: GameB
           </linearGradient>
         </defs>
 
-        {/* ========== MAIN SHELL (single path with integrated notches) ========== */}
-        {/*
-          Real DMG cartridge silhouette: the side notches are part of the shell,
-          not separate blocks. The shell widens at the notch area then steps
-          inward below it.
+        {/* ========== MAIN SHELL ========== */}
+        {/* Outer cartridge body */}
+        <rect x="14" y="12" width="192" height="240" rx="6" ry="6" fill={p.shell} />
 
-          Coordinates (left to right, top to bottom):
-            - Notch columns: x=14..30 (left), x=190..206 (right)
-            - Main body: x=30..190
-            - Notch top: y=6 (above main shell top for the tab)
-            - Notch bottom: y=56
-            - Body top: y=12
-            - Body bottom: y=252
-        */}
-        <path
-          d={[
-            // Start at top-left of left notch
-            'M18,6', 'Q14,6 14,10',
-            // Left notch outer edge down
-            'L14,52', 'Q14,56 18,56',
-            // Step inward to main body left edge
-            'L26,56', 'Q30,56 30,52',
-            // Main body left edge down to bottom
-            'L30,246', 'Q30,252 36,252',
-            // Bottom edge
-            'L184,252', 'Q190,252 190,246',
-            // Main body right edge up to notch step
-            'L190,52', 'Q190,56 194,56',
-            // Step outward to right notch
-            'L202,56', 'Q206,56 206,52',
-            // Right notch outer edge up
-            'L206,10', 'Q206,6 202,6',
-            // Top edge
-            'Z',
-          ].join(' ')}
-          fill={p.shell}
-        />
+        {/* Plastic sheen overlay */}
+        <rect x="14" y="12" width="192" height="240" rx="6" ry="6" fill={`url(#topShade-${seed})`} />
 
-        {/* Plastic sheen overlay (same path as clip) */}
+        {/* Subtle edge highlight (left + top) */}
         <path
-          d="M18,6 Q14,6 14,10 L14,52 Q14,56 18,56 L26,56 Q30,56 30,52 L30,246 Q30,252 36,252 L184,252 Q190,252 190,246 L190,52 Q190,56 194,56 L202,56 Q206,56 206,52 L206,10 Q206,6 202,6 Z"
-          fill={`url(#topShade-${seed})`}
-        />
-
-        {/* Light edge (left + top) */}
-        <path
-          d="M14,52 L14,10 Q14,6 18,6 L202,6 Q206,6 206,10"
+          d="M20,252 L20,18 Q20,12 26,12 L200,12"
           fill="none"
           stroke={p.shellLight}
           strokeWidth="1"
-          opacity="0.4"
+          opacity="0.5"
         />
         {/* Shadow edge (right + bottom) */}
         <path
-          d="M190,246 Q190,252 184,252 L36,252 Q30,252 30,246"
+          d="M200,12 Q206,12 206,18 L206,246 Q206,252 200,252 L20,252"
           fill="none"
           stroke={p.shellDark}
           strokeWidth="1"
-          opacity="0.35"
+          opacity="0.4"
         />
 
         {/* ========== TOP GRIP SECTION ========== */}
-        {/* Recessed grip strip across the full width (including notch columns) */}
-        <rect x="14" y="6" width="192" height="30" rx="4" ry="4" fill={p.shellDark} opacity="0.5" />
+        {/* Recessed grip area */}
+        <rect x="14" y="12" width="192" height="28" rx="6" ry="6" fill={p.shellDark} />
+        <rect x="14" y="28" width="192" height="12" fill={p.shellDark} />
 
-        {/* Grip ridge lines — only between the notch columns */}
-        {[12, 17, 22, 27, 32].map((y) => (
+        {/* Grip ridge lines */}
+        {[18, 22, 26, 30, 34].map((y) => (
           <line
             key={y}
-            x1="36"
+            x1="30"
             y1={y}
-            x2="184"
+            x2="190"
             y2={y}
-            stroke={p.shellLight}
-            strokeWidth="1"
+            stroke={p.shell}
+            strokeWidth="1.2"
             strokeLinecap="round"
-            opacity="0.3"
+            opacity="0.6"
           />
         ))}
 
-        {/* ========== NOTCH INNER DETAIL ========== */}
-        {/* Subtle inset shadow on left notch channel */}
-        <rect x="16" y="10" width="12" height="42" rx="2" fill={p.shellDark} opacity="0.15" />
-        {/* Subtle inset shadow on right notch channel */}
-        <rect x="192" y="10" width="12" height="42" rx="2" fill={p.shellDark} opacity="0.15" />
+        {/* ========== SIDE NOTCHES (lock slots) ========== */}
+        {/* Left notch */}
+        <rect x="10" y="12" width="16" height="50" rx="3" fill={p.shellDark} />
+        <rect x="12" y="14" width="12" height="46" rx="2" fill={p.shell} opacity="0.5" />
+
+        {/* Right notch */}
+        <rect x="194" y="12" width="16" height="50" rx="3" fill={p.shellDark} />
+        <rect x="196" y="14" width="12" height="46" rx="2" fill={p.shell} opacity="0.5" />
 
         {/* ========== LABEL STICKER ========== */}
-        {/* Label background — inset within the main body column (x=30..190) */}
-        <rect x="38" y="46" width="144" height="148" rx="3" fill={p.label} />
+        {/* Label background */}
+        <rect x="28" y="48" width="164" height="148" rx="3" fill={p.label} />
         {/* Label paper sheen */}
-        <rect x="38" y="46" width="144" height="148" rx="3" fill={`url(#labelGrad-${seed})`} />
+        <rect x="28" y="48" width="164" height="148" rx="3" fill={`url(#labelGrad-${seed})`} />
         {/* Label border (slightly worn look) */}
-        <rect x="38" y="46" width="144" height="148" rx="3" fill="none" stroke={p.labelBorder} strokeWidth="0.75" />
+        <rect x="28" y="48" width="164" height="148" rx="3" fill="none" stroke={p.labelBorder} strokeWidth="0.75" />
 
         {/* ========== ICON AREA ========== */}
-        {/* Icon window — centered on the label */}
-        <rect x="66" y="56" width="88" height="84" rx="6" fill="white" opacity="0.5" />
-        <rect x="66" y="56" width="88" height="84" rx="6" fill="none" stroke={p.labelBorder} strokeWidth="0.5" />
+        {/* Icon window — rounded rect cutout on the label */}
+        <rect x="62" y="60" width="96" height="88" rx="6" fill="white" opacity="0.5" />
+        <rect x="62" y="60" width="96" height="88" rx="6" fill="none" stroke={p.labelBorder} strokeWidth="0.5" />
 
         {/* ========== APP NAME ON LABEL ========== */}
         {name && (
           <text
             x="110"
-            y="162"
+            y="170"
             textAnchor="middle"
             dominantBaseline="middle"
             fill={p.text}
@@ -196,13 +169,13 @@ export function GameBoyCartridge({ icon, name, seed, className, onClick }: GameB
         )}
 
         {/* Thin accent line under the name */}
-        <line x1="66" y1="174" x2="154" y2="174" stroke={p.accent} strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+        <line x1="60" y1="182" x2="160" y2="182" stroke={p.accent} strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
 
         {/* ========== BOTTOM SECTION ========== */}
         {/* Accent stripe — the colored bar like on real cartridges */}
-        <rect x="38" y="200" width="144" height="8" rx="4" fill={p.accent} />
+        <rect x="28" y="202" width="164" height="8" rx="4" fill={p.accent} />
         {/* Stripe highlight */}
-        <rect x="38" y="200" width="144" height="4" rx="2" fill="white" opacity="0.15" />
+        <rect x="28" y="202" width="164" height="4" rx="2" fill="white" opacity="0.15" />
 
         {/* "WEBXDC" embossed text */}
         <text
@@ -228,11 +201,11 @@ export function GameBoyCartridge({ icon, name, seed, className, onClick }: GameB
         <line x1="110" y1="242" x2="110" y2="246" stroke={p.shellDark} strokeWidth="0.6" opacity="0.3" />
 
         {/* ========== BOTTOM EDGE CONNECTOR ========== */}
-        {/* The recessed slot where gold contacts sit */}
-        <rect x="50" y="252" width="120" height="10" rx="2" fill={p.shellDark} opacity="0.35" />
-        {/* Gold contact pins */}
-        {Array.from({ length: 14 }, (_, i) => 54 + i * 8).map((x) => (
-          <rect key={x} x={x} y="253" width="4.5" height="8" rx="0.5" fill="#c0a840" opacity="0.45" />
+        {/* The gold contacts visible at the bottom */}
+        <rect x="44" y="252" width="132" height="12" rx="2" fill={p.shellDark} opacity="0.4" />
+        {/* Contact pin lines */}
+        {Array.from({ length: 16 }, (_, i) => 52 + i * 7.5).map((x) => (
+          <rect key={x} x={x} y="253" width="4" height="10" rx="0.5" fill="#b8a040" opacity="0.5" />
         ))}
       </svg>
 
@@ -240,11 +213,11 @@ export function GameBoyCartridge({ icon, name, seed, className, onClick }: GameB
       <div
         className="absolute flex items-center justify-center rounded-md overflow-hidden"
         style={{
-          /* Aligned to the icon window: x=66, y=56, w=88, h=84 in 220x264 viewBox */
-          left: 'calc(66 / 220 * 100%)',
-          top: 'calc(56 / 264 * 100%)',
-          width: 'calc(88 / 220 * 100%)',
-          height: 'calc(84 / 264 * 100%)',
+          /* Aligned to the icon window: x=62, y=60, w=96, h=88 in 220x264 viewBox */
+          left: 'calc(62 / 220 * 100%)',
+          top: 'calc(60 / 264 * 100%)',
+          width: 'calc(96 / 220 * 100%)',
+          height: 'calc(88 / 264 * 100%)',
         }}
       >
         {icon ? (
