@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.2.5] - 2026-03-30
+
+### Fixed
+- Crash when dragging profile tabs to reorder them
+
 ## [2.2.4] - 2026-03-30
 
 ### Changed
