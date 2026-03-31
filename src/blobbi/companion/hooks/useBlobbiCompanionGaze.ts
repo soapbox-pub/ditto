@@ -49,9 +49,7 @@ interface UseBlobbiCompanionGazeOptions {
 }
 
 interface UseBlobbiCompanionGazeResult {
-  /** Current gaze state */
-  gaze: GazeState;
-  /** Ref-based eye offset for imperative consumers (no rerenders) */
+  /** Ref-based eye offset for imperative gaze control (no rerenders) */
   eyeOffsetRef: React.RefObject<EyeOffset>;
 }
 
@@ -382,7 +380,6 @@ export function useBlobbiCompanionGaze({
   }, [isActive]); // ONLY depend on isActive - all other values read from refs
   
   return {
-    gaze,
     eyeOffsetRef,
   };
 }

@@ -322,8 +322,6 @@ export interface CompanionContextValue {
   state: CompanionState;
   /** Current motion state */
   motion: CompanionMotion;
-  /** Current gaze state */
-  gaze: GazeState;
   /** Start dragging the companion */
   startDrag: () => void;
   /** Update drag position */

@@ -1,29 +1,30 @@
 /**
- * BlobbiCompanionLayer
- * 
- * Global layer component that renders the companion above all other content.
- * This should be placed at the root level of the app.
- * 
- * Entry animations are VERTICAL based on sidebar navigation direction:
- * - Navigating DOWN the sidebar: Blobbi falls from the top of the screen
- * - Navigating UP the sidebar: Blobbi rises from the bottom with inspection
- * 
- * Interaction features:
- * - Click/tap on Blobbi opens action menu
- * - Action menu shows available actions in a radial layout
- * - Selecting an action shows available items as floating bubbles
+ * BlobbiCompanionLayer — Global orchestration layer for the companion.
+ *
+ * This component is the top-level coordinator. It is NOT a visual component.
+ * It wires together:
+ *   - Companion runtime (position, motion, gaze, entry animations)
+ *   - Status reaction system (stats → visual recipe)
+ *   - Action menu and hanging items interaction
+ *   - Item use with temporary emotion overrides
+ *
+ * Visual rendering is delegated entirely to:
+ *   BlobbiCompanion → BlobbiCompanionVisual → MemoizedBlobbiVisual → Visual → SvgRenderer
+ *
+ * This file should be placed at the app root level (renders a fixed overlay).
  */
 
 import { useCallback, useState, useMemo } from 'react';
 
 import { useBlobbiCompanion } from '../hooks/useBlobbiCompanion';
 import { useCompanionItemReaction } from '../hooks/useCompanionItemReaction';
+import { useActionEmotionOverride } from '../hooks/useActionEmotionOverride';
 import { BlobbiCompanion } from './BlobbiCompanion';
+import { DebugGroundOverlay } from './DebugGroundOverlay';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { calculateGroundY } from '../utils/movement';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
-import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
-import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
+import type { ActionType } from '@/blobbi/ui/lib/status-reactions';
 import {
   useCompanionActionMenu,
   useBlobbiActions,
@@ -35,21 +36,9 @@ import {
 } from '../interaction';
 import type { Position } from '../types/companion.types';
 
-// DEBUG MODE - Set to true to debug ground contact
+/** Set to true to show debug ground-contact lines. */
 const DEBUG_GROUND_CONTACT = false;
 
-/**
- * Global companion layer.
- * 
- * Renders the companion if:
- * - User is logged in
- * - User has set a current_companion in their profile
- * - The companion data is loaded
- * 
- * Entry animations are vertical:
- * - Falls from top when navigating DOWN the sidebar
- * - Rises from bottom (with inspection) when navigating UP the sidebar
- */
 export function BlobbiCompanionLayer() {
   const {
     companion,
@@ -68,19 +57,20 @@ export function BlobbiCompanionLayer() {
     endDrag,
     triggerAttention,
   } = useBlobbiCompanion();
-  
+
   const config = DEFAULT_COMPANION_CONFIG;
-  
-  // Track the actual rendered position of the companion
-  // This accounts for entry animations, float offset, etc.
+
+  // ── Rendered position tracking ─────────────────────────────────────────────
+  // Tracks the actual visual position (including entry/float offsets) so
+  // the action menu and hanging items can position relative to Blobbi.
   const [renderedPosition, setRenderedPosition] = useState<Position>(motion.position);
-  
-  // Handle position updates from BlobbiCompanion
+
   const handlePositionUpdate = useCallback((position: Position) => {
     setRenderedPosition(position);
   }, []);
-  
-  // Callback for glancing at items (when Blobbi doesn't need them)
+
+  // ── Item reaction ──────────────────────────────────────────────────────────
+
   const handleGlanceAtItem = useCallback((position: Position) => {
     triggerAttention(position, {
       duration: 800,
@@ -89,39 +79,31 @@ export function BlobbiCompanionLayer() {
       isGlance: true,
     });
   }, [triggerAttention]);
-  
-  // Callback for walking to items (when Blobbi needs them)
-  // For now, we just glance more intensely - full walking behavior 
-  // would require deeper integration with the state machine
+
   const handleWalkToItem = useCallback((position: Position) => {
-    // TODO: Implement actual walking behavior via useBlobbiCompanionState
-    // For now, trigger a longer attention to simulate interest
     triggerAttention(position, {
       duration: 1500,
       priority: 'normal',
       source: 'item-landed:need',
-      isGlance: false, // Use longer cooldown for "interested" attention
+      isGlance: false,
     });
   }, [triggerAttention]);
-  
-  // Item reaction hook - determines if Blobbi needs items and how to react
+
   const { reactToItemLanding } = useCompanionItemReaction({
     isActive: isVisible && !isEntering,
     onGlance: handleGlanceAtItem,
     onWalkTo: handleWalkToItem,
   });
-  
-  // Handle when an item finishes falling and lands on the ground
+
   const handleItemLanded = useCallback((data: ItemLandedData) => {
     if (import.meta.env.DEV) {
       console.log('[CompanionLayer] Item landed:', data.item.name, 'at', { x: data.x, y: data.y });
     }
-    
-    // React to the item landing based on Blobbi's needs
     reactToItemLanding(data.item.category, { x: data.x, y: data.y });
   }, [reactToItemLanding]);
-  
-  // Action menu state
+
+  // ── Action menu ────────────────────────────────────────────────────────────
+
   const {
     menuState,
     availableActions,
@@ -133,57 +115,53 @@ export function BlobbiCompanionLayer() {
     isActive: isVisible,
     stage: companion?.stage,
     onItemClick: (item) => {
-      // Item was clicked in the hanging menu - this releases it
-      console.log('[CompanionLayer] Item released:', item);
+      if (import.meta.env.DEV) {
+        console.log('[CompanionLayer] Item released:', item);
+      }
     },
   });
-  
-  // Get Blobbi actions from context
-  // This now works even when BlobbiPage is not mounted (uses built-in fallback)
-  const { 
-    useItem: contextUseItem, 
-    canUseItems, 
-    isItemOnCooldown 
+
+  const {
+    useItem: contextUseItem,
+    canUseItems,
+    isItemOnCooldown,
   } = useBlobbiActions();
-  
-  /**
-   * Handle item use - called when item contacts Blobbi or is clicked.
-   * Uses the BlobbiActionsContext to perform the actual item use.
-   * Returns success/failure to control whether item is removed from screen.
-   * 
-   * Now works from any page (not just /blobbi) thanks to the built-in
-   * fallback in BlobbiActionsContext.
-   */
+
+  // ── Item use with emotion override ─────────────────────────────────────────
+
+  const { actionOverride, triggerOverride } = useActionEmotionOverride();
+
   const handleItemUse = useCallback(async (item: CompanionItem): Promise<{ success: boolean; error?: string }> => {
-    // Resolve the action from the item category
     const action = CATEGORY_TO_ACTION[item.category];
-    
+
     if (!action) {
       if (import.meta.env.DEV) {
         console.warn('[CompanionLayer] No action for item category:', item.category);
       }
       return { success: false, error: `Cannot use ${item.category} items` };
     }
-    
+
     if (!canUseItems) {
       if (import.meta.env.DEV) {
         console.warn('[CompanionLayer] Cannot use items - no companion selected');
       }
       return { success: false, error: 'No companion selected' };
     }
-    
+
+    // Trigger the temporary emotion override for visual feedback
+    triggerOverride(action as ActionType);
+
     if (import.meta.env.DEV) {
       console.log('[CompanionLayer] Using item:', item.name, 'with action:', action);
     }
-    
+
     try {
       const result = await contextUseItem(item.id, action, 1);
-      
+
       if (result.success) {
         if (import.meta.env.DEV) {
           console.log('[CompanionLayer] Item used successfully:', item.name, result.statsChanged);
         }
-        // Close the menu after successful use
         closeMenu();
         return { success: true };
       } else {
@@ -199,178 +177,85 @@ export function BlobbiCompanionLayer() {
       }
       return { success: false, error: errorMessage };
     }
-  }, [canUseItems, contextUseItem, closeMenu]);
-  
-  // Handle companion click
+  }, [canUseItems, contextUseItem, closeMenu, triggerOverride]);
+
+  // ── Companion click ────────────────────────────────────────────────────────
+
   const handleCompanionClick = useCallback(() => {
-    // Don't open menu during entry animation
     if (isEntering) return;
-    
     toggleMenu();
   }, [isEntering, toggleMenu]);
-  
-  // Handle click outside menu
+
   const handleClickOutside = useCallback(() => {
     closeMenu();
   }, [closeMenu]);
-  
-  // Status-based visual reactions for the companion.
-  // Uses the recipe-first pipeline: stats → resolveStatusRecipe() → recipe.
-  // Body effects (dirt, stink) are folded into the recipe by the resolver.
+
+  // ── Status reaction ────────────────────────────────────────────────────────
+  // Resolves companion stats into a visual recipe (sleepy, hungry, dirty, etc.).
+  // The actionOverride from useActionEmotionOverride temporarily overrides
+  // the recipe when an item is used (e.g., feeding → happy face for 1.5s).
+
   const isSleeping = companion?.state === 'sleeping';
   const companionStats = useMemo(() => companion?.stats ?? {
     hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100,
   }, [companion?.stats]);
-  
-  const [companionActionOverride, setCompanionActionOverride] = useState<BlobbiEmotion | null>(null);
-  
+
   const { recipe: companionRecipe, recipeLabel: companionRecipeLabel } = useStatusReaction({
     stats: companionStats,
     enabled: isVisible && !isSleeping && companion?.stage !== 'egg',
-    actionOverride: companionActionOverride,
+    actionOverride,
   });
-  
-  // Set action override when using items on companion
-  // (This is triggered by handleItemUse above - we wrap it to add emotion)
-  const originalHandleItemUse = handleItemUse;
-  const handleItemUseWithEmotion = useCallback(async (item: CompanionItem): Promise<{ success: boolean; error?: string }> => {
-    const action = CATEGORY_TO_ACTION[item.category] as ActionType | undefined;
-    if (action) {
-      setCompanionActionOverride(getActionEmotion(action));
-      setTimeout(() => setCompanionActionOverride(null), 1500);
-    }
-    return originalHandleItemUse(item);
-  }, [originalHandleItemUse]);
-  
-  // Pass resolved recipe directly to companion components
-  const companionRecipeProp = companionRecipe;
-  const companionRecipeLabelProp = companionRecipeLabel;
-  
-  // Don't render anything if not visible
+
+  // ── Early return ───────────────────────────────────────────────────────────
+
   if (!isVisible || !companion) {
     return null;
   }
-  
-  // Companion props
-  const companionProps = {
-    companion,
-    state,
-    motion,
-    eyeOffsetRef,
-    isEntering,
-    entryProgress,
-    entryState,
-    wasResolvedFromStuck,
-    groundPosition,
-    viewport,
-    onStartDrag: startDrag,
-    onUpdateDrag: updateDrag,
-    onEndDrag: endDrag,
-    onClick: handleCompanionClick,
-    recipe: companionRecipeProp,
-    recipeLabel: companionRecipeLabelProp,
 
-    onPositionUpdate: handlePositionUpdate,
-  };
-  
-  // Calculate ground position for debug line
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   const debugGroundY = calculateGroundY(viewport.height, config.size, config);
-  
+
   return (
-    <div 
+    <div
       className="fixed inset-0 pointer-events-none"
       style={{ zIndex: 9999 }}
       aria-hidden="true"
     >
-      {/* DEBUG: Visible ground line */}
       {DEBUG_GROUND_CONTACT && (
-        <>
-          {/* Ground line where Blobbi's CONTAINER bottom should be */}
-          <div 
-            style={{
-              position: 'fixed',
-              left: 0,
-              right: 0,
-              top: debugGroundY + config.size, // Container bottom
-              height: 2,
-              backgroundColor: 'red',
-              zIndex: 10002,
-            }}
-          />
-          {/* Label for the ground line */}
-          <div
-            style={{
-              position: 'fixed',
-              right: 10,
-              top: debugGroundY + config.size + 4,
-              color: 'red',
-              fontSize: 12,
-              fontWeight: 'bold',
-              zIndex: 10002,
-              backgroundColor: 'white',
-              padding: '2px 4px',
-            }}
-          >
-            Container bottom (groundY + size = {Math.round(debugGroundY + config.size)}px)
-          </div>
-          {/* Another line showing the actual viewport bottom minus padding */}
-          <div 
-            style={{
-              position: 'fixed',
-              left: 0,
-              right: 0,
-              top: viewport.height - config.padding.bottom,
-              height: 2,
-              backgroundColor: 'blue',
-              zIndex: 10002,
-            }}
-          />
-          <div
-            style={{
-              position: 'fixed',
-              right: 10,
-              top: viewport.height - config.padding.bottom + 4,
-              color: 'blue',
-              fontSize: 12,
-              fontWeight: 'bold',
-              zIndex: 10002,
-              backgroundColor: 'white',
-              padding: '2px 4px',
-            }}
-          >
-            Viewport - padding = {viewport.height - config.padding.bottom}px (Target ground)
-          </div>
-          {/* Entry type indicator */}
-          {isEntering && (
-            <div
-              style={{
-                position: 'fixed',
-                left: 10,
-                top: 10,
-                color: entryState.entryType === 'fall' ? 'orange' : 'green',
-                fontSize: 14,
-                fontWeight: 'bold',
-                zIndex: 10002,
-                backgroundColor: 'white',
-                padding: '4px 8px',
-                borderRadius: 4,
-              }}
-            >
-              Entry: {entryState.entryType.toUpperCase()} | Phase: {entryState.phase}
-            </div>
-          )}
-        </>
+        <DebugGroundOverlay
+          groundY={debugGroundY}
+          size={config.size}
+          viewportHeight={viewport.height}
+          paddingBottom={config.padding.bottom}
+          isEntering={isEntering}
+          entryState={entryState}
+        />
       )}
-      
-      {/* Companion */}
+
       <div className="pointer-events-auto">
-        <BlobbiCompanion 
-          {...companionProps}
+        <BlobbiCompanion
+          companion={companion}
+          state={state}
+          motion={motion}
+          eyeOffsetRef={eyeOffsetRef}
+          isEntering={isEntering}
+          entryProgress={entryProgress}
+          entryState={entryState}
+          wasResolvedFromStuck={wasResolvedFromStuck}
+          groundPosition={groundPosition}
+          viewport={viewport}
+          onStartDrag={startDrag}
+          onUpdateDrag={updateDrag}
+          onEndDrag={endDrag}
+          onClick={handleCompanionClick}
+          recipe={companionRecipe}
+          recipeLabel={companionRecipeLabel}
+          onPositionUpdate={handlePositionUpdate}
           debugMode={DEBUG_GROUND_CONTACT}
         />
       </div>
-      
-      {/* Action Menu - radial buttons around Blobbi */}
+
       <CompanionActionMenu
         isOpen={menuState.isOpen}
         companionPosition={renderedPosition}
@@ -380,8 +265,7 @@ export function BlobbiCompanionLayer() {
         onActionClick={selectAction}
         onClickOutside={handleClickOutside}
       />
-      
-      {/* Hanging Items - items displayed as hanging elements from top */}
+
       <HangingItems
         isVisible={menuState.isOpen && menuState.selectedAction !== null}
         selectedAction={menuState.selectedAction}
@@ -392,7 +276,7 @@ export function BlobbiCompanionLayer() {
         companionSize={config.size}
         onItemRelease={handleItemClick}
         onItemLanded={handleItemLanded}
-        onItemUse={handleItemUseWithEmotion}
+        onItemUse={handleItemUse}
         isItemOnCooldown={isItemOnCooldown}
       />
     </div>
