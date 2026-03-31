@@ -101,43 +101,6 @@ import { formatNumber } from "@/lib/formatNumber";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
 
-/** Compact zap receipt card for use in feeds (kind 9735). */
-function ZapReceiptContent({ event }: { event: NostrEvent }) {
-  const senderPubkey = extractZapSender(event);
-  const amountMsats = extractZapAmount(event);
-  const amountSats = Math.floor(amountMsats / 1000);
-  const message = extractZapMessage(event);
-  const sender = useAuthor(senderPubkey || undefined);
-  const senderMeta = sender.data?.metadata;
-  const senderName = getDisplayName(senderMeta, senderPubkey);
-  const senderShape = getAvatarShape(senderMeta);
-  const senderUrl = useProfileUrl(senderPubkey, senderMeta);
-
-  return (
-    <div className="mt-2 flex flex-col gap-1.5">
-      <div className="flex items-center gap-2 flex-wrap">
-        {senderPubkey && (
-          <Link to={senderUrl} className="flex items-center gap-1.5 min-w-0" onClick={(e) => e.stopPropagation()}>
-            <Avatar shape={senderShape} className="size-5 shrink-0">
-              <AvatarImage src={senderMeta?.picture} alt={senderName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-[9px]">{senderName[0]?.toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <span className="text-sm font-semibold truncate">{senderName}</span>
-          </Link>
-        )}
-        <span className="text-sm text-muted-foreground">zapped</span>
-        {amountSats > 0 && (
-          <span className="text-sm font-semibold text-amber-500">
-            {formatNumber(amountSats)} {amountSats === 1 ? 'sat' : 'sats'}
-          </span>
-        )}
-      </div>
-      {message && (
-        <p className="text-sm text-muted-foreground italic">"{message}"</p>
-      )}
-    </div>
-  );
-}
 
 /** Profile card for use in feeds (kind 0). */
 function ProfileCardContent({ event }: { event: NostrEvent }) {
@@ -241,6 +204,12 @@ export const NoteCard = memo(function NoteCard({
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
+  const zapSenderPubkey = useMemo(() => event.kind === 9735 ? extractZapSender(event) : '', [event]);
+  const zapSender = useAuthor(zapSenderPubkey || undefined);
+  const zapSenderMeta = zapSender.data?.metadata;
+  const zapSenderShape = getAvatarShape(zapSenderMeta);
+  const zapSenderName = getDisplayName(zapSenderMeta, zapSenderPubkey);
+  const zapSenderUrl = useProfileUrl(zapSenderPubkey, zapSenderMeta);
 
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
@@ -555,8 +524,6 @@ export const NoteCard = memo(function NoteCard({
           <ZapstoreAppContent event={event} compact />
         ) : isEncryptedDM ? (
           <EncryptedMessageContent event={event} compact />
-        ) : isZap ? (
-          <ZapReceiptContent event={event} />
         ) : isProfile ? (
           <ProfileCardContent event={event} />
         ) : (
@@ -1089,6 +1056,98 @@ export const NoteCard = memo(function NoteCard({
             )}
           </div>
         </div>
+      </article>
+    );
+  }
+
+  // ── Zap receipt layout (kind 9735) — mirrors reaction layout exactly ──
+  if (isZap) {
+    const zapAmountSats = Math.floor(extractZapAmount(event) / 1000);
+    const zapMessage = extractZapMessage(event);
+
+    const zapActorRow = (
+      <div className="flex items-center gap-2">
+        {zapSender.isLoading ? (
+          <>
+            <Skeleton className="size-6 rounded-full shrink-0" />
+            <Skeleton className="h-3.5 w-20" />
+          </>
+        ) : (
+          <>
+            {zapSenderPubkey && (
+              <ProfileHoverCard pubkey={zapSenderPubkey} asChild>
+                <Link to={zapSenderUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <Avatar shape={zapSenderShape} className="size-6">
+                    <AvatarImage src={zapSenderMeta?.picture} alt={zapSenderName} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-[8px]">{zapSenderName[0]?.toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                </Link>
+              </ProfileHoverCard>
+            )}
+            {zapSenderPubkey && (
+              <ProfileHoverCard pubkey={zapSenderPubkey} asChild>
+                <Link to={zapSenderUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
+                  {zapSender.data?.event ? <EmojifiedText tags={zapSender.data.event.tags}>{zapSenderName}</EmojifiedText> : zapSenderName}
+                </Link>
+              </ProfileHoverCard>
+            )}
+            <span className="text-sm text-muted-foreground shrink-0">zapped</span>
+            {zapAmountSats > 0 && (
+              <span className="text-sm font-semibold text-amber-500 shrink-0">
+                {formatNumber(zapAmountSats)} {zapAmountSats === 1 ? 'sat' : 'sats'}
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at)}</span>
+          </>
+        )}
+      </div>
+    );
+
+    if (threaded || threadedLast) {
+      return (
+        <article
+          className={cn(
+            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+            threaded ? "pb-0" : "pb-3 border-b border-border",
+            className,
+          )}
+          onClick={handleCardClick}
+          onAuxClick={handleAuxClick}
+        >
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center size-10 rounded-full bg-amber-500/10 shrink-0">
+                <Zap className="size-5 text-amber-500 fill-amber-500" />
+              </div>
+              {threaded && <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />}
+            </div>
+            <div className={cn("flex-1 min-w-0 flex flex-col justify-center min-h-10", threaded && "pb-3")}>
+              {zapActorRow}
+            </div>
+          </div>
+          {zapMessage && <p className="text-xs text-muted-foreground italic pl-[52px]">"{zapMessage}"</p>}
+        </article>
+      );
+    }
+
+    return (
+      <article
+        className={cn(
+          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center size-11 rounded-full bg-amber-500/10 shrink-0">
+            <Zap className="size-5 text-amber-500 fill-amber-500" />
+          </div>
+          <div className="flex-1 min-w-0 flex flex-col">
+            {zapActorRow}
+          </div>
+        </div>
+        {zapMessage && <p className="text-sm text-muted-foreground italic pl-[55px]">"{zapMessage}"</p>}
       </article>
     );
   }

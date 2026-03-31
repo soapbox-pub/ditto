@@ -921,178 +921,6 @@ function BookReviewRating({ event }: { event: NostrEvent }) {
   );
 }
 
-interface ZapDetailCardProps {
-  event: NostrEvent;
-  senderPubkey: string;
-  amountSats: number;
-  zapMessage: string;
-  focusedPostRef: React.RefObject<HTMLElement | null>;
-  moreMenuOpen: boolean;
-  setMoreMenuOpen: (v: boolean) => void;
-  replyOpen: boolean;
-  setReplyOpen: (v: boolean) => void;
-  interactionsOpen: boolean;
-  setInteractionsOpen: (v: boolean) => void;
-  interactionsTab: InteractionTab;
-  stats: EventStats | undefined;
-  repostTotal: number;
-  handleShare: () => void;
-  formatFullDate: (ts: number) => string;
-}
-
-/** Compact activity-style card for kind 9735 (zap receipt) detail view. */
-function ZapDetailCard({
-  event,
-  senderPubkey,
-  amountSats,
-  zapMessage,
-  focusedPostRef,
-  moreMenuOpen,
-  setMoreMenuOpen,
-  replyOpen,
-  setReplyOpen,
-  interactionsOpen,
-  setInteractionsOpen,
-  interactionsTab,
-  stats,
-  repostTotal,
-  handleShare,
-  formatFullDate,
-}: ZapDetailCardProps) {
-  const senderAuthor = useAuthor(senderPubkey || undefined);
-  const senderMetadata = senderAuthor.data?.metadata;
-  const senderAvatarShape = getAvatarShape(senderMetadata);
-  const senderDisplayName = getDisplayName(senderMetadata, senderPubkey);
-  const senderProfileUrl = useProfileUrl(senderPubkey, senderMetadata);
-
-  return (
-    <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
-      <div className="flex items-center gap-3">
-        {/* Zap icon bubble */}
-        <div className="flex items-center justify-center size-10 rounded-full bg-amber-500/10 shrink-0">
-          <Zap className="size-5 text-amber-500 fill-amber-500" />
-        </div>
-
-        {/* Sender + "zapped" label + amount + timestamp */}
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          {senderAuthor.isLoading ? (
-            <>
-              <Skeleton className="size-6 rounded-full shrink-0" />
-              <Skeleton className="h-4 w-28" />
-            </>
-          ) : (
-            <>
-              {senderPubkey && (
-                <>
-                  <ProfileHoverCard pubkey={senderPubkey} asChild>
-                    <Link to={senderProfileUrl} className="shrink-0">
-                      <Avatar shape={senderAvatarShape} className="size-6">
-                        <AvatarImage src={senderMetadata?.picture} alt={senderDisplayName} />
-                        <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-                          {senderDisplayName[0]?.toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Link>
-                  </ProfileHoverCard>
-                  <ProfileHoverCard pubkey={senderPubkey} asChild>
-                    <Link
-                      to={senderProfileUrl}
-                      className="font-bold text-sm hover:underline truncate"
-                    >
-                      {senderDisplayName}
-                    </Link>
-                  </ProfileHoverCard>
-                </>
-              )}
-              <span className="text-sm text-muted-foreground shrink-0">zapped</span>
-              {amountSats > 0 && (
-                <span className="text-sm font-semibold text-amber-500 shrink-0">
-                  {formatNumber(amountSats)} {amountSats === 1 ? 'sat' : 'sats'}
-                </span>
-              )}
-              <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                {formatFullDate(event.created_at)}
-              </span>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Zap message (from description tag content) */}
-      {zapMessage && (
-        <p className="mt-2 text-sm text-muted-foreground italic">"{zapMessage}"</p>
-      )}
-
-      {/* Action buttons */}
-      <div className="flex items-center justify-between py-1 mt-2 border-t border-b border-border -mx-4 px-4">
-        <button
-          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-          title="Reply"
-          onClick={() => setReplyOpen(true)}
-        >
-          <MessageCircle className="size-5" />
-          {stats?.replies ? (
-            <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
-          ) : null}
-        </button>
-
-        <RepostMenu event={event}>
-          {(isReposted: boolean) => (
-            <button
-              className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
-              title={isReposted ? "Undo repost" : "Repost"}
-            >
-              <RepostIcon className="size-5" />
-              {repostTotal ? (
-                <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
-              ) : null}
-            </button>
-          )}
-        </RepostMenu>
-
-        <ReactionButton
-          eventId={event.id}
-          eventPubkey={event.pubkey}
-          eventKind={event.kind}
-          reactionCount={stats?.reactions}
-        />
-
-        <button
-          className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
-          title="Share"
-          onClick={handleShare}
-        >
-          <Share2 className="size-5" />
-        </button>
-
-        <button
-          className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-          title="More"
-          onClick={() => setMoreMenuOpen(true)}
-        >
-          <MoreHorizontal className="size-5" />
-        </button>
-      </div>
-
-      <NoteMoreMenu
-        event={event}
-        open={moreMenuOpen}
-        onOpenChange={setMoreMenuOpen}
-      />
-      <ReplyComposeModal
-        event={event}
-        open={replyOpen}
-        onOpenChange={setReplyOpen}
-      />
-      <InteractionsModal
-        eventId={event.id}
-        open={interactionsOpen}
-        onOpenChange={setInteractionsOpen}
-        initialTab={interactionsTab}
-      />
-    </article>
-  );
-}
 
 function PostDetailContent({ event }: { event: NostrEvent }) {
   const { user } = useCurrentUser();
@@ -1109,6 +937,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   }, [event.pubkey, queryClient]);
   const nip05 = metadata?.nip05;
   const profileUrl = useProfileUrl(event.pubkey, metadata);
+
+  // For kind 9735 zap receipts, look up the sender's profile (from P/description tag)
+  const zapSenderPubkeyRaw = useMemo(() => event.kind === 9735 ? extractZapSender(event) : '', [event]);
+  const zapSenderAuthor = useAuthor(zapSenderPubkeyRaw || undefined);
+  const zapSenderMeta = zapSenderAuthor.data?.metadata;
+  const zapSenderShape = getAvatarShape(zapSenderMeta);
+  const zapSenderDisplayName = getDisplayName(zapSenderMeta, zapSenderPubkeyRaw);
+  const zapSenderProfileUrl = useProfileUrl(zapSenderPubkeyRaw, zapSenderMeta);
 
   // NIP-19 encoded event identifier for share URLs
   const encodedEventId = useMemo(() => {
@@ -1436,11 +1272,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     () => (isTextNote || isReaction || isRepost || isZap ? getParentEventId(event) : undefined),
     [event, isTextNote, isReaction, isRepost, isZap],
   );
-
-  // For kind 9735 zap receipts, extract sender pubkey, amount, and message
-  const zapSenderPubkey = useMemo(() => isZap ? extractZapSender(event) : '', [event, isZap]);
-  const zapAmountSats = useMemo(() => isZap ? Math.floor(extractZapAmount(event) / 1000) : 0, [event, isZap]);
-  const zapMessage = useMemo(() => isZap ? extractZapMessage(event) : '', [event, isZap]);
 
   // For kind 1111 comments on external content, extract the I tag for the parent preview
   const externalIdentifier = useMemo(() => {
@@ -1833,27 +1664,106 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         </article>
       )}
 
-      {/* Kind 9735 — Zap receipt: activity-style card showing sender, amount, and optional message */}
-      {isZap && (
-        <ZapDetailCard
-          event={event}
-          senderPubkey={zapSenderPubkey}
-          amountSats={zapAmountSats}
-          zapMessage={zapMessage}
-          focusedPostRef={focusedPostRef}
-          moreMenuOpen={moreMenuOpen}
-          setMoreMenuOpen={setMoreMenuOpen}
-          replyOpen={replyOpen}
-          setReplyOpen={setReplyOpen}
-          interactionsOpen={interactionsOpen}
-          setInteractionsOpen={setInteractionsOpen}
-          interactionsTab={interactionsTab}
-          stats={stats}
-          repostTotal={repostTotal}
-          handleShare={handleShare}
-          formatFullDate={formatFullDate}
-        />
-      )}
+      {/* Kind 9735 — Zap receipt: mirrors reaction card layout exactly */}
+      {isZap && (() => {
+        const zapAmountSats = Math.floor(extractZapAmount(event) / 1000);
+        const zapMsg = extractZapMessage(event);
+        return (
+          <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+            <div className="flex items-center gap-3">
+              {/* Zap icon bubble — same size/position as reaction emoji bubble */}
+              <div className="flex items-center justify-center size-10 rounded-full bg-amber-500/10 shrink-0">
+                <Zap className="size-5 text-amber-500 fill-amber-500" />
+              </div>
+
+              {/* Sender + "zapped" + amount + timestamp — identical structure to reaction row */}
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                {zapSenderAuthor.isLoading ? (
+                  <>
+                    <Skeleton className="size-6 rounded-full shrink-0" />
+                    <Skeleton className="h-4 w-28" />
+                  </>
+                ) : (
+                  <>
+                    {zapSenderPubkeyRaw && (
+                      <ProfileHoverCard pubkey={zapSenderPubkeyRaw} asChild>
+                        <Link to={zapSenderProfileUrl} className="shrink-0">
+                          <Avatar shape={zapSenderShape} className="size-6">
+                            <AvatarImage src={zapSenderMeta?.picture} alt={zapSenderDisplayName} />
+                            <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                              {zapSenderDisplayName[0]?.toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Link>
+                      </ProfileHoverCard>
+                    )}
+                    {zapSenderPubkeyRaw && (
+                      <ProfileHoverCard pubkey={zapSenderPubkeyRaw} asChild>
+                        <Link to={zapSenderProfileUrl} className="font-bold text-sm hover:underline truncate">
+                          {zapSenderAuthor.data?.event ? (
+                            <EmojifiedText tags={zapSenderAuthor.data.event.tags}>{zapSenderDisplayName}</EmojifiedText>
+                          ) : zapSenderDisplayName}
+                        </Link>
+                      </ProfileHoverCard>
+                    )}
+                    <span className="text-sm text-muted-foreground">zapped</span>
+                    {zapAmountSats > 0 && (
+                      <span className="text-sm font-semibold text-amber-500 shrink-0">
+                        {formatNumber(zapAmountSats)} {zapAmountSats === 1 ? 'sat' : 'sats'}
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                      {formatFullDate(event.created_at)}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {zapMsg && (
+              <p className="text-sm text-muted-foreground italic pl-[52px]">"{zapMsg}"</p>
+            )}
+
+            {/* Action buttons — identical to reaction card */}
+            <div className="flex items-center justify-between py-1 mt-2 border-t border-b border-border -mx-4 px-4">
+              <button
+                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                title="Reply"
+                onClick={() => setReplyOpen(true)}
+              >
+                <MessageCircle className="size-5" />
+                {stats?.replies ? <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span> : null}
+              </button>
+
+              <RepostMenu event={event}>
+                {(isReposted: boolean) => (
+                  <button
+                    className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
+                    title={isReposted ? "Undo repost" : "Repost"}
+                  >
+                    <RepostIcon className="size-5" />
+                    {repostTotal ? <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span> : null}
+                  </button>
+                )}
+              </RepostMenu>
+
+              <ReactionButton eventId={event.id} eventPubkey={event.pubkey} eventKind={event.kind} reactionCount={stats?.reactions} />
+
+              <button className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden" title="Share" onClick={handleShare}>
+                <Share2 className="size-5" />
+              </button>
+
+              <button className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title="More" onClick={() => setMoreMenuOpen(true)}>
+                <MoreHorizontal className="size-5" />
+              </button>
+            </div>
+
+            <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+            <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+            <InteractionsModal eventId={event.id} open={interactionsOpen} onOpenChange={setInteractionsOpen} initialTab={interactionsTab} />
+          </article>
+        );
+      })()}
 
       {/* Kind 0 — Profile: show the ProfileCard directly, no action header */}
       {isProfile && (() => {
