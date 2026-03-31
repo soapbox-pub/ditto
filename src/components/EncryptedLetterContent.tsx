@@ -408,23 +408,6 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                   </div>
                 </div>
 
-                {/* Sealed state — mail icon only, no text (invite curiosity) */}
-                <div
-                  className="absolute inset-0 flex items-center justify-center transition-opacity duration-300"
-                  style={{
-                    opacity: isOpen ? 0 : 1,
-                    pointerEvents: isOpen ? 'none' : 'auto',
-                    zIndex: 1,
-                  }}
-                >
-                  <div
-                    className="rounded-full p-3"
-                    style={{ background: 'rgba(92, 74, 58, 0.08)' }}
-                  >
-                    <Mail className="size-6 text-[#5C4A3A]/50" />
-                  </div>
-                </div>
-
                 {/* Inner shadow */}
                 <div
                   className="absolute inset-0 rounded-2xl pointer-events-none"
