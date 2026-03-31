@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useShakespeare, type ChatMessage, type Model } from '@/hooks/useShakespeare';
+import { useShakespeare, type ChatMessage } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useAIChatTools } from '@/hooks/useAIChatTools';
 import { TOOLS, type DisplayMessage, type ToolCall } from '@/lib/aiChatTools';
 import { SYSTEM_PROMPT } from '@/lib/aiChatSystemPrompt';
@@ -40,15 +41,17 @@ function saveMessages(messages: DisplayMessage[]): void {
 
 export function useAIChatSession() {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { sendChatMessage, getAvailableModels, getCredits, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
   const { executeToolCall } = useAIChatTools();
 
   const [messages, setMessages] = useState<DisplayMessage[]>(loadMessages);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [models, setModels] = useState<Model[]>([]);
-  const [selectedModel, setSelectedModel] = useState('');
-  const [modelsLoading, setModelsLoading] = useState(false);
+
+  // Resolve the effective model: config value, or fetch the cheapest as default
+  const [defaultModel, setDefaultModel] = useState('');
+  const selectedModel = config.aiModel || defaultModel;
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -63,13 +66,11 @@ export function useAIChatSession() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Fetch available models on mount
+  // Fetch cheapest model as fallback when no model is configured
   useEffect(() => {
-    if (!user) return;
+    if (!user || config.aiModel) return;
 
     let cancelled = false;
-    setModelsLoading(true);
-
     getAvailableModels()
       .then((response) => {
         if (cancelled) return;
@@ -78,20 +79,14 @@ export function useAIChatSession() {
           const costB = parseFloat(b.pricing.prompt) + parseFloat(b.pricing.completion);
           return costA - costB;
         });
-        setModels(sorted);
-        if (sorted.length > 0 && !selectedModel) {
-          setSelectedModel(sorted[0].id);
+        if (sorted.length > 0) {
+          setDefaultModel(sorted[0].id);
         }
       })
-      .catch((err) => {
-        if (!cancelled) console.error('Failed to fetch models:', err);
-      })
-      .finally(() => {
-        if (!cancelled) setModelsLoading(false);
-      });
+      .catch(() => {});
 
     return () => { cancelled = true; };
-  }, [user, getAvailableModels]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, config.aiModel, getAvailableModels]);
 
   // Build the chat messages array for the API
   const buildApiMessages = useCallback((displayMsgs: DisplayMessage[]): ChatMessage[] => {
@@ -271,10 +266,7 @@ export function useAIChatSession() {
     input,
     setInput,
     isStreaming,
-    models,
     selectedModel,
-    setSelectedModel,
-    modelsLoading,
     apiLoading,
     apiError,
     messagesEndRef,

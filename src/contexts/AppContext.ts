@@ -247,6 +247,8 @@ export interface AppConfig {
   sandboxDomain: string;
   /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
   sidebarWidgets: WidgetConfig[];
+  /** Selected AI model ID for Dork chat. Empty string means "use cheapest available". */
+  aiModel: string;
 }
 
 /** Configuration for a single widget in the right sidebar. */

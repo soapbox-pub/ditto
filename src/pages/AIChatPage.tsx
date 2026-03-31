@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 
@@ -27,8 +26,7 @@ export function AIChatPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const {
-    messages, input, setInput, isStreaming,
-    models, selectedModel, setSelectedModel, modelsLoading,
+    messages, input, setInput, isStreaming, selectedModel,
     apiLoading, apiError, messagesEndRef,
     handleSend, handleStop, handleKeyDown, handleClear, getCredits,
   } = useAIChatSession();
@@ -63,29 +61,6 @@ export function AIChatPage() {
       <PageHeader title="Dork" icon={<Bot className="size-5" />} className="shrink-0 py-3">
         <div className="flex items-center gap-2">
           <CreditsBadge getCredits={getCredits} />
-          <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
-            <SelectTrigger className="h-8 min-w-0 text-base md:text-xs">
-              <SelectValue placeholder={modelsLoading ? 'Loading...' : 'Select model'} />
-            </SelectTrigger>
-            <SelectContent>
-              {models.map((model) => {
-                const totalCost = parseFloat(model.pricing.prompt) + parseFloat(model.pricing.completion);
-                const isFree = totalCost === 0;
-                return (
-                  <SelectItem key={model.id} value={model.id}>
-                    <span className="flex items-center gap-1.5">
-                      {model.name}
-                      {isFree && (
-                        <span className="text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-500/10 px-1 rounded">
-                          FREE
-                        </span>
-                      )}
-                    </span>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
           <Button
             variant="ghost"
             size="icon"

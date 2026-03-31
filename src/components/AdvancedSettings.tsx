@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronDown, ChevronUp, Bot, Bug, RotateCcw, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { RequestToVanishDialog } from '@/components/RequestToVanishDialog';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useShakespeare, type Model } from '@/hooks/useShakespeare';
 import { useToast } from '@/hooks/useToast';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -19,6 +21,10 @@ export function AdvancedSettings() {
   const { toast } = useToast();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
+  const { getAvailableModels } = useShakespeare();
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiModels, setAiModels] = useState<Model[]>([]);
+  const [aiModelsLoading, setAiModelsLoading] = useState(false);
   const [systemOpen, setSystemOpen] = useState(true);
   const [sentryOpen, setSentryOpen] = useState(false);
   const [dangerOpen, setDangerOpen] = useState(false);
@@ -28,6 +34,26 @@ export function AdvancedSettings() {
   const [linkPreviewUrl, setLinkPreviewUrl] = useState(config.linkPreviewUrl);
   const [corsProxy, setCorsProxy] = useState(config.corsProxy);
   const [sentryDsn, setSentryDsn] = useState(config.sentryDsn);
+
+  // Fetch AI models when the section opens
+  useEffect(() => {
+    if (!aiOpen || !user || aiModels.length > 0) return;
+    let cancelled = false;
+    setAiModelsLoading(true);
+    getAvailableModels()
+      .then((response) => {
+        if (cancelled) return;
+        const sorted = response.data.sort((a, b) => {
+          const costA = parseFloat(a.pricing.prompt) + parseFloat(a.pricing.completion);
+          const costB = parseFloat(b.pricing.prompt) + parseFloat(b.pricing.completion);
+          return costA - costB;
+        });
+        setAiModels(sorted);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setAiModelsLoading(false); });
+    return () => { cancelled = true; };
+  }, [aiOpen, user, aiModels.length, getAvailableModels]);
 
   const handleStatsPubkeyChange = (value: string) => {
     setStatsPubkey(value);
@@ -42,6 +68,70 @@ export function AdvancedSettings() {
 
   return (
     <div>
+      {/* Dork AI Section */}
+      {user && (
+        <div>
+          <Collapsible open={aiOpen} onOpenChange={setAiOpen}>
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+              >
+                <span className="flex items-center gap-2 text-base font-semibold">
+                  <Bot className="h-4 w-4" />
+                  Dork
+                </span>
+                {aiOpen ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-4 py-4 space-y-4 border-b border-border">
+                <div className="space-y-2">
+                  <Label htmlFor="ai-model">Model</Label>
+                  <Select
+                    value={config.aiModel || (aiModels.length > 0 ? aiModels[0].id : '')}
+                    onValueChange={(value) => {
+                      updateConfig(() => ({ aiModel: value }));
+                      toast({ title: 'AI model updated' });
+                    }}
+                    disabled={aiModelsLoading || aiModels.length === 0}
+                  >
+                    <SelectTrigger id="ai-model">
+                      <SelectValue placeholder={aiModelsLoading ? 'Loading models...' : 'Select model'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {aiModels.map((model) => {
+                        const totalCost = parseFloat(model.pricing.prompt) + parseFloat(model.pricing.completion);
+                        const isFree = totalCost === 0;
+                        return (
+                          <SelectItem key={model.id} value={model.id}>
+                            <span className="flex items-center gap-1.5">
+                              {model.name}
+                              {isFree && (
+                                <span className="text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-500/10 px-1 rounded">
+                                  FREE
+                                </span>
+                              )}
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Choose which AI model Dork uses for chat responses.
+                  </p>
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+      )}
+
       {/* System Section (includes Stats Source) */}
       <div>
         <Collapsible open={systemOpen} onOpenChange={setSystemOpen}>

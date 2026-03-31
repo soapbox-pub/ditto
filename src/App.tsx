@@ -156,6 +156,7 @@ const hardcodedConfig: AppConfig = {
     { id: 'hot-posts' },
     { id: 'wikipedia' },
   ],
+  aiModel: '',
 };
 
 /**
