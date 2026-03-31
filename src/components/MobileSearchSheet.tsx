@@ -26,10 +26,11 @@ import { cn } from '@/lib/utils';
 interface MobileSearchSheetProps {
   hidden: boolean;
   onClose: () => void;
-  onDorkToggle: () => void;
+  dorkMode: boolean;
+  onToggleDork: () => void;
 }
 
-export function MobileSearchSheet({ hidden, onClose, onDorkToggle }: MobileSearchSheetProps) {
+export function MobileSearchSheet({ hidden, onClose, dorkMode, onToggleDork }: MobileSearchSheetProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
@@ -347,8 +348,11 @@ export function MobileSearchSheet({ hidden, onClose, onDorkToggle }: MobileSearc
               </button>
             )}
             <button
-              onClick={onDorkToggle}
-              className="shrink-0 font-mono text-xs text-muted-foreground hover:text-muted-foreground/80 transition-colors"
+              onClick={onToggleDork}
+              className={cn(
+                'shrink-0 font-mono text-xs transition-colors',
+                dorkMode ? 'text-primary' : 'text-muted-foreground hover:text-muted-foreground/80',
+              )}
               onMouseDown={(e) => e.preventDefault()}
             >
               {'<[o_o]>'}

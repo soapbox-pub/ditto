@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Search, Send, Square } from 'lucide-react';
+import { useRef, useEffect, useCallback } from 'react';
+import { Search } from 'lucide-react';
 
 import { MessageBubble, DorkThinking } from '@/components/AIChat/AIChatComponents';
 import { useAIChatSession } from '@/hooks/useAIChatSession';
@@ -8,10 +8,10 @@ import { cn } from '@/lib/utils';
 interface MobileDorkSheetProps {
   hidden: boolean;
   onClose: () => void;
-  onSearchToggle: () => void;
+  onToggleDork: () => void;
 }
 
-export function MobileDorkSheet({ hidden, onClose, onSearchToggle }: MobileDorkSheetProps) {
+export function MobileDorkSheet({ hidden, onClose, onToggleDork }: MobileDorkSheetProps) {
   const {
     messages, input, setInput, isStreaming, selectedModel,
     apiLoading, messagesEndRef,
@@ -19,7 +19,6 @@ export function MobileDorkSheet({ hidden, onClose, onSearchToggle }: MobileDorkS
   } = useAIChatSession();
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Focus input when shown
   useEffect(() => {
@@ -37,77 +36,71 @@ export function MobileDorkSheet({ hidden, onClose, onSearchToggle }: MobileDorkS
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      onClose();
+      if (isStreaming) {
+        handleStop();
+      } else {
+        onClose();
+      }
       return;
     }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
-  }, [onClose, handleSend]);
+  }, [onClose, handleSend, handleStop, isStreaming]);
 
   const visibleMessages = messages.filter((msg) => msg.role !== 'tool_result');
   const showThinking = (isStreaming || apiLoading) && messages[messages.length - 1]?.role === 'user';
 
   return (
-    <div className={cn('fixed left-0 right-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 bottom-mobile-nav', hidden && 'hidden')}>
+    <div className={cn('fixed inset-0 bottom-auto z-[49] sidebar:hidden flex flex-col', hidden && 'hidden')}>
 
-      {/* Messages area */}
-      {(visibleMessages.length > 0 || showThinking) && (
-        <div ref={scrollRef} className="flex flex-col bg-popover/95 rounded-2xl mx-6 mb-0.5 overflow-y-auto max-h-[55vh] shadow-lg p-4 space-y-4">
-          {visibleMessages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
-          ))}
-          {showThinking && <DorkThinking />}
-          <div ref={messagesEndRef} />
-        </div>
-      )}
+      {/* Messages area — fills from top, scrollable */}
+      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-2 space-y-4">
+        {visibleMessages.map((msg) => (
+          <MessageBubble key={msg.id} message={msg} />
+        ))}
+        {showThinking && <DorkThinking />}
+        <div ref={messagesEndRef} />
+      </div>
 
-      {/* Input bar */}
-      <div className="flex items-center px-6 py-3">
+      {/* Input bar — pinned to bottom-mobile-nav position */}
+      <div className="flex items-center px-6 py-3 bottom-mobile-nav fixed left-0 right-0 z-[49]">
         <div className="flex items-center gap-2 flex-1 bg-secondary rounded-full px-4 py-2.5">
-          <button
-            onClick={onSearchToggle}
-            className="shrink-0 text-muted-foreground hover:text-muted-foreground/80 transition-colors"
-            onMouseDown={(e) => e.preventDefault()}
-          >
-            <Search strokeWidth={4} className="size-4" />
-          </button>
+          {isStreaming ? (
+            <svg
+              className="size-4 shrink-0 text-muted-foreground"
+              style={{ animation: 'spin 1s linear infinite' }}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+          ) : (
+            <Search strokeWidth={4} className="size-4 shrink-0 text-muted-foreground" />
+          )}
           <input
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask Dork..."
-            disabled={!selectedModel || isStreaming}
+            disabled={!selectedModel}
             className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground disabled:opacity-50"
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck={false}
           />
-          <span className="shrink-0 font-mono text-xs text-primary">
+          <button
+            onClick={onToggleDork}
+            className="shrink-0 font-mono text-xs text-primary transition-colors"
+            onMouseDown={(e) => e.preventDefault()}
+          >
             {'<[o_o]>'}
-          </span>
-        </div>
-        {/* Send / Stop button */}
-        <div className="ml-2 shrink-0">
-          {isStreaming ? (
-            <button
-              onClick={handleStop}
-              className="size-10 rounded-full bg-foreground/10 hover:bg-foreground/20 flex items-center justify-center transition-colors [&_svg]:fill-foreground"
-            >
-              <Square className="size-3.5" />
-            </button>
-          ) : (
-            <button
-              onClick={() => handleSend()}
-              disabled={!input.trim() || !selectedModel}
-              className="size-10 rounded-full bg-primary hover:bg-primary/90 flex items-center justify-center transition-colors disabled:opacity-40 disabled:pointer-events-none"
-            >
-              <Send className="size-4 text-primary-foreground" />
-            </button>
-          )}
+          </button>
         </div>
       </div>
     </div>

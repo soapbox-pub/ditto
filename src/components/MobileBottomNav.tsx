@@ -64,8 +64,8 @@ export function MobileBottomNav() {
       )}
 
       {/* Both sheets stay mounted when open to preserve state; hidden prop toggles visibility */}
-      {searchOpen && <MobileSearchSheet hidden={dorkMode} onClose={handleClose} onDorkToggle={() => setDorkMode(true)} />}
-      {searchOpen && <MobileDorkSheet hidden={!dorkMode} onClose={handleClose} onSearchToggle={() => setDorkMode(false)} />}
+      {searchOpen && <MobileSearchSheet hidden={dorkMode} onClose={handleClose} dorkMode={dorkMode} onToggleDork={() => setDorkMode((v) => !v)} />}
+      {searchOpen && <MobileDorkSheet hidden={!dorkMode} onClose={handleClose} onToggleDork={() => setDorkMode(false)} />}
 
       <nav
         className={cn(
