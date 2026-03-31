@@ -79,6 +79,7 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { WebxdcEmbed } from "@/components/WebxdcEmbed";
 import { ZapDialog } from "@/components/ZapDialog";
+import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
@@ -129,6 +130,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
   if (kind === BADGE_PROFILE_KIND_NEW || kind === BADGE_PROFILE_KIND_LEGACY) return "Badge Collection";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
+  if (kind === 31990) return "App Details";
   if (kind === 32267) return "App Details";
   if (kind === 15128 || kind === 35128) return "Nsite";
   if (kind === VANISH_KIND) return "Request to Vanish";
@@ -985,6 +987,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isCustomNip = event.kind === 30817;
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
+  const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isVanish = event.kind === VANISH_KIND;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
@@ -1008,6 +1011,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isCommunity &&
     !isDevKind &&
     !isZapstoreApp &&
+    !isAppHandler &&
     !isEncryptedDM &&
     !isVanish;
 
@@ -1842,6 +1846,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </div>
             ) : isZapstoreApp ? (
               <ZapstoreAppContent event={event} />
+            ) : isAppHandler ? (
+              <AppHandlerContent event={event} />
             ) : isEncryptedDM ? (
               <EncryptedMessageContent event={event} />
             ) : isVine ||

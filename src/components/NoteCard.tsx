@@ -1,5 +1,6 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import {
+  AppWindow,
   Award,
   Camera,
   FileCode,
@@ -69,6 +70,7 @@ import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { VanishCardCompact } from "@/components/VanishEventContent";
+import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
@@ -280,6 +282,7 @@ export const NoteCard = memo(function NoteCard({
   const isCustomNip = event.kind === 30817;
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
+  const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isVanish = event.kind === 62;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
@@ -306,6 +309,7 @@ export const NoteCard = memo(function NoteCard({
     !isAudioKind &&
     !isDevKind &&
     !isZapstoreApp &&
+    !isAppHandler &&
     !isEncryptedDM &&
     !isVanish;
 
@@ -498,6 +502,8 @@ export const NoteCard = memo(function NoteCard({
           <NsiteCard event={event} />
         ) : isZapstoreApp ? (
           <ZapstoreAppContent event={event} compact />
+        ) : isAppHandler ? (
+          <AppHandlerContent event={event} compact />
         ) : isEncryptedDM ? (
           <EncryptedMessageContent event={event} compact />
         ) : (
@@ -1857,6 +1863,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
       event && getEffectiveStreamStatus(event) === "live"
         ? "is streaming"
         : "streamed",
+  },
+  31990: {
+    icon: AppWindow,
+    action: "listed an",
+    noun: "app",
+    nounRoute: "/apps",
   },
   32267: {
     icon: Package,

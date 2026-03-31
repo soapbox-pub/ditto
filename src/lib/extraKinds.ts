@@ -461,6 +461,19 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
       },
     ],
   },
+  {
+    kind: 31990,
+    id: 'apps',
+    showKey: 'showApps',
+    feedKey: 'feedIncludeApps',
+    label: 'Apps',
+    description: 'Nostr application listings (NIP-89)',
+    route: 'apps',
+    addressable: true,
+    section: 'social',
+    blurb: 'Discover Nostr applications. App developers publish handler information so you can find apps that support specific kinds of content.',
+    sites: [{ url: 'https://nostrhub.io', name: 'NostrHub' }],
+  },
   // Development
   {
     kind: 30617,
@@ -535,6 +548,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   35128: 'nsite',
   30008: 'profile badges',
   30817: 'repository issue',
+  31990: 'app handler',
   32267: 'app',
   30063: 'release',
 };

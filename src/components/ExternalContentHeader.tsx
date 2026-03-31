@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Droplets, ExternalLink, FileText, Globe, MapPin, MessageCircle, Package, Play, Repeat2, Share2, User, Users, Wind } from 'lucide-react';
+import { AppWindow, BookOpen, Droplets, ExternalLink, FileText, Globe, MapPin, MessageCircle, Package, Play, Repeat2, Share2, User, Users, Wind } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -1082,6 +1082,7 @@ function hasVideo(tags: string[][]): boolean {
 
 /** Fallback labels for well-known kinds not in EXTRA_KINDS. */
 const WELL_KNOWN_KIND_LABELS: Record<number, string> = {
+  31990: 'App',
   32267: 'App',
   30063: 'Release',
   15128: 'Nsite',
@@ -1108,6 +1109,7 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
   const KindIcon = useMemo(() => {
     if (kindDef?.id) return CONTENT_KIND_ICONS[kindDef.id] ?? FileText;
     // Fallback icons for well-known kinds not in EXTRA_KINDS
+    if (addr.kind === 31990) return AppWindow;
     if (addr.kind === 32267 || addr.kind === 30063) return Package;
     if (addr.kind === 15128 || addr.kind === 35128) return Globe;
     return FileText;

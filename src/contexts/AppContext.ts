@@ -148,6 +148,10 @@ export interface FeedSettings {
   feedIncludeProfileBadges: boolean;
   /** Include Request to Vanish events (kind 62) in the follows/global feed */
   feedIncludeVanish: boolean;
+  /** Show Apps (NIP-89 kind 31990) link in sidebar */
+  showApps: boolean;
+  /** Include NIP-89 app handler events (kind 31990) in the follows/global feed */
+  feedIncludeApps: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }

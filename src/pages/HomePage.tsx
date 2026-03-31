@@ -26,6 +26,7 @@ const PAGE_LOADERS: Record<string, React.LazyExoticComponent<React.ComponentType
   'world': lazy(() => import('./WorldPage').then(m => ({ default: m.WorldPage }))),
   'books': lazy(() => import('./BooksPage').then(m => ({ default: m.BooksPage }))),
   'badges': lazy(() => import('./BadgesPage').then(m => ({ default: m.BadgesPage }))),
+  'apps': lazy(() => import('./AppsPage').then(m => ({ default: m.AppsPage }))),
 };
 
 /** Sidebar items that use KindFeedPage and need extra kind definitions. */

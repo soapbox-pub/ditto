@@ -1,4 +1,5 @@
 import {
+  AppWindow,
   Archive,
   Award,
   BarChart3,
@@ -167,6 +168,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "decks", label: "Magic Decks", path: "/decks", icon: CardsIcon },
   { id: "treasures", label: "Treasures", path: "/treasures", icon: ChestIcon },
   { id: "emojis", label: "Emojis", path: "/emojis", icon: SmilePlus },
+  { id: "apps", label: "Apps", path: "/apps", icon: AppWindow },
   { id: "development", label: "Development", path: "/development", icon: Code },
   { id: "badges", label: "Badges", path: "/badges", icon: Award },
   { id: "world", label: "World", path: "/world", icon: Earth },

@@ -3,7 +3,7 @@ import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
-  Award, BarChart3, BookOpen, Camera, Clapperboard, FileText, Film,
+  AppWindow, Award, BarChart3, BookOpen, Camera, Clapperboard, FileText, Film,
   GitBranch, GitPullRequest, Mail, MapPin, MessageSquare, Mic, Music,
   Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles,
 } from 'lucide-react';
@@ -112,6 +112,7 @@ const KIND_LABELS: Record<number, string> = {
   30817: 'a custom NIP',
   31922: 'a calendar event',
   31923: 'a calendar event',
+  31990: 'an app',
   32267: 'an app',
   34139: 'a playlist',
   34236: 'a divine',
@@ -150,6 +151,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   30063: Package,
   30311: Radio,
   30617: GitBranch,
+  31990: AppWindow,
   32267: Package,
   34236: Clapperboard,
   36767: Sparkles,

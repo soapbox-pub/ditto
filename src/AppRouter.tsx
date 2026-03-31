@@ -28,6 +28,7 @@ const HomePage = lazy(() => import("./pages/HomePage").then(m => ({ default: m.H
 // All other pages: code-split via React.lazy
 const AdvancedSettingsPage = lazy(() => import("./pages/AdvancedSettingsPage").then(m => ({ default: m.AdvancedSettingsPage })));
 const AIChatPage = lazy(() => import("./pages/AIChatPage").then(m => ({ default: m.AIChatPage })));
+const AppsPage = lazy(() => import("./pages/AppsPage").then(m => ({ default: m.AppsPage })));
 const ArchivePage = lazy(() => import("./pages/ArchivePage").then(m => ({ default: m.ArchivePage })));
 const BadgesPage = lazy(() => import("./pages/BadgesPage").then(m => ({ default: m.BadgesPage })));
 const BlobbiPage = lazy(() => import("./pages/BlobbiPage").then(m => ({ default: m.BlobbiPage })));
@@ -226,6 +227,7 @@ export function AppRouter() {
                 />
               }
             />
+            <Route path="/apps" element={<AppsPage />} />
             <Route path="/themes" element={<ThemesPage />} />
             <Route path="/bookmarks" element={<BookmarksPage />} />
             <Route path="/ai-chat" element={<AIChatPage />} />
