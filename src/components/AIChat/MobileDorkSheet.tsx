@@ -66,7 +66,7 @@ export function MobileDorkSheet({ hidden, onClose, onToggleDork }: MobileDorkShe
     <div className={cn('fixed inset-0 z-[49] sidebar:hidden flex flex-col overflow-hidden', hidden && 'hidden')}>
 
       {/* Messages area — fills from top, scrollable, padded at bottom to clear the fixed input bar */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-6 pt-4 space-y-4 bg-background" style={{ paddingBottom: 'calc(var(--bottom-nav-height) + 28px + env(safe-area-inset-bottom, 0px) + 70px)' }}>
+      <div className="flex-1 overflow-y-auto overscroll-contain px-6 pt-4 space-y-4" style={{ paddingBottom: 'calc(var(--bottom-nav-height) + 28px + env(safe-area-inset-bottom, 0px) + 70px)' }}>
         {visibleMessages.map((msg) => (
           <MessageBubble key={msg.id} message={msg} />
         ))}

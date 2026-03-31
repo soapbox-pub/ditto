@@ -47,7 +47,7 @@ export function MessageBubble({ message }: { message: DisplayMessage }) {
               'rounded-2xl px-4 py-2.5 text-sm',
               isUser
                 ? 'bg-primary text-primary-foreground rounded-tr-md'
-                : 'bg-secondary/60 border border-border rounded-tl-md',
+                : 'bg-secondary border border-border rounded-tl-md',
             )}
           >
             {isUser ? (
