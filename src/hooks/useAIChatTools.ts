@@ -237,25 +237,34 @@ export function useAIChatTools() {
             return { result: JSON.stringify({ error: 'A search query is required.' }) };
           }
 
-          // Search for follow packs by title using NIP-50 full-text search
+          // Fetch packs from multiple sources in parallel for best coverage.
+          // NIP-50 search may not index tags, so we cast a wide net and
+          // title-match client-side.
+          const filters: { kinds: number[]; limit: number; search?: string; authors?: string[] }[] = [
+            // Broad fetch of recent packs
+            { kinds: [39089], limit: 200 },
+          ];
+
+          // NIP-50 search (may help on relays that index it)
+          filters.push({ kinds: [39089], search: args.query as string, limit: 50 });
+
+          // Also fetch user's own packs
+          if (user) {
+            filters.push({ kinds: [39089], authors: [user.pubkey], limit: 50 });
+          }
+
           const events = await nostr.query(
-            [{ kinds: [39089], search: args.query as string, limit: 20 }],
-            { signal: AbortSignal.timeout(8000) },
+            filters,
+            { signal: AbortSignal.timeout(10000) },
           );
 
-          // Also try a broader query without search (for relays that don't support NIP-50)
-          let allEvents = [...events];
-          if (events.length < 3) {
-            const broadEvents = await nostr.query(
-              [{ kinds: [39089], limit: 50 }],
-              { signal: AbortSignal.timeout(8000) },
-            );
-            // Deduplicate by event id
-            const seen = new Set(allEvents.map((e) => e.id));
-            for (const e of broadEvents) {
-              if (!seen.has(e.id)) allEvents.push(e);
-            }
-          }
+          // Deduplicate by event id
+          const seen = new Set<string>();
+          const uniqueEvents = events.filter((e) => {
+            if (seen.has(e.id)) return false;
+            seen.add(e.id);
+            return true;
+          });
 
           // Match on title/name tags
           interface PackMatch {
@@ -268,7 +277,7 @@ export function useAIChatTools() {
 
           const matches: PackMatch[] = [];
 
-          for (const event of allEvents) {
+          for (const event of uniqueEvents) {
             const title = (event.tags.find(([t]) => t === 'title')?.[1]
               ?? event.tags.find(([t]) => t === 'name')?.[1]
               ?? '').trim();
