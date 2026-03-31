@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Bot, Bug, RotateCcw, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
@@ -77,15 +77,13 @@ export function AdvancedSettings() {
                 variant="ghost"
                 className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
               >
-                <span className="flex items-center gap-2 text-base font-semibold">
-                  <Bot className="h-4 w-4" />
-                  Dork
-                </span>
+                <span className="text-base font-semibold">Dork</span>
                 {aiOpen ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
                 ) : (
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent>
