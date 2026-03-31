@@ -33,6 +33,8 @@ interface UseBlobbiCompanionStateOptions {
   forceInitialWalk?: boolean;
   /** Current attention target (from UI attention system) */
   attentionTarget?: AttentionTarget | null;
+  /** Whether the companion is sleeping (freezes all decisions/movement) */
+  isSleeping?: boolean;
 }
 
 interface UseBlobbiCompanionStateResult {
@@ -59,6 +61,7 @@ export function useBlobbiCompanionState({
   bounds,
   forceInitialWalk = true,
   attentionTarget,
+  isSleeping = false,
 }: UseBlobbiCompanionStateOptions): UseBlobbiCompanionStateResult {
   const [state, setState] = useState<CompanionState>('idle');
   const [direction, setDirection] = useState<CompanionDirection>('right');
@@ -137,7 +140,7 @@ export function useBlobbiCompanionState({
   
   // Make a decision about what to do next
   const makeDecision = useCallback(() => {
-    if (!isActive || motionRef.current.isDragging) {
+    if (!isActive || isSleeping || motionRef.current.isDragging) {
       return;
     }
     
@@ -173,7 +176,7 @@ export function useBlobbiCompanionState({
     // Schedule next decision
     const duration = transition.duration ?? randomDuration(config.idleTime);
     timerRef.current = window.setTimeout(makeDecision, duration);
-  }, [isActive, bounds, state, config, startObservation]);
+  }, [isActive, isSleeping, bounds, state, config, startObservation]);
   
   // Handle reaching target
   const onReachedTarget = useCallback(() => {
@@ -208,9 +211,22 @@ export function useBlobbiCompanionState({
     }
   }, [makeDecision, observationTarget, config.observation.lookDuration]);
   
-  // Start decision loop when active
+  // Force idle when sleeping - stop all movement/decisions immediately
   useEffect(() => {
-    if (isActive && !motionRef.current.isDragging) {
+    if (isSleeping) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      setState('idle');
+      setTargetX(null);
+      setObservationTarget(null);
+    }
+  }, [isSleeping]);
+
+  // Start decision loop when active (and not sleeping)
+  useEffect(() => {
+    if (isActive && !isSleeping && !motionRef.current.isDragging) {
       // Clear any existing timer
       if (timerRef.current) {
         clearTimeout(timerRef.current);
@@ -239,7 +255,7 @@ export function useBlobbiCompanionState({
         clearTimeout(timerRef.current);
       }
     };
-  }, [isActive, forceInitialWalk, startInitialWalk, makeDecision]);
+  }, [isActive, isSleeping, forceInitialWalk, startInitialWalk, makeDecision]);
   
   // Pause decisions while dragging
   // We poll isDragging via interval since motionRef changes don't trigger re-renders

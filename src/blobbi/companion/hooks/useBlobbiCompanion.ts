@@ -210,6 +210,9 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     }, config.attention.postRouteDelay);
   }, [findMainContentPosition, triggerAttention, config.attention.postRouteDuration, config.attention.postRouteDelay]);
   
+  // Determine if companion is sleeping
+  const companionSleeping = companion?.state === 'sleeping';
+
   // State management
   // Pass the shared motionRef so state can read live motion values
   const {
@@ -224,6 +227,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     motionRef,
     bounds,
     attentionTarget: currentAttention,
+    isSleeping: companionSleeping,
   });
   
   // Motion management

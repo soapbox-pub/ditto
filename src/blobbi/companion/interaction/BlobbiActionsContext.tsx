@@ -18,6 +18,7 @@ import {
   BlobbiActionsProvider,
   type UseItemFunction,
   type UseItemResult,
+  type ToggleSleepFunction,
   type BlobbiActionsContextValue,
   type BlobbiActionsContextInternal,
 } from './BlobbiActionsProvider';
@@ -28,6 +29,7 @@ export {
   BlobbiActionsProvider,
   type UseItemFunction,
   type UseItemResult,
+  type ToggleSleepFunction,
   type BlobbiActionsContextValue,
   type BlobbiActionsContextInternal,
 };
@@ -99,6 +101,9 @@ export function useBlobbiActions(): BlobbiActionsContextValue {
   const registeredIsUsing = context?.isUsingItemRegisteredRef.current ?? false;
   const isUsingItem = registeredIsUsing || fallbackItemUse.isUsingItem;
   
+  // Expose toggleSleep from registered ref (or null if not registered)
+  const toggleSleep = context?.toggleSleepRef.current ?? null;
+
   // Return stable object
   return useMemo(() => ({
     useItem,
@@ -106,7 +111,8 @@ export function useBlobbiActions(): BlobbiActionsContextValue {
     canUseItems,
     isItemOnCooldown: fallbackItemUse.isItemOnCooldown,
     clearItemCooldown: fallbackItemUse.clearItemCooldown,
-  }), [useItem, isUsingItem, canUseItems, fallbackItemUse.isItemOnCooldown, fallbackItemUse.clearItemCooldown]);
+    toggleSleep,
+  }), [useItem, isUsingItem, canUseItems, fallbackItemUse.isItemOnCooldown, fallbackItemUse.clearItemCooldown, toggleSleep]);
 }
 
 // ─── Registration Hook ────────────────────────────────────────────────────────
@@ -124,7 +130,8 @@ export function useBlobbiActions(): BlobbiActionsContextValue {
  */
 export function useBlobbiActionsRegistration(
   useItemFn: UseItemFunction | null,
-  isUsingItem: boolean
+  isUsingItem: boolean,
+  toggleSleepFn?: ToggleSleepFunction | null,
 ): void {
   const context = useContext(BlobbiActionsContext);
   
@@ -135,6 +142,10 @@ export function useBlobbiActionsRegistration(
   const useItemRef = useRef(useItemFn);
   useItemRef.current = useItemFn;
   
+  // Keep toggleSleepFn in a ref to avoid stale closures
+  const toggleSleepInnerRef = useRef(toggleSleepFn);
+  toggleSleepInnerRef.current = toggleSleepFn;
+  
   // Create a stable wrapper that delegates to the ref
   const stableUseItem = useCallback<UseItemFunction>(async (itemId, action, quantity = 1) => {
     if (!useItemRef.current) {
@@ -144,6 +155,13 @@ export function useBlobbiActionsRegistration(
       };
     }
     return useItemRef.current(itemId, action, quantity);
+  }, []);
+  
+  // Create a stable wrapper for toggleSleep
+  const stableToggleSleep = useCallback<ToggleSleepFunction>(async () => {
+    if (toggleSleepInnerRef.current) {
+      return toggleSleepInnerRef.current();
+    }
   }, []);
   
   // Update refs and notify only when canUseItems actually changes
@@ -161,6 +179,7 @@ export function useBlobbiActionsRegistration(
     context.registerRef.current = canUseItems ? stableUseItem : null;
     context.canUseItemsRegisteredRef.current = canUseItems;
     context.isUsingItemRegisteredRef.current = isUsingItem;
+    context.toggleSleepRef.current = toggleSleepFn ? stableToggleSleep : null;
     
     // Only notify consumers if canUseItems changed (major state change)
     if (prevCanUseRef.current !== canUseItems) {
@@ -171,7 +190,7 @@ export function useBlobbiActionsRegistration(
         console.log('[BlobbiActions] Registration changed:', { canUseItems, isUsingItem });
       }
     }
-  }, [context, useItemFn, stableUseItem, isUsingItem]);
+  }, [context, useItemFn, stableUseItem, isUsingItem, toggleSleepFn, stableToggleSleep]);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -180,6 +199,7 @@ export function useBlobbiActionsRegistration(
         context.registerRef.current = null;
         context.canUseItemsRegisteredRef.current = false;
         context.isUsingItemRegisteredRef.current = false;
+        context.toggleSleepRef.current = null;
         context.notifyUpdate();
         
         if (import.meta.env.DEV) {

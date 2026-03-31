@@ -9,7 +9,7 @@
  * - BlobbiCompanionVisual.tsx (toBlobiForVisual - note typo)
  */
 
-import type { Blobbi } from '@/blobbi/core/types/blobbi';
+import type { Blobbi, BlobbiState } from '@/blobbi/core/types/blobbi';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import type { CompanionData } from '@/blobbi/companion/types/companion.types';
 
@@ -61,12 +61,13 @@ export function blobbiCompanionToBlobbi(companion: BlobbiCompanion): Blobbi {
  * @returns Blobbi type for visual components
  */
 export function companionDataToBlobbi(companion: CompanionData): Blobbi {
+  const isSleeping = companion.state === 'sleeping';
   return {
     id: companion.d,
     name: companion.name,
     lifeStage: companion.stage,
-    state: 'active',
-    isSleeping: false,
+    state: (companion.state as BlobbiState) ?? 'active',
+    isSleeping,
     stats: {
       hunger: 100,
       happiness: 100,

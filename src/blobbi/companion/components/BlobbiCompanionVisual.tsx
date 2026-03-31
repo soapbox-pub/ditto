@@ -164,7 +164,9 @@ export function BlobbiCompanionVisual({
   }, [floatOffset]);
 
   // Reaction state for CSS animations on the OUTER wrapper
-  const reaction = isDragging ? 'happy' : isWalking ? 'swaying' : 'idle';
+  // When sleeping, always idle — no swaying/happy animation
+  const isSleeping = companion.state === 'sleeping';
+  const reaction = isSleeping ? 'idle' : isDragging ? 'happy' : isWalking ? 'swaying' : 'idle';
 
   // ── Shadow ─────────────────────────────────────────────────────────────────
   const SHADOW_FADE_DISTANCE = 30;

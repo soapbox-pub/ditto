@@ -125,6 +125,7 @@ export function BlobbiCompanionLayer() {
     useItem: contextUseItem,
     canUseItems,
     isItemOnCooldown,
+    toggleSleep,
   } = useBlobbiActions();
 
   // ── Item use with emotion override ─────────────────────────────────────────
@@ -180,6 +181,34 @@ export function BlobbiCompanionLayer() {
   }, [canUseItems, contextUseItem, closeMenu, triggerOverride]);
 
   // ── Companion click ────────────────────────────────────────────────────────
+
+  // ── Sleep action (direct, not item-based) ───────────────────────────────────
+
+  const handleSleepAction = useCallback(async () => {
+    if (!toggleSleep) {
+      if (import.meta.env.DEV) {
+        console.warn('[CompanionLayer] toggleSleep not registered');
+      }
+      return;
+    }
+    closeMenu();
+    try {
+      await toggleSleep();
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('[CompanionLayer] Sleep toggle failed:', error);
+      }
+    }
+  }, [toggleSleep, closeMenu]);
+
+  /** Intercept action selection: sleep is a direct action, others go through item flow. */
+  const handleActionClick = useCallback((action: Parameters<typeof selectAction>[0]) => {
+    if (action === 'sleep') {
+      handleSleepAction();
+    } else {
+      selectAction(action);
+    }
+  }, [handleSleepAction, selectAction]);
 
   const handleCompanionClick = useCallback(() => {
     if (isEntering) return;
@@ -262,8 +291,9 @@ export function BlobbiCompanionLayer() {
         companionSize={config.size}
         actions={availableActions}
         selectedAction={menuState.selectedAction}
-        onActionClick={selectAction}
+        onActionClick={handleActionClick}
         onClickOutside={handleClickOutside}
+        isSleeping={isSleeping}
       />
 
       <HangingItems

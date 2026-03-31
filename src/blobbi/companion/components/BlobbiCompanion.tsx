@@ -193,8 +193,9 @@ export function BlobbiCompanion({
   }
   
   // Calculate floating animation offset (gentle sway/float)
-  // Skip during entry animation, dragging, or debug mode
-  const floatOffset = (!useEntryPosition && !motion.isDragging && !debugMode)
+  // Skip during entry animation, dragging, debug mode, or sleeping
+  const isSleeping = companion.state === 'sleeping';
+  const floatOffset = (!useEntryPosition && !motion.isDragging && !debugMode && !isSleeping)
     ? calculateFloatAnimation(animationTime, state === 'walking')
     : { x: 0, y: 0, rotation: 0 };
   
@@ -228,12 +229,15 @@ export function BlobbiCompanion({
     : undefined;
   
   // Drag handlers with click detection
+  // Uses pointer events only (handles mouse, touch, and pen natively)
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
     e.stopPropagation();
     
-    // Capture pointer for tracking outside element
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    // Capture pointer on the container (not e.target which may be a child)
+    // for reliable tracking across element boundaries during drag
+    if (containerRef.current) {
+      containerRef.current.setPointerCapture(e.pointerId);
+    }
     
     // Start click detection tracking
     clickDetection.handlePointerDown({ x: e.clientX, y: e.clientY });
@@ -254,45 +258,11 @@ export function BlobbiCompanion({
   }, [clickDetection, motion.isDragging, config.size, onUpdateDrag]);
   
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    if (containerRef.current) {
+      containerRef.current.releasePointerCapture(e.pointerId);
+    }
     
     // Finalize click detection - will call onClick if it was a click
-    clickDetection.handlePointerUp();
-    
-    // Always end drag state
-    if (motion.isDragging) {
-      onEndDrag();
-    }
-  }, [clickDetection, motion.isDragging, onEndDrag]);
-  
-  // Touch handlers for mobile (with click detection)
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-    if (e.touches.length === 0) return;
-    
-    const touch = e.touches[0];
-    clickDetection.handlePointerDown({ x: touch.clientX, y: touch.clientY });
-  }, [clickDetection]);
-  
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 0) return;
-    
-    const touch = e.touches[0];
-    const position = { x: touch.clientX, y: touch.clientY };
-    
-    // Check if movement exceeds click threshold (starts drag)
-    const isDrag = clickDetection.handlePointerMove(position);
-    
-    // If dragging, update position
-    if (motion.isDragging || isDrag) {
-      const newX = touch.clientX - config.size / 2;
-      const newY = touch.clientY - config.size / 2;
-      onUpdateDrag({ x: newX, y: newY });
-    }
-  }, [clickDetection, motion.isDragging, config.size, onUpdateDrag]);
-  
-  const handleTouchEnd = useCallback(() => {
-    // Finalize click detection
     clickDetection.handlePointerUp();
     
     // Always end drag state
@@ -321,9 +291,6 @@ export function BlobbiCompanion({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       <BlobbiCompanionVisual
         companion={companion}

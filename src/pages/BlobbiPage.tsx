@@ -426,8 +426,8 @@ function BlobbiContent() {
     };
   }, [executeUseItem, companion, profile]);
   
-  // Register with the global BlobbiActionsContext
-  useBlobbiActionsRegistration(useItemForContext, isUsingItem);
+  // Register with the global BlobbiActionsContext (includes sleep toggle for companion layer)
+  useBlobbiActionsRegistration(useItemForContext, isUsingItem, handleRest);
   
   // ─── Stage Transition Hooks ───
   const { mutateAsync: executeHatch, isPending: isHatching } = useBlobbiHatch({
