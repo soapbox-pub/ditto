@@ -51,32 +51,6 @@ export interface DecayInput {
 // ─── Constants: Decay Rates ───────────────────────────────────────────────────
 
 /**
- * Egg stage decay rates (per hour).
- * 
- * Design goal: Needs attention every 2-3 hours.
- * 
- * Notes:
- * - hunger and energy are fixed at 100 for eggs
- * - hygiene decays at 8/hr → reaches warning (75) in ~3.1 hours
- * - health has conditional decay based on hygiene
- * - happiness depends on health and hygiene state
- */
-const EGG_DECAY = {
-  hygiene: -8.0,        // Base hygiene decay
-  health: {
-    base: -1.0,         // Base health decay
-    hygieneBelow70: -2.0, // Extra if hygiene < 70
-    hygieneBelow40: -3.0, // Extra if hygiene < 40
-  },
-  happiness: {
-    // Happiness is calculated after health/hygiene are updated
-    healthyAndClean: 2.0,    // health >= 70 AND hygiene >= 70
-    moderate: -2.0,           // health >= 40 AND hygiene >= 40
-    poor: -4.0,               // otherwise
-  },
-} as const;
-
-/**
  * Baby stage decay rates (per hour).
  * 
  * Design goal: Needs attention every 3-5 hours.
