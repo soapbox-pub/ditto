@@ -739,15 +739,8 @@ function DashboardShell({ children }: DashboardShellProps) {
     <main className="min-h-[calc(100vh-4rem)] px-2 py-4 pb-20 sm:px-4 md:px-6">
       {/* Responsive container: narrow on mobile, wider on desktop with reasonable max */}
       <div className="mx-auto w-full max-w-2xl lg:max-w-3xl">
-        {/* Frosted glass dashboard container */}
-        <div className="relative rounded-2xl bg-card/80 backdrop-blur-sm border border-border overflow-hidden min-h-[70vh]">
-          {/* Subtle decorative gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-muted/50 via-transparent to-muted/30 pointer-events-none" />
-          
-          {/* Content wrapper */}
-          <div className="relative z-10 h-full flex flex-col min-h-[70vh]">
-            {children}
-          </div>
+        <div className="relative h-full flex flex-col min-h-[70vh]">
+          {children}
         </div>
       </div>
     </main>
@@ -1324,38 +1317,7 @@ function BlobbiDashboard({
   
   return (
     <DashboardShell>
-      {/* Header Row */}
-      <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-border">
-        <div className="flex items-center gap-3">
-          <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Egg className="size-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold">Blobbi</h1>
-            <p className="text-xs text-muted-foreground">Your virtual companion</p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {isFetching && (
-            <RefreshCw className="size-4 text-muted-foreground animate-spin" />
-          )}
-          
-          <Badge variant={isSleeping ? 'secondary' : 'default'}>
-            {isSleeping ? (
-              <>
-                <Moon className="size-3 mr-1" />
-                Sleeping
-              </>
-            ) : (
-              <>
-                <Sun className="size-3 mr-1" />
-                Active
-              </>
-            )}
-          </Badge>
-        </div>
-      </div>
+
       
       {/* Legacy Migration Notice */}
       {companion.isLegacy && (
@@ -2434,7 +2396,7 @@ function BlobbiBottomBar({
   
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30">
-      <div className="container mx-auto max-w-4xl px-2 sm:px-4 pb-2 sm:pb-4">
+      <div className="mx-auto max-w-2xl lg:max-w-3xl px-2 sm:px-4 pb-2 sm:pb-4">
         <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl px-1.5 sm:px-3 py-2 shadow-lg overflow-hidden">
           {/* 3-column grid: left | center | right */}
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-0.5 sm:gap-2">
