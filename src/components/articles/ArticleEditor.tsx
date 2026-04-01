@@ -42,7 +42,6 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useDrafts, type Draft } from '@/hooks/useDrafts';
 import { usePublishedArticles } from '@/hooks/usePublishedArticles';
-import { cn } from '@/lib/utils';
 import { saveDraft as saveLocalDraft, deleteDraftBySlug, getLocalDrafts } from '@/lib/localDrafts';
 import { MilkdownEditor } from './MilkdownEditor';
 
@@ -70,7 +69,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   const { mutate: publishEvent, isPending: isPublishing } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { drafts: relayDrafts, isLoading: isDraftsLoading, saveDraft: saveRelayDraft, deleteDraft: deleteRelayDraft, isDeleting } = useDrafts();
-  const { articles: publishedArticles, isLoading: isArticlesLoading } = usePublishedArticles();
+  const { articles: publishedArticles } = usePublishedArticles();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inlineImageInputRef = useRef<HTMLInputElement>(null);
@@ -79,7 +78,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   const [localDrafts, setLocalDrafts] = useState<Draft[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; slug: string; isLocal: boolean } | null>(null);
   const [wordCount, setWordCount] = useState(0);
-  const [charCount, setCharCount] = useState(0);
+  const [_charCount, setCharCount] = useState(0);
   const [readingTime, setReadingTime] = useState(0);
   const [tagInput, setTagInput] = useState('');
   const [isPublished, setIsPublished] = useState(false);
