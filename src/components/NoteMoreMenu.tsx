@@ -17,6 +17,7 @@ import {
   PanelLeft,
   Copy,
   Check,
+  Radio,
 } from 'lucide-react';
 import {
   Dialog,
@@ -43,6 +44,7 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ReportDialog } from '@/components/ReportDialog';
 import { AddToListDialog } from '@/components/AddToListDialog';
+import { useNostr } from '@nostrify/react';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -281,6 +283,7 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
 
 function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, onAddToList, onViewEventJson, onDelete }: NoteMoreMenuContentProps) {
   const navigate = useNavigate();
+  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const bookmarked = isBookmarked(event.id);
@@ -327,6 +330,16 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
       toast({ title: 'Added to sidebar' });
     }
     close();
+  };
+
+  const handleBroadcast = async () => {
+    close();
+    try {
+      await nostr.event(event, { signal: AbortSignal.timeout(5000) });
+      toast({ title: 'Event broadcast to relays' });
+    } catch {
+      toast({ title: 'Failed to broadcast event', variant: 'destructive' });
+    }
   };
 
   const handleTogglePin = () => {
@@ -424,6 +437,11 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
             icon={<FileJson className="size-5" />}
             label="View Event JSON"
             onClick={onViewEventJson}
+          />
+          <MenuItem
+            icon={<Radio className="size-5" />}
+            label="Broadcast Event"
+            onClick={handleBroadcast}
           />
           <MenuItem
             icon={<Bookmark className={cn("size-5", bookmarked && "fill-current")} />}
