@@ -362,7 +362,8 @@ export function SearchPage() {
     const filter: TabFilter = {};
     if (debouncedSearchQuery.trim()) filter.search = debouncedSearchQuery.trim();
     if (kindsOverride && kindsOverride.length > 0) filter.kinds = kindsOverride;
-    if (authorScope === 'people' && authorPubkeys.length > 0) filter.authors = authorPubkeys;
+    if (authorScope === 'follows') filter.authors = ['$follows'];
+    else if (authorScope === 'people' && authorPubkeys.length > 0) filter.authors = authorPubkeys;
     // Persist NIP-50 extension filters so saved feeds can replay them
     if (!includeReplies) filter.includeReplies = false;
     if (mediaType !== 'all') filter.mediaType = mediaType;
