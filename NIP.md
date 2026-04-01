@@ -2,12 +2,28 @@
 
 ## Event Kinds Overview
 
+### Ditto Kinds
+
 | Kind  | Name                 | Description                                           |
 |-------|----------------------|-------------------------------------------------------|
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
-| 8211  | Encrypted Letter     | Encrypted personal letter with visual stationery      |
+
+### Community Kinds
+
+These event kinds were created by community contributors and are supported by Ditto. Full specifications are maintained by their respective authors.
+
+| Kind  | Name                   | Description                                                      | Spec                                                                                      |
+|-------|------------------------|------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| 8211  | Encrypted Letter       | Encrypted personal letter with visual stationery                 | [NIP](https://gitlab.com/chad.curtis/lief/-/blob/main/NIP.md)                            |
+| 4223  | Weather Reading        | Sensor readings from a weather station                           | [Draft NIP](https://github.com/nostr-protocol/nips/pull/2163)                            |
+| 16158 | Weather Station        | Weather station metadata (location, sensors, connectivity)       | [Draft NIP](https://github.com/nostr-protocol/nips/pull/2163)                            |
+| 31124 | Blobbi Pet State       | Current state of a virtual Blobbi pet (addressable)              | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
+| 14919 | Blobbi Interaction     | Individual pet interaction (feed, play, clean, etc.)             | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
+| 14920 | Blobbi Breeding        | Breeding event between two adult Blobbis                         | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
+| 14921 | Blobbi Record          | Immutable lifecycle record (birth, evolution, adoption)          | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
+| 11125 | Blobbonaut Profile     | Owner profile with coins, achievements, and inventory            | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 
 ---
 
@@ -293,4 +309,36 @@ The `shape` field is added to the JSON content of a kind 0 event alongside stand
 - When `shape` is set to an unrecognized or invalid value, clients MUST fall back to a circle. This ensures forward compatibility.
 - The `shape` field is purely cosmetic and has no protocol-level significance.
 - Clients MAY choose not to support this extension, in which case avatars render as circles as usual.
+
+---
+
+## Community NIP Specifications
+
+The following specifications are maintained by their respective authors. Ditto implements these kinds but does not own the specs. See each link for the full event structure, tags, and client behavior.
+
+### Personal Letters (Kind 8211)
+
+**Author:** Chad Curtis
+**Spec:** https://gitlab.com/chad.curtis/lief/-/blob/main/NIP.md
+**App:** https://lief.to
+
+NIP-44 encrypted personal letters with visual stationery, hand-drawn stickers, decorative frames, and custom fonts. Letters render as 5:4 landscape postcards. The privacy model is intentionally postcard-like: sender/recipient metadata is visible, content is encrypted.
+
+### Weather Station (Kinds 4223, 16158)
+
+**Author:** Sam Thomson
+**Spec:** https://github.com/nostr-protocol/nips/pull/2163
+**App:** https://weather.shakespeare.wtf
+**Firmware:** https://github.com/samthomson/weather-station
+
+Kind 16158 (replaceable) describes a weather station's configuration: name, geohash location, elevation, power source, connectivity, and sensor inventory. Kind 4223 (regular) carries individual sensor readings as 3-parameter tags `[sensor_type, value, model]`, enabling historical queries and cross-station comparison. Each station has its own keypair.
+
+### Blobbi Virtual Pet (Kinds 31124, 14919, 14920, 14921, 11125)
+
+**Author:** Danifra
+**Spec:** https://github.com/Danidfra/nostr-pet/blob/production/NIP.md
+**App:** https://nostr-pet.vercel.app
+**See also:** [Blobbi tag schema](docs/blobbi/blobbi-tag-schema.md) (Ditto-specific integration details)
+
+NIP-BB defines a virtual pet lifecycle on Nostr. Kind 31124 (addressable) holds the current pet state across three stages (egg, baby, adult) with stats, appearance, and personality traits. Kind 14919 logs individual interactions, kind 14920 records breeding events, kind 14921 stores immutable lifecycle records, and kind 11125 (replaceable) holds the owner's profile with coins, achievements, and inventory.
 
