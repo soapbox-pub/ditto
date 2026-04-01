@@ -92,7 +92,7 @@ export function useBlobbiCompanionGaze({
   attentionPosition,
   entryInspectionDirection,
 }: UseBlobbiCompanionGazeOptions): UseBlobbiCompanionGazeResult {
-  const [gaze, setGaze] = useState<GazeState>(createInitialGaze);
+  const [, setGaze] = useState<GazeState>(createInitialGaze);
   // Eye offset is driven imperatively via ref — no React state needed.
   // The RAF loop writes to eyeOffsetRef; useExternalEyeOffset reads from it.
   /** Ref-based eye offset for imperative consumers (avoids per-frame React rerenders) */
