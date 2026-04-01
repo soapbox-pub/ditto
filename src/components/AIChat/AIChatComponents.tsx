@@ -67,7 +67,7 @@ export function MessageBubble({ message }: { message: DisplayMessage }) {
 
         {/* Inline Nostr event (e.g. a spell created by a tool) */}
         {message.nostrEvent && (
-          <div className="w-full rounded-xl overflow-hidden border border-border mt-1">
+          <div className="w-full rounded-xl overflow-hidden border border-border mt-1 bg-background">
             <NoteCard event={message.nostrEvent} compact />
           </div>
         )}
