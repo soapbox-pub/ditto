@@ -13,7 +13,7 @@
 
 import { useMemo } from 'react';
 
-import { EggGraphic, type EggReactionState, type EggStatusEffects } from '@/blobbi/egg';
+import { EggGraphic, type EggReactionState, type EggStatusEffects, type EggTourVisualState } from '@/blobbi/egg';
 import { toEggGraphicVisualBlobbi } from '@/blobbi/core/lib/blobbi-egg-adapter';
 import { cn } from '@/lib/utils';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
@@ -23,7 +23,7 @@ import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 export type BlobbiEggSize = 'sm' | 'md' | 'lg';
 
 // Re-export for convenience
-export type { EggReactionState, EggStatusEffects } from '@/blobbi/egg';
+export type { EggReactionState, EggStatusEffects, EggTourVisualState } from '@/blobbi/egg';
 
 export interface BlobbiEggVisualProps {
   /** The Blobbi companion data from parseBlobbiEvent */
@@ -36,6 +36,8 @@ export interface BlobbiEggVisualProps {
   reaction?: EggReactionState;
   /** Status effects for egg visual feedback (dirty, sick, happy) */
   statusEffects?: EggStatusEffects;
+  /** Tour visual state - driven externally by the tour orchestration layer */
+  tourVisualState?: EggTourVisualState;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -70,6 +72,7 @@ export function BlobbiEggVisual({
   animated = false,
   reaction = 'idle',
   statusEffects,
+  tourVisualState,
   className,
 }: BlobbiEggVisualProps) {
   // Memoize adapter output to avoid unnecessary re-renders
@@ -103,6 +106,7 @@ export function BlobbiEggVisual({
         animated={animated && !isSleeping}
         reaction={effectiveReaction}
         statusEffects={isSleeping ? undefined : statusEffects}
+        tourVisualState={tourVisualState}
       />
     </div>
   );

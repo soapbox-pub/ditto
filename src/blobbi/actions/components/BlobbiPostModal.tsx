@@ -30,6 +30,7 @@ import { toast } from '@/hooks/useToast';
 
 import {
   BLOBBI_POST_REQUIRED_HASHTAGS,
+  buildHatchPhrase,
 } from '../hooks/useHatchTasks';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -50,32 +51,12 @@ interface BlobbiPostModalProps {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Sanitize a name into a valid hashtag format.
- * - Removes special characters
- * - Replaces spaces with nothing (camelCase-like)
- * - Ensures lowercase
- * - Handles edge cases
- */
-function sanitizeToHashtag(name: string): string {
-  return name
-    .toLowerCase()
-    // Remove emojis and special characters, keep letters, numbers, underscores
-    .replace(/[^\p{L}\p{N}_]/gu, '')
-    // Ensure it starts with a letter (prepend 'blobbi' if it starts with number)
-    .replace(/^(\d)/, 'blobbi$1')
-    // Limit length
-    .slice(0, 30)
-    // Fallback if empty
-    || 'myblobbi';
-}
-
-/**
  * Build the required prefix text based on process type.
  */
 function buildPrefix(process: BlobbiPostProcess): string {
   return process === 'evolve'
-    ? 'Hello Nostr! Posting to evolve'
-    : 'Hello Nostr! Posting to hatch';
+    ? 'Posting to evolve'
+    : 'Posting to hatch';
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -91,20 +72,19 @@ export function BlobbiPostModal({
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
   
   // Compute the required elements based on props
-  const blobbiHashtag = useMemo(() => sanitizeToHashtag(blobbiName), [blobbiName]);
   const prefix = useMemo(() => buildPrefix(process), [process]);
+  const capitalizedName = useMemo(() => blobbiName.charAt(0).toUpperCase() + blobbiName.slice(1), [blobbiName]);
   
-  // All required hashtags including the Blobbi name (first)
-  const allRequiredHashtags = useMemo(() => 
-    [blobbiHashtag, ...BLOBBI_POST_REQUIRED_HASHTAGS],
-    [blobbiHashtag]
+  // The required phrase that must appear in the post
+  const requiredPhrase = useMemo(() => 
+    process === 'hatch'
+      ? buildHatchPhrase(blobbiName)
+      : `${prefix} ${capitalizedName} #blobbi`,
+    [process, blobbiName, prefix, capitalizedName]
   );
   
-  // Build default content
-  const defaultContent = useMemo(() => 
-    `${prefix} #${allRequiredHashtags.join(' #')}`,
-    [prefix, allRequiredHashtags]
-  );
+  // Build default content (the phrase itself is enough)
+  const defaultContent = useMemo(() => requiredPhrase, [requiredPhrase]);
   
   const [content, setContent] = useState(defaultContent);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -118,24 +98,14 @@ export function BlobbiPostModal({
   }, [open, defaultContent]);
   
   /**
-   * Validate that the content still contains the required prefix and hashtags.
+   * Validate that the content contains the required phrase.
    */
   const validateContent = useCallback((text: string): string | null => {
-    // Check prefix
-    if (!text.startsWith(prefix)) {
-      return 'The post must start with the required text';
+    if (!text.includes(requiredPhrase)) {
+      return `The post must contain: "${requiredPhrase}"`;
     }
-    
-    // Check all required hashtags are present (including Blobbi name)
-    const lowerText = text.toLowerCase();
-    for (const tag of allRequiredHashtags) {
-      if (!lowerText.includes(`#${tag.toLowerCase()}`)) {
-        return `Missing required hashtag: #${tag}`;
-      }
-    }
-    
     return null;
-  }, [prefix, allRequiredHashtags]);
+  }, [requiredPhrase]);
   
   /**
    * Handle content change with validation.
@@ -180,21 +150,26 @@ export function BlobbiPostModal({
     }
     
     try {
-      // Build tags for the post
+      // Build tags for the post: extract all hashtags from content
       const tags: string[][] = [];
+      const seen = new Set<string>();
       
-      // Add all required hashtags as 't' tags
-      for (const hashtag of allRequiredHashtags) {
-        tags.push(['t', hashtag.toLowerCase()]);
+      // Always include BLOBBI_POST_REQUIRED_HASHTAGS as t tags
+      for (const hashtag of BLOBBI_POST_REQUIRED_HASHTAGS) {
+        const lower = hashtag.toLowerCase();
+        if (!seen.has(lower)) {
+          tags.push(['t', lower]);
+          seen.add(lower);
+        }
       }
       
-      // Extract any additional hashtags the user added
-      const additionalHashtags = content.match(/#(\w+)/g) || [];
-      const requiredLower = allRequiredHashtags.map(t => t.toLowerCase());
-      for (const tag of additionalHashtags) {
+      // Extract any additional hashtags from the content
+      const contentHashtags = content.match(/#(\w+)/g) || [];
+      for (const tag of contentHashtags) {
         const tagValue = tag.slice(1).toLowerCase();
-        if (!requiredLower.includes(tagValue)) {
+        if (!seen.has(tagValue)) {
           tags.push(['t', tagValue]);
+          seen.add(tagValue);
         }
       }
       
@@ -220,7 +195,7 @@ export function BlobbiPostModal({
         variant: 'destructive',
       });
     }
-  }, [user, content, validateContent, createEvent, onOpenChange, onSuccess, allRequiredHashtags, process]);
+  }, [user, content, validateContent, createEvent, onOpenChange, onSuccess, process]);
   
   const canPost = !validationError && content.trim().length > 0;
   
@@ -282,13 +257,9 @@ export function BlobbiPostModal({
           
           {/* Preview of required content */}
           <div className="p-3 rounded-lg bg-muted/50 border border-dashed">
-            <p className="text-xs text-muted-foreground mb-1">Required content:</p>
-            <p className="text-sm font-medium">
-              <span className="text-primary">{prefix}</span>
-              {' '}
-              {allRequiredHashtags.map(tag => (
-                <span key={tag} className="text-blue-500">#{tag} </span>
-              ))}
+            <p className="text-xs text-muted-foreground mb-1">Required phrase:</p>
+            <p className="text-sm font-medium text-primary">
+              {requiredPhrase}
             </p>
           </div>
         </div>

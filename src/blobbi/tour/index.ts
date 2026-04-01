@@ -41,3 +41,6 @@ export type {
   FirstHatchTourActivationInput,
   FirstHatchTourActivationResult,
 } from './hooks/useFirstHatchTourActivation';
+
+// ── First Hatch Tour - Components ──
+export { FirstHatchTourModal } from './components/FirstHatchTourModal';

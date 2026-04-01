@@ -88,6 +88,11 @@ import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
+import { useQuery } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
+import { useFirstHatchTour, useFirstHatchTourActivation, FirstHatchTourModal } from '@/blobbi/tour';
+import { buildHatchPhrase, isValidHatchPost } from '@/blobbi/actions';
+import type { EggTourVisualState } from '@/blobbi/egg';
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -929,6 +934,77 @@ function BlobbiDashboard({
   const [showIncubationDialog, setShowIncubationDialog] = useState(false);
   const [showEvolutionDialog, setShowEvolutionDialog] = useState(false);
   
+  // ─── First Hatch Tour ───
+  const firstHatchTour = useFirstHatchTour();
+  const { isEligible: _isFirstHatchTourEligible } = useFirstHatchTourActivation({
+    companions,
+    isLoading: false, // companions are already loaded at this point
+    tour: firstHatchTour,
+  });
+  const isFirstHatchTourActive = firstHatchTour.state.isActive;
+
+  // The required phrase for the first-hatch post
+  const firstHatchPhrase = useMemo(() => buildHatchPhrase(companion.name), [companion.name]);
+
+  // Auto-advance from idle to egg_ready_hint, then to show_hatch_modal
+  useEffect(() => {
+    if (!isFirstHatchTourActive) return;
+    if (firstHatchTour.isStep('idle')) {
+      // Advance immediately to egg_ready_hint
+      firstHatchTour.actions.advance();
+    }
+  }, [isFirstHatchTourActive, firstHatchTour]);
+
+  useEffect(() => {
+    if (!isFirstHatchTourActive) return;
+    if (firstHatchTour.isStep('egg_ready_hint')) {
+      // Show the ready hint briefly, then move to the modal
+      const timer = setTimeout(() => {
+        firstHatchTour.actions.advance();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isFirstHatchTourActive, firstHatchTour]);
+
+  // Detect hatch post completion for the first-hatch tour
+  const { user } = useCurrentUser();
+  const { nostr } = useNostr();
+  const tourAwaitingPost = isFirstHatchTourActive && (
+    firstHatchTour.isStep('show_hatch_modal') || firstHatchTour.isStep('await_create_post')
+  );
+
+  const { data: tourPostFound } = useQuery({
+    queryKey: ['first-hatch-tour-post', user?.pubkey, companion.name],
+    queryFn: async () => {
+      if (!user?.pubkey) return false;
+      const events = await nostr.query([{
+        kinds: [1],
+        authors: [user.pubkey],
+        limit: 20,
+      }]);
+      return events.some(e => isValidHatchPost(e, companion.name));
+    },
+    enabled: tourAwaitingPost && !!user?.pubkey,
+    refetchInterval: 5000,
+    staleTime: 3000,
+  });
+
+  // When the post is found, advance past the post-awaiting steps
+  useEffect(() => {
+    if (!tourPostFound || !isFirstHatchTourActive) return;
+    if (firstHatchTour.isStep('show_hatch_modal') || firstHatchTour.isStep('await_create_post')) {
+      firstHatchTour.actions.goTo('egg_glowing_waiting_click');
+    }
+  }, [tourPostFound, isFirstHatchTourActive, firstHatchTour]);
+
+  // Derive tourVisualState for the egg visual
+  const tourVisualState = useMemo((): EggTourVisualState => {
+    if (!isFirstHatchTourActive) return 'idle';
+    if (firstHatchTour.isStep('egg_ready_hint')) return 'ready_hint';
+    if (firstHatchTour.isStep('egg_glowing_waiting_click')) return 'glowing_waiting_click';
+    return 'idle';
+  }, [isFirstHatchTourActive, firstHatchTour]);
+
   // State detection for tasks
   // Note: isEvolving prop = mutation pending state, isEvolvingState = companion in evolving state
   const isIncubating = companion.state === 'incubating';
@@ -1366,8 +1442,8 @@ function BlobbiDashboard({
           }
           isTransitioning={isHatching || isEvolving || isStartingIncubation || isStartingEvolution}
           onInfo={() => setShowInfoModal(true)}
-          // Hide button when actively incubating or evolving (actions are in MissionsModal instead)
-          hideEvolveButton={isIncubating || isEvolvingState}
+          // Hide button when actively incubating, evolving, or during first-hatch tour
+          hideEvolveButton={isIncubating || isEvolvingState || isFirstHatchTourActive}
           // When canStartIncubation or canStartEvolution is true, the button triggers the respective dialog
           isIncubationAction={canStartIncubation}
           isEvolutionAction={canStartEvolution}
@@ -1411,6 +1487,7 @@ function BlobbiDashboard({
               recipe={hasDevOverride ? undefined : statusRecipe}
               recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
               emotion={effectiveEmotion}
+              tourVisualState={tourVisualState}
 
               className="size-48 sm:size-56"
             />
@@ -1482,14 +1559,23 @@ function BlobbiDashboard({
       {/* Bottom Action Bar */}
       <BlobbiBottomBar
         onBlobbiesClick={() => setShowSelector(true)}
-        onMissionsClick={() => setShowMissionsModal(true)}
+        onMissionsClick={() => {
+          if (isFirstHatchTourActive) {
+            // During the first-hatch tour, open the tour modal instead
+            if (!firstHatchTour.isStep('show_hatch_modal') && !firstHatchTour.isStep('await_create_post')) {
+              firstHatchTour.actions.goTo('show_hatch_modal');
+            }
+          } else {
+            setShowMissionsModal(true);
+          }
+        }}
         onActionsClick={() => setShowActionsModal(true)}
         onShopClick={() => setShowShopModal(true)}
         onInventoryClick={() => setShowInventoryModal(true)}
         needyBlobbiesCount={companions.filter(companionNeedsCare).length}
-        isInTaskProcess={isInTaskProcess}
-        remainingTasksCount={remainingTasksCount}
-        allTasksComplete={allTasksComplete}
+        isInTaskProcess={isFirstHatchTourActive || isInTaskProcess}
+        remainingTasksCount={isFirstHatchTourActive ? (tourPostFound ? 0 : 1) : remainingTasksCount}
+        allTasksComplete={isFirstHatchTourActive ? !!tourPostFound : allTasksComplete}
       />
       
       {/* Blobbi Selector Modal */}
@@ -1636,6 +1722,25 @@ function BlobbiDashboard({
         blobbiName={companion.name}
         process={isEvolvingState ? 'evolve' : 'hatch'}
         onSuccess={refetchCurrentTasks}
+      />
+      
+      {/* First Hatch Tour Modal */}
+      <FirstHatchTourModal
+        open={isFirstHatchTourActive && (firstHatchTour.isStep('show_hatch_modal') || firstHatchTour.isStep('await_create_post'))}
+        onOpenChange={(open) => {
+          if (!open && isFirstHatchTourActive && firstHatchTour.isStep('show_hatch_modal')) {
+            // User dismissed the modal -- move to await_create_post so they can
+            // come back to it (the modal stays open for await_create_post too)
+            firstHatchTour.actions.advance();
+          }
+        }}
+        blobbiName={companion.name}
+        requiredPhrase={firstHatchPhrase}
+        postCompleted={!!tourPostFound}
+        onCreatePost={() => setShowPostModal(true)}
+        onContinue={() => {
+          firstHatchTour.actions.goTo('egg_glowing_waiting_click');
+        }}
       />
       
       {/* Blobbi Photo Modal - polaroid-style photo capture */}

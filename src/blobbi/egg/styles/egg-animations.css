@@ -321,6 +321,26 @@
 }
 
 /* ==========================================
+   Tour Visual State Animations
+   ========================================== */
+
+/* Pulsing glow for the "waiting for click" tour state */
+@keyframes egg-tour-glow {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+.animate-egg-tour-glow {
+  animation: egg-tour-glow 2s ease-in-out infinite;
+}
+
+/* ==========================================
    Responsive adjustments
    ========================================== */
 
@@ -351,7 +371,8 @@
   .animate-egg-sweat-drop,
   .animate-egg-dust-particle,
   .animate-egg-spiral,
-  .animate-egg-sparkle {
+  .animate-egg-sparkle,
+  .animate-egg-tour-glow {
     animation: none !important;
   }
 }

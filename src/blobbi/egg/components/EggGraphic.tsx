@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { EggVisualBlobbi } from '../types/egg.types';
 import { isValidBaseColor, isValidSecondaryColor } from '../lib/blobbi-egg-validation';
 import { SpecialMarkRenderer, SpecialMarkFallback } from './SpecialMarkRenderer';
@@ -25,6 +25,12 @@ export interface EggStatusEffects {
   happy?: boolean;
 }
 
+/**
+ * Tour visual states that the egg can display.
+ * Driven by the tour orchestration layer, not by EggGraphic itself.
+ */
+export type EggTourVisualState = 'idle' | 'ready_hint' | 'glowing_waiting_click';
+
 interface EggGraphicProps {
   blobbi?: EggVisualBlobbi; // Visual blobbi object for visual properties
   sizeVariant?: 'tiny' | 'small' | 'medium' | 'large'; // Internal scaling only, NOT layout size
@@ -36,6 +42,8 @@ interface EggGraphicProps {
   forceInlineSvg?: boolean; // New prop to guarantee inline SVG
   /** Status effects for egg-stage visual feedback */
   statusEffects?: EggStatusEffects;
+  /** Tour visual state - driven externally by the tour orchestration layer */
+  tourVisualState?: EggTourVisualState;
 }
 
 /**
@@ -114,6 +122,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
   warmth = 50,
   forceInlineSvg: _forceInlineSvg = false,
   statusEffects,
+  tourVisualState = 'idle',
 }) => {
   // sizeVariant controls ONLY internal scaling/details, NOT layout dimensions
   // Parent container controls actual rendered width/height via slot
@@ -159,6 +168,33 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
   const handleWiggleEnd = useCallback(() => {
     setIsTapWiggling(false);
   }, []);
+
+  // Tour: auto-wiggle effect for ready_hint state
+  const autoWiggleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (tourVisualState !== 'ready_hint') {
+      if (autoWiggleTimerRef.current) {
+        clearInterval(autoWiggleTimerRef.current);
+        autoWiggleTimerRef.current = null;
+      }
+      return;
+    }
+    // Trigger an immediate wiggle, then repeat every 2.5s
+    setIsTapWiggling(true);
+    autoWiggleTimerRef.current = setInterval(() => {
+      setIsTapWiggling((prev) => {
+        // Only trigger if not already wiggling
+        if (!prev) return true;
+        return prev;
+      });
+    }, 2500);
+    return () => {
+      if (autoWiggleTimerRef.current) {
+        clearInterval(autoWiggleTimerRef.current);
+        autoWiggleTimerRef.current = null;
+      }
+    };
+  }, [tourVisualState]);
 
   // Divine color constants
   const DIVINE_PRIMARY_GREEN = '#55C4A2';
@@ -443,12 +479,15 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
         <div
           className={cn(
             'absolute rounded-full blur-xl transition-all duration-1000',
-            animated && 'animate-pulse'
+            animated && tourVisualState !== 'glowing_waiting_click' && 'animate-pulse',
+            tourVisualState === 'glowing_waiting_click' && 'animate-egg-tour-glow'
           )}
           style={{
-            width: '120%',
-            height: '120%',
-            background: `radial-gradient(circle, ${glowColor} 0%, transparent 70%)`,
+            width: tourVisualState === 'glowing_waiting_click' ? '150%' : '120%',
+            height: tourVisualState === 'glowing_waiting_click' ? '150%' : '120%',
+            background: tourVisualState === 'glowing_waiting_click'
+              ? `radial-gradient(circle, ${glowColor} 0%, ${glowColor}80 30%, transparent 70%)`
+              : `radial-gradient(circle, ${glowColor} 0%, transparent 70%)`,
             zIndex: 0,
           }}
         />
