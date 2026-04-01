@@ -10,6 +10,7 @@ import {
   Clock,
   ExternalLink,
   Loader2,
+  MoreVertical,
   Pencil,
   RotateCcw,
   Trash2,
@@ -46,11 +47,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -360,24 +366,12 @@ function MyBadgesContent({
             </Button>
           }
         />
-        {isLoadingAccepted ? (
-          <div className="space-y-2 mt-2">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <AcceptedBadgeSkeleton key={i} />
-            ))}
-          </div>
-        ) : localRefs.length === 0 ? (
-          <p className="text-sm text-muted-foreground mt-2">
-            No accepted badges yet. When you accept a badge, it will appear
-            here.
-          </p>
-        ) : (
-          <AcceptedBadgeList
-            refs={localRefs}
-            setRefs={setLocalRefs}
-            badgeMap={badgeMap}
-          />
-        )}
+        <AcceptedBadgeList
+          refs={localRefs}
+          setRefs={setLocalRefs}
+          badgeMap={badgeMap}
+          isLoading={isLoadingAccepted}
+        />
       </section>
 
       {/* ── Created Badges ── */}
@@ -386,31 +380,8 @@ function MyBadgesContent({
           title="Created"
           count={isLoadingCreated ? undefined : createdBadges.length}
           icon={<Pencil className="size-4" />}
-          action={
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs gap-1"
-              onClick={onOpenCreate}
-            >
-              <Award className="size-3" />
-              New Badge
-            </Button>
-          }
         />
-        {isLoadingCreated ? (
-          <div className="space-y-2 mt-2">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <CreatedBadgeSkeleton key={i} />
-            ))}
-          </div>
-        ) : createdBadges.length === 0 ? (
-          <p className="text-sm text-muted-foreground mt-2">
-            You haven't created any badges yet.
-          </p>
-        ) : (
-          <CreatedBadgeList badges={createdBadges} />
-        )}
+        <CreatedBadgeList badges={createdBadges} isLoading={isLoadingCreated} />
       </section>
 
       <BadgeRecoveryDialog
@@ -502,7 +473,7 @@ function PendingBadgeList({
   });
 
   return (
-    <div className="mt-2 rounded-2xl border border-border bg-card overflow-hidden animate-pending-glow">
+    <div className="mt-2 overflow-hidden">
       {/* Badge showcase -- notification-style presentation */}
       <Link to={`/${badgeNaddr}`} className="block">
         {badge?.event ? (
@@ -553,16 +524,16 @@ function PendingBadgeList({
 
       {/* Navigation bar */}
       {visibleBadges.length > 1 && (
-        <div className="flex items-center justify-between border-t border-border px-3 py-2">
+        <div className="flex items-center justify-between px-3 py-2">
           <Button
             variant="ghost"
             size="icon"
-            className="size-8"
+            className="size-8 rounded-full"
             onClick={() => setCurrentIndex((i) => i - 1)}
             disabled={!hasPrev}
             aria-label="Previous badge"
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="size-4" strokeWidth={4} />
           </Button>
           <span className="text-xs text-muted-foreground tabular-nums">
             {currentIndex + 1} of {visibleBadges.length}
@@ -570,12 +541,12 @@ function PendingBadgeList({
           <Button
             variant="ghost"
             size="icon"
-            className="size-8"
+            className="size-8 rounded-full"
             onClick={() => setCurrentIndex((i) => i + 1)}
             disabled={!hasNext}
             aria-label="Next badge"
           >
-            <ChevronRight className="size-4" />
+            <ChevronRight className="size-4" strokeWidth={4} />
           </Button>
         </div>
       )}
@@ -585,7 +556,7 @@ function PendingBadgeList({
 
 function PendingBadgeSkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+    <div className="overflow-hidden">
       <div className="flex flex-col items-center py-10">
         <Skeleton className="size-28 rounded-2xl" />
         <div className="mt-4 space-y-2 flex flex-col items-center">
@@ -615,10 +586,12 @@ function AcceptedBadgeList({
   refs,
   setRefs,
   badgeMap,
+  isLoading,
 }: {
   refs: AcceptedRef[];
   setRefs: React.Dispatch<React.SetStateAction<AcceptedRef[]>>;
   badgeMap: Map<string, BadgeDefinition>;
+  isLoading: boolean;
 }) {
   const { toast } = useToast();
   const { mutate: reorderBadges, isPending: isReordering } = useReorderBadges();
@@ -655,51 +628,64 @@ function AcceptedBadgeList({
   return (
     <div className="relative mt-2">
       {isReordering && (
-        <div className="absolute inset-0 bg-background/40 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-xl pointer-events-none">
+        <div className="absolute inset-0 bg-background/40 backdrop-blur-[1px] z-20 flex items-center justify-center rounded-xl pointer-events-none">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       )}
-      <ScrollArea className="max-h-[420px]">
-        <SortableList
-          items={refs}
-          getItemId={(ref) => ref.aTag}
-          onReorder={handleReorder}
-          className="space-y-1.5"
-          renderItem={(ref, index) => (
-            <SortableItem
-              key={ref.aTag}
-              id={ref.aTag}
-              className="rounded-xl border border-border bg-card hover:bg-accent/30"
-              draggingClassName="z-10 opacity-80 shadow-lg ring-2 ring-primary/20"
-            >
-              <div className="flex items-center gap-3 p-3">
-                <span className="text-xs font-mono text-muted-foreground w-5 text-center shrink-0">
-                  {index + 1}
-                </span>
-                {badgeMap.get(ref.aTag) ? (
-                  <BadgeThumbnail badge={badgeMap.get(ref.aTag)!} size={40} className="shrink-0" />
-                ) : (
-                  <Skeleton className="size-10 rounded-lg shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium truncate block">
-                    {badgeMap.get(ref.aTag)?.name ?? ref.identifier}
-                  </span>
-                  <IssuerName pubkey={ref.pubkey} />
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 text-muted-foreground hover:text-destructive shrink-0"
-                  onClick={() => handleRemove(ref.aTag)}
-                  aria-label="Remove badge"
+      <ScrollArea className="h-[24rem]">
+        <div className="space-y-1.5">
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <AcceptedBadgeSkeleton key={i} />
+            ))
+          ) : refs.length === 0 ? (
+            <div className="py-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                No accepted badges yet. When you accept a badge, it will appear here.
+              </p>
+            </div>
+          ) : (
+            <SortableList
+              items={refs}
+              getItemId={(ref) => ref.aTag}
+              onReorder={handleReorder}
+              className="space-y-1.5"
+              renderItem={(ref, index) => (
+                <SortableItem
+                  key={ref.aTag}
+                  id={ref.aTag}
+                  className="rounded-xl hover:bg-accent/30"
+                  draggingClassName="z-10 opacity-80 shadow-lg ring-2 ring-primary/20"
                 >
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-            </SortableItem>
+                  <div className="flex items-center gap-3 p-3">
+                    <span className="text-xs font-mono text-muted-foreground w-5 text-center shrink-0">
+                      {index + 1}
+                    </span>
+                    {badgeMap.get(ref.aTag) ? (
+                      <BadgeThumbnail badge={badgeMap.get(ref.aTag)!} size={40} className="shrink-0" />
+                    ) : (
+                      <Skeleton className="size-10 rounded-lg shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium truncate block">
+                        {badgeMap.get(ref.aTag)?.name ?? ref.identifier}
+                      </span>
+                      <IssuerName pubkey={ref.pubkey} />
+                    </div>
+                    <BadgeOverflowMenu
+                      naddr={nip19.naddrEncode({
+                        kind: ref.kind,
+                        pubkey: ref.pubkey,
+                        identifier: ref.identifier,
+                      })}
+                      onRemove={() => handleRemove(ref.aTag)}
+                    />
+                  </div>
+                </SortableItem>
+              )}
+            />
           )}
-        />
+        </div>
       </ScrollArea>
     </div>
   );
@@ -707,7 +693,7 @@ function AcceptedBadgeList({
 
 function AcceptedBadgeSkeleton() {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl border border-border">
+    <div className="flex items-center gap-3 p-3 rounded-xl">
       <Skeleton className="size-5 rounded shrink-0" />
       <Skeleton className="size-10 rounded-lg shrink-0" />
       <div className="flex-1 space-y-1.5">
@@ -720,7 +706,7 @@ function AcceptedBadgeSkeleton() {
 
 // ─── Created Badge List ────────────────────────────────────────────────────────
 
-function CreatedBadgeList({ badges }: { badges: ParsedBadge[] }) {
+function CreatedBadgeList({ badges, isLoading }: { badges: ParsedBadge[]; isLoading: boolean }) {
   const [editingBadge, setEditingBadge] = useState<ParsedBadge | null>(null);
 
   if (editingBadge) {
@@ -749,15 +735,27 @@ function CreatedBadgeList({ badges }: { badges: ParsedBadge[] }) {
   }
 
   return (
-    <ScrollArea className="max-h-[420px] mt-2">
+    <ScrollArea className="h-[24rem] mt-2">
       <div className="space-y-2">
-        {badges.map((badge) => (
-          <CreatedBadgeRow
-            key={badge.aTag}
-            badge={badge}
-            onEdit={setEditingBadge}
-          />
-        ))}
+        {isLoading ? (
+          Array.from({ length: 2 }).map((_, i) => (
+            <CreatedBadgeSkeleton key={i} />
+          ))
+        ) : badges.length === 0 ? (
+          <div className="py-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              You haven't created any badges yet.
+            </p>
+          </div>
+        ) : (
+          badges.map((badge) => (
+            <CreatedBadgeRow
+              key={badge.aTag}
+              badge={badge}
+              onEdit={setEditingBadge}
+            />
+          ))
+        )}
       </div>
     </ScrollArea>
   );
@@ -775,6 +773,7 @@ function CreatedBadgeRow({
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const [awardOpen, setAwardOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -826,8 +825,8 @@ function CreatedBadgeRow({
 
   return (
     <>
-      <Card className="group transition-colors hover:border-primary/20">
-        <CardContent className="flex items-center gap-4 p-4">
+      <div className="group transition-colors rounded-xl hover:bg-accent/30">
+        <div className="flex items-center gap-4 p-4">
           <BadgeThumbnail badge={badge.badge} size={48} />
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm truncate">{badge.badge.name}</p>
@@ -840,76 +839,42 @@ function CreatedBadgeRow({
               {badge.badge.identifier}
             </p>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              title="View"
-              asChild
-            >
-              <Link to={`/${naddr}`}>
-                <ExternalLink className="size-3.5" />
-              </Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              title="Award"
-              onClick={() => setAwardOpen(true)}
-            >
-              <Users className="size-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              title="Edit"
-              onClick={() => onEdit(badge)}
-            >
-              <Pencil className="size-3.5" />
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-destructive hover:text-destructive"
-                  title="Delete"
+          <BadgeOverflowMenu
+            naddr={naddr}
+            onAward={() => setAwardOpen(true)}
+            onEdit={() => onEdit(badge)}
+            onDelete={() => setDeleteOpen(true)}
+          />
+
+          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Delete "{badge.badge.name}"?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This publishes a deletion request (NIP-09). Relays should
+                  remove the badge definition and all awards you issued
+                  for it.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteMutation.mutate()}
+                  disabled={deleteMutation.isPending}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  <Trash2 className="size-3.5" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Delete "{badge.badge.name}"?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This publishes a deletion request (NIP-09). Relays should
-                    remove the badge definition and all awards you issued
-                    for it.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => deleteMutation.mutate()}
-                    disabled={deleteMutation.isPending}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    {deleteMutation.isPending ? (
-                      <Loader2 className="size-4 animate-spin mr-1.5" />
-                    ) : null}
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </CardContent>
-      </Card>
+                  {deleteMutation.isPending ? (
+                    <Loader2 className="size-4 animate-spin mr-1.5" />
+                  ) : null}
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
 
       <AwardBadgeDialog
         open={awardOpen}
@@ -923,20 +888,18 @@ function CreatedBadgeRow({
 
 function CreatedBadgeSkeleton() {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-4 p-4">
-        <Skeleton className="size-12 rounded-lg shrink-0" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-3 w-48" />
-        </div>
-        <div className="flex gap-1">
-          <Skeleton className="size-8 rounded" />
-          <Skeleton className="size-8 rounded" />
-          <Skeleton className="size-8 rounded" />
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-4 p-4 rounded-xl">
+      <Skeleton className="size-12 rounded-lg shrink-0" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-3 w-48" />
+      </div>
+      <div className="flex gap-1">
+        <Skeleton className="size-8 rounded" />
+        <Skeleton className="size-8 rounded" />
+        <Skeleton className="size-8 rounded" />
+      </div>
+    </div>
   );
 }
 
@@ -1168,5 +1131,73 @@ function IssuerName({ pubkey }: { pubkey: string }) {
   const name = author.data?.metadata?.name ?? genUserName(pubkey);
   return (
     <span className="text-xs text-muted-foreground truncate">by {name}</span>
+  );
+}
+
+/** Shared overflow menu for accepted and created badge rows. */
+function BadgeOverflowMenu({
+  naddr,
+  onAward,
+  onEdit,
+  onDelete,
+  onRemove,
+}: {
+  naddr: string;
+  onAward?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onRemove?: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 text-muted-foreground shrink-0"
+        >
+          <MoreVertical className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem asChild>
+          <Link to={`/${naddr}`}>
+            <ExternalLink className="size-4 mr-2" />
+            View
+          </Link>
+        </DropdownMenuItem>
+        {onAward && (
+          <DropdownMenuItem onClick={onAward}>
+            <Users className="size-4 mr-2" />
+            Award
+          </DropdownMenuItem>
+        )}
+        {onEdit && (
+          <DropdownMenuItem onClick={onEdit}>
+            <Pencil className="size-4 mr-2" />
+            Edit
+          </DropdownMenuItem>
+        )}
+        {(onDelete || onRemove) && <DropdownMenuSeparator />}
+        {onRemove && (
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={onRemove}
+          >
+            <Trash2 className="size-4 mr-2" />
+            Remove
+          </DropdownMenuItem>
+        )}
+        {onDelete && (
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={onDelete}
+          >
+            <Trash2 className="size-4 mr-2" />
+            Delete
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
