@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import type { EggVisualBlobbi } from '../types/egg.types';
 import { isValidBaseColor, isValidSecondaryColor } from '../lib/blobbi-egg-validation';
 import { SpecialMarkRenderer, SpecialMarkFallback } from './SpecialMarkRenderer';
@@ -147,6 +147,18 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
   };
 
   const scale = fillScale[sizeVariant] || fillScale.medium;
+
+  // Tap-to-wiggle interaction state
+  const [isTapWiggling, setIsTapWiggling] = useState(false);
+
+  const handleEggClick = useCallback(() => {
+    if (isTapWiggling || cracking) return; // Don't re-trigger during animation or cracking
+    setIsTapWiggling(true);
+  }, [isTapWiggling, cracking]);
+
+  const handleWiggleEnd = useCallback(() => {
+    setIsTapWiggling(false);
+  }, []);
 
   // Divine color constants
   const DIVINE_PRIMARY_GREEN = '#55C4A2';
@@ -443,11 +455,17 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
 
         {/* Main egg shape - uses percentage-based sizing */}
         <div
+          onClick={handleEggClick}
+          onAnimationEnd={(e) => {
+            if (e.animationName === 'egg-tap-wiggle') handleWiggleEnd();
+          }}
           className={cn(
-            'relative transition-all duration-500 z-10',
-            // Reaction-based animations (music/sing)
-            (reaction === 'listening' || reaction === 'swaying' || reaction === 'happy') && 'animate-egg-sway',
-            reaction === 'singing' && 'animate-egg-bounce',
+            'relative transition-all duration-500 z-10 cursor-pointer',
+            // Tap wiggle (highest priority after cracking)
+            isTapWiggling && !cracking && 'animate-egg-tap-wiggle',
+            // Reaction-based animations (music/sing) - only when not tap-wiggling
+            !isTapWiggling && (reaction === 'listening' || reaction === 'swaying' || reaction === 'happy') && 'animate-egg-sway',
+            !isTapWiggling && reaction === 'singing' && 'animate-egg-bounce',
             // Warmth effect only when animated AND warm
             animated && actualWarmth > 60 && 'animate-egg-warmth',
             // Cracking overrides other animations
