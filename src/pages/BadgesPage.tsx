@@ -5,8 +5,8 @@ import { useSeoMeta } from "@unhead/react";
 import {
   Award,
   Check,
-  ChevronDown,
-  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   ExternalLink,
   Loader2,
@@ -23,6 +23,7 @@ import { Link } from "react-router-dom";
 import { AwardBadgeDialog } from "@/components/AwardBadgeDialog";
 import { LoginArea } from "@/components/auth/LoginArea";
 import {
+  BadgeContent,
   type BadgeData,
   parseBadgeDefinition,
 } from "@/components/BadgeContent";
@@ -33,6 +34,7 @@ import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/PageHeader";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { SortableList, SortableItem } from "@/components/SortableList";
 import { SubHeaderBar } from "@/components/SubHeaderBar";
 import { TabButton } from "@/components/TabButton";
 import {
@@ -51,6 +53,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useLayoutOptions } from "@/contexts/LayoutContext";
@@ -75,7 +78,6 @@ import { useUploadFile } from "@/hooks/useUploadFile";
 import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, getBadgeATag } from "@/lib/badgeUtils";
 import { deduplicateEvents } from "@/lib/deduplicateEvents";
 import { genUserName } from "@/lib/genUserName";
-import { timeAgo } from "@/lib/timeAgo";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -446,7 +448,7 @@ function SectionHeader({
   );
 }
 
-// ─── Pending Badge List ────────────────────────────────────────────────────────
+// ─── Pending Badge Carousel ────────────────────────────────────────────────────
 
 function PendingBadgeList({
   pendingBadges,
@@ -456,9 +458,20 @@ function PendingBadgeList({
   badgeMap: Map<string, BadgeDefinition>;
 }) {
   const [dismissedATags, setDismissedATags] = useState<Set<string>>(new Set());
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const { toast } = useToast();
+  const { mutate: acceptBadge, isPending: isAccepting } = useAcceptBadge();
+
   const visibleBadges = pendingBadges.filter(
     (p) => !dismissedATags.has(p.aTag),
   );
+
+  // Clamp index when badges are dismissed
+  useEffect(() => {
+    if (currentIndex >= visibleBadges.length && visibleBadges.length > 0) {
+      setCurrentIndex(visibleBadges.length - 1);
+    }
+  }, [currentIndex, visibleBadges.length]);
 
   const handleDismiss = useCallback((aTag: string) => {
     setDismissedATags((prev) => new Set(prev).add(aTag));
@@ -466,35 +479,14 @@ function PendingBadgeList({
 
   if (visibleBadges.length === 0) return null;
 
-  return (
-    <div className="space-y-2 mt-2">
-      {visibleBadges.map((pending) => (
-        <PendingBadgeRow
-          key={pending.aTag}
-          pending={pending}
-          badge={badgeMap.get(pending.aTag)}
-          onDismiss={() => handleDismiss(pending.aTag)}
-        />
-      ))}
-    </div>
-  );
-}
-
-function PendingBadgeRow({
-  pending,
-  badge,
-  onDismiss,
-}: {
-  pending: PendingBadge;
-  badge: BadgeDefinition | undefined;
-  onDismiss: () => void;
-}) {
-  const { toast } = useToast();
-  const { mutate: acceptBadge, isPending: isAccepting } = useAcceptBadge();
+  const current = visibleBadges[currentIndex];
+  const badge = badgeMap.get(current.aTag);
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex < visibleBadges.length - 1;
 
   const handleAccept = () => {
     acceptBadge(
-      { aTag: pending.aTag, awardEventId: pending.awardEvent.id },
+      { aTag: current.aTag, awardEventId: current.awardEvent.id },
       {
         onSuccess: () => toast({ title: "Badge accepted!" }),
         onError: () =>
@@ -503,67 +495,107 @@ function PendingBadgeRow({
     );
   };
 
+  const badgeNaddr = nip19.naddrEncode({
+    kind: BADGE_DEFINITION_KIND,
+    pubkey: current.issuerPubkey,
+    identifier: current.identifier,
+  });
+
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card animate-pending-glow transition-colors">
-      {badge ? (
-        <BadgeThumbnail badge={badge} size={40} className="shrink-0" />
-      ) : (
-        <Skeleton className="size-10 rounded-lg shrink-0" />
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium truncate">
-            {badge?.name ?? pending.identifier}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <IssuerName pubkey={pending.issuerPubkey} />
-          <span className="text-muted-foreground text-xs">·</span>
-          <span className="text-xs text-muted-foreground">
-            {timeAgo(pending.awardedAt)}
-          </span>
-        </div>
+    <div className="mt-2 rounded-2xl border border-border bg-card overflow-hidden animate-pending-glow">
+      {/* Badge showcase -- notification-style presentation */}
+      <Link to={`/${badgeNaddr}`} className="block">
+        {badge?.event ? (
+          <BadgeContent event={badge.event} />
+        ) : (
+          <div className="flex flex-col items-center py-10">
+            <Skeleton className="size-28 rounded-2xl" />
+            <div className="mt-4 space-y-2 flex flex-col items-center">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+          </div>
+        )}
+      </Link>
+
+      {/* Issuer line */}
+      <div className="flex items-center justify-center gap-2 pb-2 -mt-1">
+        <span className="text-xs text-muted-foreground">from</span>
+        <IssuerName pubkey={current.issuerPubkey} />
       </div>
-      <div className="flex items-center gap-1.5 shrink-0">
+
+      {/* Actions */}
+      <div className="flex justify-center gap-3 pb-4 pt-1">
         <Button
-          size="sm"
-          variant="default"
-          className="h-8 gap-1.5"
+          className="rounded-full px-6 h-10 text-sm font-semibold gap-2 shadow-md hover:scale-105 active:scale-95 transition-all"
           onClick={handleAccept}
           disabled={isAccepting}
+          style={{ filter: 'drop-shadow(0 2px 8px hsl(var(--primary) / 0.25))' }}
         >
           {isAccepting ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="size-4 animate-spin" />
           ) : (
-            <Check className="size-3.5" />
+            <>
+              <Award className="size-4" />
+              Accept Badge
+            </>
           )}
-          Accept
         </Button>
         <Button
-          size="sm"
           variant="ghost"
-          className="h-8 text-muted-foreground"
-          onClick={onDismiss}
+          className="rounded-full h-10 px-4 text-sm text-muted-foreground"
+          onClick={() => handleDismiss(current.aTag)}
           disabled={isAccepting}
         >
           Dismiss
         </Button>
       </div>
+
+      {/* Navigation bar */}
+      {visibleBadges.length > 1 && (
+        <div className="flex items-center justify-between border-t border-border px-3 py-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={() => setCurrentIndex((i) => i - 1)}
+            disabled={!hasPrev}
+            aria-label="Previous badge"
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {currentIndex + 1} of {visibleBadges.length}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={() => setCurrentIndex((i) => i + 1)}
+            disabled={!hasNext}
+            aria-label="Next badge"
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
 
 function PendingBadgeSkeleton() {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl border border-border">
-      <Skeleton className="size-10 rounded-lg shrink-0" />
-      <div className="flex-1 space-y-1.5">
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-3 w-24" />
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="flex flex-col items-center py-10">
+        <Skeleton className="size-28 rounded-2xl" />
+        <div className="mt-4 space-y-2 flex flex-col items-center">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-3 w-48" />
+        </div>
       </div>
-      <div className="flex gap-1.5">
-        <Skeleton className="h-8 w-20 rounded-md" />
-        <Skeleton className="h-8 w-16 rounded-md" />
+      <div className="flex justify-center gap-3 pb-4 pt-1">
+        <Skeleton className="h-10 w-36 rounded-full" />
+        <Skeleton className="h-10 w-20 rounded-full" />
       </div>
     </div>
   );
@@ -592,14 +624,11 @@ function AcceptedBadgeList({
   const { mutate: reorderBadges, isPending: isReordering } = useReorderBadges();
   const { mutate: removeBadge } = useRemoveBadge();
 
-  const moveUp = useCallback(
-    (index: number) => {
-      if (index <= 0) return;
-      const next = [...refs];
-      [next[index - 1], next[index]] = [next[index], next[index - 1]];
-      setRefs(next);
+  const handleReorder = useCallback(
+    (newRefs: AcceptedRef[]) => {
+      setRefs(newRefs);
       reorderBadges(
-        next.map((r) => ({ aTag: r.aTag, eTag: r.eTag })),
+        newRefs.map((r) => ({ aTag: r.aTag, eTag: r.eTag })),
         {
           onError: () =>
             toast({
@@ -609,27 +638,7 @@ function AcceptedBadgeList({
         },
       );
     },
-    [refs, setRefs, reorderBadges, toast],
-  );
-
-  const moveDown = useCallback(
-    (index: number) => {
-      if (index >= refs.length - 1) return;
-      const next = [...refs];
-      [next[index], next[index + 1]] = [next[index + 1], next[index]];
-      setRefs(next);
-      reorderBadges(
-        next.map((r) => ({ aTag: r.aTag, eTag: r.eTag })),
-        {
-          onError: () =>
-            toast({
-              title: "Failed to reorder badges",
-              variant: "destructive",
-            }),
-        },
-      );
-    },
-    [refs, setRefs, reorderBadges, toast],
+    [setRefs, reorderBadges, toast],
   );
 
   const handleRemove = useCallback(
@@ -644,92 +653,54 @@ function AcceptedBadgeList({
   );
 
   return (
-    <div className="space-y-1.5 relative mt-2">
+    <div className="relative mt-2">
       {isReordering && (
         <div className="absolute inset-0 bg-background/40 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-xl pointer-events-none">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       )}
-      {refs.map((ref, index) => (
-        <AcceptedBadgeRow
-          key={ref.aTag}
-          ref_={ref}
-          index={index}
-          total={refs.length}
-          badge={badgeMap.get(ref.aTag)}
-          onMoveUp={() => moveUp(index)}
-          onMoveDown={() => moveDown(index)}
-          onRemove={() => handleRemove(ref.aTag)}
+      <ScrollArea className="max-h-[420px]">
+        <SortableList
+          items={refs}
+          getItemId={(ref) => ref.aTag}
+          onReorder={handleReorder}
+          className="space-y-1.5"
+          renderItem={(ref, index) => (
+            <SortableItem
+              key={ref.aTag}
+              id={ref.aTag}
+              className="rounded-xl border border-border bg-card hover:bg-accent/30"
+              draggingClassName="z-10 opacity-80 shadow-lg ring-2 ring-primary/20"
+            >
+              <div className="flex items-center gap-3 p-3">
+                <span className="text-xs font-mono text-muted-foreground w-5 text-center shrink-0">
+                  {index + 1}
+                </span>
+                {badgeMap.get(ref.aTag) ? (
+                  <BadgeThumbnail badge={badgeMap.get(ref.aTag)!} size={40} className="shrink-0" />
+                ) : (
+                  <Skeleton className="size-10 rounded-lg shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium truncate block">
+                    {badgeMap.get(ref.aTag)?.name ?? ref.identifier}
+                  </span>
+                  <IssuerName pubkey={ref.pubkey} />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 text-muted-foreground hover:text-destructive shrink-0"
+                  onClick={() => handleRemove(ref.aTag)}
+                  aria-label="Remove badge"
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            </SortableItem>
+          )}
         />
-      ))}
-    </div>
-  );
-}
-
-function AcceptedBadgeRow({
-  ref_,
-  index,
-  total,
-  badge,
-  onMoveUp,
-  onMoveDown,
-  onRemove,
-}: {
-  ref_: AcceptedRef;
-  index: number;
-  total: number;
-  badge: BadgeDefinition | undefined;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onRemove: () => void;
-}) {
-  return (
-    <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-accent/30 transition-colors group">
-      <span className="text-xs font-mono text-muted-foreground w-5 text-center shrink-0">
-        {index + 1}
-      </span>
-      {badge ? (
-        <BadgeThumbnail badge={badge} size={40} className="shrink-0" />
-      ) : (
-        <Skeleton className="size-10 rounded-lg shrink-0" />
-      )}
-      <div className="flex-1 min-w-0">
-        <span className="text-sm font-medium truncate block">
-          {badge?.name ?? ref_.identifier}
-        </span>
-        <IssuerName pubkey={ref_.pubkey} />
-      </div>
-      <div className="flex items-center gap-0.5 sidebar:opacity-0 sidebar:group-hover:opacity-100 transition-opacity shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          onClick={onMoveUp}
-          disabled={index === 0}
-          aria-label="Move up"
-        >
-          <ChevronUp className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          onClick={onMoveDown}
-          disabled={index === total - 1}
-          aria-label="Move down"
-        >
-          <ChevronDown className="size-4" />
-        </Button>
-      </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-7 text-muted-foreground hover:text-destructive sidebar:opacity-0 sidebar:group-hover:opacity-100 transition-all shrink-0"
-        onClick={onRemove}
-        aria-label="Remove badge"
-      >
-        <Trash2 className="size-4" />
-      </Button>
+      </ScrollArea>
     </div>
   );
 }
@@ -778,15 +749,17 @@ function CreatedBadgeList({ badges }: { badges: ParsedBadge[] }) {
   }
 
   return (
-    <div className="space-y-2 mt-2">
-      {badges.map((badge) => (
-        <CreatedBadgeRow
-          key={badge.aTag}
-          badge={badge}
-          onEdit={setEditingBadge}
-        />
-      ))}
-    </div>
+    <ScrollArea className="max-h-[420px] mt-2">
+      <div className="space-y-2">
+        {badges.map((badge) => (
+          <CreatedBadgeRow
+            key={badge.aTag}
+            badge={badge}
+            onEdit={setEditingBadge}
+          />
+        ))}
+      </div>
+    </ScrollArea>
   );
 }
 
