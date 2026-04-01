@@ -709,24 +709,23 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
           />
 
           {/* Stats + Save */}
-          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-            <span>{wordCount} words</span>
-            <span>·</span>
-            <span>{charCount} chars</span>
-            <span>·</span>
-            <span>{readingTime} min read</span>
-            {statusLabel && (
-              <>
-                <span>·</span>
-                {statusLabel}
-              </>
-            )}
-            <span className="flex-1" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+              <span className="shrink-0">{wordCount} words</span>
+              <span>·</span>
+              <span className="shrink-0">{readingTime} min read</span>
+              {statusLabel && (
+                <>
+                  <span>·</span>
+                  {statusLabel}
+                </>
+              )}
+            </div>
             <Button
               variant="outline"
               size="sm"
               onClick={handleSaveDraft}
-              className="rounded-full gap-1.5"
+              className="rounded-full gap-1.5 shrink-0"
             >
               <Save className="size-3.5" />
               Save Draft
