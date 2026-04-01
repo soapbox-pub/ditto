@@ -25,6 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
@@ -1930,77 +1931,46 @@ function BlobbiDashboardFloatingControls({
           </Tooltip>
         )}
         
-        {/* DEV ONLY: Instant stage transition button */}
-        {/* Bypasses incubation/evolution tasks for quick testing */}
-        {isLocalhostDev() && stage !== 'adult' && onDevInstantTransition && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={onDevInstantTransition}
-                disabled={isTransitioning}
-                className="size-10 rounded-full bg-amber-500/10 backdrop-blur-sm border-dashed border-amber-500/50 hover:bg-amber-500/20 hover:border-amber-500/70 transition-all shadow-sm text-amber-600 dark:text-amber-400 disabled:opacity-50"
-              >
-                {isTransitioning ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : stage === 'egg' ? (
-                  <Egg className="size-4" />
-                ) : (
-                  <Sparkles className="size-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p className="text-amber-600 dark:text-amber-400">
-                {stage === 'egg' ? 'Dev Hatch' : 'Dev Evolve'}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-        
-        {/* DEV ONLY: State editor button */}
-        {/* Opens a modal to directly edit Blobbi state */}
-        {isLocalhostDev() && onDevOpenEditor && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={onDevOpenEditor}
-                className="size-10 rounded-full bg-amber-500/10 backdrop-blur-sm border-dashed border-amber-500/50 hover:bg-amber-500/20 hover:border-amber-500/70 transition-all shadow-sm text-amber-600 dark:text-amber-400"
-              >
-                <Wrench className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p className="text-amber-600 dark:text-amber-400">
-                Dev State Editor
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-        
-        {/* DEV ONLY: Emotion tester button */}
-        {/* Opens a panel to test different emotions on Blobbi */}
-        {isLocalhostDev() && onDevOpenEmotionPanel && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={onDevOpenEmotionPanel}
-                className="size-10 rounded-full bg-amber-500/10 backdrop-blur-sm border-dashed border-amber-500/50 hover:bg-amber-500/20 hover:border-amber-500/70 transition-all shadow-sm text-amber-600 dark:text-amber-400"
-              >
-                <Theater className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p className="text-amber-600 dark:text-amber-400">
-                Dev Emotion Tester
-              </p>
-            </TooltipContent>
-          </Tooltip>
+        {/* DEV ONLY: Developer tools dropdown */}
+        {isLocalhostDev() && (onDevInstantTransition || onDevOpenEditor || onDevOpenEmotionPanel) && (
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-10 rounded-full bg-amber-500/10 backdrop-blur-sm border-dashed border-amber-500/50 hover:bg-amber-500/20 hover:border-amber-500/70 transition-all shadow-sm text-amber-600 dark:text-amber-400"
+                  >
+                    <Wrench className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p className="text-amber-600 dark:text-amber-400">Dev Tools</p>
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent side="left" align="start">
+              {stage !== 'adult' && onDevInstantTransition && (
+                <DropdownMenuItem onClick={onDevInstantTransition} disabled={isTransitioning}>
+                  {stage === 'egg' ? <Egg className="size-4 mr-2" /> : <Sparkles className="size-4 mr-2" />}
+                  {stage === 'egg' ? 'Dev Hatch' : 'Dev Evolve'}
+                </DropdownMenuItem>
+              )}
+              {onDevOpenEditor && (
+                <DropdownMenuItem onClick={onDevOpenEditor}>
+                  <Wrench className="size-4 mr-2" />
+                  State Editor
+                </DropdownMenuItem>
+              )}
+              {onDevOpenEmotionPanel && (
+                <DropdownMenuItem onClick={onDevOpenEmotionPanel}>
+                  <Theater className="size-4 mr-2" />
+                  Emotion Tester
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     </>
