@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ComposeBox } from '@/components/ComposeBox';
 import { NoteCard } from '@/components/NoteCard';
-import { ThreadedReplyList } from '@/components/ThreadedReplyList';
+import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
@@ -436,7 +436,7 @@ function CommentsTab({ event, orderedReplies, commentsLoading }: {
       {commentsLoading ? (
         <CommentsSkeleton />
       ) : orderedReplies.length > 0 ? (
-        <ThreadedReplyList replies={orderedReplies} />
+        <FlatThreadedReplyList replies={orderedReplies} />
       ) : (
         <div className="py-16 flex flex-col items-center gap-3 text-center px-8">
           <MessageCircle className="size-8 text-muted-foreground/30" />

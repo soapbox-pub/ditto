@@ -63,7 +63,7 @@ import { ReactionButton } from "@/components/ReactionButton";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
-import { ThreadedReplyList } from "@/components/ThreadedReplyList";
+import { ThreadedReplyList, FlatThreadedReplyList, type ReplyNode } from "@/components/ThreadedReplyList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { Button } from "@/components/ui/button";
@@ -437,7 +437,7 @@ function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
             ))}
           </div>
         ) : orderedReplies.length > 0 ? (
-          <ThreadedReplyList replies={orderedReplies} />
+          <FlatThreadedReplyList replies={orderedReplies} />
         ) : (
           <div className="py-12 text-center text-muted-foreground text-sm">
             No replies yet. Be the first to reply!
@@ -1163,8 +1163,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     return source.filter((r) => !isEventMuted(r, muteItems));
   }, [isKind1, rawReplies, commentsData?.allComments, muteItems]);
 
-  // Build a reply tree: direct replies each paired with their first sub-reply.
-  const orderedReplies = useMemo(() => {
+  // Build a full reply tree for recursive threaded rendering.
+  const replyTree = useMemo((): ReplyNode[] => {
     if (!replies || replies.length === 0) return [];
 
     if (isKind1) {
@@ -1173,7 +1173,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       const directReplies: NostrEvent[] = [];
 
       for (const r of replies) {
-        if (!isReplyEvent(r)) continue; // mention-only e-tags are quotes, not replies
+        if (!isReplyEvent(r)) continue;
         const parentId = getParentEventId(r);
         if (!parentId || parentId === event.id) {
           directReplies.push(r);
@@ -1184,48 +1184,33 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         }
       }
 
-      return directReplies.map((reply) => ({
-        reply,
-        firstSubReply: (childrenMap.get(reply.id) ?? [])[0] as
-          | NostrEvent
-          | undefined,
-      }));
-    } else if (isComment) {
-      // Kind 1111: we're viewing a comment — show replies to this specific comment
-      const directReplies = commentsData?.getDirectReplies(event.id) ?? [];
-      const filteredReplies =
-        muteItems.length > 0
-          ? directReplies.filter((r) => !isEventMuted(r, muteItems))
-          : directReplies;
-
-      return filteredReplies.map((reply) => {
-        const subReplies = commentsData?.getDirectReplies(reply.id) ?? [];
-        return {
-          reply,
-          firstSubReply: subReplies[0] as NostrEvent | undefined,
-        };
+      const buildNode = (ev: NostrEvent): ReplyNode => ({
+        event: ev,
+        children: (childrenMap.get(ev.id) ?? []).map(buildNode),
       });
-    } else {
-      // Non-kind-1 root: use NIP-22 comment structure from useComments
-      const topLevel = commentsData?.topLevelComments ?? [];
-      const filteredTopLevel =
-        muteItems.length > 0
-          ? topLevel.filter((r) => !isEventMuted(r, muteItems))
-          : topLevel;
-
-      // Sort oldest-first for threaded conversation view (useComments returns newest-first)
-      const sorted = [...filteredTopLevel].sort(
-        (a, b) => a.created_at - b.created_at,
-      );
-
-      return sorted.map((reply) => {
-        const directReplies = commentsData?.getDirectReplies(reply.id) ?? [];
-        return {
-          reply,
-          firstSubReply: directReplies[0] as NostrEvent | undefined,
-        };
-      });
+      return directReplies.map(buildNode);
     }
+
+    // Kind 1111 or non-kind-1 root: use NIP-22 comment structure
+    const buildNode = (ev: NostrEvent): ReplyNode => ({
+      event: ev,
+      children: (commentsData?.getDirectReplies(ev.id) ?? []).map(buildNode),
+    });
+
+    if (isComment) {
+      const directReplies = commentsData?.getDirectReplies(event.id) ?? [];
+      const filtered = muteItems.length > 0
+        ? directReplies.filter((r) => !isEventMuted(r, muteItems))
+        : directReplies;
+      return filtered.map(buildNode);
+    }
+
+    // Non-kind-1 root
+    const topLevel = commentsData?.topLevelComments ?? [];
+    const filtered = muteItems.length > 0
+      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
+      : topLevel;
+    return [...filtered].sort((a, b) => a.created_at - b.created_at).map(buildNode);
   }, [isKind1, isComment, replies, event.id, commentsData, muteItems]);
 
   // Seed the NIP-85 stats cache with client-side reply counts for each comment
@@ -2235,8 +2220,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <ReplyCardSkeleton key={i} />
             ))}
           </div>
-        ) : orderedReplies.length > 0 ? (
-          <ThreadedReplyList replies={orderedReplies} />
+        ) : replyTree.length > 0 ? (
+          <ThreadedReplyList roots={replyTree} />
         ) : !parentEventId ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
             No replies yet. Be the first to reply!

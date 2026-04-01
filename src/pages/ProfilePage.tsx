@@ -41,7 +41,7 @@ import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { MediaCollage, MediaCollageSkeleton } from '@/components/MediaCollage';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useWallComments } from '@/hooks/useWallComments';
-import { ThreadedReplyList } from '@/components/ThreadedReplyList';
+import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 
@@ -2481,7 +2481,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               </div>
             ) : orderedWallReplies.length > 0 ? (
               <div>
-                <ThreadedReplyList replies={orderedWallReplies} />
+                <FlatThreadedReplyList replies={orderedWallReplies} />
 
                 {/* Infinite scroll sentinel */}
                 {hasNextWallPage && (

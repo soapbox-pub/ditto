@@ -11,7 +11,7 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ThreadedReplyList } from '@/components/ThreadedReplyList';
+import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ExternalReactionButton } from '@/components/ExternalReactionButton';
@@ -291,7 +291,7 @@ export function ExternalContentPage() {
             {commentsLoading ? (
               <CommentsSkeleton />
             ) : orderedReplies.length > 0 ? (
-              <ThreadedReplyList replies={orderedReplies} />
+              <FlatThreadedReplyList replies={orderedReplies} />
             ) : (
               <CommentsEmptyState />
             )}
@@ -383,7 +383,7 @@ function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading }:
           {commentsLoading ? (
             <CommentsSkeleton />
           ) : orderedReplies.length > 0 ? (
-            <ThreadedReplyList replies={orderedReplies} />
+            <FlatThreadedReplyList replies={orderedReplies} />
           ) : (
             <CommentsEmptyState />
           )}
