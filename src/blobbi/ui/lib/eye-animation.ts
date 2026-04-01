@@ -386,7 +386,9 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
   const eyelidColor = darkenColor(baseColor, EYELID_DARKEN_AMOUNT);
   
   // Generate unique ID prefix for clipPaths to avoid collisions between multiple Blobbis
-  const instanceId = options?.instanceId || Math.random().toString(36).substring(2, 8);
+  // Sanitize to only allow valid SVG ID characters (letters, numbers, underscore, hyphen)
+  const rawInstanceId = options?.instanceId || Math.random().toString(36).substring(2, 8);
+  const instanceId = rawInstanceId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
   for (const group of eyeGroups) {
     // Collect all elements for this eye (for removal tracking)
