@@ -55,7 +55,7 @@ function ReplyThread({ node, depth, depthless }: { node: ReplyNode; depth: numbe
       )}
       {/* Revealed hidden siblings render as threaded items before the inline child */}
       {showHidden && node.hiddenChildren!.map((child) => (
-        <NoteCard key={child.event.id} event={child.event} threaded />
+        <NoteCard key={child.event.id} event={child.event} threaded threadedLineClassName="bg-primary/30" />
       ))}
       {node.children.map((child) => (
         <ReplyThread key={child.event.id} node={child} depth={depth + 1} depthless={childDepthless} />

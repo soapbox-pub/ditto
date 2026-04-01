@@ -123,6 +123,8 @@ interface NoteCardProps {
   compact?: boolean;
   /** If true, render in threaded ancestor style: connector line below avatar, no bottom border. */
   threaded?: boolean;
+  /** Custom class for the threaded connector line (overrides the default color). */
+  threadedLineClassName?: string;
   /** Like threaded but without the connector line — used for the last item in a thread (e.g. sub-reply hint). */
   threadedLast?: boolean;
   /** If true, briefly highlight this card (e.g. newly loaded post). */
@@ -198,6 +200,7 @@ export const NoteCard = memo(function NoteCard({
   repostedBy,
   compact,
   threaded,
+  threadedLineClassName,
   threadedLast,
   highlight,
   hideKindHeader,
@@ -714,7 +717,7 @@ export const NoteCard = memo(function NoteCard({
             <div className="flex flex-col items-center">
               {avatarElement}
               {threaded && (
-                <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
+                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
               )}
             </div>
             <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
@@ -786,7 +789,7 @@ export const NoteCard = memo(function NoteCard({
                 />
               </div>
               {threaded && (
-                <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
+                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
               )}
             </div>
             <div
@@ -938,7 +941,7 @@ export const NoteCard = memo(function NoteCard({
                 <RepostIcon className="size-5 text-accent" />
               </div>
               {threaded && (
-                <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
+                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
               )}
             </div>
             <div
@@ -1124,7 +1127,7 @@ export const NoteCard = memo(function NoteCard({
               <div className="flex items-center justify-center size-10 rounded-full bg-amber-500/10 shrink-0">
                 <Zap className="size-5 text-amber-500 fill-amber-500" />
               </div>
-              {threaded && <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />}
+              {threaded && <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />}
             </div>
             <div className={cn("flex-1 min-w-0 flex flex-col justify-center min-h-10", threaded && "pb-3")}>
               {zapActorRow}
@@ -1205,7 +1208,7 @@ export const NoteCard = memo(function NoteCard({
             <div className="flex flex-col items-center">
               {avatarElement}
               {threaded && (
-                <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
+                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
               )}
             </div>
             <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
