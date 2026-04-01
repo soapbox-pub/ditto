@@ -1,7 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Loader2, Plus, Trash2, ChevronDown, GripVertical,
+  Loader2, Plus, Trash2, ChevronDown,
   Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye, AlertTriangle, CloudSun,
 } from 'lucide-react';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -12,14 +12,6 @@ import { z } from 'zod';
 import { NSchema as n } from '@nostrify/nostrify';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext, verticalListSortingStrategy, useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 
 import { ProfileCard } from '@/components/ProfileCard';
 import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
@@ -27,6 +19,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { IntroImage } from '@/components/IntroImage';
 import { HelpTip } from '@/components/HelpTip';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
+import { SortableList, SortableItem } from '@/components/SortableList';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -296,27 +289,11 @@ interface SortableFieldRowProps {
 }
 
 function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploading: fieldUploading, control, onRemove, onMediaPick, onTickerChange }: SortableFieldRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = { transform: CSS.Transform.toString(transform), transition };
-
   const formatHint = type === 'media' ? getFormatHintForAccept(accept) : undefined;
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-start ${isDragging ? 'z-10 opacity-80' : ''}`}
-    >
-      {/* Drag handle */}
-      <button
-        type="button"
-        className="flex items-center justify-center h-9 w-6 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
-      </button>
-
+    <SortableItem id={id} className="items-start" gripClassName="w-6 h-9">
+      <div className="grid grid-cols-[1fr,2fr,auto] gap-2 items-start">
       {/* Label column — varies by type */}
       {type === 'wallet' ? (
         <FormField
@@ -431,7 +408,8 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploadi
       >
         <Trash2 className="size-4" />
       </Button>
-    </div>
+      </div>
+    </SortableItem>
   );
 }
 
@@ -518,17 +496,12 @@ export function ProfileSettings() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { fields, append, remove, move } = useFieldArray({ control: form.control as any, name: 'fields' });
 
-  // Drag-and-drop for custom fields
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor),
-  );
-  const handleFieldDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = fields.findIndex((f) => f.id === active.id);
-    const newIndex = fields.findIndex((f) => f.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
+  const handleFieldReorder = useCallback((reordered: typeof fields) => {
+    // Map reordered items back to move() calls by finding the first mismatch
+    const oldIndex = fields.findIndex((f, i) => f.id !== reordered[i]?.id);
+    if (oldIndex === -1) return;
+    const newIndex = reordered.findIndex((f) => f.id === fields[oldIndex].id);
+    if (newIndex === -1) return;
     move(oldIndex, newIndex);
   }, [fields, move]);
 
@@ -830,25 +803,27 @@ export function ProfileSettings() {
                 )}
               />
 
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleFieldDragEnd}>
-                <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
-                  {fields.map((field, index) => (
-                    <SortableFieldRow
-                      key={field.id}
-                      id={field.id}
-                      index={index}
-                      type={form.watch(`fields.${index}.type`) ?? 'text'}
-                      accept={form.watch(`fields.${index}.accept`)}
-                      valuePlaceholder={form.watch(`fields.${index}.placeholder`)}
-                      isUploading={uploadingFieldIndex === index}
-                      control={form.control}
-                      onRemove={() => remove(index)}
-                      onMediaPick={() => handleMediaPick(index)}
-                      onTickerChange={(ticker) => form.setValue(`fields.${index}.label`, ticker, { shouldDirty: true })}
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
+              <SortableList
+                items={fields}
+                getItemId={(field) => field.id}
+                onReorder={handleFieldReorder}
+                className="space-y-3"
+                renderItem={(field, index) => (
+                  <SortableFieldRow
+                    key={field.id}
+                    id={field.id}
+                    index={index}
+                    type={form.watch(`fields.${index}.type`) ?? 'text'}
+                    accept={form.watch(`fields.${index}.accept`)}
+                    valuePlaceholder={form.watch(`fields.${index}.placeholder`)}
+                    isUploading={uploadingFieldIndex === index}
+                    control={form.control}
+                    onRemove={() => remove(index)}
+                    onMediaPick={() => handleMediaPick(index)}
+                    onTickerChange={(ticker) => form.setValue(`fields.${index}.label`, ticker, { shouldDirty: true })}
+                  />
+                )}
+              />
 
               {/* Add field — visible pill buttons */}
               <div className="flex flex-wrap gap-1.5 pt-1">

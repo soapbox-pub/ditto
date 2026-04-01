@@ -189,7 +189,6 @@ export function BadgesPage() {
       {/* Tab content */}
       {activeTab === "mine" ? (
         <MyBadgesTab
-          onOpenCreate={() => setCreateDialogOpen(true)}
           pendingBadges={pendingBadges}
           pendingCount={pendingCount}
           isLoadingPending={isLoadingPending}
@@ -217,14 +216,12 @@ export function BadgesPage() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface MyBadgesTabProps {
-  onOpenCreate: () => void;
   pendingBadges: PendingBadge[];
   pendingCount: number;
   isLoadingPending: boolean;
 }
 
 function MyBadgesTab({
-  onOpenCreate,
   pendingBadges,
   pendingCount,
   isLoadingPending,
@@ -250,7 +247,6 @@ function MyBadgesTab({
 
   return (
     <MyBadgesContent
-      onOpenCreate={onOpenCreate}
       pendingBadges={pendingBadges}
       pendingCount={pendingCount}
       isLoadingPending={isLoadingPending}
@@ -259,7 +255,6 @@ function MyBadgesTab({
 }
 
 function MyBadgesContent({
-  onOpenCreate,
   pendingBadges,
   pendingCount,
   isLoadingPending,
@@ -654,7 +649,7 @@ function AcceptedBadgeList({
                 <SortableItem
                   key={ref.aTag}
                   id={ref.aTag}
-                  className="rounded-xl hover:bg-accent/30"
+                   className="items-center rounded-xl hover:bg-accent/30"
                   draggingClassName="z-10 opacity-80 shadow-lg ring-2 ring-primary/20"
                 >
                   <div className="flex items-center gap-3 p-3">

@@ -71,6 +71,8 @@ export interface SortableItemProps {
   className?: string;
   /** Classes applied while the item is being dragged. */
   draggingClassName?: string;
+  /** Override the grip handle width class (default: "w-8"). */
+  gripClassName?: string;
   children: React.ReactNode;
 }
 
@@ -78,7 +80,7 @@ export interface SortableItemProps {
  * Wraps a single child with `useSortable` and renders a grip-vertical
  * drag handle. Shares the same visual pattern as the sidebar edit view.
  */
-export function SortableItem({ id, enabled = true, className, draggingClassName, children }: SortableItemProps) {
+export function SortableItem({ id, enabled = true, className, draggingClassName, gripClassName, children }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !enabled });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
@@ -87,14 +89,17 @@ export function SortableItem({ id, enabled = true, className, draggingClassName,
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-center transition-colors relative',
-        isDragging && (draggingClassName ?? 'z-10 opacity-80 shadow-lg'),
+        'flex transition-colors relative',
         className,
+        isDragging && (draggingClassName ?? 'z-10 opacity-80 shadow-lg'),
       )}
     >
       {enabled && (
         <button
-          className="flex items-center justify-center w-8 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
+          className={cn(
+            'flex items-center justify-center shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors',
+            gripClassName ?? 'w-8',
+          )}
           {...attributes}
           {...listeners}
         >
