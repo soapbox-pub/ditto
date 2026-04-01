@@ -977,6 +977,16 @@ const defaultConfig: AppConfig = {
 
 The app uses NIP-65 compatible relay management with automatic sync when users log in. Local storage persists user preferences and relay configurations.
 
+### Adding a New AppConfig Value
+
+Adding a new configuration field requires updates in **three places**. Missing any of them will cause build failures or runtime issues.
+
+1. **TypeScript interface** (`src/contexts/AppContext.ts`): Add the field to the `AppConfig` interface with a JSDoc comment.
+
+2. **Zod schema** (`src/lib/schemas.ts`): Add the same field to `AppConfigSchema`. The `DittoConfigSchema` (used to validate the build-time `ditto.json` file) is derived from `AppConfigSchema` with `.strict()` mode, so any field present in `ditto.json` but missing from the Zod schema will cause a build error.
+
+3. **Default value** (`src/contexts/AppContext.ts`): If the field is required (not optional), add a default value in `defaultConfig`. Optional fields (`?` in the interface, `.optional()` in Zod) can be omitted from the default.
+
 ### Relay Management
 
 The project includes a complete NIP-65 relay management system:
