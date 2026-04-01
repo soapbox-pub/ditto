@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X, Footprints, Wrench, Theater } from 'lucide-react';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X, Footprints, Wrench, Theater } from 'lucide-react';
 // TODO: Re-import when features are implemented: Footprints, PictureInPicture2
 // Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
 // Note: Sparkles kept for BlobbiBottomBar center action button
@@ -1510,7 +1510,7 @@ function BlobbiDashboard({
           <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
             <div className="flex items-start justify-between gap-4">
               <DialogTitle className="flex items-center gap-2">
-                <Users className="size-5" />
+                <Egg className="size-5" />
                 Your Blobbies
               </DialogTitle>
               <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 shrink-0">
@@ -2380,7 +2380,7 @@ function BlobbiBottomBar({
           <div className="flex items-center justify-end gap-0 sm:gap-1 overflow-hidden">
             <BottomBarButton 
               onClick={onBlobbiesClick} 
-              icon={<Users className="size-4" />} 
+              icon={<Egg className="size-4" />} 
               label="Blobbies" 
               badge={needyBlobbiesCount && needyBlobbiesCount > 0 ? needyBlobbiesCount : undefined}
               badgeVariant={needyBlobbiesCount && needyBlobbiesCount > 0 ? 'warning' : 'default'}
