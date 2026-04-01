@@ -10,15 +10,11 @@ import {
   Hash,
   FileText,
   X,
-  Calendar,
   Clock,
   Cloud,
   HardDrive,
   Trash2,
-  PenLine,
-  Settings2,
   ChevronRight,
-  BookOpen,
 } from 'lucide-react';
 import slugify from 'slugify';
 
@@ -27,11 +23,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,7 +62,7 @@ interface ArticleEditorProps {
   editMode?: boolean;
 }
 
-type EditorTab = 'write' | 'details' | 'drafts';
+type EditorTab = 'write' | 'drafts';
 
 export function ArticleEditor({ initialData, editMode = false }: ArticleEditorProps) {
   const navigate = useNavigate();
@@ -556,7 +547,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
 
   return (
     <div className="flex flex-col">
-      {/* Sticky header — matches letters/compose pattern */}
+      {/* Sticky header */}
       <div className="sticky top-0 z-20">
         <SubHeaderBar pinned className="relative !top-0">
           <button
@@ -567,40 +558,16 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
           </button>
 
           <TabButton
-            label="Write"
+            label="New"
             active={activeTab === 'write'}
             onClick={() => setActiveTab('write')}
-          >
-            <PenLine className="h-5 w-5" strokeWidth={2.5} />
-          </TabButton>
+          />
 
           <TabButton
-            label="Details"
-            active={activeTab === 'details'}
-            onClick={() => setActiveTab('details')}
-          >
-            <Settings2 className="h-5 w-5" strokeWidth={2.5} />
-          </TabButton>
-
-          <TabButton
-            label="Drafts"
+            label="My Articles"
             active={activeTab === 'drafts'}
             onClick={() => setActiveTab('drafts')}
-          >
-            <BookOpen className="h-5 w-5" strokeWidth={2.5} />
-          </TabButton>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={handleSaveDraft}
-                className="pr-3 pl-1 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-              >
-                <Save className="size-5" strokeWidth={2.5} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Save Draft (Ctrl+S)</TooltipContent>
-          </Tooltip>
+          />
         </SubHeaderBar>
       </div>
 
@@ -619,17 +586,117 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         className="hidden"
       />
 
-      {/* ── Write tab ────────────────────────────────────────────── */}
+      {/* ── New article tab ──────────────────────────────────────── */}
       {activeTab === 'write' && (
-        <div className="px-4 py-6">
-          {/* Title Input */}
+        <div className="px-4 py-6 space-y-6">
+          {/* Header Image */}
+          {article.image ? (
+            <div className="relative rounded-xl overflow-hidden group">
+              <img
+                src={article.image}
+                alt="Header"
+                className="w-full h-48 sm:h-64 object-cover"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Image className="w-4 h-4 mr-2" />
+                  )}
+                  Change Image
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="w-full h-32 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 hover:text-primary/70 transition-colors"
+            >
+              {isUploading ? (
+                <Loader2 className="w-8 h-8 animate-spin mb-2" />
+              ) : (
+                <Image className="w-8 h-8 mb-2" />
+              )}
+              <span className="text-sm">Add a header image</span>
+            </button>
+          )}
+
+          {/* Title */}
           <input
             type="text"
             value={article.title}
             onChange={(e) => updateArticle('title', e.target.value)}
             placeholder="Your article title..."
-            className="w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none placeholder:text-muted-foreground/40 mb-4"
+            className="w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
           />
+
+          {/* Metadata — inline between title and body */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="summary" className="text-muted-foreground text-sm">Summary</Label>
+              <Textarea
+                id="summary"
+                value={article.summary}
+                onChange={(e) => updateArticle('summary', e.target.value)}
+                placeholder="A brief description of your article..."
+                rows={2}
+                className="resize-none"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="space-y-2 flex-1">
+                <Label htmlFor="slug" className="text-muted-foreground text-sm">URL Slug</Label>
+                <Input
+                  id="slug"
+                  value={article.slug}
+                  onChange={(e) => updateArticle('slug', e.target.value)}
+                  placeholder="article-url-slug"
+                  className="font-mono text-sm"
+                />
+              </div>
+              <div className="space-y-2 flex-1">
+                <Label className="text-muted-foreground text-sm flex items-center gap-1.5">
+                  <Hash className="w-3.5 h-3.5" />
+                  Tags
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) =>
+                      e.key === 'Enter' && (e.preventDefault(), handleAddTag())
+                    }
+                    placeholder="Add a tag..."
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="secondary" size="sm" onClick={handleAddTag}>
+                    Add
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {article.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {article.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="gap-1 px-2 py-1">
+                    #{tag}
+                    <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Editor */}
           <MilkdownEditor
@@ -641,8 +708,8 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
             className="rounded-xl overflow-hidden border border-border bg-card min-h-[400px]"
           />
 
-          {/* Stats Bar */}
-          <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+          {/* Stats + Save */}
+          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <span>{wordCount} words</span>
             <span>·</span>
             <span>{charCount} chars</span>
@@ -654,120 +721,16 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                 {statusLabel}
               </>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Details tab ──────────────────────────────────────────── */}
-      {activeTab === 'details' && (
-        <div className="px-4 py-6 space-y-6">
-          {/* Header Image */}
-          <div className="space-y-2">
-            <Label className="text-muted-foreground">Header Image</Label>
-            {article.image ? (
-              <div className="relative rounded-xl overflow-hidden group">
-                <img
-                  src={article.image}
-                  alt="Header"
-                  className="w-full h-48 sm:h-64 object-cover"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                  >
-                    {isUploading ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    ) : (
-                      <Image className="w-4 h-4 mr-2" />
-                    )}
-                    Change Image
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="w-full h-32 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 hover:text-primary/70 transition-colors"
-              >
-                {isUploading ? (
-                  <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                ) : (
-                  <Image className="w-8 h-8 mb-2" />
-                )}
-                <span className="text-sm">Add a header image</span>
-              </button>
-            )}
-          </div>
-
-          {/* URL Slug */}
-          <div className="space-y-2">
-            <Label htmlFor="slug" className="text-muted-foreground">URL Slug</Label>
-            <Input
-              id="slug"
-              value={article.slug}
-              onChange={(e) => updateArticle('slug', e.target.value)}
-              placeholder="article-url-slug"
-              className="font-mono text-sm"
-            />
-          </div>
-
-          {/* Tags */}
-          <div className="space-y-2">
-            <Label className="text-muted-foreground flex items-center gap-2">
-              <Hash className="w-3.5 h-3.5" />
-              Tags
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === 'Enter' && (e.preventDefault(), handleAddTag())
-                }
-                placeholder="Add a tag..."
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={handleAddTag}
-              >
-                Add
-              </Button>
-            </div>
-            {article.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-2">
-                {article.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="gap-1 px-2 py-1">
-                    #{tag}
-                    <button
-                      onClick={() => handleRemoveTag(tag)}
-                      className="ml-1 hover:text-destructive"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Summary */}
-          <div className="space-y-2">
-            <Label htmlFor="summary" className="text-muted-foreground">Summary</Label>
-            <Textarea
-              id="summary"
-              value={article.summary}
-              onChange={(e) => updateArticle('summary', e.target.value)}
-              placeholder="A brief description of your article..."
-              rows={3}
-              className="resize-none"
-            />
+            <span className="flex-1" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSaveDraft}
+              className="rounded-full gap-1.5"
+            >
+              <Save className="size-3.5" />
+              Save Draft
+            </Button>
           </div>
         </div>
       )}
