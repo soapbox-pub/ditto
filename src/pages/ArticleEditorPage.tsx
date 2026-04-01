@@ -12,7 +12,7 @@ import { getLocalDrafts } from '@/lib/localDrafts';
 
 /** Thin page wrapper for /articles/new and /articles/edit/:naddr */
 export function ArticleEditorPage() {
-  useLayoutOptions({ showFAB: false, hideBottomNav: true });
+  useLayoutOptions({ showFAB: false, hasSubHeader: true });
 
   const [searchParams] = useSearchParams();
   const { naddr: naddrParam } = useParams<{ naddr: string }>();
