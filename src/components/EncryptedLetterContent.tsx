@@ -4,9 +4,9 @@
  * Public display for kind 8211 encrypted letters. Instead of showing raw
  * ciphertext, renders a 3D interactive envelope:
  *
- *   1. Back (default) — sealed envelope with sender & recipient names in script font
- *   2. Flip — click to flip envelope over (CSS 3D transform)
- *   3. Open — click again to open, revealing Nushu script representation of the ciphertext
+ *   1. Back (default) — mailing side: sender top-left, recipient centered
+ *   2. Flip — click to flip to the front (flap side) with wax seal
+ *   3. Open — click again to open the flap, revealing Nushu script ciphertext
  *
  * Nushu (Unicode U+1B170-U+1B2FF) is a real historical secret women's script
  * from China — visible, beautiful, unreadable. It represents modern encryption
@@ -69,16 +69,18 @@ function ciphertextToNushu(ciphertext: string, maxChars = 36): string {
 // Participant display
 // ---------------------------------------------------------------------------
 
-function NameLabel({ pubkey, prefix }: { pubkey: string; prefix: string }) {
+function NameLabel({ pubkey, prefix, size = 'md' }: { pubkey: string; prefix?: string; size?: 'sm' | 'md' | 'lg' }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
+  const fontSize = size === 'lg' ? '1.6rem' : size === 'sm' ? '0.95rem' : '1.15rem';
+
   if (author.isLoading) {
     return (
       <span className="inline-flex items-center gap-1.5">
-        <span className="text-sm opacity-60">{prefix}</span>
+        {prefix && <span className="text-sm opacity-60">{prefix}</span>}
         <Skeleton className="h-4 w-20 inline-block" />
       </span>
     );
@@ -86,13 +88,13 @@ function NameLabel({ pubkey, prefix }: { pubkey: string; prefix: string }) {
 
   return (
     <span className="inline-flex items-center gap-1.5 min-w-0">
-      <span className="text-sm opacity-60 shrink-0">{prefix}</span>
+      {prefix && <span className="text-sm opacity-60 shrink-0">{prefix}</span>}
       <ProfileHoverCard pubkey={pubkey} asChild>
         <Link
           to={profileUrl}
           onClick={(e) => e.stopPropagation()}
           className="font-semibold truncate hover:underline transition-colors"
-          style={{ fontFamily: "'Caveat', 'Pacifico', cursive", fontSize: '1.15rem' }}
+          style={{ fontFamily: "'Caveat', 'Pacifico', cursive", fontSize }}
         >
           {displayName}
         </Link>
@@ -211,9 +213,9 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
             }}
             aria-label={
               state === 'back'
-                ? 'Sealed envelope — click to flip'
+                ? 'Envelope back — click to flip to the front'
                 : state === 'front'
-                  ? 'Click to open the envelope'
+                  ? 'Sealed envelope — click to open the flap'
                   : 'Encrypted letter — click to close'
             }
           >
@@ -225,7 +227,7 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                 aspectRatio: compact ? '16 / 9' : '4 / 3',
               }}
             >
-              {/* ========================= BACK FACE ========================= */}
+              {/* ============= BACK FACE (mailing side — shown first) ============= */}
               <div
                 className="absolute inset-0 rounded-2xl overflow-hidden shadow-lg"
                 style={{ backfaceVisibility: 'hidden' }}
@@ -246,46 +248,17 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                   }}
                 />
 
-                {/* V-fold lines */}
-                <svg
-                  className="absolute inset-0 w-full h-full"
-                  viewBox="0 0 400 300"
-                  preserveAspectRatio="none"
-                >
-                  <path d="M0,0 L200,180" stroke="#C4A882" strokeWidth="1" fill="none" opacity="0.3" />
-                  <path d="M400,0 L200,180" stroke="#C4A882" strokeWidth="1" fill="none" opacity="0.3" />
-                  <path d="M0,300 L200,180" stroke="#C4A882" strokeWidth="0.8" fill="none" opacity="0.2" />
-                  <path d="M400,300 L200,180" stroke="#C4A882" strokeWidth="0.8" fill="none" opacity="0.2" />
-                </svg>
-
-                {/* Wax seal in center */}
-                <div
-                  className="absolute left-1/2 -translate-x-1/2"
-                  style={{ top: compact ? '45%' : '50%', transform: 'translate(-50%, -50%)' }}
-                >
-                  <div
-                    className="rounded-full flex items-center justify-center"
-                    style={{
-                      width: compact ? 48 : 64,
-                      height: compact ? 48 : 64,
-                      background: 'radial-gradient(ellipse at 35% 30%, #d4524d 0%, #a52422 50%, #7a1a19 100%)',
-                      boxShadow: '0 4px 12px rgba(122, 26, 25, 0.4), inset 0 2px 4px rgba(255,255,255,0.15), inset 0 -2px 4px rgba(0,0,0,0.2)',
-                    }}
-                  >
-                    <SealAvatar pubkey={senderPubkey} />
-                  </div>
+                {/* Sender — top-left (return address, smaller) */}
+                <div className="absolute top-3 left-4" style={{ color: '#5C4A3A' }}>
+                  <NameLabel pubkey={senderPubkey} size="sm" />
                 </div>
 
-                {/* Names — sender top-left, recipient bottom-right */}
-                <div className="absolute inset-0 flex flex-col justify-between p-4" style={{ color: '#5C4A3A' }}>
-                  <div className="self-start">
-                    <NameLabel pubkey={senderPubkey} prefix="From" />
-                  </div>
-                  {!compact && (
-                    <div className="self-end">
-                      <NameLabel pubkey={recipientPubkey} prefix="To" />
-                    </div>
-                  )}
+                {/* Recipient — centered (mailing address, larger) */}
+                <div
+                  className="absolute left-1/2 -translate-x-1/2"
+                  style={{ top: '50%', transform: 'translate(-50%, -50%)', color: '#5C4A3A' }}
+                >
+                  <NameLabel pubkey={recipientPubkey} size="lg" />
                 </div>
 
                 {/* Subtle shadow edges */}
@@ -297,7 +270,7 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                 />
               </div>
 
-              {/* ========================= FRONT FACE ========================= */}
+              {/* ============= FRONT FACE (flap side — shown after flip) ============= */}
               <div
                 className="absolute inset-0 rounded-2xl overflow-hidden shadow-lg"
                 style={{
@@ -313,41 +286,90 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                   }}
                 />
 
-                {/* Flap */}
-                <div className="absolute top-0 left-0 right-0" style={{ zIndex: 2 }}>
-                  <svg viewBox="0 0 400 120" className="w-full" preserveAspectRatio="none">
+                {/* Paper texture */}
+                <div
+                  className="absolute inset-0 opacity-[0.03]"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)'/%3E%3C/svg%3E")`,
+                  }}
+                />
+
+                {/* V-fold crease lines (bottom corners only — top is covered by the flap) */}
+                <svg
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  viewBox="0 0 400 300"
+                  preserveAspectRatio="none"
+                  style={{ zIndex: 1 }}
+                >
+                  <path d="M0,300 L200,160" stroke="#C4A882" strokeWidth="1" fill="none" opacity="0.25" />
+                  <path d="M400,300 L200,160" stroke="#C4A882" strokeWidth="1" fill="none" opacity="0.25" />
+                </svg>
+
+                {/* Flap — triangular top portion that opens upward */}
+                <div
+                  className="absolute top-0 left-0 right-0 transition-transform duration-500 ease-in-out"
+                  style={{
+                    zIndex: 2,
+                    transformOrigin: 'top center',
+                    transform: isOpen ? 'rotateX(180deg)' : 'rotateX(0deg)',
+                  }}
+                >
+                  <svg viewBox="0 0 400 200" className="w-full" preserveAspectRatio="none">
                     <defs>
-                      <linearGradient id="flap-grad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#D4C4AA" />
-                        <stop offset="100%" stopColor="#C4B494" />
+                      <linearGradient id="flap-front" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#EDD9C3" />
+                        <stop offset="100%" stopColor="#E0CCAF" />
                       </linearGradient>
                     </defs>
+                    {/* Flap body */}
                     <path
-                      d={isOpen ? 'M0,0 L200,-80 L400,0 L400,0 L0,0 Z' : 'M0,0 L200,100 L400,0 L400,0 L0,0 Z'}
-                      fill="url(#flap-grad)"
-                      className="transition-all duration-500"
+                      d="M0,0 L200,180 L400,0 L400,0 L0,0 Z"
+                      fill="url(#flap-front)"
                     />
+                    {/* Crease line */}
                     <path
-                      d={isOpen ? 'M0,0 L200,-80 L400,0' : 'M0,0 L200,100 L400,0'}
+                      d="M0,0 L200,180 L400,0"
                       fill="none"
                       stroke="#B5A48A"
                       strokeWidth="1"
                       opacity="0.4"
-                      className="transition-all duration-500"
                     />
                   </svg>
                 </div>
 
-                {/* Letter content area — slides up when opened */}
+                {/* Wax seal — centered */}
+                <div
+                  className="absolute left-1/2 transition-opacity duration-300"
+                  style={{
+                    zIndex: 3,
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    opacity: isOpen ? 0 : 1,
+                  }}
+                >
+                  <div
+                    className="rounded-full flex items-center justify-center"
+                    style={{
+                      width: compact ? 48 : 64,
+                      height: compact ? 48 : 64,
+                      background: 'radial-gradient(ellipse at 35% 30%, #d4524d 0%, #a52422 50%, #7a1a19 100%)',
+                      boxShadow: '0 4px 12px rgba(122, 26, 25, 0.4), inset 0 2px 4px rgba(255,255,255,0.15), inset 0 -2px 4px rgba(0,0,0,0.2)',
+                    }}
+                  >
+                    <SealAvatar pubkey={senderPubkey} />
+                  </div>
+                </div>
+
+                {/* Letter content area — slides up when flap is opened */}
                 <div
                   className="absolute inset-0 flex flex-col items-center justify-center transition-all duration-500"
                   style={{
-                    zIndex: isOpen ? 3 : 1,
+                    zIndex: isOpen ? 4 : 0,
                     opacity: isOpen ? 1 : 0,
                     transform: isOpen ? 'translateY(-8px)' : 'translateY(20px)',
                   }}
                 >
-                  {/* Inner letter sheet — flex column so the notice always stays visible */}
+                  {/* Inner letter sheet */}
                   <div
                     className="rounded-lg mx-4 p-5 max-h-[85%] flex flex-col"
                     style={{
@@ -356,7 +378,7 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                       width: 'calc(100% - 2rem)',
                     }}
                   >
-                    {/* Nushu ciphertext — scrollable with bottom fade hint */}
+                    {/* Nushu ciphertext */}
                     <div className="flex-1 min-h-0 overflow-y-auto relative">
                       <p
                         className="text-center select-none"
@@ -371,7 +393,7 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                       >
                         {nushuText}
                       </p>
-                      {/* Sticky fade hint at the bottom */}
+                      {/* Fade hint */}
                       <div
                         className="sticky bottom-0 left-0 right-0 h-8 pointer-events-none"
                         style={{
@@ -390,7 +412,7 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                       }}
                     />
 
-                    {/* Encrypted message notice — always visible */}
+                    {/* Encrypted message notice */}
                     <p
                       className="flex items-center justify-center gap-1.5 mt-2 text-xs shrink-0"
                       style={{ color: '#8B7355' }}
