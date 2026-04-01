@@ -15,6 +15,8 @@ import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { AddrCoords } from '@/hooks/useEvent';
 import QRCode from 'qrcode';
+import { useNostr } from '@nostrify/react';
+import { useQuery } from '@tanstack/react-query';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getContentWarning } from '@/lib/contentWarning';
 import { MiniAudioPlayer, isAudioUrl, isImageUrl, isVideoUrl } from '@/components/MiniAudioPlayer';
@@ -22,6 +24,9 @@ import { VideoPlayer } from '@/components/VideoPlayer';
 import { parseDimToAspectRatio } from '@/components/MediaCollage';
 import { isWeatherFieldLabel } from '@/lib/weatherStation';
 import { WeatherStationCard } from '@/components/WeatherStationCard';
+
+/** Media-native kinds shown in the sidebar (excludes kind 1 text notes and kind 1111 comments). */
+const SIDEBAR_MEDIA_KINDS = [20, 21, 22, 34236, 36787, 34139, 30054, 30055];
 
 /** Simple email regex for display purposes. */
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -65,10 +70,8 @@ interface ProfileField {
 
 interface ProfileRightSidebarProps {
   fields?: ProfileField[];
-  /** Media events fetched via a dedicated search query (video:true image:true). */
-  mediaEvents?: NostrEvent[];
-  /** Whether the media events are still loading. */
-  mediaLoading?: boolean;
+  /** Pubkey whose media-native events to display in the sidebar. */
+  pubkey?: string;
   /** Called when a media tile is clicked. If provided, tiles don't navigate. */
   onMediaClick?: (url: string) => void;
   /** Override the root element's className (e.g. to show on mobile). */
@@ -485,20 +488,37 @@ function sidebarJustifiedLayout(items: MediaItem[]): { items: MediaItem[]; heigh
   return rows;
 }
 
-export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp, onMediaClick, className }: ProfileRightSidebarProps) {
+export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }: ProfileRightSidebarProps) {
   const { config } = useAppContext();
+  const { nostr } = useNostr();
+
+  // Fetch media-native events directly using a kind whitelist (no search extension).
+  const { data: sidebarEvents, isPending: mediaLoading } = useQuery({
+    queryKey: ['sidebar-media', pubkey ?? ''],
+    queryFn: async ({ signal }) => {
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
+      const events = await nostr.query(
+        [{ kinds: SIDEBAR_MEDIA_KINDS, authors: [pubkey!], limit: 20 }],
+        { signal: querySignal },
+      );
+      const now = Math.floor(Date.now() / 1000);
+      return events.filter((e) => e.created_at <= now).sort((a, b) => b.created_at - a.created_at);
+    },
+    enabled: !!pubkey,
+    staleTime: 30_000,
+  });
+
   const media = useMemo(
-    () => extractMedia(mediaEvents ?? [], config.contentWarningPolicy),
-    [mediaEvents, config.contentWarningPolicy],
+    () => extractMedia(sidebarEvents ?? [], config.contentWarningPolicy),
+    [sidebarEvents, config.contentWarningPolicy],
   );
-  const mediaLoading = mediaLoadingProp ?? false;
 
   const sidebarRows = useMemo(() => sidebarJustifiedLayout(media), [media]);
 
   return (
     <aside className={cn("w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3", className)}>
-      {/* Media Section — only shown when mediaEvents prop is provided */}
-      {mediaEvents !== undefined && <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
+      {/* Media Section — only shown when pubkey prop is provided */}
+      {pubkey !== undefined && <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <h2 className="text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>Media</h2>
         {mediaLoading ? (
           <div className="flex flex-col gap-0.5">
@@ -608,7 +628,7 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
       )}
 
       {/* Footer — hidden when used as a fields-only preview */}
-      {mediaEvents !== undefined && <LinkFooter />}
+      {pubkey !== undefined && <LinkFooter />}
     </aside>
   );
 }
