@@ -1,13 +1,15 @@
 /**
  * FirstHatchTourCard - Inline card shown below the egg during the first-hatch tour.
  *
- * Replaces the modal. Rendered directly in the BlobbiPage layout so the
- * experience feels focused and guided rather than interrupted.
+ * Rendered directly in the BlobbiPage layout so the experience feels
+ * focused and guided. Adapts its messaging based on the current tour step.
  */
 
-import { Send, Check } from 'lucide-react';
+import { Send, Check, MousePointerClick } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+
+import type { FirstHatchTourStepId } from '../lib/tour-types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,8 +22,10 @@ interface FirstHatchTourCardProps {
   postCompleted: boolean;
   /** Open the post composer */
   onCreatePost: () => void;
-  /** Advance the tour (called after post is confirmed complete) */
+  /** Advance the tour after post completion (only used during show_hatch_card) */
   onContinue: () => void;
+  /** Current tour step id for adaptive messaging */
+  currentStep: FirstHatchTourStepId | null;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -32,64 +36,88 @@ export function FirstHatchTourCard({
   postCompleted,
   onCreatePost,
   onContinue,
+  currentStep,
 }: FirstHatchTourCardProps) {
   const capitalizedName = blobbiName.charAt(0).toUpperCase() + blobbiName.slice(1);
 
+  // Determine which phase of the card to show
+  const isPostStep = currentStep === 'show_hatch_card';
+  const isClickStep = currentStep === 'egg_glowing_waiting_click'
+    || currentStep === 'egg_crack_stage_1'
+    || currentStep === 'egg_crack_stage_2'
+    || currentStep === 'egg_crack_stage_3';
+
   return (
-    <div className="w-full max-w-sm mx-auto px-4 space-y-4">
+    <div className="w-full max-w-sm mx-auto space-y-4">
       {/* Title + description */}
       <div className="text-center space-y-1.5">
         <h3 className="text-lg font-semibold">
-          {capitalizedName} is ready to hatch!
+          {isClickStep
+            ? `Tap ${capitalizedName} to hatch!`
+            : `${capitalizedName} is ready to hatch!`}
         </h3>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Share a post to the Nostr network and help {capitalizedName} break free.
+          {isClickStep
+            ? `Tap the egg to help ${capitalizedName} break free.`
+            : `Share a post to the Nostr network and help ${capitalizedName} break free.`}
         </p>
       </div>
 
-      {/* Mission card */}
-      <div className="rounded-xl border bg-card p-4 space-y-3">
-        <div className="flex items-start gap-3">
-          {/* Status indicator */}
-          <div className={
-            postCompleted
-              ? 'mt-0.5 size-5 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0'
-              : 'mt-0.5 size-5 rounded-full border-2 border-muted-foreground/30 shrink-0'
-          }>
-            {postCompleted && <Check className="size-3 text-emerald-500" />}
+      {/* Mission card - only during post step */}
+      {isPostStep && (
+        <div className="rounded-xl border bg-card p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            {/* Status indicator */}
+            <div className={
+              postCompleted
+                ? 'mt-0.5 size-5 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0'
+                : 'mt-0.5 size-5 rounded-full border-2 border-muted-foreground/30 shrink-0'
+            }>
+              {postCompleted && <Check className="size-3 text-emerald-500" />}
+            </div>
+
+            <div className="flex-1 min-w-0 space-y-1">
+              <p className="text-sm font-medium">
+                {postCompleted ? 'Post shared!' : 'Share a hatch post'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Your post must include:
+              </p>
+              <p className="text-xs font-medium text-primary break-words">
+                {requiredPhrase}
+              </p>
+            </div>
           </div>
 
-          <div className="flex-1 min-w-0 space-y-1">
-            <p className="text-sm font-medium">
-              {postCompleted ? 'Post shared!' : 'Share a hatch post'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Your post must include:
-            </p>
-            <p className="text-xs font-medium text-primary break-words">
-              {requiredPhrase}
-            </p>
-          </div>
+          {!postCompleted && (
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={onCreatePost}
+            >
+              <Send className="size-3.5 mr-2" />
+              Create Post
+            </Button>
+          )}
+
+          {postCompleted && (
+            <Button size="sm" className="w-full" onClick={onContinue}>
+              Continue
+            </Button>
+          )}
         </div>
+      )}
 
-        {!postCompleted && (
-          <Button
-            size="sm"
-            className="w-full"
-            onClick={onCreatePost}
-          >
-            <Send className="size-3.5 mr-2" />
-            Create Post
-          </Button>
-        )}
-      </div>
+      {/* Tap hint during click steps */}
+      {isClickStep && (
+        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <MousePointerClick className="size-4" />
+          <span>Tap the egg</span>
+        </div>
+      )}
 
-      {/* Continue or hint */}
-      {postCompleted ? (
-        <Button className="w-full" onClick={onContinue}>
-          Continue
-        </Button>
-      ) : (
+      {/* Extra hint for post step */}
+      {isPostStep && !postCompleted && (
         <p className="text-xs text-center text-muted-foreground">
           You can add extra text before or after the required phrase.
         </p>

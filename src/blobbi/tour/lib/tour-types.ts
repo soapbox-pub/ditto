@@ -82,22 +82,29 @@ export interface TourActions<StepId extends string = string> {
 /**
  * Step ids for the first-egg hatch tour.
  *
+ * Flow:
+ * 1. idle                        — initial state (auto-advances immediately)
+ * 2. show_hatch_card             — egg with initial crack + wiggle + inline card
+ * 3. egg_glowing_waiting_click   — post done, egg glows, waiting for user click
+ * 4. egg_crack_stage_1           — click 1: crack expands
+ * 5. egg_crack_stage_2           — click 2: crack expands further
+ * 6. egg_crack_stage_3           — click 3: crack reaches edges
+ * 7. egg_opening                 — shell opens (auto-advance after animation)
+ * 8. egg_hatching                — bright light + baby reveal (auto-advance)
+ * 9. complete                    — terminal, marks tour done
+ *
  * The order here matches the intended flow. To reorder steps,
  * change FIRST_HATCH_TOUR_STEPS (the array), not this type.
  */
 export type FirstHatchTourStepId =
   | 'idle'
-  | 'egg_ready_hint'
-  | 'show_hatch_modal'
-  | 'await_create_post'
+  | 'show_hatch_card'
   | 'egg_glowing_waiting_click'
   | 'egg_crack_stage_1'
   | 'egg_crack_stage_2'
   | 'egg_crack_stage_3'
   | 'egg_opening'
   | 'egg_hatching'
-  | 'tour_rewards_reveal'
-  | 'tour_set_companion_hint'
   | 'complete';
 
 /**
@@ -108,17 +115,13 @@ export type FirstHatchTourStepId =
  */
 export const FIRST_HATCH_TOUR_STEPS: TourStepDef<FirstHatchTourStepId>[] = [
   { id: 'idle' },
-  { id: 'egg_ready_hint' },
-  { id: 'show_hatch_modal' },
-  { id: 'await_create_post' },
+  { id: 'show_hatch_card' },
   { id: 'egg_glowing_waiting_click' },
-  { id: 'egg_crack_stage_1', autoAdvance: true },
-  { id: 'egg_crack_stage_2', autoAdvance: true },
-  { id: 'egg_crack_stage_3', autoAdvance: true },
+  { id: 'egg_crack_stage_1' },
+  { id: 'egg_crack_stage_2' },
+  { id: 'egg_crack_stage_3' },
   { id: 'egg_opening', autoAdvance: true },
   { id: 'egg_hatching', autoAdvance: true },
-  { id: 'tour_rewards_reveal' },
-  { id: 'tour_set_companion_hint' },
   { id: 'complete' },
 ];
 

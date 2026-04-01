@@ -324,6 +324,29 @@
    Tour Visual State Animations
    ========================================== */
 
+/* Shell opening: scale up slightly then fade out with blur */
+@keyframes egg-tour-open {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    filter: brightness(1.1);
+  }
+  40% {
+    transform: scale(1.05);
+    opacity: 0.9;
+    filter: brightness(1.4);
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0;
+    filter: brightness(2) blur(4px);
+  }
+}
+
+.animate-egg-tour-open {
+  animation: egg-tour-open 1.2s ease-in-out forwards;
+}
+
 /* Pulsing glow for the "waiting for click" tour state */
 @keyframes egg-tour-glow {
   0%, 100% {
@@ -372,7 +395,8 @@
   .animate-egg-dust-particle,
   .animate-egg-spiral,
   .animate-egg-sparkle,
-  .animate-egg-tour-glow {
+  .animate-egg-tour-glow,
+  .animate-egg-tour-open {
     animation: none !important;
   }
 }

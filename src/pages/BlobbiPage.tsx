@@ -936,7 +936,7 @@ function BlobbiDashboard({
   
   // ─── First Hatch Tour ───
   const firstHatchTour = useFirstHatchTour();
-  const { isEligible: _isFirstHatchTourEligible } = useFirstHatchTourActivation({
+  useFirstHatchTourActivation({
     companions,
     isLoading: false, // companions are already loaded at this point
     tour: firstHatchTour,
@@ -946,36 +946,24 @@ function BlobbiDashboard({
   // The required phrase for the first-hatch post
   const firstHatchPhrase = useMemo(() => buildHatchPhrase(companion.name), [companion.name]);
 
-  // Auto-advance from idle -> egg_ready_hint -> show_hatch_modal (inline card)
+  // Auto-advance from idle -> show_hatch_card (immediately)
   useEffect(() => {
     if (!isFirstHatchTourActive) return;
     if (firstHatchTour.isStep('idle')) {
-      firstHatchTour.actions.advance(); // -> egg_ready_hint
+      firstHatchTour.actions.advance(); // -> show_hatch_card
     }
   }, [isFirstHatchTourActive, firstHatchTour]);
 
-  useEffect(() => {
-    if (!isFirstHatchTourActive) return;
-    if (firstHatchTour.isStep('egg_ready_hint')) {
-      // Show the ready hint wiggle briefly, then show the inline card
-      const timer = setTimeout(() => {
-        firstHatchTour.actions.advance(); // -> show_hatch_modal (inline card step)
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [isFirstHatchTourActive, firstHatchTour]);
-
-  // Whether the inline first-hatch card should be shown
-  const showFirstHatchCard = isFirstHatchTourActive && (
-    firstHatchTour.isStep('show_hatch_modal') || firstHatchTour.isStep('await_create_post')
+  // Show the inline first-hatch card for all pre-hatch steps
+  const showFirstHatchCard = isFirstHatchTourActive && firstHatchTour.isAnyStep(
+    'show_hatch_card', 'egg_glowing_waiting_click',
+    'egg_crack_stage_1', 'egg_crack_stage_2', 'egg_crack_stage_3',
   );
 
   // Detect hatch post completion for the first-hatch tour
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
-  const tourAwaitingPost = isFirstHatchTourActive && (
-    firstHatchTour.isStep('show_hatch_modal') || firstHatchTour.isStep('await_create_post')
-  );
+  const tourAwaitingPost = isFirstHatchTourActive && firstHatchTour.isStep('show_hatch_card');
 
   const { data: tourPostFound } = useQuery({
     queryKey: ['first-hatch-tour-post', user?.pubkey, companion.name],
@@ -993,21 +981,83 @@ function BlobbiDashboard({
     staleTime: 3000,
   });
 
-  // When the post is found, advance past the post-awaiting steps
+  // When the post is found during show_hatch_card, advance to glowing
   useEffect(() => {
     if (!tourPostFound || !isFirstHatchTourActive) return;
-    if (firstHatchTour.isStep('show_hatch_modal') || firstHatchTour.isStep('await_create_post')) {
+    if (firstHatchTour.isStep('show_hatch_card')) {
       firstHatchTour.actions.goTo('egg_glowing_waiting_click');
     }
   }, [tourPostFound, isFirstHatchTourActive, firstHatchTour]);
 
+  // Fake pointer hint: after 10s on glowing_waiting_click, show hint; repeat every 5s
+  const [showClickHint, setShowClickHint] = useState(false);
+  useEffect(() => {
+    if (!isFirstHatchTourActive || !firstHatchTour.isStep('egg_glowing_waiting_click')) {
+      setShowClickHint(false);
+      return;
+    }
+    const initial = setTimeout(() => setShowClickHint(true), 10000);
+    const repeat = setInterval(() => setShowClickHint(true), 5000);
+    return () => { clearTimeout(initial); clearInterval(repeat); };
+  }, [isFirstHatchTourActive, firstHatchTour]);
+
+  // Handle egg click during the tour (advance crack stages)
+  const handleTourEggClick = useCallback(() => {
+    if (!isFirstHatchTourActive) return;
+    setShowClickHint(false);
+    if (firstHatchTour.isStep('egg_glowing_waiting_click')) {
+      firstHatchTour.actions.advance(); // -> egg_crack_stage_1
+    } else if (firstHatchTour.isStep('egg_crack_stage_1')) {
+      firstHatchTour.actions.advance(); // -> egg_crack_stage_2
+    } else if (firstHatchTour.isStep('egg_crack_stage_2')) {
+      firstHatchTour.actions.advance(); // -> egg_crack_stage_3
+    } else if (firstHatchTour.isStep('egg_crack_stage_3')) {
+      firstHatchTour.actions.advance(); // -> egg_opening
+    }
+  }, [isFirstHatchTourActive, firstHatchTour]);
+
+  // Auto-advance for opening -> hatching -> complete (with hatch mutation)
+  useEffect(() => {
+    if (!isFirstHatchTourActive) return;
+    if (firstHatchTour.isStep('egg_opening')) {
+      const timer = setTimeout(() => {
+        firstHatchTour.actions.advance(); // -> egg_hatching
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isFirstHatchTourActive, firstHatchTour]);
+
+  useEffect(() => {
+    if (!isFirstHatchTourActive) return;
+    if (firstHatchTour.isStep('egg_hatching')) {
+      // Execute the actual hatch mutation, then complete the tour
+      const doHatch = async () => {
+        try {
+          await onHatch();
+        } finally {
+          firstHatchTour.actions.complete();
+        }
+      };
+      const timer = setTimeout(doHatch, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [isFirstHatchTourActive, firstHatchTour, onHatch]);
+
   // Derive tourVisualState for the egg visual
   const tourVisualState = useMemo((): EggTourVisualState => {
     if (!isFirstHatchTourActive) return 'idle';
-    if (firstHatchTour.isStep('egg_ready_hint')) return 'ready_hint';
-    if (firstHatchTour.isStep('egg_glowing_waiting_click')) return 'glowing_waiting_click';
-    return 'idle';
-  }, [isFirstHatchTourActive, firstHatchTour]);
+    const step = firstHatchTour.state.currentStepId;
+    switch (step) {
+      case 'show_hatch_card': return 'show_hatch_card';
+      case 'egg_glowing_waiting_click': return 'glowing_waiting_click';
+      case 'egg_crack_stage_1': return 'crack_stage_1';
+      case 'egg_crack_stage_2': return 'crack_stage_2';
+      case 'egg_crack_stage_3': return 'crack_stage_3';
+      case 'egg_opening': return 'opening';
+      case 'egg_hatching': return 'hatching';
+      default: return 'idle';
+    }
+  }, [isFirstHatchTourActive, firstHatchTour.state.currentStepId]);
 
   // State detection for tasks
   // Note: isEvolving prop = mutation pending state, isEvolvingState = companion in evolving state
@@ -1492,15 +1542,38 @@ function BlobbiDashboard({
               recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
               emotion={effectiveEmotion}
               tourVisualState={tourVisualState}
-
+              onTourEggClick={handleTourEggClick}
               className="size-48 sm:size-56"
             />
+            {/* Fake pointer hint during glowing_waiting_click */}
+            {showClickHint && firstHatchTour.isStep('egg_glowing_waiting_click') && (
+              <div className="absolute bottom-2 right-8 animate-bounce text-2xl pointer-events-none select-none">
+                👆
+              </div>
+            )}
           </div>
         )}
         
       </div>
       
-      {/* Stats Section */}
+      {/* First Hatch Tour: inline card directly below egg (above stats) */}
+      {showFirstHatchCard && (
+        <div className="px-4 sm:px-6 mt-2">
+          <FirstHatchTourCard
+            blobbiName={companion.name}
+            requiredPhrase={firstHatchPhrase}
+            postCompleted={!!tourPostFound || !firstHatchTour.isStep('show_hatch_card')}
+            onCreatePost={() => setShowPostModal(true)}
+            onContinue={() => {
+              firstHatchTour.actions.goTo('egg_glowing_waiting_click');
+            }}
+            currentStep={firstHatchTour.state.currentStepId}
+          />
+        </div>
+      )}
+
+      {/* Stats Section - hidden during first-hatch tour */}
+      {!isFirstHatchTourActive && (
       <div className="px-4 sm:px-6">
         {/* Stats Grid - shows projected decay state */}
         {/* Only stats below the visibility threshold are shown (centralized in getVisibleStatsWithValues) */}
@@ -1530,25 +1603,8 @@ function BlobbiDashboard({
           );
         })()}
         
-
-        
-        {/* First Hatch Tour: inline card below stats */}
-        {showFirstHatchCard && (
-          <div className="mt-6">
-            <FirstHatchTourCard
-              blobbiName={companion.name}
-              requiredPhrase={firstHatchPhrase}
-              postCompleted={!!tourPostFound}
-              onCreatePost={() => setShowPostModal(true)}
-              onContinue={() => {
-                firstHatchTour.actions.goTo('egg_glowing_waiting_click');
-              }}
-            />
-          </div>
-        )}
-        
-        {/* Inline Activity Area - hidden during first-hatch tour */}
-        {!isFirstHatchTourActive && inlineActivity.type === 'music' && (
+        {/* Inline Activity Area */}
+        {inlineActivity.type === 'music' && (
           <div className="mt-6">
             <InlineMusicPlayer
               selection={inlineActivity.selection}
@@ -1562,7 +1618,7 @@ function BlobbiDashboard({
           </div>
         )}
         
-        {!isFirstHatchTourActive && inlineActivity.type === 'sing' && (
+        {inlineActivity.type === 'sing' && (
           <div className="mt-6">
             <InlineSingCard
               onConfirm={handleConfirmSing}
@@ -1574,6 +1630,7 @@ function BlobbiDashboard({
           </div>
         )}
       </div>
+      )}
       
       {/* Bottom Action Bar - hidden during first-hatch tour */}
       {!isFirstHatchTourActive && (

@@ -52,6 +52,8 @@ export interface BlobbiStageVisualProps {
   bodyEffects?: BodyEffectsSpec;
   /** Tour visual state for egg stage - driven by the tour orchestration layer */
   tourVisualState?: EggTourVisualState;
+  /** Callback when the egg is clicked during an interactive tour step */
+  onTourEggClick?: () => void;
   className?: string;
 }
 
@@ -77,6 +79,7 @@ export function BlobbiStageVisual({
   emotion = 'neutral',
   bodyEffects,
   tourVisualState,
+  onTourEggClick,
   className,
 }: BlobbiStageVisualProps) {
   const { stage } = companion;
@@ -113,6 +116,7 @@ export function BlobbiStageVisual({
           reaction={effectiveReaction}
           statusEffects={eggStatusEffects}
           tourVisualState={tourVisualState}
+          onTourEggClick={onTourEggClick}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />

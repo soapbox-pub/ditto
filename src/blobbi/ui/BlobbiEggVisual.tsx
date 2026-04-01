@@ -38,6 +38,8 @@ export interface BlobbiEggVisualProps {
   statusEffects?: EggStatusEffects;
   /** Tour visual state - driven externally by the tour orchestration layer */
   tourVisualState?: EggTourVisualState;
+  /** Callback when the egg is clicked during an interactive tour step */
+  onTourEggClick?: () => void;
   /** Additional CSS classes for the container */
   className?: string;
 }
@@ -73,6 +75,7 @@ export function BlobbiEggVisual({
   reaction = 'idle',
   statusEffects,
   tourVisualState,
+  onTourEggClick,
   className,
 }: BlobbiEggVisualProps) {
   // Memoize adapter output to avoid unnecessary re-renders
@@ -107,6 +110,7 @@ export function BlobbiEggVisual({
         reaction={effectiveReaction}
         statusEffects={isSleeping ? undefined : statusEffects}
         tourVisualState={tourVisualState}
+        onTourEggClick={onTourEggClick}
       />
     </div>
   );
