@@ -736,12 +736,10 @@ interface DashboardShellProps {
 
 function DashboardShell({ children }: DashboardShellProps) {
   return (
-    <main className="min-h-[calc(100vh-4rem)] px-2 py-4 pb-20 sm:px-4 md:px-6">
+    <main className="px-2 py-2 sm:px-4 md:px-6">
       {/* Responsive container: narrow on mobile, wider on desktop with reasonable max */}
       <div className="mx-auto w-full max-w-2xl lg:max-w-3xl">
-        <div className="relative h-full flex flex-col min-h-[70vh]">
-          {children}
-        </div>
+        {children}
       </div>
     </main>
   );
@@ -1329,7 +1327,7 @@ function BlobbiDashboard({
       )}
       
       {/* Hero Section */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:px-6">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 sm:px-6">
         {/* Floating Dashboard Controls */}
         <BlobbiDashboardFloatingControls
           stage={companion.stage}
@@ -1404,14 +1402,10 @@ function BlobbiDashboard({
           </div>
         )}
         
-        {/* Stage Badge */}
-        <Badge variant="outline" className="mt-6 capitalize">
-          {companion.stage} Stage
-        </Badge>
       </div>
       
       {/* Stats Section */}
-      <div className="px-4 pb-24 sm:px-6">
+      <div className="px-4 sm:px-6">
         {/* Stats Grid - shows projected decay state */}
         {/* Egg stage shows only 3 stats, baby/adult shows all 5 */}
         {isEgg ? (
@@ -2324,23 +2318,10 @@ function AdoptAnotherBlobbiCard({ onAdopt }: AdoptAnotherBlobbiCardProps) {
 function DashboardLoadingState() {
   return (
     <DashboardShell>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-border">
-        <div className="flex items-center gap-3">
-          <Skeleton className="size-10 rounded-xl" />
-          <div className="space-y-1">
-            <Skeleton className="h-5 w-16" />
-            <Skeleton className="h-3 w-28" />
-          </div>
-        </div>
-        <Skeleton className="h-6 w-20 rounded-full" />
-      </div>
-      
       {/* Hero */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-4">
         <Skeleton className="h-8 w-32 mb-6" />
         <Skeleton className="size-48 sm:size-56 rounded-full" />
-        <Skeleton className="h-6 w-24 mt-6 rounded-full" />
       </div>
       
       {/* Stats */}
@@ -2395,42 +2376,40 @@ function BlobbiBottomBar({
   const missionsBadge = allTasksComplete ? '!' : (isInTaskProcess && remainingTasksCount && remainingTasksCount > 0 ? remainingTasksCount : undefined);
   
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-30">
-      <div className="mx-auto max-w-2xl lg:max-w-3xl px-2 sm:px-4 pb-2 sm:pb-4">
-        <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl px-1.5 sm:px-3 py-2 shadow-lg overflow-hidden">
-          {/* 3-column grid: left | center | right */}
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-0.5 sm:gap-2">
-            {/* Left Group - aligned to end (closer to center) */}
-            <div className="flex items-center justify-end gap-0 sm:gap-1 overflow-hidden">
-              <BottomBarButton 
-                onClick={onBlobbiesClick} 
-                icon={<Users className="size-4" />} 
-                label="Blobbies" 
-                badge={needyBlobbiesCount && needyBlobbiesCount > 0 ? needyBlobbiesCount : undefined}
-                badgeVariant={needyBlobbiesCount && needyBlobbiesCount > 0 ? 'warning' : 'default'}
-              />
-              <BottomBarButton 
-                onClick={onMissionsClick} 
-                icon={<Target className="size-4" />} 
-                label="Missions" 
-                badge={missionsBadge}
-                badgeVariant={allTasksComplete ? 'success' : 'default'}
-              />
-            </div>
-            
-            {/* Center Action Button */}
-            <button
-              onClick={onActionsClick}
-              className="flex items-center justify-center size-11 sm:size-12 -mt-3 sm:-mt-4 mx-1 sm:mx-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all border-4 border-background shrink-0"
-            >
-              <HeartHandshake className="size-4 sm:size-5" />
-            </button>
-            
-            {/* Right Group - aligned to start (closer to center) */}
-            <div className="flex items-center justify-start gap-0 sm:gap-1 overflow-hidden">
-              <BottomBarButton onClick={onShopClick} icon={<ShoppingBag className="size-4" />} label="Shop" />
-              <BottomBarButton onClick={onInventoryClick} icon={<Package className="size-4" />} label="Inventory" />
-            </div>
+    <div className="mt-6 pt-2">
+      <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl px-1.5 sm:px-3 py-2 shadow-lg overflow-hidden">
+        {/* 3-column grid: left | center | right */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-0.5 sm:gap-2">
+          {/* Left Group - aligned to end (closer to center) */}
+          <div className="flex items-center justify-end gap-0 sm:gap-1 overflow-hidden">
+            <BottomBarButton 
+              onClick={onBlobbiesClick} 
+              icon={<Users className="size-4" />} 
+              label="Blobbies" 
+              badge={needyBlobbiesCount && needyBlobbiesCount > 0 ? needyBlobbiesCount : undefined}
+              badgeVariant={needyBlobbiesCount && needyBlobbiesCount > 0 ? 'warning' : 'default'}
+            />
+            <BottomBarButton 
+              onClick={onMissionsClick} 
+              icon={<Target className="size-4" />} 
+              label="Missions" 
+              badge={missionsBadge}
+              badgeVariant={allTasksComplete ? 'success' : 'default'}
+            />
+          </div>
+          
+          {/* Center Action Button */}
+          <button
+            onClick={onActionsClick}
+            className="flex items-center justify-center size-11 sm:size-12 -mt-3 sm:-mt-4 mx-1 sm:mx-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all border-4 border-background shrink-0"
+          >
+            <HeartHandshake className="size-4 sm:size-5" />
+          </button>
+          
+          {/* Right Group - aligned to start (closer to center) */}
+          <div className="flex items-center justify-start gap-0 sm:gap-1 overflow-hidden">
+            <BottomBarButton onClick={onShopClick} icon={<ShoppingBag className="size-4" />} label="Shop" />
+            <BottomBarButton onClick={onInventoryClick} icon={<Package className="size-4" />} label="Inventory" />
           </div>
         </div>
       </div>
