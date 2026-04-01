@@ -1185,21 +1185,37 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       }
 
       const buildNode = (ev: NostrEvent): ReplyNode => {
-        const firstChild = (childrenMap.get(ev.id) ?? [])[0];
+        const allChildren = childrenMap.get(ev.id) ?? [];
+        if (allChildren.length <= 1) {
+          return {
+            event: ev,
+            children: allChildren.map((c) => buildNode(c)),
+          };
+        }
+        const [first, ...rest] = allChildren;
         return {
           event: ev,
-          children: firstChild ? [buildNode(firstChild)] : [],
+          children: [buildNode(first)],
+          hiddenChildren: rest.map((c) => buildNode(c)),
         };
       };
-      return directReplies.map(buildNode);
+      return directReplies.map((r) => buildNode(r));
     }
 
     // Kind 1111 or non-kind-1 root: use NIP-22 comment structure
     const buildNode = (ev: NostrEvent): ReplyNode => {
-      const firstChild = (commentsData?.getDirectReplies(ev.id) ?? [])[0];
+      const allChildren = commentsData?.getDirectReplies(ev.id) ?? [];
+      if (allChildren.length <= 1) {
+        return {
+          event: ev,
+          children: allChildren.map((c) => buildNode(c)),
+        };
+      }
+      const [first, ...rest] = allChildren;
       return {
         event: ev,
-        children: firstChild ? [buildNode(firstChild)] : [],
+        children: [buildNode(first)],
+        hiddenChildren: rest.map((c) => buildNode(c)),
       };
     };
 
@@ -1208,7 +1224,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       const filtered = muteItems.length > 0
         ? directReplies.filter((r) => !isEventMuted(r, muteItems))
         : directReplies;
-      return filtered.map(buildNode);
+      return filtered.map((r) => buildNode(r));
     }
 
     // Non-kind-1 root
@@ -1216,7 +1232,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const filtered = muteItems.length > 0
       ? topLevel.filter((r) => !isEventMuted(r, muteItems))
       : topLevel;
-    return [...filtered].sort((a, b) => a.created_at - b.created_at).map(buildNode);
+    return [...filtered].sort((a, b) => a.created_at - b.created_at).map((r) => buildNode(r));
   }, [isKind1, isComment, replies, event.id, commentsData, muteItems]);
 
   // Seed the NIP-85 stats cache with client-side reply counts for each comment

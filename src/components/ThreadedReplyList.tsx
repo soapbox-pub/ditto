@@ -8,6 +8,8 @@ const MAX_RENDER_DEPTH = 3;
 export interface ReplyNode {
   event: NostrEvent;
   children: ReplyNode[];
+  /** Sibling replies hidden from the inline thread chain. Revealed on demand. */
+  hiddenChildren?: ReplyNode[];
 }
 
 /** Renders a fully threaded reply tree with collapsible deep branches. */
@@ -23,7 +25,9 @@ export function ThreadedReplyList({ roots }: { roots: ReplyNode[] }) {
 
 function ReplyThread({ node, depth, depthless }: { node: ReplyNode; depth: number; depthless?: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const hasChildren = node.children.length > 0;
+  const hiddenCount = node.hiddenChildren?.length ?? 0;
   const shouldCollapse = !depthless && depth >= MAX_RENDER_DEPTH && hasChildren && !expanded;
 
   if (shouldCollapse) {
@@ -45,6 +49,14 @@ function ReplyThread({ node, depth, depthless }: { node: ReplyNode; depth: numbe
   return (
     <div>
       <NoteCard event={node.event} threaded />
+      {/* Show hidden sibling count between parent and first child */}
+      {hiddenCount > 0 && !showHidden && (
+        <ExpandThreadButton count={hiddenCount} onClick={() => setShowHidden(true)} />
+      )}
+      {/* Revealed hidden siblings render as threaded items before the inline child */}
+      {showHidden && node.hiddenChildren!.map((child) => (
+        <NoteCard key={child.event.id} event={child.event} threaded />
+      ))}
       {node.children.map((child) => (
         <ReplyThread key={child.event.id} node={child} depth={depth + 1} depthless={childDepthless} />
       ))}
@@ -64,7 +76,7 @@ function ExpandThreadButton({ count, onClick }: { count: number; onClick: () => 
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 px-4 pt-0 pb-2.5 w-full hover:bg-secondary/30 transition-colors border-b border-border group"
+      className="flex items-center gap-3 px-4 pt-0 pb-2.5 w-full hover:bg-secondary/30 transition-colors group"
     >
       <div className="flex flex-col items-center w-10">
         <div className="w-0.5 flex-1 mb-1 bg-foreground/20" />
