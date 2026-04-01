@@ -373,7 +373,7 @@ function MenuRow({ icon, label, onClick, destructive }: { icon: React.ReactNode;
 
 // ----- Following User Row -----
 
-function FollowingUserRow({ pubkey }: { pubkey: string }) {
+function FollowingUserRow({ pubkey, onNavigate }: { pubkey: string; onNavigate?: () => void }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
@@ -383,6 +383,7 @@ function FollowingUserRow({ pubkey }: { pubkey: string }) {
   return (
     <Link
       to={`/${npubEncoded}`}
+      onClick={onNavigate}
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors"
     >
       {author.isLoading ? (
@@ -430,6 +431,8 @@ interface FollowingListModalProps {
 }
 
 function FollowingListModal({ pubkeys, open, onOpenChange, displayName }: FollowingListModalProps) {
+  const handleNavigate = useCallback(() => onOpenChange(false), [onOpenChange]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
@@ -450,7 +453,7 @@ function FollowingListModal({ pubkeys, open, onOpenChange, displayName }: Follow
               Not following anyone yet.
             </div>
           ) : (
-            pubkeys.map((pk) => <FollowingUserRow key={pk} pubkey={pk} />)
+            pubkeys.map((pk) => <FollowingUserRow key={pk} pubkey={pk} onNavigate={handleNavigate} />)
           )}
         </ScrollArea>
       </DialogContent>
@@ -987,6 +990,7 @@ interface FollowersListModalProps {
 }
 
 function FollowersListModal({ pubkey, open, onOpenChange, displayName }: FollowersListModalProps) {
+  const handleNavigate = useCallback(() => onOpenChange(false), [onOpenChange]);
   const { nostr } = useNostr();
 
   const {
@@ -1089,7 +1093,7 @@ function FollowersListModal({ pubkey, open, onOpenChange, displayName }: Followe
             </div>
           ) : (
             <>
-              {allFollowers.map((pk) => <FollowingUserRow key={pk} pubkey={pk} />)}
+              {allFollowers.map((pk) => <FollowingUserRow key={pk} pubkey={pk} onNavigate={handleNavigate} />)}
               {hasNextPage && (
                 <div ref={loadMoreRef} className="py-4 flex justify-center">
                   {isFetchingNextPage && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
