@@ -1825,17 +1825,16 @@ function BlobbiDashboardFloatingControls({
   
   // Right-side buttons (top cluster)
   const rightButtons: FloatingActionDef[] = [
-    {
+    // Only show "Set as companion" for baby/adult (eggs cannot be companions)
+    ...(canBeCompanion ? [{
       id: 'set-companion',
       icon: <Footprints className={cn('size-4', isCurrentCompanion && 'text-green-500')} />,
       tooltip: isCurrentCompanion 
         ? 'Current Companion' 
-        : canBeCompanion 
-          ? 'Set as Companion' 
-          : 'Hatch first to set as companion',
+        : 'Set as Companion',
       onClick: onSetAsCompanion,
-      disabled: isUpdatingCompanion || (!isCurrentCompanion && !canBeCompanion),
-    },
+      disabled: isUpdatingCompanion,
+    }] : []),
     {
       id: 'photo',
       icon: <Camera className="size-4" />,

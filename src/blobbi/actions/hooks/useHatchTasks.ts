@@ -5,10 +5,11 @@
  * 
  * CRITICAL ARCHITECTURE:
  * - PERSISTENT TASKS: Based on Nostr events, can be cached in tags
- * - DYNAMIC TASKS: Based on current stats, NEVER stored in tags
  * 
  * Tags are only cache for persistent tasks. Source of truth = Nostr events.
  * All persistent tasks are computed dynamically from events with created_at >= state_started_at.
+ * 
+ * Note: Egg stats no longer decay, so there are no dynamic tasks for hatching.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -37,9 +38,6 @@ export const BLOBBI_POST_REQUIRED_HASHTAGS = ['blobbi', 'ditto', 'nostr'];
 
 /** Prefix text for Blobbi hatch post */
 export const BLOBBI_POST_PREFIX = 'Hello Nostr! Posting to hatch';
-
-/** Stat threshold for hatch dynamic task (health, hygiene, happiness >= 70) */
-export const HATCH_STAT_THRESHOLD = 70;
 
 // Legacy export for backwards compatibility
 export const REQUIRED_INTERACTIONS = HATCH_REQUIRED_INTERACTIONS;
@@ -158,8 +156,8 @@ export const isValidBlobbiPost = isValidHatchPost;
  * 3. Create Post (kind 1) - ≥1 valid Blobbi hatch post after start
  * 4. Interactions - 7 total (tracked via companion.tasks cache)
  * 
- * DYNAMIC TASK (stat-based, NEVER cached):
- * 5. Maintain Stats - health >= 70, hygiene >= 70, happiness >= 70
+ * Note: Egg stats no longer decay, so the "maintain stats" dynamic task
+ * has been removed. The baby/adult evolve equivalent is still in useEvolveTasks.
  * 
  * @param companion - The Blobbi companion (must be incubating)
  * @param interactionCount - Current interaction count from companion tasks cache
@@ -321,32 +319,6 @@ export function useHatchTasks(
     completed: interactionsCompleted,
     type: 'persistent',
     // No action - just interact with Blobbi
-  });
-  
-  // ─── Compute DYNAMIC Task (stat-based, NEVER cached) ───
-  // 6. Maintain Stats - health >= 70, hygiene >= 70, happiness >= 70
-  const stats = companion?.stats ?? {};
-  const health = stats.health ?? 0;
-  const hygiene = stats.hygiene ?? 0;
-  const happiness = stats.happiness ?? 0;
-  
-  const statsOk = 
-    health >= HATCH_STAT_THRESHOLD &&
-    hygiene >= HATCH_STAT_THRESHOLD &&
-    happiness >= HATCH_STAT_THRESHOLD;
-  
-  // Calculate minimum stat for progress display
-  const minStat = Math.min(health, hygiene, happiness);
-  
-  tasks.push({
-    id: 'maintain_stats',
-    name: 'Keep Egg Healthy',
-    description: `Keep health, hygiene & happiness above ${HATCH_STAT_THRESHOLD}`,
-    current: statsOk ? HATCH_STAT_THRESHOLD : minStat,
-    required: HATCH_STAT_THRESHOLD,
-    completed: statsOk,
-    type: 'dynamic', // CRITICAL: Never persist this task
-    // No action - just care for your Blobbi
   });
   
   // ─── Compute Completion States ───
